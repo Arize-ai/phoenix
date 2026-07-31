@@ -7,6 +7,10 @@ import type {
 } from "@phoenix/components/prompt/__generated__/PromptChatMessagesCard__main.graphql";
 import {
   ChatTemplateMessageCard,
+  ChatTemplateMessageFilePart,
+  ChatTemplateMessageFileVariablePart,
+  ChatTemplateMessageImagePart,
+  ChatTemplateMessageImageVariablePart,
   ChatTemplateMessageTextPart,
   ChatTemplateMessageToolCallPart,
   ChatTemplateMessageToolResultPart,
@@ -16,6 +20,10 @@ import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { openInferenceModelProviderToPhoenixModelProvider } from "@phoenix/pages/playground/playgroundUtils";
 import type { AnyPart } from "@phoenix/schemas/promptSchemas";
 import {
+  asFilePart,
+  asFileVariablePart,
+  asImagePart,
+  asImageVariablePart,
   asTextPart,
   asToolCallPart,
   asToolResultPart,
@@ -40,6 +48,30 @@ export function PromptChatMessages({
                 ... on TextContentPart {
                   text {
                     text
+                  }
+                }
+                ... on ImageContentPart {
+                  image {
+                    __typename
+                    ... on ImageContentValue {
+                      url
+                      mediaType
+                    }
+                    ... on ImageVariableValue {
+                      variable
+                    }
+                  }
+                }
+                ... on FileContentPart {
+                  file {
+                    __typename
+                    ... on ImageContentValue {
+                      url
+                      mediaType
+                    }
+                    ... on ImageVariableValue {
+                      variable
+                    }
                   }
                 }
                 ... on ToolCallContentPart {
@@ -112,6 +144,46 @@ function ChatMessageContentPart({
       <ChatTemplateMessageTextPart
         text={parsedPart.text.text}
         templateFormat={templateFormat}
+        isOnlyChild={isOnlyChild}
+      />
+    );
+  }
+
+  parsedPart = asImagePart(part);
+  if (parsedPart) {
+    return (
+      <ChatTemplateMessageImagePart
+        image={parsedPart}
+        isOnlyChild={isOnlyChild}
+      />
+    );
+  }
+
+  parsedPart = asImageVariablePart(part);
+  if (parsedPart) {
+    return (
+      <ChatTemplateMessageImageVariablePart
+        imageVariable={parsedPart}
+        isOnlyChild={isOnlyChild}
+      />
+    );
+  }
+
+  parsedPart = asFilePart(part);
+  if (parsedPart) {
+    return (
+      <ChatTemplateMessageFilePart
+        file={parsedPart}
+        isOnlyChild={isOnlyChild}
+      />
+    );
+  }
+
+  parsedPart = asFileVariablePart(part);
+  if (parsedPart) {
+    return (
+      <ChatTemplateMessageFileVariablePart
+        fileVariable={parsedPart}
         isOnlyChild={isOnlyChild}
       />
     );

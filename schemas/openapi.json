@@ -6061,6 +6061,209 @@
         }
       }
     },
+    "/v1/media": {
+      "post": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Upload media for use in prompts",
+        "description": "Store a media file and return the URL that references it from a prompt template. Media is addressed by the SHA-256 digest of its content, so uploading the same file twice returns the same URL and stores one copy. The media type is determined from the file's content, not from the declared content type.",
+        "operationId": "uploadMedia",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_uploadMedia"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The stored media and the URL that references it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadMediaResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request Entity Too Large",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/media/import": {
+      "post": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Import an image from a URL for use in prompts",
+        "description": "Fetch an image from a public URL once and store it, returning the same reference an upload would. The URL is not kept: prompts always reference stored media, so a run never depends on a third-party host still serving the image, and never fetches a caller-supplied URL.",
+        "operationId": "importMediaFromUrl",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportMediaRequestBodyWrapper"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The stored media and the URL that references it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadMediaResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request Entity Too Large",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/media/{sha256}": {
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Get media by digest",
+        "description": "Return the raw bytes of stored media. The response is immutable and safe to cache indefinitely, since the digest in the path identifies the content being served.",
+        "operationId": "getMedia",
+        "parameters": [
+          {
+            "name": "sha256",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "The SHA-256 digest of the media, in lowercase hexadecimal.",
+              "title": "Sha256"
+            },
+            "description": "The SHA-256 digest of the media, in lowercase hexadecimal."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The raw media bytes"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/projects": {
       "get": {
         "tags": [
@@ -8766,6 +8969,20 @@
         ],
         "title": "AssistantMessageMetadataUsageTokens"
       },
+      "Body_uploadMedia": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_uploadMedia"
+      },
       "BuiltInProviderModelSelection": {
         "properties": {
           "providerType": {
@@ -11188,6 +11405,33 @@
         ],
         "title": "ExperimentRun"
       },
+      "FileContentPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "file",
+            "title": "Type"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MediaContent"
+              },
+              {
+                "$ref": "#/components/schemas/MediaVariable"
+              }
+            ],
+            "title": "File"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "file"
+        ],
+        "title": "FileContentPart"
+      },
       "FileUIPart": {
         "properties": {
           "type": {
@@ -12001,6 +12245,58 @@
         "pattern": "^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$",
         "title": "Identifier"
       },
+      "ImageContentPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "image",
+            "title": "Type"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MediaContent"
+              },
+              {
+                "$ref": "#/components/schemas/MediaVariable"
+              }
+            ],
+            "title": "Image"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "image"
+        ],
+        "title": "ImageContentPart"
+      },
+      "ImportMediaRequestBody": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "ImportMediaRequestBody"
+      },
+      "ImportMediaRequestBodyWrapper": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ImportMediaRequestBody"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ImportMediaRequestBodyWrapper"
+      },
       "IncompleteExperimentEvaluation": {
         "properties": {
           "experiment_run": {
@@ -12493,6 +12789,69 @@
           "auth_method"
         ],
         "title": "LocalUserData"
+      },
+      "MediaContent": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url",
+          "media_type"
+        ],
+        "title": "MediaContent",
+        "description": "Binary media referenced by a prompt content part."
+      },
+      "MediaFileData": {
+        "properties": {
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sha256",
+          "media_type",
+          "size_bytes",
+          "url"
+        ],
+        "title": "MediaFileData"
+      },
+      "MediaVariable": {
+        "properties": {
+          "variable": {
+            "type": "string",
+            "title": "Variable"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "variable"
+        ],
+        "title": "MediaVariable",
+        "description": "Media supplied when the prompt runs, named by a template variable.\n\nLets one prompt run against many images: the template reserves the position,\nand the caller provides the media per run \u2014 the same relationship text\nvariables have with their surrounding text. The media's kind comes from the\ncontent part holding this (an image part means an image), so only the name is\nrecorded here; the exact media type is not known until a value is supplied."
       },
       "ModelProvider": {
         "type": "string",
@@ -14423,11 +14782,19 @@
                     },
                     {
                       "$ref": "#/components/schemas/ToolResultContentPart"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ImageContentPart"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FileContentPart"
                     }
                   ],
                   "discriminator": {
                     "propertyName": "type",
                     "mapping": {
+                      "file": "#/components/schemas/FileContentPart",
+                      "image": "#/components/schemas/ImageContentPart",
                       "text": "#/components/schemas/TextContentPart",
                       "tool_call": "#/components/schemas/ToolCallContentPart",
                       "tool_result": "#/components/schemas/ToolResultContentPart"
@@ -18304,6 +18671,18 @@
           "data"
         ],
         "title": "UploadDatasetResponseBody"
+      },
+      "UploadMediaResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MediaFileData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "UploadMediaResponseBody"
       },
       "UpsertExperimentEvaluationRequestBody": {
         "properties": {

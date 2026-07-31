@@ -1345,6 +1345,8 @@ describe("getVariablesMapFromInstances", () => {
     ).toEqual({
       variablesMap: { name: "John" },
       variableKeys: ["name"],
+      mediaVariableKeys: [],
+      mediaVariableKinds: {},
     });
   });
 
@@ -1366,6 +1368,8 @@ describe("getVariablesMapFromInstances", () => {
     ).toEqual({
       variablesMap: { name: "John" },
       variableKeys: ["name"],
+      mediaVariableKeys: [],
+      mediaVariableKinds: {},
     });
   });
 
@@ -1399,6 +1403,8 @@ describe("getVariablesMapFromInstances", () => {
     ).toEqual({
       variablesMap: { name: "John", age: "30" },
       variableKeys: ["name", "age"],
+      mediaVariableKeys: [],
+      mediaVariableKinds: {},
     });
   });
 
@@ -1432,6 +1438,8 @@ describe("getVariablesMapFromInstances", () => {
     ).toEqual({
       variablesMap: { name: "John", age: "30" },
       variableKeys: ["name", "age"],
+      mediaVariableKeys: [],
+      mediaVariableKinds: {},
     });
   });
 });

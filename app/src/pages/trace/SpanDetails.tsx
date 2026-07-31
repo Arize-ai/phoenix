@@ -69,23 +69,39 @@ const ASIDE_PANEL_MIN_SIZE_PIXELS = 300;
 const ASIDE_PANEL_MAX_SIZE_PIXELS = 500;
 export function SpanDetails({
   spanNodeId,
+  projectId,
 }: {
   /**
    * The Global ID of the span
    */
   spanNodeId: string;
+  /**
+   * The Global ID of the project the span belongs to.
+   *
+   * Falls back to the route's `projectId` when omitted. Callers that render span
+   * details outside a project route — the playground's trace slideover, for
+   * instance — have no such route param and must pass it explicitly.
+   */
+  projectId?: string;
 }) {
   return (
     <SpanAsideProvider>
       <SpanNoteBarProvider>
-        <SpanDetailsContent spanNodeId={spanNodeId} />
+        <SpanDetailsContent spanNodeId={spanNodeId} projectId={projectId} />
       </SpanNoteBarProvider>
     </SpanAsideProvider>
   );
 }
 
-function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
-  const { projectId } = useParams();
+function SpanDetailsContent({
+  spanNodeId,
+  projectId: projectIdProp,
+}: {
+  spanNodeId: string;
+  projectId?: string;
+}) {
+  const { projectId: routeProjectId } = useParams();
+  const projectId = projectIdProp ?? routeProjectId;
   const isAnnotatingSpans = usePreferencesContext(
     (state) => state.isAnnotatingSpans
   );

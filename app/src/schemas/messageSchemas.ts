@@ -15,6 +15,7 @@ import {
 import type { JSONLiteral } from "./jsonLiteralSchema";
 import { jsonLiteralSchema } from "./jsonLiteralSchema";
 import {
+  imagePartSchema,
   type TextPart,
   textPartSchema,
   type ToolCallPart,
@@ -132,17 +133,9 @@ export const promptMessageRoleSchema = z.enum(["SYSTEM", "USER", "AI", "TOOL"]);
 
 export type PromptMessageRole = z.infer<typeof promptMessageRoleSchema>;
 
-export const promptImagePartSchema = z.object({
-  image: z.object({
-    url: z.string(),
-  }),
-});
-
-export type PromptImagePart = z.infer<typeof promptImagePartSchema>;
-
 export const promptContentPartSchema = z.discriminatedUnion("__typename", [
   textPartSchema.extend({ __typename: z.literal("TextContentPart") }),
-  promptImagePartSchema.extend({ __typename: z.literal("ImageContentPart") }),
+  imagePartSchema.extend({ __typename: z.literal("ImageContentPart") }),
   toolCallPartSchema.extend({ __typename: z.literal("ToolCallContentPart") }),
   toolResultPartSchema.extend({
     __typename: z.literal("ToolResultContentPart"),

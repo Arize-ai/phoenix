@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8d5760adce666b083765743be33b6dbd>>
+ * @generated SignedSource<<4ac2d4b0e3f8c6963fd59318d1f0851a>>
  * @lightSyntaxTransform
  */
 
@@ -606,14 +606,52 @@ v35 = {
   ],
   "storageKey": null
 },
-v36 = {
+v36 = [
+  (v7/*:: as any*/),
+  {
+    "kind": "InlineFragment",
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "url",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "mediaType",
+        "storageKey": null
+      }
+    ],
+    "type": "ImageContentValue",
+    "abstractKey": null
+  },
+  {
+    "kind": "InlineFragment",
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "variable",
+        "storageKey": null
+      }
+    ],
+    "type": "ImageVariableValue",
+    "abstractKey": null
+  }
+],
+v37 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "toolCallId",
   "storageKey": null
 },
-v37 = {
+v38 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -680,12 +718,46 @@ v37 = {
                     {
                       "alias": null,
                       "args": null,
+                      "concreteType": null,
+                      "kind": "LinkedField",
+                      "name": "image",
+                      "plural": false,
+                      "selections": (v36/*:: as any*/),
+                      "storageKey": null
+                    }
+                  ],
+                  "type": "ImageContentPart",
+                  "abstractKey": null
+                },
+                {
+                  "kind": "InlineFragment",
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": null,
+                      "kind": "LinkedField",
+                      "name": "file",
+                      "plural": false,
+                      "selections": (v36/*:: as any*/),
+                      "storageKey": null
+                    }
+                  ],
+                  "type": "FileContentPart",
+                  "abstractKey": null
+                },
+                {
+                  "kind": "InlineFragment",
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
                       "concreteType": "ToolCallContentValue",
                       "kind": "LinkedField",
                       "name": "toolCall",
                       "plural": false,
                       "selections": [
-                        (v36/*:: as any*/),
+                        (v37/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -723,7 +795,7 @@ v37 = {
                       "name": "toolResult",
                       "plural": false,
                       "selections": [
-                        (v36/*:: as any*/),
+                        (v37/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -765,7 +837,7 @@ v37 = {
   ],
   "storageKey": null
 },
-v38 = {
+v39 = {
   "alias": null,
   "args": null,
   "concreteType": "PromptTools",
@@ -862,7 +934,7 @@ v38 = {
   ],
   "storageKey": null
 },
-v39 = {
+v40 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -1006,8 +1078,8 @@ return {
                                   },
                                   (v32/*:: as any*/),
                                   (v35/*:: as any*/),
-                                  (v37/*:: as any*/),
-                                  (v38/*:: as any*/)
+                                  (v38/*:: as any*/),
+                                  (v39/*:: as any*/)
                                 ],
                                 "args": null,
                                 "argumentDefinitions": []
@@ -1019,7 +1091,7 @@ return {
                         "type": "LLMEvaluator",
                         "abstractKey": null
                       },
-                      (v39/*:: as any*/)
+                      (v40/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -1160,8 +1232,8 @@ return {
                               },
                               (v32/*:: as any*/),
                               (v35/*:: as any*/),
-                              (v37/*:: as any*/),
-                              (v38/*:: as any*/)
+                              (v38/*:: as any*/),
+                              (v39/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -1169,7 +1241,7 @@ return {
                         "type": "LLMEvaluator",
                         "abstractKey": null
                       },
-                      (v39/*:: as any*/)
+                      (v40/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -1187,12 +1259,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "038d63c732c6dcf92b033f547e315434",
+    "cacheID": "31573994ef7d711af3d9aece2eba4546",
     "id": null,
     "metadata": {},
     "name": "readDatasetEvaluatorDefinitionBodyQuery",
     "operationKind": "query",
-    "text": "query readDatasetEvaluatorDefinitionBodyQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on FreeformAnnotationConfig {\n            name\n            optimizationDirection\n            threshold\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        evaluator {\n          __typename\n          id\n          kind\n          isBuiltin\n          ... on CodeEvaluator {\n            language\n            sandboxConfig {\n              id\n            }\n            currentVersion {\n              sourceCode\n              id\n            }\n          }\n          ... on LLMEvaluator {\n            promptVersion {\n              ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n              id\n            }\n          }\n          ... on BuiltInEvaluator {\n            metadata\n            inputSchema\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n}\n"
+    "text": "query readDatasetEvaluatorDefinitionBodyQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on FreeformAnnotationConfig {\n            name\n            optimizationDirection\n            threshold\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        evaluator {\n          __typename\n          id\n          kind\n          isBuiltin\n          ... on CodeEvaluator {\n            language\n            sandboxConfig {\n              id\n            }\n            currentVersion {\n              sourceCode\n              id\n            }\n          }\n          ... on LLMEvaluator {\n            promptVersion {\n              ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n              id\n            }\n          }\n          ... on BuiltInEvaluator {\n            metadata\n            inputSchema\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ImageContentPart {\n            image {\n              __typename\n              ... on ImageContentValue {\n                url\n                mediaType\n              }\n              ... on ImageVariableValue {\n                variable\n              }\n            }\n          }\n          ... on FileContentPart {\n            file {\n              __typename\n              ... on ImageContentValue {\n                url\n                mediaType\n              }\n              ... on ImageVariableValue {\n                variable\n              }\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n}\n"
   }
 };
 })();

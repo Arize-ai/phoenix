@@ -1030,6 +1030,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload media for use in prompts
+         * @description Store a media file and return the URL that references it from a prompt template. Media is addressed by the SHA-256 digest of its content, so uploading the same file twice returns the same URL and stores one copy. The media type is determined from the file's content, not from the declared content type.
+         */
+        post: operations["uploadMedia"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/media/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import an image from a URL for use in prompts
+         * @description Fetch an image from a public URL once and store it, returning the same reference an upload would. The URL is not kept: prompts always reference stored media, so a run never depends on a third-party host still serving the image, and never fetches a caller-supplied URL.
+         */
+        post: operations["importMediaFromUrl"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/media/{sha256}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get media by digest
+         * @description Return the raw bytes of stored media. The response is immutable and safe to cache indefinitely, since the digest in the path identifies the content being served.
+         */
+        get: operations["getMedia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects": {
         parameters: {
             query?: never;
@@ -1868,6 +1928,11 @@ export interface components {
             completion: number;
             /** Total */
             total: number;
+        };
+        /** Body_uploadMedia */
+        Body_uploadMedia: {
+            /** File */
+            file: string;
         };
         /**
          * BuiltInProviderModelSelection
@@ -3108,6 +3173,25 @@ export interface components {
         };
         /** Identifier */
         Identifier: string;
+        /** ImageContentPart */
+        ImageContentPart: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "image";
+            /** Image */
+            image: components["schemas"]["MediaContent"] | components["schemas"]["MediaVariable"];
+        };
+        /** ImportMediaRequestBody */
+        ImportMediaRequestBody: {
+            /** Url */
+            url: string;
+        };
+        /** ImportMediaRequestBodyWrapper */
+        ImportMediaRequestBodyWrapper: {
+            data: components["schemas"]["ImportMediaRequestBody"];
+        };
         /**
          * IncompleteExperimentEvaluation
          * @description Information about an experiment run with incomplete evaluations
@@ -3326,6 +3410,41 @@ export interface components {
             auth_method: "LOCAL";
             /** Password */
             password?: string;
+        };
+        /**
+         * MediaContent
+         * @description Binary media referenced by a prompt content part.
+         */
+        MediaContent: {
+            /** Url */
+            url: string;
+            /** Media Type */
+            media_type: string;
+        };
+        /** MediaFileData */
+        MediaFileData: {
+            /** Sha256 */
+            sha256: string;
+            /** Media Type */
+            media_type: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Url */
+            url: string;
+        };
+        /**
+         * MediaVariable
+         * @description Media supplied when the prompt runs, named by a template variable.
+         *
+         *     Lets one prompt run against many images: the template reserves the position,
+         *     and the caller provides the media per run — the same relationship text
+         *     variables have with their surrounding text. The media's kind comes from the
+         *     content part holding this (an image part means an image), so only the name is
+         *     recorded here; the exact media type is not known until a value is supplied.
+         */
+        MediaVariable: {
+            /** Variable */
+            variable: string;
         };
         /**
          * ModelProvider
@@ -4148,7 +4267,7 @@ export interface components {
              */
             role: "user" | "assistant" | "model" | "ai" | "tool" | "system" | "developer";
             /** Content */
-            content: string | (components["schemas"]["TextContentPart"] | components["schemas"]["ToolCallContentPart"] | components["schemas"]["ToolResultContentPart"])[];
+            content: string | (components["schemas"]["TextContentPart"] | components["schemas"]["ToolCallContentPart"] | components["schemas"]["ToolResultContentPart"] | components["schemas"]["ImageContentPart"])[];
         };
         /** PromptMoonshotInvocationParameters */
         PromptMoonshotInvocationParameters: {
@@ -5784,6 +5903,10 @@ export interface components {
         /** UploadDatasetResponseBody */
         UploadDatasetResponseBody: {
             data: components["schemas"]["UploadDatasetData"];
+        };
+        /** UploadMediaResponseBody */
+        UploadMediaResponseBody: {
+            data: components["schemas"]["MediaFileData"];
         };
         /** UpsertExperimentEvaluationRequestBody */
         UpsertExperimentEvaluationRequestBody: {
@@ -9476,6 +9599,174 @@ export interface operations {
                 };
                 content: {
                     "text/plain": string;
+                };
+            };
+        };
+    };
+    uploadMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_uploadMedia"];
+            };
+        };
+        responses: {
+            /** @description The stored media and the URL that references it */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadMediaResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    importMediaFromUrl: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportMediaRequestBodyWrapper"];
+            };
+        };
+        responses: {
+            /** @description The stored media and the URL that references it */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadMediaResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The SHA-256 digest of the media, in lowercase hexadecimal. */
+                sha256: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The raw media bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

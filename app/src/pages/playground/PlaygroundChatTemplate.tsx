@@ -39,11 +39,13 @@ import {
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
+import { AddMediaInputButton } from "./AddMediaInputButton";
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
 import type { AIMessageMode, MessageMode } from "./MessageContentRadioGroup";
 import { AIMessageContentRadioGroup } from "./MessageContentRadioGroup";
 import { MessageRoleSelect } from "./MessageRoleSelect";
 import { PlaygroundChatTemplateFooter } from "./PlaygroundChatTemplateFooter";
+import { PlaygroundMessageMedia } from "./PlaygroundMessageMedia";
 import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
 import { createToolCallForProvider } from "./playgroundUtils";
@@ -186,6 +188,38 @@ function MessageEditor({
     }
     return validateMustacheSections(message.content ?? "");
   }, [message.content, templateFormat]);
+
+  // A prompt authored through the API can hold a message with no text at all,
+  // so the text editor follows whether there is any.
+  const hasText = message.content !== undefined;
+  const images = useMemo(() => message.images ?? [], [message.images]);
+  const imageVariables = useMemo(
+    () => message.imageVariables ?? [],
+    [message.imageVariables]
+  );
+  const onImagesChange = useCallback(
+    (nextImages: typeof images) => updateMessage({ images: nextImages }),
+    [updateMessage]
+  );
+  const onImageVariablesChange = useCallback(
+    (next: typeof imageVariables) => updateMessage({ imageVariables: next }),
+    [updateMessage]
+  );
+  const files = useMemo(() => message.files ?? [], [message.files]);
+  const fileVariables = useMemo(
+    () => message.fileVariables ?? [],
+    [message.fileVariables]
+  );
+  const onFilesChange = useCallback(
+    (nextFiles: typeof files) => updateMessage({ files: nextFiles }),
+    [updateMessage]
+  );
+  const onFileVariablesChange = useCallback(
+    (next: typeof fileVariables) => updateMessage({ fileVariables: next }),
+    [updateMessage]
+  );
+  // Only user messages may carry media, matching what the API accepts.
+  const canAttachMedia = message.role === "user";
   if (messageMode === "toolCalls") {
     return (
       <View
@@ -240,27 +274,56 @@ function MessageEditor({
   }
 
   return (
-    <TemplateEditorWrap>
-      {showValidation && sectionValidation?.errors.length ? (
-        <Alert variant="danger" banner title="Invalid mustache sections">
-          {sectionValidation.errors.join(", ")}
-        </Alert>
+    <div>
+      {hasText ? (
+        <TemplateEditorWrap>
+          {showValidation && sectionValidation?.errors.length ? (
+            <Alert variant="danger" banner title="Invalid mustache sections">
+              {sectionValidation.errors.join(", ")}
+            </Alert>
+          ) : null}
+          {showValidation && sectionValidation?.warnings.length ? (
+            <Alert variant="warning" banner title="Unclosed mustache sections">
+              {sectionValidation.warnings.join(", ")}
+            </Alert>
+          ) : null}
+          <div>
+            <TemplateEditor
+              height="100%"
+              defaultValue={message.content || ""}
+              aria-label="Message content"
+              templateFormat={templateFormat}
+              onChange={onChange}
+              onBlur={onBlur}
+              availablePaths={availablePaths}
+            />
+          </div>
+        </TemplateEditorWrap>
+      ) : (
+        <View paddingX="size-250" paddingTop="size-100">
+          <Button
+            size="S"
+            variant="quiet"
+            leadingVisual={<Icon svg={<Icons.MessageSquare />} />}
+            onPress={() => updateMessage({ content: "" })}
+          >
+            Add text
+          </Button>
+        </View>
+      )}
+      {canAttachMedia ? (
+        <PlaygroundMessageMedia
+          imageVariables={imageVariables}
+          images={images}
+          fileVariables={fileVariables}
+          files={files}
+          onImageVariablesChange={onImageVariablesChange}
+          onImagesChange={onImagesChange}
+          onFileVariablesChange={onFileVariablesChange}
+          onFilesChange={onFilesChange}
+        />
       ) : null}
-      {showValidation && sectionValidation?.warnings.length ? (
-        <Alert variant="warning" banner title="Unclosed mustache sections">
-          {sectionValidation.warnings.join(", ")}
-        </Alert>
-      ) : null}
-      <TemplateEditor
-        height="100%"
-        defaultValue={message.content || ""}
-        aria-label="Message content"
-        templateFormat={templateFormat}
-        onChange={onChange}
-        onBlur={onBlur}
-        availablePaths={availablePaths}
-      />
-    </TemplateEditorWrap>
+    </div>
   );
 }
 
@@ -424,6 +487,20 @@ function SortableMessageItem({
                 />
               ) : null
             }
+            {message.role === "user" ? (
+              <>
+                <AddMediaInputButton
+                  instanceId={playgroundInstanceId}
+                  messageId={messageId}
+                  kind="image"
+                />
+                <AddMediaInputButton
+                  instanceId={playgroundInstanceId}
+                  messageId={messageId}
+                  kind="file"
+                />
+              </>
+            ) : null}
             <CopyToClipboardButton
               text={
                 aiMessageMode === "toolCalls"

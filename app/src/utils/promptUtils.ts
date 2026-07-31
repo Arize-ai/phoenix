@@ -7,11 +7,19 @@ import {
   findToolCallName,
 } from "@phoenix/schemas";
 import type {
+  FilePart,
+  FileVariablePart,
+  ImagePart,
+  ImageVariablePart,
   TextPart,
   ToolCallPart,
   ToolResultPart,
 } from "@phoenix/schemas/promptSchemas";
 import {
+  filePartSchema,
+  fileVariablePartSchema,
+  imagePartSchema,
+  imageVariablePartSchema,
   textPartSchema,
   toolCallPartSchema,
   toolResultPartSchema,
@@ -74,6 +82,57 @@ export const makeToolResultPart = (
   return parsed.success ? parsed.data : null;
 };
 
+export const asImagePart = (maybePart: unknown): ImagePart | null => {
+  const parsed = imagePartSchema.safeParse(maybePart);
+  return parsed.success ? parsed.data : null;
+};
+
+export const asImageVariablePart = (
+  maybePart: unknown
+): ImageVariablePart | null => {
+  const parsed = imageVariablePartSchema.safeParse(maybePart);
+  return parsed.success ? parsed.data : null;
+};
+
+export const makeImageVariablePart = (variable?: string | null) => {
+  const parsed = imageVariablePartSchema.safeParse({ image: { variable } });
+  return parsed.success ? parsed.data : null;
+};
+
+export const makeImagePart = (
+  url?: string | null,
+  mediaType?: string | null
+) => {
+  const optimisticImagePart = { image: { url, mediaType } };
+  const parsed = imagePartSchema.safeParse(optimisticImagePart);
+  return parsed.success ? parsed.data : null;
+};
+
+export const asFilePart = (maybePart: unknown): FilePart | null => {
+  const parsed = filePartSchema.safeParse(maybePart);
+  return parsed.success ? parsed.data : null;
+};
+
+export const asFileVariablePart = (
+  maybePart: unknown
+): FileVariablePart | null => {
+  const parsed = fileVariablePartSchema.safeParse(maybePart);
+  return parsed.success ? parsed.data : null;
+};
+
+export const makeFileVariablePart = (variable?: string | null) => {
+  const parsed = fileVariablePartSchema.safeParse({ file: { variable } });
+  return parsed.success ? parsed.data : null;
+};
+
+export const makeFilePart = (
+  url?: string | null,
+  mediaType?: string | null
+) => {
+  const parsed = filePartSchema.safeParse({ file: { url, mediaType } });
+  return parsed.success ? parsed.data : null;
+};
+
 export type PromptVersionMessageFragments = Parameters<
   typeof convertPromptVersionMessagesToPlaygroundInstanceMessages
 >[0]["promptMessagesRefs"];
@@ -100,6 +159,30 @@ export const convertPromptVersionMessagesToPlaygroundInstanceMessages = ({
                 text
               }
             }
+            ... on ImageContentPart {
+              image {
+                __typename
+                ... on ImageContentValue {
+                  url
+                  mediaType
+                }
+                ... on ImageVariableValue {
+                  variable
+                }
+              }
+            }
+            ... on FileContentPart {
+              file {
+                __typename
+                ... on ImageContentValue {
+                  url
+                  mediaType
+                }
+                ... on ImageVariableValue {
+                  variable
+                }
+              }
+            }
           }
           role
         }
@@ -114,6 +197,34 @@ export const convertPromptVersionMessagesToPlaygroundInstanceMessages = ({
       .map((content) => content.text?.text ?? "")
       .filter(Boolean)
       .join("\n"),
+    images: message.content
+      .map((content) =>
+        content.image?.__typename === "ImageContentValue"
+          ? makeImagePart(content.image.url, content.image.mediaType)
+          : null
+      )
+      .filter((part): part is ImagePart => part != null),
+    imageVariables: message.content
+      .map((content) =>
+        content.image?.__typename === "ImageVariableValue"
+          ? makeImageVariablePart(content.image.variable)
+          : null
+      )
+      .filter((part): part is ImageVariablePart => part != null),
+    files: message.content
+      .map((content) =>
+        content.file?.__typename === "ImageContentValue"
+          ? makeFilePart(content.file.url, content.file.mediaType)
+          : null
+      )
+      .filter((part): part is FilePart => part != null),
+    fileVariables: message.content
+      .map((content) =>
+        content.file?.__typename === "ImageVariableValue"
+          ? makeFileVariablePart(content.file.variable)
+          : null
+      )
+      .filter((part): part is FileVariablePart => part != null),
     role: getChatRole(message.role),
   }));
 

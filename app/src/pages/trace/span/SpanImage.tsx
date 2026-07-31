@@ -2,13 +2,15 @@ import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
-import { Button, Icon, Icons } from "@phoenix/components";
+import { Button, ExternalLink, Icon, Icons, Text } from "@phoenix/components";
 import { revealOnHoverCSS } from "@phoenix/components/core/styles";
 import { classNames } from "@phoenix/utils/classNames";
+import { resolveMediaUrl } from "@phoenix/utils/mediaUtils";
 
 type SpanImageProps = {
   /**
-   * The url of the image. Can be either be a data URL, a URL or a redacted string
+   * The url of the image. Can be a data URL, a `phoenix://media/<sha256>`
+   * reference to media stored in Phoenix, a URL, or a redacted string
    */
 
   url: string;
@@ -58,17 +60,51 @@ const imageContainerCSS = css`
     }
   }
 `;
+const unavailableCSS = css`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-200);
+  text-align: center;
+  color: var(--global-text-color-700);
+`;
+
 /**
  * Displays an image attribute of a span.
  */
 export function SpanImage(props: SpanImageProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [didFailToLoad, setDidFailToLoad] = useState(false);
   let content: ReactNode;
   const isRedacted = isRedactedUrl(props.url);
+  const resolvedUrl = resolveMediaUrl(props.url);
   if (isRedacted) {
     content = <RedactedImageSVG />;
+  } else if (didFailToLoad) {
+    /*
+     * Not everything recorded as image content is one — a document recorded
+     * before documents were named separately lands here, as does an image whose
+     * host has stopped serving it. Either way a broken-image icon says nothing;
+     * offer the media itself instead.
+     */
+    content = (
+      <div css={unavailableCSS}>
+        <Icon svg={<Icons.FileText />} />
+        <Text size="XS" color="text-700">
+          Cannot be shown as an image
+        </Text>
+        <ExternalLink href={resolvedUrl}>Open</ExternalLink>
+      </div>
+    );
   } else {
-    content = <img src={props.url} alt="Span image" />;
+    content = (
+      <img
+        src={resolvedUrl}
+        alt="Span image"
+        onError={() => setDidFailToLoad(true)}
+      />
+    );
   }
   return (
     <div
@@ -77,7 +113,7 @@ export function SpanImage(props: SpanImageProps) {
       })}
       css={imageContainerCSS}
     >
-      {!isRedacted && (
+      {!isRedacted && !didFailToLoad && (
         <Button
           variant="default"
           size="S"

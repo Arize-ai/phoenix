@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1b67152115e6f8f34ea429ba5cd2d253>>
+ * @generated SignedSource<<f2c1185ddf5bd49361e45d6f851f1ba8>>
  * @lightSyntaxTransform
  */
 
@@ -19,6 +19,34 @@ export type PromptChatMessagesCard__main$data = {
     readonly __typename: "PromptChatTemplate";
     readonly messages: ReadonlyArray<{
       readonly content: ReadonlyArray<{
+        readonly __typename: "FileContentPart";
+        readonly file: {
+          readonly __typename: "ImageContentValue";
+          readonly mediaType: string;
+          readonly url: string;
+        } | {
+          readonly __typename: "ImageVariableValue";
+          readonly variable: string;
+        } | {
+          // This will never be '%other', but we need some
+          // value in case none of the concrete values match.
+          readonly __typename: "%other";
+        };
+      } | {
+        readonly __typename: "ImageContentPart";
+        readonly image: {
+          readonly __typename: "ImageContentValue";
+          readonly mediaType: string;
+          readonly url: string;
+        } | {
+          readonly __typename: "ImageVariableValue";
+          readonly variable: string;
+        } | {
+          // This will never be '%other', but we need some
+          // value in case none of the concrete values match.
+          readonly __typename: "%other";
+        };
+      } | {
         readonly __typename: "TextContentPart";
         readonly text: {
           readonly text: string;
@@ -70,7 +98,45 @@ var v0 = {
   "name": "__typename",
   "storageKey": null
 },
-v1 = {
+v1 = [
+  (v0/*:: as any*/),
+  {
+    "kind": "InlineFragment",
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "url",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "mediaType",
+        "storageKey": null
+      }
+    ],
+    "type": "ImageContentValue",
+    "abstractKey": null
+  },
+  {
+    "kind": "InlineFragment",
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "variable",
+        "storageKey": null
+      }
+    ],
+    "type": "ImageVariableValue",
+    "abstractKey": null
+  }
+],
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -157,12 +223,46 @@ return {
                         {
                           "alias": null,
                           "args": null,
+                          "concreteType": null,
+                          "kind": "LinkedField",
+                          "name": "image",
+                          "plural": false,
+                          "selections": (v1/*:: as any*/),
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "ImageContentPart",
+                      "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": null,
+                          "kind": "LinkedField",
+                          "name": "file",
+                          "plural": false,
+                          "selections": (v1/*:: as any*/),
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "FileContentPart",
+                      "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
                           "concreteType": "ToolCallContentValue",
                           "kind": "LinkedField",
                           "name": "toolCall",
                           "plural": false,
                           "selections": [
-                            (v1/*:: as any*/),
+                            (v2/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -206,7 +306,7 @@ return {
                           "name": "toolResult",
                           "plural": false,
                           "selections": [
-                            (v1/*:: as any*/),
+                            (v2/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -268,6 +368,6 @@ return {
 };
 })();
 
-(node as any).hash = "e0d9c12926330e5e774cbc64de158a82";
+(node as any).hash = "c39ab50aeae96d07f81dae32fbb86b33";
 
 export default node;

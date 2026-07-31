@@ -19,6 +19,7 @@ import {
 } from "@phoenix/schemas";
 import type { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
 import type { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
+import type { MediaKind } from "@phoenix/schemas/promptSchemas";
 import type {
   AnthropicToolCall,
   LlmProviderToolCall,
@@ -1228,17 +1229,94 @@ export const extractVariablesFromInstances = ({
   instances: PlaygroundInstance[];
   templateFormat: TemplateFormat;
 }) => {
+  const mediaVariables = extractMediaVariablesFromInstances({ instances });
   if (templateFormat === TemplateFormats.NONE) {
-    return [];
+    return mediaVariables;
   }
   return Array.from(
-    new Set(
-      instances.flatMap((instance) =>
+    new Set([
+      ...instances.flatMap((instance) =>
         extractVariablesFromInstance({ instance, templateFormat })
-      )
-    )
+      ),
+      ...mediaVariables,
+    ])
   );
 };
+
+/** A media variable a template declares, and which kind of media fills it. */
+export type MediaVariableDeclaration = {
+  variable: string;
+  kind: MediaKind;
+};
+
+/**
+ * The media variables an instance expects, in the order they appear.
+ *
+ * A media variable is declared by a message part rather than by template syntax,
+ * so it does not depend on the template format — a prompt with format `NONE` still
+ * has to be given its images.
+ *
+ * The kind travels with the name because the Inputs panel picks a different
+ * control for each: an image is chosen and previewed, a document is chosen and
+ * named.
+ */
+export const extractMediaVariableDeclarationsFromInstance = ({
+  instance,
+}: {
+  instance: PlaygroundInstance;
+}): MediaVariableDeclaration[] => {
+  if (instance.template.__type !== "chat") {
+    return [];
+  }
+  const declarations: MediaVariableDeclaration[] = [];
+  const declare = (variable: string, kind: MediaKind) => {
+    // First declaration wins, so a name used for both kinds stays one input
+    // rather than rendering two controls that fight over the same value.
+    if (!declarations.some((existing) => existing.variable === variable)) {
+      declarations.push({ variable, kind });
+    }
+  };
+  instance.template.messages.forEach((message) => {
+    (message.imageVariables ?? []).forEach((part) =>
+      declare(part.image.variable, "image")
+    );
+    (message.fileVariables ?? []).forEach((part) =>
+      declare(part.file.variable, "file")
+    );
+  });
+  return declarations;
+};
+
+export const extractMediaVariableDeclarationsFromInstances = ({
+  instances,
+}: {
+  instances: PlaygroundInstance[];
+}): MediaVariableDeclaration[] => {
+  const declarations: MediaVariableDeclaration[] = [];
+  instances.forEach((instance) => {
+    extractMediaVariableDeclarationsFromInstance({ instance }).forEach(
+      (declaration) => {
+        if (
+          !declarations.some(
+            (existing) => existing.variable === declaration.variable
+          )
+        ) {
+          declarations.push(declaration);
+        }
+      }
+    );
+  });
+  return declarations;
+};
+
+export const extractMediaVariablesFromInstances = ({
+  instances,
+}: {
+  instances: PlaygroundInstance[];
+}): string[] =>
+  extractMediaVariableDeclarationsFromInstances({ instances }).map(
+    (declaration) => declaration.variable
+  );
 
 /**
  * Extracts the root variable name from a path expression.
@@ -1271,8 +1349,32 @@ export const getVariablesMapFromInstances = ({
   templateFormat: TemplateFormat;
   input: PlaygroundInput;
 }) => {
+  // Media variables are structural, so they survive a NONE template format even
+  // though text variables do not.
+  const mediaVariableDeclarations =
+    extractMediaVariableDeclarationsFromInstances({ instances });
+  const mediaVariableKeys = mediaVariableDeclarations.map(
+    (declaration) => declaration.variable
+  );
+  const mediaVariableKinds = mediaVariableDeclarations.reduce<
+    Record<string, MediaKind>
+  >((acc, declaration) => {
+    acc[declaration.variable] = declaration.kind;
+    return acc;
+  }, {});
   if (templateFormat === TemplateFormats.NONE) {
-    return { variablesMap: {}, variableKeys: [] };
+    const variableValueCache = input.variablesValueCache ?? {};
+    return {
+      variablesMap: mediaVariableKeys.reduce<
+        NonNullable<PlaygroundInput["variablesValueCache"]>
+      >((acc, key) => {
+        acc[key] = variableValueCache[key] || "";
+        return acc;
+      }, {}),
+      variableKeys: mediaVariableKeys,
+      mediaVariableKeys,
+      mediaVariableKinds,
+    };
   }
   const variableKeys = extractVariablesFromInstances({
     instances,
@@ -1287,7 +1389,7 @@ export const getVariablesMapFromInstances = ({
     acc[key] = variableValueCache[key] || "";
     return acc;
   }, {});
-  return { variablesMap, variableKeys };
+  return { variablesMap, variableKeys, mediaVariableKeys, mediaVariableKinds };
 };
 
 /** Discriminator predicate for the function-tool branch of {@link Tool}. */
@@ -1551,6 +1653,10 @@ function chatMessageToPromptMessageInput(message: ChatMessage): {
       toolCall: { name: string; arguments: string; type?: string | null };
     } | null;
     toolResult?: { toolCallId: string; result: unknown } | null;
+    image?: { url: string; mediaType: string } | null;
+    imageVariable?: { variable: string } | null;
+    file?: { url: string; mediaType: string } | null;
+    fileVariable?: { variable: string } | null;
   }[];
 } {
   const toolCalls = message.toolCalls ?? [];
@@ -1591,6 +1697,24 @@ function chatMessageToPromptMessageInput(message: ChatMessage): {
   } else {
     if (message.content) {
       content.push({ text: { text: message.content } });
+    }
+    // Images follow the text, matching how the editor lays a message out.
+    for (const part of message.images ?? []) {
+      content.push({
+        image: { url: part.image.url, mediaType: part.image.mediaType },
+      });
+    }
+    for (const part of message.imageVariables ?? []) {
+      content.push({ imageVariable: { variable: part.image.variable } });
+    }
+    // Documents follow the images, so a message reads text, pictures, then papers.
+    for (const part of message.files ?? []) {
+      content.push({
+        file: { url: part.file.url, mediaType: part.file.mediaType },
+      });
+    }
+    for (const part of message.fileVariables ?? []) {
+      content.push({ fileVariable: { variable: part.file.variable } });
     }
   }
 

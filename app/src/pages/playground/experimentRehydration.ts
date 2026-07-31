@@ -57,6 +57,30 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
                           text
                         }
                       }
+                      ... on ImageContentPart {
+                        image {
+                          __typename
+                          ... on ImageContentValue {
+                            url
+                            mediaType
+                          }
+                          ... on ImageVariableValue {
+                            variable
+                          }
+                        }
+                      }
+                      ... on FileContentPart {
+                        file {
+                          __typename
+                          ... on ImageContentValue {
+                            url
+                            mediaType
+                          }
+                          ... on ImageVariableValue {
+                            variable
+                          }
+                        }
+                      }
                       ... on ToolCallContentPart {
                         toolCall {
                           toolCallId

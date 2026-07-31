@@ -13,6 +13,10 @@ import type {
 } from "@phoenix/store/playground";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 import {
+  asFilePart,
+  asFileVariablePart,
+  asImagePart,
+  asImageVariablePart,
   asTextPart,
   asToolCallPart,
   asToolResultPart,
@@ -73,7 +77,7 @@ function promptToolChoiceToCanonicalToolChoice(
   };
 }
 
-function promptTemplateToPlaygroundMessages({
+export function promptTemplateToPlaygroundMessages({
   template,
   provider,
 }: {
@@ -95,6 +99,18 @@ function promptTemplateToPlaygroundMessages({
       .filter((part): part is NonNullable<typeof part> => part != null);
     const toolResultParts = message.content
       .map(asToolResultPart)
+      .filter((part): part is NonNullable<typeof part> => part != null);
+    const imageParts = message.content
+      .map(asImagePart)
+      .filter((part): part is NonNullable<typeof part> => part != null);
+    const imageVariableParts = message.content
+      .map(asImageVariablePart)
+      .filter((part): part is NonNullable<typeof part> => part != null);
+    const fileParts = message.content
+      .map(asFilePart)
+      .filter((part): part is NonNullable<typeof part> => part != null);
+    const fileVariableParts = message.content
+      .map(asFileVariablePart)
       .filter((part): part is NonNullable<typeof part> => part != null);
     const firstToolResultPart = toolResultParts.at(0);
     const role = getChatRole(message.role);
@@ -129,6 +145,14 @@ function promptTemplateToPlaygroundMessages({
       id: generateMessageId(),
       role,
       content: textContent,
+      ...(imageParts.length > 0 ? { images: imageParts } : {}),
+      ...(imageVariableParts.length > 0
+        ? { imageVariables: imageVariableParts }
+        : {}),
+      ...(fileParts.length > 0 ? { files: fileParts } : {}),
+      ...(fileVariableParts.length > 0
+        ? { fileVariables: fileVariableParts }
+        : {}),
     };
   });
 }

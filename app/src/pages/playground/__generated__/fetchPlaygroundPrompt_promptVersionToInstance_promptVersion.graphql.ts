@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aabb9da02d32eeb2643dc6e002d70fb5>>
+ * @generated SignedSource<<8b07b0c81e6236a6e11ae511aecf0076>>
  * @lightSyntaxTransform
  */
 
@@ -35,6 +35,34 @@ export type fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$data = {
     readonly __typename: "PromptChatTemplate";
     readonly messages: ReadonlyArray<{
       readonly content: ReadonlyArray<{
+        readonly __typename: "FileContentPart";
+        readonly file: {
+          readonly __typename: "ImageContentValue";
+          readonly mediaType: string;
+          readonly url: string;
+        } | {
+          readonly __typename: "ImageVariableValue";
+          readonly variable: string;
+        } | {
+          // This will never be '%other', but we need some
+          // value in case none of the concrete values match.
+          readonly __typename: "%other";
+        };
+      } | {
+        readonly __typename: "ImageContentPart";
+        readonly image: {
+          readonly __typename: "ImageContentValue";
+          readonly mediaType: string;
+          readonly url: string;
+        } | {
+          readonly __typename: "ImageVariableValue";
+          readonly variable: string;
+        } | {
+          // This will never be '%other', but we need some
+          // value in case none of the concrete values match.
+          readonly __typename: "%other";
+        };
+      } | {
         readonly __typename: "TextContentPart";
         readonly text: {
           readonly text: string;
@@ -104,6 +132,6 @@ const node: ReaderInlineDataFragment = {
   "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion"
 };
 
-(node as any).hash = "7e4c7139f27764907b329345e0b2dabc";
+(node as any).hash = "0d4fb4583514ea023fd326a85de0406a";
 
 export default node;

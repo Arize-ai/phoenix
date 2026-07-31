@@ -25,13 +25,14 @@ export const useDerivedPlaygroundVariables = () => {
       denormalizePlaygroundInstance(instance, allInstanceMessages)
     );
   }, [instances, allInstanceMessages]);
-  const { variableKeys, variablesMap } = useMemo(() => {
-    return getVariablesMapFromInstances({
-      instances: enrichedInstances,
-      templateFormat,
-      input,
-    });
-  }, [input, enrichedInstances, templateFormat]);
+  const { variableKeys, variablesMap, mediaVariableKeys, mediaVariableKinds } =
+    useMemo(() => {
+      return getVariablesMapFromInstances({
+        instances: enrichedInstances,
+        templateFormat,
+        input,
+      });
+    }, [input, enrichedInstances, templateFormat]);
 
-  return { variableKeys, variablesMap };
+  return { variableKeys, variablesMap, mediaVariableKeys, mediaVariableKinds };
 };

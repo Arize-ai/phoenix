@@ -7,6 +7,7 @@ from strawberry.scalars import JSON
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db.models import PromptVersion as ORMPromptVersion
+from phoenix.db.types.media import MediaContent as MediaContentModel
 from phoenix.db.types.prompts import (
     PromptChatTemplate as PromptChatTemplateModel,
 )
@@ -15,6 +16,7 @@ from phoenix.db.types.prompts import (
     PromptMessageRole,
     PromptTemplateType,
     RoleConversion,
+    media_source,
 )
 from phoenix.db.types.prompts import (
     PromptStringTemplate as PromptStringTemplateModel,
@@ -59,8 +61,57 @@ class ToolResultContentPart:
     tool_result: ToolResultContentValue
 
 
+@strawberry.type
+class ImageContentValue:
+    """Media stored in Phoenix, or carried inline in the prompt."""
+
+    url: str = strawberry.field(
+        description=(
+            "A `phoenix://media/<sha256>` reference to media stored in Phoenix, or a "
+            "base64 `data:` URL carrying the media inline."
+        )
+    )
+    media_type: str
+
+
+@strawberry.type
+class ImageVariableValue:
+    """Media supplied when the prompt runs, named by a template variable."""
+
+    variable: str = strawberry.field(
+        description="The input name the image is supplied under at run time."
+    )
+
+
+ImageSource: TypeAlias = Annotated[
+    Union[ImageContentValue, ImageVariableValue],
+    strawberry.union("ImageSource"),
+]
+
+
+@strawberry.type
+class ImageContentPart:
+    image: ImageSource
+
+
+@strawberry.type
+class FileContentPart:
+    file: ImageSource = strawberry.field(
+        description=(
+            "Where the document comes from. Shares `ImageSource` because a stored "
+            "reference and a run-time variable look the same for either kind."
+        )
+    )
+
+
 ContentPart: TypeAlias = Annotated[
-    Union[TextContentPart, ToolCallContentPart, ToolResultContentPart],
+    Union[
+        TextContentPart,
+        ToolCallContentPart,
+        ToolResultContentPart,
+        ImageContentPart,
+        FileContentPart,
+    ],
     strawberry.union("ContentPart"),
 ]
 
@@ -114,6 +165,21 @@ def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "Prom
                                 result=JSON(json.dumps(part.tool_result)),
                             )
                         )
+                    )
+                elif part.type == "image" or part.type == "file":
+                    source = media_source(part)
+                    value: ImageSource = (
+                        ImageContentValue(
+                            url=source.url,
+                            media_type=source.media_type,
+                        )
+                        if isinstance(source, MediaContentModel)
+                        else ImageVariableValue(variable=source.variable)
+                    )
+                    content.append(
+                        ImageContentPart(image=value)
+                        if part.type == "image"
+                        else FileContentPart(file=value)
                     )
                 else:
                     assert_never(part)

@@ -34,6 +34,7 @@ from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.message_helpers import (
     formatted_messages,
     prompt_chat_template_to_playground_messages,
+    resolve_message_media,
 )
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
@@ -95,6 +96,9 @@ async def _stream_single_chat_completion(
                 template_format=template_options.format,
                 template_variables=cast(Mapping[str, Any], template_options.variables),
             )
+        # Resolve once the message list is final, so one batch covers every image.
+        async with db() as session:
+            messages = await resolve_message_media(session, messages)
         invocation_parameters = input.prompt_version.invocation_parameters.to_orm()
         tools = input.prompt_version.tools.to_orm() if input.prompt_version.tools else None
         response_format = (

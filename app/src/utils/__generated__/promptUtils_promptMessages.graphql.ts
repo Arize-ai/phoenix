@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0ca0dde16dd0a8a656f41281846d8a8b>>
+ * @generated SignedSource<<54c67ee0bce310e7b6d779e33a061c16>>
  * @lightSyntaxTransform
  */
 
@@ -12,6 +12,30 @@ export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 import { FragmentRefs } from "relay-runtime";
 export type promptUtils_promptMessages$data = {
   readonly content: ReadonlyArray<{
+    readonly file?: {
+      readonly __typename: "ImageContentValue";
+      readonly mediaType: string;
+      readonly url: string;
+    } | {
+      readonly __typename: "ImageVariableValue";
+      readonly variable: string;
+    } | {
+      // This will never be '%other', but we need some
+      // value in case none of the concrete values match.
+      readonly __typename: "%other";
+    };
+    readonly image?: {
+      readonly __typename: "ImageContentValue";
+      readonly mediaType: string;
+      readonly url: string;
+    } | {
+      readonly __typename: "ImageVariableValue";
+      readonly variable: string;
+    } | {
+      // This will never be '%other', but we need some
+      // value in case none of the concrete values match.
+      readonly __typename: "%other";
+    };
     readonly text?: {
       readonly text: string;
     };
@@ -29,6 +53,6 @@ const node: ReaderInlineDataFragment = {
   "name": "promptUtils_promptMessages"
 };
 
-(node as any).hash = "5db150860a995de3213f6f2d02a10506";
+(node as any).hash = "6f834007f46c96bdd5f0aa9b10598d60";
 
 export default node;

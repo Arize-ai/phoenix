@@ -329,6 +329,23 @@ throughput.
 
 Defaults to 20000.
 """
+ENV_PHOENIX_MAX_MEDIA_BYTES = "PHOENIX_MAX_MEDIA_BYTES"
+"""
+The maximum size, in bytes, of a single media file uploaded for use in prompts.
+
+Media is stored in the database and sent inline to model providers, most of which
+impose their own per-request payload limits well below this one. Defaults to
+20 MiB.
+"""
+ENV_PHOENIX_MEDIA_ORPHAN_GRACE_PERIOD_HOURS = "PHOENIX_MEDIA_ORPHAN_GRACE_PERIOD_HOURS"
+"""
+How long uploaded media is kept before it becomes eligible for deletion as an
+orphan, in hours.
+
+Media is uploaded before the prompt version referencing it is saved, so the grace
+period has to outlast a prompt left open in the playground. Raise it to keep media
+around longer; set it very high to effectively disable the sweep. Defaults to 24.
+"""
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
 The logging mode (either 'default' or 'structured').
@@ -3306,6 +3323,50 @@ def get_env_max_spans_queue_size() -> int:
             f"{max_size}. Value must be a positive integer."
         )
     return max_size
+
+
+def get_env_max_media_bytes() -> int:
+    """
+    Gets the maximum upload size for prompt media from the PHOENIX_MAX_MEDIA_BYTES
+    environment variable.
+
+    Returns:
+        int: The maximum size in bytes of a single media file. Defaults to 20 MiB.
+
+    Raises:
+        ValueError: If the value is not a positive integer.
+    """
+    max_bytes = _int_val(ENV_PHOENIX_MAX_MEDIA_BYTES, 20 * 1024 * 1024)
+    if max_bytes <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_MAX_MEDIA_BYTES}: "
+            f"{max_bytes}. Value must be a positive integer."
+        )
+    return max_bytes
+
+
+def get_env_media_orphan_grace_period_hours() -> int:
+    """
+    Gets the media orphan grace period from the
+    PHOENIX_MEDIA_ORPHAN_GRACE_PERIOD_HOURS environment variable.
+
+    Returns:
+        int: Hours to keep uploaded media before it may be swept as an orphan.
+             Defaults to 24.
+
+    Raises:
+        ValueError: If the value is not a positive integer. A grace period of zero
+            would make media uploaded in the playground eligible for deletion
+            before the user has had a chance to save the prompt.
+    """
+    hours = _int_val(ENV_PHOENIX_MEDIA_ORPHAN_GRACE_PERIOD_HOURS, 24)
+    if hours <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_MEDIA_ORPHAN_GRACE_PERIOD_HOURS}: {hours}. "
+            f"Value must be a positive integer."
+        )
+    return hours
 
 
 def get_env_client_headers() -> dict[str, str]:

@@ -37,6 +37,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
+    ImageContentPart,
     PromptChatTemplate,
     PromptInvocationParameters,
     PromptTemplateFormat,
@@ -45,7 +46,11 @@ from phoenix.db.types.prompts import (
     TextContentPart,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
+from phoenix.server.api.helpers.message_helpers import (
+    PlaygroundMessage,
+    create_playground_message,
+    message_text,
+)
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
@@ -378,11 +383,15 @@ class LLMEvaluator(BaseEvaluator):
                                         part.text, **template_variables
                                     )
                                     text_parts.append(formatted_text)
+                                elif isinstance(part, ImageContentPart):
+                                    raise BadRequest(
+                                        "LLM evaluator prompts cannot contain image content."
+                                    )
                             formatted_content = "".join(text_parts)
                         messages.append(create_playground_message(role, formatted_content))
 
                     formatted_messages = [
-                        oi.Message(role=msg["role"].value.lower(), content=msg["content"])
+                        oi.Message(role=msg["role"].value.lower(), content=message_text(msg))
                         for msg in messages
                     ]
                     prompt_span.set_attributes(

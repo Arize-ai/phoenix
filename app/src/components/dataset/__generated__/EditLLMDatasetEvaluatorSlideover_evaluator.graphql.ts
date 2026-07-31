@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d9f5beaefb08addb04988ec81a588959>>
+ * @generated SignedSource<<25305887e4ae69976f8084ca2aa1cf5d>>
  * @lightSyntaxTransform
  */
 
@@ -214,7 +214,45 @@ v15 = {
   "name": "strict",
   "storageKey": null
 },
-v16 = {
+v16 = [
+  (v6/*:: as any*/),
+  {
+    "kind": "InlineFragment",
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "url",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "mediaType",
+        "storageKey": null
+      }
+    ],
+    "type": "ImageContentValue",
+    "abstractKey": null
+  },
+  {
+    "kind": "InlineFragment",
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "variable",
+        "storageKey": null
+      }
+    ],
+    "type": "ImageVariableValue",
+    "abstractKey": null
+  }
+],
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -749,12 +787,46 @@ return {
                                         {
                                           "alias": null,
                                           "args": null,
+                                          "concreteType": null,
+                                          "kind": "LinkedField",
+                                          "name": "image",
+                                          "plural": false,
+                                          "selections": (v16/*:: as any*/),
+                                          "storageKey": null
+                                        }
+                                      ],
+                                      "type": "ImageContentPart",
+                                      "abstractKey": null
+                                    },
+                                    {
+                                      "kind": "InlineFragment",
+                                      "selections": [
+                                        {
+                                          "alias": null,
+                                          "args": null,
+                                          "concreteType": null,
+                                          "kind": "LinkedField",
+                                          "name": "file",
+                                          "plural": false,
+                                          "selections": (v16/*:: as any*/),
+                                          "storageKey": null
+                                        }
+                                      ],
+                                      "type": "FileContentPart",
+                                      "abstractKey": null
+                                    },
+                                    {
+                                      "kind": "InlineFragment",
+                                      "selections": [
+                                        {
+                                          "alias": null,
+                                          "args": null,
                                           "concreteType": "ToolCallContentValue",
                                           "kind": "LinkedField",
                                           "name": "toolCall",
                                           "plural": false,
                                           "selections": [
-                                            (v16/*:: as any*/),
+                                            (v17/*:: as any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -792,7 +864,7 @@ return {
                                           "name": "toolResult",
                                           "plural": false,
                                           "selections": [
-                                            (v16/*:: as any*/),
+                                            (v17/*:: as any*/),
                                             {
                                               "alias": null,
                                               "args": null,

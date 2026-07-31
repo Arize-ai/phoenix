@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6406d0cce90079b57a51655626b1f7f4>>
+ * @generated SignedSource<<929ead804e34881261bb1f1f971e43c6>>
  * @lightSyntaxTransform
  */
 
@@ -182,14 +182,52 @@ v15 = {
   "name": "strict",
   "storageKey": null
 },
-v16 = {
+v16 = [
+  (v5/*:: as any*/),
+  {
+    "kind": "InlineFragment",
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "url",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "mediaType",
+        "storageKey": null
+      }
+    ],
+    "type": "ImageContentValue",
+    "abstractKey": null
+  },
+  {
+    "kind": "InlineFragment",
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "variable",
+        "storageKey": null
+      }
+    ],
+    "type": "ImageVariableValue",
+    "abstractKey": null
+  }
+],
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "toolCallId",
   "storageKey": null
 },
-v17 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -664,12 +702,46 @@ return {
                                         {
                                           "alias": null,
                                           "args": null,
+                                          "concreteType": null,
+                                          "kind": "LinkedField",
+                                          "name": "image",
+                                          "plural": false,
+                                          "selections": (v16/*:: as any*/),
+                                          "storageKey": null
+                                        }
+                                      ],
+                                      "type": "ImageContentPart",
+                                      "abstractKey": null
+                                    },
+                                    {
+                                      "kind": "InlineFragment",
+                                      "selections": [
+                                        {
+                                          "alias": null,
+                                          "args": null,
+                                          "concreteType": null,
+                                          "kind": "LinkedField",
+                                          "name": "file",
+                                          "plural": false,
+                                          "selections": (v16/*:: as any*/),
+                                          "storageKey": null
+                                        }
+                                      ],
+                                      "type": "FileContentPart",
+                                      "abstractKey": null
+                                    },
+                                    {
+                                      "kind": "InlineFragment",
+                                      "selections": [
+                                        {
+                                          "alias": null,
+                                          "args": null,
                                           "concreteType": "ToolCallContentValue",
                                           "kind": "LinkedField",
                                           "name": "toolCall",
                                           "plural": false,
                                           "selections": [
-                                            (v16/*:: as any*/),
+                                            (v17/*:: as any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -707,7 +779,7 @@ return {
                                           "name": "toolResult",
                                           "plural": false,
                                           "selections": [
-                                            (v16/*:: as any*/),
+                                            (v17/*:: as any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -870,7 +942,7 @@ return {
           "kind": "InlineFragment",
           "selections": [
             (v1/*:: as any*/),
-            (v17/*:: as any*/),
+            (v18/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -904,7 +976,7 @@ return {
           "kind": "InlineFragment",
           "selections": [
             (v1/*:: as any*/),
-            (v17/*:: as any*/),
+            (v18/*:: as any*/),
             {
               "alias": null,
               "args": null,

@@ -124,11 +124,13 @@ from phoenix.server.api.evaluators import (
     evaluation_result_to_model,
     get_evaluators,
 )
+from phoenix.server.api.helpers.media import MediaResolutionError
 from phoenix.server.api.helpers.message_helpers import (
     build_template_variables,
     extract_and_convert_example_messages,
     formatted_messages,
     prompt_chat_template_to_playground_messages,
+    resolve_message_media,
 )
 from phoenix.server.api.helpers.playground_clients import get_playground_client
 from phoenix.server.api.helpers.playground_experiment_runs import (
@@ -448,11 +450,11 @@ class TaskWorkItem(WorkItem):
         """Return the rate limit key for this work item's LLM client."""
         return self._llm_client.get_rate_limit_key()
 
-    def _build_messages(self) -> list[PlaygroundMessage]:
+    async def _build_messages(self) -> list[PlaygroundMessage]:
         """Format prompt template with dataset example data and return messages.
 
-        Raises TemplateFormatterError, KeyError, TypeError, or ValueError
-        on template/variable resolution failures.
+        Raises TemplateFormatterError, KeyError, TypeError, ValueError, or
+        MediaResolutionError on template/variable/media resolution failures.
         """
         revision = self._dataset_example_revision
         playground_config = self._prompt_task.playground_config
@@ -482,7 +484,9 @@ class TaskWorkItem(WorkItem):
         if appended_messages_path:
             appended = extract_and_convert_example_messages(revision.input, appended_messages_path)
             messages.extend(appended)
-        return messages
+        # Resolve once the message list is final, so one batch covers every image.
+        async with self._db() as session:
+            return await resolve_message_media(session, messages)
 
     async def _persist_run(
         self,
@@ -535,8 +539,14 @@ class TaskWorkItem(WorkItem):
         revision = self._dataset_example_revision
         format_start_time = datetime.now(timezone.utc)
         try:
-            messages = self._build_messages()
-        except (TemplateFormatterError, KeyError, TypeError, ValueError) as error:
+            messages = await self._build_messages()
+        except (
+            TemplateFormatterError,
+            KeyError,
+            TypeError,
+            ValueError,
+            MediaResolutionError,
+        ) as error:
             format_end_time = datetime.now(timezone.utc)
             db_run = models.ExperimentRun(
                 experiment_id=self._experiment.id,
