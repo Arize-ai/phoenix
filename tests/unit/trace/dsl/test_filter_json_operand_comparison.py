@@ -19,6 +19,12 @@ These are pinned, not fixed. Agreement requires knowing the JSON *type* at
 comparison time, which extraction has already discarded -- the same obstacle as
 `test_json_booleans_as_numbers_is_a_known_divergence`, and the same remedy:
 thread the jsonpath down instead of the extracted value.
+
+Ordered comparison (`<`, `<=`, `>`, `>=`) between two JSON operands is the
+exception: it is *defined*, not pinned. Text ordering would not merely disagree
+on near-equivalent encodings -- it inverts numeric order (`'9' > '10'` as text,
+`9 < 10` as numbers) -- so both sides take the total numeric conversion instead,
+and a row with no number on either side drops out.
 """
 
 from datetime import datetime, timezone
@@ -46,6 +52,20 @@ _SPANS: dict[str, dict[str, Any]] = {
     "numbool": {"p": 1, "q": True},
     # The control: identical values, which must match everywhere.
     "same": {"p": "v", "q": "v"},
+}
+
+# Rows for ordered comparison, kept separate so the equality tests above keep
+# their exact expected sets.
+_ORDERED_SPANS: dict[str, dict[str, Any]] = {
+    # The inversion case: as text, '9' > '10'; as numbers, 9 < 10.
+    "inversion": {"p": 9, "q": 10},
+    # Different JSON spellings of the same number order as equal.
+    "equal": {"p": 1, "q": 1.0},
+    # A numeric string converts on both backends (pinned by the hostile-data
+    # suite) and participates in numeric order.
+    "numstr": {"p": "12", "q": 3},
+    # No number on either side: the row drops out of every ordered comparison.
+    "text": {"p": "a", "q": "b"},
 }
 
 
@@ -81,9 +101,60 @@ async def json_operand_project(db: DbSessionFactory) -> None:
             )
 
 
+@pytest.fixture
+async def json_ordering_project(db: DbSessionFactory) -> None:
+    async with db() as session:
+        project_id = await session.scalar(
+            insert(models.Project).values(name="json-ordering").returning(models.Project.id)
+        )
+        trace_id = await session.scalar(
+            insert(models.Trace)
+            .values(project_rowid=project_id, trace_id="t-ord", start_time=_TS, end_time=_TS)
+            .returning(models.Trace.id)
+        )
+        for span_id, attributes in _ORDERED_SPANS.items():
+            await session.execute(
+                insert(models.Span).values(
+                    trace_rowid=trace_id,
+                    span_id=span_id,
+                    parent_id=None,
+                    name="n",
+                    span_kind="LLM",
+                    start_time=_TS,
+                    end_time=_TS,
+                    attributes=attributes,
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+
+
 async def _matches(db: DbSessionFactory, condition: str) -> set[str]:
     async with db() as session:
         return set(await session.scalars(SpanFilter(condition)(select(models.Span.span_id))))
+
+
+async def test_ordered_comparison_of_two_json_values_is_numeric_on_every_backend(
+    db: DbSessionFactory,
+    json_ordering_project: None,
+) -> None:
+    """Order between two JSON operands is defined numerically, not pinned.
+
+    Extracted as text, PostgreSQL would report `'9' > '10'` as true while
+    SQLite compares native numbers -- the same stored values ordering
+    oppositely, which is worse than the equality skew above: not a disagreement
+    about near-equivalent encodings, but an inverted answer over plain
+    integers. Both sides therefore take the total numeric conversion, and the
+    expected sets below must hold identically on each backend.
+    """
+    assert await _matches(db, "attributes['p'] < attributes['q']") == {"inversion"}
+    assert await _matches(db, "attributes['p'] > attributes['q']") == {"numstr"}
+    assert await _matches(db, "attributes['p'] <= attributes['q']") == {"inversion", "equal"}
+    assert await _matches(db, "attributes['p'] >= attributes['q']") == {"numstr", "equal"}
 
 
 async def test_comparing_two_json_values_is_a_known_divergence(

@@ -1062,10 +1062,10 @@ def _as_float_operand(node: ast.expr) -> ast.expr:
         and _is_numeric_string(node.value)
     ):
         value = float(node.value)
-        # A spelling within the grammar can still overflow (`'1e400'` -> inf),
-        # and this path is reached by strings validation never saw as numeric
-        # (`attributes['x'] > '1e400'`), so the converted value is checked here
-        # rather than trusted to an earlier pass.
+        # A spelling within the grammar can still overflow (`'1e400'` -> inf).
+        # The cast validation already rejects the shapes it sees; checking the
+        # converted value here keeps the guarantee local to the conversion
+        # rather than trusting every caller to have validated first.
         if not math.isfinite(value):
             raise SyntaxError(f"invalid numeric literal: {node.value}")
         return ast.Constant(value=value, kind=None)
@@ -1240,6 +1240,20 @@ class _FilterTranslator(_ProjectionTranslator):
             right = _convert_to_uppercase(right)
         elif _is_uppercase_enum(right):
             left = _convert_to_uppercase(left)
+        if (
+            isinstance(op, (ast.Lt, ast.LtE, ast.Gt, ast.GtE))
+            and _is_subscript(left, "attributes")
+            and _is_subscript(right, "attributes")
+        ):
+            # An ordered comparison between two unknown JSON operands. Extracted
+            # as text (the branch below), the backends order differently:
+            # PostgreSQL compares the renderings, where `'9' > '10'` is true,
+            # and SQLite compares native values, where `9 > 10` is false -- the
+            # same stored numbers order oppositely. Order is only portable in
+            # one type, so both sides take the total numeric conversion, exactly
+            # as a comparison against a numeric literal would; a value with no
+            # number in it becomes NULL and its row drops out.
+            left, right = _as_float_attribute(left), _as_float_attribute(right)
         if _is_subscript(left, "attributes"):
             left = (
                 _as_bool_attribute(left)

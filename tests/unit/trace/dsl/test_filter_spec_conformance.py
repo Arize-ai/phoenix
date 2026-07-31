@@ -98,6 +98,9 @@ ACCEPTED = [
     "'b' in str(metadata['k'])",
     "float(attributes['x']) > 1",
     "int(attributes['x']) > 1",
+    # ordered comparison between two unknowns is defined (numerically), not rejected
+    "attributes['a'] > attributes['b']",
+    "metadata['a'] <= metadata['b']",
 ]
 
 # Every form the spec documents as rejected, with the reason it documents.
