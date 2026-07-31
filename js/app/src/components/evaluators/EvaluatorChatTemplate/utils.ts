@@ -1,4 +1,5 @@
 import { DEFAULT_EVALUATOR_TEMPLATE } from "@phoenix/components/evaluators/templates/defaultEvaluatorTemplate";
+import { SPAN_EVALUATOR_TEMPLATE } from "@phoenix/components/evaluators/templates/spanEvaluatorTemplate";
 import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
@@ -28,6 +29,20 @@ const getDefaultMessages: () => PlaygroundChatTemplate["messages"] = () => [
     content: DEFAULT_EVALUATOR_TEMPLATE.userPrompt,
   },
 ];
+
+export const getSpanEvaluatorDefaultMessages: () => PlaygroundChatTemplate["messages"] =
+  () => [
+    {
+      id: generateMessageId(),
+      role: "system",
+      content: SPAN_EVALUATOR_TEMPLATE.systemPrompt,
+    },
+    {
+      id: generateMessageId(),
+      role: "user",
+      content: SPAN_EVALUATOR_TEMPLATE.userPrompt,
+    },
+  ];
 
 export const makeLLMEvaluatorInstance = ({
   modelConfigByProvider,
