@@ -146,6 +146,13 @@ def _compile_sqlalchemy_filter_condition(
     try:
         original_tree = ast.parse(filter_condition, mode="eval")
     except SyntaxError as error:
+        if "null bytes" in str(error):
+            # A NUL in the source, which CPython reports as `ValueError` on
+            # 3.10 (the branch below) and as `SyntaxError` from 3.11 on. One
+            # canonical message, whatever the interpreter.
+            raise ExperimentRunFilterConditionSyntaxError(
+                "Filter condition cannot contain a NUL character"
+            ) from error
         if "integer string conversion" in str(error):
             # CPython's 4300-digit guard, whose message advises
             # `sys.set_int_max_str_digits()` -- Python's remedy, not the

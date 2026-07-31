@@ -150,6 +150,18 @@ def test_messages_bound_echoed_fragments() -> None:
         SpanFilter("latency_ms == " + "9" * 5000)
 
 
+def test_nul_in_the_source_has_one_message_on_every_python() -> None:
+    """CPython reports a NUL in the source as `ValueError` on 3.10 and as
+    `SyntaxError` from 3.11 on. Both must read as the same condition error --
+    not the tokenizer's 'source code string cannot contain null bytes', which
+    describes source code the user never wrote. Which branch this exercises
+    depends on the interpreter running it, which is the point: on a >= 3.11
+    leg it is the real end-to-end check, and it fails loudly if CPython ever
+    changes the exception's type or wording again."""
+    with pytest.raises(SyntaxError, match="cannot contain a NUL character"):
+        SpanFilter("name == 'a\x00b'")
+
+
 def test_every_message_says_something() -> None:
     """A message has to carry more than a label. The bar is deliberately low --
     it catches placeholders, not prose quality."""

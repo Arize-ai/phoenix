@@ -963,8 +963,13 @@ class TestInheritedPythonSurface:
             compile_sqlalchemy_filter_condition(filter_condition=condition, experiment_ids=[1])
 
     def test_nul_in_the_source_is_not_a_server_error(self) -> None:
-        # `ast.parse` reports this as a `ValueError`, which callers do not
-        # catch, so it escaped the boundary that turns input into filter errors.
+        # `ast.parse` reports this as a `ValueError` on 3.10 and as a
+        # `SyntaxError` from 3.11 on; both must produce the same canonical
+        # message rather than escaping as a server error or surfacing the
+        # tokenizer's "null bytes" wording. Which branch this exercises
+        # depends on the interpreter running it -- on a >= 3.11 leg it is the
+        # real end-to-end check, and it fails if CPython changes the
+        # exception's type or wording again.
         with pytest.raises(
             ExperimentRunFilterConditionSyntaxError, match="cannot contain a NUL character"
         ):
