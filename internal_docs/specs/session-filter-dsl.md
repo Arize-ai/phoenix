@@ -34,9 +34,10 @@ grains ("grain" here means the artifact level a filter runs at: span, session, a
 trace). Internal consistency across grains outranks per-grain optimization. If a construct
 cannot be made consistent with the family, that is a design smell to resolve before shipping.
 
-This commitment currently has one open exception: string containment ignores case at the
-session grain and not at the span grain. It is recorded, with its reason and the question it
-is waiting on, under [Case](#case-containment-ignores-it-equality-does-not).
+The commitment is why string containment ignores case at every grain rather than only at the
+one that needed it: the span grain was flipped alongside the session grain so the same query
+gets the same answer in both views. The reasoning is under
+[Case](#case-containment-ignores-it-equality-does-not).
 
 ### Python with a SQL backend, not Python-flavored SQL
 
@@ -68,8 +69,8 @@ session with no recorded input, a span with no token counts, an empty `max(...)`
 any of these against anything is false, in both directions. Sessions with the value genuinely
 missing are targeted explicitly with `is None`.
 
-There is one other: `in` against a string haystack ignores case at this grain, where Python's
-is exact (see [Case](#case-containment-ignores-it-equality-does-not)). Both departures are
+There is one other: `in` against a string haystack ignores case, where Python's is exact (see
+[Case](#case-containment-ignores-it-equality-does-not)). Both departures are
 legislated for the same reason — the Python-faithful behavior silently drops rows the user
 meant to find — and both are implemented twice, once in the SQL compiler and once in the
 Python reference, so the two execution worlds still agree. Everything else stays CPython.
@@ -212,8 +213,8 @@ Design notes, each a deliberate choice:
   to validate, and a name that never occurred silently counted as 0 rather than erroring.
   Reintroducing the subscript would buy a shorter spelling for a query the language already
   answers, at the cost of that vocabulary scan.
-- **Case-sensitive containment is gone, not hidden.** With `in` case-insensitive at this
-  grain (see [Case](#case-containment-ignores-it-equality-does-not)), there is no way to ask
+- **Case-sensitive containment is gone, not hidden.** With `in` case-insensitive
+  (see [Case](#case-containment-ignores-it-equality-does-not)), there is no way to ask
   for an exact-case substring. That is a real loss, accepted because searching text is
   overwhelmingly the case-insensitive question and a second operator on day one is vocabulary
   users have to learn before they need it. If the exact form is wanted later it is purely
@@ -221,12 +222,13 @@ Design notes, each a deliberate choice:
 
 ### Case: containment ignores it, equality does not
 
-`in` and `not in` against a string haystack ignore case, everywhere in the session language —
-`any_input`, `any_output`, `first_input`, `last_output`, `session_id`, root-span attribute
-reads, and annotation labels alike. `==` and `!=` stay exact, and so does membership in a
-literal list (`span.name in ["search", "lookup"]`), which is a set test rather than a text
-search. So `'refund' in first_input` finds a session that opened with `REFUND please`, while
-`first_input == 'refund please'` does not.
+`in` and `not in` against a string haystack ignore case, everywhere in the filter language —
+at the session grain (`any_input`, `any_output`, `first_input`, `last_output`, `session_id`,
+root-span attribute reads, annotation labels) and at the span grain (`name`, `input.value`,
+`status_message`, attribute reads) alike. `==` and `!=` stay exact, and so does membership
+in a literal list (`span.name in ["search", "lookup"]`), which is a set test rather than a
+text search. So `'refund' in first_input` finds a session that opened with `REFUND please`,
+while `first_input == 'refund please'` does not.
 
 The reason is the surface this language replaced. The sessions table used to carry a separate
 substring search box that matched case-insensitively; retiring it in favor of the DSL would
@@ -236,13 +238,16 @@ misses `REFUND` reads as broken rather than as precise. It compiles to PostgreSQ
 SQLite's `text_lower` on both operands — the same mechanism the retired search used, so the
 non-ASCII and wildcard-literal behavior carries over unchanged.
 
-**This diverges from the span grain, deliberately and provisionally.** Span-grain `in` is
-still case-sensitive. That breaks the one-flavor commitment above, which is why it is called
-out here rather than buried: whether to flip the span grain too is an open question for the
-span language's owners, and until it is answered a user who moves between the two views gets
-two different answers to the same-looking query. The divergence lives in one place — a
-per-grain flag on the shared compiler's bindings — so resolving it either way is a one-line
-change, not a refactor.
+**The span grain was flipped to match, and that is a behavior change to a shipped
+language.** Span-grain `in` and `not in` were exact; they now ignore case too, so a saved
+span filter reading `'timeout' in output.value` starts matching spans that spell it
+`Timeout`. Existing filters therefore return more rows than they did, never fewer. That was
+accepted rather than avoided: a user moving between the sessions and spans views was getting
+two different answers to the same-looking query, and of the two answers the case-insensitive
+one is what people mean by searching text. The polarity is a flag on the shared compiler's
+bindings, set the same way at every grain, so it stays one decision rather than a per-grain
+habit — and a later exact-case operator alongside `in` remains purely additive at both
+grains.
 
 ### What the language accepts
 
@@ -495,10 +500,16 @@ follow it is a statistic that disagrees with the rows on screen. Every one of th
 through the same helper as `sessionCount`, so the aside and the table always describe the
 same sessions, and the aside's session count doubles as the page's match count.
 
-**Release note.** On the seven span- and trace-grain fields that carried
-`sessionFilterCondition` before this change, the argument meant a substring of the session's
-input/output. It is now a filter expression. Plain-text inputs no longer match anything by
-substring — express them as `'text' in any_input or 'text' in any_output`.
+**Release notes.**
+
+- **Span filters now match text case-insensitively.** `in` and `not in` against a string —
+  `'timeout' in output.value`, `'search' in name`, any attribute or annotation-label read —
+  ignore case, matching how the session filter behaves. Saved span filters keep working and
+  return more rows than before, never fewer; `==` and `!=` still match exactly.
+- **`sessionFilterCondition` is an expression, not a substring.** On the seven span- and
+  trace-grain fields that carried it before this change, the argument meant a substring of
+  the session's input/output. Plain-text inputs no longer match anything by substring —
+  express them as `'text' in any_input or 'text' in any_output`.
 
 ### The compile boundary
 
