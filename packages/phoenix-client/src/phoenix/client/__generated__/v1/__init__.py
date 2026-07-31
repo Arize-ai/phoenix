@@ -72,6 +72,22 @@ class CategoricalAnnotationValue(TypedDict):
     score: NotRequired[float]
 
 
+class ChatCompletionMessage(TypedDict):
+    content: str
+    role: NotRequired[str]
+
+
+class ChatCompletionTextPart(TypedDict):
+    type: Literal["text"]
+    text: str
+
+
+class ChatCompletionUsage(TypedDict):
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+
 class CodeEvaluatorContext(TypedDict):
     type: Literal["code_evaluator"]
     evaluatorNodeId: NotRequired[str]
@@ -1148,6 +1164,17 @@ class CategoricalAnnotationConfigData(TypedDict):
     description: NotRequired[str]
 
 
+class ChatCompletionChoice(TypedDict):
+    message: ChatCompletionMessage
+    finish_reason: str
+    index: NotRequired[int]
+
+
+class ChatCompletionRequestMessage(TypedDict):
+    role: Literal["system", "developer", "user", "assistant"]
+    content: Union[str, Sequence[ChatCompletionTextPart]]
+
+
 class ContinuousAnnotationConfig(TypedDict):
     type: Literal["CONTINUOUS"]
     name: str
@@ -1169,6 +1196,25 @@ class ContinuousAnnotationConfigData(TypedDict):
 
 class CreateApiKeyResponseBody(TypedDict):
     data: CreatedApiKey
+
+
+class CreateChatCompletionRequestBody(TypedDict):
+    model: str
+    messages: Sequence[ChatCompletionRequestMessage]
+    stream: NotRequired[bool]
+    temperature: NotRequired[float]
+    top_p: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    stop: NotRequired[Union[str, Sequence[str]]]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    seed: NotRequired[int]
+    n: NotRequired[int]
+    stream_options: NotRequired[Mapping[str, Any]]
+    tools: NotRequired[Sequence[Any]]
+    tool_choice: NotRequired[Any]
+    response_format: NotRequired[Mapping[str, Any]]
 
 
 class CreateDatasetLabelResponseBody(TypedDict):
@@ -1663,6 +1709,15 @@ class AssistantMessageMetadata(TypedDict):
     trace: NotRequired[AssistantMessageMetadataTraceIds]
     turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
+
+
+class ChatCompletion(TypedDict):
+    id: str
+    created: int
+    model: str
+    choices: Sequence[ChatCompletionChoice]
+    usage: ChatCompletionUsage
+    object: NotRequired[str]
 
 
 class CreateAnnotationConfigResponseBody(TypedDict):
