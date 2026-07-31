@@ -726,6 +726,19 @@ that, it invalidates text a user can retype; after, it invalidates data. So the
 set of things this language will accept forever is fixed on the day the first
 condition is written to the database, whether or not anyone decides it that day.
 
+One honesty about the clock: Phoenix's database is not the only place these
+strings live. They already sit in URLs, browser history, `localStorage`
+suggestion lists, client code calling `SpanQuery`, and whatever external
+systems users have saved them into — the language has been public since it
+shipped, and every tightening in this hardening pass already invalidated some
+text somewhere. The window framing holds because those copies are *retypable*:
+the cost of a pre-persistence restriction is a user editing a string, not a
+migration. What closes the window is Phoenix taking *custody* — storing
+conditions it must keep honoring. That custody moment should be a **declared
+release** ("as of X, accepted defined expressions are additive-only"), not
+silently the timestamp of the first stored row, so that everyone can point at
+the release notes rather than at a database.
+
 **Anything that should be rejected has to be rejected before then.** Afterwards
 the only available response to a bad construct is to keep accepting it — which
 makes the final pre-persistence review the last chance to ask, of every accepted
@@ -765,6 +778,13 @@ hardening — but their *values* should come from measurement (the join table
 above is the start of one), not be invented in a document. What this spec can
 fix is the obligation and the deadline; the numbers belong to the persistence
 change, with the evidence attached.
+
+Persistence is the deadline, not the beginning of exposure: GraphQL and
+client callers can already submit arbitrarily long source, wide and deep
+ASTs, and unbounded annotation-join fan-out on every request, so the limits
+are an *availability* control that persistence merely makes non-optional.
+Message truncation bounds what comes back, not what parsing, translation,
+compilation, and the join build cost on the way in.
 
 Limits are a restriction, so they are subject to the same window as everything
 else: a bound introduced after conditions are stored can invalidate saved rows.
@@ -819,6 +839,13 @@ decision should be made knowing it.
 - **Pin or test the dialect.** A condition stored while running on SQLite may
   fail after a migration to PostgreSQL, because SQLite accepts constructs the
   stricter backend rejects.
+- **Choose the vocabulary-extension strategy before shipping.** Bare unknown
+  identifiers resolve to attributes, so a first-class field can never again be
+  added under the current resolution rule without changing stored meanings
+  (see principle 6). If the field vocabulary is expected to grow — and
+  observability schemas do — the strategy (a namespace such as
+  `span.<field>`, or freezing the vocabulary outright) has to be picked while
+  choosing is still possible.
 
 ---
 
@@ -1070,15 +1097,21 @@ Practical rules learned here:
   without breaking anything that matches on them. No category field exists
   yet, so today every wording change is de facto breaking for whatever
   string-matches — an argument for adding one, not for freezing the prose.
-- **Echoed fragments need bounds.** Naming the offending fragment means
-  reflecting user-controlled text into the UI, logs, and GraphQL responses; a
-  message that interpolates a 320-digit literal or a multi-kilobyte expression
-  does so unbounded. Both DSLs now truncate at their error boundary
-  (`_ellipsize`, 300 chars) — done there rather than at each format site so a
-  new message cannot forget it, and safe because advice precedes the echo in
-  every message. CPython's own 4300-digit parse guard is reworded at the same
-  boundary: its message advises `sys.set_int_max_str_digits()`, which is
-  Python's remedy, not the condition's.
+- **Echoed fragments need bounds — at two layers.** Naming the offending
+  fragment means reflecting user-controlled text into the UI, logs, and
+  GraphQL responses. A single whole-message truncation at the boundary is not
+  enough: many messages put the fragment *before* the advice
+  (`` `<expr>` is not a condition, expected … ``), and tail truncation there
+  eats the guidance — a 1000-character literal in boolean position once
+  yielded 300 characters of echo and no "expected a comparison" at all. So
+  fragment-first sites bound the fragment itself (80 chars), and the error
+  boundary bounds the whole message (300 chars) as the backstop for any site
+  that forgets — a forgotten site now ships a worse message, never an
+  unbounded echo. The log path is bounded too: the catch-all's condition echo
+  goes through the same helper. CPython's own 4300-digit parse guard is
+  reworded at the boundary: its message advises
+  `sys.set_int_max_str_digits()`, which is Python's remedy, not the
+  condition's.
 
 ### 8. Static analysis of the condition is part of its meaning
 
@@ -1381,12 +1414,14 @@ PostgreSQL error text as the *symptom*.
   generated alias names. Worth doing before conditions become durable.
 - **No `EXPLAIN`-based differential test** against PostgreSQL; agreement between
   the validator and the database is asserted by hand-written cases only.
-- **`Projector`** (the projection sibling of `SpanFilter`) validates less than
-  `SpanFilter` on purpose — a projection is a value, not a predicate, so the
-  operand-type and boolean-position rules do not apply. Its two real defects
-  (no structural validation, an unsandboxed `eval` namespace) are fixed:
-  `_validate_projection_expression` walks an allowlist and `__builtins__` is
-  pinned; `TestProjectorValidationGap` remains as the regression pin.
+- **`Projector`** validates structure only — an allowlist walk plus the
+  sandboxed `eval`, with none of `SpanFilter`'s NFKC, type, or operand rules.
+  Partly by design (a projection is a value, not a predicate, so
+  boolean-position and comparability rules have nothing to check), but the
+  NFKC gap is real: a confusable projection name resolves silently. Its two
+  historical defects — no validation at all, an unsandboxed namespace — are
+  fixed and pinned by `TestProjectorValidationGap`; what remains here is the
+  residual asymmetry, not the closed holes.
 - **Membership between two JSON operands** (`attributes['p'] in
   attributes['q']`) is accepted and compiles to string containment over the two
   text renderings. The same class of divergence as two-JSON equality — boolean

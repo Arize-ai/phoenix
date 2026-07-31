@@ -158,6 +158,11 @@ async def test_membership_between_two_json_values_is_a_known_divergence(
         # jsonb text: canonical key order makes the reordered objects render
         # identically, while `true` stays `true` and does not contain `1`.
         assert contained == {"keyorder", "numstr", "numform", "same"}
+    # `not in` is the exact complement on each backend: every row holds both
+    # keys and the text extraction is total here, so no NULL enters the
+    # negation -- the two backends diverge the same way, in the same rows.
+    not_contained = await _matches(db, "attributes['p'] not in attributes['q']")
+    assert not_contained == set(_SPANS) - contained
 
 
 async def test_ordered_comparison_of_two_json_values_is_numeric_on_every_backend(

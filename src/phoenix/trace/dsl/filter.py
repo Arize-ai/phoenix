@@ -576,7 +576,7 @@ def _is_parent_rooted(node: typing.Any) -> bool:
 def _parent_traversal_error(node: ast.expr) -> SyntaxError:
     # `parent_span.<field>` traversal is not supported yet (a follow-up).
     return SyntaxError(
-        f"`{ast.unparse(node)}` is not supported: `parent_span` traversal "
+        f"`{_ellipsize(ast.unparse(node), 80)}` is not supported: `parent_span` traversal "
         "(`parent_span.<field>`) is not yet available; only `parent_span is None` "
         "and `parent_span is not None` are supported"
     )
@@ -715,7 +715,9 @@ def _require_condition(node: ast.expr) -> None:
     """
     if _get_filter_value_type(node) == "boolean":
         return
-    source_segment = ast.unparse(node)
+    # Bounded at the format site: this fragment *precedes* the advice, so the
+    # whole-message backstop cannot protect the guidance here.
+    source_segment = _ellipsize(ast.unparse(node), 80)
     raise SyntaxError(
         f"`{source_segment}` is not a condition"
         f", expected a comparison such as `{source_segment} == ...`"
@@ -796,7 +798,7 @@ def _validate_operand_types(expression: ast.Expression) -> None:
                 raise SyntaxError("cannot cast datetime to text")
             if isinstance(argument, ast.Constant) and not isinstance(argument.value, str):
                 raise SyntaxError(
-                    f"cannot cast the literal {ast.unparse(argument)} to text"
+                    f"cannot cast the literal {_ellipsize(ast.unparse(argument), 80)} to text"
                     ", the backends spell it differently"
                 )
             continue
@@ -820,7 +822,7 @@ def _validate_operand_types(expression: ast.Expression) -> None:
                 # degrades to `==`, so `name is 'abc'` compiles to something the
                 # user did not write.
                 raise SyntaxError(
-                    f"`{ast.unparse(node)}` uses `is` with a value"
+                    f"`{_ellipsize(ast.unparse(node), 80)}` uses `is` with a value"
                     ", which SQL cannot express; use `==`, or `is` with None/True/False"
                 )
             if not isinstance(operator, (ast.In, ast.NotIn)) and isinstance(
@@ -830,7 +832,7 @@ def _validate_operand_types(expression: ast.Expression) -> None:
                 # Elsewhere it is bound whole as a scalar comparand, which no
                 # column can equal.
                 raise SyntaxError(
-                    f"`{ast.unparse(node)}` compares against a collection"
+                    f"`{_ellipsize(ast.unparse(node), 80)}` compares against a collection"
                     ", which is only supported with `in` / `not in`"
                 )
             if isinstance(operator, (ast.In, ast.NotIn)) and isinstance(
@@ -841,7 +843,8 @@ def _validate_operand_types(expression: ast.Expression) -> None:
                         # A nested container has no scalar value to match a
                         # column against.
                         raise SyntaxError(
-                            f"`{ast.unparse(element)}` is not a value, collections cannot be nested"
+                            f"`{_ellipsize(ast.unparse(element), 80)}` is not a value"
+                            ", collections cannot be nested"
                         )
                     if isinstance(element, ast.Constant) and element.value is None:
                         # SQL `IN` compares elements with `=`, and `= NULL` is
@@ -849,7 +852,7 @@ def _validate_operand_types(expression: ast.Expression) -> None:
                         # worse, `NOT IN ('a', NULL)` is never true for *any*
                         # row, silently emptying the result set.
                         raise SyntaxError(
-                            f"`{ast.unparse(node)}` includes None"
+                            f"`{_ellipsize(ast.unparse(node), 80)}` includes None"
                             ", which never matches in SQL"
                             "; test for missing values with `is None` / `is not None`"
                         )
@@ -861,7 +864,7 @@ def _validate_operand_types(expression: ast.Expression) -> None:
                     # inside `SpanFilter.__call__` -- the wrong exception type
                     # for what is simply an invalid condition.
                     raise SyntaxError(
-                        f"`{ast.unparse(node)}` compares two literals"
+                        f"`{_ellipsize(ast.unparse(node), 80)}` compares two literals"
                         ", expected a span field on the left"
                     )
                 element_types = {
@@ -1381,7 +1384,7 @@ class _FilterTranslator(_ProjectionTranslator):
             # but would silently disagree with that existing convention. Asking
             # for the offset is the only reading that cannot be wrong.
             raise SyntaxError(
-                f"datetime literal {source.value!r} has no timezone"
+                f"datetime literal {_ellipsize(source.value, 80)!r} has no timezone"
                 ", add an offset (e.g. 'Z' for UTC)"
             )
         name = f"__datetime_literal_{len(self.literal_bindings)}"
@@ -1488,15 +1491,20 @@ def _format_syntax_error(error: SyntaxError) -> str:
 
 
 def _ellipsize(message: str, limit: int = 300) -> str:
-    """Bound an error message that echoes user-controlled text.
+    """Bound text that echoes user-controlled input.
 
     Messages name the offending fragment, which means reflecting condition
     text into the UI, logs, and GraphQL responses -- and a fragment can be a
-    320-digit literal or a multi-kilobyte expression. Advice precedes the echo
-    in every message, so truncating the tail cuts only the reflection.
+    320-digit literal or a multi-kilobyte expression. Bounding happens at two
+    layers, and both are needed:
 
-    Applied at the error boundary rather than at each of the ~30 format sites,
-    so a new message cannot forget it.
+    - **Format sites whose fragment precedes the advice** bound the fragment
+      itself (limit 80), because tail truncation there would eat the guidance
+      -- a 1000-character literal in boolean position once produced 300
+      characters of echo and no "expected a comparison" at all.
+    - **The error boundary** bounds the whole message as the backstop, so a
+      format site that forgets cannot ship an unbounded echo -- it can only
+      ship a worse message.
     """
     return message if len(message) <= limit else message[: limit - 1] + "…"
 
@@ -1544,7 +1552,7 @@ def _validate_python_surface(body: ast.expr, source: str) -> None:
                 written = written.rpartition(".")[2].strip()
             if written and written != normalized:
                 raise SyntaxError(
-                    f"`{written}` is interpreted as `{normalized}`"
+                    f"`{_ellipsize(written, 80)}` is interpreted as `{_ellipsize(normalized, 80)}`"
                     ", use unaccented ASCII for field names"
                 )
 
@@ -1607,7 +1615,7 @@ def _validate_expression(
                 # value in `and` / `or` position and deserves the same wording.
                 # Falling through to the generic message below would name the
                 # fragment without saying what is wrong with it.
-                source_segment = ast.unparse(node)
+                source_segment = _ellipsize(ast.unparse(node), 80)
                 if _is_singleton_constant(node):
                     # `True == ...` is not a repair anyone wants; the literals
                     # are only meaningful beside a real condition.
@@ -1640,7 +1648,8 @@ def _validate_expression(
         elif isinstance(node, ast.Attribute) and _is_annotation(node.value):
             # e.g. `evals["name"].score`
             if (attr := node.attr) not in valid_eval_attributes:
-                source_segment = ast.unparse(node)
+                attr = _ellipsize(attr, 80)
+                source_segment = _ellipsize(ast.unparse(node), 80)
                 # suggest a valid attribute most similar to the one given
                 choice, score = _find_best_match(attr, valid_eval_attributes)
                 if choice and score > 0.75:  # arbitrary threshold

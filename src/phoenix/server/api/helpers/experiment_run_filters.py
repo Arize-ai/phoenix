@@ -118,9 +118,9 @@ def compile_sqlalchemy_filter_condition(
     except ExperimentRunFilterConditionSyntaxError as error:
         # Messages name the offending fragment, which can be a 320-digit
         # literal or a multi-kilobyte expression reflected into the UI, logs,
-        # and GraphQL responses. Advice precedes the echo, so truncating the
-        # tail cuts only the reflection. Done here at the boundary rather than
-        # at each format site, so a new message cannot forget it.
+        # and GraphQL responses. This is the backstop: fragment-first messages
+        # bound their echo at the format site (see `_ellipsize`), and this
+        # bounds the whole message for any site that forgets.
         raise ExperimentRunFilterConditionSyntaxError(_ellipsize(str(error))) from error
     except RecursionError:
         # Parsing, transformation, and compilation all recurse, so deeply
@@ -129,7 +129,12 @@ def compile_sqlalchemy_filter_condition(
             "Filter condition is nested too deeply"
         ) from None
     except Exception as error:
-        logger.exception("Unexpected error compiling filter condition: %r", filter_condition)
+        # The condition echo is bounded here too: this is the one place the
+        # *source* text reaches a log, and log entries are as much a
+        # reflection surface as GraphQL responses.
+        logger.exception(
+            "Unexpected error compiling filter condition: %r", _ellipsize(filter_condition)
+        )
         # Deliberately generic: the internal message ("Expected code to be
         # unreachable!") describes our code, not the user's condition.
         raise ExperimentRunFilterConditionSyntaxError("Invalid filter condition") from error
@@ -229,10 +234,12 @@ class ExperimentRunFilterConditionSyntaxError(Exception):
 
 
 def _ellipsize(message: str, limit: int = 300) -> str:
-    """Bound an error message that echoes user-controlled text.
+    """Bound text that echoes user-controlled input.
 
-    As in the span DSL: advice precedes the echoed fragment in every message,
-    so truncating the tail cuts only the reflection, never the guidance.
+    As in the span DSL, two layers: format sites whose fragment precedes the
+    advice bound the fragment itself (limit 80) so truncation cannot eat the
+    guidance, and the compile boundary bounds the whole message as the
+    backstop for any site that forgets.
     """
     return message if len(message) <= limit else message[: limit - 1] + "…"
 
@@ -916,10 +923,27 @@ _ALLOWED_PYTHON_SURFACE: tuple[type, ...] = (
     ast.Subscript,
     ast.List,
     ast.Tuple,
-    ast.boolop,
-    ast.unaryop,
-    ast.cmpop,
-    ast.expr_context,
+    # Operators and contexts enumerated concretely rather than by abstract
+    # base, so a node type a future CPython adds under `cmpop`/`boolop`/
+    # `unaryop` cannot pass the floor: every operator is opt-in, exactly like
+    # every expression form. Unsupported operators under an *allowed* parent
+    # (`~x`, `+x`) never reach here -- the parent's named rejection fires
+    # before the walk descends to the operator node.
+    ast.And,
+    ast.Or,
+    ast.Not,
+    ast.USub,
+    ast.Eq,
+    ast.NotEq,
+    ast.Lt,
+    ast.LtE,
+    ast.Gt,
+    ast.GtE,
+    ast.Is,
+    ast.IsNot,
+    ast.In,
+    ast.NotIn,
+    ast.Load,
 )
 
 
@@ -1026,7 +1050,7 @@ def _validate_python_surface(body: ast.expr, source: str) -> None:
                 written = written.rpartition(".")[2].strip()
             if written and written != normalized:
                 raise ExperimentRunFilterConditionSyntaxError(
-                    f"`{written}` is interpreted as `{normalized}`"
+                    f"`{_ellipsize(written, 80)}` is interpreted as `{_ellipsize(normalized, 80)}`"
                     ", use unaccented ASCII for field names"
                 )
 

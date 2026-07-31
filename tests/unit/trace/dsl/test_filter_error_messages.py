@@ -128,6 +128,20 @@ def test_messages_bound_echoed_fragments() -> None:
     message = str(exc_info.value)
     assert len(message) <= 300
     assert message.startswith("invalid numeric literal")
+    # Fragment-first messages must keep their guidance: the fragment is
+    # bounded at the format site, because tail truncation at the boundary
+    # would otherwise eat the advice -- a 1000-character literal in boolean
+    # position once produced 300 characters of echo and no advice at all.
+    with pytest.raises(SyntaxError) as exc_info:
+        SpanFilter("name == 'x' and " + "'" + "y" * 1000 + "'")
+    message = str(exc_info.value)
+    assert len(message) <= 300
+    assert "expected a comparison" in message
+    with pytest.raises(SyntaxError) as exc_info:
+        SpanFilter("name is " + "'" + "z" * 1000 + "'")
+    message = str(exc_info.value)
+    assert len(message) <= 300
+    assert "use `==`" in message
     # Past CPython's 4300-digit conversion guard, the parser itself rejects
     # the literal -- with advice about `sys.set_int_max_str_digits()`, which
     # is Python's remedy rather than the condition's. Reworded at the

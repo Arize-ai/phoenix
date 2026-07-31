@@ -989,3 +989,22 @@ class TestInheritedPythonSurface:
             compile_sqlalchemy_filter_condition(
                 filter_condition="latency_ms == " + "9" * 5000, experiment_ids=[1]
             )
+
+    def test_unexpected_failure_logs_a_bounded_condition_echo(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # The catch-all logs the condition for diagnosis; log entries are as
+        # much a reflection surface as GraphQL responses, so the echo is
+        # bounded there too.
+        def explode(*args: Any, **kwargs: Any) -> Any:
+            raise AttributeError("boom")
+
+        monkeypatch.setattr(SQLAlchemyTransformer, "visit", explode)
+        long_condition = "error == '" + "y" * 5000 + "'"
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(ExperimentRunFilterConditionSyntaxError):
+                compile_sqlalchemy_filter_condition(
+                    filter_condition=long_condition, experiment_ids=[0]
+                )
+        assert caplog.records
+        assert all(len(record.getMessage()) < 500 for record in caplog.records)
