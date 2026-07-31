@@ -457,6 +457,36 @@ def test_compile_sqlalchemy_filter_condition_correctly_compiles(
             "Operand must be a boolean expression",
             id="unary-not-on-non-boolean",
         ),
+        # A comparison between two *known* types needs no cast, and nothing used
+        # to check the two were comparable -- so the mismatch reached the
+        # database as written and PostgreSQL rejected it (`double precision =
+        # varchar`, `varchar = integer`) after the condition had already been
+        # reported valid.
+        pytest.param(
+            "evals['x'].score == ''",
+            "cannot compare number and string",
+            id="eval-score-compared-to-string",
+        ),
+        pytest.param(
+            "latency_ms > ''",
+            "cannot compare number and string",
+            id="latency-compared-to-string",
+        ),
+        pytest.param(
+            "evals['x'].label == 100",
+            "cannot compare string and number",
+            id="eval-label-compared-to-number",
+        ),
+        pytest.param(
+            "evals['x'].score == True",
+            "cannot compare number and boolean",
+            id="eval-score-compared-to-boolean",
+        ),
+        pytest.param(
+            "error == 1",
+            "cannot compare string and number",
+            id="error-compared-to-number",
+        ),
     ],
 )
 def test_compile_sqlalchemy_filter_condition_raises_appropriate_error_message(
@@ -471,6 +501,40 @@ def test_compile_sqlalchemy_filter_condition_raises_appropriate_error_message(
 
     error = exc_info.value
     assert str(error).startswith(expected_error_prefix)
+
+
+@pytest.mark.parametrize(
+    "filter_condition",
+    [
+        pytest.param("evals['x'].score > 0.5", id="number-vs-float"),
+        pytest.param("evals['x'].score > 1", id="number-vs-int"),
+        pytest.param("latency_ms > 1000", id="latency-vs-number"),
+        pytest.param("evals['x'].label == 'good'", id="string-vs-string"),
+        pytest.param("error == 'boom'", id="error-vs-string"),
+        # NULL is comparable to anything
+        pytest.param("evals['x'].label is None", id="string-vs-null"),
+        pytest.param("evals['x'].score is None", id="number-vs-null"),
+        # a JSON attribute has no type until the rows are read, so the cast
+        # heuristics still apply and nothing is rejected up front
+        pytest.param("input['x'] == 'y'", id="unknown-vs-string"),
+        pytest.param("input['x'] > 5", id="unknown-vs-number"),
+        pytest.param("output['a'] == input['b']", id="unknown-vs-unknown"),
+        pytest.param("'a' in evals['x'].explanation", id="containment"),
+    ],
+)
+def test_compile_sqlalchemy_filter_condition_accepts_comparable_types(
+    filter_condition: str,
+) -> None:
+    """The type check must not narrow what was already valid.
+
+    Integers and floats are one family, NULL compares to anything, and an
+    operand whose type is unknown until the rows are read is left to the cast
+    heuristics rather than rejected.
+    """
+    compile_sqlalchemy_filter_condition(
+        filter_condition=filter_condition,
+        experiment_ids=[0, 1, 2],
+    )  # does not raise
 
 
 @pytest.mark.parametrize(

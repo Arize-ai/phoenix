@@ -428,6 +428,7 @@ class ComparisonOperation(BooleanExpression):
         operator = self.operator
         if not _is_supported_comparison_operator(operator):
             raise ExperimentRunFilterConditionSyntaxError("Unsupported comparison operator")
+        _validate_comparable_data_types(self.left_operand, self.right_operand)
         object.__setattr__(self, "_operator", operator)
 
     def compile(self) -> Any:
@@ -671,6 +672,55 @@ def _get_sqlalchemy_comparison_operator(
     elif isinstance(ast_operator, ast.NotIn):
         return lambda left, right: ~models.TextContains(right, left)
     assert_never(ast_operator)
+
+
+def _get_data_type_family(data_type: SQLAlchemyDataType) -> str:
+    """Group data types by what they can be compared against.
+
+    `Boolean` is checked first because it is emulated over an integer on some
+    backends, and a boolean compared to a number is a mistake rather than a
+    widening.
+    """
+    if isinstance(data_type, Boolean):
+        return "boolean"
+    if isinstance(data_type, (Integer, Float)):
+        return "number"
+    return "string"
+
+
+def _validate_comparable_data_types(left_operand: Term, right_operand: Term) -> None:
+    """Reject a comparison between two known types that SQL cannot evaluate.
+
+    `_get_cast_type_for_comparison` casts an operand whose type is unknown -- a
+    JSON attribute -- to match the one that is known. When *both* types are
+    known it correctly emits no cast, but nothing then checks that the two are
+    actually comparable, so a mismatch is handed to the database as written:
+    `evals['x'].score == ''` becomes `double precision = varchar` and
+    `evals['x'].label == 100` becomes `varchar = integer`. PostgreSQL rejects
+    both, after the condition has already been reported valid.
+
+    Unknown types are deliberately untouched. A JSON attribute has no type until
+    the rows are read, so the cast heuristics remain the right answer there;
+    this only covers the case where guessing was never necessary.
+    """
+    # The operands are typed as `Term`, but a malformed condition can put a
+    # non-`Term` node here -- `experiments < 0` compares against the bare
+    # `experiments` name. Those have their own diagnostics further along, so
+    # this check must not pre-empt them with an `AttributeError`.
+    if not isinstance(left_operand, Term) or not isinstance(right_operand, Term):
+        return
+    left_data_type = left_operand.data_type
+    right_data_type = right_operand.data_type
+    if left_data_type is None or right_data_type is None:
+        # At least one side is a JSON attribute or NULL; the cast heuristics
+        # handle those, and NULL is comparable to anything.
+        return
+    left_family = _get_data_type_family(left_data_type)
+    right_family = _get_data_type_family(right_data_type)
+    if left_family != right_family:
+        raise ExperimentRunFilterConditionSyntaxError(
+            f"cannot compare {left_family} and {right_family}"
+        )
 
 
 def _get_cast_type_for_comparison(
