@@ -153,7 +153,15 @@ def _compile_sqlalchemy_filter_condition(
             raise ExperimentRunFilterConditionSyntaxError(
                 "Invalid numeric literal: too many digits"
             ) from error
-        raise ExperimentRunFilterConditionSyntaxError(str(error))
+        # `str()` on a parser error appends `(<unknown>, line 1)` -- a file
+        # the user never wrote in -- and these messages surface verbatim in
+        # the filter field and through the GraphQL masker. `msg` carries the
+        # useful part; the column is the one locator a one-line condition has.
+        message = error.msg or "invalid syntax"
+        message = message.replace(" (detected at line 1)", "")
+        if (offset := error.offset) is not None and offset > 0:
+            message = f"{message} at character {offset}"
+        raise ExperimentRunFilterConditionSyntaxError(message) from error
     except ValueError as error:
         # A NUL anywhere in the source, which `ast.parse` reports as a
         # `ValueError` rather than a `SyntaxError`.

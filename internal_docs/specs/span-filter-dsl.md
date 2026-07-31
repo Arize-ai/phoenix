@@ -370,6 +370,13 @@ inside a membership list as well — `start_time in ['2024-01-01T00:00:00Z']` is
 legal, and each element must satisfy the datetime-literal rules (ISO 8601, with
 an offset).
 
+Datetime fields are also the one place an *unknown*-typed operand is rejected
+rather than left to the cast heuristics: `start_time > attributes['x']` has no
+honest compilation — PostgreSQL has no comparison operator between `timestamp`
+and `varchar` at all (the statement validated and then failed at plan time),
+SQLite quietly compared text, and no total datetime conversion exists to
+define the shape with. The literal is the only portable spelling.
+
 ### No implicit numeric coercion
 
 A quoted number against a numeric field is an **error**, not a coercion:
@@ -1369,6 +1376,7 @@ and, where possible, suggest the repair.
 | Value in boolean position | ``​`r` is not a condition, expected a comparison such as `r == ...`​`` |
 | Mismatched comparison | `cannot compare number and string` (+ unquote hint when applicable) |
 | Naive datetime | ``datetime literal '...' has no timezone, add an offset (e.g. 'Z' for UTC)`` |
+| Datetime against an attribute | `cannot compare a datetime field and an attribute, use an ISO 8601 string literal …` |
 | Malformed datetime | ``invalid datetime literal: '...'`` |
 | Uncastable string | `cannot cast string to number` |
 | Non-finite or overflowing numeric | `invalid numeric literal: 1e400` (bare, via cast, or an int past float range) |

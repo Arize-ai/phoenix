@@ -916,6 +916,18 @@ def _validate_comparable_types(left: ast.AST, right: ast.AST) -> None:
         string_node = left if left_type == "string" else right
         if _is_string_constant(string_node):
             return
+    if "datetime" in (left_type, right_type) and None in (left_type, right_type):
+        # An unknown-typed operand -- a JSON attribute -- has no datetime
+        # reading either backend can perform: PostgreSQL has no comparison
+        # operator between timestamp and varchar at all, so
+        # `start_time > attributes['x']` validated and then failed at plan
+        # time, while SQLite quietly compared text. No total datetime
+        # conversion exists to define the shape with, so it is rejected;
+        # only a datetime *literal* has a portable binding.
+        raise SyntaxError(
+            "cannot compare a datetime field and an attribute"
+            ", use an ISO 8601 string literal (e.g. '2024-01-01T00:00:00+00:00')"
+        )
     if (
         left_type is not None
         and right_type is not None

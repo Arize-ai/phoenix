@@ -1,7 +1,6 @@
 import ast
 import logging
 import re
-import sys
 from typing import Any
 
 import pytest
@@ -356,9 +355,7 @@ def test_compile_sqlalchemy_filter_condition_correctly_compiles(
     [
         pytest.param(
             "input['question]",
-            "EOL while scanning string literal"
-            if sys.version_info < (3, 10)
-            else "unterminated string literal (detected at line 1)",
+            "unterminated string literal",
             id="invalid-python-syntax",
         ),
         pytest.param(
@@ -613,6 +610,26 @@ def test_compile_sqlalchemy_filter_condition_reports_every_failure_as_a_filter_e
             filter_condition=filter_condition,
             experiment_ids=[0, 1, 2],
         )
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        pytest.param("error ==", "invalid syntax", id="trailing-operator"),
+        pytest.param("error == 'x", "unterminated string literal", id="unterminated-string"),
+        pytest.param("(error", "'(' was never closed", id="unclosed-paren"),
+    ],
+)
+def test_parser_errors_are_reported_against_the_condition(condition: str, expected: str) -> None:
+    """`str()` on a parser error appends `(<unknown>, line 1)` -- a file the
+    user never wrote in -- and these messages surface verbatim in the filter
+    field and through the GraphQL masker. They must describe the condition,
+    as the span DSL's `_format_syntax_error` already ensures on its side."""
+    with pytest.raises(ExperimentRunFilterConditionSyntaxError) as exc_info:
+        compile_sqlalchemy_filter_condition(filter_condition=condition, experiment_ids=[1])
+    message = str(exc_info.value)
+    assert message.startswith(expected)
+    assert "<unknown>" not in message
 
 
 def test_caller_errors_are_not_reported_as_filter_errors() -> None:

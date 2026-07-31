@@ -155,6 +155,12 @@ REJECTED = [
     # Timestamps share no spelling at all: PostgreSQL renders in the session
     # time zone, SQLite in UTC with microseconds.
     ("str(start_time) == '2026-01-01'", "cannot cast datetime to text"),
+    # a datetime field compared to an unknown-typed operand: PostgreSQL has no
+    # timestamp/varchar comparison operator, so this validated and failed at
+    # plan time while SQLite quietly compared text
+    ("start_time > attributes['x']", "cannot compare a datetime field"),
+    ("attributes['x'] < end_time", "cannot compare a datetime field"),
+    ("start_time == metadata['ts']", "cannot compare a datetime field"),
     # datetime literals must carry an offset
     ("start_time > '2024-01-01T00:00:00'", "no timezone"),
     ("start_time in ['2024-01-01T00:00:00']", "no timezone"),
