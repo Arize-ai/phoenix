@@ -96,13 +96,13 @@ class AgentSession(Node):
         description="Whether the session expires after a period of inactivity.",
         permission_classes=[CanAccessAgentSession],
     )  # type: ignore
-    async def is_temporary(self, info: Info[Context, None]) -> bool:
+    async def is_ephemeral(self, info: Info[Context, None]) -> bool:
         if self.db_record:
-            return self.db_record.expires_at is not None
-        expires_at = await info.context.data_loaders.agent_session_fields.load(
-            (self.id, models.AgentSession.expires_at),
+            return self.db_record.is_ephemeral
+        is_ephemeral = await info.context.data_loaders.agent_session_fields.load(
+            (self.id, models.AgentSession.is_ephemeral),
         )
-        return expires_at is not None
+        return bool(is_ephemeral)
 
     @strawberry.field(
         description=(

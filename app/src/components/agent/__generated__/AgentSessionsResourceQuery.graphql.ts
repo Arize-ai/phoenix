@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6528be05f80c7abbc017e0a5a83acc47>>
+ * @generated SignedSource<<9f152b21fde87ba5fdcf244ff1f1ddab>>
  * @lightSyntaxTransform
  */
 
@@ -104,10 +104,10 @@ return {
                     "storageKey": null
                   },
                   {
-                    "alias": null,
+                    "alias": "isTemporary",
                     "args": null,
                     "kind": "ScalarField",
-                    "name": "isTemporary",
+                    "name": "isEphemeral",
                     "storageKey": null
                   },
                   {
@@ -184,12 +184,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f5e0b4e4e259e818ee95c0a45b60bc3a",
+    "cacheID": "347819b47fc2e5e986e683ee91fb07fe",
     "id": null,
     "metadata": {},
     "name": "AgentSessionsResourceQuery",
     "operationKind": "query",
-    "text": "query AgentSessionsResourceQuery(\n  $first: Int!\n) {\n  ...AgentSessionsResource_sessions_3ASum4\n}\n\nfragment AgentSessionsResource_sessions_3ASum4 on Query {\n  agentSessions(first: $first, viewerOnly: true) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        isTemporary\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
+    "text": "query AgentSessionsResourceQuery(\n  $first: Int!\n) {\n  ...AgentSessionsResource_sessions_3ASum4\n}\n\nfragment AgentSessionsResource_sessions_3ASum4 on Query {\n  agentSessions(first: $first, viewerOnly: true) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        isTemporary: isEphemeral\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
   }
 };
 })();

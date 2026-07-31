@@ -1,6 +1,5 @@
 """Mutations for persisted assistant chat sessions."""
 
-from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import strawberry
@@ -10,10 +9,7 @@ from sqlalchemy.orm import aliased
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
-from phoenix.config import (
-    TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS,
-    get_env_phoenix_agents_assistant_project_name,
-)
+from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
 from phoenix.server.agents.session_titles import (
@@ -40,7 +36,7 @@ class CreateAgentSessionInput:
         default="",
         description=("Optional initial title."),
     )
-    temporary: bool = strawberry.field(
+    is_ephemeral: bool = strawberry.field(
         default=False,
         description="Whether the session should expire after a period of inactivity.",
     )
@@ -134,12 +130,7 @@ class AgentSessionMutationMixin:
                 user_id=info.context.user_id,
                 title=title,
                 project_name=get_env_phoenix_agents_assistant_project_name(),
-                expires_at=(
-                    datetime.now(timezone.utc)
-                    + timedelta(hours=TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS)
-                    if input.temporary
-                    else None
-                ),
+                is_ephemeral=input.is_ephemeral,
             )
             session.add(agent_session)
             await session.flush()
@@ -239,12 +230,7 @@ class AgentSessionMutationMixin:
                 user_id=info.context.user_id,
                 title=truncate_agent_session_title(source_session.title),
                 project_name=get_env_phoenix_agents_assistant_project_name(),
-                expires_at=(
-                    datetime.now(timezone.utc)
-                    + timedelta(hours=TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS)
-                    if source_session.expires_at is not None
-                    else None
-                ),
+                is_ephemeral=source_session.is_ephemeral,
             )
             session.add(branch_session)
             await session.flush()
@@ -341,14 +327,9 @@ async def _load_owned_agent_session(
         statement = statement.with_for_update()
     agent_session = await session.scalar(statement)
     viewer_id = info.context.user_id
-    if (
-        agent_session is None
-        or (viewer_id is not None and agent_session.user_id != viewer_id)
-        or (
-            agent_session.expires_at is not None
-            and agent_session.expires_at <= datetime.now(timezone.utc)
-        )
-    ):
+    auth_is_enforced = viewer_id is not None
+    viewer_owns_session = agent_session is not None and agent_session.user_id == viewer_id
+    if agent_session is None or (auth_is_enforced and not viewer_owns_session):
         raise NotFound(f"No agent session found for row ID '{agent_session_rowid}'")
     return agent_session
 

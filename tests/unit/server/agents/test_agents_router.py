@@ -2116,7 +2116,7 @@ async def test_create_session_route_creates_a_temporary_session(
 ) -> None:
     response = await httpx_client.post(
         "/agents/server/sessions",
-        json={"title": " CLI session ", "temporary": True},
+        json={"title": " CLI session ", "is_ephemeral": True},
     )
     assert response.status_code == 201
 
@@ -2128,8 +2128,7 @@ async def test_create_session_route_creates_a_temporary_session(
         assert agent_session.title == "CLI session"
         assert agent_session.user_id is None
         assert agent_session.project_name == get_env_phoenix_agents_assistant_project_name()
-        assert agent_session.expires_at is not None
-        assert agent_session.expires_at > datetime.now(timezone.utc)
+        assert agent_session.is_ephemeral is True
 
 
 async def test_create_session_route_defaults_to_a_persistent_untitled_session(
@@ -2144,7 +2143,7 @@ async def test_create_session_route_defaults_to_a_persistent_untitled_session(
         agent_session = await session.get(models.AgentSession, int(global_id.node_id))
         assert agent_session is not None
         assert agent_session.title == ""
-        assert agent_session.expires_at is None
+        assert agent_session.is_ephemeral is False
 
 
 async def test_create_session_route_rejects_long_title(
@@ -2171,7 +2170,7 @@ async def test_create_session_route_yields_a_chattable_session(
 
     created = await httpx_client.post(
         "/agents/server/sessions",
-        json={"temporary": True},
+        json={"is_ephemeral": True},
     )
     assert created.status_code == 201
 

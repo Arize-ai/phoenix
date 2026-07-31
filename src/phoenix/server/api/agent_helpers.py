@@ -1,7 +1,6 @@
 """GraphQL access controls and query helpers for agent sessions."""
 
 from asyncio import gather
-from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy import ColumnElement
@@ -29,20 +28,17 @@ class CanAccessAgentSession(BasePermission):
         if source.db_record:
             agent_session_id = source.db_record.id
             owner_id = source.db_record.user_id
-            expires_at = source.db_record.expires_at
         else:
             fields = context.data_loaders.agent_session_fields
-            agent_session_id, owner_id, expires_at = await gather(
+            agent_session_id, owner_id = await gather(
                 fields.load((source.id, models.AgentSession.id)),
                 fields.load((source.id, models.AgentSession.user_id)),
-                fields.load((source.id, models.AgentSession.expires_at)),
             )
         viewer_id = context.user_id
-        if (
-            agent_session_id is None
-            or (viewer_id is not None and not context.user.is_admin and owner_id != viewer_id)
-            or (expires_at is not None and expires_at <= datetime.now(timezone.utc))
-        ):
+        session_exists = agent_session_id is not None
+        auth_is_enforced = viewer_id is not None and not context.user.is_admin
+        viewer_owns_session = owner_id == viewer_id
+        if not session_exists or (auth_is_enforced and not viewer_owns_session):
             raise _agent_session_not_found(source.id)
         return True
 

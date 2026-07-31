@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
+from phoenix.config import EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
 from phoenix.server.daemons.agent_session_sweeper import AgentSessionSweeper
@@ -32,14 +33,14 @@ async def _add_agent_session(
     title: str,
     user_id: int | None = None,
     updated_at: datetime | None = None,
-    expires_at: datetime | None = None,
+    is_ephemeral: bool = False,
 ) -> int:
     async with db() as session:
         agent_session = models.AgentSession(
             project_name="assistant_agent",
             user_id=user_id,
             title=title,
-            expires_at=expires_at,
+            is_ephemeral=is_ephemeral,
         )
         if updated_at is not None:
             agent_session.created_at = updated_at
@@ -81,29 +82,33 @@ async def test_agent_session_sweeper_deletes_only_expired_sessions_and_cascades(
     db: DbSessionFactory,
 ) -> None:
     now = datetime.now(timezone.utc)
+    ttl = timedelta(hours=EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS)
     async with db() as session:
         expired = models.AgentSession(
             project_name="assistant_agent",
             user_id=None,
             title="expired",
-            expires_at=now - timedelta(hours=1),
+            is_ephemeral=True,
         )
-        future = models.AgentSession(
+        expired.created_at = expired.updated_at = now - ttl - timedelta(hours=1)
+        active = models.AgentSession(
             project_name="assistant_agent",
             user_id=None,
-            title="future",
-            expires_at=now + timedelta(hours=1),
+            title="active",
+            is_ephemeral=True,
         )
+        active.created_at = active.updated_at = now - timedelta(hours=1)
         persistent = models.AgentSession(
             project_name="assistant_agent",
             user_id=None,
             title="persistent",
-            expires_at=None,
+            is_ephemeral=False,
         )
-        session.add_all((expired, future, persistent))
+        persistent.created_at = persistent.updated_at = now - ttl - timedelta(hours=1)
+        session.add_all((expired, active, persistent))
         await session.flush()
         expired_id = expired.id
-        future_id = future.id
+        active_id = active.id
         persistent_id = persistent.id
         session.add(
             models.AgentSessionMessage(
@@ -119,17 +124,22 @@ async def test_agent_session_sweeper_deletes_only_expired_sessions_and_cascades(
         )
 
     settings = await _make_settings(db)
-    await AgentSessionSweeper(db, settings=settings)._delete_expired_temporary_sessions()
+    await AgentSessionSweeper(db, settings=settings)._delete_idle_sessions(
+        is_ephemeral=True,
+        max_idle=ttl,
+    )
 
     async with db() as session:
         remaining_ids = set((await session.scalars(select(models.AgentSession.id))).all())
-        assert remaining_ids == {future_id, persistent_id}
+        # The persisted session is equally idle and equally untouched: the
+        # ephemeral pass is scoped by the flag, not by idleness alone.
+        assert remaining_ids == {active_id, persistent_id}
         assert expired_id not in remaining_ids
         assert (await session.scalars(select(models.AgentSessionMessage))).all() == []
         assert (await session.scalars(select(models.AgentSessionSnapshot))).all() == []
 
 
-async def test_idle_pass_deletes_idle_persisted_sessions_but_never_temporary_ones(
+async def test_idle_pass_deletes_idle_persisted_sessions_and_spares_active_ephemeral_ones(
     db: DbSessionFactory,
 ) -> None:
     now = datetime.now(timezone.utc)
@@ -143,18 +153,51 @@ async def test_idle_pass_deletes_idle_persisted_sessions_but_never_temporary_one
         title="active persisted",
         updated_at=now - timedelta(days=1),
     )
-    idle_temporary_id = await _add_agent_session(
+    active_ephemeral_id = await _add_agent_session(
         db,
-        title="idle temporary",
-        updated_at=now - timedelta(days=31),
-        expires_at=now + timedelta(hours=1),
+        title="active ephemeral",
+        updated_at=now - timedelta(hours=1),
+        is_ephemeral=True,
     )
 
     settings = await _make_settings(db, AgentSessionRetentionSetting(max_idle_days=30))
     await AgentSessionSweeper(db, settings=settings)._sweep()
 
-    assert await _remaining_session_ids(db) == {active_persisted_id, idle_temporary_id}
+    assert await _remaining_session_ids(db) == {active_persisted_id, active_ephemeral_id}
     assert idle_persisted_id not in await _remaining_session_ids(db)
+
+
+async def test_the_two_passes_apply_different_idle_windows_to_the_same_staleness(
+    db: DbSessionFactory,
+) -> None:
+    """The flag chooses the window, and nothing else about a session does.
+
+    Both sessions were last touched at the same moment; only ``is_ephemeral``
+    differs, and it is what decides whether the deadline is the fixed
+    ephemeral TTL or the workspace's much longer retention window.
+    """
+    idle_for = timedelta(hours=EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS + 1)
+    updated_at = datetime.now(timezone.utc) - idle_for
+    assert idle_for < timedelta(days=30), "the persisted session must be inside retention"
+
+    ephemeral_id = await _add_agent_session(
+        db,
+        title="ephemeral past its ttl",
+        updated_at=updated_at,
+        is_ephemeral=True,
+    )
+    persisted_id = await _add_agent_session(
+        db,
+        title="persisted, same staleness",
+        updated_at=updated_at,
+    )
+
+    settings = await _make_settings(db, AgentSessionRetentionSetting(max_idle_days=30))
+    await AgentSessionSweeper(db, settings=settings)._sweep()
+
+    remaining_ids = await _remaining_session_ids(db)
+    assert remaining_ids == {persisted_id}
+    assert ephemeral_id not in remaining_ids
 
 
 async def test_count_pass_keeps_newest_sessions_per_user(
@@ -174,13 +217,15 @@ async def test_count_pass_keeps_newest_sessions_per_user(
         )
         for days_ago in (1, 2, 3, 4)
     ]
-    # The first user's oldest activity is a temporary session — exempt from the cap.
-    first_user_temporary_id = await _add_agent_session(
+    # The first user's most recent activity is an ephemeral session. It is exempt
+    # from the cap, so it must neither be trimmed itself nor occupy one of the
+    # user's two slots and push a persisted session out.
+    first_user_ephemeral_id = await _add_agent_session(
         db,
-        title="first-user temporary",
+        title="first-user ephemeral",
         user_id=first_user_id,
-        updated_at=now - timedelta(days=10),
-        expires_at=now + timedelta(hours=1),
+        updated_at=now - timedelta(hours=1),
+        is_ephemeral=True,
     )
     second_user_session_id = await _add_agent_session(
         db,
@@ -203,13 +248,13 @@ async def test_count_pass_keeps_newest_sessions_per_user(
 
     assert await _remaining_session_ids(db) == {
         *first_user_session_ids[:2],
-        first_user_temporary_id,
+        first_user_ephemeral_id,
         second_user_session_id,
         *anonymous_session_ids[:2],
     }
 
 
-async def test_all_zero_setting_runs_only_temporary_gc(
+async def test_all_zero_setting_runs_only_ephemeral_gc(
     db: DbSessionFactory,
 ) -> None:
     now = datetime.now(timezone.utc)
@@ -223,11 +268,11 @@ async def test_all_zero_setting_runs_only_temporary_gc(
         )
         for days_ago in (400, 500, 600)
     ]
-    expired_temporary_id = await _add_agent_session(
+    expired_ephemeral_id = await _add_agent_session(
         db,
-        title="expired temporary",
+        title="expired ephemeral",
         updated_at=now - timedelta(days=2),
-        expires_at=now - timedelta(hours=1),
+        is_ephemeral=True,
     )
 
     settings = await _make_settings(
@@ -237,7 +282,7 @@ async def test_all_zero_setting_runs_only_temporary_gc(
 
     remaining_ids = await _remaining_session_ids(db)
     assert remaining_ids == set(ancient_session_ids)
-    assert expired_temporary_id not in remaining_ids
+    assert expired_ephemeral_id not in remaining_ids
 
 
 async def test_setting_edits_apply_on_the_next_sweep(

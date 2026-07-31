@@ -6,8 +6,6 @@ from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
-import pytest
-from fastapi import HTTPException
 from jinja2 import Template
 from opentelemetry.trace import (
     SpanContext,
@@ -20,6 +18,7 @@ from pydantic_ai.usage import RequestUsage
 from sqlalchemy import delete, func, select
 from strawberry.relay import GlobalID
 
+from phoenix.config import EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import TurnTraceContext
 from phoenix.db.types.identifier import Identifier
@@ -43,6 +42,11 @@ from phoenix.server.api.routers.agents import (
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import DbSessionFactory, UserId
+
+
+def _ephemeral_sweep_cutoff() -> datetime:
+    """The updated_at below which the sweeper's ephemeral pass reaps a session."""
+    return datetime.now(timezone.utc) - timedelta(hours=EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS)
 
 
 class _EventQueue:
@@ -112,42 +116,46 @@ class TestAgentSessionPersistence:
             await session.flush()
             assert second.id > first_rowid
 
-    async def test_refreshes_expiry_for_a_temporary_session(
+    async def test_slides_the_ttl_window_for_an_ephemeral_session(
         self,
         db: DbSessionFactory,
     ) -> None:
+        # Idle long enough that the sweeper's next pass would have reaped it.
+        stale = _ephemeral_sweep_cutoff() - timedelta(hours=1)
         async with db() as session:
-            temporary = models.AgentSession(
+            ephemeral = models.AgentSession(
                 user_id=None,
                 title="",
                 project_name="assistant_agent",
-                expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+                is_ephemeral=True,
             )
-            session.add(temporary)
+            ephemeral.created_at = stale
+            ephemeral.updated_at = stale
+            session.add(ephemeral)
             await session.flush()
-            temporary_rowid = temporary.id
+            ephemeral_rowid = ephemeral.id
 
-        before_refresh = datetime.now(timezone.utc)
         async with db() as session:
             loaded = await _refresh_and_load_agent_session(
                 session,
-                agent_session_id=str(GlobalID("AgentSession", str(temporary_rowid))),
+                agent_session_id=str(GlobalID("AgentSession", str(ephemeral_rowid))),
                 user_id=None,
             )
-            # The sliding window is pushed well past the original near-term expiry.
-            assert loaded.expires_at is not None
-            assert loaded.expires_at > before_refresh + timedelta(hours=23)
+            # updated_at *is* the deadline now, so the bump is what buys another
+            # full TTL — and the session stays ephemeral through the refresh.
+            assert loaded.is_ephemeral is True
+            assert loaded.updated_at > _ephemeral_sweep_cutoff()
 
         async with db() as session:
-            persisted_expiry = await session.scalar(
-                select(models.AgentSession.expires_at).where(
-                    models.AgentSession.id == temporary_rowid
+            persisted_updated_at = await session.scalar(
+                select(models.AgentSession.updated_at).where(
+                    models.AgentSession.id == ephemeral_rowid
                 )
             )
-            assert persisted_expiry is not None
-            assert persisted_expiry > before_refresh + timedelta(hours=23)
+            assert persisted_updated_at is not None
+            assert persisted_updated_at > _ephemeral_sweep_cutoff()
 
-    async def test_marks_a_persistent_session_active_without_granting_expiry(
+    async def test_marks_a_persisted_session_active_without_making_it_ephemeral(
         self,
         db: DbSessionFactory,
     ) -> None:
@@ -171,7 +179,7 @@ class TestAgentSessionPersistence:
                 user_id=None,
             )
             assert loaded.id == persistent_rowid
-            assert loaded.expires_at is None
+            assert loaded.is_ephemeral is False
             # The turn-start updated_at bump keeps the retention sweeper from
             # treating an in-flight turn as idle.
             assert loaded.updated_at > stale
@@ -185,36 +193,46 @@ class TestAgentSessionPersistence:
             assert persisted_updated_at is not None
             assert persisted_updated_at > stale
 
-    async def test_rejects_an_expired_temporary_session(
+    async def test_resumes_an_ephemeral_session_the_sweeper_has_not_reached_yet(
         self,
         db: DbSessionFactory,
     ) -> None:
+        """A lapsed TTL is not a read-time gate — deletion is the sweeper's job alone.
+
+        The deadline used to be stored, so reads could compare against it and hide
+        a session the sweeper had not deleted yet. With the deadline derived from
+        ``updated_at`` there is nothing to compare that resuming would not have
+        reset anyway, so an idle ephemeral session stays resumable until a sweep
+        removes it — at most one sweep interval past its TTL.
+        """
+        stale = _ephemeral_sweep_cutoff() - timedelta(hours=1)
         async with db() as session:
-            temporary = models.AgentSession(
+            ephemeral = models.AgentSession(
                 user_id=None,
                 title="",
                 project_name="assistant_agent",
-                expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+                is_ephemeral=True,
             )
-            session.add(temporary)
+            ephemeral.created_at = stale
+            ephemeral.updated_at = stale
+            session.add(ephemeral)
             await session.flush()
-            temporary_rowid = temporary.id
+            ephemeral_rowid = ephemeral.id
 
         async with db() as session:
-            with pytest.raises(HTTPException) as exc_info:
-                await _refresh_and_load_agent_session(
-                    session,
-                    agent_session_id=str(GlobalID("AgentSession", str(temporary_rowid))),
-                    user_id=None,
-                )
-            assert exc_info.value.status_code == 404
+            loaded = await _refresh_and_load_agent_session(
+                session,
+                agent_session_id=str(GlobalID("AgentSession", str(ephemeral_rowid))),
+                user_id=None,
+            )
+            assert loaded.id == ephemeral_rowid
 
-        # The refresh never deletes; the expired row is left for the sweeper.
+        # The refresh never deletes; the row is left for the sweeper.
         async with db() as session:
             surviving_rowid = await session.scalar(
-                select(models.AgentSession.id).where(models.AgentSession.id == temporary_rowid)
+                select(models.AgentSession.id).where(models.AgentSession.id == ephemeral_rowid)
             )
-            assert surviving_rowid == temporary_rowid
+            assert surviving_rowid == ephemeral_rowid
 
 
 class TestPersistDbTracesAndEmitEvent:

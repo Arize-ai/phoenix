@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ca5e913d1bdf416fceb3c6a163b19943>>
+ * @generated SignedSource<<ffe1d051af9f47adb4267c5c2a572782>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type CreateAgentSessionInput = {
-  temporary?: boolean;
+  isEphemeral?: boolean;
   title?: string;
 };
 export type useAgentChatCreateAgentSessionMutation$variables = {
@@ -73,10 +73,10 @@ v4 = {
   "storageKey": null
 },
 v5 = {
-  "alias": null,
+  "alias": "isTemporary",
   "args": null,
   "kind": "ScalarField",
-  "name": "isTemporary",
+  "name": "isEphemeral",
   "storageKey": null
 },
 v6 = {
@@ -258,16 +258,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "54928aa36e9c467058c835f7a21e286e",
+    "cacheID": "2039e2649105fef21ec6b368b88c0445",
     "id": null,
     "metadata": {},
     "name": "useAgentChatCreateAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useAgentChatCreateAgentSessionMutation(\n  $input: CreateAgentSessionInput!\n) {\n  createAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
+    "text": "mutation useAgentChatCreateAgentSessionMutation(\n  $input: CreateAgentSessionInput!\n) {\n  createAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary: isEphemeral\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bf2a214d202d18185d935badc2e9e6f4";
+(node as any).hash = "d68c9de400e08e55cb088409bf0b790e";
 
 export default node;

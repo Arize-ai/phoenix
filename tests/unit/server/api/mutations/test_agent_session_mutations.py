@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
+from phoenix.config import EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
@@ -30,7 +31,7 @@ _CREATE_MUTATION = """
       agentSession {
         id
         title
-        isTemporary
+        isEphemeral
         messages
       }
     }
@@ -54,7 +55,7 @@ _BRANCH_MUTATION = """
       agentSession {
         id
         title
-        isTemporary
+        isEphemeral
         messages
       }
     }
@@ -148,15 +149,18 @@ async def _seed_session_with_transcript(
     db: DbSessionFactory,
     *,
     title: str = "",
-    expires_at: datetime | None = None,
+    is_ephemeral: bool = False,
+    updated_at: datetime | None = None,
 ) -> str:
     async with db() as session:
         agent_session = models.AgentSession(
             user_id=None,
             title=title,
             project_name="assistant_agent",
-            expires_at=expires_at,
+            is_ephemeral=is_ephemeral,
         )
+        if updated_at is not None:
+            agent_session.created_at = agent_session.updated_at = updated_at
         session.add(agent_session)
         await session.flush()
         session.add_all(
@@ -328,13 +332,15 @@ async def test_truncate_agent_session_with_unknown_message_id_is_not_found(
         )
 
 
-async def test_truncate_agent_session_rejects_an_expired_temporary_session(
+async def test_truncate_agent_session_accepts_an_ephemeral_session_awaiting_the_sweeper(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
     agent_session_id = await _seed_session_with_transcript(
         db,
-        expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+        is_ephemeral=True,
+        updated_at=datetime.now(timezone.utc)
+        - timedelta(hours=EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS + 1),
     )
 
     response = await gql_client.execute(
@@ -342,11 +348,9 @@ async def test_truncate_agent_session_rejects_an_expired_temporary_session(
         variables={"id": agent_session_id, "messageId": _message_uuid("user-2")},
     )
 
-    assert response.errors
-    assert "No agent session found" in response.errors[0].message
-    # The expired session's transcript is left untouched.
+    assert not response.errors
     async with db() as session:
-        assert len((await session.scalars(select(models.AgentSessionMessage))).all()) == len(
+        assert len((await session.scalars(select(models.AgentSessionMessage))).all()) < len(
             _transcript_messages()
         )
 
@@ -489,10 +493,7 @@ async def test_branch_agent_session_preserves_temporary_mode(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    source_agent_session_id = await _seed_session_with_transcript(
-        db,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-    )
+    source_agent_session_id = await _seed_session_with_transcript(db, is_ephemeral=True)
 
     response = await gql_client.execute(
         query=_BRANCH_MUTATION,
@@ -501,7 +502,7 @@ async def test_branch_agent_session_preserves_temporary_mode(
 
     assert not response.errors
     assert response.data is not None
-    assert response.data["branchAgentSession"]["agentSession"]["isTemporary"] is True
+    assert response.data["branchAgentSession"]["agentSession"]["isEphemeral"] is True
 
 
 async def test_branch_agent_session_at_an_assistant_message_includes_it(
@@ -539,13 +540,15 @@ async def test_branch_agent_session_with_unknown_message_id_is_not_found(
         assert len((await session.scalars(select(models.AgentSession))).all()) == 1
 
 
-async def test_branch_agent_session_rejects_an_expired_temporary_session(
+async def test_branch_agent_session_accepts_an_ephemeral_source_awaiting_the_sweeper(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
     source_agent_session_id = await _seed_session_with_transcript(
         db,
-        expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+        is_ephemeral=True,
+        updated_at=datetime.now(timezone.utc)
+        - timedelta(hours=EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS + 1),
     )
 
     response = await gql_client.execute(
@@ -553,11 +556,13 @@ async def test_branch_agent_session_rejects_an_expired_temporary_session(
         variables={"id": source_agent_session_id, "messageId": _message_uuid("assistant-1")},
     )
 
-    assert response.errors
-    assert "No agent session found" in response.errors[0].message
-    # No branch session is minted from an expired source.
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["branchAgentSession"]["agentSession"]["isEphemeral"] is True
     async with db() as session:
-        assert len((await session.scalars(select(models.AgentSession))).all()) == 1
+        branched = (await session.scalars(select(models.AgentSession))).all()
+        assert len(branched) == 2
+        assert all(agent_session.is_ephemeral for agent_session in branched)
 
 
 async def test_create_agent_session_creates_empty_owned_session(
@@ -572,7 +577,7 @@ async def test_create_agent_session_creates_empty_owned_session(
     assert response.data is not None
     payload = response.data["createAgentSession"]["agentSession"]
     assert payload["title"] == ""
-    assert payload["isTemporary"] is False
+    assert payload["isEphemeral"] is False
     assert payload["messages"] == []
     async with db() as session:
         agent_sessions = (await session.scalars(select(models.AgentSession))).all()
@@ -581,7 +586,7 @@ async def test_create_agent_session_creates_empty_owned_session(
         assert payload["id"] == str(GlobalID("AgentSession", str(agent_session.id)))
         assert agent_session.user_id is None
         assert agent_session.title == ""
-        assert agent_session.expires_at is None
+        assert agent_session.is_ephemeral is False
         assert (await session.scalars(select(models.AgentSessionMessage))).all() == []
 
 
@@ -589,13 +594,12 @@ async def test_create_agent_session_can_create_temporary_session(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    before_creation = datetime.now(timezone.utc)
     response = await gql_client.execute(
         query="""
           mutation {
-            createAgentSession(input: { temporary: true }) {
+            createAgentSession(input: { isEphemeral: true }) {
               agentSession {
-                isTemporary
+                isEphemeral
               }
             }
           }
@@ -604,13 +608,11 @@ async def test_create_agent_session_can_create_temporary_session(
 
     assert not response.errors
     assert response.data is not None
-    assert response.data["createAgentSession"]["agentSession"]["isTemporary"] is True
+    assert response.data["createAgentSession"]["agentSession"]["isEphemeral"] is True
     async with db() as session:
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
-        assert agent_session.expires_at is not None
-        assert before_creation + timedelta(hours=23) < agent_session.expires_at
-        assert agent_session.expires_at < before_creation + timedelta(hours=25)
+        assert agent_session.is_ephemeral is True
 
 
 async def test_create_agent_session_persists_a_trimmed_title(
