@@ -93,18 +93,12 @@ from phoenix.server.api.helpers.message_helpers import (
     reject_media,
 )
 from phoenix.server.api.helpers.playground_media import (
-    BEDROCK_DOCUMENT_FORMATS,
-    BEDROCK_IMAGE_FORMATS,
-    BEDROCK_SUPPORTED_FILE_MEDIA_TYPES,
-    BEDROCK_SUPPORTED_IMAGE_MEDIA_TYPES,
-    OPENAI_SUPPORTED_FILE_MEDIA_TYPES,
-    OPENAI_SUPPORTED_IMAGE_MEDIA_TYPES,
     anthropic_media_content,
+    bedrock_content_blocks,
     google_parts,
-    media_data_url,
-    media_file_name,
     oi_message_content,
-    require_resolved_media,
+    openai_chat_media_message,
+    openai_responses_content_parts,
 )
 from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
 from phoenix.server.api.input_types.ConnectionConfigInput import OPENAI_SDK_STYLE_PROVIDER_KEYS
@@ -823,16 +817,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         from openai.types.responses.response_function_tool_call_param import (
             ResponseFunctionToolCallParam,
         )
-        from openai.types.responses.response_input_file_param import (
-            ResponseInputFileParam,
-        )
-        from openai.types.responses.response_input_image_param import (
-            ResponseInputImageParam,
-        )
         from openai.types.responses.response_input_item_param import FunctionCallOutput
-        from openai.types.responses.response_input_text_param import (
-            ResponseInputTextParam,
-        )
 
         result: list["ResponseInputItemParam"] = []
         for message in messages:
@@ -842,43 +827,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                 reject_media([message], provider="The OpenAI Responses API")
             content = message_text(message)
             if role is ChatCompletionMessageRole.USER:
-                if media:
-                    # The Responses API names its parts differently from Chat
-                    # Completions, so the input image is `input_image`.
-                    input_parts: list[
-                        Union[
-                            ResponseInputTextParam,
-                            ResponseInputImageParam,
-                            ResponseInputFileParam,
-                        ]
-                    ] = []
-                    if content:
-                        input_parts.append(ResponseInputTextParam(type="input_text", text=content))
-                    for block in media:
-                        if block["kind"] == "file":
-                            input_parts.append(
-                                ResponseInputFileParam(
-                                    type="input_file",
-                                    filename=media_file_name(block),
-                                    file_data=media_data_url(
-                                        block,
-                                        provider="The OpenAI Responses API",
-                                        supported_media_types=(OPENAI_SUPPORTED_FILE_MEDIA_TYPES),
-                                    ),
-                                )
-                            )
-                            continue
-                        input_parts.append(
-                            ResponseInputImageParam(
-                                type="input_image",
-                                detail="auto",
-                                image_url=media_data_url(
-                                    block,
-                                    provider="The OpenAI Responses API",
-                                    supported_media_types=(OPENAI_SUPPORTED_IMAGE_MEDIA_TYPES),
-                                ),
-                            )
-                        )
+                if input_parts := openai_responses_content_parts(
+                    message, provider="The OpenAI Responses API"
+                ):
                     result.append(
                         EasyInputMessageParam(
                             role="user",
@@ -1246,58 +1197,13 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         from openai.types.chat.chat_completion_message_function_tool_call_param import Function
 
         role = message["role"]
-        if role is not ChatCompletionMessageRole.USER:
-            # Only user turns carry media, enforced when a prompt version is
-            # written. Fail loudly rather than drop an image that got here anyway.
-            reject_media([message], provider=self.provider)
+        if media_message := openai_chat_media_message(message, provider=self.provider):
+            return media_message
         content = message_text(message)
         tool_call_id = message.get("tool_call_id")
         tool_calls = message.get("tool_calls")
 
         if role is ChatCompletionMessageRole.USER:
-            if media := message_media(message):
-                # A user turn with images sends an ordered part list instead of a
-                # bare string. Images follow the text, as the editor lays them out.
-                from openai.types.chat import (
-                    ChatCompletionContentPartImageParam,
-                    ChatCompletionContentPartParam,
-                    ChatCompletionContentPartTextParam,
-                )
-
-                parts: list[ChatCompletionContentPartParam] = []
-                if content:
-                    parts.append(ChatCompletionContentPartTextParam(type="text", text=content))
-                for block in media:
-                    if block["kind"] == "file":
-                        # Chat Completions carries a document as a `file` part, and
-                        # requires a filename alongside the payload.
-                        parts.append(
-                            {
-                                "type": "file",
-                                "file": {
-                                    "filename": media_file_name(block),
-                                    "file_data": media_data_url(
-                                        block,
-                                        provider=self.provider,
-                                        supported_media_types=(OPENAI_SUPPORTED_FILE_MEDIA_TYPES),
-                                    ),
-                                },
-                            }
-                        )
-                        continue
-                    parts.append(
-                        ChatCompletionContentPartImageParam(
-                            type="image_url",
-                            image_url={
-                                "url": media_data_url(
-                                    block,
-                                    provider=self.provider,
-                                    supported_media_types=(OPENAI_SUPPORTED_IMAGE_MEDIA_TYPES),
-                                )
-                            },
-                        )
-                    )
-                return ChatCompletionUserMessageParam(content=parts, role="user")
             return ChatCompletionUserMessageParam(
                 content=content,
                 role="user",
@@ -1971,8 +1877,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         """Convert messages to Converse API format."""
         from types_aiobotocore_bedrock_runtime.type_defs import (
             ContentBlockTypeDef,
-            DocumentBlockTypeDef,
-            ImageBlockTypeDef,
             MessageTypeDef,
             ToolResultBlockTypeDef,
             ToolResultContentBlockTypeDef,
@@ -1988,36 +1892,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
             tool_call_id = msg.get("tool_call_id")
             tool_calls = msg.get("tool_calls")
             if role == ChatCompletionMessageRole.USER:
-                user_blocks: list[ContentBlockTypeDef] = []
-                if content:
-                    user_blocks.append(ContentBlockTypeDef(text=content))
-                for block in media:
-                    if block["kind"] == "file":
-                        data, media_type = require_resolved_media(
-                            block,
-                            provider="Amazon Bedrock",
-                            supported_media_types=BEDROCK_SUPPORTED_FILE_MEDIA_TYPES,
-                        )
-                        # Converse requires a name on a document, unlike an image.
-                        document_block: DocumentBlockTypeDef = {
-                            "format": BEDROCK_DOCUMENT_FORMATS[media_type],  # type: ignore[typeddict-item]
-                            "name": media_file_name(block),
-                            "source": {"bytes": data},
-                        }
-                        user_blocks.append(ContentBlockTypeDef(document=document_block))
-                        continue
-                    data, media_type = require_resolved_media(
-                        block,
-                        provider="Amazon Bedrock",
-                        supported_media_types=BEDROCK_SUPPORTED_IMAGE_MEDIA_TYPES,
-                    )
-                    # Converse takes raw bytes and names a format rather than a
-                    # media type.
-                    image_block: ImageBlockTypeDef = {
-                        "format": BEDROCK_IMAGE_FORMATS[media_type],  # type: ignore[typeddict-item]
-                        "source": {"bytes": data},
-                    }
-                    user_blocks.append(ContentBlockTypeDef(image=image_block))
+                user_blocks = bedrock_content_blocks(msg)
                 converse_messages.append(
                     MessageTypeDef(
                         role="user",
@@ -2163,58 +2038,13 @@ class OpenAIReasoningNonStreamingClient(
         from openai.types.chat.chat_completion_message_function_tool_call_param import Function
 
         role = message["role"]
-        if role is not ChatCompletionMessageRole.USER:
-            # Only user turns carry media, enforced when a prompt version is
-            # written. Fail loudly rather than drop an image that got here anyway.
-            reject_media([message], provider=self.provider)
+        if media_message := openai_chat_media_message(message, provider=self.provider):
+            return media_message
         content = message_text(message)
         tool_call_id = message.get("tool_call_id")
         tool_calls = message.get("tool_calls")
 
         if role is ChatCompletionMessageRole.USER:
-            if media := message_media(message):
-                # A user turn with images sends an ordered part list instead of a
-                # bare string. Images follow the text, as the editor lays them out.
-                from openai.types.chat import (
-                    ChatCompletionContentPartImageParam,
-                    ChatCompletionContentPartParam,
-                    ChatCompletionContentPartTextParam,
-                )
-
-                parts: list[ChatCompletionContentPartParam] = []
-                if content:
-                    parts.append(ChatCompletionContentPartTextParam(type="text", text=content))
-                for block in media:
-                    if block["kind"] == "file":
-                        # Chat Completions carries a document as a `file` part, and
-                        # requires a filename alongside the payload.
-                        parts.append(
-                            {
-                                "type": "file",
-                                "file": {
-                                    "filename": media_file_name(block),
-                                    "file_data": media_data_url(
-                                        block,
-                                        provider=self.provider,
-                                        supported_media_types=(OPENAI_SUPPORTED_FILE_MEDIA_TYPES),
-                                    ),
-                                },
-                            }
-                        )
-                        continue
-                    parts.append(
-                        ChatCompletionContentPartImageParam(
-                            type="image_url",
-                            image_url={
-                                "url": media_data_url(
-                                    block,
-                                    provider=self.provider,
-                                    supported_media_types=(OPENAI_SUPPORTED_IMAGE_MEDIA_TYPES),
-                                )
-                            },
-                        )
-                    )
-                return ChatCompletionUserMessageParam(content=parts, role="user")
             return ChatCompletionUserMessageParam(
                 content=content,
                 role="user",
@@ -2339,58 +2169,13 @@ class AzureOpenAIReasoningNonStreamingClient(
         from openai.types.chat.chat_completion_message_function_tool_call_param import Function
 
         role = message["role"]
-        if role is not ChatCompletionMessageRole.USER:
-            # Only user turns carry media, enforced when a prompt version is
-            # written. Fail loudly rather than drop an image that got here anyway.
-            reject_media([message], provider=self.provider)
+        if media_message := openai_chat_media_message(message, provider=self.provider):
+            return media_message
         content = message_text(message)
         tool_call_id = message.get("tool_call_id")
         tool_calls = message.get("tool_calls")
 
         if role is ChatCompletionMessageRole.USER:
-            if media := message_media(message):
-                # A user turn with images sends an ordered part list instead of a
-                # bare string. Images follow the text, as the editor lays them out.
-                from openai.types.chat import (
-                    ChatCompletionContentPartImageParam,
-                    ChatCompletionContentPartParam,
-                    ChatCompletionContentPartTextParam,
-                )
-
-                parts: list[ChatCompletionContentPartParam] = []
-                if content:
-                    parts.append(ChatCompletionContentPartTextParam(type="text", text=content))
-                for block in media:
-                    if block["kind"] == "file":
-                        # Chat Completions carries a document as a `file` part, and
-                        # requires a filename alongside the payload.
-                        parts.append(
-                            {
-                                "type": "file",
-                                "file": {
-                                    "filename": media_file_name(block),
-                                    "file_data": media_data_url(
-                                        block,
-                                        provider=self.provider,
-                                        supported_media_types=(OPENAI_SUPPORTED_FILE_MEDIA_TYPES),
-                                    ),
-                                },
-                            }
-                        )
-                        continue
-                    parts.append(
-                        ChatCompletionContentPartImageParam(
-                            type="image_url",
-                            image_url={
-                                "url": media_data_url(
-                                    block,
-                                    provider=self.provider,
-                                    supported_media_types=(OPENAI_SUPPORTED_IMAGE_MEDIA_TYPES),
-                                )
-                            },
-                        )
-                    )
-                return ChatCompletionUserMessageParam(content=parts, role="user")
             return ChatCompletionUserMessageParam(
                 content=content,
                 role="user",

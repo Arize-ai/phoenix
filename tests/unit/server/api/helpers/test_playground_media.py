@@ -655,14 +655,56 @@ class TestBedrockImages:
 
 
 class TestEveryProviderAcceptsImagesNow:
-    async def test_no_provider_rejects_a_user_image(self, resolved_messages: Any) -> None:
-        """The one thing M4 is for: images are no longer Google-only."""
+    """
+    Every provider must actually put the image in its payload.
+
+    Asserting the builders merely return something is not enough: with the media
+    branch gone, each one still returns a perfectly valid text-only message, so a
+    truthiness check passes while the model receives no image at all. That is the
+    exact shape of a mis-resolved merge conflict in one provider's branch — these
+    assertions look at the payload so it cannot pass unnoticed.
+    """
+
+    async def test_google_sends_inline_data(self, resolved_messages: Any) -> None:
         parts = google_parts(resolved_messages[0])
-        assert any("inline_data" in part for part in parts)
-        assert _openai_client()._to_openai_chat_completion_message_param(resolved_messages[0])
-        assert _responses_client()._to_openai_response_input_item_param(resolved_messages)
-        assert _anthropic_client()._build_anthropic_messages(resolved_messages)[0]
-        assert _bedrock_client()._build_converse_messages(resolved_messages)
+        blobs = [part["inline_data"] for part in parts if part.get("inline_data")]
+        assert [blob["mime_type"] for blob in blobs if blob] == ["image/png"]
+
+    async def test_openai_sends_an_image_url_part(self, resolved_messages: Any) -> None:
+        param = _openai_client()._to_openai_chat_completion_message_param(resolved_messages[0])
+        content = param["content"]
+        assert not isinstance(content, str), "a message carrying media cannot be a bare string"
+        image_parts = [part for part in content if part.get("type") == "image_url"]
+        assert len(image_parts) == 1
+        assert image_parts[0]["image_url"]["url"] == _EXPECTED_DATA_URL
+
+    async def test_responses_sends_an_input_image_part(self, resolved_messages: Any) -> None:
+        items = _responses_client()._to_openai_response_input_item_param(resolved_messages)
+        content = items[0]["content"]
+        assert not isinstance(content, str)
+        image_parts = [part for part in content if part.get("type") == "input_image"]
+        assert len(image_parts) == 1
+        assert image_parts[0]["image_url"] == _EXPECTED_DATA_URL
+
+    async def test_anthropic_sends_a_base64_source(self, resolved_messages: Any) -> None:
+        messages = _anthropic_client()._build_anthropic_messages(resolved_messages)[0]
+        content = messages[0]["content"]
+        assert not isinstance(content, str)
+        image_blocks = [block for block in content if block.get("type") == "image"]
+        assert len(image_blocks) == 1
+        source = image_blocks[0]["source"]
+        assert source["media_type"] == "image/png"
+        assert source["data"] == base64.b64encode(_PNG_BYTES).decode()
+
+    async def test_bedrock_sends_raw_bytes_with_a_format(self, resolved_messages: Any) -> None:
+        converse = _bedrock_client()._build_converse_messages(resolved_messages)
+        content = converse[0]["content"]
+        image_blocks = [block["image"] for block in content if "image" in block]
+        assert len(image_blocks) == 1
+        assert image_blocks[0]["format"] == "png"
+        # Bedrock takes the bytes themselves, not base64 — sending base64 here is a
+        # silent corruption the SDK will not complain about.
+        assert image_blocks[0]["source"]["bytes"] == _PNG_BYTES
 
 
 class TestProviderSdkContracts:
