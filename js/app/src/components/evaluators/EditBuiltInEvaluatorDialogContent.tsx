@@ -52,7 +52,7 @@ export const EditBuiltInEvaluatorDialogContent = ({
             : "Edit Built-in Code Evaluator"}
         </DialogTitle>
         <DialogTitleExtra>
-          <DialogCloseButton />
+          <DialogCloseButton isDisabled={isSubmitting} />
         </DialogTitleExtra>
       </DialogHeader>
       <fieldset

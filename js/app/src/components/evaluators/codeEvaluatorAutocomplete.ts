@@ -51,11 +51,15 @@ export function createCompletionOptions({
       data: mappingSource.output,
       info: "The output from the task being evaluated",
     },
-    {
-      name: "reference",
-      data: mappingSource.reference,
-      info: "The expected/reference output from the dataset",
-    },
+    ...("reference" in mappingSource
+      ? [
+          {
+            name: "reference",
+            data: mappingSource.reference,
+            info: "The expected/reference output from the dataset",
+          },
+        ]
+      : []),
     {
       name: "input",
       data: mappingSource.input,
@@ -64,7 +68,7 @@ export function createCompletionOptions({
     {
       name: "metadata",
       data: mappingSource.metadata,
-      info: "Additional metadata from the dataset",
+      info: "Additional metadata from the evaluation source",
     },
   ];
 

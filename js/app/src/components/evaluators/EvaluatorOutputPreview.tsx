@@ -22,13 +22,15 @@ import {
 } from "@phoenix/components";
 import type { Annotation } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
-import { getPositiveOptimization } from "@phoenix/components/annotation/optimizationUtils";
 import { JSONBlock } from "@phoenix/components/code";
 import type {
   EvaluatorOutputPreviewMutation,
   InlineLLMEvaluatorInput,
 } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
-import { createLLMEvaluatorPayload } from "@phoenix/components/evaluators/utils";
+import {
+  computePositiveOptimization,
+  createLLMEvaluatorPayload,
+} from "@phoenix/components/evaluators/utils";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
@@ -38,7 +40,6 @@ import {
 } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
-import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type EvaluationPreviewResult =
@@ -47,77 +48,6 @@ type EvaluationPreviewResult =
 
 type EvaluatorPreviewsOutput =
   EvaluatorOutputPreviewMutation["response"]["evaluatorPreviews"];
-
-/**
- * Computes whether an annotation score represents a positive optimization result
- * by matching the annotation name to the corresponding output config.
- */
-function computePositiveOptimization({
-  annotationName,
-  score,
-  evaluatorName,
-  outputConfigs,
-}: {
-  annotationName: string;
-  score: number | null | undefined;
-  evaluatorName: string;
-  outputConfigs: AnnotationConfig[];
-}): boolean | null {
-  if (outputConfigs.length === 0) {
-    return null;
-  }
-
-  let matchedConfig: AnnotationConfig | undefined;
-  if (outputConfigs.length === 1) {
-    matchedConfig = outputConfigs[0];
-  } else {
-    // Multi-output: annotation name is "evaluatorName.configName"
-    const prefix = evaluatorName + ".";
-    if (annotationName.startsWith(prefix)) {
-      const configName = annotationName.slice(prefix.length);
-      matchedConfig = outputConfigs.find((c) => c.name === configName);
-    }
-  }
-
-  if (matchedConfig == null) {
-    return null;
-  }
-
-  const optimizationDirection =
-    matchedConfig.optimizationDirection === "MAXIMIZE" ||
-    matchedConfig.optimizationDirection === "MINIMIZE"
-      ? matchedConfig.optimizationDirection
-      : undefined;
-
-  let lowerBound: number | undefined;
-  let upperBound: number | undefined;
-  let threshold: number | undefined;
-
-  if ("values" in matchedConfig) {
-    const scores = matchedConfig.values
-      .map((v) => v.score)
-      .filter((s): s is number => s != null);
-    if (scores.length > 0) {
-      lowerBound = Math.min(...scores);
-      upperBound = Math.max(...scores);
-    }
-  } else if ("threshold" in matchedConfig) {
-    threshold = matchedConfig.threshold ?? undefined;
-    lowerBound = matchedConfig.lowerBound ?? undefined;
-    upperBound = matchedConfig.upperBound ?? undefined;
-  } else if ("lowerBound" in matchedConfig) {
-    lowerBound = matchedConfig.lowerBound ?? undefined;
-    upperBound = matchedConfig.upperBound ?? undefined;
-  }
-
-  return getPositiveOptimization({
-    score,
-    lowerBound,
-    upperBound,
-    threshold,
-    optimizationDirection,
-  });
-}
 
 export const EvaluatorOutputPreview = () => {
   const [error, setError] = useState<string | null>(null);
@@ -199,7 +129,7 @@ export const EvaluatorOutputPreview = () => {
           input: {
             previews: [
               {
-                context: state.evaluatorMappingSource,
+                context: state.evaluatorMappingSource.source,
                 evaluator: params,
                 inputMapping: state.evaluator.inputMapping,
               },
