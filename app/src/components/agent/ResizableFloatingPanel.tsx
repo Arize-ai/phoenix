@@ -30,7 +30,21 @@ const RESIZE_EDGE_HANDLE_THICKNESS_PX = 8;
 const VIEWPORT_MARGIN_PX = FAB_INSET.horizontal;
 const VIEWPORT_VERTICAL_MARGIN_PX = FAB_INSET.vertical;
 
-type FloatingPanelLayer = "content" | "modal";
+/**
+ * Stratum the floating agent surface occupies. This is a stacking decision,
+ * not a modality one — the panel itself never becomes modal, and the value is
+ * unrelated to the `stacking` band prop on `Popover`.
+ *
+ * - `"content"`: the everyday assistant surface, rendered in the app-floating
+ *   bands (`--global-z-index-app-floating(-control)`) above page content but
+ *   beneath modal backdrops.
+ * - `"modal"`: elevation used while a modal or slideover is open, rendered in
+ *   the app-modal-floating bands so the panel stays visible and interactive
+ *   above the backdrop. Callers derive it from modal presence
+ *   (`hasOpenModal ? "modal" : "content"`); the panel also portals into the
+ *   active modal's portal container so React Aria does not mark it inert.
+ */
+export type FloatingPanelLayer = "content" | "modal";
 
 type FloatingPanelGeometry = {
   x: number;

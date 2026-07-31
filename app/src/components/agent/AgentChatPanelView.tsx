@@ -27,6 +27,7 @@ import type {
 import type { Size } from "@phoenix/types/geometry";
 
 import { PxiAnimatedGlyph } from "./PxiAnimatedGlyph";
+import type { FloatingPanelLayer } from "./ResizableFloatingPanel";
 import { ResizableFloatingPanel } from "./ResizableFloatingPanel";
 import { SessionListMenu } from "./SessionListMenu";
 import { EMPTY_SESSION_DISPLAY_NAME } from "./sessionSummaryUtils";
@@ -285,7 +286,7 @@ export function FloatingAgentChatFrame({
 }: {
   boundaryRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
-  layer?: "content" | "modal";
+  layer?: FloatingPanelLayer;
   placement: AgentFabPlacement;
   size?: Size;
   onSizeChange?: (size: Size) => void;

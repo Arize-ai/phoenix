@@ -23,6 +23,7 @@ import {
   getFabPinnedPosition,
   getNearestFabPlacement,
 } from "./agentFabPositioning";
+import type { FloatingPanelLayer } from "./ResizableFloatingPanel";
 import { useModalFloatingLayerInteractivity } from "./useModalFloatingLayerInteractivity";
 
 // Number of pixels the pointer must travel after pointerdown before we treat
@@ -88,7 +89,7 @@ export type AgentFabPositionerProps = {
   boundaryRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
   isHidden?: boolean;
-  layer?: "content" | "modal";
+  layer?: FloatingPanelLayer;
   placement: AgentFabPlacement;
   size?: Size;
   onActivate?: () => void;

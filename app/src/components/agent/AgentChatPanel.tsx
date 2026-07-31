@@ -12,6 +12,7 @@ import {
   FloatingAgentChatFrame,
 } from "./AgentChatPanelView";
 import { ChatView } from "./Chat";
+import type { FloatingPanelLayer } from "./ResizableFloatingPanel";
 import {
   EMPTY_SESSION_DISPLAY_NAME,
   getSessionDisplayName,
@@ -21,7 +22,7 @@ import { useAgentChatPanelState } from "./useAgentChatPanelState";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
-type AgentChatPanelLayer = "content" | "modal";
+type AgentChatPanelLayer = FloatingPanelLayer;
 
 type FloatingAgentChatPanelProps = {
   /**
