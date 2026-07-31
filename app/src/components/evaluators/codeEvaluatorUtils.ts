@@ -92,12 +92,8 @@ function extractPythonVariables(sourceCode: string) {
     .map((part) => {
       const isVariadic = part.startsWith("*");
       const name =
-        part
-          .replace(/^\*+/, "")
-          .split("=")[0]
-          ?.trim()
-          .split(":")[0]
-          ?.trim() ?? "";
+        part.replace(/^\*+/, "").split("=")[0]?.trim().split(":")[0]?.trim() ??
+        "";
       return {
         name,
         isRequired: !isVariadic && !part.includes("="),

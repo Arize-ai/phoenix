@@ -21,8 +21,8 @@ import {
   MenuTrigger,
 } from "@phoenix/components/core/menu";
 import { View } from "@phoenix/components/core/view";
-import type { ProjectEvaluatorCreationMode } from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
 import type { projectEvaluatorOptionsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
+import type { ProjectEvaluatorCreationMode } from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
 import {
   buildAttachCodeCreationMode,
   buildCopyLlmCreationMode,
