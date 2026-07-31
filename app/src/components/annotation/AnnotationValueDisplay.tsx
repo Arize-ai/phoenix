@@ -3,6 +3,7 @@ import { css } from "@emotion/react";
 import { Text } from "@phoenix/components";
 import { formatAnnotationScore } from "@phoenix/components/annotation/annotationFormatUtils";
 import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
+import { truncateSingleCSS } from "@phoenix/components/core/utility/Truncate";
 import { classNames } from "@phoenix/utils/classNames";
 
 const annotationValueDisplayCSS = css`
@@ -11,6 +12,11 @@ const annotationValueDisplayCSS = css`
   gap: var(--global-dimension-size-200);
   min-width: 0;
   white-space: nowrap;
+`;
+
+const annotationValueLabelCSS = css`
+  min-width: 0;
+  ${truncateSingleCSS}
 `;
 
 /** The score and label combination shared by annotation value surfaces. */
@@ -38,7 +44,13 @@ export function AnnotationValueDisplay({
           {formatAnnotationScore(score)}
         </AnnotationScoreText>
       ) : null}
-      {label ? <Text>{label}</Text> : <Text color="text-500">--</Text>}
+      {label ? (
+        <Text css={annotationValueLabelCSS} title={label}>
+          {label}
+        </Text>
+      ) : (
+        <Text color="text-500">--</Text>
+      )}
     </div>
   );
 }

@@ -85,9 +85,23 @@ const collapsibleFilterActionsCSS = css`
   display: inline-flex;
   justify-content: flex-end;
   flex: none;
-  width: var(--global-button-height-s);
   height: var(--global-button-height-s);
   overflow: visible;
+
+  .annotation-filter-actions__sizer {
+    visibility: hidden;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
+    box-sizing: border-box;
+    height: var(--global-button-height-s);
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+    border: 1px solid transparent;
+    font-size: var(--global-dimension-font-size-100);
+    line-height: 20px;
+    white-space: nowrap;
+  }
 
   .annotation-filter-actions__trigger {
     position: absolute;
@@ -101,7 +115,7 @@ const collapsibleFilterActionsCSS = css`
     display: none;
   }
 
-  &:hover,
+  &:has(.annotation-filter-actions__trigger:hover),
   &:focus-within,
   &[data-open="true"] {
     .annotation-filter-actions__trigger {
@@ -266,6 +280,10 @@ function CollapsibleAnnotationFilterActions({
       css={collapsibleFilterActionsCSS}
       data-open={isOpen}
     >
+      <span className="annotation-filter-actions__sizer" aria-hidden="true">
+        <Icon svg={<Icons.ListFilter />} />
+        <span>Filter</span>
+      </span>
       <MenuTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
         <Button
           className="annotation-filter-actions__trigger"

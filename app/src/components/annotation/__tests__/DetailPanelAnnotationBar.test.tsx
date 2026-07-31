@@ -1371,6 +1371,9 @@ describe("DetailPanelAnnotationBar", () => {
     const filterTriggerLabel = filterTrigger?.querySelector<HTMLElement>(
       ".annotation-filter-actions__trigger-label"
     );
+    const filterSizer = filterControl?.querySelector<HTMLElement>(
+      ".annotation-filter-actions__sizer"
+    );
     const moreActionsButton = tableActions?.querySelector<HTMLButtonElement>(
       '[aria-label="More annotation actions"]'
     );
@@ -1385,9 +1388,11 @@ describe("DetailPanelAnnotationBar", () => {
     expect(getComputedStyle(filterControl!).order).toBe("1");
     expect(getComputedStyle(moreActionsButton!).order).toBe("2");
     expect(filterControl?.dataset.open).toBe("false");
-    expect(getComputedStyle(filterControl!).width).toBe(
-      "var(--global-button-height-s)"
-    );
+    expect(getComputedStyle(filterControl!).width).toBe("auto");
+    expect(filterSizer?.getAttribute("aria-hidden")).toBe("true");
+    expect(filterSizer?.textContent).toBe("Filter");
+    expect(getComputedStyle(filterSizer!).visibility).toBe("hidden");
+    expect(getComputedStyle(filterSizer!).position).toBe("static");
     expect(getComputedStyle(filterTrigger!).width).toBe(
       "var(--global-button-height-s)"
     );
@@ -1404,6 +1409,13 @@ describe("DetailPanelAnnotationBar", () => {
     expect(
       document.querySelector('[aria-label="Delete annotation"]')
     ).toBeNull();
+
+    await act(async () => user.hover(filterControl!));
+
+    expect(getComputedStyle(filterTriggerLabel!).display).toBe("none");
+    expect(getComputedStyle(filterTrigger!).width).toBe(
+      "var(--global-button-height-s)"
+    );
 
     await act(async () => user.hover(filterTrigger!));
 
@@ -1507,6 +1519,16 @@ describe("DetailPanelAnnotationBar", () => {
         )!
       )
     );
+
+    const annotationEntryLabel = document.querySelector<HTMLElement>(
+      ".annotation-entry__value .text"
+    )!;
+    expect(annotationEntryLabel.title).toBe(label);
+    expect(getComputedStyle(annotationEntryLabel).minWidth).toBe("0px");
+    expect(getComputedStyle(annotationEntryLabel).textOverflow).toBe(
+      "ellipsis"
+    );
+
     await act(async () =>
       user.click(
         document.querySelector<HTMLButtonElement>(
