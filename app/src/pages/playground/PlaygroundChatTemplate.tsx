@@ -190,9 +190,6 @@ function MessageEditor({
     return validateMustacheSections(message.content ?? "");
   }, [message.content, templateFormat]);
 
-  // A prompt authored through the API can hold a message with no text at all,
-  // so the text editor follows whether there is any.
-  const hasText = message.content !== undefined;
   const media = useMessageMedia({ message, updateMessage });
   if (messageMode === "toolCalls") {
     return (
@@ -249,42 +246,27 @@ function MessageEditor({
 
   return (
     <div>
-      {hasText ? (
-        <TemplateEditorWrap>
-          {showValidation && sectionValidation?.errors.length ? (
-            <Alert variant="danger" banner title="Invalid mustache sections">
-              {sectionValidation.errors.join(", ")}
-            </Alert>
-          ) : null}
-          {showValidation && sectionValidation?.warnings.length ? (
-            <Alert variant="warning" banner title="Unclosed mustache sections">
-              {sectionValidation.warnings.join(", ")}
-            </Alert>
-          ) : null}
-          <div>
-            <TemplateEditor
-              height="100%"
-              defaultValue={message.content || ""}
-              aria-label="Message content"
-              templateFormat={templateFormat}
-              onChange={onChange}
-              onBlur={onBlur}
-              availablePaths={availablePaths}
-            />
-          </div>
-        </TemplateEditorWrap>
-      ) : (
-        <View paddingX="size-250" paddingTop="size-100">
-          <Button
-            size="S"
-            variant="quiet"
-            leadingVisual={<Icon svg={<Icons.MessageSquare />} />}
-            onPress={() => updateMessage({ content: "" })}
-          >
-            Add text
-          </Button>
-        </View>
-      )}
+      <TemplateEditorWrap>
+        {showValidation && sectionValidation?.errors.length ? (
+          <Alert variant="danger" banner title="Invalid mustache sections">
+            {sectionValidation.errors.join(", ")}
+          </Alert>
+        ) : null}
+        {showValidation && sectionValidation?.warnings.length ? (
+          <Alert variant="warning" banner title="Unclosed mustache sections">
+            {sectionValidation.warnings.join(", ")}
+          </Alert>
+        ) : null}
+        <TemplateEditor
+          height="100%"
+          defaultValue={message.content || ""}
+          aria-label="Message content"
+          templateFormat={templateFormat}
+          onChange={onChange}
+          onBlur={onBlur}
+          availablePaths={availablePaths}
+        />
+      </TemplateEditorWrap>
       {media.canAttachMedia ? <PlaygroundMessageMedia {...media} /> : null}
     </div>
   );
