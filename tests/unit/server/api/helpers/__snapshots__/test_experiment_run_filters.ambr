@@ -62,7 +62,7 @@
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-input-is-not-free-attribute]
   dict({
     'filter_condition': "input['score'] < 10",
-    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."score"\')) AS FLOAT) < 10',
+    'sql': 'CASE WHEN json_type(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."score"\'))) IN (\'integer\', \'real\') THEN CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."score"\')) AS FLOAT) WHEN json_type(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."score"\'))) = \'text\' THEN CASE WHEN json_valid(json_extract(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."score"\')), \'$\')) AND json_type(json_extract(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."score"\')), \'$\')) IN (\'integer\', \'real\') THEN CAST(json_extract(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."score"\')), \'$\') AS FLOAT) END END < 10',
   })
 # ---
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-latency-ms-is-not-free-attribute]
@@ -86,13 +86,13 @@
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-output-is-not-free-attribute]
   dict({
     'filter_condition': "output['score'] < 10",
-    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."score"\')) AS FLOAT) < 10 OR CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$."score"\')) AS FLOAT) < 10',
+    'sql': 'CASE WHEN json_type(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."score"\'))) IN (\'integer\', \'real\') THEN CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."score"\')) AS FLOAT) WHEN json_type(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."score"\'))) = \'text\' THEN CASE WHEN json_valid(json_extract(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."score"\')), \'$\')) AND json_type(json_extract(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."score"\')), \'$\')) IN (\'integer\', \'real\') THEN CAST(json_extract(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."score"\')), \'$\') AS FLOAT) END END < 10 OR CASE WHEN json_type(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$."score"\'))) IN (\'integer\', \'real\') THEN CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$."score"\')) AS FLOAT) WHEN json_type(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$."score"\'))) = \'text\' THEN CASE WHEN json_valid(json_extract(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$."score"\')), \'$\')) AND json_type(json_extract(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$."score"\')), \'$\')) IN (\'integer\', \'real\') THEN CAST(json_extract(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$."score"\')), \'$\') AS FLOAT) END END < 10',
   })
 # ---
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-reference-output-is-not-free-attribute]
   dict({
     'filter_condition': "reference_output['score'] < 10",
-    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.output, \'$."score"\')) AS FLOAT) < 10',
+    'sql': 'CASE WHEN json_type(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.output, \'$."score"\'))) IN (\'integer\', \'real\') THEN CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.output, \'$."score"\')) AS FLOAT) WHEN json_type(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.output, \'$."score"\'))) = \'text\' THEN CASE WHEN json_valid(json_extract(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.output, \'$."score"\')), \'$\')) AND json_type(json_extract(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.output, \'$."score"\')), \'$\')) IN (\'integer\', \'real\') THEN CAST(json_extract(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.output, \'$."score"\')), \'$\') AS FLOAT) END END < 10',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-complex-negation]
@@ -572,13 +572,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-gt]
   dict({
     'filter_condition': 'experiments[0].input["score"] > 0.5',
-    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."score"\')) AS FLOAT) > 0.5',
+    'sql': 'CASE WHEN json_type(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."score"\'))) IN (\'integer\', \'real\') THEN CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."score"\')) AS FLOAT) WHEN json_type(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."score"\'))) = \'text\' THEN CASE WHEN json_valid(json_extract(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."score"\')), \'$\')) AND json_type(json_extract(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."score"\')), \'$\')) IN (\'integer\', \'real\') THEN CAST(json_extract(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."score"\')), \'$\') AS FLOAT) END END > 0.5',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-gte]
   dict({
     'filter_condition': 'experiments[0].output["confidence"] >= 0.8',
-    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."confidence"\')) AS FLOAT) >= 0.8',
+    'sql': 'CASE WHEN json_type(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."confidence"\'))) IN (\'integer\', \'real\') THEN CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."confidence"\')) AS FLOAT) WHEN json_type(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."confidence"\'))) = \'text\' THEN CASE WHEN json_valid(json_extract(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."confidence"\')), \'$\')) AND json_type(json_extract(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."confidence"\')), \'$\')) IN (\'integer\', \'real\') THEN CAST(json_extract(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."confidence"\')), \'$\') AS FLOAT) END END >= 0.8',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-in]
@@ -608,13 +608,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-lt]
   dict({
     'filter_condition': 'experiments[0].input["length"] < 100',
-    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."length"\')) AS FLOAT) < 100',
+    'sql': 'CASE WHEN json_type(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."length"\'))) IN (\'integer\', \'real\') THEN CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."length"\')) AS FLOAT) WHEN json_type(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."length"\'))) = \'text\' THEN CASE WHEN json_valid(json_extract(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."length"\')), \'$\')) AND json_type(json_extract(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."length"\')), \'$\')) IN (\'integer\', \'real\') THEN CAST(json_extract(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."length"\')), \'$\') AS FLOAT) END END < 100',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-lte]
   dict({
     'filter_condition': 'experiments[1].output["probability"] <= 0.3',
-    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$."probability"\')) AS FLOAT) <= 0.3',
+    'sql': 'CASE WHEN json_type(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$."probability"\'))) IN (\'integer\', \'real\') THEN CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$."probability"\')) AS FLOAT) WHEN json_type(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$."probability"\'))) = \'text\' THEN CASE WHEN json_valid(json_extract(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$."probability"\')), \'$\')) AND json_type(json_extract(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$."probability"\')), \'$\')) IN (\'integer\', \'real\') THEN CAST(json_extract(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$."probability"\')), \'$\') AS FLOAT) END END <= 0.3',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-ne-none]
@@ -836,7 +836,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-unary-minus-comparison]
   dict({
     'filter_condition': '-experiments[0].latency_ms > -5',
-    'sql': "CAST(-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) AS FLOAT) > CAST(-5 AS FLOAT)",
+    'sql': "CASE WHEN json_type(-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)) IN ('integer', 'real') THEN CAST(-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) AS FLOAT) WHEN json_type(-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)) = 'text' THEN CASE WHEN json_valid(json_extract(-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1), '$')) AND json_type(json_extract(-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1), '$')) IN ('integer', 'real') THEN CAST(json_extract(-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1), '$') AS FLOAT) END END > CASE WHEN json_type(-5) IN ('integer', 'real') THEN CAST(-5 AS FLOAT) WHEN json_type(-5) = 'text' THEN CASE WHEN json_valid(json_extract(-5, '$')) AND json_type(json_extract(-5, '$')) IN ('integer', 'real') THEN CAST(json_extract(-5, '$') AS FLOAT) END END",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-unary-minus-constant]
@@ -848,6 +848,6 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-unary-minus-string-comparison]
   dict({
     'filter_condition': "-'hello' < 10",
-    'sql': "CAST(-'hello' AS FLOAT) < 10",
+    'sql': "CASE WHEN json_type(-'hello') IN ('integer', 'real') THEN CAST(-'hello' AS FLOAT) WHEN json_type(-'hello') = 'text' THEN CASE WHEN json_valid(json_extract(-'hello', '$')) AND json_type(json_extract(-'hello', '$')) IN ('integer', 'real') THEN CAST(json_extract(-'hello', '$') AS FLOAT) END END < 10",
   })
 # ---

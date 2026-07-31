@@ -83,16 +83,21 @@ as `RecursionError`.
 The whole condition must be a **condition**, not a value. So must every operand
 of `and`, `or`, and `not`. A condition is one of:
 
-| Form | Example |
-|---|---|
-| Comparison | `latency_ms > 100` |
-| Chained comparison | `0.5 < latency_ms < 1000` |
-| Logical combination | `a == 1 and b == 2`, `not (a == 1)` |
-| Bare annotation (existence check) | `annotations['quality']` |
-| Boolean literal | `True`, `False` |
+| Form | Example | Whole condition | Operand of `and`/`or`/`not` |
+|---|---|---|---|
+| Comparison | `latency_ms > 100` | yes | yes |
+| Chained comparison | `0.5 < latency_ms < 1000` | yes | yes |
+| Logical combination | `a == 1 and b == 2` | yes | yes |
+| Bare annotation (existence check) | `annotations['quality']` | yes | yes |
+| Boolean literal | `True`, `False` | **no** | yes |
 
-Anything else in that position is rejected. See
+Anything else in either position is rejected. See
 [Boolean Position](#boolean-position).
+
+A bare boolean literal is the one form that differs between the two columns:
+`name == 'x' and True` is accepted, `True` alone is not. A condition that
+selects every row is what an empty condition already expresses, so the literal
+form buys nothing and is rejected as the value it is.
 
 ### Field names
 

@@ -25,6 +25,7 @@ from sqlalchemy.sql import operators as sqlalchemy_operators
 from typing_extensions import TypeAlias, TypeGuard, assert_never
 
 from phoenix.db import models
+from phoenix.db.models import SafeJsonBoolean, SafeJsonFloat
 
 logger = logging.getLogger(__name__)
 
@@ -493,9 +494,9 @@ class ComparisonOperation(BooleanExpression):
         )
         if cast_type is not None:
             if left_operand.data_type is None:
-                compiled_left_operand = cast(compiled_left_operand, cast_type)
+                compiled_left_operand = _cast_json_value(compiled_left_operand, cast_type)
             if right_operand.data_type is None:
-                compiled_right_operand = cast(compiled_right_operand, cast_type)
+                compiled_right_operand = _cast_json_value(compiled_right_operand, cast_type)
         sqlalchemy_operator = _get_sqlalchemy_comparison_operator(operator)
         return sqlalchemy_operator(compiled_left_operand, compiled_right_operand)
 
@@ -730,6 +731,27 @@ def _get_sqlalchemy_comparison_operator(
     elif isinstance(ast_operator, ast.NotIn):
         return lambda left, right: ~models.TextContains(right, left)
     assert_never(ast_operator)
+
+
+def _cast_json_value(compiled_operand: Any, cast_type: SQLAlchemyDataType) -> Any:
+    """Convert a JSON value to the compared type without risking the statement.
+
+    Only operands of *unknown* type reach here, which means a JSON column. A
+    plain `CAST(jsonb AS FLOAT)` succeeds while every row happens to hold a
+    number and aborts the whole query the moment one does not -- `cannot cast
+    jsonb string to type double precision`. Whether a filter works then depends
+    on the data rather than on the expression, and no amount of validation can
+    see it coming.
+
+    `SafeJsonFloat` / `SafeJsonBoolean` are total: a value of the wrong shape
+    becomes NULL and its row drops out. Text needs no such care, since any JSON
+    value has a text rendering.
+    """
+    if isinstance(cast_type, Boolean):
+        return SafeJsonBoolean(compiled_operand)
+    if isinstance(cast_type, (Integer, Float)):
+        return SafeJsonFloat(compiled_operand)
+    return cast(compiled_operand, cast_type)
 
 
 def _is_singleton(operand: Any) -> bool:

@@ -11,82 +11,19 @@ from uuid import uuid4
 
 import sqlalchemy
 from sqlalchemy import case, literal
-from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Mapped, aliased
 from sqlalchemy.orm.util import AliasedClass
 from sqlalchemy.sql.expression import ColumnElement, Select
 from typing_extensions import TypeAlias, TypeGuard, assert_never
 
 from phoenix.db import models
+from phoenix.db.models import SafeJsonBoolean, SafeJsonFloat
 
 _VALID_EVAL_ATTRIBUTES: tuple[str, ...] = ("score", "label", "explanation")
 
 
 AnnotationAttribute: TypeAlias = typing.Literal["explanation", "label", "score"]
 AnnotationName: TypeAlias = str
-
-
-class _SafeJsonFloat(sqlalchemy.sql.functions.FunctionElement[float]):
-    type = sqlalchemy.Float()
-    inherit_cache = True
-
-
-class _SafeJsonBoolean(sqlalchemy.sql.functions.FunctionElement[bool]):
-    type = sqlalchemy.Boolean()
-    inherit_cache = True
-
-
-@compiles(_SafeJsonBoolean)
-def _compile_safe_json_boolean(
-    element: typing.Any, compiler: typing.Any, **kwargs: typing.Any
-) -> str:
-    value = compiler.process(list(element.clauses)[0], **kwargs)
-    scalar = f"lower(json_extract({value}, '$'))"
-    # SQLite's JSON functions return booleans as integers (e.g. JSON_QUOTE of an
-    # extracted true is '1', whose json_type is 'integer'), so real JSON booleans
-    # arrive here as 1/0 rather than 'true'/'false'.
-    return (
-        f"CASE json_type({value}) WHEN 'true' THEN 1 WHEN 'false' THEN 0 "
-        f"WHEN 'integer' THEN CASE json_extract({value}, '$') WHEN 1 THEN 1 WHEN 0 THEN 0 END "
-        f"WHEN 'text' THEN CASE {scalar} WHEN 'true' THEN 1 WHEN 'false' THEN 0 END END"
-    )
-
-
-@compiles(_SafeJsonBoolean, "postgresql")
-def _compile_safe_json_boolean_postgresql(
-    element: typing.Any, compiler: typing.Any, **kwargs: typing.Any
-) -> str:
-    value = compiler.process(list(element.clauses)[0], **kwargs)
-    # The jsonpath .boolean() method requires PostgreSQL 17; this CASE works on
-    # all supported PostgreSQL versions.
-    scalar = f"({value} #>> '{{}}')"
-    return (
-        f"CASE jsonb_typeof({value}) WHEN 'boolean' THEN CAST({scalar} AS BOOLEAN) "
-        f"WHEN 'string' THEN CASE lower{scalar} WHEN 'true' THEN true WHEN 'false' THEN false END "
-        f"WHEN 'number' THEN CASE {scalar} WHEN '1' THEN true WHEN '0' THEN false END END"
-    )
-
-
-@compiles(_SafeJsonFloat)
-def _compile_safe_json_float(
-    element: typing.Any, compiler: typing.Any, **kwargs: typing.Any
-) -> str:
-    value = compiler.process(list(element.clauses)[0], **kwargs)
-    scalar = f"json_extract({value}, '$')"
-    return (
-        f"CASE WHEN json_type({value}) IN ('integer', 'real') THEN CAST({value} AS FLOAT) "
-        f"WHEN json_type({value}) = 'text' THEN CASE WHEN json_valid({scalar}) "
-        f"AND json_type({scalar}) IN ('integer', 'real') THEN CAST({scalar} AS FLOAT) END END"
-    )
-
-
-@compiles(_SafeJsonFloat, "postgresql")
-def _compile_safe_json_float_postgresql(
-    element: typing.Any, compiler: typing.Any, **kwargs: typing.Any
-) -> str:
-    value = compiler.process(list(element.clauses)[0], **kwargs)
-    converted = f"jsonb_path_query_first({value}, '$.double()', '{{}}'::jsonb, true)"
-    return f"CAST({converted} AS NUMERIC)"
 
 
 @dataclass(frozen=True)
@@ -343,8 +280,8 @@ class SpanFilter:
                     "cast": sqlalchemy.cast,
                     "Float": sqlalchemy.Float,
                     "String": sqlalchemy.String,
-                    "SafeJsonBoolean": _SafeJsonBoolean,
-                    "SafeJsonFloat": _SafeJsonFloat,
+                    "SafeJsonBoolean": SafeJsonBoolean,
+                    "SafeJsonFloat": SafeJsonFloat,
                     "TextContains": models.TextContains,
                     _PARENT_IS_NULL: ~parent_exists,
                     _PARENT_IS_NOT_NULL: parent_exists,
@@ -1056,7 +993,7 @@ def _as_float_operand(node: ast.expr) -> ast.expr:
     it a real number before it is ever bound.
 
     Dynamic values still take the cast, which is total by construction
-    (`_SafeJsonFloat`), so an uncastable row excludes itself rather than
+    (`SafeJsonFloat`), so an uncastable row excludes itself rather than
     aborting the statement.
     """
     if (
@@ -1461,20 +1398,26 @@ def _validate_python_surface(body: ast.expr, source: str) -> None:
             # written. The binary bitwise operators are already rejected as
             # arithmetic; this closes the unary hole beside them.
             raise SyntaxError(f"unsupported operator: {ast.unparse(node)}")
-        elif isinstance(node, ast.Name):
+        elif isinstance(node, (ast.Name, ast.Attribute)):
             # Python NFKC-normalizes identifiers while parsing, so a full-width
             # `ｎａｍｅ` silently becomes `name` and resolves to a real column the
-            # user never spelled.
+            # user never spelled. Attribute segments normalize too, which is how
+            # `context.ｓｐａｎ_id` and `annotations['q'].ｓｃｏｒｅ` reach real fields.
             #
-            # Compared against this node's own source span, not against the
-            # whole condition: searching the text would pass whenever the
-            # normalized spelling appears anywhere else -- inside a string
-            # literal (`ｎａｍｅ == 'name'`) or in another operand
+            # Compared against the node's own source span, not against the whole
+            # condition: searching the text would pass whenever the normalized
+            # spelling appears anywhere else -- inside a string literal
+            # (`ｎａｍｅ == 'name'`) or in another operand
             # (`ｎａｍｅ == 'x' or name == 'y'`).
             written = ast.get_source_segment(source, node)
-            if written is not None and written != node.id:
+            normalized = node.id if isinstance(node, ast.Name) else node.attr
+            # An attribute's span covers its whole chain, so compare only the
+            # trailing segment the parser normalized.
+            if written is not None and isinstance(node, ast.Attribute):
+                written = written.rpartition(".")[2].strip()
+            if written and written != normalized:
                 raise SyntaxError(
-                    f"`{written}` is interpreted as `{node.id}`"
+                    f"`{written}` is interpreted as `{normalized}`"
                     ", use unaccented ASCII for field names"
                 )
 

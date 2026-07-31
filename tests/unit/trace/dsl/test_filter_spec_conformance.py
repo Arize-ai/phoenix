@@ -173,6 +173,15 @@ PYTHON_SURFACE_REJECTED = [
     # latter is rejected by Python's own parser
     pytest.param(r"name == 'a\x00b'", "NUL character", id="nul-escape"),
     pytest.param("ｎａｍｅ == 'a'", "is interpreted as", id="nfkc-identifier"),
+    pytest.param("context.ｓｐａｎ_id == 'x'", "is interpreted as", id="nfkc-attribute-segment"),
+    pytest.param(
+        "annotations['q'].ｓｃｏｒｅ > 0", "is interpreted as", id="nfkc-annotation-member"
+    ),
+    pytest.param("llm.token_count.ｔｏｔａｌ > 0", "is interpreted as", id="nfkc-dotted-path"),
+    pytest.param("ｎａｍｅ == 'name'", "is interpreted as", id="nfkc-ascii-in-literal"),
+    # a bare boolean literal is a value, not a condition -- unlike as an operand
+    pytest.param("True", "is not a condition", id="bare-true"),
+    pytest.param("False", "is not a condition", id="bare-false"),
 ]
 
 # `is` against the singletons is retained: those are the only values Python's
