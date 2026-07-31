@@ -4,11 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ListBox, ListBoxItem } from "@phoenix/components";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
+import { POINTER_OPEN_DWELL_MILLISECONDS } from "@phoenix/hooks/useDelayedPointerOpen";
 
 import {
   DetailsPanel,
   DetailsPanelContent,
   DetailsPanelContentBoundary,
+  DetailsPanelNavigationControlsRow,
 } from "../DetailsPanel";
 import { resetDetailsPanelSizingStoreForTesting } from "../detailsPanelSizing/store";
 import {
@@ -174,6 +176,7 @@ describe("SessionViewTabs", () => {
   let originalResizeObserver: typeof ResizeObserver;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     originalResizeObserver = globalThis.ResizeObserver;
     globalThis.ResizeObserver = class ResizeObserver {
@@ -189,6 +192,7 @@ describe("SessionViewTabs", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+    vi.useRealTimers();
     globalThis.ResizeObserver = originalResizeObserver;
     resetDetailsPanelSizingStoreForTesting();
     vi.restoreAllMocks();
@@ -419,6 +423,7 @@ describe("SessionViewTabs", () => {
                     textValue="Turn"
                     className="react-aria-ListBoxItem session-turn-row"
                     css={sessionDetailsNavigationTopLevelRowCSS}
+                    data-collapsed-navigation-hover-trigger
                   >
                     <span className="session-turn-row__compact-index">01</span>
                     <span className="session-turn-row__expanded-content">
@@ -430,6 +435,7 @@ describe("SessionViewTabs", () => {
                   type="button"
                   className="session-trace-row-header"
                   css={sessionDetailsNavigationTopLevelRowCSS}
+                  data-collapsed-navigation-hover-trigger
                 >
                   <span className="session-trace-row-header__compact-index">
                     01
@@ -525,8 +531,14 @@ describe("SessionViewTabs", () => {
 
     act(() => {
       body?.dispatchEvent(new MouseEvent("pointerover", { bubbles: true }));
+      vi.advanceTimersByTime(POINTER_OPEN_DWELL_MILLISECONDS);
     });
+    expect(navigation?.dataset.open).toBe("false");
 
+    act(() => {
+      turnRow?.dispatchEvent(new MouseEvent("pointerover", { bubbles: true }));
+      vi.advanceTimersByTime(POINTER_OPEN_DWELL_MILLISECONDS);
+    });
     expect(navigation?.dataset.open).toBe("true");
     expect(navigation?.dataset.navigationScrollbar).toBe("active");
     expect(getComputedStyle(navigation!).overflow).toBe("visible");
@@ -553,7 +565,8 @@ describe("SessionViewTabs", () => {
     expect(navigation?.dataset.open).toBe("false");
 
     act(() => {
-      body?.dispatchEvent(new MouseEvent("pointerover", { bubbles: true }));
+      turnRow?.dispatchEvent(new MouseEvent("pointerover", { bubbles: true }));
+      vi.advanceTimersByTime(POINTER_OPEN_DWELL_MILLISECONDS);
     });
 
     expect(navigation?.dataset.open).toBe("true");
@@ -564,7 +577,9 @@ describe("SessionViewTabs", () => {
       root.render(
         <StatefulSessionDetailsNavigation
           isCollapsed
-          control={<div>View control</div>}
+          control={
+            <div data-collapsed-navigation-hover-trigger>View control</div>
+          }
         >
           <div
             className="session-turn-list"
@@ -583,13 +598,13 @@ describe("SessionViewTabs", () => {
     const content = container.querySelector<HTMLElement>(
       ".session-details-navigation__content"
     );
-    const body = container.querySelector<HTMLElement>(
-      ".session-details-navigation__body"
-    );
     const scrollContainer = container.querySelector<HTMLElement>(
       '[data-testid="session-navigation-scroll"]'
     );
-    if (!navigation || !content || !body || !scrollContainer) {
+    const hoverTrigger = container.querySelector<HTMLElement>(
+      "[data-collapsed-navigation-hover-trigger]"
+    );
+    if (!navigation || !content || !hoverTrigger || !scrollContainer) {
       throw new Error("Expected collapsed session navigation");
     }
 
@@ -600,9 +615,21 @@ describe("SessionViewTabs", () => {
         getComputedStyle(scrollContainer).scrollbarColor
       )
     ).toBe(true);
+    const hiddenGutterPaintRule = Array.from(document.styleSheets)
+      .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+      .find(
+        (rule): rule is CSSStyleRule =>
+          rule instanceof CSSStyleRule &&
+          rule.selectorText.includes(".session-turn-list::before") &&
+          rule.selectorText.includes(".session-turn-list::after")
+      );
+    expect(hiddenGutterPaintRule?.style.display).toBe("none");
     scrollContainer.scrollTop = 72;
     act(() => {
-      body.dispatchEvent(new MouseEvent("pointerover", { bubbles: true }));
+      hoverTrigger.dispatchEvent(
+        new MouseEvent("pointerover", { bubbles: true })
+      );
+      vi.advanceTimersByTime(POINTER_OPEN_DWELL_MILLISECONDS);
     });
     expect(navigation.dataset.open).toBe("true");
     expect(getComputedStyle(scrollContainer).scrollbarGutter).toBe("stable");
@@ -632,7 +659,9 @@ describe("SessionViewTabs", () => {
             isCollapsed
             control={<div>View control</div>}
           >
-            <button type="button">Expand subtree</button>
+            <button type="button" data-collapsed-navigation-hover-trigger>
+              Expand subtree
+            </button>
           </StatefulSessionDetailsNavigation>
           <button type="button">Outside action</button>
         </>
@@ -645,9 +674,6 @@ describe("SessionViewTabs", () => {
     const content = container.querySelector<HTMLElement>(
       ".session-details-navigation__content"
     );
-    const body = container.querySelector<HTMLElement>(
-      ".session-details-navigation__body"
-    );
     const expandButton = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent === "Expand subtree"
     );
@@ -656,7 +682,10 @@ describe("SessionViewTabs", () => {
     );
 
     act(() => {
-      body?.dispatchEvent(new MouseEvent("pointerover", { bubbles: true }));
+      expandButton?.dispatchEvent(
+        new MouseEvent("pointerover", { bubbles: true })
+      );
+      vi.advanceTimersByTime(POINTER_OPEN_DWELL_MILLISECONDS);
     });
     expect(navigation?.dataset.open).toBe("true");
 
@@ -768,75 +797,58 @@ describe("SessionViewTabs", () => {
     }
   );
 
-  it.each([
-    ["uncollapsed", false, false, false],
-    ["collapsed and unhovered", true, false, true],
-    ["collapsed and hovered", true, true, false],
-  ] as const)(
-    "places the session below the view selector when %s",
-    (_stateLabel, isCollapsed, isPointerOpen, isIconOnly) => {
-      act(() => {
-        root.render(
-          <ThemeContext.Provider
-            value={{
-              theme: "light",
-              systemTheme: "light",
-              themeMode: "light",
-              setThemeMode: vi.fn(),
-            }}
-          >
-            <SessionDetailsNavigation
-              control={
-                <>
-                  <SessionViewControl
-                    sessionView="turns"
-                    onSessionViewChange={() => {}}
-                    traceCount={2}
-                  />
-                  <div className="session-navigation-annotation-row">
-                    <span className="session-navigation-annotation-row__icon">
-                      Session icon
-                    </span>
-                    <span className="session-navigation-annotation-row__expanded-content">
-                      Session
-                    </span>
-                  </div>
-                </>
-              }
-              isCollapsed={isCollapsed}
-              isPointerOpen={isPointerOpen}
-              onPointerOpenChange={() => {}}
-            >
-              <div>Navigation body</div>
-            </SessionDetailsNavigation>
-          </ThemeContext.Provider>
-        );
-      });
+  it("keeps the view selector content-width opposite the collapse button", () => {
+    act(() => {
+      root.render(
+        <ThemeContext.Provider
+          value={{
+            theme: "light",
+            systemTheme: "light",
+            themeMode: "light",
+            setThemeMode: vi.fn(),
+          }}
+        >
+          <DetailsPanelNavigationControlsRow
+            isCollapsed={false}
+            leading={
+              <SessionViewControl
+                placement="toolbar"
+                sessionView="turns"
+                onSessionViewChange={() => {}}
+                traceCount={2}
+              />
+            }
+            onCollapsedChange={() => {}}
+          />
+        </ThemeContext.Provider>
+      );
+    });
 
-      const viewControl = container.querySelector<HTMLElement>(
-        ".session-view-control"
-      );
-      const sessionRow = container.querySelector<HTMLElement>(
-        ".session-navigation-annotation-row"
-      );
-      const sessionIcon = container.querySelector<HTMLElement>(
-        ".session-navigation-annotation-row__icon"
-      );
-      const sessionExpandedContent = container.querySelector<HTMLElement>(
-        ".session-navigation-annotation-row__expanded-content"
-      );
+    const controlsRow = container.querySelector<HTMLElement>(
+      ".details-panel-navigation-controls"
+    );
+    const viewControl = container.querySelector<HTMLElement>(
+      ".session-view-control--toolbar"
+    );
+    const leading = container.querySelector<HTMLElement>(
+      ".details-panel-navigation-controls__leading"
+    );
+    const segmentedControl =
+      container.querySelector<HTMLElement>(".segmented-control");
+    const collapseButton = controlsRow?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Collapse trace navigation"]'
+    );
 
-      expect(viewControl?.nextElementSibling).toBe(sessionRow);
-      expect(getComputedStyle(sessionIcon!).display).not.toBe("none");
-      if (isIconOnly) {
-        expect(getComputedStyle(sessionExpandedContent!).display).toBe("none");
-      } else {
-        expect(getComputedStyle(sessionExpandedContent!).display).not.toBe(
-          "none"
-        );
-      }
-    }
-  );
+    expect(controlsRow?.firstElementChild).toBe(leading);
+    expect(leading?.firstElementChild).toBe(viewControl);
+    expect(controlsRow?.lastElementChild).toBe(collapseButton);
+    expect(getComputedStyle(leading!).marginRight).toBe("auto");
+    expect(getComputedStyle(segmentedControl!).width).toBe("auto");
+    expect(segmentedControl?.dataset.justified).not.toBe("true");
+    expect(
+      container.querySelector(".session-navigation-annotation-row")
+    ).toBeNull();
+  });
 
   it("keeps the hover navigation open when switching session views", () => {
     act(() => {
@@ -854,11 +866,14 @@ describe("SessionViewTabs", () => {
       );
     });
 
-    const body = container.querySelector<HTMLElement>(
-      ".session-details-navigation__body"
+    const hoverTrigger = container.querySelector<HTMLElement>(
+      "[data-collapsed-navigation-hover-trigger]"
     );
     act(() => {
-      body?.dispatchEvent(new MouseEvent("pointerover", { bubbles: true }));
+      hoverTrigger?.dispatchEvent(
+        new MouseEvent("pointerover", { bubbles: true })
+      );
+      vi.advanceTimersByTime(POINTER_OPEN_DWELL_MILLISECONDS);
     });
 
     const initialNavigation = container.querySelector<HTMLElement>(
@@ -908,13 +923,14 @@ describe("SessionViewTabs", () => {
       );
     });
 
-    const loadedBody = container.querySelector<HTMLElement>(
-      ".session-details-navigation__body"
+    const hoverTrigger = container.querySelector<HTMLElement>(
+      "[data-collapsed-navigation-hover-trigger]"
     );
     act(() => {
-      loadedBody?.dispatchEvent(
+      hoverTrigger?.dispatchEvent(
         new MouseEvent("pointerover", { bubbles: true })
       );
+      vi.advanceTimersByTime(POINTER_OPEN_DWELL_MILLISECONDS);
     });
 
     const loadedNavigation = container.querySelector<HTMLElement>(
@@ -986,6 +1002,48 @@ describe("SessionViewTabs", () => {
 
     act(() => switchViewButton?.click());
     expect(onSessionViewChange).toHaveBeenCalledWith("turns");
+  });
+
+  it("justifies the full-width selector in the hovered collapsed navigation", () => {
+    act(() => {
+      root.render(
+        <ThemeContext.Provider
+          value={{
+            theme: "light",
+            systemTheme: "light",
+            themeMode: "light",
+            setThemeMode: vi.fn(),
+          }}
+        >
+          <SessionDetailsNavigation
+            control={
+              <SessionViewControl
+                placement="navigation"
+                sessionView="turns"
+                onSessionViewChange={() => {}}
+                traceCount={2}
+              />
+            }
+            isCollapsed
+            isPointerOpen
+            onPointerOpenChange={() => {}}
+          >
+            <div>Turn list</div>
+          </SessionDetailsNavigation>
+        </ThemeContext.Provider>
+      );
+    });
+
+    const segmentedControl =
+      container.querySelector<HTMLElement>(".segmented-control");
+    const segments = container.querySelectorAll<HTMLElement>(
+      ".segmented-control__item"
+    );
+
+    expect(segmentedControl?.dataset.justified).toBe("true");
+    expect(getComputedStyle(segmentedControl!).width).toBe("100%");
+    expect(getComputedStyle(segments[0]!).flexGrow).toBe("1");
+    expect(getComputedStyle(segments[1]!).flexGrow).toBe("1");
   });
 
   it("stacks session pagination controls only in the collapsed column", () => {

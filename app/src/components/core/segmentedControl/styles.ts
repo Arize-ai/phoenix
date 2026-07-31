@@ -49,7 +49,9 @@ export const segmentedControlCSS = css`
     width: 100%;
 
     .segmented-control__item {
-      flex: 1 1 0;
+      flex-grow: 1;
+      flex-shrink: 1;
+      flex-basis: 0;
     }
   }
 
@@ -80,9 +82,8 @@ export const segmentedControlCSS = css`
 
 export const segmentedControlItemCSS = css`
   position: relative;
-  /* The thumb is a child of the selected item and slides in from the previous
-     one, so the selected item drops below its siblings (see [data-selected]) to
-     keep the thumb from crossing over the labels it passes. */
+  /* Above the track-owned thumb (z-index: 0), so labels stay legible while it
+     slides beneath them. */
   z-index: 1;
   box-sizing: border-box;
   display: flex;
@@ -103,8 +104,6 @@ export const segmentedControlItemCSS = css`
   line-height: var(--segmented-control-item-line-height);
   font-weight: 400;
   white-space: nowrap;
-  /* Not clipped: the thumb spends the animation outside this box. */
-  overflow: visible;
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -156,7 +155,6 @@ export const segmentedControlItemCSS = css`
 
   &[data-selected] {
     color: var(--global-segmented-control-item-text-color-selected);
-    z-index: 0;
   }
 
   &[data-disabled] {
@@ -170,14 +168,14 @@ export const segmentedControlItemCSS = css`
   }
 `;
 
-/** Its own box so the press animation leaves the thumb's geometry alone. */
+/** Its own box so the press scale leaves the item's box — and everything
+    anchored to it (hover pill, focus ring, dividers) — alone. */
 export const segmentedControlItemContentCSS = css`
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--global-dimension-size-100);
   min-width: 0;
-  /* Here rather than on the item, so clipping the label never clips the thumb. */
   overflow: hidden;
   transition: scale var(--segmented-control-motion-duration)
     var(--segmented-control-motion-easing);
@@ -197,38 +195,37 @@ export const segmentedControlItemContentCSS = css`
 `;
 
 /**
- * react-aria re-parents the thumb into the newly selected item and seeds it with
- * the previous segment's offset and width, so animating translate and width is
- * what makes it slide across and stretch. Height is deliberately left out —
- * segments are all the same height, and animating it only adds jitter.
+ * The thumb is a direct child of the track (see SegmentedControlThumb.tsx),
+ * which writes its `left`/`width` inline from the selected item's offsets —
+ * track-local values by construction. Only those two horizontal properties
+ * transition; the vertical geometry below is constant, so no measurement,
+ * reflow, or animation state can ever move the thumb off the track.
  */
 export const segmentedControlThumbCSS = css`
   position: absolute;
   /* Bleeds out by the track's border width so the two borders paint on top of
      each other instead of reading as a doubled line. */
   top: calc(-1 * var(--global-border-size-thin));
-  left: calc(-1 * var(--global-border-size-thin));
-  width: calc(100% + 2 * var(--global-border-size-thin));
   height: calc(100% + 2 * var(--global-border-size-thin));
   box-sizing: border-box;
-  z-index: -1;
+  /* Between the track's background and the items (z-index: 1). */
+  z-index: 0;
   contain: strict;
-  /* Zero, but written as a percentage on purpose: a box-size-dependent translate
-     can't be lifted to the compositor, so it stays on the main thread and
-     resolves in the same style recalc as the width stretch. Left compositable,
-     it keeps gliding through dropped frames while width stalls, and the thumb
-     visibly wobbles. */
-  translate: 0% 0px;
+  /* Purely decorative: never a hit target, never focusable. */
+  pointer-events: none;
+  /* Hidden until the track measures a selected item and writes left/width. */
+  visibility: hidden;
   background-color: var(--global-segmented-control-thumb-background-color);
   border: var(--global-border-size-thin) solid
     var(--global-segmented-control-thumb-border-color);
   border-radius: var(--segmented-control-rounding);
-  transition-property: translate, width;
+  /* Two layout properties on purpose: they resolve in the same style recalc,
+     so the slide and the stretch can never fall out of step the way a
+     composited translate and a main-thread width can. */
+  transition-property: left, width;
   transition-duration: var(--segmented-control-motion-duration);
   transition-timing-function: var(--segmented-control-motion-easing);
 
-  /* none, not a zero duration: react-aria only snapshots the outgoing thumb when
-     the incoming one has a transition-property. */
   @media (prefers-reduced-motion: reduce) {
     transition: none;
   }

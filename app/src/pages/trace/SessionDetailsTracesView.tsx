@@ -19,6 +19,7 @@ import {
   usePaginationFragment,
   usePreloadedQuery,
 } from "react-relay";
+import { useLocation, useNavigate } from "react-router";
 
 import { Empty, Flex, Loading, View } from "@phoenix/components";
 import {
@@ -33,7 +34,17 @@ import {
 import { TraceSummaryRow } from "@phoenix/components/trace/TraceSummaryRow";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
+import {
+  detailsPanelNavigationRowBackgroundBleedCSS,
+  detailsPanelNavigationScrollOwnerCSS,
+} from "@phoenix/components/trace/traceTreeStyles";
 import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
+import { useDetailsPanelNavigationGutterPaint } from "@phoenix/components/trace/useDetailsPanelNavigationGutterPaint";
+import {
+  SELECTED_SPAN_NODE_ID_PARAM,
+  SELECTED_TRACE_ID_PARAM,
+  SESSION_VIEW_PARAM,
+} from "@phoenix/constants/searchParams";
 import type {
   SessionDetailsTracesView_traces$data,
   SessionDetailsTracesView_traces$key,
@@ -53,8 +64,10 @@ import type {
 } from "./SessionDetails";
 import { SessionDetailsNavigation } from "./SessionDetailsNavigation";
 import type { SessionDetailsSearchParamsStore } from "./sessionDetailsSearchParamsStore";
+import { getSpanInfoSectionId } from "./span/sectionIds";
 import { SpanDetailsPaintGate } from "./SpanDetailsPaintGate";
 import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
+import type { RootSpanMessageRole } from "./TraceTurnContent";
 import { TraceTurnDetails, TraceTurnDetailsSkeleton } from "./TraceTurnDetails";
 
 const INITIAL_SELECTED_TRACE_MAX_PAGES = 3;
@@ -124,12 +137,29 @@ function SelectedSpanTraceResolver({
 }
 
 function SelectedTraceDetails({
+  onRootSpanDetailsReady,
+  onRootSpanResolved,
+  onRootSpanSelect,
+  onTraceSelect,
   projectId,
+  selectedSpanDetails,
+  selectedSpanNodeId,
   traceId,
 }: {
+  onRootSpanDetailsReady: (spanNodeId: string) => void;
+  onRootSpanResolved: (selection: {
+    spanNodeId: string;
+    traceId: string;
+  }) => void;
+  onRootSpanSelect: SpanClickHandler;
+  onTraceSelect: TraceSelectHandler;
   projectId: string;
+  selectedSpanDetails: ReactNode;
+  selectedSpanNodeId: string | null;
   traceId: string;
 }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const data = useLazyLoadQuery<SessionDetailsTracesViewSelectedTraceQuery>(
     graphql`
       query SessionDetailsTracesViewSelectedTraceQuery(
@@ -148,6 +178,8 @@ function SelectedTraceDetails({
               ) {
                 edges {
                   span: node {
+                    id
+                    spanId
                     latencyMs
                     startTime
                     cumulativeTokenCountTotal
@@ -172,11 +204,50 @@ function SelectedTraceDetails({
   );
   const trace = data.project?.trace;
   const rootSpan = trace?.rootSpans.edges[0]?.span;
+  const resolvedRootSpanNodeId = rootSpan?.id;
+  const resolvedTraceId = trace?.traceId;
+  const notifyRootSpanResolved = useEffectEvent(onRootSpanResolved);
+  useEffect(() => {
+    if (resolvedRootSpanNodeId == null || resolvedTraceId == null) return;
+    notifyRootSpanResolved({
+      spanNodeId: resolvedRootSpanNodeId,
+      traceId: resolvedTraceId,
+    });
+  }, [resolvedRootSpanNodeId, resolvedTraceId]);
   if (trace == null || rootSpan == null) {
     throw new Error("Trace is required to view trace details");
   }
+  const isTraceSelected = selectedSpanNodeId == null;
+  if (!isTraceSelected && selectedSpanNodeId !== rootSpan.id) {
+    return selectedSpanDetails;
+  }
+  const handleRootSpanMessageDoubleClick = (role: RootSpanMessageRole) => {
+    const nextSearchParams = new URLSearchParams(location.search);
+    const sectionKey = role === "INPUT" ? "input" : "output";
+    nextSearchParams.set(SESSION_VIEW_PARAM, "traces");
+    nextSearchParams.set(SELECTED_TRACE_ID_PARAM, trace.traceId);
+    nextSearchParams.set(SELECTED_SPAN_NODE_ID_PARAM, rootSpan.id);
+    void navigate({
+      pathname: location.pathname,
+      search: nextSearchParams.toString(),
+      hash: `#${getSpanInfoSectionId({
+        sectionKey,
+        spanId: rootSpan.spanId,
+      })}`,
+    });
+  };
   return (
     <TraceTurnDetails
+      isTraceSelected={isTraceSelected}
+      onRootSpanDetailsReady={onRootSpanDetailsReady}
+      onRootSpanMessageDoubleClick={handleRootSpanMessageDoubleClick}
+      onRootSpanSelect={() =>
+        onRootSpanSelect({
+          spanNodeId: rootSpan.id,
+          traceId: trace.traceId,
+        })
+      }
+      onTraceSelect={() => onTraceSelect({ traceId: trace.traceId })}
       rootSpan={rootSpan}
       traceId={trace.traceId}
       traceNodeId={trace.id}
@@ -283,6 +354,7 @@ export function SessionDetailsTracesView({
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const autoExpansionTargetTraceIdRef = useRef<string | null>(null);
   const autoExpansionPagesLoadedRef = useRef(0);
+  const lastLocatedTraceIdRef = useRef<string | null>(null);
   const lastAutoExpandedTraceIdRef = useRef<string | null>(null);
   const spanSelectionRequestRef = useRef<SpanClickHandler>(() => undefined);
   const pendingUrlSelectionRef = useRef<Parameters<SpanClickHandler>[0] | null>(
@@ -378,17 +450,22 @@ export function SessionDetailsTracesView({
   };
 
   // A route or external navigation can select a trace before its paginated row
-  // is loaded. Page a bounded amount until that row exists, then expand it once
-  // and scroll it into view. Tracking the active selection rather than only the
-  // mount-time value also handles span-only deep links after their trace resolves.
+  // is loaded. Page a bounded amount until that row exists, then scroll it into
+  // view. Keep trace-only selections collapsed; only expand the row when a span
+  // deep link needs the trace tree to reveal its selected span.
   useEffect(() => {
     if (selectedTraceId == null) {
       autoExpansionTargetTraceIdRef.current = null;
       autoExpansionPagesLoadedRef.current = 0;
+      lastLocatedTraceIdRef.current = null;
       lastAutoExpandedTraceIdRef.current = null;
       return;
     }
-    if (lastAutoExpandedTraceIdRef.current === selectedTraceId) {
+    const shouldLocateTrace = lastLocatedTraceIdRef.current !== selectedTraceId;
+    const shouldAutoExpandTrace =
+      selectedSpanNodeId != null &&
+      lastAutoExpandedTraceIdRef.current !== selectedTraceId;
+    if (!shouldLocateTrace && !shouldAutoExpandTrace) {
       return;
     }
     if (autoExpansionTargetTraceIdRef.current !== selectedTraceId) {
@@ -410,25 +487,37 @@ export function SessionDetailsTracesView({
         loadNext(SESSION_DETAILS_PAGE_SIZE);
         return;
       }
-      lastAutoExpandedTraceIdRef.current = selectedTraceId;
+      lastLocatedTraceIdRef.current = selectedTraceId;
       return;
     }
     const el = rowRefs.current.get(selectedTraceId);
     if (el) {
-      startTransition(() => {
-        setExpandedIds((prev) => {
-          if (prev.has(selectedTrace.id)) {
-            return prev;
-          }
-          const next = new Set(prev);
-          next.add(selectedTrace.id);
-          return next;
+      if (shouldAutoExpandTrace) {
+        startTransition(() => {
+          setExpandedIds((prev) => {
+            if (prev.has(selectedTrace.id)) {
+              return prev;
+            }
+            const next = new Set(prev);
+            next.add(selectedTrace.id);
+            return next;
+          });
         });
-      });
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-      lastAutoExpandedTraceIdRef.current = selectedTraceId;
+        lastAutoExpandedTraceIdRef.current = selectedTraceId;
+      }
+      if (shouldLocateTrace) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        lastLocatedTraceIdRef.current = selectedTraceId;
+      }
     }
-  }, [hasNext, isLoadingNext, loadNext, selectedTraceId, traces]);
+  }, [
+    hasNext,
+    isLoadingNext,
+    loadNext,
+    selectedSpanNodeId,
+    selectedTraceId,
+    traces,
+  ]);
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
@@ -499,6 +588,8 @@ export function SessionDetailsTracesView({
         <SpanInfoCardsProvider>
           {renderMainContent(
             <SelectionDetailsPanel
+              onRootSpanSelect={handleSpanClick}
+              onTraceSelect={handleTraceSelect}
               projectId={projectId}
               selectedSpanNodeId={selectedSpanNodeId}
               selectedTraceId={selectedTraceId}
@@ -545,8 +636,12 @@ function TraceRowList({
   isLoadingNext: boolean;
   onScroll: (e: React.UIEvent<HTMLDivElement>) => void;
 }) {
+  const scrollOwnerRef = useRef<HTMLDivElement>(null);
+  useDetailsPanelNavigationGutterPaint({ scrollOwnerRef });
+
   return (
     <div
+      ref={scrollOwnerRef}
       css={traceRowListCSS}
       data-testid="session-trace-row-list"
       onScroll={onScroll}
@@ -645,6 +740,7 @@ function TraceRow({
   return (
     <div
       css={traceRowCSS}
+      data-collapsed-navigation-hover-trigger
       data-selected={isSelected || undefined}
       data-has-active-descendant={(isActive && !isSelected) || undefined}
       data-testid="session-trace-row"
@@ -705,11 +801,15 @@ function TraceTreeContainer({
     <div
       className="session-trace-tree"
       css={traceTreeContainerCSS}
+      data-navigation-gutter-paint
       data-testid="session-trace-tree"
     >
       <Suspense
         fallback={
-          <TraceTreeSkeleton isNavigationCollapsed={isNavigationCollapsed} />
+          <TraceTreeSkeleton
+            isNavigationCollapsed={isNavigationCollapsed}
+            isScrollOwner={false}
+          />
         }
       >
         <LazyTraceTree
@@ -727,12 +827,16 @@ function TraceTreeContainer({
 }
 
 function SelectionDetailsPanel({
+  onRootSpanSelect,
+  onTraceSelect,
   projectId,
   selectedSpanNodeId,
   selectedTraceId,
   selectionRequestRef,
   onSpanDetailsReady,
 }: {
+  onRootSpanSelect: SpanClickHandler;
+  onTraceSelect: TraceSelectHandler;
   projectId: string;
   selectedSpanNodeId: string | null;
   selectedTraceId: string | null;
@@ -745,6 +849,10 @@ function SelectionDetailsPanel({
   } | null>(() =>
     selectedSpanNodeId ? { spanNodeId: selectedSpanNodeId } : null
   );
+  const [resolvedRootSpan, setResolvedRootSpan] = useState<{
+    spanNodeId: string;
+    traceId: string;
+  } | null>(null);
 
   useEffect(() => {
     selectionRequestRef.current = ({ spanNodeId, spanPreview }) => {
@@ -755,15 +863,8 @@ function SelectionDetailsPanel({
     };
   }, [selectionRequestRef]);
 
-  if (selectedSpanNodeId == null && selectedTraceId != null) {
-    return (
-      <Suspense fallback={<TraceTurnDetailsSkeleton />}>
-        <SelectedTraceDetails projectId={projectId} traceId={selectedTraceId} />
-      </Suspense>
-    );
-  }
-  if (selectedSpanNodeId == null || localSpanSelection == null) {
-    return (
+  const selectedSpanDetails =
+    selectedSpanNodeId == null || localSpanSelection == null ? (
       <Flex
         direction="row"
         alignItems="center"
@@ -773,20 +874,44 @@ function SelectionDetailsPanel({
       >
         <Empty message="Expand a trace and select a span to view its details" />
       </Flex>
+    ) : (
+      <div css={spanDetailsContainerCSS} data-testid="session-span-details">
+        <SpanDetailsPaintGate
+          spanNodeId={selectedSpanNodeId}
+          spanPreview={
+            localSpanSelection.spanNodeId === selectedSpanNodeId
+              ? localSpanSelection.spanPreview
+              : undefined
+          }
+          onSpanDetailsReady={onSpanDetailsReady}
+        />
+      </div>
     );
-  }
-  return (
-    <div css={spanDetailsContainerCSS} data-testid="session-span-details">
-      <SpanDetailsPaintGate
-        spanNodeId={selectedSpanNodeId}
-        spanPreview={
-          localSpanSelection.spanNodeId === selectedSpanNodeId
-            ? localSpanSelection.spanPreview
-            : undefined
-        }
-        onSpanDetailsReady={onSpanDetailsReady}
+
+  const resolvedRootSpanNodeId =
+    resolvedRootSpan?.traceId === selectedTraceId
+      ? resolvedRootSpan.spanNodeId
+      : null;
+  const shouldRenderSelectedTraceDetails =
+    selectedTraceId != null &&
+    (selectedSpanNodeId == null ||
+      selectedSpanNodeId === resolvedRootSpanNodeId);
+
+  return shouldRenderSelectedTraceDetails ? (
+    <Suspense fallback={<TraceTurnDetailsSkeleton />}>
+      <SelectedTraceDetails
+        onRootSpanDetailsReady={onSpanDetailsReady}
+        onRootSpanResolved={setResolvedRootSpan}
+        onRootSpanSelect={onRootSpanSelect}
+        onTraceSelect={onTraceSelect}
+        projectId={projectId}
+        selectedSpanDetails={selectedSpanDetails}
+        selectedSpanNodeId={selectedSpanNodeId}
+        traceId={selectedTraceId}
       />
-    </div>
+    </Suspense>
+  ) : (
+    selectedSpanDetails
   );
 }
 
@@ -830,6 +955,7 @@ function LazyTraceTree({
         isChildTruncationEnabled={isTraceTreeChildTruncationEnabled}
         isHoverOverlayEnabled={false}
         isNavigationCollapsed={isNavigationCollapsed}
+        isScrollOwner={false}
         selectedSpanNodeId={selectedSpanNodeId ?? ""}
         scrollSelectedSpanIntoView={false}
         onSpanClick={(span) =>
@@ -855,9 +981,11 @@ function LazyTraceTree({
 }
 
 const traceRowListCSS = css`
+  ${detailsPanelNavigationScrollOwnerCSS}
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 `;
 
 const traceRowCSS = css`
@@ -866,9 +994,12 @@ const traceRowCSS = css`
 `;
 
 const traceTreeContainerCSS = css`
-  border-bottom: var(--global-border-size-thin) solid
-    var(--global-border-color-default);
+  ${detailsPanelNavigationRowBackgroundBleedCSS}
+  --details-panel-navigation-row-bleed-background-color: var(
+    --global-color-gray-75
+  );
   background: var(--global-color-gray-75);
+  --trace-tree-row-background-color: var(--global-color-gray-75);
   --trace-tree-show-more-background-color: var(--global-color-gray-75);
 `;
 

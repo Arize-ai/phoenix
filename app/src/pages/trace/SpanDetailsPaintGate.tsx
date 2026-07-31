@@ -56,6 +56,7 @@ function createCachedSpanDetails({
  * delays the selection paint.
  */
 type SpanDetailsPaintGateProps = {
+  isHotkeyEnabled?: boolean;
   spanNodeId: string;
   spanPreview?: SpanDetailsPreview;
   onSpanDetailsReady?: (spanNodeId: string) => void;
@@ -63,10 +64,12 @@ type SpanDetailsPaintGateProps = {
 
 export function SpanDetailsPaintGate(props: SpanDetailsPaintGateProps) {
   const isDetailsPanelInteractionActive = useIsDetailsPanelInteractionActive();
+  const isHotkeyEnabled =
+    props.isHotkeyEnabled ?? isDetailsPanelInteractionActive;
   return (
     <SpanNoteBarProvider
       activeSpanNodeId={props.spanNodeId}
-      isHotkeyEnabled={isDetailsPanelInteractionActive}
+      isHotkeyEnabled={isHotkeyEnabled}
     >
       <SpanDetailsPaintGateContent {...props} />
     </SpanNoteBarProvider>

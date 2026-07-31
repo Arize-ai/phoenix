@@ -3,8 +3,8 @@ import { code } from "@streamdown/code";
 import { type IconMap, type PluginConfig, Streamdown } from "streamdown";
 
 import { Icons } from "../core/icon";
-import { PrettyText } from "../utility";
 import { useMarkdownMode } from "./MarkdownDisplayContext";
+import { MarkdownSourceBlock } from "./MarkdownSourceBlock";
 import { streamdownComponents } from "./streamdownComponents";
 import { markdownCSS } from "./styles";
 import type { MarkdownDisplayMode } from "./types";
@@ -56,20 +56,22 @@ export function MarkdownBlock({
           margin: var(--global-dimension-size-200);
         `;
 
-  return mode === "markdown" ? (
-    <div css={[markdownCSS, spacingCSS]}>
-      <Streamdown
-        components={streamdownComponents}
-        controls={{ code: { copy: true, download: true }, table: false }}
-        icons={streamdownIcons}
-        mode={renderMode}
-        plugins={plugins}
-      >
-        {children}
-      </Streamdown>
+  return (
+    <div css={[mode === "markdown" ? markdownCSS : null, spacingCSS]}>
+      {mode === "markdown" ? (
+        <Streamdown
+          components={streamdownComponents}
+          controls={{ code: { copy: true, download: true }, table: false }}
+          icons={streamdownIcons}
+          mode={renderMode}
+          plugins={plugins}
+        >
+          {children}
+        </Streamdown>
+      ) : (
+        <MarkdownSourceBlock>{children}</MarkdownSourceBlock>
+      )}
     </div>
-  ) : (
-    <PrettyText preCSS={spacingCSS}>{children}</PrettyText>
   );
 }
 

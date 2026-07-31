@@ -142,16 +142,19 @@ vi.mock("../SpanDetailsHeaderActions", () => ({
 import { SpanDetails } from "../SpanDetails";
 import { SpanInfoCardsProvider } from "../SpanInfoCardsContext";
 import { SpanNoteBarProvider } from "../SpanNoteBarContext";
+import { SpanDetailsContentSkeleton } from "../TraceDetailsSkeleton";
 
 function TestProviders({
   children,
+  initialEntry = "/",
   isTakingSpanNotes = false,
 }: {
   children: ReactNode;
+  initialEntry?: string;
   isTakingSpanNotes?: boolean;
 }) {
   return (
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <ThemeProvider>
         <PreferencesProvider isTakingSpanNotes={isTakingSpanNotes}>
           <SpanInfoCardsProvider>
@@ -223,6 +226,55 @@ describe("SpanDetails headers", () => {
         headers.item(0).querySelector<HTMLElement>(".detail-header__meta")!
       ).flexWrap
     ).toBe("nowrap");
+    const identityRow = headers
+      .item(0)
+      .querySelector<HTMLElement>(".detail-header__identity")!;
+    expect(getComputedStyle(identityRow).height).toBe(
+      "var(--global-dimension-size-400)"
+    );
+    expect(getComputedStyle(identityRow).alignItems).toBe("center");
+  });
+
+  it("keeps neutral loading navigation the same height as loaded navigation", () => {
+    spanDetailsContentTestState.shouldSuspend = false;
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanDetails spanNodeId="span-node-id" />
+        </TestProviders>
+      );
+    });
+
+    const loadedNavigation = container.querySelector<HTMLElement>(
+      'nav[aria-label="Span detail sections"]'
+    );
+    expect(loadedNavigation).not.toBeNull();
+    const loadedNavigationHeight = getComputedStyle(loadedNavigation!).height;
+    expect(loadedNavigationHeight).not.toBe("");
+
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanDetailsContentSkeleton />
+        </TestProviders>
+      );
+    });
+
+    const loadingNavigation = container.querySelector<HTMLElement>(
+      'nav[aria-label="Loading span detail sections"]'
+    );
+    expect(loadingNavigation).not.toBeNull();
+    expect(loadingNavigation?.textContent).toBe("");
+    const loadingNavigationSkeletons = loadingNavigation?.querySelectorAll(
+      ".span-details-navigation__placeholder .skeleton"
+    );
+    expect(loadingNavigationSkeletons).toHaveLength(4);
+    loadingNavigationSkeletons?.forEach((skeleton) => {
+      expect(getComputedStyle(skeleton).height).toBe("16px");
+    });
+    expect(getComputedStyle(loadingNavigation!).height).toBe(
+      loadedNavigationHeight
+    );
   });
 
   it("clears an interrupted section-title highlight before animating the next title", async () => {
@@ -260,6 +312,82 @@ describe("SpanDetails headers", () => {
     expect(firstAnimation?.stop).not.toHaveBeenCalled();
     expect(inputFeedback?.style.opacity).toBe("");
     expect(motionMocks.animate).toHaveBeenCalledTimes(2);
+  });
+
+  it("opens a span detail section addressed by the route hash", () => {
+    spanDetailsContentTestState.shouldSuspend = false;
+    const originalScrollHeight = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      "scrollHeight"
+    );
+    const originalClientHeight = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      "clientHeight"
+    );
+    const getBoundingClientRect = vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: Element) {
+        if (this.hasAttribute("data-span-details-sections")) {
+          return new DOMRect(0, 100);
+        }
+        if (this.id === "span-details-span-display-id-output") {
+          return new DOMRect(0, 500);
+        }
+        return new DOMRect();
+      });
+    Object.defineProperty(Element.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return this instanceof Element &&
+          this.hasAttribute("data-span-details-sections")
+          ? 800
+          : 0;
+      },
+    });
+    Object.defineProperty(Element.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return this instanceof Element &&
+          this.hasAttribute("data-span-details-sections")
+          ? 200
+          : 0;
+      },
+    });
+
+    try {
+      act(() => {
+        root.render(
+          <TestProviders initialEntry="/#span-details-span-display-id-output">
+            <SpanDetails spanNodeId="span-node-id" />
+          </TestProviders>
+        );
+      });
+
+      expect(
+        container.querySelector<HTMLElement>("[data-span-details-sections]")
+          ?.scrollTop
+      ).toBe(400);
+    } finally {
+      getBoundingClientRect.mockRestore();
+      if (originalScrollHeight) {
+        Object.defineProperty(
+          Element.prototype,
+          "scrollHeight",
+          originalScrollHeight
+        );
+      } else {
+        delete (Element.prototype as { scrollHeight?: number }).scrollHeight;
+      }
+      if (originalClientHeight) {
+        Object.defineProperty(
+          Element.prototype,
+          "clientHeight",
+          originalClientHeight
+        );
+      } else {
+        delete (Element.prototype as { clientHeight?: number }).clientHeight;
+      }
+    }
   });
 
   it("separates regular and exception event counters", () => {
@@ -448,12 +576,12 @@ describe("SpanDetails headers", () => {
     expect(notesLink?.querySelector(".counter")).toBeNull();
     expect(notesBar?.textContent).toContain("Notes");
     expect(notesBar?.querySelector(".counter")).toBeNull();
-    const takeNotesButton = notesBar?.querySelector(
-      'button[aria-label="Take notes"]'
+    const addNoteButton = notesBar?.querySelector(
+      'button[aria-label="Add note"]'
     );
-    expect(takeNotesButton?.getAttribute("data-variant")).toBe("quiet");
-    expect(takeNotesButton?.getAttribute("data-childless")).toBe("true");
-    expect(takeNotesButton?.querySelector(".icon-wrap")).not.toBeNull();
+    expect(addNoteButton?.getAttribute("data-variant")).toBe("quiet");
+    expect(addNoteButton?.getAttribute("data-childless")).toBe("true");
+    expect(addNoteButton?.querySelector(".icon-wrap")).not.toBeNull();
     expect(
       notesBar?.querySelector('button[aria-label="Notes: jump to notes"]')
     ).toBeNull();
@@ -605,10 +733,10 @@ describe("SpanDetails headers", () => {
       "[data-span-details-sections-content]"
     );
     const sectionsViewport = sectionsContent?.parentElement;
-    const takeNotesButton = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Take notes"]'
+    const addNoteButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Add note"]'
     );
-    if (!(sectionsViewport instanceof HTMLElement) || takeNotesButton == null) {
+    if (!(sectionsViewport instanceof HTMLElement) || addNoteButton == null) {
       throw new Error("Expected note authoring controls");
     }
     Object.defineProperties(sectionsViewport, {
@@ -616,7 +744,7 @@ describe("SpanDetails headers", () => {
       scrollHeight: { configurable: true, value: 640 },
     });
 
-    act(() => takeNotesButton.click());
+    act(() => addNoteButton.click());
 
     const notesBar = container.querySelector<HTMLElement>(
       "[data-span-details-notes-bar]"
@@ -639,9 +767,7 @@ describe("SpanDetails headers", () => {
     expect(
       notesBar.querySelector('button[aria-label="Notes: jump to notes"]')
     ).toBeNull();
-    expect(
-      notesBar.querySelector('button[aria-label="Take notes"]')
-    ).toBeNull();
+    expect(notesBar.querySelector('button[aria-label="Add note"]')).toBeNull();
     expect(sectionsContent?.getAttribute("data-note-composer-open")).toBe(
       "true"
     );

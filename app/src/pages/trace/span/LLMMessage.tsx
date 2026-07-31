@@ -1,6 +1,5 @@
 import { MessageAttributePostfixes } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
-import { useState } from "react";
 
 import {
   Card,
@@ -14,7 +13,6 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { ExpandableContent } from "@phoenix/components/core/content";
 import {
   ConnectedMarkdownBlock,
   ConnectedMarkdownModeSelect,
@@ -33,24 +31,25 @@ import { getMessageContentPreview } from "./messageContentPreview";
 import { MessageContentsList } from "./MessageContentsList";
 import { formatJSONForCopy, getToolCalls } from "./utils";
 
+/**
+ * Message-specific adapter for span content. It builds a cheap text preview so
+ * collapsed messages do not mount the full Markdown tree, then delegates all
+ * expansion and navigation behavior to ExpandableSpanContent.
+ */
 function ExpandableMessageContent({ content }: { content: string }) {
-  const [isExpanded, setIsExpanded] = useState(false);
   const preview = getMessageContentPreview({ content });
-  const displayedContent = isExpanded ? content : preview.content;
-  const knownIsOverflowing = preview.isTruncated ? true : undefined;
+  const collapsedPreview = preview.isTruncated ? (
+    <View width="100%">
+      <ConnectedMarkdownBlock>{preview.content}</ConnectedMarkdownBlock>
+    </View>
+  ) : undefined;
 
   return (
-    <ExpandableContent
-      height="md"
-      expandedBehavior="grow"
-      isExpanded={isExpanded}
-      isOverflowing={knownIsOverflowing}
-      onExpandedChange={setIsExpanded}
-    >
+    <ExpandableSpanContent height="md" collapsedPreview={collapsedPreview}>
       <View width="100%">
-        <ConnectedMarkdownBlock>{displayedContent}</ConnectedMarkdownBlock>
+        <ConnectedMarkdownBlock>{content}</ConnectedMarkdownBlock>
       </View>
-    </ExpandableContent>
+    </ExpandableSpanContent>
   );
 }
 

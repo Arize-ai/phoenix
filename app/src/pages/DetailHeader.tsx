@@ -20,6 +20,7 @@ const identityRowCSS = css`
   flex-direction: row;
   align-items: center;
   gap: var(--global-dimension-size-100);
+  height: var(--global-dimension-size-400);
   min-width: 0;
 
   > * {

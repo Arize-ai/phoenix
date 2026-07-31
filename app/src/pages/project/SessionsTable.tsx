@@ -357,7 +357,7 @@ export function SessionsTable(props: SessionsTableProps) {
       ...ANNOTATION_COLUMN_SIZING,
       cell: ({ row }) => {
         return (
-          <OverflowRow isExpanded={areRowsExpanded}>
+          <OverflowRow isExpanded={areRowsExpanded} popoverLayout="vertical">
             <SessionAnnotationSummaryGroupTokens
               session={row.original}
               showFilterActions

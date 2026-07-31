@@ -8,6 +8,7 @@ import { AnnotationSummaryTokens } from "@phoenix/components/annotation/Annotati
 import {
   getAnnotationConfig,
   getAnnotations,
+  SpanDetailPanelAnnotationConfigButton,
   useAnnotationConfigMutationHandlers,
   useAnnotationMutationHandlers,
 } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
@@ -176,28 +177,38 @@ export const AnnotationSummaryGroupTokens = ({
   }
 
   return (
-    <AnnotationSummaryTokens
-      summaries={summariesWithTokens}
-      annotationsByName={annotationsByName}
-      categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
-      editableAnnotationPopover={
-        showFilterActions
-          ? {
-              annotationConfigsByName,
-              onCreateAnnotationConfig: configHandlers.onCreateAnnotationConfig,
-              onUpdateAnnotationConfig: configHandlers.onUpdateAnnotationConfig,
-              ...annotationHandlers,
-              target: {
-                annotations: spanAnnotations,
-                id: spanId,
-                kind: "span",
-                label: "This span",
-              },
-            }
-          : undefined
-      }
-      showFilterActions={showFilterActions}
-    />
+    <>
+      <AnnotationSummaryTokens
+        summaries={summariesWithTokens}
+        annotationsByName={annotationsByName}
+        categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
+        editableAnnotationPopover={
+          showFilterActions
+            ? {
+                annotationConfigsByName,
+                onCreateAnnotationConfig:
+                  configHandlers.onCreateAnnotationConfig,
+                onUpdateAnnotationConfig:
+                  configHandlers.onUpdateAnnotationConfig,
+                ...annotationHandlers,
+                target: {
+                  annotations: spanAnnotations,
+                  id: spanId,
+                  kind: "span",
+                  label: "This span",
+                },
+              }
+            : undefined
+        }
+        showFilterActions={showFilterActions}
+      />
+      {showFilterActions ? (
+        <SpanDetailPanelAnnotationConfigButton
+          spanNodeId={spanId}
+          variant={summariesWithTokens.length === 0 ? "ghost" : "icon"}
+        />
+      ) : null}
+    </>
   );
 };
 

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { useFocusRing } from "react-aria";
 
 import { popoverSurfaceCSS } from "@phoenix/components/core/overlay/styles";
+import { useCollapsedNavigationHoverIntent } from "@phoenix/hooks/useDelayedPointerOpen";
 
 type SessionDetailsNavigationRenderOptions = {
   isOverlayOpen: boolean;
@@ -81,6 +82,10 @@ const sessionDetailsNavigationCSS = css`
       min-width: var(--trace-tree-overlay-width);
       width: var(--trace-tree-overlay-width);
     }
+
+    .session-view-control--navigation {
+      display: block;
+    }
   }
 
   &[data-collapsed="true"][data-open="false"] {
@@ -101,16 +106,23 @@ const sessionDetailsNavigationCSS = css`
       background: transparent;
     }
 
+    /* The gutter painter uses fixed-position pseudo-elements so it can cover
+     * the native scrollbar track. Hide both layers while the expanded-width
+     * list is clipped to the compact rail; otherwise they escape that clip
+     * and paint over the adjacent details content. */
+    .session-turn-list::before,
+    .session-turn-list::after,
+    [data-testid="session-trace-row-list"]::before,
+    [data-testid="session-trace-row-list"]::after {
+      display: none;
+    }
+
     .session-view-control__expanded {
       display: none;
     }
 
     .session-view-control__compact {
       display: flex;
-    }
-
-    .session-navigation-annotation-row__expanded-content {
-      display: none;
     }
 
     .session-turn-row__compact-index,
@@ -180,6 +192,11 @@ export function SessionDetailsNavigation({
 }) {
   const { focusProps, isFocusVisible } = useFocusRing({ within: true });
   const isOpen = isCollapsed && (isPointerOpen || isFocusVisible);
+  const hoverIntentProps = useCollapsedNavigationHoverIntent({
+    isEnabled: isCollapsed,
+    isOpen: isPointerOpen,
+    onOpenChange: onPointerOpenChange,
+  });
   const navigationBody =
     typeof children === "function"
       ? children({ isOverlayOpen: isOpen })
@@ -196,14 +213,10 @@ export function SessionDetailsNavigation({
       <div
         className="session-details-navigation__content"
         data-open={isOpen}
-        onPointerLeave={() => onPointerOpenChange(false)}
+        {...hoverIntentProps}
       >
         {control}
-        <div
-          {...focusProps}
-          className="session-details-navigation__body"
-          onPointerEnter={() => onPointerOpenChange(true)}
-        >
+        <div {...focusProps} className="session-details-navigation__body">
           {navigationBody}
         </div>
       </div>

@@ -3,7 +3,7 @@ import type { PropsWithChildren, ReactNode } from "react";
 import { Suspense, useState } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -34,6 +34,7 @@ import {
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
 } from "@phoenix/constants/searchParams";
+import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
@@ -49,9 +50,14 @@ import {
   SessionConversation,
   type SessionTraceUrlBuilder,
 } from "./SessionDetailsTraceList";
+import { getSpanInfoSectionId } from "./span/sectionIds";
 import { SpanDetailsPaintGate } from "./SpanDetailsPaintGate";
 import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
-import { DetailPanelAnnotationBarSkeleton } from "./TraceDetailsSkeleton";
+import {
+  DetailPanelAnnotationBarSkeleton,
+  TraceTreeNavigationSkeleton,
+} from "./TraceDetailsSkeleton";
+import type { RootSpanMessageRole } from "./TraceTurnContent";
 import { TraceTurnDetails } from "./TraceTurnDetails";
 
 type RootSpan = NonNullable<
@@ -75,8 +81,39 @@ export type TraceDetailsProps = {
 
 type LocalSpanSelection = {
   isRouteCommitPending: boolean;
-  spanPreview: SpanDetailsPreview;
+  spanNodeId: string;
+  spanPreview?: SpanDetailsPreview;
 };
+
+const spanNavigationGateCSS = css`
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  /* The collapsed trace tree paints its full-width hover surface across the
+   * main column. This hydration gate swaps content; it is not a paint boundary. */
+  overflow: visible;
+
+  [data-span-navigation-content],
+  [data-span-navigation-skeleton] {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    width: 100%;
+  }
+
+  [data-span-navigation-skeleton] {
+    position: absolute;
+    inset: 0;
+  }
+
+  [data-span-navigation-content][hidden],
+  [data-span-navigation-skeleton][hidden] {
+    display: none;
+  }
+`;
 
 /**
  * A component that shows the details of a trace (e.g. a collection of spans)
@@ -90,6 +127,9 @@ export function TraceDetails({
   treeHeader,
 }: TraceDetailsProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { rootPath, tab } = useProjectRootPath();
   const [localSpanSelection, setLocalSpanSelection] =
     useState<LocalSpanSelection | null>(null);
   const data = useLazyLoadQuery<TraceDetailsQuery>(
@@ -163,28 +203,35 @@ export function TraceDetails({
   const isLocalSpanSelectionCurrent =
     localSpanSelection != null &&
     (localSpanSelection.isRouteCommitPending ||
-      localSpanSelection.spanPreview.id === urlSpanNodeId);
+      localSpanSelection.spanNodeId === urlSpanNodeId);
   const selectedSpanPreview = isLocalSpanSelectionCurrent
     ? localSpanSelection.spanPreview
     : undefined;
+  const localSelectedSpanNodeId = isLocalSpanSelectionCurrent
+    ? localSpanSelection.spanNodeId
+    : undefined;
   const session = trace.session;
   const isSessionSelected =
-    selectedSpanPreview == null &&
+    localSelectedSpanNodeId == null &&
     session != null &&
     urlSessionNodeId === session.id;
   const isTraceSelected =
-    !isSessionSelected && selectedSpanPreview == null && isRouteTraceSelected;
+    !isSessionSelected &&
+    localSelectedSpanNodeId == null &&
+    isRouteTraceSelected;
   const selectedSpanNodeId =
-    selectedSpanPreview?.id ??
+    localSelectedSpanNodeId ??
     (isSessionSelected
       ? null
       : (urlSpanNodeId ?? (isTraceSelected ? null : rootSpan.id)));
+  const isRootSpanSelected = selectedSpanNodeId === rootSpan.id;
   const isTraceActive = isTraceSelected || selectedSpanNodeId != null;
   const treeSession = session
     ? {
         actions: (
           <SessionDetailPanelAnnotationButton sessionNodeId={session.id} />
         ),
+        isActive: isSessionSelected || isTraceActive,
         isSelected: isSessionSelected,
         onSelect: () => {
           setLocalSpanSelection(null);
@@ -201,82 +248,126 @@ export function TraceDetails({
         sessionId: session.sessionId,
       }
     : undefined;
-  const getSessionTraceUrl: SessionTraceUrlBuilder = ({ traceId }) =>
-    `/projects/${projectId}/traces/${getTraceDetailsPath({
+  const getSessionTraceUrl: SessionTraceUrlBuilder = ({
+    sectionId,
+    spanNodeId,
+    traceId,
+  }) => {
+    const tracePath = `${rootPath}/${tab}/${getTraceDetailsPath({
       traceId,
+      spanNodeId,
       searchParams,
     })}`;
+    return sectionId ? `${tracePath}#${sectionId}` : tracePath;
+  };
+  const selectTrace = () => {
+    setLocalSpanSelection(null);
+    setSearchParams(
+      (searchParams) => {
+        searchParams.delete(SELECTED_SESSION_NODE_ID_PARAM);
+        searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+        searchParams.set(SELECTED_TRACE_ID_PARAM, trace.traceId);
+        return searchParams;
+      },
+      { replace: true, flushSync: true }
+    );
+  };
+  const handleRootSpanMessageDoubleClick = (role: RootSpanMessageRole) => {
+    const nextSearchParams = new URLSearchParams(searchParams);
+    const sectionKey = role === "INPUT" ? "input" : "output";
+    nextSearchParams.delete(SELECTED_SESSION_NODE_ID_PARAM);
+    nextSearchParams.delete(SELECTED_TRACE_ID_PARAM);
+    nextSearchParams.set(SELECTED_SPAN_NODE_ID_PARAM, rootSpan.id);
+    void navigate({
+      pathname: location.pathname,
+      search: nextSearchParams.toString(),
+      hash: `#${getSpanInfoSectionId({
+        sectionKey,
+        spanId: rootSpan.spanId,
+      })}`,
+    });
+  };
 
   return (
     <DetailsPanelContent
       navigation={
-        <TraceTreeProvider key={trace.id} errorCount={trace.errorCount}>
+        <>
           {treeHeader}
-          <TraceTreeToolbar
-            isTreePanelCollapsed={isTreePanelCollapsed}
-            onTreePanelCollapsedChange={onTreePanelCollapsedChange}
-          />
-          <ConnectedTraceTree
-            trace={trace}
-            isNavigationCollapsed={isTreePanelCollapsed}
-            session={treeSession}
-            selectedSpanNodeId={selectedSpanNodeId ?? ""}
-            traceSelection={{
-              actions: (
-                <TraceDetailPanelAnnotationButton traceNodeId={trace.id} />
-              ),
-              isActive: isTraceActive,
-              isSelected: isTraceSelected,
-              cost: rootSpan.trace.costSummary?.total?.cost,
-              onSelect: () => {
-                setLocalSpanSelection(null);
-                setSearchParams(
-                  (searchParams) => {
-                    searchParams.delete(SELECTED_SESSION_NODE_ID_PARAM);
-                    searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-                    searchParams.set(SELECTED_TRACE_ID_PARAM, trace.traceId);
-                    return searchParams;
-                  },
-                  { replace: true, flushSync: true }
-                );
-              },
-              tokenCountTotal: rootSpan.cumulativeTokenCountTotal,
-              traceId: trace.traceId,
-            }}
-            onSpanSelectionStart={(span) => {
-              setLocalSpanSelection({
-                isRouteCommitPending: true,
-                spanPreview: {
-                  ...span,
-                  projectId,
-                  traceId: trace.traceId,
-                },
-              });
-            }}
-            onSpanClick={(span) => {
-              setSearchParams(
-                (searchParams) => {
-                  searchParams.delete(SELECTED_SESSION_NODE_ID_PARAM);
-                  searchParams.delete(SELECTED_TRACE_ID_PARAM);
-                  searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
-                  return searchParams;
-                },
-                { replace: true, flushSync: true }
-              );
-              setLocalSpanSelection({
-                isRouteCommitPending: false,
-                spanPreview: {
-                  ...span,
-                  projectId,
-                  traceId: trace.traceId,
-                },
-              });
-            }}
-            renderSpanActions={(span) => (
-              <SpanDetailPanelAnnotationButton spanNodeId={span.id} />
-            )}
-          />
-        </TraceTreeProvider>
+          <div
+            css={spanNavigationGateCSS}
+            data-span-navigation-state="hydrated"
+            data-span-navigation-trace-id={trace.traceId}
+          >
+            <div data-span-navigation-skeleton hidden>
+              <TraceTreeNavigationSkeleton
+                isTreePanelCollapsed={isTreePanelCollapsed ?? false}
+                onTreePanelCollapsedChange={onTreePanelCollapsedChange}
+              />
+            </div>
+            <div data-span-navigation-content>
+              <TraceTreeProvider key={trace.id} errorCount={trace.errorCount}>
+                <TraceTreeToolbar
+                  isTreePanelCollapsed={isTreePanelCollapsed}
+                  onTreePanelCollapsedChange={onTreePanelCollapsedChange}
+                />
+                <ConnectedTraceTree
+                  trace={trace}
+                  isNavigationCollapsed={isTreePanelCollapsed}
+                  showMissingParentSession={session == null}
+                  session={treeSession}
+                  selectedSpanNodeId={selectedSpanNodeId ?? ""}
+                  traceSelection={{
+                    actions: (
+                      <TraceDetailPanelAnnotationButton
+                        traceNodeId={trace.id}
+                      />
+                    ),
+                    isActive: isTraceActive,
+                    isSelected: isTraceSelected,
+                    cost: rootSpan.trace.costSummary?.total?.cost,
+                    onSelect: selectTrace,
+                    tokenCountTotal: rootSpan.cumulativeTokenCountTotal,
+                    traceId: trace.traceId,
+                  }}
+                  onSpanSelectionStart={(span) => {
+                    setLocalSpanSelection({
+                      isRouteCommitPending: true,
+                      spanNodeId: span.id,
+                      spanPreview: {
+                        ...span,
+                        projectId,
+                        traceId: trace.traceId,
+                      },
+                    });
+                  }}
+                  onSpanClick={(span) => {
+                    setSearchParams(
+                      (searchParams) => {
+                        searchParams.delete(SELECTED_SESSION_NODE_ID_PARAM);
+                        searchParams.delete(SELECTED_TRACE_ID_PARAM);
+                        searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
+                        return searchParams;
+                      },
+                      { replace: true, flushSync: true }
+                    );
+                    setLocalSpanSelection({
+                      isRouteCommitPending: false,
+                      spanNodeId: span.id,
+                      spanPreview: {
+                        ...span,
+                        projectId,
+                        traceId: trace.traceId,
+                      },
+                    });
+                  }}
+                  renderSpanActions={(span) => (
+                    <SpanDetailPanelAnnotationButton spanNodeId={span.id} />
+                  )}
+                />
+              </TraceTreeProvider>
+            </div>
+          </div>
+        </>
       }
     >
       <SpanInfoCardsProvider>
@@ -286,8 +377,33 @@ export function TraceDetails({
               getTraceUrl={getSessionTraceUrl}
               session={session}
             />
-          ) : isTraceSelected ? (
+          ) : isTraceSelected || isRootSpanSelected ? (
             <TraceTurnDetails
+              isTraceSelected={isTraceSelected}
+              onRootSpanMessageDoubleClick={handleRootSpanMessageDoubleClick}
+              onRootSpanSelect={() => {
+                setLocalSpanSelection({
+                  isRouteCommitPending: true,
+                  spanNodeId: rootSpan.id,
+                });
+                setSearchParams(
+                  (searchParams) => {
+                    searchParams.delete(SELECTED_SESSION_NODE_ID_PARAM);
+                    searchParams.delete(SELECTED_TRACE_ID_PARAM);
+                    searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, rootSpan.id);
+                    return searchParams;
+                  },
+                  { replace: true, flushSync: true }
+                );
+                queueMicrotask(() => {
+                  setLocalSpanSelection((currentSelection) =>
+                    currentSelection?.spanNodeId === rootSpan.id
+                      ? null
+                      : currentSelection
+                  );
+                });
+              }}
+              onTraceSelect={selectTrace}
               traceId={trace.traceId}
               traceNodeId={trace.id}
               rootSpan={rootSpan}

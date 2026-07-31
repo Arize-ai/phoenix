@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
-import { Icon, Icons, View } from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading";
 
 import {
@@ -13,7 +12,10 @@ import { SessionDetailsNavigation } from "./SessionDetailsNavigation";
 import type { SessionPreview } from "./SessionPaginationContext";
 import type { SessionView } from "./SessionViewTabs";
 import { SessionViewControl } from "./SessionViewTabs";
-import { DetailPanelAnnotationBarSkeleton } from "./TraceDetailsSkeleton";
+import {
+  DetailPanelAnnotationBarSkeleton,
+  DetailPanelBodySkeleton,
+} from "./TraceDetailsSkeleton";
 
 const navigationSkeletonCSS = css`
   box-sizing: border-box;
@@ -35,50 +37,9 @@ const navigationSkeletonCSS = css`
   }
 `;
 
-const sessionNavigationEntitySkeletonCSS = css`
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  width: 100%;
-  height: var(--global-details-panel-navigation-row-height);
-  gap: var(--global-dimension-size-100);
-  padding: 0 var(--global-dimension-size-100);
-  padding-left: var(
-    --global-details-panel-navigation-row-content-padding-inline-start
-  );
-
-  .session-navigation-annotation-row__icon {
-    display: inline-flex;
-    flex: none;
-  }
-
-  .session-navigation-annotation-row__expanded-content {
-    display: flex;
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-`;
-
-const bodySkeletonCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-200);
-  width: min(100%, 1000px);
-  margin: 0 auto;
-`;
-
 /** Loading placeholder shared by every session turns conversation surface. */
 export function SessionConversationSkeleton() {
-  return (
-    <View padding="size-200" overflow="hidden" flex="1 1 auto">
-      <div css={bodySkeletonCSS}>
-        <Skeleton width="30%" height={16} animation="wave" />
-        <Skeleton width="100%" height={112} animation="wave" />
-        <Skeleton width="30%" height={16} animation="wave" />
-        <Skeleton width="100%" height={140} animation="wave" />
-      </div>
-    </View>
-  );
+  return <DetailPanelBodySkeleton />;
 }
 
 export function SessionDetailsSkeleton({
@@ -107,6 +68,14 @@ export function SessionDetailsSkeleton({
           {navigationHeader}
           <DetailsPanelNavigationControlsRow
             isCollapsed={isTreePanelCollapsed}
+            leading={
+              <SessionViewControl
+                placement="toolbar"
+                sessionView={sessionView}
+                onSessionViewChange={onSessionViewChange}
+                traceCount={preview.traceCount ?? null}
+              />
+            }
             onCollapsedChange={onTreePanelCollapsedChange}
           >
             {sessionView === "traces" ? (
@@ -115,25 +84,12 @@ export function SessionDetailsSkeleton({
           </DetailsPanelNavigationControlsRow>
           <SessionDetailsNavigation
             control={
-              <>
-                <SessionViewControl
-                  sessionView={sessionView}
-                  onSessionViewChange={onSessionViewChange}
-                  traceCount={preview.traceCount ?? null}
-                />
-                <div
-                  className="session-navigation-annotation-row"
-                  css={sessionNavigationEntitySkeletonCSS}
-                  onPointerEnter={() => onNavigationPointerOpenChange(true)}
-                >
-                  <span className="session-navigation-annotation-row__icon">
-                    <Icon aria-hidden="true" svg={<Icons.MessagesSquare />} />
-                  </span>
-                  <span className="session-navigation-annotation-row__expanded-content">
-                    <Skeleton width={54} height={14} animation="wave" />
-                  </span>
-                </div>
-              </>
+              <SessionViewControl
+                placement="navigation"
+                sessionView={sessionView}
+                onSessionViewChange={onSessionViewChange}
+                traceCount={preview.traceCount ?? null}
+              />
             }
             isCollapsed={isTreePanelCollapsed}
             isPointerOpen={isNavigationPointerOpen}
@@ -144,7 +100,7 @@ export function SessionDetailsSkeleton({
               data-testid="session-navigation-skeleton"
             >
               {Array.from({ length: 4 }, (_, index) => (
-                <li key={index}>
+                <li key={index} data-collapsed-navigation-hover-trigger>
                   <Skeleton width="45%" height={16} animation="wave" />
                   <Skeleton width="90%" height={14} animation="wave" />
                   <Skeleton width="70%" height={14} animation="wave" />

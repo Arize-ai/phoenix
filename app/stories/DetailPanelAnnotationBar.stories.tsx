@@ -30,6 +30,8 @@ const ROW_ACTION_SPAN: ISpanItem = {
   tokenCountTotal: null,
 };
 
+const PROJECT_NAME = "customer-support-agent";
+
 const projectConfigs: AnnotationConfig[] = [
   {
     id: "config-correctness",
@@ -185,6 +187,7 @@ function AnnotationBarDemo() {
         rows={getRows()}
         allAnnotationConfigs={allConfigs}
         projectAnnotationConfigs={activeConfigs}
+        projectName={PROJECT_NAME}
         onCreateAnnotation={async ({ annotationName, target, value }) => {
           const annotation = {
             id: `annotation-${Date.now()}`,
@@ -308,6 +311,7 @@ export const Interactive: Story = {
   args: {
     allAnnotationConfigs: [],
     projectAnnotationConfigs: [],
+    projectName: PROJECT_NAME,
     rows: [],
     onAddAnnotationConfigToProject: getSuccessfulMutationResult,
     onCreateAnnotation: getSuccessfulCreateResult,
@@ -323,6 +327,7 @@ export const RowAction: Story = {
   args: {
     allAnnotationConfigs: projectConfigs,
     projectAnnotationConfigs: projectConfigs,
+    projectName: PROJECT_NAME,
     rows: [{ id: "span-row", kind: "target", target: initialTargets[2] }],
     onAddAnnotationConfigToProject: getSuccessfulMutationResult,
     onCreateAnnotation: getSuccessfulCreateResult,

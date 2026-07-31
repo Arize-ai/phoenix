@@ -1192,6 +1192,8 @@ const segmentedControlCSS = (theme: Theme) => css`
 const disclosureCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
+    --global-disclosure-trigger-padding: var(--global-dimension-size-100)
+      var(--global-dimension-size-200);
     --global-disclosure-background-color-active: ${theme === "dark"
       ? "rgba(255, 255, 255, 0.07)"
       : "rgba(0, 0, 0, 0.03)"};
@@ -1233,6 +1235,8 @@ const cardCSS = (theme: Theme) => css`
   .theme--${theme} {
     --global-card-border-color: var(--global-border-color-default);
     --global-card-header-height: 46px;
+    --global-card-header-padding: 0 var(--global-dimension-size-200);
+    --global-card-compact-header-padding: var(--global-dimension-size-50);
     --global-card-header-background-color: ${theme === "light"
       ? "var(--global-color-gray-100)"
       : "var(--global-color-gray-75)"};
@@ -1289,8 +1293,9 @@ const listCSS = (theme: Theme) => css`
     --global-list-item-hover-background-color: var(--hover-background);
     --global-list-item-selected-background-color: var(--global-color-gray-200);
     --global-list-item-selected-border-color: var(--global-color-gray-300);
-    --global-list-detail-selected-background-color: var(
-      --global-color-gray-100
+    --global-list-detail-selected-background-color: rgba(
+      var(--global-color-gray-200-rgb),
+      0.3
     );
   }
 `;

@@ -10,7 +10,7 @@ import {
   usePreloadedQuery,
 } from "react-relay";
 import type { To } from "react-router";
-import { useLocation, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import {
   CopyableIDBadge,
@@ -30,6 +30,11 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { TraceErrorCount } from "@phoenix/components/trace/TraceErrorCount";
+import {
+  detailsPanelNavigationRowBackgroundBleedCSS,
+  detailsPanelNavigationScrollOwnerCSS,
+} from "@phoenix/components/trace/traceTreeStyles";
+import { useDetailsPanelNavigationGutterPaint } from "@phoenix/components/trace/useDetailsPanelNavigationGutterPaint";
 import {
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
@@ -51,6 +56,7 @@ import {
   SessionDetailsNavigation,
   sessionDetailsNavigationTopLevelRowCSS,
 } from "./SessionDetailsNavigation";
+import { getSpanInfoSectionId } from "./span/sectionIds";
 import { TraceTurnContent } from "./TraceTurnContent";
 
 export { RootSpanMessage } from "./TraceTurnContent";
@@ -96,7 +102,11 @@ type RootSpanProps = {
   rootSpan: SessionTraceRootSpan;
 };
 
-export type SessionTraceUrlBuilder = (trace: { traceId: string }) => To;
+export type SessionTraceUrlBuilder = (trace: {
+  sectionId?: string;
+  spanNodeId?: string;
+  traceId: string;
+}) => To;
 
 const sessionTurnDividerCSS = css`
   .session-turn-divider__rule {
@@ -164,8 +174,37 @@ function SessionTurnDetail({
   traceId: string;
   index: number;
 }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const handleMessageDoubleClick = (role: RootSpanMessageRole) => {
+    const sectionKey = role === "INPUT" ? "input" : "output";
+    const sectionId = getSpanInfoSectionId({
+      sectionKey,
+      spanId: rootSpan.spanId,
+    });
+    if (getTraceUrl) {
+      void navigate(
+        getTraceUrl({
+          sectionId,
+          spanNodeId: rootSpan.id,
+          traceId,
+        })
+      );
+      return;
+    }
+    const searchParams = new URLSearchParams(location.search);
+    searchParams.set(SESSION_VIEW_PARAM, "traces");
+    searchParams.set(SELECTED_TRACE_ID_PARAM, traceId);
+    searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, rootSpan.id);
+    void navigate({
+      pathname: location.pathname,
+      search: searchParams.toString(),
+      hash: `#${sectionId}`,
+    });
+  };
   return (
     <TraceTurnContent
+      onMessageDoubleClick={handleMessageDoubleClick}
       rootSpan={rootSpan}
       header={
         <SessionTurnDivider
@@ -219,11 +258,19 @@ function RootSpanPreviewLine({
 }
 
 const turnListCSS = css`
+  ${detailsPanelNavigationScrollOwnerCSS}
   height: 100%;
   max-height: 100%;
   padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 
   .react-aria-ListBoxItem {
+    ${detailsPanelNavigationRowBackgroundBleedCSS}
+    --details-panel-navigation-row-bleed-border-bottom-width: 1px;
+    --details-panel-navigation-row-bleed-border-bottom-color: var(
+      --global-border-color-default
+    );
     margin: 0;
     border-radius: 0;
     border-left: 4px solid transparent;
@@ -233,10 +280,16 @@ const turnListCSS = css`
 
     &[data-hovered],
     &[data-focused] {
+      --details-panel-navigation-row-bleed-background-color: var(
+        --global-list-item-hover-background-color
+      );
       background: var(--global-list-item-hover-background-color);
     }
 
     &[data-selected] {
+      --details-panel-navigation-row-bleed-background-color: var(
+        --global-details-panel-navigation-row-selected-background-color
+      );
       background: var(
         --global-details-panel-navigation-row-selected-background-color
       );
@@ -247,6 +300,9 @@ const turnListCSS = css`
     }
 
     &[data-has-active-descendant="true"] {
+      --details-panel-navigation-row-bleed-background-color: var(
+        --global-details-panel-navigation-row-with-active-descendant-background-color
+      );
       background: var(
         --global-details-panel-navigation-row-with-active-descendant-background-color
       );
@@ -255,6 +311,9 @@ const turnListCSS = css`
 
     &[data-has-active-descendant="true"][data-hovered],
     &[data-has-active-descendant="true"][data-focused] {
+      --details-panel-navigation-row-bleed-background-color: var(
+        --global-list-item-hover-background-color
+      );
       background: var(--global-list-item-hover-background-color);
     }
   }
@@ -279,12 +338,16 @@ function SessionTurnList({
   selectedSpanNodeId,
   selectedTraceId,
   onTurnClick,
+  onTurnDoubleClick,
 }: {
   rows: ReadonlyArray<SessionTurnRow>;
   selectedSpanNodeId: string | null;
   selectedTraceId: string | null;
   onTurnClick: (traceId: string) => void;
+  onTurnDoubleClick: (traceId: string) => void;
 }) {
+  const scrollOwnerRef = useRef<HTMLDivElement>(null);
+  useDetailsPanelNavigationGutterPaint({ scrollOwnerRef });
   const { fullTimeFormatter } = useTimeFormatters();
   const indexedRows: IndexedSessionTurnRow[] = rows.map((row, index) => ({
     ...row,
@@ -292,6 +355,8 @@ function SessionTurnList({
   }));
   return (
     <ListBox
+      ref={scrollOwnerRef}
+      className="session-turn-list"
       aria-label="Session turns"
       items={indexedRows}
       selectionMode="single"
@@ -317,7 +382,10 @@ function SessionTurnList({
             textValue={turnLabel}
             className="react-aria-ListBoxItem session-turn-row"
             css={sessionDetailsNavigationTopLevelRowCSS}
+            data-collapsed-navigation-hover-trigger
+            data-navigation-gutter-paint
             data-has-active-descendant={hasActiveDescendant || undefined}
+            onDoubleClick={() => onTurnDoubleClick(row.traceId)}
           >
             <Text
               className="session-turn-row__compact-index"
@@ -362,6 +430,7 @@ function SessionTurnList({
                   className="session-turn-row__annotation-action"
                   onPointerDown={(event) => event.stopPropagation()}
                   onClick={(event) => event.stopPropagation()}
+                  onDoubleClick={(event) => event.stopPropagation()}
                 >
                   <TraceDetailPanelAnnotationButton traceNodeId={row.id} />
                 </span>
@@ -522,6 +591,18 @@ function SessionTurns({
     );
   };
 
+  const handleTurnDoubleClick = (traceId: string) => {
+    setSearchParams(
+      (params) => {
+        params.set(SESSION_VIEW_PARAM, "traces");
+        params.set(SELECTED_TRACE_ID_PARAM, traceId);
+        params.delete(SELECTED_SPAN_NODE_ID_PARAM);
+        return params;
+      },
+      { replace: true }
+    );
+  };
+
   // Scroll the selected turn into view on mount and when the selection
   // changes. The effect also re-runs when more turns are paginated in
   // (initial mount may have a selection whose row is not yet mounted),
@@ -562,6 +643,7 @@ function SessionTurns({
         selectedSpanNodeId={selectedSpanNodeId}
         selectedTraceId={selectedTraceId}
         onTurnClick={handleTurnClick}
+        onTurnDoubleClick={handleTurnDoubleClick}
       />
     </div>
   );

@@ -38,6 +38,10 @@ export function SessionPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [pendingNavigation, setPendingNavigation] = useState<{
+    sourceLocationKey: string;
+    targetSessionId: string;
+  } | null>(null);
   const pagination = useSessionPagination();
   const { rootPath, tab } = useProjectRootPath();
   const parentSearch = clearSelectionScopedParams(location.search);
@@ -66,10 +70,16 @@ export function SessionPage() {
     treeAddonWidth,
     treeMaximumWidth,
   });
+  const activePendingNavigation =
+    pendingNavigation?.sourceLocationKey === location.key
+      ? pendingNavigation
+      : null;
+  const displayedSessionId =
+    activePendingNavigation?.targetSessionId ?? sessionId;
   const preview = getSessionPreview(
     pagination?.sessionSequence ?? [],
-    sessionId
-  ) ?? { sessionId };
+    displayedSessionId
+  ) ?? { sessionId: displayedSessionId };
   // The loaded view and every loading fallback replace their navigation DOM.
   // Keep pointer ownership in the stable page shell so the collapsed overlay
   // cannot lose its width while a first-time view switch suspends.
@@ -110,10 +120,28 @@ export function SessionPage() {
               onCollapsedChange={onTreeCollapsedChange}
               pagination={
                 <SessionDetailsPaginator
-                  currentId={sessionId}
+                  currentId={displayedSessionId}
                   isCollapsed={isTreeCollapsed}
+                  onNavigateStart={(targetSessionId) => {
+                    setPendingNavigation({
+                      sourceLocationKey: location.key,
+                      targetSessionId,
+                    });
+                  }}
                 />
               }
+            />
+          );
+          const detailsSkeleton = (
+            <SessionDetailsSkeleton
+              isTreePanelCollapsed={isTreeCollapsed}
+              isNavigationPointerOpen={isNavigationPointerOpen}
+              navigationHeader={navigationHeader}
+              onNavigationPointerOpenChange={setIsNavigationPointerOpen}
+              onSessionViewChange={handleSessionViewChange}
+              onTreePanelCollapsedChange={onTreeCollapsedChange}
+              preview={preview}
+              sessionView={sessionView}
             />
           );
           return (
@@ -132,31 +160,24 @@ export function SessionPage() {
                 treeAddonWidth={treeAddonWidth}
                 treeMaximumWidth={treeMaximumWidth}
               >
-                <DetailsPanelContentBoundary
-                  subjectKey={sessionId}
-                  navigation={navigationHeader}
-                  fallback={
-                    <SessionDetailsSkeleton
+                {activePendingNavigation ? (
+                  detailsSkeleton
+                ) : (
+                  <DetailsPanelContentBoundary
+                    subjectKey={sessionId}
+                    navigation={navigationHeader}
+                    fallback={detailsSkeleton}
+                  >
+                    <SessionDetails
+                      sessionId={sessionId}
                       isTreePanelCollapsed={isTreeCollapsed}
                       isNavigationPointerOpen={isNavigationPointerOpen}
-                      navigationHeader={navigationHeader}
                       onNavigationPointerOpenChange={setIsNavigationPointerOpen}
-                      onSessionViewChange={handleSessionViewChange}
                       onTreePanelCollapsedChange={onTreeCollapsedChange}
-                      preview={preview}
-                      sessionView={sessionView}
+                      navigationHeader={navigationHeader}
                     />
-                  }
-                >
-                  <SessionDetails
-                    sessionId={sessionId}
-                    isTreePanelCollapsed={isTreeCollapsed}
-                    isNavigationPointerOpen={isNavigationPointerOpen}
-                    onNavigationPointerOpenChange={setIsNavigationPointerOpen}
-                    onTreePanelCollapsedChange={onTreeCollapsedChange}
-                    navigationHeader={navigationHeader}
-                  />
-                </DetailsPanelContentBoundary>
+                  </DetailsPanelContentBoundary>
+                )}
               </DetailsPanel>
             </DialogContent>
           );

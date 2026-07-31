@@ -77,6 +77,8 @@ export interface TraceTreeSkeletonProps {
   children?: ReactNode;
   /** Whether to replace the full-width skeleton with a compact icon rail. */
   isNavigationCollapsed?: boolean;
+  /** Whether this tree, rather than an ancestor list, owns vertical scrolling. */
+  isScrollOwner?: boolean;
 }
 
 /**
@@ -86,6 +88,7 @@ export interface TraceTreeSkeletonProps {
 export function TraceTreeSkeleton({
   children,
   isNavigationCollapsed = false,
+  isScrollOwner = true,
 }: TraceTreeSkeletonProps) {
   return (
     <div
@@ -99,6 +102,7 @@ export function TraceTreeSkeleton({
       >
         <ul
           css={[traceTreeListCSS, listOverflowCSS]}
+          data-navigation-scroll-owner={isScrollOwner}
           data-testid="trace-tree-skeleton"
           aria-busy="true"
         >

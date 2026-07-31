@@ -228,8 +228,20 @@ describe("ResizableTraceTreePanelContent", () => {
           },
           createElement(
             "ul",
-            { "data-trace-tree-root": true },
+            {
+              "data-navigation-scroll-owner": "true",
+              "data-trace-tree-root": true,
+            },
             createElement("li", null, "Trace")
+          ),
+          createElement(
+            "ul",
+            {
+              "data-navigation-scroll-owner": "false",
+              "data-testid": "nested-trace-tree",
+              "data-trace-tree-root": true,
+            },
+            createElement("li", null, "Nested span")
           )
         )
       );
@@ -242,8 +254,12 @@ describe("ResizableTraceTreePanelContent", () => {
     const panelContent = container.querySelector<HTMLElement>(
       ".trace-tree-panel-content"
     );
+    const nestedTree = container.querySelector<HTMLElement>(
+      '[data-testid="nested-trace-tree"]'
+    );
     expect(panelContent?.dataset.navigationScrollbar).toBe("active");
     expect(getComputedStyle(scrollContainer!).scrollbarGutter).toBe("stable");
+    expect(getComputedStyle(nestedTree!).scrollbarGutter).toBe("auto");
     expect(getComputedStyle(scrollContainer!).scrollbarColor).toBe(
       "var(--global-color-gray-300) transparent"
     );
@@ -252,6 +268,7 @@ describe("ResizableTraceTreePanelContent", () => {
 
     expect(panelContent?.dataset.navigationScrollbar).toBeUndefined();
     expect(getComputedStyle(scrollContainer!).scrollbarGutter).toBe("auto");
+    expect(getComputedStyle(nestedTree!).scrollbarGutter).toBe("auto");
 
     act(() =>
       root.render(renderContent({ isCollapsed: true, isHoverOpen: true }))
@@ -259,6 +276,7 @@ describe("ResizableTraceTreePanelContent", () => {
 
     expect(panelContent?.dataset.navigationScrollbar).toBeUndefined();
     expect(getComputedStyle(scrollContainer!).scrollbarGutter).toBe("stable");
+    expect(getComputedStyle(nestedTree!).scrollbarGutter).toBe("auto");
     expect(getComputedStyle(scrollContainer!).scrollbarColor).toBe(
       "var(--global-color-gray-300) transparent"
     );

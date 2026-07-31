@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   clearSelectionScopedParams,
+  getSessionDetailsPath,
   getTraceDetailsPath,
 } from "@phoenix/utils/urlUtils";
 
@@ -24,6 +25,20 @@ describe("urlUtils", () => {
         ),
       })
     ).toBe("trace-2?timeRangeKey=7d&selectedSpanNodeId=span-2");
+  });
+
+  it("builds a session traces path with the current trace selected", () => {
+    expect(
+      getSessionDetailsPath({
+        sessionId: "session/node-2",
+        traceId: "trace-2",
+        searchParams: new URLSearchParams(
+          "timeRangeKey=7d&selectedSessionNodeId=session-1&selectedTraceId=trace-1&selectedSpanNodeId=span-1"
+        ),
+      })
+    ).toBe(
+      "session%2Fnode-2?timeRangeKey=7d&sessionView=traces&selectedTraceId=trace-2"
+    );
   });
 
   describe("getTraceDetailsPath encodes the trace ID into a same-origin segment", () => {

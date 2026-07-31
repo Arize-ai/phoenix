@@ -82,6 +82,7 @@ export function AnnotationLabel({
   variant = "default",
   onFocus,
   ref,
+  "aria-label": ariaLabel,
   "aria-haspopup": ariaHasPopup,
 }: PropsWithChildren<{
   annotation: Annotation;
@@ -109,6 +110,8 @@ export function AnnotationLabel({
   onFocus?: () => void;
   /** Identifies the popup controlled by this label when used as a trigger. */
   "aria-haspopup"?: "dialog";
+  /** Accessible label override for action-oriented ghost annotations. */
+  "aria-label"?: string;
   /** Ref applied to the underlying button when the label is clickable. */
   ref?: Ref<HTMLButtonElement>;
 }>) {
@@ -146,7 +149,7 @@ export function AnnotationLabel({
         data-variant={variant}
         className={className}
         css={css(baseAnnotationLabelCSS)}
-        aria-label={`Open ${annotation.name} annotation`}
+        aria-label={ariaLabel ?? `Open ${annotation.name} annotation`}
         aria-haspopup={ariaHasPopup}
         onFocus={onFocus}
         onClick={(event) => {

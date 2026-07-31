@@ -48,6 +48,7 @@ describe("add annotation menu", () => {
   async function renderAnnotationBar({
     allAnnotationConfigs = [annotationConfig],
     projectAnnotationConfigs = [],
+    projectName = "My Project",
     rows = [
       {
         id: "span-row",
@@ -63,6 +64,7 @@ describe("add annotation menu", () => {
   }: {
     allAnnotationConfigs?: readonly AnnotationConfig[];
     projectAnnotationConfigs?: readonly AnnotationConfig[];
+    projectName?: string;
     rows?: readonly AnnotationBarRow[];
   } = {}) {
     const successfulMutation = async () => ({ success: true }) as const;
@@ -84,6 +86,7 @@ describe("add annotation menu", () => {
               rows={rows}
               allAnnotationConfigs={allAnnotationConfigs}
               projectAnnotationConfigs={projectAnnotationConfigs}
+              projectName={projectName}
               onAddAnnotationConfigToProject={successfulMutation}
               onCreateAnnotation={successfulCreateMutation}
               onCreateAnnotationConfig={successfulMutation}
@@ -234,7 +237,7 @@ describe("add annotation menu", () => {
     expect(document.body.textContent).toContain("Add annotation configuration");
   });
 
-  it("lists available annotations before project annotations", async () => {
+  it("lists project annotations before annotations available in Phoenix", async () => {
     const availableAnnotationConfig: AnnotationConfig = {
       ...annotationConfig,
       id: "config-quality",
@@ -243,6 +246,7 @@ describe("add annotation menu", () => {
     await renderAnnotationBar({
       allAnnotationConfigs: [annotationConfig, availableAnnotationConfig],
       projectAnnotationConfigs: [annotationConfig],
+      projectName: "a".repeat(45),
     });
     const user = userEvent.setup();
 
@@ -251,10 +255,12 @@ describe("add annotation menu", () => {
     const menuItems =
       document.querySelectorAll<HTMLElement>('[role="menuitem"]');
     expect(menuItems).toHaveLength(2);
-    expect(menuItems[0]?.textContent).toContain("quality");
-    expect(menuItems[0]?.textContent).toContain("Add");
-    expect(menuItems[1]?.textContent).toContain("toxicity");
-    expect(menuItems[1]?.textContent).toContain("Remove");
+    expect(menuItems[0]?.textContent).toContain("toxicity");
+    expect(menuItems[0]?.textContent).toContain("Remove");
+    expect(menuItems[1]?.textContent).toContain("quality");
+    expect(menuItems[1]?.textContent).toContain("Add");
+    expect(document.body.textContent).toContain(`Used by ${"a".repeat(37)}...`);
+    expect(document.body.textContent).toContain("Available in Phoenix");
   });
 
   it("uses one actionable menu item for each project annotation", async () => {

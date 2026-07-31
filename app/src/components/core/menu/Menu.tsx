@@ -263,13 +263,13 @@ const menuContainerCss = css`
 /**
  * Resolves MenuContainer's placement and flip defaults for its two hosts.
  *
- * A root menu hangs below its trigger button, so it defaults to "bottom end"
- * without flipping. A submenu must open BESIDE its trigger item — React Aria's
- * SubmenuTrigger provides "end top" through context, and MenuContainer must
- * not override it: a submenu forced below its item dooms the pointer to cross
- * sibling items on its way to the submenu, closing it before it can be used.
- * Submenus keep flipping enabled so the side placement can mirror at a
- * viewport edge instead of overflowing.
+ * A root menu defaults to "bottom end", while a submenu must open BESIDE its
+ * trigger item — React Aria's SubmenuTrigger provides "end top" through
+ * context, and MenuContainer must not override it: a submenu forced below its
+ * item dooms the pointer to cross sibling items on its way to the submenu,
+ * closing it before it can be used. Both hosts keep flipping enabled so the
+ * menu can move to the opposite side of its trigger before constraining its
+ * height and introducing a scrollbar.
  */
 export function resolveMenuContainerOverlayProps({
   placement,
@@ -282,7 +282,7 @@ export function resolveMenuContainerOverlayProps({
 }): { placement: PopoverProps["placement"]; shouldFlip: boolean } {
   return {
     placement: placement ?? (isSubmenu ? undefined : "bottom end"),
-    shouldFlip: shouldFlip ?? isSubmenu,
+    shouldFlip: shouldFlip ?? true,
   };
 }
 
@@ -317,12 +317,14 @@ export const MenuContainer = ({
   placement,
   shouldFlip,
   minHeight = "var(--global-menu-min-height)",
+  minWidth = 300,
   maxHeight = "var(--global-menu-max-height-large)",
   maxWidth = 450,
   ...popoverProps
 }: PropsWithChildren &
   Omit<PopoverProps, "maxHeight" | "maxWidth"> & {
     minHeight?: React.CSSProperties["minHeight"];
+    minWidth?: React.CSSProperties["minWidth"];
     maxHeight?: React.CSSProperties["maxHeight"];
     maxWidth?: React.CSSProperties["maxWidth"];
   }) => {
@@ -342,12 +344,11 @@ export const MenuContainer = ({
       {...popoverProps}
     >
       <div
-        style={{ minHeight, maxHeight, maxWidth }}
+        style={{ minHeight, minWidth, maxHeight, maxWidth }}
         css={css`
           display: flex;
           flex-direction: column;
           height: 100%;
-          min-width: 300px;
         `}
       >
         {children}
@@ -511,6 +512,7 @@ export const MenuHeaderTitle = ({
 export const MenuFooter = ({ children }: PropsWithChildren) => {
   return (
     <div
+      className="menu-footer"
       css={css`
         padding: var(--global-dimension-size-100);
         border-top: 1px solid var(--global-menu-border-color);

@@ -12,6 +12,7 @@ export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 
 export interface Annotation {
   id?: string;
+  identifier?: string;
   name: string;
   label?: string | null;
   score?: number | null;
@@ -20,6 +21,7 @@ export interface Annotation {
   annotatorKind?: AnnotatorKind;
   source?: AnnotationSource;
   createdAt?: string;
+  updatedAt?: string;
   user?: {
     username: string;
     profilePictureUrl?: string | null;

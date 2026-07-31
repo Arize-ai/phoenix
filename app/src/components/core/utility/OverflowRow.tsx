@@ -1,6 +1,12 @@
 import { css } from "@emotion/react";
 import type { CSSProperties, PropsWithChildren } from "react";
-import { useLayoutEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { Button as AriaButton, DialogTrigger } from "react-aria-components";
 
 import { StopPropagation } from "@phoenix/components/StopPropagation";
@@ -22,6 +28,16 @@ type FirstLine = {
 type OverflowState = FirstLine & {
   hiddenCount: number;
 };
+
+type OverflowRowPopoverLayout = "horizontal" | "vertical";
+
+const OverflowRowPopoverLayoutContext =
+  createContext<OverflowRowPopoverLayout | null>(null);
+
+/** Identifies children re-rendered inside an overflow popover and its layout. */
+export function useOverflowRowPopoverLayout() {
+  return useContext(OverflowRowPopoverLayoutContext);
+}
 
 const overflowRowCSS = css`
   display: flex;
@@ -81,6 +97,22 @@ const overflowRowCSS = css`
     }
     &:focus-visible {
       outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    }
+  }
+`;
+
+const overflowRowPopoverItemsCSS = css`
+  &[data-layout="vertical"] {
+    min-width: var(--global-dimension-size-3000);
+    padding-top: var(--global-menu-item-gap);
+
+    > :not(.menu-footer) {
+      margin-right: var(--global-menu-item-gap);
+      margin-left: var(--global-menu-item-gap);
+    }
+
+    &:not(:has(> .menu-footer)) {
+      padding-bottom: var(--global-menu-item-gap);
     }
   }
 `;
@@ -256,7 +288,11 @@ function isSameOverflow(a: OverflowState | null, b: OverflowState | null) {
 function OverflowRowPopoverItems({
   visibleCount,
   children,
-}: PropsWithChildren<{ visibleCount: number }>) {
+  layout,
+}: PropsWithChildren<{
+  layout: OverflowRowPopoverLayout;
+  visibleCount: number;
+}>) {
   const ref = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     const container = ref.current;
@@ -292,12 +328,17 @@ function OverflowRowPopoverItems({
   return (
     <Flex
       ref={ref}
-      direction="row"
-      wrap="wrap"
+      css={overflowRowPopoverItemsCSS}
+      data-layout={layout}
+      direction={layout === "vertical" ? "column" : "row"}
+      wrap={layout === "horizontal" ? "wrap" : "nowrap"}
       gap="size-50"
       maxWidth="size-5000"
+      alignItems={layout === "vertical" ? "stretch" : undefined}
     >
-      {children}
+      <OverflowRowPopoverLayoutContext value={layout}>
+        {children}
+      </OverflowRowPopoverLayoutContext>
     </Flex>
   );
 }
@@ -314,9 +355,12 @@ function OverflowRowPopoverItems({
 export function OverflowRow({
   children,
   isExpanded = false,
+  popoverLayout = "horizontal",
 }: PropsWithChildren<{
   /** Whether the row wraps all of its items rather than clipping to one line */
   isExpanded?: boolean;
+  /** How hidden items are arranged in the overflow popover. */
+  popoverLayout?: OverflowRowPopoverLayout;
 }>) {
   const containerRef = useRef<HTMLDivElement>(null);
   const remeasureRef = useRef<(() => void) | null>(null);
@@ -429,13 +473,23 @@ export function OverflowRow({
               <Popover placement="bottom end">
                 <PopoverArrow />
                 <Dialog>
-                  <View padding="size-150">
+                  {popoverLayout === "vertical" ? (
                     <OverflowRowPopoverItems
+                      layout={popoverLayout}
                       visibleCount={overflow.visibleCount}
                     >
                       {children}
                     </OverflowRowPopoverItems>
-                  </View>
+                  ) : (
+                    <View padding="size-150">
+                      <OverflowRowPopoverItems
+                        layout={popoverLayout}
+                        visibleCount={overflow.visibleCount}
+                      >
+                        {children}
+                      </OverflowRowPopoverItems>
+                    </View>
+                  )}
                 </Dialog>
               </Popover>
             </StopPropagation>

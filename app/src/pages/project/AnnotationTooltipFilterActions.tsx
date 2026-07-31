@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import {
   Button,
+  Flex,
   Group,
   Icon,
   Icons,
@@ -134,6 +135,10 @@ const truncatedAnnotationValueCSS = css`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+`;
+
+const annotationFilterMenuCSS = css`
+  --menu-min-width: var(--global-dimension-size-2500);
 `;
 
 export function getAnnotationFilterDefinitions({
@@ -298,7 +303,7 @@ function CollapsibleAnnotationFilterActions({
         </Button>
         <MenuContainer
           data-annotation-filter-menu
-          placement="bottom end"
+          placement="right top"
           isNonModal
           // This menu belongs to a coordinated sibling group ("filter" |
           // "more" | null): the press that dismisses it may be the press that
@@ -306,6 +311,7 @@ function CollapsibleAnnotationFilterActions({
           // The enclosing annotation popover owns outside dismissal.
           closeOnInteractOutside={false}
           minHeight={0}
+          minWidth={0}
           aria-label={`Filter ${targetLabel}`}
         >
           <MenuHeader>
@@ -313,16 +319,27 @@ function CollapsibleAnnotationFilterActions({
           </MenuHeader>
           <Menu
             aria-label={`Filter ${targetLabel} by annotation value`}
+            css={annotationFilterMenuCSS}
             onAction={(action) => onFilter(String(action))}
           >
             {filters.map((filter) => (
               <MenuItem
                 key={filter.filterName}
                 id={filter.filterCondition}
+                textValue={`${filter.menuLabel} ${formattedScore ?? annotation.label ?? ""}`.trim()}
                 leadingContent={<AnnotationFilterIcon icon={filter.icon} />}
-                trailingContent={
-                  formattedScore != null ? (
+              >
+                <Flex
+                  className="annotation-filter-actions__sentence"
+                  elementType="span"
+                  alignItems="center"
+                  gap="size-100"
+                  minWidth={0}
+                >
+                  <Text>{filter.menuLabel}</Text>
+                  {formattedScore != null ? (
                     <AnnotationScoreText
+                      appearance="compact"
                       fontFamily="mono"
                       optimizationValue={annotation.optimizationValue}
                       title={formattedScore}
@@ -342,10 +359,8 @@ function CollapsibleAnnotationFilterActions({
                     >
                       {annotation.label}
                     </Text>
-                  ) : null
-                }
-              >
-                {filter.menuLabel}
+                  ) : null}
+                </Flex>
               </MenuItem>
             ))}
           </Menu>

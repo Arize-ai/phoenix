@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
+import { POINTER_OPEN_DWELL_MILLISECONDS } from "@phoenix/hooks/useDelayedPointerOpen";
 
 import {
   TraceTree,
@@ -73,6 +74,7 @@ describe("TraceTree", () => {
   let root: Root;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -82,6 +84,7 @@ describe("TraceTree", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -96,7 +99,10 @@ describe("TraceTree", () => {
     isChildTruncationEnabled = false,
     isHoverOverlayEnabled = true,
     isNavigationCollapsed = false,
+    isScrollOwner = true,
+    showMissingParentSession = false,
     session,
+    sessionTurnContext,
     traceSelection,
   }: {
     spans: ISpanItem[];
@@ -109,7 +115,10 @@ describe("TraceTree", () => {
     isChildTruncationEnabled?: boolean;
     isHoverOverlayEnabled?: boolean;
     isNavigationCollapsed?: boolean;
+    isScrollOwner?: boolean;
+    showMissingParentSession?: boolean;
     session?: TraceTreeProps["session"];
+    sessionTurnContext?: TraceTreeProps["sessionTurnContext"];
     traceSelection?: TraceTreeProps["traceSelection"];
   }) {
     const traceTree = (
@@ -118,7 +127,10 @@ describe("TraceTree", () => {
         isChildTruncationEnabled={isChildTruncationEnabled}
         isHoverOverlayEnabled={isHoverOverlayEnabled}
         isNavigationCollapsed={isNavigationCollapsed}
+        isScrollOwner={isScrollOwner}
+        showMissingParentSession={showMissingParentSession}
         session={session}
+        sessionTurnContext={sessionTurnContext}
         traceSelection={traceSelection}
         selectedSpanNodeId={selectedSpanNodeId}
         scrollSelectedSpanIntoView={false}
@@ -245,8 +257,35 @@ describe("TraceTree", () => {
       navigation?.dispatchEvent(
         new MouseEvent("pointerover", { bubbles: true })
       );
+      vi.advanceTimersByTime(POINTER_OPEN_DWELL_MILLISECONDS);
     });
 
+    expect(overlay.getAttribute("data-open")).toBe("false");
+
+    act(() => {
+      compactRootSpanRow?.dispatchEvent(
+        new MouseEvent("pointerover", { bubbles: true })
+      );
+      vi.advanceTimersByTime(POINTER_OPEN_DWELL_MILLISECONDS - 1);
+    });
+    expect(overlay.getAttribute("data-open")).toBe("false");
+    act(() => {
+      compactRootSpanRow?.dispatchEvent(
+        new MouseEvent("pointerout", {
+          bubbles: true,
+          relatedTarget: navigation,
+        })
+      );
+      vi.advanceTimersByTime(1);
+    });
+    expect(overlay.getAttribute("data-open")).toBe("false");
+
+    act(() => {
+      compactRootSpanRow?.dispatchEvent(
+        new MouseEvent("pointerover", { bubbles: true })
+      );
+      vi.advanceTimersByTime(POINTER_OPEN_DWELL_MILLISECONDS);
+    });
     expect(overlay.getAttribute("data-open")).toBe("true");
     expect(overlay.hasAttribute("inert")).toBe(false);
     expect(rail?.getAttribute("aria-hidden")).toBe("true");
@@ -342,10 +381,14 @@ describe("TraceTree", () => {
     }
 
     rail.scrollTop = 72;
+    const hoverTrigger = rail.querySelector<HTMLElement>(
+      "[data-collapsed-navigation-hover-trigger]"
+    );
     act(() => {
-      navigation.dispatchEvent(
+      hoverTrigger?.dispatchEvent(
         new MouseEvent("pointerover", { bubbles: true })
       );
+      vi.advanceTimersByTime(POINTER_OPEN_DWELL_MILLISECONDS);
     });
     expect(fullTree.scrollTop).toBe(72);
 
@@ -477,11 +520,14 @@ describe("TraceTree", () => {
       ).map((action) => action.getAttribute("aria-label"))
     ).toEqual(["View span root span"]);
 
-    const navigation = container.querySelector(".trace-tree-navigation");
+    const hoverTrigger = container.querySelector(
+      "[data-collapsed-navigation-hover-trigger]"
+    );
     act(() => {
-      navigation?.dispatchEvent(
+      hoverTrigger?.dispatchEvent(
         new MouseEvent("pointerover", { bubbles: true })
       );
+      vi.advanceTimersByTime(POINTER_OPEN_DWELL_MILLISECONDS);
     });
     expect(
       container
@@ -503,11 +549,14 @@ describe("TraceTree", () => {
       });
 
     renderNavigation(true);
-    const navigation = container.querySelector(".trace-tree-navigation");
+    const hoverTrigger = container.querySelector(
+      "[data-collapsed-navigation-hover-trigger]"
+    );
     act(() => {
-      navigation?.dispatchEvent(
+      hoverTrigger?.dispatchEvent(
         new MouseEvent("pointerover", { bubbles: true })
       );
+      vi.advanceTimersByTime(POINTER_OPEN_DWELL_MILLISECONDS);
     });
     expect(
       container
@@ -716,6 +765,187 @@ describe("TraceTree", () => {
     expect(onTraceSelect).toHaveBeenCalledOnce();
   });
 
+  it("shows surrounding turns around the current trace", () => {
+    const sessionTracePath =
+      "/projects/project-1/sessions/session-1?sessionView=traces&selectedTraceId=trace-1";
+    renderTraceTree({
+      spans: [ROOT_SPAN],
+      session: {
+        isSelected: false,
+        onSelect: vi.fn(),
+        sessionId: "session-12345678",
+      },
+      sessionTurnContext: {
+        turnsAfter: 2,
+        turnsBefore: 1,
+        to: sessionTracePath,
+      },
+      traceSelection: {
+        isSelected: false,
+        onSelect: vi.fn(),
+        traceId: "trace-12345678",
+      },
+    });
+
+    const treeItems = container.querySelectorAll(
+      '[data-testid="trace-tree"] > li'
+    );
+    expect(Array.from(treeItems, (item) => item.textContent)).toEqual([
+      "Session",
+      "1 turn before",
+      expect.stringContaining("root span"),
+      "2 turns after",
+    ]);
+
+    const beforeLink = treeItems[1]?.querySelector("a");
+    const afterLink = treeItems[3]?.querySelector("a");
+    const beforeLabel = beforeLink?.querySelector(".text");
+    if (!beforeLink || !afterLink || !beforeLabel) {
+      throw new Error("Expected the before-turn context row");
+    }
+    expect(getComputedStyle(beforeLink).height).toBe(
+      "var(--global-details-panel-navigation-row-height)"
+    );
+    expect(getComputedStyle(beforeLink).justifyContent).toBe("flex-start");
+    expect(getComputedStyle(beforeLink).paddingLeft.replace(/\s/g, "")).toBe(
+      "var(--global-details-panel-navigation-row-content-padding-inline-start)"
+    );
+    expect(beforeLink.getAttribute("aria-label")).toBe(
+      "View session with current trace highlighted; 1 turn before"
+    );
+    expect(beforeLink.getAttribute("href")).toBe(sessionTracePath);
+    expect(afterLink.getAttribute("href")).toBe(sessionTracePath);
+    expect(getComputedStyle(beforeLabel).color.replace(/\s/g, "")).toBe(
+      "var(--global-text-color-300)"
+    );
+    expect(getComputedStyle(afterLink).borderBottomWidth).toBe("0px");
+    expect(
+      getComputedStyle(afterLink.parentElement!).getPropertyValue(
+        "--details-panel-navigation-row-bleed-border-bottom-width"
+      )
+    ).toBe("0px");
+  });
+
+  it("shows when a trace has no parent session", () => {
+    renderTraceTree({
+      isNavigationCollapsed: true,
+      spans: [ROOT_SPAN],
+      showMissingParentSession: true,
+      traceSelection: {
+        isSelected: false,
+        onSelect: vi.fn(),
+        traceId: "trace-12345678",
+      },
+    });
+
+    const treeItems = container.querySelectorAll(
+      '[data-testid="trace-tree"] > li'
+    );
+    expect(Array.from(treeItems, (item) => item.textContent)).toEqual([
+      "No parent session",
+      expect.stringContaining("root span"),
+    ]);
+
+    const missingSessionRow = treeItems[0]?.firstElementChild;
+    expect(missingSessionRow?.querySelector("a, button")).toBeNull();
+    expect(
+      getComputedStyle(missingSessionRow!)
+        .getPropertyValue(
+          "--details-panel-navigation-row-bleed-border-bottom-width"
+        )
+        .replace(/\s/g, "")
+    ).toBe("var(--global-border-size-thin)");
+
+    const fullTree = container.querySelector('[data-testid="trace-tree"]');
+    const compactTree = container.querySelector(
+      '[data-testid="trace-tree-icon-rail"]'
+    );
+    expect(compactTree?.children).toHaveLength(
+      Math.max((fullTree?.children.length ?? 0) - 1, 0)
+    );
+    expect(
+      compactTree?.querySelector(".trace-tree-icon-rail__item--session")
+    ).toBeNull();
+    expect(compactTree?.textContent).toBe("");
+
+    const compactHoverTrigger = compactTree?.querySelector(
+      "[data-collapsed-navigation-hover-trigger]"
+    );
+    act(() => {
+      compactHoverTrigger?.dispatchEvent(
+        new MouseEvent("pointerover", { bubbles: true })
+      );
+      vi.advanceTimersByTime(POINTER_OPEN_DWELL_MILLISECONDS);
+    });
+    expect(
+      fullTree
+        ?.closest(".trace-tree-navigation__full")
+        ?.getAttribute("data-open")
+    ).toBe("true");
+    expect(fullTree?.textContent).toContain("No parent session");
+  });
+
+  it("continues the active descendant background through preceding turns", () => {
+    renderTraceTree({
+      spans: [ROOT_SPAN],
+      session: {
+        isActive: true,
+        isSelected: false,
+        onSelect: vi.fn(),
+        sessionId: "session-12345678",
+      },
+      sessionTurnContext: {
+        turnsAfter: 0,
+        turnsBefore: 2,
+        to: "/projects/project-1/sessions/session-1",
+      },
+      traceSelection: {
+        isActive: true,
+        isSelected: false,
+        onSelect: vi.fn(),
+        traceId: "trace-12345678",
+      },
+    });
+
+    const contextLink = Array.from(container.querySelectorAll("a")).find(
+      (link) => link.textContent === "2 turns before"
+    );
+    const contextPaint = contextLink?.parentElement;
+    if (!contextLink || !contextPaint) {
+      throw new Error("Expected the before-turn context row");
+    }
+    expect(contextLink.dataset.hasActiveDescendant).toBe("true");
+    expect(contextPaint.dataset.hasActiveDescendant).toBe("true");
+    expect(
+      getComputedStyle(contextLink).backgroundColor.replace(/\s/g, "")
+    ).toBe(
+      "var(--global-details-panel-navigation-row-with-active-descendant-background-color)"
+    );
+    expect(
+      getComputedStyle(contextPaint)
+        .getPropertyValue(
+          "--details-panel-navigation-row-bleed-background-color"
+        )
+        .replace(/\s/g, "")
+    ).toBe(
+      "var(--global-details-panel-navigation-row-with-active-descendant-background-color)"
+    );
+  });
+
+  it("omits zero-count surrounding turn rows", () => {
+    renderTraceTree({
+      spans: [ROOT_SPAN],
+      sessionTurnContext: {
+        turnsAfter: 0,
+        turnsBefore: 0,
+        to: "/projects/project-1/sessions/session-1",
+      },
+    });
+
+    expect(container.textContent).not.toContain("turn before");
+    expect(container.textContent).not.toContain("turn after");
+  });
+
   it("toggles an active trace when its row is selected again", () => {
     const onTraceSelect = vi.fn();
 
@@ -856,6 +1086,150 @@ describe("TraceTree", () => {
         `[data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
       )
     ).not.toBeNull();
+  });
+
+  it("keeps a parent session active without making it the selected entity", () => {
+    renderTraceTree({
+      spans: [ROOT_SPAN],
+      selectedSpanNodeId: ROOT_SPAN.id,
+      isNavigationCollapsed: true,
+      session: {
+        isActive: true,
+        isSelected: false,
+        onSelect: vi.fn(),
+        sessionId: "session-12345678",
+      },
+    });
+
+    const sessionRows = container.querySelectorAll<HTMLElement>(
+      '[aria-label="View session session-12345678"]'
+    );
+    expect(sessionRows).toHaveLength(2);
+    sessionRows.forEach((sessionRow) => {
+      const styledRow = sessionRow.matches(".trace-tree-icon-rail__item")
+        ? sessionRow
+        : sessionRow.parentElement;
+      expect(styledRow?.dataset.selected).not.toBe("true");
+      expect(styledRow?.dataset.hasActiveDescendant).toBe("true");
+      expect(
+        getComputedStyle(styledRow!).backgroundColor.replace(/\s/g, "")
+      ).toBe(
+        "var(--global-details-panel-navigation-row-with-active-descendant-background-color)"
+      );
+      const styledRowClassName = Array.from(styledRow?.classList ?? []).find(
+        (className) => className.startsWith("css-")
+      );
+      const separatorSelector = sessionRow.matches(
+        ".trace-tree-icon-rail__item"
+      )
+        ? ".trace-tree-icon-rail__item--session"
+        : `.${styledRowClassName}`;
+      const separatorRule = Array.from(document.styleSheets)
+        .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+        .find(
+          (rule): rule is CSSStyleRule =>
+            rule instanceof CSSStyleRule &&
+            rule.selectorText.includes(separatorSelector) &&
+            rule.style.borderBottom !== ""
+        );
+      expect(separatorRule?.style.borderBottom).toBe(
+        "var(--global-border-size-thin) solid var(--global-border-color-default)"
+      );
+      expect(sessionRow.getAttribute("aria-pressed")).toBe("false");
+    });
+  });
+
+  it("bleeds active row backgrounds beneath the scrollbar gutter", () => {
+    renderTraceTree({
+      spans: [ROOT_SPAN],
+      selectedSpanNodeId: ROOT_SPAN.id,
+      session: {
+        isActive: true,
+        isSelected: false,
+        onSelect: vi.fn(),
+        sessionId: "session-12345678",
+      },
+      traceSelection: {
+        isActive: true,
+        isSelected: false,
+        onSelect: vi.fn(),
+        traceId: "trace-12345678",
+      },
+    });
+
+    const sessionButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="View session session-12345678"]'
+    );
+    const sessionBleedRow = sessionButton?.parentElement?.parentElement;
+    const traceBleedRow = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="View trace trace-12345678"]'
+    )?.parentElement;
+    const spanBleedRow = container.querySelector<HTMLElement>(
+      `[data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
+    )?.parentElement?.parentElement;
+    const scrollContainer = container.querySelector<HTMLElement>(
+      "[data-trace-tree-root]"
+    );
+    const activeBackground =
+      "var(--global-details-panel-navigation-row-with-active-descendant-background-color)";
+    const selectedBackground =
+      "var(--global-details-panel-navigation-row-selected-background-color)";
+    const bleedBackgroundProperty =
+      "--details-panel-navigation-row-bleed-background-color";
+
+    expect(
+      getComputedStyle(sessionBleedRow!)
+        .getPropertyValue(bleedBackgroundProperty)
+        .trim()
+    ).toBe(activeBackground);
+    expect(
+      getComputedStyle(traceBleedRow!)
+        .getPropertyValue(bleedBackgroundProperty)
+        .trim()
+    ).toBe(activeBackground);
+    expect(
+      getComputedStyle(spanBleedRow!)
+        .getPropertyValue(bleedBackgroundProperty)
+        .trim()
+    ).toBe(selectedBackground);
+    expect(getComputedStyle(scrollContainer!).overflowX).toBe("hidden");
+
+    [sessionBleedRow, traceBleedRow, spanBleedRow].forEach((row) => {
+      const rowClassName = Array.from(row?.classList ?? []).find((className) =>
+        className.startsWith("css-")
+      );
+      const bleedRule = Array.from(document.styleSheets)
+        .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+        .find(
+          (rule): rule is CSSStyleRule =>
+            rule instanceof CSSStyleRule &&
+            rule.selectorText === `.${rowClassName}::after`
+        );
+      expect(bleedRule?.style.width).toBe("100vw");
+      expect(bleedRule?.style.getPropertyValue("inset-inline-start")).toBe(
+        "100%"
+      );
+    });
+  });
+
+  it("leaves scrolling to an ancestor when embedded in a session trace list", () => {
+    renderTraceTree({
+      spans: [ROOT_SPAN],
+      isScrollOwner: false,
+    });
+
+    const navigation = container.querySelector<HTMLElement>(
+      ".trace-tree-navigation"
+    );
+    const tree = container.querySelector<HTMLElement>("[data-trace-tree-root]");
+    const fullTree = container.querySelector<HTMLElement>(
+      ".trace-tree-navigation__full"
+    );
+
+    expect(navigation?.dataset.navigationScrollbar).toBeUndefined();
+    expect(tree?.dataset.navigationScrollOwner).toBe("false");
+    expect(getComputedStyle(tree!).overflow).toBe("visible");
+    expect(getComputedStyle(fullTree!).overflow).toBe("visible");
   });
 
   it("keeps trace selection separate from the tree disclosure", () => {

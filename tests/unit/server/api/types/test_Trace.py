@@ -70,6 +70,45 @@ class TestTrace:
             "sessionId": project_session.session_id,
         }
 
+    async def test_session_trace_index(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        start_time = datetime(2026, 7, 31, tzinfo=timezone.utc)
+        async with db() as session:
+            project = await _add_project(session)
+            project_session = await _add_project_session(session, project)
+            trace_without_session = await _add_trace(
+                session,
+                project,
+                start_time=start_time,
+            )
+            first_trace = await _add_trace(
+                session,
+                project,
+                project_session,
+                start_time=start_time,
+            )
+            second_trace = await _add_trace(
+                session,
+                project,
+                project_session,
+                start_time=start_time,
+            )
+            third_trace = await _add_trace(
+                session,
+                project,
+                project_session,
+                start_time=start_time + timedelta(seconds=1),
+            )
+
+        field = "sessionTraceIndex"
+        assert await self._node(field, trace_without_session, httpx_client) is None
+        assert await self._node(field, first_trace, httpx_client) == 0
+        assert await self._node(field, second_trace, httpx_client) == 1
+        assert await self._node(field, third_trace, httpx_client) == 2
+
     async def test_root_span(
         self,
         _data: _Data,

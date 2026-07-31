@@ -1,6 +1,8 @@
 import {
+  SELECTED_TRACE_ID_PARAM,
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTION_SCOPED_SEARCH_PARAMS,
+  SESSION_VIEW_PARAM,
 } from "@phoenix/constants/searchParams";
 
 const videoUrlRegex = /\.(mp4|mov|webm|ogg)(\?|$)/i;
@@ -77,16 +79,30 @@ export function getTraceDetailsPath({
 
 /**
  * Build a relative path to a session's details, preserving recreatable URL
- * state while clearing the selection-scoped params.
+ * state while clearing stale selection-scoped params. When a trace is
+ * selected, open the session's traces view with that trace active.
+ *
+ * @param params - Session navigation inputs.
+ * @param params.sessionId - Relay node ID for the session drawer route.
+ * @param params.searchParams - Current URL state to preserve where applicable.
+ * @param params.traceId - Optional OpenTelemetry trace ID to activate.
  */
 export function getSessionDetailsPath({
   sessionId,
   searchParams,
+  traceId,
 }: {
   sessionId: string;
   searchParams: URLSearchParams;
+  traceId?: string;
 }): string {
-  return `${encodeURIComponent(sessionId)}${clearSelectionScopedParams(
-    searchParams
+  return `${encodeURIComponent(sessionId)}${withSearchParams(
+    clearSelectionScopedParams(searchParams),
+    (params) => {
+      if (traceId) {
+        params.set(SESSION_VIEW_PARAM, "traces");
+        params.set(SELECTED_TRACE_ID_PARAM, traceId);
+      }
+    }
   )}`;
 }

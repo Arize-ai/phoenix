@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7b923b2bf44aecdc3cb3295f95cc662b>>
+ * @generated SignedSource<<f80e9ae304a20306b5d4b85ec3677328>>
  * @lightSyntaxTransform
  */
 
@@ -16,11 +16,13 @@ export type ConnectedDetailPanelAnnotationBarAnnotationFields$data = {
   readonly createdAt: string;
   readonly explanation: string | null;
   readonly id?: string;
+  readonly identifier: string;
   readonly label: string | null;
   readonly metadata: any;
   readonly name: string;
   readonly score: number | null;
   readonly source: AnnotationSource;
+  readonly updatedAt: string;
   readonly user: {
     readonly id: string;
     readonly profilePictureUrl: string | null;
@@ -38,6 +40,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ConnectedDetailPanelAnnotationBarAnnotationFields"
 };
 
-(node as any).hash = "35d45666cefa80c0e0ceb63a50f2f452";
+(node as any).hash = "be39fad7b2896caf5d6c5208eaff1b1b";
 
 export default node;

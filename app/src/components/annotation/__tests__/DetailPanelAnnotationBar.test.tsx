@@ -16,6 +16,10 @@ import type {
   AnnotationConfig,
 } from "@phoenix/components/annotation/types";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
+import {
+  ViewerContext,
+  type ViewerContextType,
+} from "@phoenix/contexts/ViewerContext";
 import { SpanFiltersContext } from "@phoenix/pages/project/SpanFiltersContext";
 
 const config: AnnotationConfig = {
@@ -42,6 +46,22 @@ const createMutationResult = async () =>
     },
   }) as const;
 
+function buildViewer(id: string): NonNullable<ViewerContextType["viewer"]> {
+  return {
+    " $fragmentSpreads": {
+      AuthorizedApplicationsCardFragment: true,
+      ViewerAPIKeysListFragment: true,
+    },
+    authMethod: "LOCAL",
+    email: `${id}@localhost`,
+    id,
+    isManagementUser: false,
+    profilePictureUrl: null,
+    role: { name: "MEMBER" },
+    username: id,
+  };
+}
+
 describe("DetailPanelAnnotationBar", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -62,6 +82,7 @@ describe("DetailPanelAnnotationBar", () => {
       },
     ],
     variant,
+    viewer = null,
   }: {
     allAnnotationConfigs?: AnnotationConfig[];
     projectAnnotationConfigs?: AnnotationConfig[];
@@ -71,36 +92,42 @@ describe("DetailPanelAnnotationBar", () => {
     onUpdateAnnotation?: DetailPanelAnnotationBarProps["onUpdateAnnotation"];
     annotations?: Annotation[];
     variant?: DetailPanelAnnotationBarProps["variant"];
+    viewer?: ViewerContextType["viewer"];
   } = {}) => {
     act(() => {
       root.render(
         <ThemeProvider themeMode="dark" disableBodyTheme>
-          <MemoryRouter>
-            <DetailPanelAnnotationBar
-              allAnnotationConfigs={allAnnotationConfigs}
-              projectAnnotationConfigs={projectAnnotationConfigs}
-              rows={[
-                {
-                  id: "span-1",
-                  kind: "target",
-                  target: {
+          <ViewerContext.Provider
+            value={{ viewer, refetchViewer: () => undefined }}
+          >
+            <MemoryRouter>
+              <DetailPanelAnnotationBar
+                allAnnotationConfigs={allAnnotationConfigs}
+                projectAnnotationConfigs={projectAnnotationConfigs}
+                projectName="My Project"
+                rows={[
+                  {
                     id: "span-1",
-                    kind: "span",
-                    label: "Span",
-                    annotations,
+                    kind: "target",
+                    target: {
+                      id: "span-1",
+                      kind: "span",
+                      label: "Span",
+                      annotations,
+                    },
                   },
-                },
-              ]}
-              onAddAnnotationConfigToProject={mutationResult}
-              onCreateAnnotation={onCreateAnnotation}
-              onCreateAnnotationConfig={onCreateAnnotationConfig}
-              onDeleteAnnotation={onDeleteAnnotation}
-              onRemoveAnnotationConfigFromProject={mutationResult}
-              onUpdateAnnotation={onUpdateAnnotation}
-              onUpdateAnnotationConfig={mutationResult}
-              variant={variant}
-            />
-          </MemoryRouter>
+                ]}
+                onAddAnnotationConfigToProject={mutationResult}
+                onCreateAnnotation={onCreateAnnotation}
+                onCreateAnnotationConfig={onCreateAnnotationConfig}
+                onDeleteAnnotation={onDeleteAnnotation}
+                onRemoveAnnotationConfigFromProject={mutationResult}
+                onUpdateAnnotation={onUpdateAnnotation}
+                onUpdateAnnotationConfig={mutationResult}
+                variant={variant}
+              />
+            </MemoryRouter>
+          </ViewerContext.Provider>
         </ThemeProvider>
       );
     });
@@ -111,11 +138,13 @@ describe("DetailPanelAnnotationBar", () => {
     label = "good",
     score = 1,
     targetKind = "span",
+    updatedAt,
   }: {
     appendFilterCondition: (condition: string) => void;
     label?: string;
     score?: number | null;
     targetKind?: "session" | "span" | "trace";
+    updatedAt?: string;
   }) => {
     act(() => {
       root.render(
@@ -138,6 +167,7 @@ describe("DetailPanelAnnotationBar", () => {
                     name: "quality",
                     label,
                     score,
+                    updatedAt,
                   },
                 ]}
                 config={config}
@@ -251,6 +281,57 @@ describe("DetailPanelAnnotationBar", () => {
     ]);
   });
 
+  it("repositions an open popover when its filled ghost label moves", async () => {
+    const helpfulnessConfig = {
+      ...config,
+      id: "config-helpfulness",
+      name: "helpfulness",
+    };
+    const annotationConfigs = [helpfulnessConfig, config];
+    renderAnnotationBar({
+      allAnnotationConfigs: annotationConfigs,
+      projectAnnotationConfigs: annotationConfigs,
+      annotations: [],
+    });
+    const user = userEvent.setup();
+
+    await act(async () =>
+      user.click(
+        container.querySelector<HTMLButtonElement>(
+          '[aria-label="Open quality annotation"]'
+        )!
+      )
+    );
+    const handleResize = vi.fn();
+    window.addEventListener("resize", handleResize);
+
+    renderAnnotationBar({
+      allAnnotationConfigs: annotationConfigs,
+      projectAnnotationConfigs: annotationConfigs,
+      annotations: [
+        {
+          id: "annotation-quality",
+          name: "quality",
+          label: "good",
+          score: 1,
+        },
+      ],
+    });
+    window.removeEventListener("resize", handleResize);
+
+    expect(handleResize).toHaveBeenCalledOnce();
+    expect(
+      container
+        .querySelector<HTMLButtonElement>(
+          'button[aria-label^="Open "][aria-label$=" annotation"]'
+        )
+        ?.getAttribute("aria-label")
+    ).toBe("Open quality annotation");
+    expect(
+      document.querySelector('[role="dialog"][aria-label="quality annotation"]')
+    ).not.toBeNull();
+  });
+
   it("opens a neighboring ghost annotation with the same press that dismisses the current one", async () => {
     const helpfulnessConfig = {
       ...config,
@@ -304,6 +385,132 @@ describe("DetailPanelAnnotationBar", () => {
       document.querySelector(
         '[role="dialog"][aria-label="Manage span annotations"]'
       )
+    ).not.toBeNull();
+  });
+
+  it("does not activate a containing row from the annotation button", async () => {
+    const onRowClick = vi.fn();
+
+    act(() => {
+      root.render(
+        <ThemeProvider themeMode="dark" disableBodyTheme>
+          <div onClick={onRowClick}>
+            <DetailPanelAnnotationButton targetKind="span">
+              <div>Annotation menu</div>
+            </DetailPanelAnnotationButton>
+          </div>
+        </ThemeProvider>
+      );
+    });
+
+    await act(async () => {
+      await userEvent.click(
+        container.querySelector<HTMLButtonElement>(
+          'button[aria-label="Add annotation"]'
+        )!
+      );
+    });
+
+    expect(onRowClick).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain("Annotation menu");
+  });
+
+  it("opens the detail-header annotation config menu from a compact row action", async () => {
+    const longAnnotationName =
+      "helpfulness with an annotation name that should never wrap onto another line";
+    const helpfulnessConfig = {
+      ...config,
+      id: "config-helpfulness",
+      name: longAnnotationName,
+    };
+
+    act(() => {
+      root.render(
+        <ThemeProvider themeMode="dark" disableBodyTheme>
+          <MemoryRouter>
+            <DetailPanelAnnotationButton
+              menuKind="annotation-configs"
+              targetKind="span"
+            >
+              {(configMenuState) => (
+                <DetailPanelAnnotationBar
+                  allAnnotationConfigs={[config, helpfulnessConfig]}
+                  configMenuState={configMenuState}
+                  onAddAnnotationConfigToProject={mutationResult}
+                  onCreateAnnotation={createMutationResult}
+                  onCreateAnnotationConfig={mutationResult}
+                  onDeleteAnnotation={mutationResult}
+                  onRemoveAnnotationConfigFromProject={mutationResult}
+                  onUpdateAnnotation={mutationResult}
+                  onUpdateAnnotationConfig={mutationResult}
+                  projectAnnotationConfigs={[config]}
+                  projectName="My Project"
+                  rows={[
+                    {
+                      id: "span-1",
+                      kind: "target",
+                      target: {
+                        annotations: [],
+                        id: "span-1",
+                        kind: "span",
+                      },
+                    },
+                  ]}
+                  variant="config-menu"
+                />
+              )}
+            </DetailPanelAnnotationButton>
+          </MemoryRouter>
+        </ThemeProvider>
+      );
+    });
+
+    await act(async () => {
+      await userEvent.click(
+        container.querySelector<HTMLButtonElement>(
+          'button[aria-label="Add annotation"]'
+        )!
+      );
+    });
+
+    const menu = document.querySelector<HTMLElement>(
+      '[role="menu"][aria-label="Project annotations"]'
+    );
+    expect(menu).not.toBeNull();
+    expect(document.body.textContent).toContain("Project annotations");
+    expect(document.body.textContent).toContain("Used by My Project");
+    expect(document.body.textContent).not.toContain("On this span");
+    const longAnnotationLabel = menu?.querySelector<HTMLElement>(
+      `[title="${longAnnotationName}"]`
+    );
+    expect(longAnnotationLabel?.style.maxWidth).toBe("250px");
+    expect(getComputedStyle(longAnnotationLabel!).whiteSpace).toBe("nowrap");
+
+    const newConfigButton = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    ).find((button) => button.textContent === "New annotation config");
+    await act(async () => userEvent.click(newConfigButton!));
+
+    const createDialog = document.querySelector<HTMLElement>(
+      '[role="dialog"][aria-label="Add annotation configuration"]'
+    );
+    expect(
+      createDialog?.closest('[data-testid="modal-overlay"]')
+    ).not.toBeNull();
+    expect(getComputedStyle(createDialog!).top).toBe("50%");
+    expect(getComputedStyle(createDialog!).maxHeight).toBe(
+      "calc(100% - var(--global-dimension-size-800))"
+    );
+
+    await act(async () => userEvent.keyboard("{Escape}"));
+
+    expect(
+      document.querySelector(
+        '[role="dialog"][aria-label="Add annotation configuration"]'
+      )
+    ).toBeNull();
+    expect(
+      document.querySelector('[role="menu"][aria-label="Project annotations"]')
     ).not.toBeNull();
   });
 
@@ -497,6 +704,87 @@ describe("DetailPanelAnnotationBar", () => {
     ).toBeNull();
   });
 
+  it("hides add annotation when it would override the viewer's annotation", async () => {
+    const viewer = buildViewer("viewer-1");
+    renderAnnotationBar({
+      annotations: [
+        {
+          id: "annotation-1",
+          identifier: `px-app:${viewer.id}`,
+          name: "quality",
+          label: "good",
+          score: 1,
+        },
+      ],
+      viewer,
+    });
+    const user = userEvent.setup();
+
+    await act(async () =>
+      user.click(
+        document.querySelector<HTMLButtonElement>(
+          '[aria-label="Open quality annotation"]'
+        )!
+      )
+    );
+
+    expect(
+      Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+        (button) => button.textContent === "Add annotation"
+      )
+    ).toBeUndefined();
+  });
+
+  it("shows add annotation when it will create a separate annotation", async () => {
+    const viewer = buildViewer("viewer-1");
+    renderAnnotationBar({
+      annotations: [
+        {
+          id: "annotation-1",
+          identifier: "external-evaluator",
+          name: "quality",
+          label: "good",
+          score: 1,
+        },
+      ],
+      viewer,
+    });
+    const user = userEvent.setup();
+
+    await act(async () =>
+      user.click(
+        document.querySelector<HTMLButtonElement>(
+          '[aria-label="Open quality annotation"]'
+        )!
+      )
+    );
+
+    expect(
+      Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+        (button) => button.textContent === "Add annotation"
+      )
+    ).not.toBeUndefined();
+  });
+
+  it("hides add annotation when an existing identifier is unknown", async () => {
+    renderAnnotationBar();
+    const user = userEvent.setup();
+
+    await act(async () =>
+      user.click(
+        document.querySelector<HTMLButtonElement>(
+          '[aria-label="Open quality annotation"]'
+        )!
+      )
+    );
+
+    expect(
+      Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+        (button) => button.textContent === "Add annotation"
+      )
+    ).toBeUndefined();
+  });
+
   it("grades saved scores in the annotation label and summary popover", async () => {
     const user = userEvent.setup();
     const trigger = document.querySelector<HTMLButtonElement>(
@@ -654,6 +942,18 @@ describe("DetailPanelAnnotationBar", () => {
     await act(async () => user.click(createFromSearch!));
 
     expect(document.body.textContent).toContain("Add annotation configuration");
+    const createDialog = document.querySelector<HTMLElement>(
+      '[role="dialog"][aria-label="Add annotation configuration"]'
+    );
+    const createModalOverlay = createDialog?.closest<HTMLElement>(
+      '[data-testid="modal-overlay"]'
+    );
+    expect(createModalOverlay).not.toBeNull();
+    expect(getComputedStyle(createModalOverlay!).position).toBe("fixed");
+    expect(getComputedStyle(createDialog!).maxHeight).toBe(
+      "calc(100% - var(--global-dimension-size-800))"
+    );
+    expect(getComputedStyle(createDialog!).overflow).toBe("auto");
     expect(document.querySelector<HTMLInputElement>("input")?.value).toBe(
       "helpfulness"
     );
@@ -1394,6 +1694,18 @@ describe("DetailPanelAnnotationBar", () => {
     );
 
     const annotationValue = document.querySelector(".annotation-entry__value");
+    const annotationPopover = document.querySelector<HTMLElement>(
+      "[data-annotation-overlay]"
+    );
+    const annotationDialog = annotationPopover?.querySelector<HTMLElement>(
+      ":scope > .react-aria-Dialog"
+    );
+    expect(getComputedStyle(annotationPopover!).display).toBe("flex");
+    expect(getComputedStyle(annotationPopover!).overflow).not.toBe("auto");
+    expect(getComputedStyle(annotationDialog!).overflow).toBe("auto");
+    expect(
+      annotationPopover?.querySelector(":scope > .react-aria-OverlayArrow")
+    ).not.toBeNull();
     const annotationActions = document.querySelector(
       ".annotation-entry__actions"
     );
@@ -1471,6 +1783,15 @@ describe("DetailPanelAnnotationBar", () => {
       filterMenu?.querySelector('[data-testid="menu-header-title"]')
         ?.textContent
     ).toBe("Filter spans");
+    const filterMenuList =
+      filterMenu!.querySelector<HTMLElement>('[role="menu"]')!;
+    expect(
+      getComputedStyle(filterMenuList).getPropertyValue("--menu-min-width")
+    ).toBe("var(--global-dimension-size-2500)");
+    expect(getComputedStyle(filterMenuList).width).toBe("auto");
+    expect(getComputedStyle(filterMenuList.parentElement!).minWidth).toBe(
+      "0px"
+    );
     const filterMenuItems = Array.from(
       filterMenu?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []
     );
@@ -1482,9 +1803,22 @@ describe("DetailPanelAnnotationBar", () => {
     ]);
     expect(
       filterMenuItems.map(
-        (item) => item.querySelector('[data-appearance="badge"]')?.textContent
+        (item) => item.querySelector('[data-appearance="compact"]')?.textContent
       )
     ).toEqual(["1", "1", "1", "1"]);
+    const firstFilterSentence = filterMenuItems[0]!.querySelector<HTMLElement>(
+      ".annotation-filter-actions__sentence"
+    )!;
+    expect(firstFilterSentence.textContent).toBe("Higher than1");
+    expect(
+      firstFilterSentence.querySelector(
+        ".annotation-filter-actions__score-value"
+      )
+    ).not.toBeNull();
+    expect(getComputedStyle(firstFilterSentence).display).toBe("flex");
+    expect(getComputedStyle(firstFilterSentence).gap).toBe(
+      "var(--global-dimension-size-100)"
+    );
     expect(
       getComputedStyle(
         filterMenuItems[0]!.querySelector<HTMLElement>(
@@ -1583,6 +1917,31 @@ describe("DetailPanelAnnotationBar", () => {
       "var(--global-dimension-size-3000)"
     );
     expect(getComputedStyle(labelValue).textOverflow).toBe("ellipsis");
+  });
+
+  it("shows the annotation modification date when hovering its value", async () => {
+    const updatedAt = "2026-07-31T19:42:00Z";
+    renderTableAnnotationPopover({
+      appendFilterCondition: vi.fn(),
+      updatedAt,
+    });
+    const user = userEvent.setup();
+
+    await act(async () =>
+      user.click(
+        document.querySelector<HTMLButtonElement>(
+          '[aria-label="Open quality annotation"]'
+        )!
+      )
+    );
+
+    const annotationValue = document.querySelector<HTMLElement>(
+      ".annotation-entry__value"
+    );
+    expect(annotationValue?.title).toBe(
+      `Modified: ${new Date(updatedAt).toLocaleString()}`
+    );
+    expect(annotationValue?.querySelector("[title]")).toBeNull();
   });
 
   it.each([

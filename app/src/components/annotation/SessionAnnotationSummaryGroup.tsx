@@ -8,6 +8,7 @@ import { AnnotationSummaryTokens } from "@phoenix/components/annotation/Annotati
 import {
   getAnnotationConfig,
   getAnnotations,
+  SessionDetailPanelAnnotationConfigButton,
   useAnnotationConfigMutationHandlers,
   useAnnotationMutationHandlers,
 } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
@@ -154,28 +155,38 @@ export const SessionAnnotationSummaryGroupTokens = ({
   }
 
   return (
-    <AnnotationSummaryTokens
-      summaries={summariesWithTokens}
-      annotationsByName={annotationsByName}
-      categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
-      editableAnnotationPopover={
-        showFilterActions
-          ? {
-              annotationConfigsByName,
-              onCreateAnnotationConfig: configHandlers.onCreateAnnotationConfig,
-              onUpdateAnnotationConfig: configHandlers.onUpdateAnnotationConfig,
-              ...annotationHandlers,
-              target: {
-                annotations: sessionAnnotations,
-                id: sessionId,
-                kind: "session",
-                label: "This session",
-              },
-            }
-          : undefined
-      }
-      showFilterActions={showFilterActions}
-    />
+    <>
+      <AnnotationSummaryTokens
+        summaries={summariesWithTokens}
+        annotationsByName={annotationsByName}
+        categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
+        editableAnnotationPopover={
+          showFilterActions
+            ? {
+                annotationConfigsByName,
+                onCreateAnnotationConfig:
+                  configHandlers.onCreateAnnotationConfig,
+                onUpdateAnnotationConfig:
+                  configHandlers.onUpdateAnnotationConfig,
+                ...annotationHandlers,
+                target: {
+                  annotations: sessionAnnotations,
+                  id: sessionId,
+                  kind: "session",
+                  label: "This session",
+                },
+              }
+            : undefined
+        }
+        showFilterActions={showFilterActions}
+      />
+      {showFilterActions ? (
+        <SessionDetailPanelAnnotationConfigButton
+          sessionNodeId={sessionId}
+          variant={summariesWithTokens.length === 0 ? "ghost" : "icon"}
+        />
+      ) : null}
+    </>
   );
 };
 

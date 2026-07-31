@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import {
@@ -9,6 +10,7 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
+import { beginOptimisticTraceNavigation } from "@phoenix/components/trace/spanDetailsNavigation";
 import {
   getNeighbors,
   useTracePagination,
@@ -28,24 +30,54 @@ export const TraceDetailsPaginator = ({
   isCollapsed: boolean;
 }) => {
   const pagination = useTracePagination();
+  const nextButtonRef = useRef<HTMLButtonElement>(null);
+  const previousButtonRef = useRef<HTMLButtonElement>(null);
+
+  const beginNextNavigation = (navigationRoot: Element) => {
+    if (!pagination) return;
+    const { nextTraceId, nextSpanId } = getNeighbors(
+      pagination.traceSequence,
+      currentId
+    );
+    if (!nextTraceId || !nextSpanId) return;
+
+    beginOptimisticTraceNavigation({
+      navigationRoot,
+      onNavigate: () => pagination.next(currentId),
+      spanNodeId: nextSpanId,
+      traceId: nextTraceId,
+    });
+  };
+
+  const beginPreviousNavigation = (navigationRoot: Element) => {
+    if (!pagination) return;
+    const { previousTraceId, previousSpanId } = getNeighbors(
+      pagination.traceSequence,
+      currentId
+    );
+    if (!previousTraceId || !previousSpanId) return;
+
+    beginOptimisticTraceNavigation({
+      navigationRoot,
+      onNavigate: () => pagination.previous(currentId),
+      spanNodeId: previousSpanId,
+      traceId: previousTraceId,
+    });
+  };
 
   useHotkeys(NEXT_TRACE_HOTKEY, () => {
-    if (pagination) {
-      pagination.next(currentId);
-    }
+    beginNextNavigation(nextButtonRef.current ?? document.body);
   });
 
   useHotkeys(PREVIOUS_TRACE_HOTKEY, () => {
-    if (pagination) {
-      pagination.previous(currentId);
-    }
+    beginPreviousNavigation(previousButtonRef.current ?? document.body);
   });
 
   if (!pagination || !pagination.traceSequence.length) {
     return null;
   }
 
-  const { previous, next, traceSequence } = pagination;
+  const { traceSequence } = pagination;
   const { nextTraceId, previousTraceId } = getNeighbors(
     traceSequence,
     currentId
@@ -55,15 +87,14 @@ export const TraceDetailsPaginator = ({
   const nextButton = (
     <TooltipTrigger key="next" delay={100}>
       <Button
+        ref={nextButtonRef}
         size="S"
         variant="quiet"
         id="next"
         leadingVisual={<Icon svg={<Icons.ArrowDown />} />}
         aria-label="Next trace"
         isDisabled={!hasNext}
-        onPress={() => {
-          next(currentId);
-        }}
+        onPress={(event) => beginNextNavigation(event.target)}
       />
       <Tooltip placement={isCollapsed ? "right" : undefined} offset={4}>
         <Flex direction="row" gap="size-100" alignItems="center">
@@ -76,15 +107,14 @@ export const TraceDetailsPaginator = ({
   const previousButton = (
     <TooltipTrigger key="previous" delay={100}>
       <Button
+        ref={previousButtonRef}
         size="S"
         variant="quiet"
         id="previous"
         leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
         aria-label="Previous trace"
         isDisabled={!hasPrevious}
-        onPress={() => {
-          previous(currentId);
-        }}
+        onPress={(event) => beginPreviousNavigation(event.target)}
       />
       <Tooltip placement={isCollapsed ? "right" : undefined} offset={4}>
         <Flex direction="row" gap="size-100" alignItems="center">

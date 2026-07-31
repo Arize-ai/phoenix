@@ -55,6 +55,14 @@ describe("TraceDetailsHeader", () => {
     expect(traceIcon?.getAttribute("style")).toContain(
       "--span-kind-icon-color: var(--global-color-gray-100)"
     );
+
+    const identityRow = container.querySelector<HTMLElement>(
+      ".detail-header__identity"
+    );
+    expect(getComputedStyle(identityRow!).height).toBe(
+      "var(--global-dimension-size-400)"
+    );
+    expect(getComputedStyle(identityRow!).alignItems).toBe("center");
   });
 });
 

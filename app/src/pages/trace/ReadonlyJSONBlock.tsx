@@ -6,6 +6,7 @@ import { useMemo } from "react";
 
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
+import { codeMirrorFallbackContentCSS } from "@phoenix/components/code/styles";
 import { useTheme } from "@phoenix/contexts";
 
 const JSON_EDITOR_PRE_INITIALIZATION_MIN_HEIGHT_PIXELS = 120;
@@ -17,6 +18,72 @@ const codeMirrorCSS = css`
     background-color: transparent;
   }
 `;
+
+const jsonEditorFallbackCSS = css`
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: ${JSON_EDITOR_PRE_INITIALIZATION_MIN_HEIGHT_PIXELS}px;
+  font-family: var(--global-font-family-mono);
+  font-size: var(--global-font-size-s);
+  line-height: 1.4;
+`;
+
+const jsonEditorFallbackGutterCSS = css`
+  flex: none;
+  background-color: var(--code-mirror-gutters-background-color);
+`;
+
+const jsonEditorFallbackFoldGutterCSS = css`
+  width: calc(1ch + 3px);
+`;
+
+const jsonEditorFallbackPreCSS = css`
+  ${codeMirrorFallbackContentCSS}
+  flex: 1;
+`;
+
+function JSONEditorFallback({
+  children,
+  basicSetup,
+}: {
+  children: string;
+  basicSetup: BasicSetupOptions;
+}) {
+  const hasLineNumberGutter = basicSetup.lineNumbers !== false;
+  const hasFoldGutter = basicSetup.foldGutter !== false;
+  const lineNumberDigitCount = String(children.split("\n").length).length;
+
+  return (
+    <div css={jsonEditorFallbackCSS}>
+      {hasLineNumberGutter ? (
+        <div
+          aria-hidden="true"
+          css={[
+            jsonEditorFallbackGutterCSS,
+            css`
+              width: max(
+                20px,
+                calc(
+                  ${lineNumberDigitCount}ch + var(--global-dimension-size-100)
+                )
+              );
+            `,
+          ]}
+        />
+      ) : null}
+      {hasFoldGutter ? (
+        <div
+          aria-hidden="true"
+          css={[jsonEditorFallbackGutterCSS, jsonEditorFallbackFoldGutterCSS]}
+        />
+      ) : null}
+      <pre data-testid="pre-block" css={jsonEditorFallbackPreCSS}>
+        {children}
+      </pre>
+    </div>
+  );
+}
 
 export function PreBlock({ children }: { children: string }) {
   return (
@@ -63,25 +130,31 @@ export function ReadonlyJSONBlock({
     }
   }, [children]);
   if (mimeType === "json") {
+    const resolvedBasicSetup = {
+      lineNumbers: true,
+      foldGutter: true,
+      bracketMatching: true,
+      syntaxHighlighting: true,
+      highlightActiveLine: false,
+      highlightActiveLineGutter: false,
+      ...basicSetup,
+    } satisfies BasicSetupOptions;
+
     return (
       <LazyEditorWrapper
         preInitializationMinHeight={
           JSON_EDITOR_PRE_INITIALIZATION_MIN_HEIGHT_PIXELS
         }
-        fallback={<PreBlock>{value}</PreBlock>}
+        fallback={
+          <JSONEditorFallback basicSetup={resolvedBasicSetup}>
+            {value}
+          </JSONEditorFallback>
+        }
         initializeImmediately={initializeImmediately}
       >
         <CodeMirror
           value={value}
-          basicSetup={{
-            lineNumbers: true,
-            foldGutter: true,
-            bracketMatching: true,
-            syntaxHighlighting: true,
-            highlightActiveLine: false,
-            highlightActiveLineGutter: false,
-            ...basicSetup,
-          }}
+          basicSetup={resolvedBasicSetup}
           extensions={[json(), EditorView.lineWrapping]}
           editable={false}
           theme={codeMirrorTheme}

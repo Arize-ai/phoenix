@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { Link as RouterLink } from "react-router";
 
 import {
   DisclosureArrow,
@@ -14,6 +15,7 @@ import { expandableContentExpandButtonCSS } from "@phoenix/components/core/conte
 import { popoverSurfaceCSS } from "@phoenix/components/core/overlay/styles";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
+import { beginOptimisticSpanNavigation } from "@phoenix/components/trace/spanDetailsNavigation";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import {
   TRACE_TREE_LATENCY_WIDTH_PIXELS,
@@ -21,8 +23,10 @@ import {
   TRACE_TREE_TIMING_MAX_WIDTH_PIXELS,
   TRACE_TREE_TIMING_MIN_WIDTH_PIXELS,
 } from "@phoenix/components/trace/traceTreeSizing";
+import { useDetailsPanelNavigationGutterPaint } from "@phoenix/components/trace/useDetailsPanelNavigationGutterPaint";
 import { useSpanKindColor } from "@phoenix/components/trace/useSpanKindColor";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { useCollapsedNavigationHoverIntent } from "@phoenix/hooks/useDelayedPointerOpen";
 import { classNames } from "@phoenix/utils/classNames";
 
 import { LatencyText } from "./LatencyText";
@@ -34,6 +38,7 @@ import { TraceTreeRowControls } from "./TraceTreeRowControls";
 import {
   TRACE_TREE_CHILD_NESTING_INDENT_PIXELS,
   TRACE_TREE_ROW_SELECTION_BORDER_WIDTH,
+  detailsPanelNavigationRowBackgroundBleedCSS,
   traceTreeListCSS,
 } from "./traceTreeStyles";
 import type { ISpanItem, SpanStatusCodeType } from "./types";
@@ -44,6 +49,8 @@ export type TraceTreeProps = {
   spans: ISpanItem[];
   /** Whether to render an icon rail with a separate full-tree hover overlay. */
   isNavigationCollapsed?: boolean;
+  /** Whether this tree, rather than an ancestor list, owns vertical scrolling. */
+  isScrollOwner?: boolean;
   /**
    * Whether this tree owns the hover overlay while navigation is collapsed.
    * Disable this when an ancestor already owns compact-navigation hover.
@@ -55,11 +62,20 @@ export type TraceTreeProps = {
    * @default false
    */
   isChildTruncationEnabled?: boolean;
+  /** Whether to render an explicit status row when the trace has no parent session. */
+  showMissingParentSession?: boolean;
   session?: {
     actions?: ReactNode;
+    /** Whether the session or one of its descendant traces or spans is active. */
+    isActive?: boolean;
     isSelected: boolean;
     onSelect: () => void;
     sessionId: string;
+  };
+  sessionTurnContext?: {
+    turnsAfter: number;
+    turnsBefore: number;
+    to: string;
   };
   traceSelection?: {
     actions?: ReactNode;
@@ -79,16 +95,11 @@ export type TraceTreeProps = {
 
 export { TraceTreeProvider } from "./TraceTreeContext";
 
-const pendingSpanNavigationFrames = new WeakMap<
-  Element,
-  { first: number; second?: number }
->();
-
 const SHALLOW_CHILD_LIMIT = 12;
 const DEEP_CHILD_LIMIT = 8;
 const SHOW_MORE_NODE_STATUS_CODE: SpanStatusCodeType = "UNSET";
 
-function beginOptimisticSpanNavigation({
+function beginOptimisticTraceTreeSpanNavigation({
   onNavigate,
   spanNodeId,
   trigger,
@@ -99,7 +110,11 @@ function beginOptimisticSpanNavigation({
 }) {
   const tree = trigger.closest("[data-trace-tree-root]");
   if (!tree) {
-    onNavigate();
+    beginOptimisticSpanNavigation({
+      navigationRoot: trigger,
+      onNavigate,
+      spanNodeId,
+    });
     return;
   }
 
@@ -111,7 +126,9 @@ function beginOptimisticSpanNavigation({
       node.dataset.selected = "false";
       node.classList.remove("is-selected");
     });
-  const targetSelector = `[data-trace-tree-span-node-id="${CSS.escape(spanNodeId)}"]`;
+  const targetSelector = `[data-trace-tree-span-node-id="${CSS.escape(
+    spanNodeId
+  )}"]`;
   const targetNode = trigger.matches(targetSelector)
     ? trigger
     : trigger.querySelector<HTMLElement>(targetSelector);
@@ -120,50 +137,11 @@ function beginOptimisticSpanNavigation({
     targetNode.classList.add("is-selected");
   }
 
-  const navigationScope =
-    tree.closest('[data-testid="session-traces-view"]') ??
-    tree.closest("main") ??
-    document;
-  const detailsGate = navigationScope.querySelector<HTMLElement>(
-    "[data-span-details-state]"
-  );
-  if (detailsGate) {
-    detailsGate.dataset.spanDetailsTargetId = spanNodeId;
-    const retainedDetails = detailsGate.querySelectorAll<HTMLElement>(
-      "[data-span-details-retained-id]"
-    );
-    const cachedTarget = detailsGate.querySelector<HTMLElement>(
-      `[data-span-details-retained-id="${CSS.escape(spanNodeId)}"]`
-    );
-    retainedDetails.forEach((details) => details.setAttribute("hidden", ""));
-    const skeleton = detailsGate.querySelector<HTMLElement>(
-      "[data-span-details-skeleton]"
-    );
-    if (cachedTarget) {
-      detailsGate.dataset.spanDetailsState = "hydrating";
-      skeleton?.setAttribute("hidden", "");
-      cachedTarget.removeAttribute("hidden");
-    } else {
-      detailsGate.dataset.spanDetailsState = "dehydrated";
-      skeleton?.removeAttribute("hidden");
-    }
-  }
-
-  const pendingFrames = pendingSpanNavigationFrames.get(tree);
-  if (pendingFrames) {
-    cancelAnimationFrame(pendingFrames.first);
-    if (pendingFrames.second != null) {
-      cancelAnimationFrame(pendingFrames.second);
-    }
-  }
-  const nextFrames: { first: number; second?: number } = { first: 0 };
-  nextFrames.first = requestAnimationFrame(() => {
-    nextFrames.second = requestAnimationFrame(() => {
-      pendingSpanNavigationFrames.delete(tree);
-      onNavigate();
-    });
+  beginOptimisticSpanNavigation({
+    navigationRoot: trigger,
+    onNavigate,
+    spanNodeId,
   });
-  pendingSpanNavigationFrames.set(tree, nextFrames);
 }
 
 /**
@@ -304,6 +282,11 @@ const traceTreeIconRailCSS = css`
     text-decoration: none;
   }
 
+  .trace-tree-icon-rail__item--session {
+    border-bottom: var(--global-border-size-thin) solid
+      var(--global-border-color-default);
+  }
+
   .trace-tree-icon-rail__item:hover {
     background-color: var(--global-list-item-hover-background-color);
   }
@@ -341,9 +324,12 @@ export function TraceTree(props: TraceTreeProps) {
   const {
     spans,
     isNavigationCollapsed = false,
+    isScrollOwner = true,
     isHoverOverlayEnabled = true,
     isChildTruncationEnabled = false,
+    showMissingParentSession = false,
     session,
+    sessionTurnContext,
     traceSelection,
     onSpanClick,
     onSpanSelectionStart,
@@ -353,6 +339,10 @@ export function TraceTree(props: TraceTreeProps) {
   } = props;
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const fullTreeScrollRef = useRef<HTMLUListElement>(null);
+  useDetailsPanelNavigationGutterPaint({
+    isEnabled: isScrollOwner,
+    scrollOwnerRef: fullTreeScrollRef,
+  });
   const iconRailScrollRef = useRef<HTMLUListElement>(null);
   const [collapsedSpanNodeIds, setCollapsedSpanNodeIds] = useState<Set<string>>(
     () => new Set()
@@ -443,22 +433,28 @@ export function TraceTree(props: TraceTreeProps) {
   const canOpenHoverOverlay = isNavigationCollapsed && isHoverOverlayEnabled;
   const isHoverOverlayOpen = canOpenHoverOverlay && isOverlayOpen;
   const isSpanTreeExpanded = traceSelection == null || isTraceExpanded;
-  const handleOverlayPointerEnter = () => {
-    const fullTreeScroll = fullTreeScrollRef.current;
-    const iconRailScroll = iconRailScrollRef.current;
-    if (fullTreeScroll && iconRailScroll) {
-      fullTreeScroll.scrollTop = iconRailScroll.scrollTop;
-    }
-    setIsOverlayOpen(true);
-  };
-  const handleOverlayPointerLeave = () => {
-    const fullTreeScroll = fullTreeScrollRef.current;
-    const iconRailScroll = iconRailScrollRef.current;
-    if (fullTreeScroll && iconRailScroll) {
-      iconRailScroll.scrollTop = fullTreeScroll.scrollTop;
-    }
-    setIsOverlayOpen(false);
-  };
+  const isSessionActive =
+    session != null && (session.isSelected || session.isActive === true);
+  const isTraceActive =
+    traceSelection != null &&
+    (traceSelection.isSelected || traceSelection.isActive === true);
+  const hasActiveBeforeTurnContext = isSessionActive && isTraceActive;
+  const hoverIntentProps = useCollapsedNavigationHoverIntent({
+    isEnabled: canOpenHoverOverlay,
+    isOpen: isHoverOverlayOpen,
+    onOpenChange: (isOpen) => {
+      const fullTreeScroll = fullTreeScrollRef.current;
+      const iconRailScroll = iconRailScrollRef.current;
+      if (fullTreeScroll && iconRailScroll) {
+        if (isOpen) {
+          fullTreeScroll.scrollTop = iconRailScroll.scrollTop;
+        } else {
+          iconRailScroll.scrollTop = fullTreeScroll.scrollTop;
+        }
+      }
+      setIsOverlayOpen(isOpen);
+    },
+  });
   const fullTree = (
     <div
       className={classNames("trace-tree-navigation__full", {
@@ -467,23 +463,49 @@ export function TraceTree(props: TraceTreeProps) {
       data-open={isNavigationCollapsed ? isHoverOverlayOpen : undefined}
       aria-hidden={isNavigationCollapsed ? !isHoverOverlayOpen : undefined}
       inert={isNavigationCollapsed && !isHoverOverlayOpen ? true : undefined}
-      css={[traceTreeFullCSS, isNavigationCollapsed && traceTreeOverlayCSS]}
+      css={[
+        traceTreeFullCSS,
+        !isScrollOwner &&
+          css`
+            overflow: visible;
+          `,
+        isNavigationCollapsed && traceTreeOverlayCSS,
+      ]}
     >
       <ul
         ref={fullTreeScrollRef}
         css={[
           traceTreeListCSS,
-          css`
-            overflow-x: auto;
-            overflow-y: var(--trace-tree-overflow-y, auto);
-          `,
+          isScrollOwner
+            ? css`
+                overflow-x: hidden;
+                overflow-y: var(--trace-tree-overflow-y, auto);
+              `
+            : css`
+                overflow: visible;
+              `,
         ]}
+        data-navigation-scroll-owner={isScrollOwner}
         data-trace-tree-root
         data-testid="trace-tree"
       >
         {session ? (
           <li>
             <SessionTreeItem {...session} />
+          </li>
+        ) : showMissingParentSession ? (
+          <li>
+            <MissingParentSessionTreeItem />
+          </li>
+        ) : null}
+        {sessionTurnContext && sessionTurnContext.turnsBefore > 0 ? (
+          <li>
+            <SessionTurnContextItem
+              count={sessionTurnContext.turnsBefore}
+              direction="before"
+              hasActiveDescendant={hasActiveBeforeTurnContext}
+              to={sessionTurnContext.to}
+            />
           </li>
         ) : null}
         {traceSelection ? (
@@ -535,6 +557,16 @@ export function TraceTree(props: TraceTreeProps) {
               />
             ))
           : null}
+        {sessionTurnContext && sessionTurnContext.turnsAfter > 0 ? (
+          <li>
+            <SessionTurnContextItem
+              count={sessionTurnContext.turnsAfter}
+              direction="after"
+              isLastItem
+              to={sessionTurnContext.to}
+            />
+          </li>
+        ) : null}
       </ul>
     </div>
   );
@@ -545,15 +577,12 @@ export function TraceTree(props: TraceTreeProps) {
         "trace-tree-navigation--collapsed": isNavigationCollapsed,
       })}
       data-navigation-scrollbar={
-        !isNavigationCollapsed || isHoverOverlayOpen ? "active" : undefined
+        isScrollOwner && (!isNavigationCollapsed || isHoverOverlayOpen)
+          ? "active"
+          : undefined
       }
       css={traceTreeNavigationCSS}
-      onPointerEnter={
-        canOpenHoverOverlay ? handleOverlayPointerEnter : undefined
-      }
-      onPointerLeave={
-        canOpenHoverOverlay ? handleOverlayPointerLeave : undefined
-      }
+      {...(canOpenHoverOverlay ? hoverIntentProps : {})}
     >
       {fullTree}
       {isNavigationCollapsed ? (
@@ -571,8 +600,15 @@ export function TraceTree(props: TraceTreeProps) {
             <li>
               <button
                 type="button"
-                className="trace-tree-icon-rail__item"
+                className="trace-tree-icon-rail__item trace-tree-icon-rail__item--session"
+                data-collapsed-navigation-hover-trigger
                 data-selected={session.isSelected}
+                data-has-active-descendant={
+                  (session.isActive ?? session.isSelected) &&
+                  !session.isSelected
+                    ? true
+                    : undefined
+                }
                 aria-label={`View session ${session.sessionId}`}
                 aria-pressed={session.isSelected}
                 onClick={session.onSelect}
@@ -586,6 +622,7 @@ export function TraceTree(props: TraceTreeProps) {
               <button
                 type="button"
                 className="trace-tree-icon-rail__item"
+                data-collapsed-navigation-hover-trigger
                 data-selected={traceSelection.isSelected || undefined}
                 data-has-active-descendant={
                   (traceSelection.isActive ?? traceSelection.isSelected) &&
@@ -595,7 +632,9 @@ export function TraceTree(props: TraceTreeProps) {
                 }
                 aria-label={
                   hasErrors
-                    ? `View trace ${traceSelection.traceId}, ${errorCount} ${errorCount === 1 ? "error" : "errors"}`
+                    ? `View trace ${traceSelection.traceId}, ${errorCount} ${
+                        errorCount === 1 ? "error" : "errors"
+                      }`
                     : `View trace ${traceSelection.traceId}`
                 }
                 aria-pressed={traceSelection.isSelected}
@@ -617,6 +656,7 @@ export function TraceTree(props: TraceTreeProps) {
                     <button
                       type="button"
                       className="trace-tree-icon-rail__item"
+                      data-collapsed-navigation-hover-trigger
                       data-selected={isSelected}
                       data-status-code={span.statusCode}
                       data-trace-tree-span-node-id={span.id}
@@ -638,7 +678,7 @@ export function TraceTree(props: TraceTreeProps) {
                         }
                         if (!onSpanClick) return;
                         onSpanSelectionStart?.(span);
-                        beginOptimisticSpanNavigation({
+                        beginOptimisticTraceTreeSpanNavigation({
                           onNavigate: () => onSpanClick(span),
                           spanNodeId: span.id,
                           trigger: event.currentTarget,
@@ -657,6 +697,44 @@ export function TraceTree(props: TraceTreeProps) {
   );
 }
 
+const entityTreeItemBackgroundBleedCSS = css`
+  ${detailsPanelNavigationRowBackgroundBleedCSS}
+  --details-panel-navigation-row-bleed-border-bottom-width: var(
+    --global-border-size-thin
+  );
+  --details-panel-navigation-row-bleed-border-bottom-color: var(
+    --global-border-color-default
+  );
+
+  &[data-last-item="true"] {
+    --details-panel-navigation-row-bleed-border-bottom-width: 0px;
+  }
+
+  &:hover {
+    --details-panel-navigation-row-bleed-background-color: var(
+      --global-list-item-hover-background-color
+    );
+  }
+
+  &[data-selected="true"] {
+    --details-panel-navigation-row-bleed-background-color: var(
+      --global-details-panel-navigation-row-selected-background-color
+    );
+  }
+
+  &[data-has-active-descendant="true"] {
+    --details-panel-navigation-row-bleed-background-color: var(
+      --global-details-panel-navigation-row-with-active-descendant-background-color
+    );
+  }
+
+  &[data-has-active-descendant="true"]:hover {
+    --details-panel-navigation-row-bleed-background-color: var(
+      --global-list-item-hover-background-color
+    );
+  }
+`;
+
 const entityTreeItemCSS = css`
   position: relative;
   box-sizing: border-box;
@@ -670,6 +748,8 @@ const entityTreeItemCSS = css`
     --global-details-panel-navigation-row-content-padding-inline-start
   );
   border-left: ${TRACE_TREE_ROW_SELECTION_BORDER_WIDTH} solid transparent;
+  border-bottom: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
   overflow: hidden;
 
   &:hover {
@@ -683,6 +763,16 @@ const entityTreeItemCSS = css`
     border-left-color: var(
       --global-details-panel-navigation-row-selected-border-color
     );
+  }
+
+  &[data-has-active-descendant="true"] {
+    background-color: var(
+      --global-details-panel-navigation-row-with-active-descendant-background-color
+    );
+  }
+
+  &[data-has-active-descendant="true"]:hover {
+    background-color: var(--global-list-item-hover-background-color);
   }
 
   .trace-tree-entity-item__label {
@@ -730,33 +820,135 @@ const entityTreeItemCSS = css`
   }
 `;
 
+const missingParentSessionTreeItemCSS = css`
+  ${detailsPanelNavigationRowBackgroundBleedCSS}
+  ${entityTreeItemCSS}
+  --details-panel-navigation-row-bleed-border-bottom-width: var(
+    --global-border-size-thin
+  );
+  --details-panel-navigation-row-bleed-border-bottom-color: var(
+    --global-border-color-default
+  );
+  padding-right: var(--global-dimension-size-100);
+
+  &:hover {
+    background: transparent;
+  }
+`;
+
+function MissingParentSessionTreeItem() {
+  return (
+    <div css={missingParentSessionTreeItemCSS} data-navigation-gutter-paint>
+      <Text size="S" color="text-300">
+        No parent session
+      </Text>
+    </div>
+  );
+}
+
 function SessionTreeItem({
   actions,
+  isActive = false,
   isSelected,
   onSelect,
   sessionId,
 }: {
   actions?: ReactNode;
+  isActive?: boolean;
   isSelected: boolean;
   onSelect: () => void;
   sessionId: string;
 }) {
+  const hasActiveDescendant = isActive && !isSelected;
+
   return (
-    <div css={entityTreeItemCSS} data-selected={isSelected}>
-      <button
-        type="button"
-        className="trace-tree-entity-item__action"
-        aria-label={`View session ${sessionId}`}
-        aria-pressed={isSelected}
-        onClick={onSelect}
-      />
-      <Icon aria-hidden="true" svg={<Icons.MessagesSquare />} />
-      <Text size="S">Session</Text>
-      <TraceTreeRowControls
-        className="trace-tree-entity-item__controls"
-        actions={actions}
-        actionsClassName="trace-tree-entity-item__actions"
-      />
+    <div
+      css={entityTreeItemBackgroundBleedCSS}
+      data-navigation-gutter-paint
+      data-selected={isSelected}
+      data-has-active-descendant={hasActiveDescendant || undefined}
+    >
+      <div
+        css={entityTreeItemCSS}
+        data-selected={isSelected}
+        data-has-active-descendant={hasActiveDescendant || undefined}
+      >
+        <button
+          type="button"
+          className="trace-tree-entity-item__action"
+          aria-label={`View session ${sessionId}`}
+          aria-pressed={isSelected}
+          onClick={onSelect}
+        />
+        <Icon aria-hidden="true" svg={<Icons.MessagesSquare />} />
+        <Text size="S">Session</Text>
+        <TraceTreeRowControls
+          className="trace-tree-entity-item__controls"
+          actions={actions}
+          actionsClassName="trace-tree-entity-item__actions"
+        />
+      </div>
+    </div>
+  );
+}
+
+const sessionTurnContextItemCSS = css`
+  ${entityTreeItemCSS}
+  justify-content: flex-start;
+  padding: 0 var(--global-dimension-size-100);
+  padding-left: var(
+    --global-details-panel-navigation-row-content-padding-inline-start
+  );
+  border-top: 0;
+  border-right: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+
+  &[data-last-item="true"] {
+    border-bottom: 0;
+  }
+
+  &:focus-visible {
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
+  }
+`;
+
+function SessionTurnContextItem({
+  count,
+  direction,
+  hasActiveDescendant = false,
+  isLastItem = false,
+  to,
+}: {
+  count: number;
+  direction: "after" | "before";
+  hasActiveDescendant?: boolean;
+  isLastItem?: boolean;
+  to: string;
+}) {
+  const label = `${count} ${count === 1 ? "turn" : "turns"} ${direction}`;
+
+  return (
+    <div
+      css={entityTreeItemBackgroundBleedCSS}
+      data-navigation-gutter-paint
+      data-has-active-descendant={hasActiveDescendant || undefined}
+      data-last-item={isLastItem || undefined}
+    >
+      <RouterLink
+        aria-label={`View session with current trace highlighted; ${label}`}
+        css={sessionTurnContextItemCSS}
+        data-has-active-descendant={hasActiveDescendant || undefined}
+        data-last-item={isLastItem || undefined}
+        to={to}
+      >
+        <Text size="S" color="text-300">
+          {label}
+        </Text>
+      </RouterLink>
     </div>
   );
 }
@@ -1038,6 +1230,26 @@ interface SpanTreeItemProps<TSpan extends ISpanItem> {
   nestingLevel?: number;
 }
 
+const spanTreeItemBackgroundBleedCSS = css`
+  ${detailsPanelNavigationRowBackgroundBleedCSS}
+  --details-panel-navigation-row-bleed-background-color: var(
+    --trace-tree-row-background-color,
+    transparent
+  );
+
+  &:hover {
+    --details-panel-navigation-row-bleed-background-color: var(
+      --global-list-item-hover-background-color
+    );
+  }
+
+  &[data-selected="true"] {
+    --details-panel-navigation-row-bleed-background-color: var(
+      --global-details-panel-navigation-row-selected-background-color
+    );
+  }
+`;
+
 function SpanTreeItem<TSpan extends ISpanItem>(
   props: SpanTreeItemProps<TSpan>
 ) {
@@ -1099,122 +1311,128 @@ function SpanTreeItem<TSpan extends ISpanItem>(
   return (
     <div ref={itemRef}>
       <div
-        role="button"
-        tabIndex={0}
-        css={css`
-          width: 100%;
-          overflow: hidden;
-          cursor: pointer;
-        `}
-        onClick={(event) => {
-          const spanRow = event.currentTarget.querySelector<HTMLElement>(
-            `[data-trace-tree-span-node-id="${CSS.escape(node.span.id)}"]`
-          );
-          const isActiveRow = spanRow?.dataset.selected === "true";
-          if (isActiveRow && hasChildren && !isSearching) {
-            onCollapsedChange({
-              isCollapsed: !isCollapsed,
-              spanNodeId: node.span.id,
-            });
-            return;
-          }
-          if (onSpanClick) {
-            onSpanSelectionStart?.(node.span);
-            beginOptimisticSpanNavigation({
-              onNavigate: () => onSpanClick(node.span),
-              spanNodeId: node.span.id,
-              trigger: event.currentTarget,
-            });
-          }
-        }}
+        css={spanTreeItemBackgroundBleedCSS}
+        data-navigation-gutter-paint
+        data-selected={isSelected}
       >
-        <SpanNodeWrap
-          isSelected={selectedSpanNodeId === node.span.id}
-          nestingLevel={nestingLevel}
-          spanNodeId={node.span.id}
-          statusCode={statusCode}
+        <div
+          role="button"
+          tabIndex={0}
+          css={css`
+            width: 100%;
+            overflow: hidden;
+            cursor: pointer;
+          `}
+          onClick={(event) => {
+            const spanRow = event.currentTarget.querySelector<HTMLElement>(
+              `[data-trace-tree-span-node-id="${CSS.escape(node.span.id)}"]`
+            );
+            const isActiveRow = spanRow?.dataset.selected === "true";
+            if (isActiveRow && hasChildren && !isSearching) {
+              onCollapsedChange({
+                isCollapsed: !isCollapsed,
+                spanNodeId: node.span.id,
+              });
+              return;
+            }
+            if (onSpanClick) {
+              onSpanSelectionStart?.(node.span);
+              beginOptimisticTraceTreeSpanNavigation({
+                onNavigate: () => onSpanClick(node.span),
+                spanNodeId: node.span.id,
+                trigger: event.currentTarget,
+              });
+            }
+          }}
         >
-          <Flex
-            className="span-tree-name"
-            direction="row"
-            gap="size-100"
-            justifyContent="start"
-            alignItems="center"
-            flex={`1 1 ${TRACE_TREE_NAME_MAX_WIDTH_PIXELS}px`}
-            minWidth={0}
-            maxWidth={`${TRACE_TREE_NAME_MAX_WIDTH_PIXELS}px`}
-            css={css`
-              overflow: hidden;
-            `}
+          <SpanNodeWrap
+            isSelected={selectedSpanNodeId === node.span.id}
+            nestingLevel={nestingLevel}
+            spanNodeId={node.span.id}
+            statusCode={statusCode}
           >
-            <SpanKindIcon spanKind={node.span.spanKind} />
-            <span
-              className="span-tree-name__label"
-              css={spanNameCSS}
-              title={name}
+            <Flex
+              className="span-tree-name"
+              direction="row"
+              gap="size-100"
+              justifyContent="start"
+              alignItems="center"
+              flex={`1 1 ${TRACE_TREE_NAME_MAX_WIDTH_PIXELS}px`}
+              minWidth={0}
+              maxWidth={`${TRACE_TREE_NAME_MAX_WIDTH_PIXELS}px`}
+              css={css`
+                overflow: hidden;
+              `}
             >
-              {name}
-            </span>
-            {statusCode === "ERROR" ? (
-              <SpanStatusCodeIcon
-                statusCode="ERROR"
-                css={css`
-                  font-size: var(--global-font-size-m);
-                `}
-              />
-            ) : null}
-            {typeof tokenCountTotal === "number" &&
-            tokenCountTotal > 0 &&
-            showMetricsInTraceTree ? (
-              <SpanTokenCount
-                tokenCountTotal={tokenCountTotal}
-                nodeId={node.span.id}
-              />
-            ) : null}
-          </Flex>
-          {showMetricsInTraceTree ? (
-            <div css={spanTimingCSS} className="span-tree-timing">
-              {latencyMs != null ? (
-                <LatencyText
-                  latencyMs={latencyMs}
-                  showIcon={false}
-                  size="XS"
-                  color="text-500"
+              <SpanKindIcon spanKind={node.span.spanKind} />
+              <span
+                className="span-tree-name__label"
+                css={spanNameCSS}
+                title={name}
+              >
+                {name}
+              </span>
+              {statusCode === "ERROR" ? (
+                <SpanStatusCodeIcon
+                  statusCode="ERROR"
+                  css={css`
+                    font-size: var(--global-font-size-m);
+                  `}
                 />
               ) : null}
-              <SpanTimelineBar
-                spanKind={node.span.spanKind}
-                overallTimeRange={overallTimeRange}
-                spanTimeRange={{
-                  start: new Date(node.span.startTime),
-                  end: node.span.endTime
-                    ? new Date(node.span.endTime)
-                    : new Date(), // Assume un-closed
-                }}
-              />
-            </div>
-          ) : null}
-          <TraceTreeRowControls
-            className="span-controls"
-            data-testid="span-controls"
-            disclosureClassName="span-controls__collapse-toggle"
-            disclosure={
-              hasChildren && !isSearching ? (
-                <CollapseToggleButton
-                  isCollapsed={isCollapsed}
-                  onClick={() => {
-                    onCollapsedChange({
-                      isCollapsed: !isCollapsed,
-                      spanNodeId: node.span.id,
-                    });
+              {typeof tokenCountTotal === "number" &&
+              tokenCountTotal > 0 &&
+              showMetricsInTraceTree ? (
+                <SpanTokenCount
+                  tokenCountTotal={tokenCountTotal}
+                  nodeId={node.span.id}
+                />
+              ) : null}
+            </Flex>
+            {showMetricsInTraceTree ? (
+              <div css={spanTimingCSS} className="span-tree-timing">
+                {latencyMs != null ? (
+                  <LatencyText
+                    latencyMs={latencyMs}
+                    showIcon={false}
+                    size="XS"
+                    color="text-500"
+                  />
+                ) : null}
+                <SpanTimelineBar
+                  spanKind={node.span.spanKind}
+                  overallTimeRange={overallTimeRange}
+                  spanTimeRange={{
+                    start: new Date(node.span.startTime),
+                    end: node.span.endTime
+                      ? new Date(node.span.endTime)
+                      : new Date(), // Assume un-closed
                   }}
                 />
-              ) : null
-            }
-            actions={renderSpanActions?.(node.span)}
-            actionsClassName="span-controls__actions"
-          />
-        </SpanNodeWrap>
+              </div>
+            ) : null}
+            <TraceTreeRowControls
+              className="span-controls"
+              data-testid="span-controls"
+              disclosureClassName="span-controls__collapse-toggle"
+              disclosure={
+                hasChildren && !isSearching ? (
+                  <CollapseToggleButton
+                    isCollapsed={isCollapsed}
+                    onClick={() => {
+                      onCollapsedChange({
+                        isCollapsed: !isCollapsed,
+                        spanNodeId: node.span.id,
+                      });
+                    }}
+                  />
+                ) : null
+              }
+              actions={renderSpanActions?.(node.span)}
+              actionsClassName="span-controls__actions"
+            />
+          </SpanNodeWrap>
+        </div>
       </div>
       {childRenderNodes.length ? (
         <ul

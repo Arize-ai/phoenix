@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2820e23e75160651454b6a7105ec4f0a>>
+ * @generated SignedSource<<08185b69003ede92c0c5739c99ed177f>>
  * @lightSyntaxTransform
  */
 
@@ -299,7 +299,21 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "identifier",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "createdAt",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "updatedAt",
                   "storageKey": null
                 },
                 {

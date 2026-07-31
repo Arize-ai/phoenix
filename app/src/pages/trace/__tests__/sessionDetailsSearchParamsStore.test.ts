@@ -83,6 +83,29 @@ describe("sessionDetailsSearchParamsStore", () => {
     expect(nextSearchParams.has("selectedSpanNodeId")).toBe(false);
   });
 
+  it("selects the session by clearing trace and span selection", () => {
+    const initialSearchParams = new URLSearchParams(
+      "sessionView=traces&selectedTraceId=trace-a&selectedSpanNodeId=span-a"
+    );
+    const store = createSessionDetailsSearchParamsStore(initialSearchParams);
+    const setSearchParams = vi.fn();
+    const onSelectionChange = vi.fn();
+    store.connectToRouter(initialSearchParams, setSearchParams);
+    store.subscribeToSpanSelection(onSelectionChange);
+
+    store.selectSession();
+
+    expect(store.getSpanSelection()).toEqual({
+      traceId: null,
+      spanNodeId: null,
+    });
+    expect(onSelectionChange).toHaveBeenCalledOnce();
+    const nextSearchParams = setSearchParams.mock.calls[0]?.[0];
+    expect(nextSearchParams.get("sessionView")).toBe("traces");
+    expect(nextSearchParams.has("selectedTraceId")).toBe(false);
+    expect(nextSearchParams.has("selectedSpanNodeId")).toBe(false);
+  });
+
   it("ignores a stale router echo while a newer local selection is pending", () => {
     const initialSearchParams = new URLSearchParams(
       "sessionView=traces&selectedTraceId=trace-a&selectedSpanNodeId=span-a"

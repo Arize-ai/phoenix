@@ -3,16 +3,11 @@ import { SegmentedControl, SegmentedControlItem } from "@phoenix/components";
 import { useMarkdownMode } from "./MarkdownDisplayContext";
 import type { MarkdownDisplayMode } from "./types";
 
-const markdownDisplayModes: MarkdownDisplayMode[] = ["text", "markdown"];
-
 /**
  * TypeGuard for the markdown mode
  */
-function isMarkdownDisplayMode(m: unknown): m is MarkdownDisplayMode {
-  return (
-    typeof m === "string" &&
-    markdownDisplayModes.includes(m as MarkdownDisplayMode)
-  );
+function isMarkdownDisplayMode(mode: unknown): mode is MarkdownDisplayMode {
+  return mode === "text" || mode === "markdown";
 }
 
 export function MarkdownModeSelect({

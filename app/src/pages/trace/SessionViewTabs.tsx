@@ -10,8 +10,10 @@ import {
   SegmentedControlItem,
 } from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading";
+import { classNames } from "@phoenix/utils/classNames";
 
 export type SessionView = "turns" | "traces";
+type SessionViewControlPlacement = "default" | "navigation" | "toolbar";
 
 export function isSessionView(value: unknown): value is SessionView {
   return value === "turns" || value === "traces";
@@ -40,6 +42,20 @@ const sessionViewControlCSS = css`
     align-items: center;
     justify-content: flex-start;
   }
+
+  &.session-view-control--navigation {
+    display: none;
+  }
+
+  &.session-view-control--toolbar {
+    width: auto;
+    padding: 0;
+    border-bottom: 0;
+
+    .segmented-control {
+      width: auto;
+    }
+  }
 `;
 
 const sessionViewControlItemCSS = css`
@@ -49,23 +65,33 @@ const sessionViewControlItemCSS = css`
 `;
 
 export function SessionViewControl({
+  placement = "default",
   sessionView,
   onSessionViewChange,
   traceCount,
 }: {
+  placement?: SessionViewControlPlacement;
   sessionView: SessionView;
   onSessionViewChange: (view: SessionView) => void;
   traceCount: number | null;
 }) {
   const nextSessionView: SessionView =
     sessionView === "turns" ? "traces" : "turns";
+  const isJustified = placement !== "toolbar";
   return (
-    <div className="session-view-control" css={sessionViewControlCSS}>
+    <div
+      className={classNames(
+        "session-view-control",
+        `session-view-control--${placement}`
+      )}
+      css={sessionViewControlCSS}
+      data-collapsed-navigation-hover-trigger
+    >
       <div className="session-view-control__expanded">
         <SegmentedControl
           aria-label="Session view"
           size="S"
-          isJustified
+          isJustified={isJustified}
           selectedKey={sessionView}
           onSelectionChange={(key) => {
             if (isSessionView(key)) {

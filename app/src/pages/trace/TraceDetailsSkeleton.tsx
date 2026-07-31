@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 
-import { CopyableIDBadge, Flex, Loading, Text } from "@phoenix/components";
+import { CopyableIDBadge, Flex, Text, View } from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading";
 import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -24,6 +24,7 @@ import { SpanStatusIndicator } from "../SpanHeader";
 import { DetailsPanelContent } from "./DetailsPanel";
 import { SessionDetailsHeader } from "./SessionDetailsHeader";
 import { SpanDetailsHeaderActions } from "./SpanDetailsHeaderActions";
+import { SpanDetailsNavigation } from "./SpanDetailsNavigation";
 import { TraceDetailsHeaderSkeleton } from "./TraceDetailsHeader";
 
 const traceTreeEntitySkeletonListCSS = css`
@@ -50,6 +51,15 @@ const traceTreeEntitySkeletonCSS = css`
     flex: none;
     margin-left: auto;
   }
+`;
+
+const traceTreeSkeletonStackCSS = css`
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
 `;
 
 const spanHeaderNameSkeletonCSS = css`
@@ -83,28 +93,21 @@ const annotationBarSkeletonCSS = css`
   }
 `;
 
-const spanDetailsLoadingNavigationCSS = css`
+const detailPanelBodySkeletonCSS = css`
+  box-sizing: border-box;
   display: flex;
-  align-items: center;
-  flex: none;
-  border-bottom: var(--global-border-size-thin) solid
-    var(--global-border-color-default);
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--global-dimension-size-200);
+  width: min(100%, 1000px);
+  height: 100%;
+  min-height: 0;
+  margin: 0 auto;
 
-  ul {
-    display: flex;
-    flex: 1 1 auto;
-    min-width: 0;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    list-style: none;
-  }
-
-  li {
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
-    color: var(--global-text-color-700);
-    font-size: var(--global-font-size-s);
-    line-height: var(--global-line-height-s);
+  .detail-panel-body-skeleton__fill {
+    flex: 1 1 120px;
+    min-height: 120px;
+    height: auto;
   }
 `;
 
@@ -161,18 +164,33 @@ export function TraceTreeNavigationSkeleton({
 }) {
   return (
     <TraceTreeProvider>
-      <Flex direction="column" flex="1 1 auto" minHeight={0} aria-busy="true">
+      <Flex
+        className="trace-tree-navigation-skeleton"
+        direction="column"
+        flex="1 1 auto"
+        height="100%"
+        minHeight={0}
+        aria-busy="true"
+      >
         <TraceTreeToolbar
           isTreePanelCollapsed={isTreePanelCollapsed}
           onTreePanelCollapsedChange={onTreePanelCollapsedChange}
         />
-        <ul css={traceTreeEntitySkeletonListCSS}>
+        <ul
+          className="trace-tree-entity-skeleton-list"
+          css={traceTreeEntitySkeletonListCSS}
+        >
           <TraceTreeEntitySkeleton labelWidth={54} idWidth={104} />
           <TraceTreeEntitySkeleton labelWidth={42} idWidth={120} />
+          <TraceTreeEntitySkeleton labelWidth={62} idWidth={96} />
+          <TraceTreeEntitySkeleton labelWidth={48} idWidth={112} />
         </ul>
-        <Flex flex="1 1 auto" minHeight={0} width="100%">
+        <div
+          className="trace-tree-navigation-skeleton__trees"
+          css={traceTreeSkeletonStackCSS}
+        >
           <TraceTreeSkeleton />
-        </Flex>
+        </div>
       </Flex>
     </TraceTreeProvider>
   );
@@ -386,45 +404,45 @@ export function DetailPanelAnnotationBarSkeleton({
   );
 }
 
-/** One spinner for the heavy body; section labels remain stable without counts. */
+/** Panel-shaped placeholder shared by the main body of detail views. */
+export function DetailPanelBodySkeleton() {
+  return (
+    <View padding="size-200" overflow="auto" flex="1 1 auto">
+      <div css={detailPanelBodySkeletonCSS}>
+        <Skeleton width="30%" height={16} animation="wave" />
+        <Skeleton width="100%" height={96} animation="wave" />
+        <Skeleton width="24%" height={16} animation="wave" />
+        <Skeleton width="100%" height={280} animation="wave" />
+        <Skeleton width="28%" height={16} animation="wave" />
+        <Skeleton
+          className="detail-panel-body-skeleton__fill"
+          width="100%"
+          animation="wave"
+        />
+      </div>
+    </View>
+  );
+}
+
+/** Neutral navigation placeholders and panel-shaped body ghosts. */
 export function SpanDetailsContentSkeleton() {
   return (
     <Flex direction="column" flex="1 1 auto" minHeight={0} aria-busy="true">
-      <nav
-        css={spanDetailsLoadingNavigationCSS}
-        aria-label="Loading span detail sections"
-      >
-        <ul>
-          <li>
-            <Text color="inherit" size="S">
-              Input
-            </Text>
-          </li>
-          <li>
-            <Text color="inherit" size="S">
-              Output
-            </Text>
-          </li>
-          <li>
-            <Text color="inherit" size="S">
-              Attributes
-            </Text>
-          </li>
-          <li>
-            <Text color="inherit" size="S">
-              Events
-            </Text>
-          </li>
-          <li>
-            <Text color="inherit" size="S">
-              Notes
-            </Text>
-          </li>
-        </ul>
-      </nav>
-      <Flex flex="1 1 auto" minHeight={0}>
-        <Loading />
-      </Flex>
+      <SpanDetailsNavigation label="Loading span detail sections">
+        <li className="span-details-navigation__item span-details-navigation__placeholder">
+          <Skeleton width={40} height={16} animation="wave" />
+        </li>
+        <li className="span-details-navigation__item span-details-navigation__placeholder">
+          <Skeleton width={56} height={16} animation="wave" />
+        </li>
+        <li className="span-details-navigation__item span-details-navigation__placeholder">
+          <Skeleton width={48} height={16} animation="wave" />
+        </li>
+        <li className="span-details-navigation__item span-details-navigation__placeholder">
+          <Skeleton width={64} height={16} animation="wave" />
+        </li>
+      </SpanDetailsNavigation>
+      <DetailPanelBodySkeleton />
     </Flex>
   );
 }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2300558e5fd6358c875a849780e5cd7e>>
+ * @generated SignedSource<<edd58e22697c0e6565e98645c5641a81>>
  * @lightSyntaxTransform
  */
 
@@ -32,6 +32,7 @@ export type ConnectedDetailPanelAnnotationBarSessionQuery$data = {
         }>;
       };
       readonly id: string;
+      readonly name: string;
     };
     readonly sessionAnnotations: ReadonlyArray<{
       readonly " $fragmentSpreads": FragmentRefs<"ConnectedDetailPanelAnnotationBarAnnotationFields">;
@@ -263,10 +264,24 @@ v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "createdAt",
+  "name": "identifier",
   "storageKey": null
 },
 v20 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
+},
+v21 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "updatedAt",
+  "storageKey": null
+},
+v22 = {
   "alias": null,
   "args": null,
   "concreteType": "User",
@@ -292,7 +307,7 @@ v20 = {
   ],
   "storageKey": null
 },
-v21 = [
+v23 = [
   {
     "alias": null,
     "args": null,
@@ -371,6 +386,7 @@ return {
                 "plural": false,
                 "selections": [
                   (v2/*:: as any*/),
+                  (v4/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -408,7 +424,9 @@ return {
                           (v17/*:: as any*/),
                           (v18/*:: as any*/),
                           (v19/*:: as any*/),
-                          (v20/*:: as any*/)
+                          (v20/*:: as any*/),
+                          (v21/*:: as any*/),
+                          (v22/*:: as any*/)
                         ],
                         "type": "Annotation",
                         "abstractKey": "__isAnnotation"
@@ -444,7 +462,7 @@ return {
         "kind": "LinkedField",
         "name": "annotationConfigs",
         "plural": false,
-        "selections": (v21/*:: as any*/),
+        "selections": (v23/*:: as any*/),
         "storageKey": null
       },
       {
@@ -469,6 +487,7 @@ return {
                 "plural": false,
                 "selections": [
                   (v2/*:: as any*/),
+                  (v4/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -476,7 +495,7 @@ return {
                     "kind": "LinkedField",
                     "name": "annotationConfigs",
                     "plural": false,
-                    "selections": (v21/*:: as any*/),
+                    "selections": (v23/*:: as any*/),
                     "storageKey": null
                   }
                 ],
@@ -503,6 +522,8 @@ return {
                       (v18/*:: as any*/),
                       (v19/*:: as any*/),
                       (v20/*:: as any*/),
+                      (v21/*:: as any*/),
+                      (v22/*:: as any*/),
                       {
                         "kind": "TypeDiscriminator",
                         "abstractKey": "__isNode"
@@ -524,16 +545,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7e0e4317bad31e2220c9d0c388bbcaac",
+    "cacheID": "e744c2a2dc63d924b33d0eb9047df0e8",
     "id": null,
     "metadata": {},
     "name": "ConnectedDetailPanelAnnotationBarSessionQuery",
     "operationKind": "query",
-    "text": "query ConnectedDetailPanelAnnotationBarSessionQuery(\n  $id: ID!\n) {\n  allAnnotationConfigs: annotationConfigs {\n    edges {\n      node {\n        __typename\n        ...ConnectedDetailPanelAnnotationBarConfigFields\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      id\n      project {\n        id\n        annotationConfigs {\n          edges {\n            node {\n              __typename\n              ...ConnectedDetailPanelAnnotationBarConfigFields\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n          }\n        }\n      }\n      sessionAnnotations {\n        ...ConnectedDetailPanelAnnotationBarAnnotationFields\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarAnnotationFields on Annotation {\n  __isAnnotation: __typename\n  ... on Node {\n    __isNode: __typename\n    id\n  }\n  name\n  label\n  score\n  explanation\n  metadata\n  annotatorKind\n  source\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarConfigFields on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  __typename\n  ... on Node {\n    __isNode: __typename\n    id\n  }\n  name\n  description\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    lowerBound\n    upperBound\n    optimizationDirection\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n  }\n}\n"
+    "text": "query ConnectedDetailPanelAnnotationBarSessionQuery(\n  $id: ID!\n) {\n  allAnnotationConfigs: annotationConfigs {\n    edges {\n      node {\n        __typename\n        ...ConnectedDetailPanelAnnotationBarConfigFields\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      id\n      project {\n        id\n        name\n        annotationConfigs {\n          edges {\n            node {\n              __typename\n              ...ConnectedDetailPanelAnnotationBarConfigFields\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n          }\n        }\n      }\n      sessionAnnotations {\n        ...ConnectedDetailPanelAnnotationBarAnnotationFields\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarAnnotationFields on Annotation {\n  __isAnnotation: __typename\n  ... on Node {\n    __isNode: __typename\n    id\n  }\n  name\n  label\n  score\n  explanation\n  metadata\n  annotatorKind\n  source\n  identifier\n  createdAt\n  updatedAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarConfigFields on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  __typename\n  ... on Node {\n    __isNode: __typename\n    id\n  }\n  name\n  description\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    lowerBound\n    upperBound\n    optimizationDirection\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "36b793ed44cefed0e9436da16b5c1576";
+(node as any).hash = "7a1ed10b04c0b2376d4023d0ae8f1bec";
 
 export default node;

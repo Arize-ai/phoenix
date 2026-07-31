@@ -2,6 +2,11 @@ import { css } from "@emotion/react";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { startTransition, useEffect, useRef, useState } from "react";
 
+// Begin mounting editors well before they become visible. This keeps the
+// lightweight fallback for distant content without letting syntax highlighting
+// visibly snap into place during ordinary scrolling.
+const EDITOR_PRELOAD_MARGIN = "1200px 0px";
+
 type LazyEditorWrapperProps = {
   /**
    * The minimum height of the container for the JSON editor prior to initialization.
@@ -47,7 +52,13 @@ export function LazyEditorWrapper({
         observer.disconnect();
         startTransition(() => setIsInitialized(true));
       },
-      { rootMargin: "200px 0px" }
+      {
+        rootMargin: EDITOR_PRELOAD_MARGIN,
+        // Span details and similar surfaces scroll inside nested containers.
+        // Expand those scrollports too, otherwise their clipping can defeat
+        // the viewport root margin and delay initialization until visibility.
+        scrollMargin: EDITOR_PRELOAD_MARGIN,
+      }
     );
 
     if (wrapperRef.current) {

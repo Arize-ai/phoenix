@@ -4425,6 +4425,9 @@ type Trace implements Node {
   projectId: ID!
   projectSessionId: ID
   session: ProjectSession
+
+  """Zero-based chronological position of this trace within its session."""
+  sessionTraceIndex: Int
   rootSpan: Span
 
   """

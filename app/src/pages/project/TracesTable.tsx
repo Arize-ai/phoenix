@@ -584,11 +584,8 @@ export function TracesTable(props: TracesTableProps) {
           if (row.original.__additionalRow) {
             return null;
           }
-          const hasNoFeedback =
-            row.original.spanAnnotations.length === 0 &&
-            row.original.documentRetrievalMetrics.length === 0;
           return (
-            <OverflowRow isExpanded={areRowsExpanded}>
+            <OverflowRow isExpanded={areRowsExpanded} popoverLayout="vertical">
               <AnnotationSummaryGroupTokens
                 span={row.original}
                 showFilterActions
@@ -617,7 +614,6 @@ export function TracesTable(props: TracesTableProps) {
                   </Fragment>
                 );
               })}
-              {hasNoFeedback ? "--" : null}
             </OverflowRow>
           );
         },
@@ -644,9 +640,11 @@ export function TracesTable(props: TracesTableProps) {
             return null;
           }
           return (
-            <OverflowRow isExpanded={areRowsExpanded}>
+            <OverflowRow isExpanded={areRowsExpanded} popoverLayout="vertical">
               <TraceAnnotationSummaryGroupTokens
                 trace={row.original.trace as RootSpanTrace}
+                showFilterActions
+                traceNodeId={(row.original.trace as RootSpanTrace).id}
               />
             </OverflowRow>
           );

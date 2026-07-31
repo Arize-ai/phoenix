@@ -4,6 +4,7 @@ import { graphql, useFragment } from "react-relay";
 import type { TraceAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/TraceAnnotationSummaryGroup.graphql";
 import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { AnnotationSummaryTokens } from "@phoenix/components/annotation/AnnotationSummaryTokens";
+import { TraceDetailPanelAnnotationConfigButton } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import {
   Summary,
   SummaryValue,
@@ -44,6 +45,7 @@ const useTraceAnnotationSummaryGroup = (
           score
           annotatorKind
           createdAt
+          updatedAt
           user {
             username
             profilePictureUrl
@@ -121,32 +123,50 @@ const useTraceAnnotationSummaryGroup = (
 
 type TraceAnnotationSummaryGroupProps = {
   trace: TraceAnnotationSummaryGroup$key;
-  showFilterActions?: boolean;
   renderEmptyState?: () => React.ReactNode;
 };
+
+type TraceAnnotationSummaryGroupTokensProps = TraceAnnotationSummaryGroupProps &
+  (
+    | { showFilterActions?: false; traceNodeId?: never }
+    | { showFilterActions: true; traceNodeId: string }
+  );
 
 export const TraceAnnotationSummaryGroupTokens = ({
   trace,
   showFilterActions = false,
+  traceNodeId,
   renderEmptyState,
-}: TraceAnnotationSummaryGroupProps) => {
+}: TraceAnnotationSummaryGroupTokensProps) => {
   const {
     sortedSummariesByName,
     annotationsByName,
     categoricalAnnotationConfigsByName,
   } = useTraceAnnotationSummaryGroup(trace);
 
-  if (sortedSummariesByName.length === 0 && renderEmptyState) {
+  const summariesWithTokens = sortedSummariesByName.filter(
+    (summary) => annotationsByName[summary.name]?.[0] != null
+  );
+
+  if (summariesWithTokens.length === 0 && renderEmptyState) {
     return renderEmptyState();
   }
 
   return (
-    <AnnotationSummaryTokens
-      summaries={sortedSummariesByName}
-      annotationsByName={annotationsByName}
-      categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
-      showFilterActions={showFilterActions}
-    />
+    <>
+      <AnnotationSummaryTokens
+        summaries={summariesWithTokens}
+        annotationsByName={annotationsByName}
+        categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
+        showFilterActions={showFilterActions}
+      />
+      {showFilterActions && traceNodeId != null ? (
+        <TraceDetailPanelAnnotationConfigButton
+          traceNodeId={traceNodeId}
+          variant={summariesWithTokens.length === 0 ? "ghost" : "icon"}
+        />
+      ) : null}
+    </>
   );
 };
 

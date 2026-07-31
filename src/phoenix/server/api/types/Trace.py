@@ -9,7 +9,7 @@ import pandas as pd
 import strawberry
 from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import desc, or_, select
+from sqlalchemy import and_, desc, func, or_, select
 from strawberry import ID, UNSET, lazy
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
@@ -195,6 +195,42 @@ class Trace(Node):
         from .ProjectSession import ProjectSession
 
         return ProjectSession(id=project_session.id, db_record=project_session)
+
+    @strawberry.field(
+        description="Zero-based chronological position of this trace within its session.",
+    )  # type: ignore[untyped-decorator]
+    async def session_trace_index(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[int]:
+        if self.db_record:
+            project_session_rowid = self.db_record.project_session_rowid
+            start_time = self.db_record.start_time
+        else:
+            (
+                project_session_rowid,
+                start_time,
+            ) = await info.context.data_loaders.trace_fields.load_many(
+                [
+                    (self.id, models.Trace.project_session_rowid),
+                    (self.id, models.Trace.start_time),
+                ]
+            )
+        if project_session_rowid is None:
+            return None
+
+        stmt = select(func.count(models.Trace.id)).where(
+            models.Trace.project_session_rowid == project_session_rowid,
+            or_(
+                models.Trace.start_time < start_time,
+                and_(
+                    models.Trace.start_time == start_time,
+                    models.Trace.id < self.id,
+                ),
+            ),
+        )
+        async with info.context.db.read() as session:
+            return await session.scalar(stmt) or 0
 
     @strawberry.field
     async def root_span(

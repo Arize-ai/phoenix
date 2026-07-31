@@ -1,5 +1,11 @@
 import { css } from "@emotion/react";
-import type { ColumnDef, SortingState, Table } from "@tanstack/react-table";
+import type {
+  Cell,
+  ColumnDef,
+  Row,
+  SortingState,
+  Table,
+} from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
@@ -61,6 +67,7 @@ import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftCli
 import { TraceTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
+import { beginOptimisticSpanTableNavigation } from "@phoenix/components/trace/spanDetailsNavigation";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
@@ -123,64 +130,119 @@ function isRootSpanFilterValue(val: unknown): val is RootSpanFilterValue {
   return val === "root" || val === "all";
 }
 
-const TableBody = <T extends { trace: { traceId: string }; id: string }>({
+type TableBodyRowData = { trace: { traceId: string }; id: string };
+
+function SpansTableCell<T extends TableBodyRowData>({
+  cell,
+  rowSelectionVersion,
+}: {
+  cell: Cell<T, unknown>;
+  rowSelectionVersion: boolean;
+}) {
+  "use no memo";
+  // TanStack mutates the row behind a stable cell object. Reading this snapshot
+  // keeps the controlled checkbox in sync when the row render boundary updates.
+  void rowSelectionVersion;
+  const colSizeVar = `--col-${cell.column.id}-size`;
+  return (
+    <td
+      className={TABLE_DATA_CELL_CLASS}
+      align={cell.column.columnDef.meta?.textAlign}
+      style={{
+        ...getCommonPinningStyles(cell.column),
+        width: `calc(var(${colSizeVar}) * 1px)`,
+        maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+        userSelect: cell.column.id === CHECKBOX_COLUMN_ID ? "none" : undefined,
+      }}
+    >
+      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+    </td>
+  );
+}
+
+export function SpansTableBodyRow<T extends TableBodyRowData>({
+  row,
+  columnRenderVersion,
+  isCurrentRoute,
+  isSelected,
+  spanDetailsPath,
+}: {
+  row: Row<T>;
+  columnRenderVersion: string;
+  isCurrentRoute: boolean;
+  isSelected: boolean;
+  spanDetailsPath: string;
+}) {
+  const navigate = useNavigate();
+  // Column definitions live behind TanStack's stable table and row objects.
+  // This semantic version invalidates the compiler boundary when their visible
+  // rendering changes without making every row depend on column object identity.
+  void columnRenderVersion;
+  return (
+    <tr
+      aria-selected={isSelected}
+      data-selected={isCurrentRoute}
+      onClick={(event) => {
+        beginOptimisticSpanTableNavigation({
+          onNavigate: () => navigate(spanDetailsPath),
+          spanNodeId: row.original.id,
+          traceId: row.original.trace.traceId,
+          trigger: event.currentTarget,
+        });
+      }}
+    >
+      {row.getVisibleCells().map((cell) => (
+        <SpansTableCell
+          key={cell.id}
+          cell={cell}
+          rowSelectionVersion={isSelected}
+        />
+      ))}
+    </tr>
+  );
+}
+
+const TableBody = <T extends TableBodyRowData>({
   table,
   hasNext,
   onLoadNext,
   isLoadingNext,
+  areRowsExpanded,
 }: {
   table: Table<T>;
   hasNext: boolean;
   onLoadNext: () => void;
   isLoadingNext: boolean;
+  areRowsExpanded: boolean;
 }) => {
   "use no memo";
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { traceId } = useParams();
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
+  const columnRenderVersion = `${table
+    .getVisibleLeafColumns()
+    .map((column) => column.id)
+    .join("\u0000")}:${areRowsExpanded}`;
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected =
+        const isCurrentRoute =
           selectedSpanNodeId === row.original.id ||
           (!selectedSpanNodeId && row.original.trace.traceId === traceId);
+        const spanDetailsPath = getTraceDetailsPath({
+          traceId: row.original.trace.traceId,
+          spanNodeId: row.original.id,
+          searchParams,
+        });
         return (
-          <tr
+          <SpansTableBodyRow
             key={row.id}
-            data-selected={isSelected}
-            onClick={() =>
-              navigate(
-                getTraceDetailsPath({
-                  traceId: row.original.trace.traceId,
-                  spanNodeId: row.original.id,
-                  searchParams,
-                })
-              )
-            }
-          >
-            {row.getVisibleCells().map((cell) => {
-              const colSizeVar = `--col-${cell.column.id}-size`;
-              return (
-                <td
-                  key={cell.id}
-                  className={TABLE_DATA_CELL_CLASS}
-                  align={cell.column.columnDef.meta?.textAlign}
-                  style={{
-                    ...getCommonPinningStyles(cell.column),
-                    width: `calc(var(${colSizeVar}) * 1px)`,
-                    maxWidth: `calc(var(${colSizeVar}) * 1px)`,
-                    userSelect:
-                      cell.column.id === CHECKBOX_COLUMN_ID
-                        ? "none"
-                        : undefined,
-                  }}
-                >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              );
-            })}
-          </tr>
+            row={row}
+            columnRenderVersion={columnRenderVersion}
+            isCurrentRoute={isCurrentRoute}
+            isSelected={row.getIsSelected()}
+            spanDetailsPath={spanDetailsPath}
+          />
         );
       })}
       {hasNext ? (
@@ -202,6 +264,7 @@ export const MemoizedTableBody = React.memo(
 
 export function SpansTable(props: SpansTableProps) {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -491,7 +554,7 @@ export function SpansTable(props: SpansTableProps) {
       ...ANNOTATION_COLUMN_SIZING,
       cell: ({ row }) => {
         return (
-          <OverflowRow isExpanded={areRowsExpanded}>
+          <OverflowRow isExpanded={areRowsExpanded} popoverLayout="vertical">
             <AnnotationSummaryGroupTokens
               span={row.original}
               showFilterActions
@@ -541,8 +604,12 @@ export function SpansTable(props: SpansTableProps) {
       ...ANNOTATION_COLUMN_SIZING,
       cell: ({ row }) => {
         return (
-          <OverflowRow isExpanded={areRowsExpanded}>
-            <TraceAnnotationSummaryGroupTokens trace={row.original.trace} />
+          <OverflowRow isExpanded={areRowsExpanded} popoverLayout="vertical">
+            <TraceAnnotationSummaryGroupTokens
+              trace={row.original.trace}
+              showFilterActions
+              traceNodeId={row.original.trace.id}
+            />
           </OverflowRow>
         );
       },
@@ -584,13 +651,31 @@ export function SpansTable(props: SpansTableProps) {
       cell: ({ getValue, row }) => {
         const span = row.original;
         const { traceId } = span.trace;
+        const spanDetailsPath = getTraceDetailsPath({
+          traceId,
+          spanNodeId: span.id,
+          searchParams,
+        });
         return (
           <Link
-            to={getTraceDetailsPath({
-              traceId,
-              spanNodeId: span.id,
-              searchParams,
-            })}
+            to={spanDetailsPath}
+            onClick={(event) => {
+              if (
+                event.altKey ||
+                event.ctrlKey ||
+                event.metaKey ||
+                event.shiftKey
+              ) {
+                return;
+              }
+              event.preventDefault();
+              beginOptimisticSpanTableNavigation({
+                onNavigate: () => navigate(spanDetailsPath),
+                spanNodeId: span.id,
+                traceId,
+                trigger: event.currentTarget,
+              });
+            }}
           >
             <Truncate maxWidth="100%">{getValue() as string}</Truncate>
           </Link>
@@ -1090,6 +1175,7 @@ export function SpansTable(props: SpansTableProps) {
                       hasNext={hasNext}
                       onLoadNext={() => loadNext(PAGE_SIZE)}
                       isLoadingNext={isLoadingNext}
+                      areRowsExpanded={areRowsExpanded}
                     />
                   ) : (
                     <TableBody
@@ -1097,6 +1183,7 @@ export function SpansTable(props: SpansTableProps) {
                       hasNext={hasNext}
                       onLoadNext={() => loadNext(PAGE_SIZE)}
                       isLoadingNext={isLoadingNext}
+                      areRowsExpanded={areRowsExpanded}
                     />
                   )}
                 </table>

@@ -87,7 +87,9 @@ const annotationFields = graphql`
     metadata
     annotatorKind
     source
+    identifier
     createdAt
+    updatedAt
     user {
       id
       username
@@ -99,6 +101,9 @@ const annotationFields = graphql`
 type DetailPanelAnnotationBarVariant = ComponentProps<
   typeof DetailPanelAnnotationBar
 >["variant"];
+type DetailPanelAnnotationConfigMenuState = NonNullable<
+  ComponentProps<typeof DetailPanelAnnotationBar>["configMenuState"]
+>;
 
 const traceAnnotationFields = graphql`
   fragment ConnectedDetailPanelAnnotationBarTraceAnnotationFields on TraceAnnotation
@@ -111,7 +116,9 @@ const traceAnnotationFields = graphql`
     metadata
     annotatorKind
     source
+    identifier
     createdAt
+    updatedAt
     user {
       id
       username
@@ -177,7 +184,9 @@ export function getAnnotations(
       metadata: annotation.metadata,
       annotatorKind: annotation.annotatorKind,
       source: annotation.source,
+      identifier: annotation.identifier,
       createdAt: annotation.createdAt,
+      updatedAt: annotation.updatedAt,
       user: annotation.user,
     };
   });
@@ -200,7 +209,9 @@ function getTraceAnnotations(
       metadata: annotation.metadata,
       annotatorKind: annotation.annotatorKind,
       source: annotation.source,
+      identifier: annotation.identifier,
       createdAt: annotation.createdAt,
+      updatedAt: annotation.updatedAt,
       user: annotation.user,
     };
   });
@@ -423,6 +434,7 @@ const spanDetailPanelAnnotationBarQuery = graphql`
         id
         project {
           id
+          name
           annotationConfigs {
             edges {
               node {
@@ -456,10 +468,12 @@ export function useSpanDetailPanelAnnotationBarQuery(spanNodeId: string) {
 }
 
 export function SpanDetailPanelAnnotationBar({
+  configMenuState,
   queryRef,
   refresh,
   variant = "detail-header",
 }: {
+  configMenuState?: DetailPanelAnnotationConfigMenuState;
   queryRef: PreloadedQuery<ConnectedDetailPanelAnnotationBarSpanQuery>;
   refresh: () => void;
   variant?: DetailPanelAnnotationBarVariant;
@@ -476,9 +490,11 @@ export function SpanDetailPanelAnnotationBar({
       allAnnotationConfigs={data.allAnnotationConfigs.edges.map(({ node }) =>
         getAnnotationConfig(node)
       )}
+      configMenuState={configMenuState}
       projectAnnotationConfigs={data.span.project.annotationConfigs.edges.map(
         ({ node }) => getAnnotationConfig(node)
       )}
+      projectName={data.span.project.name}
       refresh={refresh}
       variant={variant}
       span={{
@@ -492,13 +508,17 @@ export function SpanDetailPanelAnnotationBar({
 
 function SpanDetailPanelAnnotationBarContent({
   allAnnotationConfigs,
+  configMenuState,
   projectAnnotationConfigs,
+  projectName,
   refresh,
   span,
   variant,
 }: {
   allAnnotationConfigs: readonly AnnotationConfig[];
+  configMenuState?: DetailPanelAnnotationConfigMenuState;
   projectAnnotationConfigs: readonly AnnotationConfig[];
+  projectName: string;
   refresh: () => void;
   variant: DetailPanelAnnotationBarVariant;
   span: {
@@ -526,7 +546,9 @@ function SpanDetailPanelAnnotationBarContent({
   return (
     <DetailPanelAnnotationBar
       allAnnotationConfigs={allAnnotationConfigs}
+      configMenuState={configMenuState}
       projectAnnotationConfigs={projectAnnotationConfigs}
+      projectName={projectName}
       rows={rows}
       variant={variant}
       {...configHandlers}
@@ -537,9 +559,11 @@ function SpanDetailPanelAnnotationBarContent({
 
 /** Fetches and renders a span annotation affordance for the requested variant. */
 export function ConnectedSpanDetailPanelAnnotationBar({
+  configMenuState,
   spanNodeId,
   variant = "detail-header",
 }: {
+  configMenuState?: DetailPanelAnnotationConfigMenuState;
   spanNodeId: string;
   variant?: DetailPanelAnnotationBarVariant;
 }) {
@@ -550,6 +574,7 @@ export function ConnectedSpanDetailPanelAnnotationBar({
   }
   return (
     <SpanDetailPanelAnnotationBar
+      configMenuState={configMenuState}
       queryRef={queryRef}
       refresh={refresh}
       variant={variant}
@@ -560,15 +585,42 @@ export function ConnectedSpanDetailPanelAnnotationBar({
 /** Loads span annotations only after the row action is opened. */
 export function SpanDetailPanelAnnotationButton({
   spanNodeId,
+  variant,
 }: {
   spanNodeId: string;
+  variant?: ComponentProps<typeof DetailPanelAnnotationButton>["variant"];
 }) {
   return (
-    <DetailPanelAnnotationButton targetKind="span">
+    <DetailPanelAnnotationButton targetKind="span" variant={variant}>
       <ConnectedSpanDetailPanelAnnotationBar
         spanNodeId={spanNodeId}
         variant="button-menu"
       />
+    </DetailPanelAnnotationButton>
+  );
+}
+
+/** Opens the same annotation-configuration menu used by the detail header. */
+export function SpanDetailPanelAnnotationConfigButton({
+  spanNodeId,
+  variant,
+}: {
+  spanNodeId: string;
+  variant?: ComponentProps<typeof DetailPanelAnnotationButton>["variant"];
+}) {
+  return (
+    <DetailPanelAnnotationButton
+      menuKind="annotation-configs"
+      targetKind="span"
+      variant={variant}
+    >
+      {({ isOpen, onOpenChange }) => (
+        <ConnectedSpanDetailPanelAnnotationBar
+          configMenuState={{ isOpen, onOpenChange }}
+          spanNodeId={spanNodeId}
+          variant="config-menu"
+        />
+      )}
     </DetailPanelAnnotationButton>
   );
 }
@@ -865,9 +917,11 @@ export function useAnnotationMutationHandlers({
 }
 
 export function TraceDetailPanelAnnotationBar({
+  configMenuState,
   traceNodeId,
   variant = "detail-header",
 }: {
+  configMenuState?: DetailPanelAnnotationConfigMenuState;
   traceNodeId: string;
   variant?: DetailPanelAnnotationBarVariant;
 }) {
@@ -888,6 +942,7 @@ export function TraceDetailPanelAnnotationBar({
             id
             project {
               id
+              name
               annotationConfigs {
                 edges {
                   node {
@@ -915,10 +970,12 @@ export function TraceDetailPanelAnnotationBar({
       allAnnotationConfigs={data.allAnnotationConfigs.edges.map(({ node }) =>
         getAnnotationConfig(node)
       )}
+      configMenuState={configMenuState}
       projectAnnotationConfigs={data.trace.project.annotationConfigs.edges.map(
         ({ node }) => getAnnotationConfig(node)
       )}
       projectId={data.trace.project.id}
+      projectName={data.trace.project.name}
       refresh={refresh}
       variant={variant}
       trace={{
@@ -932,11 +989,13 @@ export function TraceDetailPanelAnnotationBar({
 /** Loads trace annotations only after the row action is opened. */
 export function TraceDetailPanelAnnotationButton({
   traceNodeId,
+  variant,
 }: {
   traceNodeId: string;
+  variant?: ComponentProps<typeof DetailPanelAnnotationButton>["variant"];
 }) {
   return (
-    <DetailPanelAnnotationButton targetKind="trace">
+    <DetailPanelAnnotationButton targetKind="trace" variant={variant}>
       <TraceDetailPanelAnnotationBar
         traceNodeId={traceNodeId}
         variant="button-menu"
@@ -945,17 +1004,46 @@ export function TraceDetailPanelAnnotationButton({
   );
 }
 
+/** Opens the same annotation-configuration menu used by the detail header. */
+export function TraceDetailPanelAnnotationConfigButton({
+  traceNodeId,
+  variant,
+}: {
+  traceNodeId: string;
+  variant?: ComponentProps<typeof DetailPanelAnnotationButton>["variant"];
+}) {
+  return (
+    <DetailPanelAnnotationButton
+      menuKind="annotation-configs"
+      targetKind="trace"
+      variant={variant}
+    >
+      {({ isOpen, onOpenChange }) => (
+        <TraceDetailPanelAnnotationBar
+          configMenuState={{ isOpen, onOpenChange }}
+          traceNodeId={traceNodeId}
+          variant="config-menu"
+        />
+      )}
+    </DetailPanelAnnotationButton>
+  );
+}
+
 function TraceDetailPanelAnnotationBarContent({
   allAnnotationConfigs,
+  configMenuState,
   projectAnnotationConfigs,
   projectId,
+  projectName,
   refresh,
   trace,
   variant,
 }: {
   allAnnotationConfigs: readonly AnnotationConfig[];
+  configMenuState?: DetailPanelAnnotationConfigMenuState;
   projectAnnotationConfigs: readonly AnnotationConfig[];
   projectId: string;
+  projectName: string;
   refresh: () => void;
   variant: DetailPanelAnnotationBarVariant;
   trace: { annotations: Annotation[]; id: string };
@@ -979,7 +1067,9 @@ function TraceDetailPanelAnnotationBarContent({
   return (
     <DetailPanelAnnotationBar
       allAnnotationConfigs={allAnnotationConfigs}
+      configMenuState={configMenuState}
       projectAnnotationConfigs={projectAnnotationConfigs}
+      projectName={projectName}
       rows={rows}
       variant={variant}
       {...configHandlers}
@@ -989,9 +1079,11 @@ function TraceDetailPanelAnnotationBarContent({
 }
 
 export function SessionDetailPanelAnnotationBar({
+  configMenuState,
   sessionNodeId,
   variant = "detail-header",
 }: {
+  configMenuState?: DetailPanelAnnotationConfigMenuState;
   sessionNodeId: string;
   variant?: DetailPanelAnnotationBarVariant;
 }) {
@@ -1012,6 +1104,7 @@ export function SessionDetailPanelAnnotationBar({
             id
             project {
               id
+              name
               annotationConfigs {
                 edges {
                   node {
@@ -1039,10 +1132,12 @@ export function SessionDetailPanelAnnotationBar({
       allAnnotationConfigs={data.allAnnotationConfigs.edges.map(({ node }) =>
         getAnnotationConfig(node)
       )}
+      configMenuState={configMenuState}
       projectAnnotationConfigs={data.session.project.annotationConfigs.edges.map(
         ({ node }) => getAnnotationConfig(node)
       )}
       projectId={data.session.project.id}
+      projectName={data.session.project.name}
       refresh={refresh}
       variant={variant}
       session={{
@@ -1056,11 +1151,13 @@ export function SessionDetailPanelAnnotationBar({
 /** Loads session annotations only after the row action is opened. */
 export function SessionDetailPanelAnnotationButton({
   sessionNodeId,
+  variant,
 }: {
   sessionNodeId: string;
+  variant?: ComponentProps<typeof DetailPanelAnnotationButton>["variant"];
 }) {
   return (
-    <DetailPanelAnnotationButton targetKind="session">
+    <DetailPanelAnnotationButton targetKind="session" variant={variant}>
       <SessionDetailPanelAnnotationBar
         sessionNodeId={sessionNodeId}
         variant="button-menu"
@@ -1069,17 +1166,46 @@ export function SessionDetailPanelAnnotationButton({
   );
 }
 
+/** Opens the same annotation-configuration menu used by the detail header. */
+export function SessionDetailPanelAnnotationConfigButton({
+  sessionNodeId,
+  variant,
+}: {
+  sessionNodeId: string;
+  variant?: ComponentProps<typeof DetailPanelAnnotationButton>["variant"];
+}) {
+  return (
+    <DetailPanelAnnotationButton
+      menuKind="annotation-configs"
+      targetKind="session"
+      variant={variant}
+    >
+      {({ isOpen, onOpenChange }) => (
+        <SessionDetailPanelAnnotationBar
+          configMenuState={{ isOpen, onOpenChange }}
+          sessionNodeId={sessionNodeId}
+          variant="config-menu"
+        />
+      )}
+    </DetailPanelAnnotationButton>
+  );
+}
+
 function SessionDetailPanelAnnotationBarContent({
   allAnnotationConfigs,
+  configMenuState,
   projectAnnotationConfigs,
   projectId,
+  projectName,
   refresh,
   session,
   variant,
 }: {
   allAnnotationConfigs: readonly AnnotationConfig[];
+  configMenuState?: DetailPanelAnnotationConfigMenuState;
   projectAnnotationConfigs: readonly AnnotationConfig[];
   projectId: string;
+  projectName: string;
   refresh: () => void;
   session: { annotations: Annotation[]; id: string };
   variant: DetailPanelAnnotationBarVariant;
@@ -1103,7 +1229,9 @@ function SessionDetailPanelAnnotationBarContent({
   return (
     <DetailPanelAnnotationBar
       allAnnotationConfigs={allAnnotationConfigs}
+      configMenuState={configMenuState}
       projectAnnotationConfigs={projectAnnotationConfigs}
+      projectName={projectName}
       rows={rows}
       variant={variant}
       {...configHandlers}

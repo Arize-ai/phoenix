@@ -7,6 +7,7 @@ import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
 let container: HTMLDivElement;
 let root: Root;
 let intersectionCallback: IntersectionObserverCallback;
+let intersectionOptions: IntersectionObserverInit | undefined;
 const observe = vi.fn();
 const disconnect = vi.fn();
 const intersectionObserverMock = {
@@ -23,10 +24,15 @@ const intersectionObserverMock = {
 beforeEach(() => {
   observe.mockClear();
   disconnect.mockClear();
+  intersectionOptions = undefined;
   vi.stubGlobal(
     "IntersectionObserver",
-    function IntersectionObserverMock(callback: IntersectionObserverCallback) {
+    function IntersectionObserverMock(
+      callback: IntersectionObserverCallback,
+      options?: IntersectionObserverInit
+    ) {
       intersectionCallback = callback;
+      intersectionOptions = options;
       return intersectionObserverMock;
     }
   );
@@ -59,7 +65,7 @@ describe("LazyEditorWrapper", () => {
     expect(observe).not.toHaveBeenCalled();
   });
 
-  it("mounts the editor only after its wrapper enters the viewport", () => {
+  it("preloads the editor before its wrapper enters the viewport", () => {
     act(() => {
       root.render(
         <LazyEditorWrapper
@@ -73,6 +79,8 @@ describe("LazyEditorWrapper", () => {
 
     expect(container.textContent).toBe("Plain JSON");
     expect(observe).toHaveBeenCalledOnce();
+    expect(intersectionOptions?.rootMargin).toBe("1200px 0px");
+    expect(intersectionOptions?.scrollMargin).toBe("1200px 0px");
 
     act(() => {
       const bounds = new DOMRect();

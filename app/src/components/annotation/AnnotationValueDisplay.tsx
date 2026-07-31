@@ -25,16 +25,19 @@ export function AnnotationValueDisplay({
   label,
   optimizationValue,
   score,
+  title,
 }: {
   className?: string;
   label?: string | null;
   optimizationValue?: number | null;
   score?: number | null;
+  title?: string;
 }) {
   return (
     <div
       className={classNames("annotation-value-display", className)}
       css={annotationValueDisplayCSS}
+      title={title}
     >
       {score != null ? (
         <AnnotationScoreText
@@ -45,7 +48,7 @@ export function AnnotationValueDisplay({
         </AnnotationScoreText>
       ) : null}
       {label ? (
-        <Text css={annotationValueLabelCSS} title={label}>
+        <Text css={annotationValueLabelCSS} title={title ? undefined : label}>
           {label}
         </Text>
       ) : (

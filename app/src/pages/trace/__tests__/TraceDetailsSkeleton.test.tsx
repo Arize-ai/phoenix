@@ -10,6 +10,7 @@ import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 import { SpanStatusIndicator } from "../../SpanHeader";
 import {
   DetailPanelAnnotationBarSkeleton,
+  DetailPanelBodySkeleton,
   SpanHeaderSkeleton,
   TraceTreeNavigationSkeleton,
 } from "../TraceDetailsSkeleton";
@@ -29,6 +30,25 @@ describe("Trace details skeletons", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+  });
+
+  it("uses panel-shaped ghosts for detail body loading states", () => {
+    act(() => {
+      root.render(
+        <ThemeProvider>
+          <DetailPanelBodySkeleton />
+        </ThemeProvider>
+      );
+    });
+
+    const skeletons = container.querySelectorAll<HTMLElement>(".skeleton");
+    expect(skeletons).toHaveLength(6);
+    expect(
+      Array.from(skeletons, (skeleton) => getComputedStyle(skeleton).height)
+    ).toEqual(["16px", "96px", "16px", "280px", "16px", "auto"]);
+    expect(getComputedStyle(skeletons[5]!).flexGrow).toBe("1");
+    expect(getComputedStyle(skeletons[5]!).minHeight).toBe("120px");
+    expect(container.querySelector(".loading")).toBeNull();
   });
 
   it("keeps the real trace-tree search field mounted while trace data loads", () => {
@@ -51,6 +71,23 @@ describe("Trace details skeletons", () => {
     expect(
       container.querySelector(".trace-tree-toolbar__search .skeleton")
     ).toBeNull();
+    expect(
+      getComputedStyle(
+        container.querySelector<HTMLElement>(".trace-tree-navigation-skeleton")!
+      ).height
+    ).toBe("100%");
+    expect(
+      container.querySelectorAll(".trace-tree-entity-skeleton-list > li")
+    ).toHaveLength(4);
+    const traceTreeSkeletons = container.querySelectorAll(
+      '[data-testid="trace-tree-skeleton"]'
+    );
+    expect(traceTreeSkeletons).toHaveLength(1);
+    traceTreeSkeletons.forEach((traceTreeSkeleton) => {
+      expect(
+        traceTreeSkeleton.querySelectorAll(".span-node-wrap")
+      ).toHaveLength(4);
+    });
   });
 
   it("matches metadata and annotation skeletons to loaded control heights", () => {

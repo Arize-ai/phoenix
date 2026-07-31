@@ -3,6 +3,26 @@ import { css } from "@emotion/react";
 import { embeddedCopyButtonCSS } from "@phoenix/components/core/copy/styles";
 
 /**
+ * Text metrics shared by lightweight content that will be replaced by a
+ * Pierre-themed CodeMirror editor. Keep this aligned with CodeMirror's base
+ * `.cm-content` and `.cm-line` styles so initialization does not move the text.
+ */
+export const codeMirrorFallbackContentCSS = css`
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0;
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-25)
+    var(--global-dimension-size-50)
+    calc(var(--global-dimension-size-50) + var(--global-dimension-size-25));
+  font-family: var(--global-font-family-mono);
+  font-size: var(--global-font-size-s);
+  line-height: 1.4;
+  white-space: break-spaces;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+`;
+
+/**
  * The readonly-field surface shared by copyable blocks — same background as
  * CopyField/CopyInput, brightening while the contained copy button is hovered
  * or focused so the whole surface reads as one control.

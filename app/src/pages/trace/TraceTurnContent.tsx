@@ -5,7 +5,7 @@ import {
 import { css } from "@emotion/react";
 import isNumber from "lodash/isNumber";
 import isString from "lodash/isString";
-import type { ReactNode } from "react";
+import type { MouseEvent, PropsWithChildren, ReactNode } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { ExpandableContent, Flex, Text, View } from "@phoenix/components";
@@ -36,6 +36,14 @@ const traceTurnContentCSS = css`
   gap: var(--global-grid-gutter-xsmall);
 `;
 
+const traceTurnNavigationSurfaceCSS = css`
+  width: 100%;
+`;
+
+const rootSpanMessageContainerCSS = css`
+  width: 100%;
+`;
+
 const rootSpanMessageCSS = css`
   box-sizing: border-box;
   overflow: hidden;
@@ -63,48 +71,113 @@ const outputMetadataMutedCSS = css`
 
 const TRACE_TURN_MAX_WIDTH = "1000px";
 
-type RootSpanMessageRole = "INPUT" | "OUTPUT";
+export type RootSpanMessageRole = "INPUT" | "OUTPUT";
+
+function isNestedInteractiveTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    target.closest('button,a,input,select,textarea,[role="button"]') != null
+  );
+}
+
+export function TraceTurnNavigationSurface({
+  children,
+  onMessageDoubleClick,
+}: PropsWithChildren<{
+  onMessageDoubleClick?: (role: RootSpanMessageRole) => void;
+}>) {
+  const handleDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (isNestedInteractiveTarget(event.target)) {
+      return;
+    }
+    event.stopPropagation();
+    onMessageDoubleClick?.("INPUT");
+  };
+
+  return (
+    <div
+      className="trace-turn-content__navigation-surface"
+      css={traceTurnNavigationSurfaceCSS}
+      title={
+        onMessageDoubleClick
+          ? "Double-click to view this input in the trace"
+          : undefined
+      }
+      onDoubleClick={onMessageDoubleClick ? handleDoubleClick : undefined}
+    >
+      {children}
+    </div>
+  );
+}
 
 type RootSpanMessageProps = {
   label?: string;
+  onDoubleClick?: () => void;
   role: RootSpanMessageRole;
   value: unknown;
 };
 
 /** Presentational trace message bubble used by turn views and Storybook. */
-export function RootSpanMessage({ label, role, value }: RootSpanMessageProps) {
+export function RootSpanMessage({
+  label,
+  onDoubleClick,
+  role,
+  value,
+}: RootSpanMessageProps) {
   const isInput = role === "INPUT";
   const defaultLabel = isInput ? "INPUT" : "OUTPUT";
   const overlayBackgroundColor = isInput
     ? "var(--prompt-input-background-color)"
     : "var(--global-background-color-default)";
+  const handleDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (isNestedInteractiveTarget(event.target)) {
+      return;
+    }
+    event.stopPropagation();
+    onDoubleClick?.();
+  };
   return (
-    <Flex
-      direction="column"
-      gap="size-50"
-      alignItems={isInput ? "start" : "end"}
-      width="100%"
+    <div
+      className="root-span-message"
+      css={rootSpanMessageContainerCSS}
+      title={
+        onDoubleClick
+          ? `Double-click to view this ${defaultLabel.toLowerCase()} in the trace`
+          : undefined
+      }
+      onDoubleClick={onDoubleClick ? handleDoubleClick : undefined}
     >
       <Flex
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
+        direction="column"
+        gap="size-50"
+        alignItems={isInput ? "start" : "end"}
         width="100%"
       >
-        <Text color="text-700">{label ?? defaultLabel}</Text>
-      </Flex>
-      <div
-        css={[rootSpanMessageCSS, isInput ? promptInputSurfaceCSS : undefined]}
-      >
-        <ExpandableContent
-          height="lg"
-          expandedBehavior="grow"
-          overlayBackgroundColor={overlayBackgroundColor}
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          width="100%"
         >
-          <DynamicContent value={value} />
-        </ExpandableContent>
-      </div>
-    </Flex>
+          <Text color="text-700">{label ?? defaultLabel}</Text>
+        </Flex>
+        <div
+          className="root-span-message__content"
+          css={[
+            rootSpanMessageCSS,
+            isInput ? promptInputSurfaceCSS : undefined,
+          ]}
+        >
+          <ExpandableContent
+            height="lg"
+            expandedBehavior="grow"
+            overlayBackgroundColor={overlayBackgroundColor}
+          >
+            <DynamicContent value={value} />
+          </ExpandableContent>
+        </div>
+      </Flex>
+    </div>
   );
 }
 
@@ -211,9 +284,11 @@ function RootSpanOutputMetadata({ rootSpan }: { rootSpan: RootSpan }) {
 /** Shared input/output presentation for a trace's root span. */
 export function TraceTurnContent({
   header,
+  onMessageDoubleClick,
   rootSpan: rootSpanKey,
 }: {
   header?: ReactNode;
+  onMessageDoubleClick?: (role: RootSpanMessageRole) => void;
   rootSpan: TraceTurnContent_rootSpan$key;
 }) {
   const rootSpan = useFragment<TraceTurnContent_rootSpan$key>(
@@ -253,34 +328,44 @@ export function TraceTurnContent({
   const inputLabel = user != null ? `USER: ${user}` : "INPUT";
 
   return (
-    <View width="100%" maxWidth={TRACE_TURN_MAX_WIDTH} marginX="auto">
-      <Flex direction="column" css={traceTurnContentCSS}>
-        {header}
-        <Flex
-          direction="column"
-          gap="size-100"
-          alignSelf="start"
-          alignItems="start"
-          css={messageWrapCSS}
-        >
-          <RootSpanMessage
-            label={inputLabel}
-            role="INPUT"
-            value={rootSpan.input?.value}
-          />
-          <RootSpanStartTime rootSpan={rootSpan} />
+    <TraceTurnNavigationSurface onMessageDoubleClick={onMessageDoubleClick}>
+      <View width="100%" maxWidth={TRACE_TURN_MAX_WIDTH} marginX="auto">
+        <Flex direction="column" css={traceTurnContentCSS}>
+          {header}
+          <Flex
+            direction="column"
+            gap="size-100"
+            alignSelf="start"
+            alignItems="start"
+            css={messageWrapCSS}
+          >
+            <RootSpanMessage
+              label={inputLabel}
+              role="INPUT"
+              value={rootSpan.input?.value}
+            />
+            <RootSpanStartTime rootSpan={rootSpan} />
+          </Flex>
+          <Flex
+            direction="column"
+            gap="size-100"
+            alignSelf="end"
+            alignItems="end"
+            css={messageWrapCSS}
+          >
+            <RootSpanMessage
+              onDoubleClick={
+                onMessageDoubleClick
+                  ? () => onMessageDoubleClick("OUTPUT")
+                  : undefined
+              }
+              role="OUTPUT"
+              value={rootSpan.output?.value}
+            />
+            <RootSpanOutputMetadata rootSpan={rootSpan} />
+          </Flex>
         </Flex>
-        <Flex
-          direction="column"
-          gap="size-100"
-          alignSelf="end"
-          alignItems="end"
-          css={messageWrapCSS}
-        >
-          <RootSpanMessage role="OUTPUT" value={rootSpan.output?.value} />
-          <RootSpanOutputMetadata rootSpan={rootSpan} />
-        </Flex>
-      </Flex>
-    </View>
+      </View>
+    </TraceTurnNavigationSurface>
   );
 }

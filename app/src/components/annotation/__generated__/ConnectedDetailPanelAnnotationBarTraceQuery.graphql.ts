@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<851cb13e095e2564c080fc90f6e14439>>
+ * @generated SignedSource<<861d425c4f50f3c544426cb7eefdbeeb>>
  * @lightSyntaxTransform
  */
 
@@ -32,6 +32,7 @@ export type ConnectedDetailPanelAnnotationBarTraceQuery$data = {
         }>;
       };
       readonly id: string;
+      readonly name: string;
     };
     readonly traceAnnotations: ReadonlyArray<{
       readonly " $fragmentSpreads": FragmentRefs<"ConnectedDetailPanelAnnotationBarTraceAnnotationFields">;
@@ -268,7 +269,21 @@ v15 = [
     "alias": null,
     "args": null,
     "kind": "ScalarField",
+    "name": "identifier",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
     "name": "createdAt",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "updatedAt",
     "storageKey": null
   },
   {
@@ -377,6 +392,7 @@ return {
                 "plural": false,
                 "selections": [
                   (v2/*:: as any*/),
+                  (v4/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -457,6 +473,7 @@ return {
                 "plural": false,
                 "selections": [
                   (v2/*:: as any*/),
+                  (v4/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -490,16 +507,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6ad9c771962f6e7bcb31761efb852600",
+    "cacheID": "b9b047cbed22a1c269d2913929a856f7",
     "id": null,
     "metadata": {},
     "name": "ConnectedDetailPanelAnnotationBarTraceQuery",
     "operationKind": "query",
-    "text": "query ConnectedDetailPanelAnnotationBarTraceQuery(\n  $id: ID!\n) {\n  allAnnotationConfigs: annotationConfigs {\n    edges {\n      node {\n        __typename\n        ...ConnectedDetailPanelAnnotationBarConfigFields\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  trace: node(id: $id) {\n    __typename\n    ... on Trace {\n      id\n      project {\n        id\n        annotationConfigs {\n          edges {\n            node {\n              __typename\n              ...ConnectedDetailPanelAnnotationBarConfigFields\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n          }\n        }\n      }\n      traceAnnotations {\n        ...ConnectedDetailPanelAnnotationBarTraceAnnotationFields\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarConfigFields on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  __typename\n  ... on Node {\n    __isNode: __typename\n    id\n  }\n  name\n  description\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    lowerBound\n    upperBound\n    optimizationDirection\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarTraceAnnotationFields on TraceAnnotation {\n  id\n  name\n  label\n  score\n  explanation\n  metadata\n  annotatorKind\n  source\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n}\n"
+    "text": "query ConnectedDetailPanelAnnotationBarTraceQuery(\n  $id: ID!\n) {\n  allAnnotationConfigs: annotationConfigs {\n    edges {\n      node {\n        __typename\n        ...ConnectedDetailPanelAnnotationBarConfigFields\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  trace: node(id: $id) {\n    __typename\n    ... on Trace {\n      id\n      project {\n        id\n        name\n        annotationConfigs {\n          edges {\n            node {\n              __typename\n              ...ConnectedDetailPanelAnnotationBarConfigFields\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n          }\n        }\n      }\n      traceAnnotations {\n        ...ConnectedDetailPanelAnnotationBarTraceAnnotationFields\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarConfigFields on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  __typename\n  ... on Node {\n    __isNode: __typename\n    id\n  }\n  name\n  description\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    lowerBound\n    upperBound\n    optimizationDirection\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarTraceAnnotationFields on TraceAnnotation {\n  id\n  name\n  label\n  score\n  explanation\n  metadata\n  annotatorKind\n  source\n  identifier\n  createdAt\n  updatedAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7835f5a3f4f022eb1c20d973f25891c0";
+(node as any).hash = "1343d668adfc11556e5c3eb7001e687b";
 
 export default node;

@@ -4,10 +4,11 @@ import type {
   MouseEvent as ReactMouseEvent,
   PropsWithChildren,
   ReactNode,
+  RefObject,
 } from "react";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { useParams } from "react-router";
+import { useLocation, useParams } from "react-router";
 
 import {
   Button,
@@ -44,10 +45,13 @@ import {
   parseSpanAttributes,
   SpanAttributesSection,
   SpanInfo,
+  SPAN_INFO_SECTION_KEYS,
   type SpanInfoSectionIds,
   type SpanInfoSectionKey,
 } from "./span";
+import { getSpanInfoSectionId } from "./span/sectionIds";
 import { SpanDetailsHeaderActions } from "./SpanDetailsHeaderActions";
+import { SpanDetailsNavigation } from "./SpanDetailsNavigation";
 import { SpanDetailsSectionHeading } from "./SpanDetailsSectionHeading";
 import { SpanEventsList } from "./SpanEventsList";
 import { useSpanInfoCardProps } from "./SpanInfoCardsContext";
@@ -120,63 +124,6 @@ function SpanEventCounters({
     </>
   );
 }
-
-const spanDetailsAnchorNavCSS = css`
-  display: flex;
-  align-items: center;
-  flex: none;
-  border-bottom: 1px solid var(--global-border-color-default);
-
-  ul {
-    display: flex;
-    flex: 1 1 auto;
-    min-width: 0;
-    margin: 0;
-    padding: 0;
-    overflow-x: auto;
-    list-style: none;
-    scrollbar-width: none;
-
-    &::-webkit-scrollbar {
-      display: none;
-    }
-  }
-
-  li {
-    flex: none;
-  }
-
-  a {
-    display: flex;
-    position: relative;
-    align-items: center;
-    gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
-    border-radius: var(--global-rounding-small);
-    color: var(--global-text-color-700);
-    font-size: var(--global-font-size-s);
-    line-height: var(--global-line-height-s);
-    text-decoration: none;
-    white-space: nowrap;
-    outline: none;
-
-    &:hover {
-      color: var(--global-text-color-900);
-      background: var(--global-color-primary-50);
-    }
-
-    &:focus-visible {
-      color: var(--global-text-color-900);
-      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
-      outline-offset: calc(-1 * var(--focus-ring-offset));
-    }
-  }
-
-  & > button {
-    flex: none;
-    margin-right: var(--global-dimension-size-100);
-  }
-`;
 
 const spanDetailsSectionsCSS = css`
   flex: 1 1 auto;
@@ -256,6 +203,50 @@ function getIsScrolledToEnd(scrollContainer: HTMLElement): boolean {
   return (
     maximumScrollTop - scrollContainer.scrollTop <= SCROLL_END_TOLERANCE_PIXELS
   );
+}
+
+function SpanDetailsHashNavigation({
+  scrollContainerRef,
+  spanId,
+}: {
+  scrollContainerRef: RefObject<HTMLDivElement | null>;
+  spanId: string;
+}) {
+  const location = useLocation();
+
+  useEffect(() => {
+    const sectionId = location.hash.slice(1);
+    const isCurrentSpanInfoSection = SPAN_INFO_SECTION_KEYS.some(
+      (sectionKey) => getSpanInfoSectionId({ sectionKey, spanId }) === sectionId
+    );
+    if (!isCurrentSpanInfoSection) {
+      return;
+    }
+    const scrollContainer = scrollContainerRef.current;
+    const targetSection = document.getElementById(sectionId);
+    if (
+      scrollContainer == null ||
+      targetSection == null ||
+      !scrollContainer.contains(targetSection)
+    ) {
+      return;
+    }
+    const maximumScrollTop = Math.max(
+      scrollContainer.scrollHeight - scrollContainer.clientHeight,
+      0
+    );
+    scrollContainer.scrollTop = Math.min(
+      Math.max(
+        scrollContainer.scrollTop +
+          targetSection.getBoundingClientRect().top -
+          scrollContainer.getBoundingClientRect().top,
+        0
+      ),
+      maximumScrollTop
+    );
+  }, [location.hash, scrollContainerRef, spanId]);
+
+  return null;
 }
 
 export function SpanDetails({
@@ -525,10 +516,19 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   const shouldRenderNotesContent = hasNotes || isNotesPushedBelowViewport;
   const isNoteComposerOpen = isTakingSpanNotes && isActiveSpanNoteBar;
   const spanInfoSectionIds: SpanInfoSectionIds = {
-    input: `span-details-${span.spanId}-input`,
-    output: `span-details-${span.spanId}-output`,
-    toolDefinitions: `span-details-${span.spanId}-tool-definitions`,
-    metadata: `span-details-${span.spanId}-metadata`,
+    input: getSpanInfoSectionId({ sectionKey: "input", spanId: span.spanId }),
+    output: getSpanInfoSectionId({
+      sectionKey: "output",
+      spanId: span.spanId,
+    }),
+    toolDefinitions: getSpanInfoSectionId({
+      sectionKey: "toolDefinitions",
+      spanId: span.spanId,
+    }),
+    metadata: getSpanInfoSectionId({
+      sectionKey: "metadata",
+      spanId: span.spanId,
+    }),
   };
   const spanAttributes = parseSpanAttributes(span.attributes).json;
   const spanInfoSectionKeys = getSpanInfoSectionKeys({
@@ -713,44 +713,52 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
       flex="1 1 auto"
       minHeight={0}
     >
-      <nav css={spanDetailsAnchorNavCSS} aria-label="Span detail sections">
-        <ul>
-          {spanInfoSectionKeys.map((sectionKey) => (
-            <SpanDetailSectionLink
-              key={sectionKey}
-              label={spanInfoSectionNavigationLabels[sectionKey]}
-              sectionId={spanInfoSectionIds[sectionKey]}
-              onClick={handleSectionLinkClick}
-            />
-          ))}
+      <SpanDetailsHashNavigation
+        scrollContainerRef={spanDetailsSectionsRef}
+        spanId={span.spanId}
+      />
+      <SpanDetailsNavigation
+        label="Span detail sections"
+        trailingAction={<SpanInfoCardsToggle />}
+      >
+        {spanInfoSectionKeys.map((sectionKey) => (
           <SpanDetailSectionLink
-            label="Attributes"
-            sectionId={spanDetailsSectionIds.attributes}
+            key={sectionKey}
+            label={spanInfoSectionNavigationLabels[sectionKey]}
+            sectionId={spanInfoSectionIds[sectionKey]}
             onClick={handleSectionLinkClick}
           />
-          {hasEvents ? (
-            <SpanDetailSectionLink
-              label="Events"
-              sectionId={spanDetailsSectionIds.events}
-              onClick={handleSectionLinkClick}
-            >
-              <SpanEventCounters
-                exceptionEventCount={exceptionEventCount}
-                nonExceptionEventCount={nonExceptionEventCount}
-              />
-            </SpanDetailSectionLink>
-          ) : null}
+        ))}
+        <SpanDetailSectionLink
+          label="Attributes"
+          sectionId={spanDetailsSectionIds.attributes}
+          onClick={handleSectionLinkClick}
+        />
+        {hasEvents ? (
           <SpanDetailSectionLink
-            label="Notes"
-            sectionId={spanDetailsSectionIds.notes}
+            label="Events"
+            sectionId={spanDetailsSectionIds.events}
             onClick={handleSectionLinkClick}
           >
-            {hasNotes ? <Counter>{span.spanNotes.length}</Counter> : null}
+            <SpanEventCounters
+              exceptionEventCount={exceptionEventCount}
+              nonExceptionEventCount={nonExceptionEventCount}
+            />
           </SpanDetailSectionLink>
-        </ul>
-        <SpanInfoCardsToggle />
-      </nav>
-      <div ref={spanDetailsSectionsRef} css={spanDetailsSectionsCSS}>
+        ) : null}
+        <SpanDetailSectionLink
+          label="Notes"
+          sectionId={spanDetailsSectionIds.notes}
+          onClick={handleSectionLinkClick}
+        >
+          {hasNotes ? <Counter>{span.spanNotes.length}</Counter> : null}
+        </SpanDetailSectionLink>
+      </SpanDetailsNavigation>
+      <div
+        ref={spanDetailsSectionsRef}
+        css={spanDetailsSectionsCSS}
+        data-span-details-sections
+      >
         <div
           ref={spanDetailsSectionsContentRef}
           data-span-details-sections-content
@@ -824,13 +832,15 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
                     <Button
                       size="S"
                       variant="quiet"
-                      aria-label="Take notes"
+                      aria-label="Add note"
                       leadingVisual={<Icon svg={<Icons.NotebookPen />} />}
                       onPointerDown={(event) => event.stopPropagation()}
                       onClick={(event) => event.stopPropagation()}
                       onPress={openSpanNoteBar}
                     />
-                    <Tooltip offset={-5}>Take notes</Tooltip>
+                    <Tooltip placement="left" offset={-5}>
+                      Add note
+                    </Tooltip>
                   </TooltipTrigger>
                 ) : null
               }
@@ -905,8 +915,9 @@ function SpanDetailSectionLink({
   }) => void;
 }>) {
   return (
-    <li>
+    <li className="span-details-navigation__item">
       <a
+        className="span-details-navigation__link"
         href={`#${sectionId}`}
         onClick={(event) => onClick({ event, sectionId })}
       >

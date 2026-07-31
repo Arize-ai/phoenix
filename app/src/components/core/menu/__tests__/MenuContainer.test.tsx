@@ -13,14 +13,14 @@ import {
 } from "../Menu";
 
 describe("resolveMenuContainerOverlayProps", () => {
-  it("defaults a root menu below its trigger without flipping", () => {
+  it("defaults a root menu below its trigger with flipping", () => {
     expect(
       resolveMenuContainerOverlayProps({
         placement: undefined,
         shouldFlip: undefined,
         isSubmenu: false,
       })
-    ).toEqual({ placement: "bottom end", shouldFlip: false });
+    ).toEqual({ placement: "bottom end", shouldFlip: true });
   });
 
   it("leaves a submenu on React Aria's side placement with flipping", () => {
@@ -62,12 +62,12 @@ describe("MenuContainer", () => {
     container.remove();
   });
 
-  const renderMenu = () => {
+  const renderMenu = (minWidth?: React.CSSProperties["minWidth"]) => {
     act(() => {
       root.render(
         <MenuTrigger defaultOpen>
           <Button>Open menu</Button>
-          <MenuContainer aria-label="Test menu">
+          <MenuContainer aria-label="Test menu" minWidth={minWidth}>
             <Menu aria-label="Test menu items">
               <MenuItem id="a">Item A</MenuItem>
               <MenuItem id="b">Item B</MenuItem>
@@ -77,6 +77,13 @@ describe("MenuContainer", () => {
       );
     });
   };
+
+  it("allows a caller to lower its content width floor", () => {
+    renderMenu(0);
+
+    const menu = document.querySelector<HTMLElement>('[role="menu"]')!;
+    expect(getComputedStyle(menu.parentElement!).minWidth).toBe("0px");
+  });
 
   it("does not lock document scrolling while open", () => {
     renderMenu();

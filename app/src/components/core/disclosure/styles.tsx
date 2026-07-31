@@ -43,7 +43,10 @@ export const disclosureCSS = css`
     gap: 8px;
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+    padding: var(
+      --disclosure-trigger-padding,
+      var(--global-disclosure-trigger-padding)
+    );
 
     // style trigger
     color: var(--global-text-color-900);

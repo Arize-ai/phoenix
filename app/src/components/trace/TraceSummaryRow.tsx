@@ -9,6 +9,7 @@ import { TokenCosts } from "./TokenCosts";
 import { TokenCount } from "./TokenCount";
 import { TraceErrorCount } from "./TraceErrorCount";
 import { TraceTreeRowControls } from "./TraceTreeRowControls";
+import { detailsPanelNavigationRowBackgroundBleedCSS } from "./traceTreeStyles";
 
 export type TraceSummaryRowProps = {
   actions?: ReactNode;
@@ -31,6 +32,13 @@ export type TraceSummaryRowProps = {
 };
 
 const traceSummaryRowCSS = css`
+  ${detailsPanelNavigationRowBackgroundBleedCSS}
+  --details-panel-navigation-row-bleed-border-bottom-width: var(
+    --global-border-size-thin
+  );
+  --details-panel-navigation-row-bleed-border-bottom-color: var(
+    --global-border-color-default
+  );
   display: flex;
   align-items: flex-start;
   min-height: var(--global-details-panel-navigation-row-height);
@@ -39,10 +47,16 @@ const traceSummaryRowCSS = css`
   color: inherit;
 
   &:hover {
+    --details-panel-navigation-row-bleed-background-color: var(
+      --global-list-item-hover-background-color
+    );
     background-color: var(--global-list-item-hover-background-color);
   }
 
   &[data-selected="true"] {
+    --details-panel-navigation-row-bleed-background-color: var(
+      --global-details-panel-navigation-row-selected-background-color
+    );
     background-color: var(
       --global-details-panel-navigation-row-selected-background-color
     );
@@ -50,6 +64,9 @@ const traceSummaryRowCSS = css`
   }
 
   &[data-has-active-descendant="true"] {
+    --details-panel-navigation-row-bleed-background-color: var(
+      --global-details-panel-navigation-row-with-active-descendant-background-color
+    );
     background-color: var(
       --global-details-panel-navigation-row-with-active-descendant-background-color
     );
@@ -57,6 +74,9 @@ const traceSummaryRowCSS = css`
   }
 
   &[data-has-active-descendant="true"]:hover {
+    --details-panel-navigation-row-bleed-background-color: var(
+      --global-list-item-hover-background-color
+    );
     background-color: var(--global-list-item-hover-background-color);
   }
 
@@ -171,7 +191,9 @@ export function TraceSummaryRow({
   const traceLabel = name || "Trace";
   const traceAriaLabel =
     errorCount > 0
-      ? `View trace ${traceId}, ${errorCount} ${errorCount === 1 ? "error" : "errors"}`
+      ? `View trace ${traceId}, ${errorCount} ${
+          errorCount === 1 ? "error" : "errors"
+        }`
       : `View trace ${traceId}`;
   const hasActiveDescendant = isActive && !isSelected;
 
@@ -179,6 +201,7 @@ export function TraceSummaryRow({
     <div
       className="trace-summary-row"
       css={traceSummaryRowCSS}
+      data-navigation-gutter-paint
       data-selected={isSelected || undefined}
       data-has-active-descendant={hasActiveDescendant || undefined}
     >
@@ -256,7 +279,9 @@ export function TraceSummaryRow({
             data-testid={disclosureTestId}
             type="button"
             className="trace-summary-row__disclosure"
-            aria-label={`${isExpanded ? "Collapse" : "Expand"} trace ${traceId}`}
+            aria-label={`${
+              isExpanded ? "Collapse" : "Expand"
+            } trace ${traceId}`}
             aria-expanded={isExpanded}
             onClick={onToggleExpanded}
           >

@@ -16,7 +16,7 @@ const spanDetailsSectionHeadingCSS = css`
     gap: var(--global-dimension-size-100);
     box-sizing: border-box;
     height: var(--global-span-details-section-heading-height);
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+    padding: var(--global-dimension-size-100) var(--global-grid-margin-xsmall);
     border-bottom: 1px solid var(--global-border-color-default);
 
     &[data-bordered="true"] {

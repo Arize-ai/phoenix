@@ -138,12 +138,21 @@ export function ModelParametersConfigButton(
       />
       <Popover
         css={css`
-          overflow: auto;
-          overscroll-behavior: none;
+          display: flex;
+          flex-direction: column;
         `}
       >
         <PopoverArrow />
-        <View padding="size-200" width="386px">
+        <View
+          padding="size-200"
+          width="386px"
+          flex="1 1 auto"
+          minHeight={0}
+          overflow="auto"
+          css={css`
+            overscroll-behavior: none;
+          `}
+        >
           <div css={formFieldsCSS}>
             {/* Model name field - shown for all providers */}
             <ModelNameConfigFormField

@@ -303,6 +303,12 @@ const detailsPanelNavigationControlsRowCSS = css`
   border-bottom: var(--global-border-size-thin) solid
     var(--global-border-color-default);
 
+  .details-panel-navigation-controls__leading {
+    display: flex;
+    min-width: 0;
+    margin-right: auto;
+  }
+
   @container trace-tree-panel (width < ${TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS}px) {
     display: none;
   }
@@ -318,9 +324,11 @@ const detailsPanelMainColumnCSS = css`
 export function DetailsPanelNavigationControlsRow({
   children,
   isCollapsed,
+  leading,
   onCollapsedChange,
 }: PropsWithChildren<{
   isCollapsed: boolean;
+  leading?: ReactNode;
   onCollapsedChange: (isCollapsed: boolean) => void;
 }>) {
   return (
@@ -328,6 +336,11 @@ export function DetailsPanelNavigationControlsRow({
       className="details-panel-navigation-controls"
       css={detailsPanelNavigationControlsRowCSS}
     >
+      {leading ? (
+        <div className="details-panel-navigation-controls__leading">
+          {leading}
+        </div>
+      ) : null}
       {children}
       <TraceTreePanelToggleButton
         isCollapsed={isCollapsed}

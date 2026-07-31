@@ -5,6 +5,10 @@ export const cardCSS = (style?: CSSProperties) => css`
   ${style?.borderColor
     ? `--global-card-border-color: ${style.borderColor};`
     : ""}
+  /* A card establishes the inset for disclosure rows in its body. Defining
+     the default here also prevents an outer compact card from styling rows in
+     a nested default card. */
+  --disclosure-trigger-padding: var(--global-disclosure-trigger-padding);
   display: flex;
   flex-direction: column;
   color: var(--global-text-color-900);
@@ -20,7 +24,7 @@ export const cardCSS = (style?: CSSProperties) => css`
     flex: none;
     justify-content: space-between;
     align-items: center;
-    padding: 0 var(--global-dimension-size-200);
+    padding: var(--global-card-header-padding);
     height: var(--global-card-header-height);
     transition: background-color 0.2s ease-in-out;
 
@@ -114,12 +118,17 @@ export const cardCSS = (style?: CSSProperties) => css`
   }
 
   /* Compact variant styles */
-  &[data-variant="compact"] > header {
-    box-sizing: border-box;
-    height: calc(
-      var(--global-input-height-s) + 2 * var(--global-dimension-size-50)
-    );
-    padding: var(--global-dimension-size-50);
+  &[data-variant="compact"] {
+    --disclosure-trigger-padding: var(--global-card-compact-header-padding);
+
+    & > header {
+      box-sizing: border-box;
+      height: calc(
+        var(--global-input-height-s) + 2 *
+          var(--global-card-compact-header-padding)
+      );
+      padding: var(--global-card-compact-header-padding);
+    }
   }
 
   &[data-variant="compact"] .card__title {

@@ -79,7 +79,7 @@ export function createSessionDetailsSearchParamsStore(
     getSessionViewParam: () => {
       return sessionViewParam;
     },
-    getSpanSelection() {
+    getSpanSelection: () => {
       return selection;
     },
     prepareSpanSelection(nextSelection: {
@@ -89,6 +89,19 @@ export function createSessionDetailsSearchParamsStore(
       selection = nextSelection;
       pendingSelection = nextSelection;
       spanSelectionListeners.forEach((listener) => listener());
+    },
+    selectSession: () => {
+      const isSessionAlreadySelected =
+        selection.spanNodeId == null && selection.traceId == null;
+      pendingSelection = null;
+      if (!isSessionAlreadySelected) {
+        selection = { spanNodeId: null, traceId: null };
+        spanSelectionListeners.forEach((listener) => listener());
+      }
+      const nextSearchParams = new URLSearchParams(searchParams);
+      nextSearchParams.delete(SELECTED_TRACE_ID_PARAM);
+      nextSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+      replaceSearchParams(nextSearchParams);
     },
     selectTrace(traceId: string) {
       selection = { spanNodeId: null, traceId };

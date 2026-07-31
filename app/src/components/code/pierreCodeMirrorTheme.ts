@@ -95,7 +95,6 @@ function createPierreTheme(theme: PierreTheme) {
     {
       tag: [t.link, t.url],
       color: color("markup.underline.link.markdown"),
-      textDecoration: "underline",
     },
     { tag: [t.strikethrough], textDecoration: "line-through" },
     { tag: [t.invalid], color: colors["editor.foreground"] },
@@ -104,6 +103,7 @@ function createPierreTheme(theme: PierreTheme) {
   return createTheme({
     theme: theme.type,
     settings: {
+      fontFamily: "var(--global-font-family-mono)",
       background: colors["editor.background"],
       foreground: colors["editor.foreground"],
       caret: colors["editorCursor.foreground"],
