@@ -3,6 +3,7 @@ export * from "./AISearchSettingsButton";
 export * from "./AISearchSettingsCard";
 export * from "./AISearchSettingsForm";
 export * from "./browserModel";
+export * from "./BrowserModelCard";
 export {
   AI_SEARCH_PROVIDERS,
   type ProviderCredentials,

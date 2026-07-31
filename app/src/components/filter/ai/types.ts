@@ -12,6 +12,20 @@ export type AISearchModelConfig =
   | { kind: "browser" }
   | { kind: "provider"; provider: ModelProvider; modelName: string };
 
+const BROWSER_MODEL_CONFIG: AISearchModelConfig = { kind: "browser" };
+
+/**
+ * Resolves the persisted (possibly absent) model config to an effective
+ * one — no config means the on-device browser model. The single home of
+ * that default, shared by every surface that reads the preference. Returns
+ * a stable object so resolving on every render stays identity-safe.
+ */
+export function resolveAISearchModelConfig(
+  config: AISearchModelConfig | undefined
+): AISearchModelConfig {
+  return config ?? BROWSER_MODEL_CONFIG;
+}
+
 /**
  * A field an expression of the DSL can reference, with the prose description
  * shown to the model. Mirrors the shape of the typeahead completions so an

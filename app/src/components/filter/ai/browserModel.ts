@@ -1,5 +1,6 @@
 import { browserAI, doesBrowserSupportBrowserAI } from "@browser-ai/core";
 import type { LanguageModel } from "ai";
+import { useEffect, useState } from "react";
 
 /**
  * Where the on-device browser model stands, normalized across the Prompt
@@ -18,38 +19,128 @@ export type BrowserModelAvailability =
   | "downloading"
   | "available";
 
-export async function getBrowserModelAvailability(): Promise<BrowserModelAvailability> {
-  if (!doesBrowserSupportBrowserAI()) {
-    return "unsupported";
+/**
+ * The identity of the browser's built-in on-device model. The Prompt API
+ * never names its model, but each browser that implements it ships a known
+ * one, so the name is derived from which browser this is.
+ */
+export type BrowserBuiltInModel = {
+  /** e.g. "Gemini Nano" */
+  modelName: string;
+  /** e.g. "Chrome" */
+  browserName: string;
+};
+
+// The answer can't change for the lifetime of the document, and callers sit
+// in render paths — resolve once on first ask
+let builtInModel: BrowserBuiltInModel | null | undefined;
+
+export function getBrowserBuiltInModel(): BrowserBuiltInModel | null {
+  if (builtInModel === undefined) {
+    builtInModel = !doesBrowserSupportBrowserAI()
+      ? null
+      : // Edge keeps "Chrome/" in its UA, so it must be checked first
+        navigator.userAgent.includes("Edg/")
+        ? { modelName: "Phi", browserName: "Edge" }
+        : { modelName: "Gemini Nano", browserName: "Chrome" };
   }
-  try {
-    const availability: string = await browserAI().availability();
-    switch (availability) {
-      case "available":
-        return "available";
-      case "downloading":
-        return "downloading";
-      case "downloadable":
-      case "available-after-download":
-        return "needs-download";
-      default:
-        return "unavailable";
-    }
-  } catch {
-    return "unavailable";
-  }
+  return builtInModel;
 }
+
+// Concurrent probes share one Prompt API round-trip — several surfaces can
+// mount at once (the settings card and the model card on the same page) and
+// each probe constructs a throwaway model instance. Cleared on settle so
+// every later look still gets a fresh answer.
+let inFlightAvailability: Promise<BrowserModelAvailability> | null = null;
+
+export function getBrowserModelAvailability(): Promise<BrowserModelAvailability> {
+  if (!doesBrowserSupportBrowserAI()) {
+    return Promise.resolve("unsupported");
+  }
+  inFlightAvailability ??= browserAI()
+    .availability()
+    .then(
+      (availability: string): BrowserModelAvailability => {
+        switch (availability) {
+          case "available":
+            return "available";
+          case "downloading":
+            return "downloading";
+          case "downloadable":
+          case "available-after-download":
+            return "needs-download";
+          default:
+            return "unavailable";
+        }
+      },
+      () => "unavailable" as const
+    )
+    .finally(() => {
+      inFlightAvailability = null;
+    });
+  return inFlightAvailability;
+}
+
+// The browser only runs one model download; mirror that here so every
+// caller (a card mounting, a first search, a remount mid-download) joins
+// the same session creation instead of stacking new ones
+let activeDownload: {
+  promise: Promise<void>;
+  listeners: Set<(fraction: number) => void>;
+} | null = null;
 
 /**
  * Starts (or joins) the on-device model download, reporting progress as a
  * fraction from 0 to 1. Resolves when the model is ready to use.
  */
-export async function downloadBrowserModel(
+export function downloadBrowserModel(
   onProgress?: (fraction: number) => void
 ): Promise<void> {
-  await browserAI().createSessionWithProgress(onProgress);
+  if (activeDownload === null) {
+    const listeners = new Set<(fraction: number) => void>();
+    const download = {
+      listeners,
+      promise: browserAI()
+        .createSessionWithProgress((fraction: number) => {
+          for (const listener of listeners) {
+            listener(fraction);
+          }
+        })
+        .then(() => undefined)
+        .finally(() => {
+          activeDownload = null;
+        }),
+    };
+    activeDownload = download;
+  }
+  if (onProgress) {
+    activeDownload.listeners.add(onProgress);
+  }
+  return activeDownload.promise;
 }
 
 export function createBrowserModel(): LanguageModel {
   return browserAI();
+}
+
+/**
+ * The on-device model's availability, fetched when the consuming surface
+ * mounts (i.e. each time it opens, so a finished download is reflected on
+ * the next look). `null` while the probe is in flight.
+ */
+export function useBrowserModelAvailability(): BrowserModelAvailability | null {
+  const [availability, setAvailability] =
+    useState<BrowserModelAvailability | null>(null);
+  useEffect(() => {
+    let isCancelled = false;
+    void getBrowserModelAvailability().then((result) => {
+      if (!isCancelled) {
+        setAvailability(result);
+      }
+    });
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+  return availability;
 }
