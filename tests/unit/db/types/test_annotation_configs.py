@@ -86,13 +86,14 @@ class TestAsOutputConfigs:
 
     def test_base_models_revalidate_into_output_configs(self) -> None:
         from phoenix.db.types.annotation_configs import (
+            AnnotationConfigType,
             ContinuousOutputConfig,
             FreeformAnnotationConfig,
             FreeformOutputConfig,
             as_output_configs,
         )
 
-        base_configs = [
+        base_configs: list[AnnotationConfigType] = [
             ContinuousAnnotationConfig(
                 type=AnnotationType.CONTINUOUS.value,
                 name="score",
