@@ -165,7 +165,7 @@ describe("SpanNoteBar", () => {
     expect(container.textContent).toContain("Write failed");
   });
 
-  it("reports the created note after Relay publishes the mutation response", () => {
+  it("closes the composer and reports the created note after Relay publishes the mutation response", () => {
     const onNoteCreated = vi.fn();
     renderBar({ onNoteCreated, spanNodeId: "span-a" });
     setNoteText("New observation");
@@ -180,6 +180,7 @@ describe("SpanNoteBar", () => {
     });
 
     expect(onNoteCreated).toHaveBeenCalledWith("new-note-id");
+    expect(container.querySelector(".span-note-bar")).toBeNull();
   });
 
   it("dismisses a non-empty composer with Escape", () => {

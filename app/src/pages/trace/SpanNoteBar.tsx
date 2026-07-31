@@ -189,6 +189,7 @@ function SpanNoteBarContent({
         onNoteSubmissionError({ message: mutationError.message, note });
       },
       onCompleted: (response) => {
+        setIsTakingSpanNotes(false);
         const createdNoteId = response.createSpanNote.spanAnnotations[0]?.id;
         if (createdNoteId != null) {
           onNoteCreated?.(createdNoteId);
