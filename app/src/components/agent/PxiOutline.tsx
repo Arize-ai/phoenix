@@ -12,6 +12,7 @@ import {
   pxiGlowFlashOpacity,
   pxiGlowWipe,
   pxiGlowWipeMaskCSS,
+  pxiThinkingGlowTravelCSS,
 } from "./pxiStyles";
 
 export type PxiOutlineState = "idle" | "eligible" | "active";
@@ -33,7 +34,7 @@ export interface PxiOutlineProps extends StylableProps {
 
 const outlineCSS = css`
   --pxi-treatment-stroke-width: 1.5px;
-  --pxi-outline-gap: var(--global-dimension-static-size-25);
+  --pxi-outline-gap: var(--global-dimension-size-25);
   --pxi-outline-target-radius: var(--global-rounding-small);
   position: relative;
   display: inline-grid;
@@ -97,8 +98,11 @@ const outlineCSS = css`
     opacity: 0;
   }
 
+  /* Eligible keeps the band's subtle rotation running at resting opacity
+     so an engaged-but-idle target still reads as alive */
   &[data-state="eligible"] .pxi-outline__stroke {
     opacity: 0.64;
+    animation-play-state: running;
   }
 
   &[data-state="active"] .pxi-outline__stroke {
@@ -106,10 +110,11 @@ const outlineCSS = css`
     animation-play-state: running;
   }
 
+  /* Active gets the PXI thinking treatment: the breathing glow clipped by
+     the traveling wipe, matching PxiButton's working state */
   &[data-state="active"] .pxi-outline__glow {
     opacity: 1;
-    -webkit-mask-image: none;
-    mask-image: none;
+    ${pxiThinkingGlowTravelCSS};
   }
 
   &[data-state="active"] .pxi-outline__glow::before {

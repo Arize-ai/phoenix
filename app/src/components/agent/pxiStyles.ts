@@ -72,6 +72,19 @@ export const pxiGlowFlashOpacity = keyframes`
   }
 `;
 
+/**
+ * The traveling-light pass of the PXI thinking treatment: centers the wipe
+ * mask and sweeps it continuously. Shared by every surface that shows the
+ * "working" glow (PxiButton, the agent chat widget, PxiOutline's active
+ * state) so the velocity and phase stay identical.
+ */
+export const pxiThinkingGlowTravelCSS = css`
+  -webkit-mask-position: center;
+  mask-position: center;
+  /* Preserve the original 200% / 3000ms velocity across the full 240% path. */
+  animation: ${pxiThinkingGlowWipe} 3600ms linear infinite both -0.5s;
+`;
+
 export const pxiGlowWipeMaskCSS = css`
   opacity: 0;
   mix-blend-mode: plus-lighter;

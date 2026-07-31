@@ -16,7 +16,7 @@ import {
   pxiGlowFlashOpacity,
   pxiGlowWipe,
   pxiGlowWipeMaskCSS,
-  pxiThinkingGlowWipe,
+  pxiThinkingGlowTravelCSS,
 } from "./pxiStyles";
 
 export type PxiButtonSize = PxiAnimatedGlyphSize;
@@ -138,9 +138,7 @@ const pxiButtonCSS = css`
 
     .pxi-button__glow {
       opacity: 1;
-      -webkit-mask-position: center;
-      mask-position: center;
-      animation: ${pxiThinkingGlowWipe} 3600ms linear infinite both -0.5s;
+      ${pxiThinkingGlowTravelCSS};
     }
 
     .pxi-button__glow::before {
