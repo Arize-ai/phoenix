@@ -1,9 +1,22 @@
-import { Alert, View } from "@phoenix/components";
+import { Alert, Text, View } from "@phoenix/components";
 
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { isKnownRootSpanCondition } from "./spanFilterRootScopeConstants";
 import { useSpanFilters } from "./SpanFiltersContext";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
+
+/**
+ * A database error carries the generated SQL, which the user did not write and
+ * cannot act on, and can run to thousands of characters. Enough is shown to
+ * tell two failures apart; the boundary logs the whole thing to the console.
+ */
+const MAX_SURFACED_ERROR = 200;
+
+function truncate(error: string) {
+  return error.length > MAX_SURFACED_ERROR
+    ? `${error.slice(0, MAX_SURFACED_ERROR)}…`
+    : error;
+}
 
 /**
  * Stands in for a table whose query failed — a condition can pass validation and
@@ -65,7 +78,13 @@ export function SpanFilterErrorFallback({
         {hasUserFilter
           ? " The filter above is a likely cause — comparing values of different types is the most common. Editing it reloads the view."
           : " Editing the filter above reloads the view."}
-        {error ? ` (${error})` : null}
+        {error ? (
+          <View paddingTop="size-50">
+            <Text size="S" color="text-700">
+              {truncate(error)}
+            </Text>
+          </View>
+        ) : null}
       </Alert>
     </>
   );
