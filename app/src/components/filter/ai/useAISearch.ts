@@ -65,7 +65,6 @@ export function useAISearch({ dsl, validate }: UseAISearchArgs) {
   );
   const [status, setStatus] = useState<AISearchStatus>("idle");
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
-  const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const generate = async (
@@ -76,7 +75,6 @@ export function useAISearch({ dsl, validate }: UseAISearchArgs) {
     abortControllerRef.current?.abort();
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
-    setError(null);
     try {
       if (modelConfig.kind === "browser") {
         const availability = await getBrowserModelAvailability();
@@ -123,9 +121,7 @@ export function useAISearch({ dsl, validate }: UseAISearchArgs) {
       if (abortController.signal.aborted) {
         return { outcome: "cancelled" };
       }
-      const message = toErrorMessage(caught);
-      setError(message);
-      return { outcome: "error", message };
+      return { outcome: "error", message: toErrorMessage(caught) };
     } finally {
       // A superseding run owns the status now — only the latest run resets it
       if (abortControllerRef.current === abortController) {
@@ -139,17 +135,11 @@ export function useAISearch({ dsl, validate }: UseAISearchArgs) {
     abortControllerRef.current?.abort();
   };
 
-  const clearError = () => {
-    setError(null);
-  };
-
   return {
     status,
     downloadProgress,
-    error,
     modelConfig,
     generate,
     cancel,
-    clearError,
   };
 }

@@ -62,10 +62,6 @@ export const AI_SEARCH_PROVIDERS: ModelProvider[] = [
   ...OPENAI_COMPATIBLE_PROVIDERS,
 ];
 
-export function isAISearchProvider(provider: ModelProvider): boolean {
-  return AI_SEARCH_PROVIDERS.includes(provider);
-}
-
 /**
  * Reads the provider's (first) required API key from the browser-held
  * credentials, throwing a message that tells the user what to configure
@@ -104,6 +100,14 @@ export async function createProviderModel({
   modelName: string;
   credentials: ProviderCredentials | undefined;
 }): Promise<LanguageModel> {
+  // Switching providers in the settings form clears the model name (only
+  // OpenAI has a sensible default), so an unfilled field would otherwise
+  // reach the provider as an empty model id and come back as an opaque 404
+  if (modelName.trim() === "") {
+    throw new Error(
+      `Choose a model name for ${ModelProviders[provider]} in the AI search settings.`
+    );
+  }
   switch (provider) {
     case "OPENAI": {
       const apiKey = requireApiKey(provider, credentials);
