@@ -8,13 +8,10 @@ import {
   AttachmentRemove,
   Attachments,
 } from "@phoenix/components/ai/attachment";
-import type {
-  FilePart,
-  FileVariablePart,
-  ImagePart,
-  ImageVariablePart,
-} from "@phoenix/schemas/promptSchemas";
+import type { FilePart, ImagePart } from "@phoenix/schemas/promptSchemas";
 import { mediaDisplayName, resolveMediaUrl } from "@phoenix/utils/mediaUtils";
+
+import type { MessageMediaState } from "./media/useMessageMedia";
 
 const mediaContainerCSS = css`
   display: flex;
@@ -94,16 +91,7 @@ export function PlaygroundMessageMedia({
   onImagesChange,
   onFileVariablesChange,
   onFilesChange,
-}: {
-  imageVariables: ImageVariablePart[];
-  images: ImagePart[];
-  fileVariables: FileVariablePart[];
-  files: FilePart[];
-  onImageVariablesChange: (parts: ImageVariablePart[]) => void;
-  onImagesChange: (parts: ImagePart[]) => void;
-  onFileVariablesChange: (parts: FileVariablePart[]) => void;
-  onFilesChange: (parts: FilePart[]) => void;
-}) {
+}: MessageMediaState) {
   const hasVariables = imageVariables.length > 0 || fileVariables.length > 0;
   return (
     <div css={mediaContainerCSS}>

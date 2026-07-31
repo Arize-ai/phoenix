@@ -2,10 +2,12 @@ import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
-import { Button, ExternalLink, Icon, Icons, Text } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 import { revealOnHoverCSS } from "@phoenix/components/core/styles";
 import { classNames } from "@phoenix/utils/classNames";
 import { resolveMediaUrl } from "@phoenix/utils/mediaUtils";
+
+import { MediaNotAnImage } from "./media/MediaNotAnImage";
 
 type SpanImageProps = {
   /**
@@ -60,16 +62,6 @@ const imageContainerCSS = css`
     }
   }
 `;
-const unavailableCSS = css`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--global-dimension-size-100);
-  padding: var(--global-dimension-size-200);
-  text-align: center;
-  color: var(--global-text-color-700);
-`;
-
 /**
  * Displays an image attribute of a span.
  */
@@ -82,21 +74,7 @@ export function SpanImage(props: SpanImageProps) {
   if (isRedacted) {
     content = <RedactedImageSVG />;
   } else if (didFailToLoad) {
-    /*
-     * Not everything recorded as image content is one — a document recorded
-     * before documents were named separately lands here, as does an image whose
-     * host has stopped serving it. Either way a broken-image icon says nothing;
-     * offer the media itself instead.
-     */
-    content = (
-      <div css={unavailableCSS}>
-        <Icon svg={<Icons.FileText />} />
-        <Text size="XS" color="text-700">
-          Cannot be shown as an image
-        </Text>
-        <ExternalLink href={resolvedUrl}>Open</ExternalLink>
-      </div>
-    );
+    content = <MediaNotAnImage url={resolvedUrl} />;
   } else {
     content = (
       <img

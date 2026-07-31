@@ -7,23 +7,16 @@ import type {
 } from "@phoenix/components/prompt/__generated__/PromptChatMessagesCard__main.graphql";
 import {
   ChatTemplateMessageCard,
-  ChatTemplateMessageFilePart,
-  ChatTemplateMessageFileVariablePart,
-  ChatTemplateMessageImagePart,
-  ChatTemplateMessageImageVariablePart,
   ChatTemplateMessageTextPart,
   ChatTemplateMessageToolCallPart,
   ChatTemplateMessageToolResultPart,
 } from "@phoenix/components/prompt/ChatTemplateMessageCard";
+import { ChatTemplateMessageMediaPart } from "@phoenix/components/prompt/media/ChatTemplateMessageMediaParts";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { openInferenceModelProviderToPhoenixModelProvider } from "@phoenix/pages/playground/playgroundUtils";
 import type { AnyPart } from "@phoenix/schemas/promptSchemas";
 import {
-  asFilePart,
-  asFileVariablePart,
-  asImagePart,
-  asImageVariablePart,
   asTextPart,
   asToolCallPart,
   asToolResultPart,
@@ -128,44 +121,9 @@ function ChatMessageContentPart({
     );
   }
 
-  parsedPart = asImagePart(part);
-  if (parsedPart) {
-    return (
-      <ChatTemplateMessageImagePart
-        image={parsedPart}
-        isOnlyChild={isOnlyChild}
-      />
-    );
-  }
-
-  parsedPart = asImageVariablePart(part);
-  if (parsedPart) {
-    return (
-      <ChatTemplateMessageImageVariablePart
-        imageVariable={parsedPart}
-        isOnlyChild={isOnlyChild}
-      />
-    );
-  }
-
-  parsedPart = asFilePart(part);
-  if (parsedPart) {
-    return (
-      <ChatTemplateMessageFilePart
-        file={parsedPart}
-        isOnlyChild={isOnlyChild}
-      />
-    );
-  }
-
-  parsedPart = asFileVariablePart(part);
-  if (parsedPart) {
-    return (
-      <ChatTemplateMessageFileVariablePart
-        fileVariable={parsedPart}
-        isOnlyChild={isOnlyChild}
-      />
-    );
+  const mediaPart = ChatTemplateMessageMediaPart({ part, isOnlyChild });
+  if (mediaPart) {
+    return mediaPart;
   }
 
   parsedPart = asToolCallPart(part);

@@ -9,12 +9,7 @@ import { z } from "zod";
 import { jsonSchemaZodSchema } from "@phoenix/schemas";
 import type { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
 import { jsonLiteralSchema } from "@phoenix/schemas/jsonLiteralSchema";
-import {
-  filePartSchema,
-  fileVariablePartSchema,
-  imagePartSchema,
-  imageVariablePartSchema,
-} from "@phoenix/schemas/promptSchemas";
+import { mediaMessageShape } from "@phoenix/schemas/mediaMessageShape";
 import { llmProviderToolCallSchema } from "@phoenix/schemas/toolCallSchemas";
 import {
   isObject,
@@ -109,33 +104,7 @@ export const chatMessageSchema = z.object({
   role: chatMessageRolesSchema,
   // Tool call messages may not have content
   content: z.string().optional(),
-  /**
-   * Images attached to the message, in the order they are sent.
-   *
-   * Held separately from `content` rather than as one ordered part list: the
-   * editor is a single text field plus an attachment strip, so a message is
-   * always sent as its text followed by its images. A prompt authored through
-   * the API that interleaves text and images differently is normalized to that
-   * shape when saved from the playground.
-   */
-  images: z.array(imagePartSchema).optional(),
-  /**
-   * Images the prompt names rather than stores. Their values arrive with the
-   * run's inputs, so one prompt can run against many images.
-   */
-  imageVariables: z.array(imageVariablePartSchema).optional(),
-  /**
-   * Documents attached to the message, following its images.
-   *
-   * Kept apart from `images` because the two are presented differently — an
-   * image has a thumbnail, a document has a name — and because providers carry
-   * documents on their own wire format.
-   */
-  files: z.array(filePartSchema).optional(),
-  /**
-   * Documents the prompt names rather than stores, supplied with the run's inputs.
-   */
-  fileVariables: z.array(fileVariablePartSchema).optional(),
+  ...mediaMessageShape,
   toolCallId: z.string().optional(),
   toolCalls: z.array(llmProviderToolCallSchema).optional(),
 });

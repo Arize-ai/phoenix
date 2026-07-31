@@ -39,8 +39,9 @@ import {
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
-import { AddMediaInputButton } from "./AddMediaInputButton";
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
+import { MessageMediaButtons } from "./media/MessageMediaButtons";
+import { useMessageMedia } from "./media/useMessageMedia";
 import type { AIMessageMode, MessageMode } from "./MessageContentRadioGroup";
 import { AIMessageContentRadioGroup } from "./MessageContentRadioGroup";
 import { MessageRoleSelect } from "./MessageRoleSelect";
@@ -192,34 +193,7 @@ function MessageEditor({
   // A prompt authored through the API can hold a message with no text at all,
   // so the text editor follows whether there is any.
   const hasText = message.content !== undefined;
-  const images = useMemo(() => message.images ?? [], [message.images]);
-  const imageVariables = useMemo(
-    () => message.imageVariables ?? [],
-    [message.imageVariables]
-  );
-  const onImagesChange = useCallback(
-    (nextImages: typeof images) => updateMessage({ images: nextImages }),
-    [updateMessage]
-  );
-  const onImageVariablesChange = useCallback(
-    (next: typeof imageVariables) => updateMessage({ imageVariables: next }),
-    [updateMessage]
-  );
-  const files = useMemo(() => message.files ?? [], [message.files]);
-  const fileVariables = useMemo(
-    () => message.fileVariables ?? [],
-    [message.fileVariables]
-  );
-  const onFilesChange = useCallback(
-    (nextFiles: typeof files) => updateMessage({ files: nextFiles }),
-    [updateMessage]
-  );
-  const onFileVariablesChange = useCallback(
-    (next: typeof fileVariables) => updateMessage({ fileVariables: next }),
-    [updateMessage]
-  );
-  // Only user messages may carry media, matching what the API accepts.
-  const canAttachMedia = message.role === "user";
+  const media = useMessageMedia({ message, updateMessage });
   if (messageMode === "toolCalls") {
     return (
       <View
@@ -311,18 +285,7 @@ function MessageEditor({
           </Button>
         </View>
       )}
-      {canAttachMedia ? (
-        <PlaygroundMessageMedia
-          imageVariables={imageVariables}
-          images={images}
-          fileVariables={fileVariables}
-          files={files}
-          onImageVariablesChange={onImageVariablesChange}
-          onImagesChange={onImagesChange}
-          onFileVariablesChange={onFileVariablesChange}
-          onFilesChange={onFilesChange}
-        />
-      ) : null}
+      {media.canAttachMedia ? <PlaygroundMessageMedia {...media} /> : null}
     </div>
   );
 }
@@ -487,20 +450,11 @@ function SortableMessageItem({
                 />
               ) : null
             }
-            {message.role === "user" ? (
-              <>
-                <AddMediaInputButton
-                  instanceId={playgroundInstanceId}
-                  messageId={messageId}
-                  kind="image"
-                />
-                <AddMediaInputButton
-                  instanceId={playgroundInstanceId}
-                  messageId={messageId}
-                  kind="file"
-                />
-              </>
-            ) : null}
+            <MessageMediaButtons
+              instanceId={playgroundInstanceId}
+              messageId={messageId}
+              role={message.role}
+            />
             <CopyToClipboardButton
               text={
                 aiMessageMode === "toolCalls"
