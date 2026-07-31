@@ -14,10 +14,12 @@ from phoenix.db.types.media import (
     parse_media_url,
 )
 from phoenix.db.types.prompts import (
-    ImageContentPart,
     PromptChatTemplate,
     PromptMessage,
     TextContentPart,
+)
+from phoenix.db.types.media_parts import (
+    ImageContentPart,
     media_variable_names,
 )
 

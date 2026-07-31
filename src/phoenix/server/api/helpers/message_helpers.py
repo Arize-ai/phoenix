@@ -16,6 +16,8 @@ from phoenix.db.types.media import MediaContent
 from phoenix.db.types.prompts import (
     PromptChatTemplate,
     PromptTemplateFormat,
+)
+from phoenix.db.types.media_parts import (
     media_source,
 )
 from phoenix.server.api.exceptions import BadRequest

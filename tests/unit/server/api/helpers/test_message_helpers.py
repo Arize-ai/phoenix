@@ -4,10 +4,12 @@ import pytest
 
 from phoenix.db.types.media import MediaContent
 from phoenix.db.types.prompts import (
-    ImageContentPart,
     PromptChatTemplate,
     PromptMessage,
     TextContentPart,
+)
+from phoenix.db.types.media_parts import (
+    ImageContentPart,
 )
 from phoenix.server.api.helpers.message_helpers import (
     PlaygroundMessage,

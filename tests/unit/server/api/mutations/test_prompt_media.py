@@ -9,8 +9,10 @@ from sqlalchemy import select
 from phoenix.db import models
 from phoenix.db.types.media import MediaContent
 from phoenix.db.types.prompts import (
-    ImageContentPart,
     PromptChatTemplate,
+)
+from phoenix.db.types.media_parts import (
+    ImageContentPart,
     media_variable_names,
 )
 from phoenix.server.types import DbSessionFactory

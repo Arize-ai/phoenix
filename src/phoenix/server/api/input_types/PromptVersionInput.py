@@ -15,8 +15,6 @@ from phoenix.db.types.media import MediaContent, MediaVariable
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
     ContentPart,
-    FileContentPart,
-    ImageContentPart,
     PromptAnthropicInvocationParameters,
     PromptAwsInvocationParameters,
     PromptChatTemplate,
@@ -42,6 +40,10 @@ from phoenix.db.types.prompts import (
     ToolCallContentPart,
     ToolCallFunction,
     ToolResultContentPart,
+)
+from phoenix.db.types.media_parts import (
+    FileContentPart,
+    ImageContentPart,
 )
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.PromptInvocationParametersInput import (

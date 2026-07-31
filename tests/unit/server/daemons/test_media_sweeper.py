@@ -12,7 +12,6 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.media import MediaContent, hosted_media_url
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
-    ImageContentPart,
     PromptChatTemplate,
     PromptMessage,
     PromptOpenAIInvocationParameters,
@@ -20,6 +19,9 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
     TextContentPart,
+)
+from phoenix.db.types.media_parts import (
+    ImageContentPart,
 )
 from phoenix.server.daemons.media_sweeper import MediaSweeper, referenced_digests
 from phoenix.server.types import DbSessionFactory

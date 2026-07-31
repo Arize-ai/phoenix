@@ -13,12 +13,14 @@ from phoenix.db import models
 from phoenix.db.types.media import MediaContent, MediaVariable, hosted_media_url
 from phoenix.db.types.model_provider import LLMClientFactory
 from phoenix.db.types.prompts import (
-    FileContentPart,
-    ImageContentPart,
     PromptChatTemplate,
     PromptMessage,
     PromptTemplateFormat,
     TextContentPart,
+)
+from phoenix.db.types.media_parts import (
+    FileContentPart,
+    ImageContentPart,
     media_variable_names,
 )
 from phoenix.server.api.exceptions import BadRequest

@@ -16,6 +16,8 @@ from phoenix.db.types.prompts import (
     PromptMessageRole,
     PromptTemplateType,
     RoleConversion,
+)
+from phoenix.db.types.media_parts import (
     media_source,
 )
 from phoenix.db.types.prompts import (

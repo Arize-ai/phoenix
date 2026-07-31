@@ -37,13 +37,15 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
-    ImageContentPart,
     PromptChatTemplate,
     PromptInvocationParameters,
     PromptTemplateFormat,
     PromptTools,
     RoleConversion,
     TextContentPart,
+)
+from phoenix.db.types.media_parts import (
+    ImageContentPart,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.message_helpers import (
