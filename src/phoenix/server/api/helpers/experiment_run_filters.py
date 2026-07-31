@@ -136,6 +136,13 @@ def _compile_sqlalchemy_filter_condition(
         original_tree = ast.parse(filter_condition, mode="eval")
     except SyntaxError as error:
         raise ExperimentRunFilterConditionSyntaxError(str(error))
+    except ValueError as error:
+        # A NUL anywhere in the source, which `ast.parse` reports as a
+        # `ValueError` rather than a `SyntaxError`.
+        raise ExperimentRunFilterConditionSyntaxError(
+            "Filter condition cannot contain a NUL character"
+        ) from error
+    _validate_python_surface(original_tree.body)
 
     trees_with_bound_attribute_names = _bind_free_attribute_names(original_tree, experiment_ids)
     has_free_attribute_names = bool(trees_with_bound_attribute_names)
@@ -595,7 +602,14 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
         self._aliased_experiment_run_annotations: dict[ExperimentID, dict[EvalName, Any]] = {}
 
     def visit_Constant(self, node: ast.Constant) -> Constant:
-        return Constant(value=node.value, ast_node=node)  # type: ignore[arg-type]
+        value = node.value
+        if not (value is None or isinstance(value, (bool, int, float, str))):
+            # `_validate_python_surface` already rejected these, so reaching
+            # here means it and `Constant` disagree about the value types.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Unsupported literal: `{ast.unparse(node)}`"
+            )
+        return Constant(value=value, ast_node=node)
 
     def visit_List(self, node: ast.List) -> Any:
         # There is no node type for a collection, so an untransformed `ast.List`
@@ -808,6 +822,72 @@ def _cast_json_value(compiled_operand: Any, cast_type: SQLAlchemyDataType) -> An
     if isinstance(cast_type, String):
         return _as_json_scalar(compiled_operand)
     return cast(compiled_operand, cast_type)
+
+
+def _validate_python_surface(body: ast.expr) -> None:
+    """Reject Python constructs this language never implemented.
+
+    The grammar is a subset of Python's, taken by parsing with `ast`, so every
+    literal and operator Python has arrives here whether or not anything handles
+    it. Unhandled ones used to reach the transformer and fail with whatever
+    Python raised at the point of contact -- an `AttributeError` on an
+    untransformed node, an `AssertionError` from `assert_never` -- which the
+    compile boundary reports as "Invalid filter condition" and logs at error
+    level. A typo then reads as a fault in the server and costs a stack trace.
+
+    Rejecting the surface up front makes each of these a named message about
+    what the user typed, and keeps the boundary for what it is meant to catch:
+    gaps we do not know about.
+    """
+    for node in ast.walk(body):
+        if isinstance(node, ast.Constant):
+            _validate_literal(node)
+        elif isinstance(node, ast.BinOp):
+            # No binary arithmetic is implemented -- there is no `visit_BinOp`,
+            # so every one of these reached compilation as a raw `ast.BinOp`.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Arithmetic is not supported here: `{ast.unparse(node)}`"
+            )
+        elif isinstance(node, ast.UnaryOp) and not isinstance(node.op, (ast.Not, ast.USub)):
+            # `+x` and `~x` are the two Python leaves beside the supported
+            # `not` and unary minus. `~` reaches SQLAlchemy as `NOT x`, which is
+            # unrelated to what was written.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Unsupported operator: `{ast.unparse(node)}`"
+            )
+        elif isinstance(node, (ast.Dict, ast.Set)):
+            # The collection literals with no visitor. `ast.List` and
+            # `ast.Tuple` have one and say so themselves; these reached
+            # compilation untransformed.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Unsupported collection: `{ast.unparse(node)}`"
+            )
+
+
+def _validate_literal(node: ast.Constant) -> None:
+    """Literals are limited to the value types this language compares against.
+
+    `b'x'`, `1j`, and `...` have no column type to compare against; the driver
+    either refuses them or binds something meaningless. Non-finite floats and
+    embedded NULs are accepted by SQLite and rejected by PostgreSQL, so admitting
+    them would make a condition's validity depend on the backend it runs on.
+    """
+    value = node.value
+    if value is None or isinstance(value, (bool, int)):
+        return
+    if isinstance(value, str):
+        if "\x00" in value:
+            raise ExperimentRunFilterConditionSyntaxError(
+                "String literals cannot contain a NUL character"
+            )
+        return
+    if isinstance(value, float):
+        if value != value or value in (float("inf"), float("-inf")):
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Invalid numeric literal: `{ast.unparse(node)}`"
+            )
+        return
+    raise ExperimentRunFilterConditionSyntaxError(f"Unsupported literal: `{ast.unparse(node)}`")
 
 
 def _as_json_scalar(compiled_operand: Any) -> Any:

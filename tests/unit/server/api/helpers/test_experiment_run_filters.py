@@ -1,4 +1,6 @@
 import ast
+import logging
+import re
 import sys
 from typing import Any
 
@@ -579,12 +581,29 @@ def test_unsupported_membership_says_what_is_unsupported(filter_condition: str) 
         compile_sqlalchemy_filter_condition(filter_condition=filter_condition, experiment_ids=[0])
 
 
-def test_compile_sqlalchemy_filter_condition_does_not_leak_internal_messages() -> None:
-    """`assert_never` reports that our code believed a branch unreachable, which
-    describes the implementation rather than the user's condition."""
+def test_compile_sqlalchemy_filter_condition_does_not_leak_internal_messages(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unanticipated failure is reported as a filter error, not a fault.
+
+    `assert_never` reports that our code believed a branch unreachable, and a
+    raw `AttributeError` names an internal type; both describe the
+    implementation rather than the user's condition.
+
+    The failure is injected rather than triggered by some construct that
+    happens to be unhandled today. This boundary exists for gaps we do not know
+    about, so any input chosen to reach it stops reaching it the moment that gap
+    is closed -- which is how this test came to assert the old, worse message
+    for `b'abc'` after the surface validator started naming it.
+    """
+
+    def explode(*args: Any, **kwargs: Any) -> Any:
+        raise AttributeError("'Constant' object has no attribute 'compile'")
+
+    monkeypatch.setattr(SQLAlchemyTransformer, "visit", explode)
     with pytest.raises(ExperimentRunFilterConditionSyntaxError) as exc_info:
         compile_sqlalchemy_filter_condition(
-            filter_condition="error == b'abc'",
+            filter_condition="error == 'boom'",
             experiment_ids=[0],
         )
     assert str(exc_info.value) == "Invalid filter condition"
@@ -726,3 +745,76 @@ def test_free_attribute_name_binder_produces_correct_output(
     assert binder.binds_free_attribute_name == expected_binds_free_attribute_name
     transformed_expr = ast.unparse(transformed_tree)
     assert transformed_expr == expected_output_expression
+
+
+class TestInheritedPythonSurface:
+    """Constructs `ast.parse` admits that this language never implemented.
+
+    Each of these used to reach the transformer, fail with whatever Python
+    raised at the point of contact, and be reported as "Invalid filter
+    condition" with a stack trace logged at error level -- a typo presented as a
+    server fault. The message must name what the user typed.
+    """
+
+    @pytest.mark.parametrize(
+        "condition,expected",
+        [
+            pytest.param("error == b'abc'", "Unsupported literal: `b'abc'`", id="bytes"),
+            pytest.param("error == ...", "Unsupported literal: `...`", id="ellipsis"),
+            pytest.param("error == 1j", "Unsupported literal: `1j`", id="complex"),
+            pytest.param("error == 1e400", "Invalid numeric literal: `1e309`", id="non-finite"),
+            pytest.param(
+                r"error == 'a\x00b'",
+                "String literals cannot contain a NUL character",
+                id="nul-in-literal",
+            ),
+            pytest.param(
+                "latency_ms ** 2 > 1",
+                "Arithmetic is not supported here: `latency_ms ** 2`",
+                id="power",
+            ),
+            pytest.param(
+                "latency_ms + 1 > 1",
+                "Arithmetic is not supported here: `latency_ms + 1`",
+                id="add",
+            ),
+            pytest.param(
+                "latency_ms | 2 > 1",
+                "Arithmetic is not supported here: `latency_ms | 2`",
+                id="bitwise-or",
+            ),
+            pytest.param("~latency_ms > 1", "Unsupported operator: `~latency_ms`", id="invert"),
+            pytest.param("+latency_ms > 1", "Unsupported operator: `+latency_ms`", id="unary-plus"),
+            pytest.param("{'a': 1} == error", "Unsupported collection: `{'a': 1}`", id="dict"),
+            pytest.param("{1, 2} == error", "Unsupported collection: `{1, 2}`", id="set"),
+        ],
+    )
+    def test_rejected_with_a_message_naming_the_construct(
+        self, condition: str, expected: str
+    ) -> None:
+        with pytest.raises(ExperimentRunFilterConditionSyntaxError, match=re.escape(expected)):
+            compile_sqlalchemy_filter_condition(filter_condition=condition, experiment_ids=[1])
+
+    def test_nul_in_the_source_is_not_a_server_error(self) -> None:
+        # `ast.parse` reports this as a `ValueError`, which callers do not
+        # catch, so it escaped the boundary that turns input into filter errors.
+        with pytest.raises(
+            ExperimentRunFilterConditionSyntaxError, match="cannot contain a NUL character"
+        ):
+            compile_sqlalchemy_filter_condition(
+                filter_condition="error == 'a\x00b'", experiment_ids=[1]
+            )
+
+    def test_rejection_does_not_log_an_error(self, caplog: pytest.LogCaptureFixture) -> None:
+        # The catch-all logs with a traceback, which is right for a gap we do
+        # not know about and wrong for a construct we have decided to reject.
+        with caplog.at_level(logging.ERROR):
+            for condition in ("error == b'abc'", "latency_ms ** 2 > 1", "~latency_ms > 1"):
+                with pytest.raises(ExperimentRunFilterConditionSyntaxError):
+                    compile_sqlalchemy_filter_condition(
+                        filter_condition=condition, experiment_ids=[1]
+                    )
+        assert not caplog.records
+
+    def test_supported_arithmetic_still_compiles(self) -> None:
+        compile_sqlalchemy_filter_condition(filter_condition="-latency_ms > 1", experiment_ids=[1])

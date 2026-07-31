@@ -212,7 +212,13 @@ class SpanFilter:
         object.__setattr__(self, "condition", self.condition.strip())
         if not (source := self.condition):
             return
-        root = ast.parse(source, mode="eval")
+        try:
+            root = ast.parse(source, mode="eval")
+        except ValueError as error:
+            # A NUL anywhere in the source, which `ast.parse` reports as a
+            # `ValueError` rather than a `SyntaxError`. Callers catch only the
+            # latter, so it would escape as a server error.
+            raise SyntaxError("condition cannot contain a NUL character") from error
         _validate_expression(root, source, valid_eval_names=self.valid_eval_names)
         # Derived from the tree parsed just above rather than from the source
         # again, so a caller holding a filter is spared a parse of its own.
@@ -369,7 +375,9 @@ def root_span_scope(condition: str) -> typing.Optional[RootSpanScope]:
         return None
     try:
         body = ast.parse(condition, mode="eval").body
-    except SyntaxError:
+    except (SyntaxError, ValueError):
+        # `ValueError` is a NUL in the source. This entry point takes arbitrary
+        # strings from the API, so anything unparseable reads as "cannot tell".
         return None
     except RecursionError:
         # Deeply nested input, e.g. a long chain of `not`. Both the parser and
