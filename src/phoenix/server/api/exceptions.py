@@ -72,8 +72,9 @@ def _find_custom_error(
 
 
 class PhoenixErrorMasker(SchemaExtension):
-    """Replace error messages with the inner CustomGraphQLError's message
-    if present; otherwise mask with a generic message (when enabled)."""
+    """Replace error messages with the inner safe public error's message
+    (a CustomGraphQLError or SpanFilterError) if present; otherwise mask
+    with a generic message (when enabled)."""
 
     def _rewrite(self, error: GraphQLError) -> GraphQLError:
         inner = _find_custom_error(error)

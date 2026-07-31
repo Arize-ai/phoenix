@@ -11,7 +11,7 @@ was executed rather than reasoned about. The version matrix that claim rests on:
 | SQLite | bundled `sqlean` build | `text_contains` and the JSON functions `sqlean` provides |
 | PostgreSQL | 12.22 and 17.10 | **12** — `jsonb_path_query_first` (PG 12) and `jsonb`→`numeric` casts (PG 11) |
 
-PostgreSQL 12 is the floor because `_SafeJsonFloat` compiles to
+PostgreSQL 12 is the floor because `SafeJsonFloat` compiles to
 `jsonb_path_query_first`, which does not exist before it. Behavioral checks
 below were run on 17; the cast and JSON-path shapes the guarantees depend on were
 additionally confirmed on 12, since a floor that is never exercised is not a
@@ -27,8 +27,11 @@ server from three directions:
 - the `spans(filterCondition:)` GraphQL argument and its sibling resolvers
 - `SpanQuery` in the REST/client surface, via `SpanFilter.from_dict`
 
-The public entry points are `SpanFilter(condition)` and the module-level
-`root_span_scope(condition)`.
+The public entry points are `SpanFilter(condition)`, the module-level
+`root_span_scope(condition)`, and `SpanFilterError` — the exception type
+callers catch, and part of the API contract: the GraphQL error masker
+(`exceptions.py`) surfaces its message verbatim because it is known to be
+user-safe. All three are exported from `phoenix.trace.dsl`.
 
 ### Why the grammar is about to become a contract
 
@@ -67,7 +70,12 @@ then handed to the backend, which is where
 [the remaining failure modes](#validation-is-not-execution) live.
 
 `validateSpanFilterCondition` (GraphQL) runs all three phases, evaluates, and
-additionally compiles the statement to SQL text. It does **not** execute.
+additionally compiles the statement to SQL text against **both dialects**,
+whichever backend is live. Compiling both is the enforcement of the
+dialect-independence guarantee in [Dialect Semantics](#dialect-semantics): a
+condition only one backend can compile is rejected everywhere, rather than
+validating on the deployment that happens not to hit the defect. It does
+**not** execute.
 
 All three phases raise `SpanFilterError`, a subclass of `SyntaxError`. Stack
 exhaustion at any phase is normalized to
@@ -115,6 +123,16 @@ Names resolve to typed span columns:
 `llm.token_count.completion`, `llm.token_count.total`. These live in the JSON
 `attributes` column but are known to be numeric, so they are cast rather than
 compared as text.
+
+**Case-folded enums** — `span_kind` and `status_code` hold uppercase enum
+values (`'LLM'`, `'OK'`, …), and any string literal compared against either is
+uppercased during translation — including each element of a membership list and
+the needle of a substring containment. `span_kind == 'llm'`,
+`span_kind == 'LLM'`, and `span_kind in ['llm']` select the same rows. The fold
+applies to these two names only (`name == 'llm'` stays case-sensitive) and to
+literals only; a dynamic operand is compared as-is. This is observable meaning —
+a stored condition's row set depends on it — so the fold is part of the
+compatibility surface, not an implementation detail.
 
 **Reserved** — `parent_span`. Usable *only* as `parent_span is None` /
 `parent_span is not None` (and the `==`/`!=` spellings). Traversal
@@ -174,7 +192,10 @@ legacy alias retained for compatibility. Valid members are `.score` (number),
 `.label` (string), and `.explanation` (string). Any other member is rejected,
 with a "did you mean" suggestion when it is close to a valid one.
 
-A bare `annotations['name']` is an **existence check** and is boolean-valued.
+A bare `annotations['name']` is an **existence check** and is boolean-valued:
+true when an annotation row with that name exists on the span at all
+(`CASE WHEN <alias>.id IS NOT NULL`), regardless of whether its score, label,
+or explanation are null.
 Each distinct name in a condition produces its own aliased `LEFT JOIN` against
 `span_annotations`, so a condition may join the table several times.
 
@@ -190,7 +211,7 @@ multi-line sources are explicitly tested.
 | Number | Python int/float literals |
 | Boolean | `True`, `False` |
 | Null | `None` |
-| Collection | list or tuple of literals, homogeneously typed |
+| Collection | list or tuple of literals, homogeneously typed, no `None` elements |
 | Datetime | ISO 8601 string **with an offset** |
 
 **Datetime literals must carry a timezone.** `'2024-01-01T00:00:00Z'` and
@@ -211,6 +232,14 @@ and only when they match:
 Python's `float()` is deliberately *not* the test. It also accepts `1_000`,
 `nan`, `inf` and surrounding whitespace, which the two backends do not treat
 alike — SQLite casts `'1_000'` to `1.0` while PostgreSQL rejects it outright.
+
+**Every numeric literal must be finite as a float**, in whatever spelling it
+arrives. The grammar above bounds the spelling, not the magnitude, so
+`float('1e400')` matches it and overflows to `inf` — the exact value the bare
+`1e400` rule rejects. The converted *value* is checked as well as the text, and
+the same rule covers unbounded int literals: Python parses `'9' * 320` digits
+happily, but neither backend has a faithful float for it — asyncpg refuses the
+bind while SQLite quietly stores infinity.
 
 ### Operators
 
@@ -238,6 +267,18 @@ SQLAlchemy expressions define no `__pos__`.
 Membership requires a span field on the left. `1 in [1, 2]` is rejected: it
 would translate to `1.in_([1, 2])` and raise a bare `AttributeError` from inside
 `SpanFilter.__call__`.
+
+`None` is rejected inside a membership list. SQL `IN` compares elements with
+`=`, and `= NULL` is never true, so `name in [None]` can never match — and under
+three-valued logic `name not in ['a', None]` is never true for *any* row, which
+silently empties the result set. Missing values are tested with `is None` /
+`is not None`.
+
+Substring containment is **case-sensitive** on both backends (`strpos` on
+PostgreSQL, `text_contains` on SQLite), with one exception: a literal needle
+searched against a case-folded enum field is uppercased first, so
+`'llm' in span_kind` matches where `'llm' in name` would not — see
+[Field names](#field-names).
 
 ### Casts
 
@@ -298,7 +339,10 @@ exempt, so `latency_ms == None` is legal.
 
 There is exactly one exception, for datetimes: a string **literal** compared
 against a datetime field is bound as a datetime rather than rejected. That is
-how datetime literals are written at all.
+how datetime literals are written at all. The exemption applies per element
+inside a membership list as well — `start_time in ['2024-01-01T00:00:00Z']` is
+legal, and each element must satisfy the datetime-literal rules (ISO 8601, with
+an offset).
 
 ### No implicit numeric coercion
 
@@ -333,11 +377,11 @@ valid: ``cannot compare number and string, write 100 instead of '100'``.
 An attribute's type cannot be known before the rows are read, so comparisons
 involving one are admitted and resolved at translation:
 
-- compared against a boolean → `_SafeJsonBoolean`
-- compared against a number, or wrapped in `float()`/`int()` → `_SafeJsonFloat`
+- compared against a boolean → `SafeJsonBoolean`
+- compared against a number, or wrapped in `float()`/`int()` → `SafeJsonFloat`
 - otherwise → cast to text
 
-Both `_SafeJson*` functions are **total**: a value that cannot be converted
+Both `SafeJson*` functions are **total**: a value that cannot be converted
 yields `NULL` and the row drops out rather than aborting the statement. This is
 the mechanism that makes schemaless attributes safe to filter on, and it is
 verified against deliberately hostile rows (`"abc"`, `"1_000"`, `"nan"`,
@@ -770,8 +814,8 @@ Some things genuinely cannot be decided before the rows are read. Attribute
 values are schemaless; `attributes['x']` has no type until you look.
 
 For those, there are exactly two acceptable designs — **reject statically**, or
-**make the operation total** so it can never abort. `_SafeJsonFloat` and
-`_SafeJsonBoolean` take the second: an unconvertible value yields `NULL` and its
+**make the operation total** so it can never abort. `SafeJsonFloat` and
+`SafeJsonBoolean` take the second: an unconvertible value yields `NULL` and its
 row drops out.
 
 The unacceptable middle is a partial operation that aborts at layer 5. That is
@@ -1060,8 +1104,21 @@ and, where possible, suggest the repair.
 | Value in boolean position | ``​`r` is not a condition, expected a comparison such as `r == ...`​`` |
 | Mismatched comparison | `cannot compare number and string` (+ unquote hint when applicable) |
 | Naive datetime | ``datetime literal '...' has no timezone, add an offset (e.g. 'Z' for UTC)`` |
+| Malformed datetime | ``invalid datetime literal: '...'`` |
 | Uncastable string | `cannot cast string to number` |
+| Non-finite or overflowing numeric | `invalid numeric literal: 1e400` (bare, via cast, or an int past float range) |
+| Cast to text of a typed operand | `cannot cast boolean to text` (also `number`, `datetime`, and non-string literals) |
 | Two literals in membership | ``​`1 in [1, 2]` compares two literals, expected a span field on the left`` |
+| `None` in a membership list | ``​`name in [None]` includes None, which never matches in SQL; test for missing values with `is None` / `is not None`​`` |
+| Non-collection, non-text right of `in` | ``​`in` expects a collection or a text field on the right, got `...`​`` |
+| Collection outside membership | ``​`name == ('a', 'b')` compares against a collection, which is only supported with `in` / `not in`​`` |
+| Nested collection | ``​`['a']` is not a value, collections cannot be nested`` |
+| `is` with a non-singleton | ``​`name is 'abc'` uses `is` with a value, which SQL cannot express; use `==`, or `is` with None/True/False`` |
+| Confusable identifier | ``​`ｎａｍｅ` is interpreted as `name`, use unaccented ASCII for field names`` |
+| NUL in source / in a literal | `condition cannot contain a NUL character` / `string literals cannot contain a NUL character` |
+| Unsupported unary operator | `unsupported operator: ~latency_ms` |
+| Unsupported literal | `unsupported literal: b'abc'` |
+| `parent_span` traversal | ``​`parent_span.name` is not supported: ... only `parent_span is None` and `parent_span is not None` are supported`` |
 | Unknown annotation member | ``invalid eval attribute `.x` in `...`, expected `.score` or …`` |
 | Unsupported construct | `invalid expression: <source>` |
 | Depth limit | `filter condition is nested too deeply` |
@@ -1087,6 +1144,11 @@ PostgreSQL error text as the *symptom*.
   the validator and the database is asserted by hand-written cases only.
 - **`Projector`** (the projection sibling of `SpanFilter`) has weaker
   validation; `TestProjectorValidationGap` documents this deliberately.
+- **Membership between two JSON operands** (`attributes['p'] in
+  attributes['q']`) is accepted and compiles to string containment over the two
+  text renderings. That is the same class of divergence as two-JSON equality —
+  boolean spellings, key order, quoting can differ per backend — but unlike
+  equality it is not pinned by a test.
 - **Collation and numeric precision** differ between backends and are not
   specified.
 
@@ -1106,6 +1168,9 @@ against a SQL backend:
 | `latency_ms == 1j` | bound as complex | Same. |
 | `name == ...` | bound as `Ellipsis` | Same. |
 | `latency_ms < 1e400` | bound as IEEE `inf` | Non-finite floats behave differently per dialect — and `'inf'` as a *string* was already rejected, so admitting the float form was inconsistent. |
+| `latency_ms == float('1e400')` | `Constant(inf)` baked into the tree | The numeric-string grammar bounds the spelling, not the magnitude, so an in-grammar spelling could still overflow to the value the literal rule rejects. |
+| `latency_ms == 9…9` (320 digits) | unbounded int bound as a parameter | Python ints have no size limit; asyncpg refuses the bind, SQLite stores infinity. |
+| `name not in ['a', None]` | `NOT IN ('a', NULL)` | Never true for any row under three-valued logic; the filter validated and silently returned nothing. |
 | `name == ('a','b')` | tuple bound as a scalar | A collection is only meaningful on the right of `in`/`not in`. |
 | `name in [['a']]` | nested container | No scalar value for a column to match. |
 | `name == 'a\x00b'` | NUL in a bind | SQLite accepts, PostgreSQL rejects at execution — validity would depend on the backend. |
@@ -1137,10 +1202,14 @@ document is meant to focus.
 **The experiment-run filter** (`src/phoenix/server/api/helpers/experiment_run_filters.py`)
 is the real sibling: an independent implementation of the same idea, over
 experiment runs and dataset examples, with its own parser, its own validation,
-and its own translation to the same two dialects. Everything in this document
-applies to it. Because the two share intent but not code, a defect fixed here
-stays open there until it is ported by hand — which is how each of them was
-found.
+and its own translation to the same two dialects. The *principles* in this
+document apply to it wholesale; the grammar does not — it has no datetime type,
+rejects list membership outright, and resolves a different vocabulary (`input`,
+`output`, `evals[...]`, `experiments[n]`). Because the two share intent but not
+code, a defect fixed here stays open there until it is ported by hand — which
+is how each of them was found. The inherited-surface rejections, the NFKC fold,
+the membership type rule, the non-finite literal rule, and the requirement to
+key into whole-document JSON columns have each made that trip.
 
 **The session filter** (`src/phoenix/server/session_filters.py`) is not a
 language at all. It is one function that takes a plain string and matches it
@@ -1158,6 +1227,7 @@ go looking for a grammar that does not exist.
 | Path | Role |
 |---|---|
 | `src/phoenix/trace/dsl/filter.py` | Parser, validator, translator, scope analysis |
+| `src/phoenix/db/models.py` | `SafeJsonFloat`, `SafeJsonBoolean`, `TextContains` — the dialect-specific SQL the guarantees compile to |
 | `src/phoenix/server/api/types/Project.py` | `validateSpanFilterCondition`, `analyzeSpanFilterCondition` |
 | `src/phoenix/server/api/exceptions.py` | `SpanFilterError` → GraphQL error mapping |
 | `app/src/components/filter/DSLFilterConditionField.tsx` | Debounced field, error badge |
@@ -1165,3 +1235,7 @@ go looking for a grammar that does not exist.
 | `app/src/pages/project/spanFilterSeed.ts` | Mount-time seed classification |
 | `app/src/pages/project/SpanFilterErrorFallback.tsx` | Error-boundary fallback |
 | `tests/unit/trace/dsl/test_filter.py` | Grammar, type, dialect, and execution tests |
+| `tests/unit/trace/dsl/test_filter_spec_conformance.py` | Executable form of this document's accept/reject tables |
+| `tests/unit/trace/dsl/test_filter_error_messages.py` | Pins the user-facing messages above |
+| `tests/unit/trace/dsl/test_filter_hostile_data.py` | Execution against hostile rows, both dialects |
+| `tests/unit/trace/dsl/test_filter_json_operand_comparison.py` | Pins JSON-operand comparison semantics and known divergences |
