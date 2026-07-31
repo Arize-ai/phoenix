@@ -353,15 +353,30 @@ means the same thing on both, or is rejected on both.**
 Guaranteed:
 
 - Validation is dialect-independent. Accept/reject never varies by backend.
-- Dynamic JSON conversion is total on both (`_SafeJsonFloat`,
-  `_SafeJsonBoolean`), including the three JSON boolean encodings (`true`,
+- Dynamic JSON conversion is total on both (`SafeJsonFloat`,
+  `SafeJsonBoolean`), including the three JSON boolean encodings (`true`,
   `"true"`, `1`) and their false counterparts, with JSON `null` matching neither.
+- A container never converts to a number. This needs `strict $.double()` on
+  PostgreSQL: a jsonpath in the default **lax** mode auto-unwraps arrays, so
+  `[1, 2]` converts to `1` and matches a comparison against a number the row
+  does not hold.
 
 Not guaranteed:
 
+- **JSON booleans compared as numbers.** SQLite's `json_extract` collapses JSON
+  `true` to the integer `1`, so `metadata['x'] >= 0` matches a boolean there and
+  not on PostgreSQL. The distinction is destroyed before the conversion sees
+  the value — `json_type` can recover it only when given the original column
+  *and* path — so closing this means passing the path down rather than the
+  extracted value.
 - **Row-level ordering and collation.** String comparison collation differs.
 - **Numeric precision.** PostgreSQL `NUMERIC` vs SQLite `REAL`.
 - **NULL sort position** in downstream `ORDER BY`.
+
+The last is a general hazard worth naming: **a conversion pipeline can destroy
+the information a later stage needs to decide correctly.** Once the extraction
+step has mapped two distinct JSON types onto one SQL value, no amount of care
+downstream can tell them apart.
 
 Divergence here is the most expensive kind of defect this language can have: the
 same condition can crash one backend and return silently wrong rows on the
@@ -672,6 +687,23 @@ The unacceptable middle is a partial operation that aborts at layer 5. That is
 the worst of both: it passes every static check, works in development, and fails
 on a customer's data.
 
+Totality is harder to hold onto than to introduce, in two ways that have both
+bitten:
+
+**It must be gated by type, and the gate must survive derivation.** A safe
+conversion belongs only where the unsafe case exists. Applying `SafeJsonFloat`
+to something already numeric produces
+`jsonb_path_query_first(numeric, …) does not exist` — the wrapper meant to
+prevent failure becomes the failure. The gate is the operand's type, so every
+*derived* node has to report one: a node that says "unknown" when its operand
+was numeric silently re-enables the wrapper.
+
+**It is a property of the composition, not of the leaf.** `-attributes['x']`
+was converted after negation, and no backend defines unary minus on a JSON
+value. The conversion has to happen at the innermost point where the value
+stops being JSON, not wherever the cast happens to be applied. A total leaf
+inside a partial expression is still partial.
+
 ### 3. Reject rather than coerce, when the types are known
 
 Coercion hides intent; rejection reveals it. When both sides are statically
@@ -810,6 +842,20 @@ empty project. Fixtures for this module should contain values chosen to break
 things — unconvertible text where numbers are expected, all three JSON boolean
 encodings, nulls, containers where scalars are expected, multi-byte names.
 
+The highest-yield shape is **one key whose JSON type differs on every row** —
+number, numeric string, non-numeric string, boolean, null, array, object,
+absent. Ten spans with varied attributes found nothing; a single key with nine
+shapes found a cross-dialect divergence immediately, because every conversion
+path meets every input in one query.
+
+**Snapshot tests are the seductive case.** They look like verification and are
+not: a snapshot records the SQL we *generate*, never whether that SQL *runs*.
+Three separate snapshots in this codebase recorded PostgreSQL that cannot
+execute — `X IS Y` between two expressions, a raw `CAST(jsonb AS FLOAT)`, and
+`-'hello'` — each passing for as long as it existed. A snapshot is a
+change-detector for the compiler, and it is worth having as that; it is not
+evidence that anything works.
+
 ### 10. Reason about databases by running them
 
 Database behavior is unusually resistant to reasoning from the outside. Casts,
@@ -827,6 +873,27 @@ function you are relying on may simply not exist yet.
 The same applies to reviews and bug reports about this module, from any source:
 a claim about what a database does is a hypothesis until it has been run on both
 backends.
+
+### 11. Agreement is a stronger property than success
+
+"Runs without error on both backends" and "returns the same rows on both
+backends" are different claims, and only the second is what this language
+promises. The gap between them is where the subtlest defects live: a query that
+succeeds everywhere while quietly meaning something different per backend
+raises nothing to notice.
+
+A probe over hostile rows reported no errors on either backend and was taken as
+confirmation. Asserting the *row sets* over the same data then showed
+`metadata['x'] == 1` matching a JSON `true` on SQLite and a JSON `[1, 2]` on
+PostgreSQL — two independent defects pointing opposite ways, both invisible to
+the error check.
+
+This also decides how to assert it. Comparing the two backends *to each other*
+is weaker than it looks: it passes whenever both are wrong in the same way. A
+**fixed expected result, checked on each backend**, catches divergence and
+shared defects alike — so the cross-dialect guarantee is best enforced by
+ordinary parametrized tests run under both dialects, not by a comparison
+harness.
 
 ### Subtly overlooked
 
@@ -864,14 +931,17 @@ Things that are easy to leave unspecified until they bite:
 ### A checklist for changing this language
 
 1. Which layer of the ladder rejects it? Can an earlier one?
-2. Does it behave identically on SQLite and PostgreSQL — **executed**, not
-   compiled?
-3. If it cannot be decided statically, is it total?
+2. Do both backends return the **same rows** — executed, not compiled, and
+   compared by result rather than by absence of error?
+3. If it cannot be decided statically, is it total — and is the conversion
+   gated by type, and applied at the innermost point where the value stops
+   being JSON?
 4. Is it a new *name*? Then it changes the meaning of existing conditions.
 5. Is it a restriction? Then it is only possible before persistence ships.
 6. What does the error say, and is the suggestion always valid?
 7. Does it change what `root_span_scope` reports?
 8. Does SessionFilter share the machinery being touched?
+9. If a snapshot changed, has the new SQL been *run* on both backends?
 
 ## Error Messages
 
