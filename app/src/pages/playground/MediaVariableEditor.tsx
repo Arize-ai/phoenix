@@ -19,7 +19,7 @@ import {
   AttachmentRemove,
   Attachments,
 } from "@phoenix/components/ai/attachment";
-import type { MediaKind } from "@phoenix/schemas/promptSchemas";
+import type { MediaKind } from "@phoenix/schemas/mediaPartSchemas";
 import {
   importMediaFromUrl,
   mediaDisplayName,

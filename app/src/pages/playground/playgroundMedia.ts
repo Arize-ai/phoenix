@@ -1,4 +1,4 @@
-import type { MediaKind } from "@phoenix/schemas/promptSchemas";
+import type { MediaKind } from "@phoenix/schemas/mediaPartSchemas";
 import type {
   PlaygroundInput,
   PlaygroundInstance,

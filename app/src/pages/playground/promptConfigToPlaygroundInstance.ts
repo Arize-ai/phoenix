@@ -17,6 +17,8 @@ import {
   asFileVariablePart,
   asImagePart,
   asImageVariablePart,
+} from "@phoenix/utils/mediaParts";
+import {
   asTextPart,
   asToolCallPart,
   asToolResultPart,

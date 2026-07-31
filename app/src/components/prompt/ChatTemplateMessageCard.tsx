@@ -28,6 +28,8 @@ import type {
   FileVariablePart,
   ImagePart,
   ImageVariablePart,
+} from "@phoenix/schemas/mediaPartSchemas";
+import type {
   ToolCallPart,
   ToolResultPart,
 } from "@phoenix/schemas/promptSchemas";

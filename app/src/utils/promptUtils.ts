@@ -11,15 +11,19 @@ import type {
   FileVariablePart,
   ImagePart,
   ImageVariablePart,
-  TextPart,
-  ToolCallPart,
-  ToolResultPart,
-} from "@phoenix/schemas/promptSchemas";
+} from "@phoenix/schemas/mediaPartSchemas";
 import {
   filePartSchema,
   fileVariablePartSchema,
   imagePartSchema,
   imageVariablePartSchema,
+} from "@phoenix/schemas/mediaPartSchemas";
+import type {
+  TextPart,
+  ToolCallPart,
+  ToolResultPart,
+} from "@phoenix/schemas/promptSchemas";
+import {
   textPartSchema,
   toolCallPartSchema,
   toolResultPartSchema,
@@ -80,57 +84,6 @@ export const makeToolResultPart = (
 ) => {
   const optimisticToolResultPart = { toolResult: { toolCallId, result } };
   const parsed = toolResultPartSchema.safeParse(optimisticToolResultPart);
-  return parsed.success ? parsed.data : null;
-};
-
-export const asImagePart = (maybePart: unknown): ImagePart | null => {
-  const parsed = imagePartSchema.safeParse(maybePart);
-  return parsed.success ? parsed.data : null;
-};
-
-export const asImageVariablePart = (
-  maybePart: unknown
-): ImageVariablePart | null => {
-  const parsed = imageVariablePartSchema.safeParse(maybePart);
-  return parsed.success ? parsed.data : null;
-};
-
-export const makeImageVariablePart = (variable?: string | null) => {
-  const parsed = imageVariablePartSchema.safeParse({ image: { variable } });
-  return parsed.success ? parsed.data : null;
-};
-
-export const makeImagePart = (
-  url?: string | null,
-  mediaType?: string | null
-) => {
-  const optimisticImagePart = { image: { url, mediaType } };
-  const parsed = imagePartSchema.safeParse(optimisticImagePart);
-  return parsed.success ? parsed.data : null;
-};
-
-export const asFilePart = (maybePart: unknown): FilePart | null => {
-  const parsed = filePartSchema.safeParse(maybePart);
-  return parsed.success ? parsed.data : null;
-};
-
-export const asFileVariablePart = (
-  maybePart: unknown
-): FileVariablePart | null => {
-  const parsed = fileVariablePartSchema.safeParse(maybePart);
-  return parsed.success ? parsed.data : null;
-};
-
-export const makeFileVariablePart = (variable?: string | null) => {
-  const parsed = fileVariablePartSchema.safeParse({ file: { variable } });
-  return parsed.success ? parsed.data : null;
-};
-
-export const makeFilePart = (
-  url?: string | null,
-  mediaType?: string | null
-) => {
-  const parsed = filePartSchema.safeParse({ file: { url, mediaType } });
   return parsed.success ? parsed.data : null;
 };
 

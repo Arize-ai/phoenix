@@ -5,7 +5,7 @@ import type {
   FileVariablePart,
   ImagePart,
   ImageVariablePart,
-} from "@phoenix/schemas/promptSchemas";
+} from "@phoenix/schemas/mediaPartSchemas";
 import type { ChatMessage } from "@phoenix/store";
 
 /** Everything a message editor needs to show and edit the message's media. */

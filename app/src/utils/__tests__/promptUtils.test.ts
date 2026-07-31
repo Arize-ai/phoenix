@@ -5,10 +5,10 @@ import {
   asFileVariablePart,
   asImagePart,
   asImageVariablePart,
-  asTextPart,
   makeFilePart,
   makeFileVariablePart,
-} from "@phoenix/utils/promptUtils";
+} from "@phoenix/utils/mediaParts";
+import { asTextPart } from "@phoenix/utils/promptUtils";
 
 /**
  * The shapes Relay hands back for a prompt message's content union. A member the

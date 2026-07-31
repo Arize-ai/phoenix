@@ -8,7 +8,7 @@ import {
   AttachmentRemove,
   Attachments,
 } from "@phoenix/components/ai/attachment";
-import type { FilePart, ImagePart } from "@phoenix/schemas/promptSchemas";
+import type { FilePart, ImagePart } from "@phoenix/schemas/mediaPartSchemas";
 import { mediaDisplayName, resolveMediaUrl } from "@phoenix/utils/mediaUtils";
 
 import type { MessageMediaState } from "./media/useMessageMedia";

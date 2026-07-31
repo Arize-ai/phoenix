@@ -21,7 +21,7 @@ import type {
   FileVariablePart,
   ImagePart,
   ImageVariablePart,
-} from "@phoenix/schemas/promptSchemas";
+} from "@phoenix/schemas/mediaPartSchemas";
 import type { mediaContentPartFragment$key } from "@phoenix/utils/__generated__/mediaContentPartFragment.graphql";
 
 export const mediaContentPartFragment = graphql`

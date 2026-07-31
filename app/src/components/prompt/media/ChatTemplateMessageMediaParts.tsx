@@ -24,14 +24,14 @@ import type {
   FileVariablePart,
   ImagePart,
   ImageVariablePart,
-} from "@phoenix/schemas/promptSchemas";
-import { mediaDisplayName, resolveMediaUrl } from "@phoenix/utils/mediaUtils";
+} from "@phoenix/schemas/mediaPartSchemas";
 import {
   asFilePart,
   asFileVariablePart,
   asImagePart,
   asImageVariablePart,
-} from "@phoenix/utils/promptUtils";
+} from "@phoenix/utils/mediaParts";
+import { mediaDisplayName, resolveMediaUrl } from "@phoenix/utils/mediaUtils";
 
 import { MEDIA_PART_TYPE_TITLE as PART_TYPE_TITLE } from "./partTitles";
 

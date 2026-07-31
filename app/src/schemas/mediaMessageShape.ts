@@ -5,7 +5,7 @@ import {
   fileVariablePartSchema,
   imagePartSchema,
   imageVariablePartSchema,
-} from "@phoenix/schemas/promptSchemas";
+} from "@phoenix/schemas/mediaPartSchemas";
 
 /**
  * The media fields a playground chat message carries, spread into its schema.

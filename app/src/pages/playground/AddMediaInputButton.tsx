@@ -16,12 +16,12 @@ import {
   View,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import type { MediaKind } from "@phoenix/schemas/promptSchemas";
+import type { MediaKind } from "@phoenix/schemas/mediaPartSchemas";
 import { selectPlaygroundInstanceMessage } from "@phoenix/store/playground/selectors";
 import {
   makeFileVariablePart,
   makeImageVariablePart,
-} from "@phoenix/utils/promptUtils";
+} from "@phoenix/utils/mediaParts";
 
 import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
 

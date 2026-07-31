@@ -1,4 +1,3 @@
-import type { Mock } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authApiFetch } from "@phoenix/api/authApiFetch";
@@ -9,6 +8,7 @@ import {
   getSpanDownloadTimestamp,
   sanitizeSpanDownloadFileName,
 } from "../spanDownloadUtils";
+import { mockSpansPageOnce } from "./__fixtures__/mockSpansPage";
 
 vi.mock("@phoenix/api/authApiFetch", () => ({
   authApiFetch: {
@@ -31,21 +31,6 @@ function readBlob(blob: Blob): Promise<string> {
     });
     reader.addEventListener("error", () => reject(reader.error));
     reader.readAsText(blob);
-  });
-}
-
-/**
- * Resolves the mocked client with one spans page.
- *
- * `authApiFetch.GET` is typed over every GET path in the REST API, so an inline
- * object literal leaves TypeScript to guess which path's response shape is meant —
- * a guess that shifts whenever an endpoint is added. These tests assert on the
- * request rather than on response typing, so the mock value is supplied loosely.
- */
-function mockSpansPageOnce(spans: unknown[]): void {
-  (vi.mocked(authApiFetch.GET) as unknown as Mock).mockResolvedValueOnce({
-    data: { data: spans, next_cursor: null },
-    response: new Response(null, { status: 200 }),
   });
 }
 
