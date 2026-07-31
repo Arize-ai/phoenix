@@ -6,9 +6,16 @@ import {
   useDeferredValue,
   useEffect,
   useEffectEvent,
+  useState,
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
-import { Outlet, useLocation, useNavigate, useParams } from "react-router";
+import {
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router";
 
 import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
 import {
@@ -17,10 +24,22 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
+import {
+  CREATE_CODE_EVALUATOR_PARAM,
+  CREATE_LLM_EVALUATOR_PARAM,
+} from "@phoenix/constants/searchParams";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
-import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
+import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
+import {
+  CreateProjectEvaluatorSlideover,
+  type ProjectEvaluatorCreationMode,
+} from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
+import {
+  clearSelectionScopedParams,
+  withSearchParams,
+} from "@phoenix/utils/urlUtils";
 
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
@@ -46,7 +65,7 @@ const mainCSS = css`
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    div[role="tablist"] {
+    > div[role="tablist"] {
       flex: none;
     }
     .tabs__pane-container {
@@ -62,6 +81,29 @@ const mainCSS = css`
       }
     }
   }
+`;
+
+/**
+ * Puts tab-scoped actions on the tab header row. The row grows to fit the
+ * padded action button while the tabs stay anchored to the bottom border,
+ * and the bottom border moves here from the TabList.
+ */
+const tabBarRowCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  flex: none;
+  border-bottom: 1px solid var(--tab-border-color);
+  .project-tab-bar__actions {
+    flex: none;
+    padding: var(--global-dimension-size-100);
+  }
+`;
+
+/** Must go on the TabList's own css prop to win against its base styles. */
+const tabBarTabListCSS = css`
+  flex: 1 1 auto;
+  border-bottom: none;
 `;
 
 export function ProjectPage() {
@@ -142,6 +184,35 @@ function ProjectPageContentBody({
   );
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
+  const [creationMode, setCreationMode] =
+    useState<ProjectEvaluatorCreationMode | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const shouldOpenScratchFromUrl =
+    searchParams.get(CREATE_LLM_EVALUATOR_PARAM) === "true";
+  const shouldOpenNewCodeFromUrl =
+    searchParams.get(CREATE_CODE_EVALUATOR_PARAM) === "true";
+  const urlCreationMode: ProjectEvaluatorCreationMode | null =
+    shouldOpenScratchFromUrl
+      ? { kind: "scratch" }
+      : shouldOpenNewCodeFromUrl
+        ? { kind: "newCode" }
+        : null;
+  const activeCreationMode =
+    tab === "evaluators" ? (creationMode ?? urlCreationMode) : null;
+  const clearCreationMode = () => {
+    setCreationMode(null);
+    if (shouldOpenScratchFromUrl || shouldOpenNewCodeFromUrl) {
+      setSearchParams(
+        (previousSearchParams) => {
+          const nextSearchParams = new URLSearchParams(previousSearchParams);
+          nextSearchParams.delete(CREATE_LLM_EVALUATOR_PARAM);
+          nextSearchParams.delete(CREATE_CODE_EVALUATOR_PARAM);
+          return nextSearchParams;
+        },
+        { replace: true }
+      );
+    }
+  };
   const data = useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
       query ProjectPageQuery($id: ID!, $timeRange: TimeRange!) {
@@ -223,7 +294,14 @@ function ProjectPageContentBody({
   const onTabChange = useCallback(
     (index: number) => {
       startTransition(() => {
-        const search = clearSelectionScopedParams(location.search);
+        setCreationMode(null);
+        const search = withSearchParams(
+          clearSelectionScopedParams(location.search),
+          (params) => {
+            params.delete(CREATE_LLM_EVALUATOR_PARAM);
+            params.delete(CREATE_CODE_EVALUATOR_PARAM);
+          }
+        );
         const tab = TAB_PATH_BY_INDEX[index] ?? "spans";
         navigate({
           pathname: `${rootPath}/${tab}`,
@@ -256,14 +334,24 @@ function ProjectPageContentBody({
           }}
           selectedKey={tab}
         >
-          <TabList>
-            <Tab id="spans">Spans</Tab>
-            <Tab id="traces">Traces</Tab>
-            <Tab id="sessions">Sessions</Tab>
-            <Tab id="metrics">Metrics</Tab>
-            <Tab id="evaluators">Evaluators</Tab>
-            <Tab id="config">Config</Tab>
-          </TabList>
+          <div css={tabBarRowCSS}>
+            <TabList css={tabBarTabListCSS}>
+              <Tab id="spans">Spans</Tab>
+              <Tab id="traces">Traces</Tab>
+              <Tab id="sessions">Sessions</Tab>
+              <Tab id="metrics">Metrics</Tab>
+              <Tab id="evaluators">Evaluators</Tab>
+              <Tab id="config">Config</Tab>
+            </TabList>
+            {tab === "evaluators" ? (
+              <div className="project-tab-bar__actions">
+                <AddProjectEvaluatorMenu
+                  size="S"
+                  onSelectCreationMode={setCreationMode}
+                />
+              </div>
+            ) : null}
+          </div>
           <LazyTabPanel padded={false} id="spans">
             <Outlet />
           </LazyTabPanel>
@@ -283,6 +371,16 @@ function ProjectPageContentBody({
             <Outlet />
           </LazyTabPanel>
         </Tabs>
+        {activeCreationMode ? (
+          <CreateProjectEvaluatorSlideover
+            isOpen
+            onOpenChange={(isOpen) => {
+              if (!isOpen) clearCreationMode();
+            }}
+            projectId={projectId}
+            creationMode={activeCreationMode}
+          />
+        ) : null}
       </ProjectPageQueryReferenceContext.Provider>
     </main>
   );

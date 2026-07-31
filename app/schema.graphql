@@ -2523,6 +2523,11 @@ type Mutation {
   Update a CODE project evaluator. Editing changes the underlying evaluator, which applies to every project and dataset it is bound to. SPAN is executable; TRACE and SESSION are stored but inactive until their runtimes are available.
   """
   updateProjectCodeEvaluator(input: UpdateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
+
+  """
+  Enable or disable a project evaluator. Flips only the enabled flag on the project binding, leaving the underlying evaluator untouched. Works for both LLM and CODE evaluators.
+  """
+  setProjectEvaluatorEnabled(input: SetProjectEvaluatorEnabledInput!): ProjectEvaluatorMutationPayload!
   deleteProjectEvaluators(input: DeleteProjectEvaluatorsInput!): DeleteProjectEvaluatorsPayload!
   createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
@@ -4019,6 +4024,11 @@ type SetExperimentBaselinePayload {
   previousBaselineExperiment: Experiment
 }
 
+input SetProjectEvaluatorEnabledInput {
+  projectEvaluatorId: ID!
+  enabled: Boolean!
+}
+
 input SetPromptLabelsInput {
   promptId: ID!
   promptLabelIds: [ID!]!
@@ -4061,6 +4071,11 @@ type Span implements Node {
   spanId: ID!
   trace: Trace!
   context: SpanContext!
+
+  """
+  The canonical input, output, and metadata context that online evaluators bind against when they run on this span.
+  """
+  evaluationContext: JSON!
 
   """Span attributes as a JSON string"""
   attributes: String!
@@ -4800,12 +4815,12 @@ type UpdateModelMutationPayload {
 input UpdateProjectCodeEvaluatorInput {
   projectEvaluatorId: ID!
   name: Identifier!
-  evaluatorInputMapping: EvaluatorInputMappingInput!
   samplingRate: Float!
   evaluationTarget: EvaluationTarget!
   filterCondition: String!
-  enabled: Boolean!
-  description: String = null
+  evaluatorInputMapping: EvaluatorInputMappingInput
+  enabled: Boolean
+  description: String
   sourceCode: String
   sandboxConfigId: ID
   outputConfigs: [AnnotationConfigInput!]
@@ -4825,7 +4840,7 @@ input UpdateProjectLLMEvaluatorInput {
   samplingRate: Float!
   evaluationTarget: EvaluationTarget!
   filterCondition: String!
-  enabled: Boolean!
+  enabled: Boolean
   description: String = null
   promptVersionId: ID
 }

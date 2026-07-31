@@ -271,8 +271,9 @@ test.describe.serial("Server Evaluators", () => {
     // Click the label text instead which properly toggles the switch.
     await page.getByText("Case sensitive", { exact: true }).click();
 
-    // Click Update button
-    await page.getByRole("button", { name: "Update" }).click();
+    // Click Update button (exact match to avoid the version-update
+    // notice's "Dismiss update notification" button)
+    await page.getByRole("button", { name: "Update", exact: true }).click();
 
     // Wait for dialog to close
     await expect(page.getByTestId("dialog")).not.toBeVisible();
@@ -378,8 +379,9 @@ test.describe.serial("Server Evaluators", () => {
     await descriptionInput.clear();
     await descriptionInput.fill(updatedDescription);
 
-    // Click Update button
-    await page.getByRole("button", { name: "Update" }).click();
+    // Click Update button (exact match to avoid the version-update
+    // notice's "Dismiss update notification" button)
+    await page.getByRole("button", { name: "Update", exact: true }).click();
 
     // Wait for dialog to close
     await expect(page.getByTestId("dialog")).not.toBeVisible();
