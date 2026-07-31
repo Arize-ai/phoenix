@@ -27,7 +27,7 @@ import {
   pxiGlowFlashOpacity,
   pxiGlowWipe,
   pxiGlowWipeMaskCSS,
-  pxiThinkingGlowWipe,
+  pxiThinkingGlowTravelCSS,
 } from "./pxiStyles";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 
@@ -152,10 +152,7 @@ const thinkingBorderCSS = css`
     mix-blend-mode: plus-lighter;
     pointer-events: none;
     opacity: 1;
-    -webkit-mask-position: center;
-    mask-position: center;
-    /* Preserve the original 200% / 3000ms velocity across the full 240% path. */
-    animation: ${pxiThinkingGlowWipe} 3600ms linear infinite both -0.5s;
+    ${pxiThinkingGlowTravelCSS};
   }
 
   .agent-chat-widget__shimmer::before {
