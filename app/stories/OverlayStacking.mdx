@@ -21,6 +21,11 @@ overlay bugs in this codebase — click-through to table rows, submenus painting
 beneath their parent, popovers locking scroll unexpectedly — trace back to
 answering one of these questions with the other one's vocabulary.
 
+> A note on copying from this page's stories: every demo is the production
+> component in a production-supported state, but a docs page needs a few
+> accommodations production never does. Those are marked `Story-only:` in the
+> story source — copy everything else freely.
+
 ## The ladder
 
 Stacking is centralized in a single ladder of z-index tokens in
@@ -31,7 +36,8 @@ top-level surfaces against each other.
 The demo below renders one tile per token, deliberately in **reverse DOM
 order** — highest band first. Without the tokens, DOM order would paint
 `local-base` on top of everything; the staircase you see is the ladder
-asserting itself.
+asserting itself. Each tile reads its numeric value live from the token, so
+the labels cannot drift from `GlobalStyles`.
 
 <Canvas of={StackingStories.BandLadder} />
 
@@ -44,23 +50,23 @@ is a new token, not a bigger number.
 
 Reading the ladder bottom to top:
 
-- **`local-base` → `local-control` (0–300)** — everything inside a single
-  scrollable container: content, sticky headers, in-container scrims, and
-  floating controls such as the drawer's resize handle.
-- **`app-drawer` (500)** — the details drawer. Above all page content,
-  beneath everything that floats.
-- **`app-floating` / `app-floating-control` (1000/1100)** — persistent
-  floating surfaces: the assistant panel, and popovers that behave like small
-  panels rather than transient overlays.
-- **`app-modal-backdrop` / `app-modal` (2000/2100)** — the modal underlay and
-  the dialog surface above it. Everything below these is intentionally
-  buried while a modal is open.
-- **`app-modal-floating` (2200/2300)** — floating UI deliberately elevated to
+- **`local-base` → `local-control`** — everything inside a single scrollable
+  container: content, sticky headers, in-container scrims, and floating
+  controls such as the drawer's resize handle.
+- **`app-drawer`** — the details drawer. Above all page content, beneath
+  everything that floats.
+- **`app-floating` / `app-floating-control`** — persistent floating surfaces:
+  the assistant panel, and popovers that behave like small panels rather than
+  transient overlays.
+- **`app-modal-backdrop` / `app-modal`** — the modal underlay and the dialog
+  surface above it. Everything below these is intentionally buried while a
+  modal is open.
+- **`app-modal-floating(-control)`** — floating UI deliberately elevated to
   remain usable _over_ an open modal (see the last section).
-- **`app-portaled-overlay` (3000)** — transient, light-dismiss overlays:
-  popovers, menus, selects, tooltips. They portal to the body and must win
-  against whatever surface launched them — including modals.
-- **`app-notification` (4000)** — toasts. Nothing may bury a notification.
+- **`app-portaled-overlay`** — transient, light-dismiss overlays: popovers,
+  menus, selects, tooltips. They portal to the body and must win against
+  whatever surface launched them — including modals.
+- **`app-notification`** — toasts. Nothing may bury a notification.
 
 ## Modality is an interaction contract
 
@@ -77,13 +83,34 @@ Choose from the task, not the appearance:
 
 - A blocking decision → modal (`Modal` + `Dialog`).
 - Consult-while-working surfaces — annotation editing, detail previews,
-  filter builders → `isNonModal`.
-- Menus, selects, tooltips → transient and light-dismiss; they should never
-  lock scroll or hide the app from assistive technology.
+  filter builders → `isNonModal`, usually with `closeOnInteractOutside` (see
+  below).
+- Menus, selects, tooltips → transient and light-dismiss; they must never
+  lock scroll or hide the app from assistive technology. **Phoenix menus are
+  non-modal by design**: `MenuContainer` resolves this deliberately, so a
+  plain menu needs no modality props at all.
 
-Every pre-opened overlay on this page is `isNonModal`, and that choice is
-self-demonstrating: if any one of them were modal, _this documentation page
-would not scroll_.
+Non-modal does not mean unprotected. React Aria's non-modal popovers do not
+dismiss on outside press by themselves, and a naive implementation would let
+the dismissing press activate whatever sits beneath — the click-through
+defect class. Phoenix's `Popover` closes this categorically with
+`closeOnInteractOutside`: the press that dismisses the popover is **consumed**
+(the same guarantee a modal underlay provides) without the scroll lock or the
+`ariaHideOutside` walk, presses inside descendant overlays are recognized
+across portals and left alone, and a press on the popover's own trigger closes
+it without reopening. `MenuContainer` turns this on for root menus
+automatically.
+
+The stories on this page put that contract on display: everything is
+pre-opened and non-modal, which is why the docs page you are reading still
+scrolls — and dismissing any demo with an outside press will not activate
+anything beneath it.
+
+One deliberate counter-example exists: a surface launched from a `MenuTrigger`
+is not automatically a menu. The annotation-management panels open from menu
+triggers but are management dialogs, and they explicitly keep the modal
+contract (`isNonModal={false}`) they were built with. The trigger component
+never decides modality; the task does.
 
 ## Stacking is a paint order
 
@@ -95,7 +122,7 @@ token names themselves:
 <Popover>…</Popover>
 
 // Persistent, panel-like popover that modals should cover.
-<Popover isNonModal stacking="app-floating">…</Popover>
+<Popover isNonModal closeOnInteractOutside stacking="app-floating">…</Popover>
 ```
 
 Pick the band from where the surface belongs in the app's stacking order —
@@ -128,6 +155,14 @@ pickers inside drawers' popovers. If you ever find yourself hand-tuning a
 z-index so a nested overlay shows up, the composition is wrong — fix the band
 or the nesting, not the number.
 
+Stacking is not the only geometry a composition owes its children. A submenu
+must open _beside_ its trigger item: placed below it, the pointer is doomed to
+cross sibling items on its way to the submenu, and hovering a sibling closes
+the submenu before it can be used. React Aria places submenus correctly
+(`"end top"`), and `MenuContainer` defers to that — it applies its own
+`"bottom end"` default only to root menus. Do not pass a below-the-trigger
+placement to a submenu.
+
 ## The grand tour
 
 Everything at once, already opened the way a user would have opened it. The
@@ -135,24 +170,29 @@ framed viewport below holds page content at the local bands; the details
 drawer sits over it at `app-drawer`; an "Annotate" menu launched from inside
 the drawer occupies `app-portaled-overlay`, escaping the drawer entirely; and
 its "Add to dataset" submenu — opened by a real click in this story's play
-function — paints above that.
+function — sits beside its trigger item, above everything.
 
 <Canvas of={StackingStories.DrawerMenuSubmenu} />
+
+This composition is fully live, not a diorama: dismiss the menu with an
+outside press (nothing beneath activates), close the drawer with its close
+button, and reopen both — the "Open span details" button in the page header
+works _while the drawer is open_, because the drawer is non-modal.
 
 Walk the stack bottom to top and notice the _modality_ of each layer as well
 as its band:
 
 1. **The trace list** (local bands) — plain page content.
-2. **The drawer** (`app-drawer`, 500) — non-modal. The list behind it remains
+2. **The drawer** (`app-drawer`) — non-modal. The list behind it remains
    scrollable and clickable; closing the drawer is a navigation, not a
    dismissal of a blocking task.
-3. **The menu** (`app-portaled-overlay`, 3000) — transient and
-   light-dismiss. It portals to the body, so no `overflow: hidden` on the
-   drawer can clip it, and no drawer band can bury it.
-4. **The submenu** (same band, mounted later) — a real
-   `SubmenuTrigger` composition, exactly as production menus build it. Within
-   one band, later-mounted portals paint above earlier ones, which is always
-   the correct order for a gesture in progress.
+3. **The menu** (`app-portaled-overlay`) — transient and light-dismiss,
+   non-modal by design. It portals to the body, so no `overflow: hidden` on
+   the drawer can clip it, and no drawer band can bury it.
+4. **The submenu** (same band, mounted later) — a real `SubmenuTrigger`
+   composition, exactly as production menus build it, side-placed so the
+   pointer can reach it. Within one band, later-mounted portals paint above
+   earlier ones, which is always the correct order for a gesture in progress.
 
 Every layer here is more transient than the one beneath it, and every layer
 paints above the one that launched it. When either of those stops being true,
@@ -177,14 +217,19 @@ the interaction contract and the paint order moved independently.
 
 - **Choosing a band from a modality word.** `isNonModal` says nothing about
   where the surface belongs in the ladder.
+- **Choosing modality from the trigger component.** A `MenuTrigger` can open
+  a management dialog; a plain button can open a transient picker. The task's
+  contract decides, and the decision is written at the call site.
 - **Raw z-index overrides to "fix" a hidden overlay.** The clamp already
   guarantees children paint above parents; if something is buried, the
   composition or the band assignment is wrong.
-- **A modal child inside a non-modal parent.** A default-modal menu popover
-  inside a non-modal surface mounts an underlay over its own trigger
-  mid-gesture; combined with menus opening on mouse pointerdown, the
-  completed click retargets to whatever is beneath — the click-through defect
-  class. Pass `isNonModal` to overlays nested inside non-modal surfaces.
+- **Below-the-trigger submenu placement.** It dooms the pointer to cross
+  sibling items, which closes the submenu. Let React Aria's side placement
+  through.
+- **Non-modal without dismissal ownership.** `isNonModal` alone neither
+  dismisses on outside press nor protects what is beneath from the dismissing
+  press. Use `closeOnInteractOutside` (or bespoke `useInteractOutside`
+  machinery for coordinated sibling groups).
 - **Hiding a portaled overlay with `overflow: hidden`.** Portaled overlays
   escape containers by design. If an overlay must be clipped by its
   container, it belongs in a `local-*` band inside that container, not in a
