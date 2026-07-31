@@ -120,7 +120,7 @@ REJECTED = [
     ("not attributes['flag']", "is not a condition"),
     ("name == 'x' or 5", "is not a condition"),
     ("name == 'x' and annotations['q'].score", "is not a condition"),
-    ("span_kind", "invalid expression"),
+    ("span_kind", "is not a condition"),
     # membership needs a span field on the left
     ("1 in [1, 2]", "compares two literals"),
     # unsupported operators

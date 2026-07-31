@@ -259,7 +259,7 @@ class SpanFilter:
             # first.
             raise SpanFilterError("filter condition is nested too deeply") from None
         except SyntaxError as error:
-            raise SpanFilterError(str(error)) from error
+            raise SpanFilterError(_format_syntax_error(error)) from error
 
     def _initialize(self) -> None:
         object.__setattr__(self, "root_scope", None)
@@ -1415,6 +1415,28 @@ class _FilterTranslator(_ProjectionTranslator):
         return arg
 
 
+def _format_syntax_error(error: SyntaxError) -> str:
+    """Render a `SyntaxError` as a message about the condition.
+
+    `str()` on a parser error appends the filename and line -- `invalid syntax
+    (<unknown>, line 1)` -- which describes a file the user never wrote in.
+    Half-typed input is the most common thing this language sees, so that
+    wording is what most rejections would say.
+
+    `msg` carries the useful part on its own, and `offset` gives the column,
+    which is worth keeping: for a one-line condition it is the only thing that
+    locates the problem. Errors raised inside this module have no offset and
+    pass through as their message alone.
+    """
+    message = error.msg or "invalid syntax"
+    # Single-line conditions make the line number noise.
+    message = message.replace(" (detected at line 1)", "")
+    offset = error.offset
+    if offset is not None and offset > 0:
+        return f"{message} at character {offset}"
+    return message
+
+
 def _validate_python_surface(body: ast.expr, source: str) -> None:
     """Reject Python constructs that have no meaning in SQL.
 
@@ -1501,6 +1523,16 @@ def _validate_expression(
                 or _is_annotation(node)
             ):
                 continue
+            if isinstance(node, (ast.Name, ast.Attribute, ast.Subscript, ast.Constant)):
+                # A value as the whole condition, which is the same mistake as a
+                # value in `and` / `or` position and deserves the same wording.
+                # Falling through to the generic message below would name the
+                # fragment without saying what is wrong with it.
+                source_segment = ast.unparse(node)
+                raise SyntaxError(
+                    f"`{source_segment}` is not a condition"
+                    f", expected a comparison such as `{source_segment} == ...`"
+                )
         elif isinstance(node, (ast.Attribute, ast.Subscript)) and _is_parent_rooted(node):
             # `parent_span.<field>` traversal is not supported yet (the `parent_span`
             # keyword is fully reserved); reject with a clear message rather than
