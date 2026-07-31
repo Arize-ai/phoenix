@@ -23,6 +23,7 @@ from phoenix.db.types.annotation_configs import (
     ContinuousOutputConfig,
     FreeformOutputConfig,
     OutputConfigType,
+    as_output_configs,
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.identifier import Identifier as IdentifierModel
@@ -1954,14 +1955,7 @@ class EvaluatorMutationMixin:
             )
 
         if output_configs is None:
-            dataset_evaluator.output_configs = [
-                config
-                for config in code_evaluator.output_configs
-                if isinstance(
-                    config,
-                    (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
-                )
-            ]
+            dataset_evaluator.output_configs = as_output_configs(code_evaluator.output_configs)
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator),
@@ -2043,14 +2037,7 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"DatasetEvaluator with name {input.name} already exists")
 
         if dataset_evaluator.output_configs is None:
-            dataset_evaluator.output_configs = [
-                config
-                for config in evaluator.output_configs
-                if isinstance(
-                    config,
-                    (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
-                )
-            ]
+            dataset_evaluator.output_configs = as_output_configs(evaluator.output_configs)
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator),

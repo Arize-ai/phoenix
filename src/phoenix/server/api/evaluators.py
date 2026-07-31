@@ -30,9 +30,9 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
     ContinuousOutputConfig,
-    FreeformOutputConfig,
     OptimizationDirection,
     OutputConfigType,
+    as_output_configs,
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.model_provider import ModelProvider
@@ -888,13 +888,7 @@ async def get_evaluators(
             eval_description = evaluator_base.description if evaluator_base else None
 
             if backend is not None:
-                output_cfgs: list[OutputConfigType] = [
-                    c
-                    for c in code_row.output_configs
-                    if isinstance(
-                        c, (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig)
-                    )
-                ]
+                output_cfgs: list[OutputConfigType] = as_output_configs(code_row.output_configs)
                 runner = CodeEvaluatorRunner(
                     name=eval_name,
                     description=eval_description,

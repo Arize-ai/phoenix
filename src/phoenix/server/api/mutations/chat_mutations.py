@@ -12,7 +12,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     ContinuousOutputConfig,
     FreeformOutputConfig,
-    OutputConfig,
+    as_output_configs,
 )
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
@@ -331,22 +331,7 @@ class ChatCompletionMutationMixin:
                     evaluator_name = code_evaluator_record.name.root
                     evaluator_description = code_evaluator_record.description
                     evaluator_source_code = code_evaluator_version.source_code
-                    # Stored configs deserialize as base annotation-config
-                    # models, not output configs.
-                    output_configs = []
-                    for stored_config in code_evaluator_record.output_configs:
-                        if stored_config.name is None:
-                            continue
-                        output_config = OutputConfig.model_validate(stored_config.model_dump()).root
-                        if isinstance(
-                            output_config,
-                            (
-                                CategoricalOutputConfig,
-                                ContinuousOutputConfig,
-                                FreeformOutputConfig,
-                            ),
-                        ):
-                            output_configs.append(output_config)
+                    output_configs = as_output_configs(code_evaluator_record.output_configs)
 
                     if live_sandbox_config is not None:
                         try:

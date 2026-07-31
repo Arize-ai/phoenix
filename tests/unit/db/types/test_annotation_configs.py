@@ -78,3 +78,69 @@ def test_cannot_create_continuous_annotation_config_with_invalid_bounds(
             upper_bound=upper_bound,
             optimization_direction=OptimizationDirection.MAXIMIZE,
         )
+
+
+class TestAsOutputConfigs:
+    """as_output_configs re-validates base annotation-config models (the shape
+    _AnnotationConfigList columns deserialize to) into OutputConfig subclasses."""
+
+    def test_base_models_revalidate_into_output_configs(self) -> None:
+        from phoenix.db.types.annotation_configs import (
+            ContinuousOutputConfig,
+            FreeformAnnotationConfig,
+            FreeformOutputConfig,
+            as_output_configs,
+        )
+
+        base_configs = [
+            ContinuousAnnotationConfig(
+                type=AnnotationType.CONTINUOUS.value,
+                name="score",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                lower_bound=0.0,
+                upper_bound=1.0,
+            ),
+            FreeformAnnotationConfig(
+                type=AnnotationType.FREEFORM.value,
+                name="notes",
+            ),
+        ]
+        output_configs = as_output_configs(base_configs)
+        assert len(output_configs) == 2
+        continuous, freeform = output_configs
+        assert isinstance(continuous, ContinuousOutputConfig)
+        assert continuous.name == "score"
+        assert continuous.optimization_direction is OptimizationDirection.MAXIMIZE
+        assert continuous.lower_bound == 0.0
+        assert continuous.upper_bound == 1.0
+        assert isinstance(freeform, FreeformOutputConfig)
+        assert freeform.name == "notes"
+
+    def test_nameless_configs_are_skipped(self) -> None:
+        from phoenix.db.types.annotation_configs import as_output_configs
+
+        nameless = ContinuousAnnotationConfig(
+            type=AnnotationType.CONTINUOUS.value,
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+        )
+        assert as_output_configs([nameless]) == []
+
+    def test_output_config_instances_pass_through(self) -> None:
+        from phoenix.db.types.annotation_configs import (
+            CategoricalOutputConfig,
+            as_output_configs,
+        )
+
+        config = CategoricalOutputConfig(
+            type=AnnotationType.CATEGORICAL.value,
+            name="verdict",
+            optimization_direction=OptimizationDirection.MINIMIZE,
+            values=[CategoricalAnnotationValue(label="good", score=1.0)],
+        )
+        assert as_output_configs([config]) == [config]
+
+    def test_none_and_empty_input(self) -> None:
+        from phoenix.db.types.annotation_configs import as_output_configs
+
+        assert as_output_configs(None) == []
+        assert as_output_configs([]) == []
