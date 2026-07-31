@@ -16,6 +16,7 @@ import CodeMirror, {
   EditorView,
   keymap,
 } from "@uiw/react-codemirror";
+import type { ReactNode } from "react";
 import {
   startTransition,
   useEffect,
@@ -30,12 +31,15 @@ import { Pressable } from "react-aria";
 import {
   Flex,
   Icon,
+  IconButton,
   Icons,
   Text,
   Tooltip,
   TooltipTrigger,
   VisuallyHidden,
 } from "@phoenix/components";
+import { PxiAnimatedGlyph } from "@phoenix/components/agent/PxiAnimatedGlyph";
+import { PxiGlyph } from "@phoenix/components/agent/PxiGlyph";
 import {
   PxiOutline,
   type PxiOutlineState,
@@ -46,7 +50,6 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { classNames } from "@phoenix/utils/classNames";
 
 import { AISearchSettingsButton } from "./ai/AISearchSettingsButton";
-import { looksLikeDSLExpression } from "./ai/detectFilterExpression";
 import type { AISearchDSL } from "./ai/types";
 import type { AISearchGenerateResult, AISearchStatus } from "./ai/useAISearch";
 import { useAISearch } from "./ai/useAISearch";
@@ -159,9 +162,10 @@ export type DSLFilterValidationFailureReason = "invalid" | "transport";
 
 /**
  * Opts a filter field into AI search. The field then shows the AI search
- * settings entry point and — once the user enables the feature — detects
- * natural-language drafts, converts them to DSL on Enter with the
- * configured model (on-device browser AI by default), and offers an undo.
+ * settings entry point and — once the user enables the feature — a sparkle
+ * toggle that switches the field into plain-English mode: prose input with
+ * no DSL affordances, where Enter converts the query to DSL with the
+ * configured model (on-device browser AI by default) and offers an undo.
  */
 export type DSLFilterAISearchProps = {
   /**
@@ -171,9 +175,8 @@ export type DSLFilterAISearchProps = {
    */
   dsl: AISearchDSL;
   /**
-   * Placeholder shown while AI search is enabled, e.g.
-   * "filter spans — DSL or plain English". Falls back to the field's
-   * regular placeholder.
+   * Placeholder shown while the field is in plain-English mode, e.g.
+   * "search spans in plain English". Falls back to a generic prompt.
    */
   placeholder?: string;
 };
@@ -307,6 +310,51 @@ export type DSLFilterConditionFieldProps<
 };
 
 /**
+ * A danger badge in the field's control cluster whose tooltip carries the
+ * full story — one shell shared by the validation error and the AI
+ * conversion failure so the two read identically. `children` is the
+ * tooltip's detail below the title.
+ */
+function ErrorBadge({
+  ariaLabel,
+  badgeMessage,
+  title,
+  children,
+}: {
+  ariaLabel: string;
+  badgeMessage: string;
+  title: string;
+  children?: ReactNode;
+}) {
+  return (
+    <TooltipTrigger delay={0}>
+      <Pressable>
+        <div
+          role="button"
+          tabIndex={0}
+          className="error-badge"
+          aria-label={ariaLabel}
+        >
+          <Icon svg={<Icons.AlertCircle />} color="danger" />
+          <span className="error-badge__message">{badgeMessage}</span>
+        </div>
+      </Pressable>
+      <Tooltip placement="bottom end" css={dslFilterErrorTooltipCSS}>
+        <Flex direction="row" gap="size-100" alignItems="start">
+          <Icon svg={<Icons.AlertCircle />} color="danger" />
+          <Flex direction="column" gap="size-25">
+            <Text size="S" weight="heavy">
+              {title}
+            </Text>
+            {children}
+          </Flex>
+        </Flex>
+      </Tooltip>
+    </TooltipTrigger>
+  );
+}
+
+/**
  * A filter condition input for a python-like filter DSL. The typeahead
  * behaves like a combobox: focusing the empty field opens a dropdown of
  * suggested conditions and fields, arrow keys navigate, and Enter inserts.
@@ -391,7 +439,12 @@ function DSLFilterConditionFieldImpl<
   } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const [aiPhase, setAIPhase] = useState<AISearchPhase>(AI_SEARCH_IDLE);
+  // The sparkle toggle's state: whether the field is in plain-English mode.
+  // Deliberately per-field and session-local — the mode describes what the
+  // user is typing right now, not a durable preference.
+  const [isAIMode, setIsAIMode] = useState<boolean>(false);
   const isAIActive = ai?.isEnabled === true;
+  const isAIModeOn = isAIActive && isAIMode;
   const hasSettled = useRef<boolean>(false);
   const previousValidationRetryKey = useRef(validationRetryKey);
   // null means the condition is not known to be invalid; the empty string
@@ -410,13 +463,10 @@ function DSLFilterConditionFieldImpl<
   const hasError = errorMessage !== null;
   const hasCondition = value !== "";
 
-  // A non-empty draft that reads as prose is the AI's input; a draft with
-  // DSL syntax is the user writing the expression themselves
-  const isNaturalLanguageDraft =
-    isAIActive &&
-    aiPhase.name === "idle" &&
-    value.trim() !== "" &&
-    !looksLikeDSLExpression(value);
+  // In plain-English mode every non-empty idle draft is a query waiting
+  // for Enter — the state the "AI · ⏎" affordance points at
+  const hasPendingAIQuery =
+    isAIModeOn && aiPhase.name === "idle" && value.trim() !== "";
   const isConverting = aiPhase.name === "converting";
   // The validation effect keys on the phase *name* — keying on the phase
   // object would re-run validation on every object identity change
@@ -451,6 +501,10 @@ function DSLFilterConditionFieldImpl<
       if (result.outcome === "success") {
         onChange(result.condition);
         setAIPhase({ name: "generated", query });
+        // The result is DSL, so the field returns to DSL mode to show it —
+        // with completions and validation live for editing it. Undo flips
+        // back to plain-English mode with the original query.
+        setIsAIMode(false);
       } else if (result.outcome === "error") {
         onChange(query);
         setAIPhase({ name: "failed", query, message: result.message });
@@ -464,6 +518,19 @@ function DSLFilterConditionFieldImpl<
   const undoAIConversion = (query: string) => {
     onChange(query);
     setAIPhase(AI_SEARCH_IDLE);
+    setIsAIMode(true);
+    editorViewRef.current?.focus();
+  };
+
+  const toggleAIMode = () => {
+    if (isConverting) {
+      // Leaving mid-conversion abandons the run; its cancelled resolution
+      // restores the query
+      ai?.cancel();
+    } else if (aiPhase.name === "failed") {
+      setAIPhase(AI_SEARCH_IDLE);
+    }
+    setIsAIMode(!isAIMode);
     editorViewRef.current?.focus();
   };
 
@@ -482,11 +549,11 @@ function DSLFilterConditionFieldImpl<
       // preceded Enter, and converting -- or restoring on cancel -- a stale
       // draft would drop the user's last words
       maybeConvert: (currentText: string) => {
-        if (!isAIActive || isConverting) {
+        if (!isAIModeOn || isConverting) {
           return false;
         }
         const query = currentText.trim();
-        if (!query || looksLikeDSLExpression(query)) {
+        if (!query) {
           return false;
         }
         startAIConversion(query);
@@ -515,10 +582,62 @@ function DSLFilterConditionFieldImpl<
     loadedCompletionsRef.current = null;
   }, [loadCompletions]);
 
+  // The conversion keys work identically in both modes: with no completion
+  // open, Enter hands the draft to `maybeConvert` (which only engages in
+  // plain-English mode) and Escape walks back whatever AI search last did
+  const conversionKeymap = useMemo(
+    () =>
+      keymap.of([
+        {
+          key: "Enter",
+          run: (editorView: EditorView) => {
+            // Insert the highlighted completion if the dropdown is open;
+            // otherwise a plain-English draft converts via AI search.
+            // Always swallow the key so no newline is inserted.
+            if (!acceptCompletion(editorView)) {
+              aiRuntimeRef.current?.maybeConvert(
+                editorView.state.doc.toString()
+              );
+            }
+            return true;
+          },
+        },
+        {
+          key: "Escape",
+          run: (editorView: EditorView) => {
+            // With the typeahead open, Escape belongs to it; otherwise it
+            // walks back whatever AI search last did — cancels an in-flight
+            // conversion, undoes a finished one, dismisses a failure
+            if (completionStatus(editorView.state) !== null) {
+              return false;
+            }
+            return aiRuntimeRef.current?.handleEscape() ?? false;
+          },
+        },
+      ]),
+    []
+  );
+
+  const contentAttributes = useMemo(
+    () =>
+      EditorView.contentAttributes.of({
+        "aria-label": ariaLabel,
+        "aria-multiline": "false",
+      }),
+    [ariaLabel]
+  );
+
   // The extensions must be referentially stable across renders — a new
   // array causes a CodeMirror reconfigure, which resets the in-flight
-  // completion state (e.g. the dropdown opened by focusing the field)
+  // completion state (e.g. the dropdown opened by focusing the field).
+  // Plain-English mode strips the field down to prose: no DSL language, no
+  // typeahead — just the conversion keys and the accessible name. That
+  // branch comes first so none of the DSL machinery is built while the
+  // mode is on (a mode flip reconfigures the editor either way).
   const extensions = useMemo(() => {
+    if (isAIModeOn) {
+      return [conversionKeymap, contentAttributes];
+    }
     // Fetch loaded completions at most once per focus, retrying on failure
     // the next time the dropdown opens
     const loadCompletionsOnce = loadCompletions
@@ -543,34 +662,7 @@ function DSLFilterConditionFieldImpl<
       ...(isBrowsing ? fieldOptions.slice(0, MAX_BROWSE_FIELDS) : fieldOptions),
     ];
     return [
-      keymap.of([
-        {
-          key: "Enter",
-          run: (editorView: EditorView) => {
-            // Insert the highlighted completion if the dropdown is open;
-            // otherwise a natural-language draft converts via AI search.
-            // Always swallow the key so no newline is inserted.
-            if (!acceptCompletion(editorView)) {
-              aiRuntimeRef.current?.maybeConvert(
-                editorView.state.doc.toString()
-              );
-            }
-            return true;
-          },
-        },
-        {
-          key: "Escape",
-          run: (editorView: EditorView) => {
-            // With the typeahead open, Escape belongs to it; otherwise it
-            // walks back whatever AI search last did — cancels an in-flight
-            // conversion, undoes a finished one, dismisses a failure
-            if (completionStatus(editorView.state) !== null) {
-              return false;
-            }
-            return aiRuntimeRef.current?.handleEscape() ?? false;
-          },
-        },
-      ]),
+      conversionKeymap,
       pythonLanguage,
       // Surface the suggestions dropdown whenever the empty field is
       // focused, clicked, or cleared — the empty state doubles as a
@@ -589,10 +681,7 @@ function DSLFilterConditionFieldImpl<
           startCompletion(update.view);
         }
       }),
-      EditorView.contentAttributes.of({
-        "aria-label": ariaLabel,
-        "aria-multiline": "false",
-      }),
+      contentAttributes,
       autocompletion({
         override: [
           ...completionSources,
@@ -610,7 +699,15 @@ function DSLFilterConditionFieldImpl<
           completion.type === "text" ? "dsl-filter-suggestion" : "",
       }),
     ];
-  }, [snippets, completions, loadCompletions, completionSources, ariaLabel]);
+  }, [
+    isAIModeOn,
+    snippets,
+    completions,
+    loadCompletions,
+    completionSources,
+    conversionKeymap,
+    contentAttributes,
+  ]);
 
   // Validity attributes are applied directly to the contenteditable so
   // toggling them doesn't force a CodeMirror reconfigure
@@ -677,15 +774,13 @@ function DSLFilterConditionFieldImpl<
 
     reportValidationState(false);
 
-    // A natural-language draft is the AI's input, not a DSL expression —
-    // asking the validator about English only flags the field red while
-    // the user is mid-thought. The same goes for the partial expression
-    // streaming in during a conversion; the finished expression validates
-    // normally once the conversion settles.
-    if (
-      (isAIActive && !looksLikeDSLExpression(value)) ||
-      aiPhaseName === "converting"
-    ) {
+    // In plain-English mode the draft is the AI's input, not a DSL
+    // expression — asking the validator about English only flags the field
+    // red while the user is mid-thought. The same goes for the partial
+    // expression streaming in during a conversion; the finished expression
+    // validates normally once the conversion lands the field back in DSL
+    // mode.
+    if (isAIModeOn || aiPhaseName === "converting") {
       hasSettled.current = true;
       return undefined;
     }
@@ -741,22 +836,21 @@ function DSLFilterConditionFieldImpl<
       isCancelled = true;
       clearTimeout(timeout);
     };
-  }, [value, validateCondition, validationRetryKey, isAIActive, aiPhaseName]);
+  }, [value, validateCondition, validationRetryKey, isAIModeOn, aiPhaseName]);
 
   // The PXI treatment reflects how engaged AI search is: a resting stroke
-  // once a natural-language draft is detected, the full animated glow while
+  // while the field is in plain-English mode, the full animated glow while
   // a conversion is in flight. Fields without AI search stay permanently
   // idle, where the outline is invisible.
   const aiOutlineState: PxiOutlineState = isConverting
     ? "active"
-    : isNaturalLanguageDraft
+    : isAIModeOn
       ? "eligible"
       : "idle";
 
   return (
     <PxiOutline
       isFullWidth
-      glowMode="contained"
       state={aiOutlineState}
       shouldFlash
       css={dslFilterAIOutlineCSS}
@@ -765,12 +859,22 @@ function DSLFilterConditionFieldImpl<
         data-is-focused={isFocused}
         data-is-invalid={hasError}
         data-has-condition={hasCondition}
-        data-ai-natural-language={isNaturalLanguageDraft}
+        data-ai-mode={isAIModeOn}
         className={classNames("dsl-filter-condition-field", className)}
         css={dslFilterFieldCSS}
       >
         <Flex direction="row" alignItems="center">
-          <Icon svg={<Icons.ListFilter />} className="filter-icon" />
+          {isConverting ? (
+            // While converting, the glyph thinks — the same wave animation
+            // the Ask PXI nav button shows while it works
+            <span className="filter-icon dsl-filter-condition-field__thinking-glyph">
+              <PxiGlyph animation="wave-reveal" size={13} />
+            </span>
+          ) : isAIModeOn ? (
+            <PxiAnimatedGlyph isIconSized className="filter-icon" />
+          ) : (
+            <Icon svg={<Icons.ListFilter />} className="filter-icon" />
+          )}
           <CodeMirror
             css={dslFilterCodeMirrorCSS}
             indentWithTab={false}
@@ -792,137 +896,125 @@ function DSLFilterConditionFieldImpl<
             width="100%"
             theme={codeMirrorTheme}
             placeholder={
-              isAIActive && ai?.placeholder ? ai.placeholder : placeholder
+              isAIModeOn
+                ? (ai?.placeholder ??
+                  "Ask in plain English — Enter converts to a filter")
+                : placeholder
             }
             extensions={extensions}
           />
-          {hasError ? (
-            <TooltipTrigger delay={0}>
-              <Pressable>
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className="error-badge"
-                  aria-label="Filter condition error"
-                >
-                  <Icon svg={<Icons.AlertCircle />} color="danger" />
-                  <span className="error-badge__message">
-                    {errorMessage || "Invalid filter condition"}
-                  </span>
-                </div>
-              </Pressable>
-              <Tooltip placement="bottom end" css={dslFilterErrorTooltipCSS}>
-                <Flex direction="row" gap="size-100" alignItems="start">
-                  <Icon svg={<Icons.AlertCircle />} color="danger" />
-                  <Flex direction="column" gap="size-25">
-                    <Text size="S" weight="heavy">
-                      Invalid filter condition
-                    </Text>
-                    {errorMessage ? (
-                      <Text size="S" color="text-700">
-                        {errorMessage}
-                      </Text>
-                    ) : null}
-                  </Flex>
-                </Flex>
-              </Tooltip>
-            </TooltipTrigger>
-          ) : null}
-          {isNaturalLanguageDraft ? (
-            <span
-              className="ai-badge"
-              title="Press Enter to convert to a filter expression"
-            >
-              <Icon svg={<Icons.Sparkles />} />
-              AI · ⏎
-            </span>
-          ) : null}
-          {isConverting ? (
-            <span className="ai-badge">
-              <Icon svg={<Icons.Loader />} className="ai-badge__spinner" />
-              {ai?.status === "downloading"
-                ? `Downloading model… ${Math.round((ai?.downloadProgress ?? 0) * 100)}%`
-                : "Converting…"}
-            </span>
-          ) : null}
-          {aiPhase.name === "generated" ? (
-            <span className="ai-badge">
-              <Icon svg={<Icons.Sparkles />} />
-              <TooltipTrigger delay={0}>
-                <Pressable>
-                  <button
-                    onClick={() => undoAIConversion(aiPhase.query)}
-                    className="button--reset ai-undo-button"
-                    aria-label="Undo AI conversion and restore your query"
+          <div className="dsl-filter-condition-field__controls">
+            {hasError ? (
+              <ErrorBadge
+                ariaLabel="Filter condition error"
+                badgeMessage={errorMessage || "Invalid filter condition"}
+                title="Invalid filter condition"
+              >
+                {errorMessage ? (
+                  <Text size="S" color="text-700">
+                    {errorMessage}
+                  </Text>
+                ) : null}
+              </ErrorBadge>
+            ) : null}
+            {hasPendingAIQuery ? (
+              <span
+                className="ai-badge"
+                title="Press Enter to convert to a filter expression"
+              >
+                AI · ⏎
+              </span>
+            ) : null}
+            {/* The thinking glyph carries the "working" signal; a badge
+                only appears for the one state with real information — the
+                first-use model download and its progress */}
+            {isConverting && ai?.status === "downloading" ? (
+              <span className="ai-badge">
+                Downloading model…{" "}
+                {Math.round((ai?.downloadProgress ?? 0) * 100)}%
+              </span>
+            ) : null}
+            {aiPhase.name === "generated" ? (
+              <span className="ai-badge">
+                <TooltipTrigger delay={0}>
+                  <Pressable>
+                    <button
+                      onClick={() => undoAIConversion(aiPhase.query)}
+                      className="button--reset ai-undo-button"
+                      aria-label="Undo AI conversion and restore your query"
+                    >
+                      Undo
+                    </button>
+                  </Pressable>
+                  <Tooltip
+                    placement="bottom end"
+                    css={dslFilterErrorTooltipCSS}
                   >
-                    Undo
-                  </button>
-                </Pressable>
-                <Tooltip placement="bottom end" css={dslFilterErrorTooltipCSS}>
-                  <Flex direction="column" gap="size-25">
-                    <Text size="S" weight="heavy">
-                      Generated from “{aiPhase.query}”
-                    </Text>
-                    <Text size="S" color="text-700">
-                      Edit the expression freely, or undo to get your words
-                      back.
-                    </Text>
-                  </Flex>
+                    <Flex direction="column" gap="size-25">
+                      <Text size="S" weight="heavy">
+                        Generated from “{aiPhase.query}”
+                      </Text>
+                      <Text size="S" color="text-700">
+                        Edit the expression freely, or undo to get your words
+                        back.
+                      </Text>
+                    </Flex>
+                  </Tooltip>
+                </TooltipTrigger>
+              </span>
+            ) : null}
+            {aiPhase.name === "failed" ? (
+              <ErrorBadge
+                ariaLabel="AI search error"
+                badgeMessage="Couldn’t convert to a filter"
+                title="Couldn’t convert to a filter"
+              >
+                <Text size="S" color="text-700">
+                  {aiPhase.message}
+                </Text>
+                <Text size="S" color="text-700">
+                  Rephrase the request, or write the expression directly.
+                </Text>
+              </ErrorBadge>
+            ) : null}
+            {isAIActive ? (
+              <TooltipTrigger delay={500}>
+                <IconButton
+                  size="XS"
+                  aria-label="Plain-English search"
+                  aria-pressed={isAIModeOn}
+                  className="ai-mode-toggle"
+                  onPress={toggleAIMode}
+                >
+                  <Icon svg={<Icons.Sparkles />} />
+                </IconButton>
+                <Tooltip placement="bottom end">
+                  {isAIModeOn
+                    ? "Switch back to the filter DSL"
+                    : "Search in plain English"}
                 </Tooltip>
               </TooltipTrigger>
-            </span>
-          ) : null}
-          {aiPhase.name === "failed" ? (
-            <TooltipTrigger delay={0}>
-              <Pressable>
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className="error-badge"
-                  aria-label="AI search error"
-                >
-                  <Icon svg={<Icons.AlertCircle />} color="danger" />
-                  <span className="error-badge__message">
-                    Couldn’t convert to a filter
-                  </span>
-                </div>
-              </Pressable>
-              <Tooltip placement="bottom end" css={dslFilterErrorTooltipCSS}>
-                <Flex direction="row" gap="size-100" alignItems="start">
-                  <Icon svg={<Icons.AlertCircle />} color="danger" />
-                  <Flex direction="column" gap="size-25">
-                    <Text size="S" weight="heavy">
-                      Couldn’t convert to a filter
-                    </Text>
-                    <Text size="S" color="text-700">
-                      {aiPhase.message}
-                    </Text>
-                    <Text size="S" color="text-700">
-                      Rephrase the request, or write the expression directly.
-                    </Text>
-                  </Flex>
-                </Flex>
-              </Tooltip>
-            </TooltipTrigger>
-          ) : null}
-          {ai != null ? <AISearchSettingsButton /> : null}
-          <button
-            onClick={() => {
-              // Invalidate any in-flight conversion so its cancelled
-              // resolution can't restore the query over the clear
-              aiRunIdRef.current++;
-              if (isConverting) {
-                ai?.cancel();
-              }
-              setAIPhase(AI_SEARCH_IDLE);
-              onChange("");
-              editorViewRef.current?.focus();
-            }}
-            className="button--reset clear-button"
-            aria-label="Clear filter condition"
-          >
-            <Icon svg={<Icons.Close />} />
-          </button>
+            ) : null}
+            {ai != null ? <AISearchSettingsButton /> : null}
+            <IconButton
+              size="XS"
+              className="clear-button"
+              aria-label="Clear filter condition"
+              onPress={() => {
+                // Invalidate any in-flight conversion so its cancelled
+                // resolution can't restore the query over the clear
+                aiRunIdRef.current++;
+                if (isConverting) {
+                  ai?.cancel();
+                }
+                setAIPhase(AI_SEARCH_IDLE);
+                onChange("");
+                editorViewRef.current?.focus();
+              }}
+            >
+              <Icon svg={<Icons.Close />} />
+            </IconButton>
+          </div>
         </Flex>
         <VisuallyHidden>
           <span id={errorId} role="status">

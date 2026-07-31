@@ -43,7 +43,7 @@ const spanFilterCompletionSources = [
 
 const spanFilterAISearch: DSLFilterAISearchProps = {
   dsl: spanFilterAISearchDSL,
-  placeholder: "filter spans — DSL or plain English",
+  placeholder: "describe a span filter — Enter converts it to DSL",
 };
 
 /**
