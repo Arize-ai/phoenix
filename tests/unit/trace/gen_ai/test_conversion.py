@@ -459,6 +459,56 @@ def test_blob_part_becomes_data_url() -> None:
     )
 
 
+def test_reasoning_part_emits_structured_contents() -> None:
+    out = get_openinference_message_attributes(
+        _output_messages(
+            [
+                {
+                    "role": "assistant",
+                    "parts": [
+                        {"type": "reasoning", "content": "step one, then step two"},
+                        {"type": "text", "content": "parent_id is None"},
+                    ],
+                    "finish_reason": "stop",
+                }
+            ]
+        )
+    )
+    base = f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0"
+    contents = MessageAttributes.MESSAGE_CONTENTS
+    content_type = MessageContentAttributes.MESSAGE_CONTENT_TYPE
+    content_text = MessageContentAttributes.MESSAGE_CONTENT_TEXT
+    assert out[f"{base}.{contents}.0.{content_type}"] == "reasoning"
+    assert out[f"{base}.{contents}.0.{content_text}"] == "step one, then step two"
+    assert out[f"{base}.{contents}.1.{content_type}"] == "text"
+    assert out[f"{base}.{contents}.1.{content_text}"] == "parent_id is None"
+    # The reasoning text is not also duplicated into the flat message content.
+    assert f"{base}.{MessageAttributes.MESSAGE_CONTENT}" not in out
+
+
+def test_reasoning_only_message_keeps_reasoning() -> None:
+    out = get_openinference_message_attributes(
+        _output_messages(
+            [
+                {
+                    "role": "assistant",
+                    "parts": [{"type": "reasoning", "content": "thinking out loud"}],
+                    "finish_reason": "stop",
+                }
+            ]
+        )
+    )
+    base = f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0"
+    contents = MessageAttributes.MESSAGE_CONTENTS
+    assert (
+        out[f"{base}.{contents}.0.{MessageContentAttributes.MESSAGE_CONTENT_TYPE}"] == "reasoning"
+    )
+    assert (
+        out[f"{base}.{contents}.0.{MessageContentAttributes.MESSAGE_CONTENT_TEXT}"]
+        == "thinking out loud"
+    )
+
+
 def test_blob_part_without_mime_type_uses_octet_stream() -> None:
     out = get_openinference_message_attributes(
         _input_messages(
