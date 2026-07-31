@@ -254,6 +254,30 @@ const annotationPopoverCSS = css`
   width: min(420px, calc(100vw - var(--global-dimension-size-400)));
 `;
 
+const annotationConfigPopoverCSS = css`
+  display: flex;
+  flex-direction: column;
+  width: min(
+    var(--global-dimension-size-5000),
+    calc(100vw - var(--global-dimension-size-400))
+  );
+  overflow: hidden;
+
+  > .react-aria-Dialog {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  > .react-aria-Dialog > .annotation-config-editor {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: none;
+  }
+`;
+
 const annotationButtonMenuCSS = css`
   --menu-min-width: min(320px, calc(100vw - var(--global-dimension-size-400)));
   max-height: min(480px, calc(100vh - var(--global-dimension-size-800)));
@@ -278,6 +302,8 @@ const annotationConfigEditorCSS = css`
     var(--global-dimension-size-5000),
     calc(100vw - var(--global-dimension-size-400))
   );
+  max-width: 100%;
+  box-sizing: border-box;
 
   .annotation-config-editor__number-field {
     min-width: 0;
@@ -660,65 +686,79 @@ export function DetailPanelAnnotationButton({
       : children
     : null;
 
-  const annotationMenu = (
-    <MenuTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
-      {isProjectAnnotationsTrigger ? (
-        <Button
-          css={annotationManagementTriggerCSS}
-          size="S"
-          variant="quiet"
-          aria-label="Project annotations"
-          data-annotation-menu-open={isOpen}
-          onClick={(event) => event.stopPropagation()}
-        >
-          Project annotations
-        </Button>
-      ) : variant === "ghost" ? (
-        <AnnotationLabel
-          annotation={{ name: "Add annotation" }}
-          annotationDisplayPreference="none"
-          aria-label="Add annotation"
-          clickable
-          variant="ghost"
-        />
-      ) : (
-        <IconButton
-          css={annotationManagementTriggerCSS}
-          size="S"
-          aria-label="Add annotation"
-          data-annotation-menu-open={isOpen}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <Icon svg={<Icons.Plus />} />
-        </IconButton>
-      )}
-      {shouldRenderContent ? (
-        <MenuContainer
-          data-annotation-overlay
-          placement="bottom start"
-          stacking="app-floating"
-          // Not a pick-one menu: this is an annotation-management panel that
-          // launches from a MenuTrigger. It keeps the modal contract it was
-          // built with (automatic dialog role, focus containment) rather than
-          // inheriting MenuContainer's non-modal menu default.
-          isNonModal={false}
-          minHeight={0}
-          maxHeight={
-            menuKind === "annotation-configs"
-              ? "min(620px, calc(100vh - var(--global-dimension-size-800)))"
-              : "min(520px, calc(100vh - var(--global-dimension-size-800)))"
-          }
-          aria-label={`Manage ${targetLabel}`}
-        >
-          <Suspense fallback={<Loading />}>{content}</Suspense>
-        </MenuContainer>
-      ) : null}
-    </MenuTrigger>
-  );
-  return isProjectAnnotationsTrigger ? (
-    <MenuFooter>{annotationMenu}</MenuFooter>
+  const trigger = isProjectAnnotationsTrigger ? (
+    <Button
+      css={annotationManagementTriggerCSS}
+      size="S"
+      variant="quiet"
+      aria-label="Project annotations"
+      data-annotation-menu-open={isOpen}
+      onClick={(event) => event.stopPropagation()}
+    >
+      Project annotations
+    </Button>
+  ) : variant === "ghost" ? (
+    <AnnotationLabel
+      annotation={{ name: "Add annotation" }}
+      annotationDisplayPreference="none"
+      aria-label="Add annotation"
+      clickable
+      variant="ghost"
+    />
   ) : (
-    annotationMenu
+    <IconButton
+      css={annotationManagementTriggerCSS}
+      size="S"
+      aria-label="Add annotation"
+      data-annotation-menu-open={isOpen}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <Icon svg={<Icons.Plus />} />
+    </IconButton>
+  );
+  const annotationOverlay =
+    menuKind === "annotation-configs" ? (
+      <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
+        {trigger}
+        {shouldRenderContent ? (
+          <Popover
+            data-annotation-overlay
+            placement="bottom start"
+            stacking="app-floating"
+            maxHeight={620}
+            css={annotationConfigPopoverCSS}
+            aria-label={`Manage ${targetLabel}`}
+          >
+            <Suspense fallback={<Loading />}>{content}</Suspense>
+          </Popover>
+        ) : null}
+      </DialogTrigger>
+    ) : (
+      <MenuTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
+        {trigger}
+        {shouldRenderContent ? (
+          <MenuContainer
+            data-annotation-overlay
+            placement="bottom start"
+            stacking="app-floating"
+            // Not a pick-one menu: this is an annotation-management panel that
+            // launches from a MenuTrigger. It keeps the modal contract it was
+            // built with (automatic dialog role, focus containment) rather than
+            // inheriting MenuContainer's non-modal menu default.
+            isNonModal={false}
+            minHeight={0}
+            maxHeight="min(520px, calc(100vh - var(--global-dimension-size-800)))"
+            aria-label={`Manage ${targetLabel}`}
+          >
+            <Suspense fallback={<Loading />}>{content}</Suspense>
+          </MenuContainer>
+        ) : null}
+      </MenuTrigger>
+    );
+  return isProjectAnnotationsTrigger ? (
+    <MenuFooter>{annotationOverlay}</MenuFooter>
+  ) : (
+    annotationOverlay
   );
 }
 
@@ -2287,6 +2327,7 @@ function AnnotationConfigEditor({
       draft.values.every((value) => Boolean(value.label.trim())));
   return (
     <form
+      className="annotation-config-editor"
       css={annotationConfigEditorCSS}
       onSubmit={(event) => {
         event.preventDefault();
@@ -2606,7 +2647,7 @@ function AddAnnotationPopover({
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <MenuTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+    <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
       {isAddAnnotationButtonCompact ? (
         <IconButton
           css={annotationManagementTriggerCSS}
@@ -2625,17 +2666,12 @@ function AddAnnotationPopover({
           Add annotation
         </Button>
       )}
-      <MenuContainer
+      <Popover
         data-annotation-overlay
         placement="bottom start"
         stacking="app-floating"
-        // Not a pick-one menu: this is an annotation-management panel that
-        // launches from a MenuTrigger. It keeps the modal contract it was
-        // built with (automatic dialog role, focus containment) rather than
-        // inheriting MenuContainer's non-modal menu default.
-        isNonModal={false}
-        minHeight={0}
-        maxHeight="min(620px, calc(100vh - var(--global-dimension-size-800)))"
+        maxHeight={620}
+        css={annotationConfigPopoverCSS}
         aria-label={`Manage ${targetLabel.toLocaleLowerCase()} annotations`}
       >
         <DetailPanelAnnotationConfigMenu
@@ -2643,8 +2679,8 @@ function AddAnnotationPopover({
           isOpen={isOpen}
           onOpenChange={setIsOpen}
         />
-      </MenuContainer>
-    </MenuTrigger>
+      </Popover>
+    </DialogTrigger>
   );
 }
 
@@ -2705,152 +2741,154 @@ export function DetailPanelAnnotationConfigMenu({
   const closeConfigCreator = () => {
     setError(null);
     setIsCreatingConfig(false);
-    onOpenChange(true);
   };
+  useDismissPopoverOnEscape({
+    isOpen: isOpen && isCreatingConfig,
+    onDismiss: closeConfigCreator,
+  });
 
   return (
     <>
-      {error && !isCreatingConfig ? (
-        <View padding="size-100">
-          <Alert variant="danger">{error}</Alert>
-        </View>
-      ) : null}
-      {isCreatingConfig ? (
-        <ModalOverlay
-          isOpen
-          onOpenChange={(nextOpen) => {
-            if (!nextOpen) {
-              closeConfigCreator();
-            }
-          }}
-        >
-          <Modal size="S">
-            <Dialog aria-label="Add annotation configuration">
-              <AnnotationConfigEditor
-                draft={configDraft}
-                error={error}
-                mode="create"
-                onDraftChange={setConfigDraft}
-                onCancel={closeConfigCreator}
-                onSave={async () => {
-                  setError(null);
-                  const result = await onCreateAnnotationConfig(
-                    getAnnotationConfigFromDraft({ draft: configDraft })
-                  );
-                  if (isMutationFailure(result)) {
-                    setError(result.error);
-                    return;
-                  }
-                  setSearchValue("");
-                  closeConfigCreator();
-                }}
-              />
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      ) : (
-        <>
-          <MenuHeader>
-            <MenuHeaderTitle
-              trailingContent={
-                <LinkButton size="S" variant="quiet" to="/settings/annotations">
-                  Manage
-                </LinkButton>
+      <Dialog
+        aria-label={
+          isCreatingConfig
+            ? "Add annotation configuration"
+            : "Manage project annotations"
+        }
+      >
+        {error && !isCreatingConfig ? (
+          <View padding="size-100">
+            <Alert variant="danger">{error}</Alert>
+          </View>
+        ) : null}
+        {isCreatingConfig ? (
+          <AnnotationConfigEditor
+            draft={configDraft}
+            error={error}
+            mode="create"
+            onDraftChange={setConfigDraft}
+            onCancel={closeConfigCreator}
+            onSave={async () => {
+              setError(null);
+              const result = await onCreateAnnotationConfig(
+                getAnnotationConfigFromDraft({ draft: configDraft })
+              );
+              if (isMutationFailure(result)) {
+                setError(result.error);
+                return;
               }
-            >
-              Project annotations
-            </MenuHeaderTitle>
-            <SearchField
-              aria-label="Filter annotations"
-              value={searchValue}
-              onChange={setSearchValue}
-              variant="quiet"
-              autoFocus
-            >
-              <SearchIcon />
-              <Input placeholder="Filter annotations" />
-            </SearchField>
-          </MenuHeader>
-          <Menu
-            css={projectAnnotationsMenuCSS}
-            aria-label="Project annotations"
-            shouldCloseOnSelect={false}
-            renderEmptyState={() => (
-              <EmptyState
-                graphic={<EmptyStateGraphic variant="annotation" />}
-                description={
-                  normalizedSearch
-                    ? "No matching annotations"
-                    : "No annotation configurations"
+              setSearchValue("");
+              closeConfigCreator();
+            }}
+          />
+        ) : (
+          <>
+            <MenuHeader>
+              <MenuHeaderTitle
+                trailingContent={
+                  <LinkButton
+                    size="S"
+                    variant="quiet"
+                    to="/settings/annotations"
+                  >
+                    Manage
+                  </LinkButton>
                 }
-                action={
-                  canCreateFromSearch
-                    ? {
-                        type: "strip",
-                        items: [
-                          {
-                            kind: "button",
-                            variant: "primary",
-                            children: `Create “${searchValue.trim()}”`,
-                            onPress: openConfigCreator,
-                          },
-                        ],
-                      }
-                    : undefined
-                }
-              />
-            )}
-          >
-            {activeConfigs.length > 0 ? (
-              <MenuSection>
-                <MenuSectionTitle title={projectSectionTitle} />
-                {activeConfigs.map((config) => (
-                  <AnnotationConfigMenuItem
-                    key={`remove-${config.id}`}
-                    action="remove"
-                    config={config}
-                    onAction={() => setPendingRemoval(config)}
-                  />
-                ))}
-              </MenuSection>
-            ) : null}
-            {inactiveConfigs.length > 0 ? (
-              <MenuSection>
-                {activeConfigs.length > 0 ? (
-                  <MenuSectionTitle title="Available in Phoenix" />
-                ) : null}
-                {inactiveConfigs.map((config) => (
-                  <AnnotationConfigMenuItem
-                    key={`add-${config.id}`}
-                    action="add"
-                    config={config}
-                    onAction={async () => {
-                      setError(null);
-                      if (!config.id) {
-                        setError(
-                          "The annotation configuration does not have an ID."
+              >
+                Project annotations
+              </MenuHeaderTitle>
+              <SearchField
+                aria-label="Filter annotations"
+                value={searchValue}
+                onChange={setSearchValue}
+                variant="quiet"
+                autoFocus
+              >
+                <SearchIcon />
+                <Input placeholder="Filter annotations" />
+              </SearchField>
+            </MenuHeader>
+            <Menu
+              css={projectAnnotationsMenuCSS}
+              aria-label="Project annotations"
+              shouldCloseOnSelect={false}
+              renderEmptyState={() => (
+                <EmptyState
+                  graphic={<EmptyStateGraphic variant="annotation" />}
+                  description={
+                    normalizedSearch
+                      ? "No matching annotations"
+                      : "No annotation configurations"
+                  }
+                  action={
+                    canCreateFromSearch
+                      ? {
+                          type: "strip",
+                          items: [
+                            {
+                              kind: "button",
+                              variant: "primary",
+                              children: `Create “${searchValue.trim()}”`,
+                              onPress: openConfigCreator,
+                            },
+                          ],
+                        }
+                      : undefined
+                  }
+                />
+              )}
+            >
+              {activeConfigs.length > 0 ? (
+                <MenuSection>
+                  <MenuSectionTitle title={projectSectionTitle} />
+                  {activeConfigs.map((config) => (
+                    <AnnotationConfigMenuItem
+                      key={`remove-${config.id}`}
+                      action="remove"
+                      config={config}
+                      onAction={() => setPendingRemoval(config)}
+                    />
+                  ))}
+                </MenuSection>
+              ) : null}
+              {inactiveConfigs.length > 0 ? (
+                <MenuSection>
+                  {activeConfigs.length > 0 ? (
+                    <MenuSectionTitle title="Available in Phoenix" />
+                  ) : null}
+                  {inactiveConfigs.map((config) => (
+                    <AnnotationConfigMenuItem
+                      key={`add-${config.id}`}
+                      action="add"
+                      config={config}
+                      onAction={async () => {
+                        setError(null);
+                        if (!config.id) {
+                          setError(
+                            "The annotation configuration does not have an ID."
+                          );
+                          return;
+                        }
+                        const result = await onAddAnnotationConfigToProject(
+                          config.id
                         );
-                        return;
-                      }
-                      const result = await onAddAnnotationConfigToProject(
-                        config.id
-                      );
-                      if (isMutationFailure(result)) {
-                        setError(result.error);
-                      }
-                    }}
-                  />
-                ))}
-              </MenuSection>
-            ) : null}
-          </Menu>
-          <MenuFooter>
-            <Button size="S" variant="quiet" onPress={openConfigCreator}>
-              New annotation config
-            </Button>
-          </MenuFooter>
-        </>
-      )}
+                        if (isMutationFailure(result)) {
+                          setError(result.error);
+                        }
+                      }}
+                    />
+                  ))}
+                </MenuSection>
+              ) : null}
+            </Menu>
+            <MenuFooter>
+              <Button size="S" variant="quiet" onPress={openConfigCreator}>
+                New annotation config
+              </Button>
+            </MenuFooter>
+          </>
+        )}
+      </Dialog>
       <ModalOverlay
         isOpen={pendingRemoval != null}
         isDismissable={false}

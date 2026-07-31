@@ -465,18 +465,23 @@ describe("DetailPanelAnnotationBar", () => {
       );
     });
 
-    await act(async () => {
-      await userEvent.click(
-        container.querySelector<HTMLButtonElement>(
-          'button[aria-label="Add annotation"]'
-        )!
-      );
-    });
+    const configTrigger = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Add annotation"]'
+    );
+    await act(async () => userEvent.click(configTrigger!));
 
     const menu = document.querySelector<HTMLElement>(
       '[role="menu"][aria-label="Project annotations"]'
     );
+    const managementDialog = document.querySelector<HTMLElement>(
+      '[role="dialog"][aria-label="Manage project annotations"]'
+    );
+    const annotationOverlay = managementDialog?.closest<HTMLElement>(
+      "[data-annotation-overlay]"
+    );
     expect(menu).not.toBeNull();
+    expect(managementDialog?.contains(menu)).toBe(true);
+    expect(annotationOverlay).not.toBeNull();
     expect(document.body.textContent).toContain("Project annotations");
     expect(document.body.textContent).toContain("Used by My Project");
     expect(document.body.textContent).not.toContain("On this span");
@@ -494,13 +499,19 @@ describe("DetailPanelAnnotationBar", () => {
     const createDialog = document.querySelector<HTMLElement>(
       '[role="dialog"][aria-label="Add annotation configuration"]'
     );
-    expect(
-      createDialog?.closest('[data-testid="modal-overlay"]')
-    ).not.toBeNull();
-    expect(getComputedStyle(createDialog!).top).toBe("50%");
-    expect(getComputedStyle(createDialog!).maxHeight).toBe(
-      "calc(100% - var(--global-dimension-size-800))"
+    const configEditor = createDialog?.querySelector<HTMLElement>(
+      ".annotation-config-editor"
     );
+    expect(createDialog).toBe(managementDialog);
+    expect(createDialog?.closest("[data-annotation-overlay]")).toBe(
+      annotationOverlay
+    );
+    expect(createDialog?.closest('[data-testid="modal-overlay"]')).toBeNull();
+    expect(
+      document.querySelector('[role="menu"][aria-label="Project annotations"]')
+    ).toBeNull();
+    expect(getComputedStyle(createDialog!).overflow).toBe("hidden");
+    expect(getComputedStyle(configEditor!).overflow).toBe("auto");
 
     await act(async () => userEvent.keyboard("{Escape}"));
 
@@ -945,15 +956,8 @@ describe("DetailPanelAnnotationBar", () => {
     const createDialog = document.querySelector<HTMLElement>(
       '[role="dialog"][aria-label="Add annotation configuration"]'
     );
-    const createModalOverlay = createDialog?.closest<HTMLElement>(
-      '[data-testid="modal-overlay"]'
-    );
-    expect(createModalOverlay).not.toBeNull();
-    expect(getComputedStyle(createModalOverlay!).position).toBe("fixed");
-    expect(getComputedStyle(createDialog!).maxHeight).toBe(
-      "calc(100% - var(--global-dimension-size-800))"
-    );
-    expect(getComputedStyle(createDialog!).overflow).toBe("auto");
+    expect(createDialog?.closest("[data-annotation-overlay]")).not.toBeNull();
+    expect(createDialog?.closest('[data-testid="modal-overlay"]')).toBeNull();
     expect(document.querySelector<HTMLInputElement>("input")?.value).toBe(
       "helpfulness"
     );
