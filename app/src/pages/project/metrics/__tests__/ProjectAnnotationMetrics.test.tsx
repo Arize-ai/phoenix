@@ -38,6 +38,70 @@ const TIME_RANGE_VARIABLE = {
   end: TIME_RANGE.end.toISOString(),
 };
 
+const observedElements = new Map<Element, ControlledIntersectionObserver>();
+
+class ControlledIntersectionObserver implements IntersectionObserver {
+  readonly root = null;
+  readonly rootMargin = "";
+  readonly scrollMargin = "";
+  readonly thresholds = [];
+  readonly #callback: IntersectionObserverCallback;
+
+  constructor(callback: IntersectionObserverCallback) {
+    this.#callback = callback;
+  }
+
+  observe(target: Element) {
+    observedElements.set(target, this);
+  }
+
+  unobserve(target: Element) {
+    if (observedElements.get(target) === this) {
+      observedElements.delete(target);
+    }
+  }
+
+  disconnect() {
+    for (const [target, observer] of observedElements) {
+      if (observer === this) {
+        observedElements.delete(target);
+      }
+    }
+  }
+
+  takeRecords(): IntersectionObserverEntry[] {
+    return [];
+  }
+
+  setIsIntersecting(target: Element, isIntersecting: boolean) {
+    const rect = target.getBoundingClientRect();
+    this.#callback(
+      [
+        {
+          boundingClientRect: rect,
+          intersectionRatio: isIntersecting ? 1 : 0,
+          intersectionRect: rect,
+          isIntersecting,
+          rootBounds: null,
+          target,
+          time: performance.now(),
+        },
+      ],
+      this
+    );
+  }
+}
+
+const defaultIntersectionObserver = globalThis.IntersectionObserver;
+
+function setIsIntersecting(target: Element, isIntersecting: boolean) {
+  const observer = observedElements.get(target);
+  if (observer == null) {
+    throw new Error("Element is not observed");
+  }
+  observer.setIsIntersecting(target, isIntersecting);
+}
+
 const LEVEL_CASES: ReadonlyArray<{
   annotationLevel: MetricChartTableView;
   namesOperationName: string;
@@ -69,6 +133,8 @@ describe("ProjectAnnotationMetricsGrid", () => {
   let root: Root;
 
   beforeEach(() => {
+    observedElements.clear();
+    globalThis.IntersectionObserver = ControlledIntersectionObserver;
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -77,11 +143,12 @@ describe("ProjectAnnotationMetricsGrid", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+    globalThis.IntersectionObserver = defaultIntersectionObserver;
     vi.restoreAllMocks();
   });
 
   it.each(LEVEL_CASES)(
-    "loads $annotationLevel annotation metrics independently",
+    "defers and independently loads $annotationLevel annotation metrics",
     async ({
       annotationLevel,
       namesOperationName,
@@ -140,7 +207,27 @@ describe("ProjectAnnotationMetricsGrid", () => {
         });
       });
 
-      const metricsOperations = requestedOperations.filter(
+      expect(requestedOperations).toHaveLength(1);
+      const deferredPanels = container.querySelectorAll(
+        ".deferred-chart-panel"
+      );
+      expect(deferredPanels).toHaveLength(2);
+
+      await act(async () => {
+        setIsIntersecting(deferredPanels[0]!, true);
+      });
+
+      let metricsOperations = requestedOperations.filter(
+        ({ name }) => name === metricsOperationName
+      );
+      expect(metricsOperations).toHaveLength(1);
+      expect(metricsOperations[0]?.variables.annotationName).toBe("quality");
+
+      await act(async () => {
+        setIsIntersecting(deferredPanels[1]!, true);
+      });
+
+      metricsOperations = requestedOperations.filter(
         ({ name }) => name === metricsOperationName
       );
       expect(metricsOperations).toHaveLength(2);
