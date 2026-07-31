@@ -1,5 +1,6 @@
 import { graphql, readInlineData } from "relay-runtime";
 
+import { getPositiveOptimization } from "@phoenix/components/annotation/optimizationUtils";
 import type {
   AnnotationConfigInput,
   CreateDatasetLLMEvaluatorInput,
@@ -247,7 +248,7 @@ export const datasetExampleToEvaluatorInput = ({
 }: {
   exampleRef: utils_datasetExampleToEvaluatorInput_example$key;
   taskOutput?: Record<string, unknown>;
-}): EvaluatorMappingSource => {
+}): EvaluatorMappingSource<"dataset"> => {
   const example = readInlineData(
     graphql`
       fragment utils_datasetExampleToEvaluatorInput_example on DatasetExampleRevision
@@ -425,3 +426,70 @@ export const getOutputConfigValidationErrors = (
 
   return errors;
 };
+
+export function computePositiveOptimization({
+  annotationName,
+  score,
+  evaluatorName,
+  outputConfigs,
+}: {
+  annotationName: string;
+  score: number | null | undefined;
+  evaluatorName: string;
+  outputConfigs: AnnotationConfig[];
+}): boolean | null {
+  if (outputConfigs.length === 0) {
+    return null;
+  }
+
+  let matchedConfig: AnnotationConfig | undefined;
+  if (outputConfigs.length === 1) {
+    matchedConfig = outputConfigs[0];
+  } else {
+    // Multi-output: annotation name is "evaluatorName.configName"
+    const prefix = evaluatorName + ".";
+    if (annotationName.startsWith(prefix)) {
+      const configName = annotationName.slice(prefix.length);
+      matchedConfig = outputConfigs.find((c) => c.name === configName);
+    }
+  }
+
+  if (matchedConfig == null) {
+    return null;
+  }
+
+  const optimizationDirection =
+    matchedConfig.optimizationDirection === "MAXIMIZE" ||
+    matchedConfig.optimizationDirection === "MINIMIZE"
+      ? matchedConfig.optimizationDirection
+      : undefined;
+
+  let lowerBound: number | undefined;
+  let upperBound: number | undefined;
+  let threshold: number | undefined;
+
+  if ("values" in matchedConfig) {
+    const scores = matchedConfig.values
+      .map((v) => v.score)
+      .filter((s): s is number => s != null);
+    if (scores.length > 0) {
+      lowerBound = Math.min(...scores);
+      upperBound = Math.max(...scores);
+    }
+  } else if ("threshold" in matchedConfig) {
+    threshold = matchedConfig.threshold ?? undefined;
+    lowerBound = matchedConfig.lowerBound ?? undefined;
+    upperBound = matchedConfig.upperBound ?? undefined;
+  } else if ("lowerBound" in matchedConfig) {
+    lowerBound = matchedConfig.lowerBound ?? undefined;
+    upperBound = matchedConfig.upperBound ?? undefined;
+  }
+
+  return getPositiveOptimization({
+    score,
+    lowerBound,
+    upperBound,
+    threshold,
+    optimizationDirection,
+  });
+}
