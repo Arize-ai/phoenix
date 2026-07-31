@@ -45,6 +45,10 @@ July 27, 2026
 Take your traces with you. Select rows in the spans or traces table and download them, or grab a
 single span straight from its detail header.
 
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/pull-requests/14853-download-spans-dialog.png" alt="The Download selection dialog with a Spans/Traces scope toggle, a JSONL/OTLP JSON format toggle, and a file name field, opened over a selection of spans in a project table" />
+</Frame>
+
 - **Bulk download** — select spans or traces in a project table and export them as **OTLP JSON**
   (an OTLP `resource_spans` envelope, ready to replay into any OTLP-compatible collector) or as
   **JSONL** in Phoenix's span format. Choosing the *traces* scope pulls every span in each selected
@@ -225,6 +229,10 @@ July 28, 2026
 runs restricted Python in a pool of worker subprocesses on the Phoenix machine with memory and
 recursion limits, so simple [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluators)
 start in milliseconds and need no third-party credentials.
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/pull-requests/14853-monty-sandbox.png" alt="The Settings Sandboxes page listing Monty as a local Restricted Python provider, enabled alongside WebAssembly and Deno, with a default-monty-python sandbox configuration below" />
+</Frame>
 
 - **Local, like WebAssembly and Deno** — no environment variables, outbound network, or
   third-party dependencies. Use a hosted sandbox when an evaluator needs any of those.
