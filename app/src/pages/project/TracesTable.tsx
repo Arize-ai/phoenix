@@ -90,7 +90,7 @@ import {
   SpanOutputValueTooltipCell,
 } from "./IOValueTooltipCell";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
-import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
+import { RetrievalMetricLabel } from "./RetrievalMetricLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
@@ -596,19 +596,19 @@ export function TracesTable(props: TracesTableProps) {
               {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
                 return (
                   <Fragment key="doc-evals">
-                    <RetrievalEvaluationLabel
+                    <RetrievalMetricLabel
                       key="ndcg"
                       name={retrievalMetric.evaluationName}
                       metric="ndcg"
                       score={retrievalMetric.ndcg}
                     />
-                    <RetrievalEvaluationLabel
+                    <RetrievalMetricLabel
                       key="precision"
                       name={retrievalMetric.evaluationName}
                       metric="precision"
                       score={retrievalMetric.precision}
                     />
-                    <RetrievalEvaluationLabel
+                    <RetrievalMetricLabel
                       key="hit"
                       name={retrievalMetric.evaluationName}
                       metric="hit"
