@@ -65,15 +65,23 @@ export function generateTypeScriptTypes(
   mappingSource: EvaluatorMappingSource
 ): string {
   const lines: string[] = [
-    "// Auto-generated types from dataset example (read-only)",
-    "// These types reflect the structure of your dataset",
+    "// Auto-generated types from the evaluation source (read-only)",
+    "// These types reflect the structure of your test data",
   ];
 
   // Generate type for each mapping source field if it has data
   const fields: Array<{ name: string; typeName: string; data: unknown }> = [
     { name: "input", typeName: "Input", data: mappingSource.input },
     { name: "output", typeName: "Output", data: mappingSource.output },
-    { name: "reference", typeName: "Reference", data: mappingSource.reference },
+    ...("reference" in mappingSource
+      ? [
+          {
+            name: "reference",
+            typeName: "Reference",
+            data: mappingSource.reference,
+          },
+        ]
+      : []),
     { name: "metadata", typeName: "Metadata", data: mappingSource.metadata },
   ];
 
@@ -196,14 +204,16 @@ export function generatePythonTypes(
 ): string {
   const lines: string[] = [
     '"""',
-    "Auto-generated type information from dataset example (read-only)",
-    "These types reflect the structure of your dataset",
+    "Auto-generated type information from the evaluation source (read-only)",
+    "These types reflect the structure of your test data",
   ];
 
   const fields: Array<{ name: string; data: unknown }> = [
     { name: "input", data: mappingSource.input },
     { name: "output", data: mappingSource.output },
-    { name: "reference", data: mappingSource.reference },
+    ...("reference" in mappingSource
+      ? [{ name: "reference", data: mappingSource.reference }]
+      : []),
     { name: "metadata", data: mappingSource.metadata },
   ];
 
