@@ -6053,13 +6053,11 @@ class TestAnnotationMetricsTimeSeries:
                 )
                 span = await _add_span(session, trace, start_time=timestamp)
                 common_annotation_fields: dict[str, Any] = {
-                    "name": name,
                     "label": label,
                     "score": score,
                     "explanation": explanation,
                     "metadata_": {},
                     "annotator_kind": "HUMAN",
-                    "identifier": name,
                     "source": "APP",
                     "user_id": None,
                 }
@@ -6067,18 +6065,73 @@ class TestAnnotationMetricsTimeSeries:
                     [
                         models.SpanAnnotation(
                             span_rowid=span.id,
+                            name=f"span-{name}",
+                            identifier=f"span-{name}",
                             **common_annotation_fields,
                         ),
                         models.TraceAnnotation(
                             trace_rowid=trace.id,
+                            name=f"trace-{name}",
+                            identifier=f"trace-{name}",
                             **common_annotation_fields,
                         ),
                         models.ProjectSessionAnnotation(
                             project_session_id=project_session.id,
+                            name=f"session-{name}",
+                            identifier=f"session-{name}",
                             **common_annotation_fields,
                         ),
                     ]
                 )
+
+            other_project = await _add_project(
+                session,
+                name="other-annotation-metrics-project",
+            )
+            other_timestamp = datetime.fromisoformat("2024-01-01T01:45:00+00:00")
+            other_project_session = await _add_project_session(
+                session,
+                other_project,
+                start_time=other_timestamp,
+            )
+            other_trace = await _add_trace(
+                session,
+                other_project,
+                other_project_session,
+                start_time=other_timestamp,
+            )
+            other_span = await _add_span(session, other_trace, start_time=other_timestamp)
+            other_annotation_fields: dict[str, Any] = {
+                "label": None,
+                "score": 1.0,
+                "explanation": None,
+                "metadata_": {},
+                "annotator_kind": "HUMAN",
+                "source": "APP",
+                "user_id": None,
+            }
+            session.add_all(
+                [
+                    models.SpanAnnotation(
+                        span_rowid=other_span.id,
+                        name="other-project-span",
+                        identifier="other-project-span",
+                        **other_annotation_fields,
+                    ),
+                    models.TraceAnnotation(
+                        trace_rowid=other_trace.id,
+                        name="other-project-trace",
+                        identifier="other-project-trace",
+                        **other_annotation_fields,
+                    ),
+                    models.ProjectSessionAnnotation(
+                        project_session_id=other_project_session.id,
+                        name="other-project-session",
+                        identifier="other-project-session",
+                        **other_annotation_fields,
+                    ),
+                ]
+            )
 
         query = """
             query($id: ID!, $timeRange: TimeRange!) {
@@ -6103,11 +6156,10 @@ class TestAnnotationMetricsTimeSeries:
         )
         assert not response.errors
         assert response.data is not None
-        expected_names = ["a-within", "z-start"]
         assert response.data["node"] == {
-            "spanAnnotationMetricNames": expected_names,
-            "traceAnnotationMetricNames": expected_names,
-            "sessionAnnotationMetricNames": expected_names,
+            "spanAnnotationMetricNames": ["span-a-within", "span-z-start"],
+            "traceAnnotationMetricNames": ["trace-a-within", "trace-z-start"],
+            "sessionAnnotationMetricNames": ["session-a-within", "session-z-start"],
         }
 
     async def test_label_fractions_weight_entities_instead_of_annotation_rows(
