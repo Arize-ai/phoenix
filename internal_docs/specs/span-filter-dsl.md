@@ -1,9 +1,21 @@
 # Span Filter DSL
 
 Reference for the filter-condition language implemented in
-`src/phoenix/trace/dsl/filter.py`. Every statement here was verified against the
-code and, where behavior is dialect-dependent, executed against both SQLite and
-PostgreSQL 17.
+`src/phoenix/trace/dsl/filter.py`.
+
+Statements here were verified against the code, and dialect-dependent behavior
+was executed rather than reasoned about. The version matrix that claim rests on:
+
+| Backend | Verified on | Language floor |
+|---|---|---|
+| SQLite | bundled `sqlean` build | `text_contains` and the JSON functions `sqlean` provides |
+| PostgreSQL | 12.22 and 17.10 | **12** — `jsonb_path_query_first` (PG 12) and `jsonb`→`numeric` casts (PG 11) |
+
+PostgreSQL 12 is the floor because `_SafeJsonFloat` compiles to
+`jsonb_path_query_first`, which does not exist before it. Behavioral checks
+below were run on 17; the cast and JSON-path shapes the guarantees depend on were
+additionally confirmed on 12, since a floor that is never exercised is not a
+floor. Anything claimed here for a version outside that matrix is unverified.
 
 ## What This Is
 
@@ -34,18 +46,28 @@ rest defines what is being persisted.
 
 ## Evaluation Model
 
-Three phases, in order. The distinction matters because only the first two run
-before a query is issued.
+Constructing a `SpanFilter` runs three phases, all of them before any query
+exists:
 
-| Phase | Function | Catches |
+| Phase | Where | Catches |
 |---|---|---|
 | 1. Parse | `ast.parse(mode="eval")` | Python syntax errors |
 | 2. Validate | `_validate_expression` → `_validate_operand_types` | Structure, types, boolean position |
-| 3. Translate | `_FilterTranslator` → `compile` → `eval` | Shapes the validator admits but cannot express |
+| 3. Translate & compile | `_FilterTranslator` → `compile` | Shapes the validator admits but cannot express |
 
-`validateSpanFilterCondition` (GraphQL) runs 1–3 and additionally compiles the
-statement to SQL text. It does **not** execute. See
-[Validation Is Not Execution](#validation-is-not-execution).
+A fourth step, **evaluation**, happens later: `SpanFilter.__call__` evaluates the
+compiled expression against the SQLAlchemy namespace to produce the `WHERE`
+clause. Failures here — an operator SQLAlchemy cannot apply to the operand it
+was given — surface as arbitrary Python exceptions rather than
+`SpanFilterError`, which is why the validator has to exclude those shapes rather
+than rely on translation to reject them.
+
+None of this touches a database. Every phase above is static; the query is only
+then handed to the backend, which is where
+[the remaining failure modes](#validation-is-not-execution) live.
+
+`validateSpanFilterCondition` (GraphQL) runs all three phases, evaluates, and
+additionally compiles the statement to SQL text. It does **not** execute.
 
 All three phases raise `SpanFilterError`, a subclass of `SyntaxError`. Stack
 exhaustion at any phase is normalized to
@@ -94,6 +116,19 @@ compared as text.
 (`parent_span.name`) is rejected with a dedicated message; it is not yet
 supported. A span attribute literally named `parent_span` is still reachable as
 `attributes['parent_span']`.
+
+**This list is exhaustive.** Every identifier not named above — including ones
+that look like span columns, such as `events` — resolves to an attribute path,
+not a column. `events == 'x'` compiles to a comparison against
+`attributes['events']` and has nothing to do with the `events` column on the
+table.
+
+Reading the vocabulary out of the code is easy to get wrong here. `_NAMES` is
+the **evaluation namespace** handed to `eval`, and it binds `attributes` and
+`events` because the compiled expression needs them; it is not the set of names
+a user may write. The user-facing vocabulary is
+`_STRING_NAMES ∪ _FLOAT_NAMES ∪ _DATETIME_NAMES ∪ _FLOAT_ATTRIBUTES` plus the
+reserved keyword — exactly the list above.
 
 ### Backward-compatibility aliases
 
@@ -177,7 +212,7 @@ alike — SQLite casts `'1_000'` to `1.0` while PostgreSQL rejects it outright.
 | Category | Supported | Rejected |
 |---|---|---|
 | Comparison | `==` `!=` `<` `<=` `>` `>=` | — |
-| Identity | `is` `is not` (with `None`) | — |
+| Identity | `is` `is not` (with `None`, `True`, `False`) | `is` with any other value |
 | Membership | `in` `not in` | — |
 | Logical | `and` `or` `not` | — |
 | Arithmetic | `+` `-` `*` `/` `%` | `**`, `&`, `\|`, `^`, `<<`, `>>` |
@@ -448,10 +483,34 @@ from URLs and history entries that no server controls — none of which can carr
 or negotiate a version. Absent that, there is no branch point for a rewrite and
 no migration hook to hang one from.
 
-So the grammar evolves **additively**: new names, new operators, and new forms
-may be introduced; nothing already accepted may be removed or given a different
-meaning. Internal structure — the translator, the planner, the generated SQL —
-is free to change. Accepted text and its meaning are not.
+So the grammar evolves **additively**: nothing already accepted may be removed
+or given a different meaning. Internal structure — the translator, the planner,
+the generated SQL — is free to change. Accepted text and its meaning are not.
+
+What "additive" covers is narrower than it first appears:
+
+| Change | Safe? |
+|---|---|
+| New operator, new literal form, new syntax | **Yes** — previously rejected text becomes accepted |
+| New annotation member, new cast function | **Yes** — same reason |
+| **New field name** | **No** — see below |
+| Removing or restricting anything | **No** |
+
+**A new field name is a breaking change, not an addition.** Bare identifiers
+fall back to the attribute namespace, so `foo` already means
+`attributes['foo']` for every `foo` that is not currently a field. Promoting any
+name to a field silently changes what existing conditions mean — they do not
+begin failing, they begin selecting different rows.
+
+A new name is therefore only safe if it **cannot collide**: introduced under a
+namespace no attribute path can reach (a prefix, or a required accessor such as
+`span.new_field`), or verified against the fact that no stored condition uses it
+— which stops being verifiable the moment conditions live in a database owned by
+someone else.
+
+If the vocabulary is expected to grow, the structural fix is to stop resolving
+bare unknown identifiers at all and require `attributes['foo']` explicitly. That
+is a restriction, so it is available only before persistence.
 
 ### The tightening window closes at persistence
 
@@ -466,6 +525,68 @@ condition is written to the database, whether or not anyone decides it that day.
 the only available response to a bad construct is to keep accepting it — which
 makes the final pre-persistence review the last chance to ask, of every accepted
 form, whether it can be evaluated honestly on both backends.
+
+### Complexity is unbounded
+
+Nothing in the grammar or the persistence path limits how expensive a condition
+may be. The only ceiling today is CPython's parser, which rejects roughly 500
+nested parentheses, and the recursion guard, which converts stack exhaustion
+into a `SpanFilterError`. Both are accidents of the host, not policy.
+
+The cost that matters is joins. Each **distinct annotation name** adds one
+aliased `LEFT OUTER JOIN` against `span_annotations`, with no cap:
+
+| Distinct names | Joins | Condition | Generated SQL |
+|---|---|---|---|
+| 1 | 1 | 27 B | 224 B |
+| 5 | 5 | 155 B | 1.0 KB |
+| 25 | 25 | 810 B | 5.0 KB |
+| 100 | 100 | 3.3 KB | 20 KB |
+
+A transient filter that someone typed is self-limiting — they are waiting for
+it. A **persisted** one is not: it can be applied automatically, on page load,
+across every view that inherits the saved object, by users who did not write it
+and cannot see its cost.
+
+Before conditions become durable, bound at least:
+
+- **byte length** of the condition text
+- **distinct annotation names**, which is the join count
+- **AST node count**, as a proxy for total work
+- **nesting depth**, explicitly rather than via the parser's limit
+
+Limits are a restriction, so they are subject to the same window as everything
+else: a bound introduced after conditions are stored can invalidate saved rows.
+
+### Stored text must be canonical
+
+`to_dict()` emits `condition`, and `SpanFilter` normalizes that field at
+construction by stripping surrounding whitespace — so the stored form is the
+canonical one and `"  x == 1  "` and `"x == 1"` serialize identically.
+
+That is the *only* normalization performed. Everything else that differs
+textually but not semantically remains distinct:
+
+```
+name == 'a'          vs   name=='a'          (spacing)
+name == 'a'          vs   'a' == name        (operand order)
+a == 1 and b == 2    vs   b == 2 and a == 1  (conjunct order)
+"x"                  vs   'x'                (quote style)
+```
+
+Persistence has to decide what identity means, and the answer differs by use:
+
+- **Deduplication and caching** need a canonical form. Textual identity will
+  treat the pairs above as distinct and cache them separately.
+- **Audit history and display** need the raw text. A user who saved `name=='a'`
+  should not find it rewritten.
+- **Migration** needs whichever form the grammar is checked against.
+
+The cheapest defensible answer is to store raw text as written and derive a
+canonical key for dedup and caching — `ast.unparse` of the validated tree is
+already available and normalizes spacing and quoting, though not operand or
+conjunct order. Choosing "raw text is identity" is also defensible, but it
+should be chosen rather than inherited.
 
 ### Recommendations for the persistence work
 
@@ -636,11 +757,30 @@ text, so **changing the analysis changes what a stored condition renders**,
 without changing the condition.
 
 Anything that reads the expression and alters observable behavior is semantics,
-and belongs under the same compatibility policy as the grammar. Keep such
-analyses **sound but incomplete**: `None`/"cannot tell" must always be a safe
-answer, so the analysis can be improved later without changing existing verdicts
-— improving a *complete* analysis is a breaking change, improving a
-*conservative* one is additive.
+and belongs under the same compatibility policy as the grammar.
+
+Keeping the analysis **sound but incomplete** — `None`/"cannot tell" always a
+safe answer — is what makes it *improvable at all*, but it does not make
+improvements free. A `None` → `strict` verdict changes which metric columns the
+UI renders for a condition someone already saved. The row set is unaffected;
+what the user sees is not.
+
+So the honest classification is: **scope verdicts are row-stable but not
+presentation-stable, and are therefore not compatibility-stable.** Three
+positions are available, and one has to be chosen deliberately rather than
+assumed:
+
+1. **Freeze non-`None` verdicts.** An expression that reports `strict` or
+   `orphan_aware` keeps that verdict forever; only `None` may be refined. Costs
+   the least, still changes presentation for refined conditions.
+2. **Version the analysis** alongside the stored condition, so a saved view can
+   pin the verdict it was created under. The only option that is fully stable,
+   and the only one that needs a schema column.
+3. **Accept the instability explicitly** and document that metric-column
+   selection may change as the analyzer improves.
+
+What is *not* available is treating refinement as silently additive. Soundness
+guarantees the rows are right; it says nothing about the columns.
 
 ### 9. Test at the layer where the failure lives
 

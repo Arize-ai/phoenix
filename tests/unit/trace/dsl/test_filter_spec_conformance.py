@@ -216,10 +216,36 @@ def test_int_is_an_alias_for_float_and_does_not_truncate() -> None:
     assert "1.9" in rendered
 
 
-def test_surrounding_whitespace_is_tolerated() -> None:
+def test_surrounding_whitespace_is_tolerated_and_normalized_away() -> None:
     """Widening, not restricting -- Python reads a leading space as indentation
-    and fails with `IndentationError`."""
-    assert SpanFilter("  name == 'a'  ").condition.strip() == "name == 'a'"
+    and fails with `IndentationError`.
+
+    The condition is normalized in place rather than only for parsing, so the
+    persisted form is canonical: identity and de-duplication over stored
+    conditions are only well defined if two spellings that mean the same thing
+    serialize the same way.
+    """
+    padded = SpanFilter("  name == 'a'  ")
+    assert padded.condition == "name == 'a'"
+    assert padded.to_dict() == SpanFilter("name == 'a'").to_dict()
+    assert SpanFilter.from_dict(padded.to_dict()).to_dict() == padded.to_dict()
+    assert not SpanFilter("   ")
+
+
+def test_field_vocabulary_is_exhaustive() -> None:
+    """`_NAMES` is the eval namespace, not the user-facing vocabulary.
+
+    It binds `attributes` and `events` because the compiled expression needs
+    them, so reading the documented field list out of it would wrongly suggest
+    `events` is a queryable column. A bare `events` is an attribute path like
+    any other unknown identifier.
+    """
+    import ast as _ast
+
+    from phoenix.trace.dsl.filter import _FilterTranslator
+
+    rendered = _ast.unparse(_FilterTranslator().visit(_ast.parse("events == 'x'", mode="eval")))
+    assert "attributes[['events']]" in rendered
 
 
 @pytest.mark.parametrize("condition,message", REJECTED)

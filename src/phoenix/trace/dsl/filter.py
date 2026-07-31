@@ -263,12 +263,18 @@ class SpanFilter:
 
     def _initialize(self) -> None:
         object.__setattr__(self, "root_scope", None)
-        # Surrounding whitespace is stripped rather than parsed. Python reads a
-        # leading space as indentation and fails with `IndentationError`, which
-        # is a confusing answer to a condition someone pasted with a stray
-        # space. Widening what is accepted is safe under the additive-only
-        # compatibility policy.
-        if not (source := self.condition.strip()):
+        # Normalize the condition itself rather than a local copy, so that
+        # `condition` and `to_dict()` expose the canonical text. Two spellings
+        # that differ only in surrounding whitespace mean the same thing, and a
+        # caller persisting or de-duplicating conditions should not have to
+        # discover that on its own -- identity is only well defined if the
+        # stored form is canonical.
+        #
+        # Stripping also avoids a poor error: Python reads a leading space as
+        # indentation and fails with `IndentationError`. Accepting more input is
+        # safe under the additive-only compatibility policy.
+        object.__setattr__(self, "condition", self.condition.strip())
+        if not (source := self.condition):
             return
         root = ast.parse(source, mode="eval")
         _validate_expression(root, source, valid_eval_names=self.valid_eval_names)
