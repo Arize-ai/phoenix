@@ -82,6 +82,7 @@ export function AnnotationLabel({
   variant = "default",
   onFocus,
   ref,
+  "aria-haspopup": ariaHasPopup,
 }: PropsWithChildren<{
   annotation: Annotation;
   /**
@@ -106,6 +107,8 @@ export function AnnotationLabel({
   /** A subdued, dashed label for a configured annotation without a value. */
   variant?: "default" | "ghost";
   onFocus?: () => void;
+  /** Identifies the popup controlled by this label when used as a trigger. */
+  "aria-haspopup"?: "dialog";
   /** Ref applied to the underlying button when the label is clickable. */
   ref?: Ref<HTMLButtonElement>;
 }>) {
@@ -144,6 +147,7 @@ export function AnnotationLabel({
         className={className}
         css={css(baseAnnotationLabelCSS)}
         aria-label={`Open ${annotation.name} annotation`}
+        aria-haspopup={ariaHasPopup}
         onFocus={onFocus}
         onClick={(event) => {
           event.stopPropagation();

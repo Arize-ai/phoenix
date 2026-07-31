@@ -483,6 +483,21 @@ function useDismissPopoverOnEscape({
   }, [isOpen, onDismiss]);
 }
 
+function isSiblingAnnotationPopoverTrigger({
+  element,
+  trigger,
+}: {
+  element: Element;
+  trigger: HTMLElement | null;
+}): boolean {
+  const annotationTarget = trigger?.closest("[data-annotation-target]");
+  return (
+    annotationTarget != null &&
+    annotationTarget === element.closest("[data-annotation-target]") &&
+    element.closest('[aria-haspopup="dialog"]') !== null
+  );
+}
+
 export function DetailPanelAnnotationBar({
   allAnnotationConfigs,
   onAddAnnotationConfigToProject,
@@ -646,6 +661,9 @@ function AnnotationTargetRow({
   isAddAnnotationButtonCompact: boolean;
   target: AnnotationBarTarget;
 }) {
+  const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(
+    null
+  );
   const { annotationsByName, populatedRowConfigs, unpopulatedRowConfigs } =
     getAnnotationBarConfigStates({
       allAnnotationConfigs,
@@ -668,13 +686,24 @@ function AnnotationTargetRow({
       <div css={annotationLabelsCSS}>
         {orderedRowConfigs.map(({ config, id, name }) => {
           const annotations = annotationsByName[name] ?? [];
+          const annotationId = `${target.id}-${id}-${name}`;
           return (
             <AnnotationValuePopover
-              key={`${target.id}-${id}-${name}`}
+              key={annotationId}
               annotationName={name}
               annotations={annotations}
               config={config}
               displayMode="detail"
+              isOpen={activeAnnotationId === annotationId}
+              onOpenChange={(isOpen) => {
+                setActiveAnnotationId((currentAnnotationId) =>
+                  isOpen
+                    ? annotationId
+                    : currentAnnotationId === annotationId
+                      ? null
+                      : currentAnnotationId
+                );
+              }}
               target={target}
               {...sharedProps}
             />
@@ -932,6 +961,8 @@ export type AnnotationValuePopoverProps = AnnotationValuePopoverCommonProps &
   (
     | {
         displayMode: "detail";
+        isOpen: boolean;
+        onOpenChange: (isOpen: boolean) => void;
         renderTrigger?: never;
       }
     | {
@@ -989,8 +1020,9 @@ export function AnnotationValuePopover(props: AnnotationValuePopoverProps) {
   const [isUncontrolledOpen, setIsUncontrolledOpen] = useState(false);
   const uncontrolledTriggerRef = useRef<HTMLButtonElement>(null);
   const isMenuDisplay = displayMode === "menu";
-  const isOpen = isMenuDisplay ? props.isOpen : isUncontrolledOpen;
-  const onControlledOpenChange = isMenuDisplay ? props.onOpenChange : null;
+  const isControlled = displayMode !== "table";
+  const isOpen = isControlled ? props.isOpen : isUncontrolledOpen;
+  const onControlledOpenChange = isControlled ? props.onOpenChange : null;
   const triggerRef: RefObject<HTMLElement | null> = isMenuDisplay
     ? props.triggerRef
     : uncontrolledTriggerRef;
@@ -1077,11 +1109,12 @@ export function AnnotationValuePopover(props: AnnotationValuePopoverProps) {
       ) {
         return true;
       }
+      const eventTarget = event.target;
       return (
-        event.target instanceof Element &&
-        (event.target.closest("[data-annotation-actions-menu]") !== null ||
-          event.target.closest("[data-annotation-filter-menu]") !== null ||
-          event.target.closest("[data-annotation-picker-menu]") !== null)
+        eventTarget instanceof Element &&
+        (eventTarget.closest("[data-annotation-actions-menu]") !== null ||
+          eventTarget.closest("[data-annotation-filter-menu]") !== null ||
+          eventTarget.closest("[data-annotation-picker-menu]") !== null)
       );
     },
     [triggerRef]
@@ -1097,13 +1130,32 @@ export function AnnotationValuePopover(props: AnnotationValuePopoverProps) {
     ref: popoverRef,
     isDisabled: !isOpen,
     onInteractOutsideStart: (event) => {
-      if (shouldIgnoreOutsideInteraction(event)) {
+      const eventTarget = event.target;
+      if (
+        shouldIgnoreOutsideInteraction(event) ||
+        (eventTarget instanceof Element &&
+          isSiblingAnnotationPopoverTrigger({
+            element: eventTarget,
+            trigger: triggerRef.current,
+          }))
+      ) {
         return;
       }
       blockOutsideInteraction(event);
     },
     onInteractOutside: (event) => {
       if (shouldIgnoreOutsideInteraction(event)) {
+        return;
+      }
+      const eventTarget = event.target;
+      if (
+        eventTarget instanceof Element &&
+        isSiblingAnnotationPopoverTrigger({
+          element: eventTarget,
+          trigger: triggerRef.current,
+        })
+      ) {
+        handleOpenChange(false);
         return;
       }
       blockOutsideInteraction(event);
@@ -1179,6 +1231,7 @@ export function AnnotationValuePopover(props: AnnotationValuePopoverProps) {
         optimizationValue={aggregateOptimizationValue}
         clickable
         variant={hasAnnotations ? "default" : "ghost"}
+        aria-haspopup="dialog"
       >
         {aggregate.isMixed ? (
           <Flex direction="row" gap="size-100" minWidth={0}>
@@ -1229,6 +1282,10 @@ export function AnnotationValuePopover(props: AnnotationValuePopoverProps) {
         isKeyboardDismissDisabled={false}
         shouldCloseOnInteractOutside={(element) =>
           !triggerRef.current?.contains(element) &&
+          !isSiblingAnnotationPopoverTrigger({
+            element,
+            trigger: triggerRef.current,
+          }) &&
           !element.closest("[data-annotation-actions-menu]") &&
           !element.closest("[data-annotation-filter-menu]") &&
           !element.closest("[data-annotation-picker-menu]")

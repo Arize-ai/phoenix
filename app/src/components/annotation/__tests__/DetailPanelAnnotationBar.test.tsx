@@ -251,6 +251,44 @@ describe("DetailPanelAnnotationBar", () => {
     ]);
   });
 
+  it("opens a neighboring ghost annotation with the same press that dismisses the current one", async () => {
+    const helpfulnessConfig = {
+      ...config,
+      id: "config-helpfulness",
+      name: "helpfulness",
+    };
+    renderAnnotationBar({
+      allAnnotationConfigs: [config, helpfulnessConfig],
+      projectAnnotationConfigs: [config, helpfulnessConfig],
+      annotations: [],
+    });
+    const user = userEvent.setup();
+    const qualityTrigger = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Open quality annotation"]'
+    );
+    const helpfulnessTrigger = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Open helpfulness annotation"]'
+    );
+
+    await act(async () => user.click(qualityTrigger!));
+    expect(
+      document.querySelector('[role="dialog"][aria-label="quality annotation"]')
+    ).not.toBeNull();
+
+    await act(async () => user.click(helpfulnessTrigger!));
+
+    expect(
+      document.querySelector('[role="dialog"][aria-label="quality annotation"]')
+    ).toBeNull();
+    expect(
+      document.querySelector(
+        '[role="dialog"][aria-label="helpfulness annotation"]'
+      )
+    ).not.toBeNull();
+    expect(qualityTrigger?.getAttribute("aria-expanded")).toBe("false");
+    expect(helpfulnessTrigger?.getAttribute("aria-expanded")).toBe("true");
+  });
+
   it("opens the annotation bar from its row-action button", async () => {
     renderAnnotationBar({ variant: "button" });
 
