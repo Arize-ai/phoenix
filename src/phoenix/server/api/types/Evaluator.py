@@ -18,6 +18,7 @@ from phoenix.db.types.annotation_configs import (
     FreeformOutputConfig,
     OptimizationDirection,
     OutputConfigType,
+    as_output_configs,
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
@@ -292,10 +293,7 @@ class CodeEvaluator(Evaluator, Node):
                 id_prefix="CodeEvaluator",
                 evaluator_id=self.id,
             )
-            for config in (configs or [])
-            if isinstance(
-                config, (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig)
-            )
+            for config in as_output_configs(configs)
         ]
 
     @strawberry.field
@@ -1010,14 +1008,7 @@ class DatasetEvaluator(Node):
             if isinstance(evaluator, models.LLMEvaluator):
                 configs = list(evaluator.output_configs)
             elif isinstance(evaluator, models.CodeEvaluator):
-                configs = [
-                    config
-                    for config in evaluator.output_configs
-                    if isinstance(
-                        config,
-                        (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
-                    )
-                ]
+                configs = as_output_configs(evaluator.output_configs)
             elif isinstance(evaluator, models.BuiltinEvaluator):
                 builtin = get_builtin_evaluator_by_key(evaluator.key)
                 if builtin is None:
