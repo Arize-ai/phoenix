@@ -883,6 +883,11 @@ class TestInheritedPythonSurface:
             pytest.param("f'{error}' == 'a'", "Formatted strings are not supported", id="fstring"),
             pytest.param("await error == 'a'", "Unsupported expression: `await error`", id="await"),
             pytest.param(
+                "error == (error := 'x')",
+                "Assignment is not supported: `(error := 'x')`",
+                id="walrus",
+            ),
+            pytest.param(
                 "(lambda: 1)() == 1", "Function calls are not supported", id="called-lambda"
             ),
             pytest.param(
@@ -945,6 +950,7 @@ class TestInheritedPythonSurface:
                 "'x' in input",
                 "5 in latency_ms",
                 "ｉｎｐｕｔ['x'] == 'yes'",
+                "error == (error := 'x')",
             ):
                 with pytest.raises(ExperimentRunFilterConditionSyntaxError):
                     compile_sqlalchemy_filter_condition(

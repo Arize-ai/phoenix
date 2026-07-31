@@ -936,6 +936,13 @@ def _validate_python_surface(body: ast.expr, source: str) -> None:
             raise ExperimentRunFilterConditionSyntaxError(
                 f"Unsupported expression: `{ast.unparse(node)}`"
             )
+        elif isinstance(node, ast.NamedExpr):
+            # A walrus (`error == (error := 'x')`) parses in an expression and
+            # used to reach compilation as an untransformed node -- reported as
+            # a server fault with the full condition logged at error level.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Assignment is not supported: `{ast.unparse(node)}`"
+            )
         elif isinstance(node, (ast.Name, ast.Attribute)):
             # Python NFKC-normalizes identifiers while parsing, so a full-width
             # `ｉｎｐｕｔ` silently becomes `input` and resolves to a real column
