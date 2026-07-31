@@ -14,7 +14,7 @@
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-input-is-not-free-attribute]
   dict({
     'filter_condition': "input['score'] < 10",
-    'sql': "CAST((dataset_example_revisions.input -> 'score') AS FLOAT) < 10",
+    'sql': "CAST(jsonb_path_query_first((dataset_example_revisions.input -> 'score'), 'strict $.double()', '{}'::jsonb, true) AS NUMERIC) < 10",
   })
 # ---
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-latency-ms-is-not-free-attribute]
@@ -38,13 +38,13 @@
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-output-is-not-free-attribute]
   dict({
     'filter_condition': "output['score'] < 10",
-    'sql': "CAST(((experiment_runs_0.output -> 'task_output') -> 'score') AS FLOAT) < 10 OR CAST(((experiment_runs_1.output -> 'task_output') -> 'score') AS FLOAT) < 10",
+    'sql': "CAST(jsonb_path_query_first(((experiment_runs_0.output -> 'task_output') -> 'score'), 'strict $.double()', '{}'::jsonb, true) AS NUMERIC) < 10 OR CAST(jsonb_path_query_first(((experiment_runs_1.output -> 'task_output') -> 'score'), 'strict $.double()', '{}'::jsonb, true) AS NUMERIC) < 10",
   })
 # ---
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-reference-output-is-not-free-attribute]
   dict({
     'filter_condition': "reference_output['score'] < 10",
-    'sql': "CAST((dataset_example_revisions.output -> 'score') AS FLOAT) < 10",
+    'sql': "CAST(jsonb_path_query_first((dataset_example_revisions.output -> 'score'), 'strict $.double()', '{}'::jsonb, true) AS NUMERIC) < 10",
   })
 # ---
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-error-is-not-free-attribute]
@@ -194,13 +194,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-gt]
   dict({
     'filter_condition': 'experiments[0].input["score"] > 0.5',
-    'sql': "CAST((dataset_example_revisions.input -> 'score') AS FLOAT) > 0.5",
+    'sql': "CAST(jsonb_path_query_first((dataset_example_revisions.input -> 'score'), 'strict $.double()', '{}'::jsonb, true) AS NUMERIC) > 0.5",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-gte]
   dict({
     'filter_condition': 'experiments[0].output["confidence"] >= 0.8',
-    'sql': "CAST(((experiment_runs_0.output -> 'task_output') -> 'confidence') AS FLOAT) >= 0.8",
+    'sql': "CAST(jsonb_path_query_first(((experiment_runs_0.output -> 'task_output') -> 'confidence'), 'strict $.double()', '{}'::jsonb, true) AS NUMERIC) >= 0.8",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-in]
@@ -230,13 +230,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-lt]
   dict({
     'filter_condition': 'experiments[0].input["length"] < 100',
-    'sql': "CAST((dataset_example_revisions.input -> 'length') AS FLOAT) < 100",
+    'sql': "CAST(jsonb_path_query_first((dataset_example_revisions.input -> 'length'), 'strict $.double()', '{}'::jsonb, true) AS NUMERIC) < 100",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-lte]
   dict({
     'filter_condition': 'experiments[1].output["probability"] <= 0.3',
-    'sql': "CAST(((experiment_runs_1.output -> 'task_output') -> 'probability') AS FLOAT) <= 0.3",
+    'sql': "CAST(jsonb_path_query_first(((experiment_runs_1.output -> 'task_output') -> 'probability'), 'strict $.double()', '{}'::jsonb, true) AS NUMERIC) <= 0.3",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-ne-none]
@@ -458,7 +458,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-unary-minus-comparison]
   dict({
     'filter_condition': '-experiments[0].latency_ms > -5',
-    'sql': 'CAST(-round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) AS FLOAT) > CAST(-5 AS FLOAT)',
+    'sql': "CAST(jsonb_path_query_first(-round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1), 'strict $.double()', '{}'::jsonb, true) AS NUMERIC) > CAST(jsonb_path_query_first(-5, 'strict $.double()', '{}'::jsonb, true) AS NUMERIC)",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-unary-minus-constant]
@@ -470,7 +470,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-unary-minus-string-comparison]
   dict({
     'filter_condition': "-'hello' < 10",
-    'sql': "CAST(-'hello' AS FLOAT) < 10",
+    'sql': "CAST(jsonb_path_query_first(-'hello', 'strict $.double()', '{}'::jsonb, true) AS NUMERIC) < 10",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-complex-negation]

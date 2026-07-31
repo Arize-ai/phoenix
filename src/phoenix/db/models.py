@@ -1129,7 +1129,11 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 @compiles(SafeJsonFloat, "postgresql")
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
     value = compiler.process(list(element.clauses)[0], **kw)
-    converted = f"jsonb_path_query_first({value}, '$.double()', '{{}}'::jsonb, true)"
+    # `strict` matters: in lax mode a jsonpath auto-unwraps arrays, so
+    # `$.double()` applied to `[1, 2]` returns 1 and the row matches a
+    # comparison against a number it does not hold. SQLite yields NULL for the
+    # same value, so lax mode is also a cross-dialect divergence.
+    converted = f"jsonb_path_query_first({value}, 'strict $.double()', '{{}}'::jsonb, true)"
     return f"CAST({converted} AS NUMERIC)"
 
 

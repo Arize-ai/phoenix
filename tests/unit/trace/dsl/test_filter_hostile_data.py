@@ -43,7 +43,7 @@ _SPANS: tuple[tuple[str, Optional[str], str, str, int, dict[str, Any]], ...] = (
             "arr": [1, 2, 3],
             "uni": "café",
             "dot.key": "v",
-            "metadata": {"flag": True},
+            "metadata": {"flag": True, "mixed": 1},
         },
     ),
     # textual booleans, and text that cannot become a number
@@ -62,7 +62,7 @@ _SPANS: tuple[tuple[str, Optional[str], str, str, int, dict[str, Any]], ...] = (
             "arr": ["x"],
             "uni": "naïve",
             "dot.key": "v",
-            "metadata": {"flag": "true"},
+            "metadata": {"flag": "true", "mixed": 2.5},
         },
     ),
     # numeric boolean encoding, underscore literal PostgreSQL rejects, orphan
@@ -81,7 +81,7 @@ _SPANS: tuple[tuple[str, Optional[str], str, str, int, dict[str, Any]], ...] = (
             "arr": [],
             "uni": "日本語",
             "dot.key": "v",
-            "metadata": {"flag": 1},
+            "metadata": {"flag": 1, "mixed": "3"},
         },
     ),
     # JSON null everywhere
@@ -100,7 +100,7 @@ _SPANS: tuple[tuple[str, Optional[str], str, str, int, dict[str, Any]], ...] = (
             "arr": None,
             "uni": "",
             "dot.key": "v",
-            "metadata": {"flag": None},
+            "metadata": {"flag": None, "mixed": "abc"},
         },
     ),
     # containers where a scalar is expected
@@ -119,7 +119,7 @@ _SPANS: tuple[tuple[str, Optional[str], str, str, int, dict[str, Any]], ...] = (
             "arr": [[1]],
             "uni": "ünïcodé",
             "dot.key": "v",
-            "metadata": {"flag": False},
+            "metadata": {"flag": False, "mixed": True},
         },
     ),
     # empty and whitespace strings, padded numerics, second orphan
@@ -138,7 +138,7 @@ _SPANS: tuple[tuple[str, Optional[str], str, str, int, dict[str, Any]], ...] = (
             "arr": [0],
             "uni": " ",
             "dot.key": "v",
-            "metadata": {"flag": "false"},
+            "metadata": {"flag": "false", "mixed": None},
         },
     ),
     # the well-behaved control row
@@ -157,7 +157,7 @@ _SPANS: tuple[tuple[str, Optional[str], str, str, int, dict[str, Any]], ...] = (
             "arr": [7],
             "uni": "plain",
             "dot.key": "v",
-            "metadata": {"flag": 0},
+            "metadata": {"flag": 0, "mixed": [1, 2]},
         },
     ),
     # known-numeric attributes holding text; mixed-case textual boolean
@@ -174,7 +174,7 @@ _SPANS: tuple[tuple[str, Optional[str], str, str, int, dict[str, Any]], ...] = (
             "input": {"value": "neg"},
             "uni": "x",
             "dot.key": "v",
-            "metadata": {"flag": "TRUE"},
+            "metadata": {"flag": "TRUE", "mixed": {"k": 1}},
             "llm": {"token_count": {"total": "not-a-number", "prompt": "10"}},
         },
     ),
@@ -335,6 +335,15 @@ async def hostile_project(db: DbSessionFactory) -> None:
             id="dotted-key",
         ),
         pytest.param("'hello' in input.value", ["s01"], id="substring"),
+        # --- one key whose JSON type differs on every row ---
+        # s01=1 s02=2.5 s03="3" s04="abc" s05=true s06=null s07=[1,2] s08={"k":1}
+        pytest.param("metadata['mixed'] > 1", ["s02", "s03"], id="mixed-numeric"),
+        pytest.param("metadata['mixed'] == '3'", ["s03"], id="mixed-string"),
+        pytest.param("metadata['mixed'] == 'abc'", ["s04"], id="mixed-non-numeric-string"),
+        pytest.param("metadata['mixed'] == True", ["s01", "s05"], id="mixed-boolean"),
+        pytest.param("float(metadata['mixed']) > 1", ["s02", "s03"], id="mixed-explicit-cast"),
+        pytest.param("'a' in metadata['mixed']", ["s04"], id="mixed-substring"),
+        pytest.param("metadata['mixed'] + 1 > 2", ["s02", "s03"], id="mixed-arithmetic"),
     ],
 )
 async def test_hostile_data_returns_the_same_rows_on_both_backends(
@@ -351,3 +360,31 @@ async def test_hostile_data_returns_the_same_rows_on_both_backends(
             )
         )
     assert span_ids == sorted(expected)
+
+
+async def test_json_booleans_as_numbers_is_a_known_divergence(
+    db: DbSessionFactory,
+    hostile_project: None,
+    dialect: str,
+) -> None:
+    """`metadata['mixed'] >= 0` disagrees across backends, and cannot yet agree.
+
+    `s05` holds JSON `true`. PostgreSQL is right to exclude it -- a boolean is
+    not the number 1 -- and does so because `strict $.double()` rejects it.
+    SQLite cannot: `json_extract` collapses JSON `true` to the integer 1 before
+    `SafeJsonFloat` ever sees the value, and `json_type` can only tell the two
+    apart when given the original column and path.
+
+    Closing it means passing the path down rather than the extracted value.
+    Until then this records the disagreement so it stays visible, and fails if
+    either backend moves.
+    """
+    async with db() as session:
+        span_ids = set(
+            await session.scalars(SpanFilter("metadata['mixed'] >= 0")(select(models.Span.span_id)))
+        )
+    assert {"s01", "s02", "s03"} <= span_ids
+    if dialect == "sqlite":
+        assert "s05" in span_ids, "SQLite is expected to count JSON true as 1"
+    else:
+        assert "s05" not in span_ids, "PostgreSQL is expected to reject a boolean"
