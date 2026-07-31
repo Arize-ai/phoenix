@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d9a83845b7b90e033b52a77a672f04aa>>
+ * @generated SignedSource<<eae885e5a4e24c45150d24c176153e24>>
  * @lightSyntaxTransform
  */
 
@@ -535,10 +535,6 @@ return {
                     "abstractKey": null
                   },
                   {
-                    "kind": "TypeDiscriminator",
-                    "abstractKey": "__isContentPart"
-                  },
-                  {
                     "kind": "InlineFragment",
                     "selections": [
                       {
@@ -591,12 +587,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "68f08080aa8980b04d50921cf098c7c2",
+    "cacheID": "31005d15dd09866195d67d6a7729c386",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...DatasetEvaluatorsTable_evaluators\n    }\n  }\n  ...AddEvaluatorMenu_query\n  ...DatasetEvaluatorsPage_builtInEvaluators\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    description\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs(labels: [\"promoted_dataset_evaluator\"]) {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment AddEvaluatorMenu_query on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment DatasetEvaluatorsPage_builtInEvaluators on Query {\n  builtInEvaluators {\n    id\n    name\n    description\n  }\n  classificationEvaluatorConfigs(labels: [\"promoted_dataset_evaluator\"]) {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment mediaContentPartFragment on ContentPart {\n  __isContentPart: __typename\n  ... on ImageContentPart {\n    image {\n      __typename\n      ... on ImageContentValue {\n        url\n        mediaType\n      }\n      ... on ImageVariableValue {\n        variable\n      }\n    }\n  }\n  ... on FileContentPart {\n    file {\n      __typename\n      ... on ImageContentValue {\n        url\n        mediaType\n      }\n      ... on ImageVariableValue {\n        variable\n      }\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n    ...mediaContentPartFragment\n  }\n  role\n}\n"
+    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...DatasetEvaluatorsTable_evaluators\n    }\n  }\n  ...AddEvaluatorMenu_query\n  ...DatasetEvaluatorsPage_builtInEvaluators\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    description\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs(labels: [\"promoted_dataset_evaluator\"]) {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment AddEvaluatorMenu_query on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment DatasetEvaluatorsPage_builtInEvaluators on Query {\n  builtInEvaluators {\n    id\n    name\n    description\n  }\n  classificationEvaluatorConfigs(labels: [\"promoted_dataset_evaluator\"]) {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n    ... on ImageContentPart {\n      image {\n        __typename\n        ... on ImageContentValue {\n          url\n          mediaType\n        }\n        ... on ImageVariableValue {\n          variable\n        }\n      }\n    }\n    ... on FileContentPart {\n      file {\n        __typename\n        ... on ImageContentValue {\n          url\n          mediaType\n        }\n        ... on ImageVariableValue {\n          variable\n        }\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();

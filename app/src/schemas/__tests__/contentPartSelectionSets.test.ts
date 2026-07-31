@@ -60,17 +60,21 @@ const EXEMPT: Record<string, string> = {
 };
 
 /**
- * The shared fragment carrying every media member. Spreading it satisfies the
- * requirement in one line, and is the preferred way to do so — the selection is then
- * impossible to get half-right, because there is only one copy of it.
+ * The media parts a document fails to ask for, if any.
+ *
+ * Deliberately requires the selection to appear in the document itself. A shared
+ * `@inline` fragment looks like it would satisfy the same requirement in one line, and
+ * this check was once relaxed to accept one — which broke every structural reader,
+ * because Relay stores `@inline` data under `__fragments` rather than flattening it
+ * onto the part, so `asImagePart` and friends found no `image` key and silently
+ * returned nothing. Nothing else caught it: the selection was present, the types
+ * compiled, and the tests fed plain objects rather than Relay data.
+ *
+ * If the duplication is ever worth removing again, every consumer has to move to
+ * `readInlineData` in the same change, and this check has to keep failing until they
+ * have.
  */
-const MEDIA_FRAGMENT_SPREAD = "...mediaContentPartFragment";
-
-/** The media parts a document fails to ask for, if any. */
 function missingMediaParts(document: string): string[] {
-  if (document.includes(MEDIA_FRAGMENT_SPREAD)) {
-    return [];
-  }
   return MEDIA_PART_TYPES.filter((type) => !document.includes(`on ${type}`));
 }
 

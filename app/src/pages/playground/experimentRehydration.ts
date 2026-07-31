@@ -24,8 +24,6 @@ import type { experimentRehydrationQuery } from "./__generated__/experimentRehyd
 import { buildPlaygroundInstanceFieldsFromPromptConfig } from "./promptConfigToPlaygroundInstance";
 
 import "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
-import "@phoenix/utils/mediaContentPartFragment";
-
 const EXPERIMENT_REHYDRATION_QUERY = graphql`
   query experimentRehydrationQuery($experimentId: ID!) {
     node(id: $experimentId) {
@@ -58,7 +56,30 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
                           text
                         }
                       }
-                      ...mediaContentPartFragment
+                      ... on ImageContentPart {
+                        image {
+                          __typename
+                          ... on ImageContentValue {
+                            url
+                            mediaType
+                          }
+                          ... on ImageVariableValue {
+                            variable
+                          }
+                        }
+                      }
+                      ... on FileContentPart {
+                        file {
+                          __typename
+                          ... on ImageContentValue {
+                            url
+                            mediaType
+                          }
+                          ... on ImageVariableValue {
+                            variable
+                          }
+                        }
+                      }
                       ... on ToolCallContentPart {
                         toolCall {
                           toolCallId

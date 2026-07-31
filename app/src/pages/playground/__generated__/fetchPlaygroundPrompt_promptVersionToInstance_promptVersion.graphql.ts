@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<83fba37a57de8885e8c72dee3af43b9d>>
+ * @generated SignedSource<<8b07b0c81e6236a6e11ae511aecf0076>>
  * @lightSyntaxTransform
  */
 
@@ -35,22 +35,57 @@ export type fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$data = {
     readonly __typename: "PromptChatTemplate";
     readonly messages: ReadonlyArray<{
       readonly content: ReadonlyArray<{
-        readonly __typename: string;
-        readonly text?: {
+        readonly __typename: "FileContentPart";
+        readonly file: {
+          readonly __typename: "ImageContentValue";
+          readonly mediaType: string;
+          readonly url: string;
+        } | {
+          readonly __typename: "ImageVariableValue";
+          readonly variable: string;
+        } | {
+          // This will never be '%other', but we need some
+          // value in case none of the concrete values match.
+          readonly __typename: "%other";
+        };
+      } | {
+        readonly __typename: "ImageContentPart";
+        readonly image: {
+          readonly __typename: "ImageContentValue";
+          readonly mediaType: string;
+          readonly url: string;
+        } | {
+          readonly __typename: "ImageVariableValue";
+          readonly variable: string;
+        } | {
+          // This will never be '%other', but we need some
+          // value in case none of the concrete values match.
+          readonly __typename: "%other";
+        };
+      } | {
+        readonly __typename: "TextContentPart";
+        readonly text: {
           readonly text: string;
         };
-        readonly toolCall?: {
+      } | {
+        readonly __typename: "ToolCallContentPart";
+        readonly toolCall: {
           readonly toolCall: {
             readonly arguments: string;
             readonly name: string;
           };
           readonly toolCallId: string;
         };
-        readonly toolResult?: {
+      } | {
+        readonly __typename: "ToolResultContentPart";
+        readonly toolResult: {
           readonly result: any;
           readonly toolCallId: string;
         };
-        readonly " $fragmentSpreads": FragmentRefs<"mediaContentPartFragment">;
+      } | {
+        // This will never be '%other', but we need some
+        // value in case none of the concrete values match.
+        readonly __typename: "%other";
       }>;
       readonly role: PromptMessageRole;
     }>;
@@ -97,6 +132,6 @@ const node: ReaderInlineDataFragment = {
   "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion"
 };
 
-(node as any).hash = "eeb524887f846aa475c11f76161710c6";
+(node as any).hash = "0d4fb4583514ea023fd326a85de0406a";
 
 export default node;

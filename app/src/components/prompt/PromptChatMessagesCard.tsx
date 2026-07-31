@@ -22,8 +22,6 @@ import {
   asToolResultPart,
 } from "@phoenix/utils/promptUtils";
 
-import "@phoenix/utils/mediaContentPartFragment";
-
 export function PromptChatMessages({
   promptVersion,
 }: {
@@ -45,7 +43,30 @@ export function PromptChatMessages({
                     text
                   }
                 }
-                ...mediaContentPartFragment
+                ... on ImageContentPart {
+                  image {
+                    __typename
+                    ... on ImageContentValue {
+                      url
+                      mediaType
+                    }
+                    ... on ImageVariableValue {
+                      variable
+                    }
+                  }
+                }
+                ... on FileContentPart {
+                  file {
+                    __typename
+                    ... on ImageContentValue {
+                      url
+                      mediaType
+                    }
+                    ... on ImageVariableValue {
+                      variable
+                    }
+                  }
+                }
                 ... on ToolCallContentPart {
                   toolCall {
                     toolCallId

@@ -31,7 +31,7 @@ import {
 import { generateMessageId } from "@phoenix/store";
 import type { promptUtils_promptMessages$key } from "@phoenix/utils/__generated__/promptUtils_promptMessages.graphql";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
-import { readMessageMedia } from "@phoenix/utils/mediaContentPartFragment";
+import { readMessageMedia } from "@phoenix/utils/messageMedia";
 
 export const asTextPart = (maybePart: unknown): TextPart | null => {
   const parsed = textPartSchema.safeParse(maybePart);
@@ -113,7 +113,30 @@ export const convertPromptVersionMessagesToPlaygroundInstanceMessages = ({
                 text
               }
             }
-            ...mediaContentPartFragment
+            ... on ImageContentPart {
+              image {
+                __typename
+                ... on ImageContentValue {
+                  url
+                  mediaType
+                }
+                ... on ImageVariableValue {
+                  variable
+                }
+              }
+            }
+            ... on FileContentPart {
+              file {
+                __typename
+                ... on ImageContentValue {
+                  url
+                  mediaType
+                }
+                ... on ImageVariableValue {
+                  variable
+                }
+              }
+            }
           }
           role
         }
