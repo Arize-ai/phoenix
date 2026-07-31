@@ -205,7 +205,10 @@ const CreateCodeEvaluatorDialog = ({
         selectedExampleId: null,
         selectedSplitIds: [],
       },
-      evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+      evaluatorMappingSource: {
+        grain: "dataset",
+        source: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+      },
       showPromptPreview: false,
     };
   }, [datasetId]);

@@ -1465,3 +1465,89 @@ class TestCodeEvaluatorVersionGraphQLTraversal:
         looked_up = ce["version"]
         assert looked_up["id"] == v1_gid
         assert looked_up["sequenceNumber"] == 1
+
+
+class TestCodeEvaluatorOutputConfigs:
+    """Stored code-evaluator output configs must survive the GraphQL read path.
+
+    Stored configs deserialize as base annotation-config models, so a naive
+    isinstance filter against the OutputConfig subclasses silently drops every
+    config (regression: the resolver returned [] and the frontend lost
+    coloring metadata for attached code evaluators).
+    """
+
+    async def test_stored_output_configs_resolve_over_graphql(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        from phoenix.server.sandbox.sync import sync_languages
+
+        async with db() as session:
+            await sync_languages(session)
+            evaluator_row = models.CodeEvaluator(
+                name=Identifier(root=f"output-configs-{token_hex(4)}"),
+                metadata_={},
+                language="PYTHON",
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[
+                    ContinuousOutputConfig(
+                        type="CONTINUOUS",
+                        name="score",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description=None,
+                        lower_bound=0.0,
+                        upper_bound=1.0,
+                    ),
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="verdict",
+                        optimization_direction=OptimizationDirection.MINIMIZE,
+                        description=None,
+                        values=[
+                            CategoricalAnnotationValue(label="good", score=1.0),
+                            CategoricalAnnotationValue(label="bad", score=0.0),
+                        ],
+                    ),
+                ],
+            )
+            session.add(evaluator_row)
+            await session.flush()
+            evaluator_id = evaluator_row.id
+
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on CodeEvaluator {
+                        outputConfigs {
+                            __typename
+                            ... on ContinuousAnnotationConfig {
+                                name
+                                optimizationDirection
+                                lowerBound
+                                upperBound
+                            }
+                            ... on CategoricalAnnotationConfig {
+                                name
+                                optimizationDirection
+                                values { label score }
+                            }
+                        }
+                    }
+                }
+            }""",
+            variables={"id": str(GlobalID("CodeEvaluator", str(evaluator_id)))},
+        )
+        assert not resp.errors and resp.data
+        output_configs = resp.data["node"]["outputConfigs"]
+        assert len(output_configs) == 2
+        continuous, categorical = output_configs
+        assert continuous["__typename"] == "ContinuousAnnotationConfig"
+        assert continuous["name"] == "score"
+        assert continuous["optimizationDirection"] == "MAXIMIZE"
+        assert continuous["lowerBound"] == 0.0
+        assert continuous["upperBound"] == 1.0
+        assert categorical["__typename"] == "CategoricalAnnotationConfig"
+        assert categorical["name"] == "verdict"
+        assert categorical["optimizationDirection"] == "MINIMIZE"
+        assert {v["label"] for v in categorical["values"]} == {"good", "bad"}

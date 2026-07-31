@@ -1,6 +1,7 @@
 from secrets import token_hex
 from typing import Any
 
+import pytest
 from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
@@ -73,6 +74,14 @@ mutation($input: DeleteProjectEvaluatorsInput!) {
 }
 """
 
+_SET_ENABLED = f"""
+mutation($input: SetProjectEvaluatorEnabledInput!) {{
+  setProjectEvaluatorEnabled(input: $input) {{
+    evaluator {{ {_PROJECT_EVALUATOR_FIELDS} }}
+  }}
+}}
+"""
+
 _PROJECT_EVALUATORS = f"""
 query($id: ID!) {{
   node(id: $id) {{
@@ -80,6 +89,14 @@ query($id: ID!) {{
       name
       evaluators {{ edges {{ node {{ {_PROJECT_EVALUATOR_FIELDS} }} }} }}
     }}
+  }}
+}}
+"""
+
+_PROJECT_EVALUATOR_NODE = f"""
+query($id: ID!) {{
+  node(id: $id) {{
+    ... on ProjectEvaluator {{ {_PROJECT_EVALUATOR_FIELDS} }}
   }}
 }}
 """
@@ -252,6 +269,23 @@ async def test_project_code_evaluator_crud_and_connection(
         assert criteria is not None
         assert criteria.input_mapping is not None
         assert criteria.input_mapping.literal_mapping == {"context": "override"}
+        evaluator = await session.get(models.CodeEvaluator, criteria.evaluator_id)
+        assert evaluator is not None
+        user_role_id = await session.scalar(select(models.UserRole.id).limit(1))
+        assert user_role_id is not None
+        owner = models.User(
+            user_role_id=user_role_id,
+            username=f"project-evaluator-owner-{token_hex(4)}",
+            email=f"{token_hex(4)}@test.com",
+            password_hash=b"hash",
+            password_salt=b"salt",
+            reset_password=False,
+            auth_method="LOCAL",
+        )
+        session.add(owner)
+        await session.flush()
+        evaluator.user_id = owner.id
+        owner_id = owner.id
 
     omitted_result = await gql_client.execute(
         _UPDATE_CODE,
@@ -259,23 +293,26 @@ async def test_project_code_evaluator_crud_and_connection(
             "input": {
                 "projectEvaluatorId": created["id"],
                 "name": "updated-code",
-                "description": "updated again",
-                "evaluatorInputMapping": _mapping(output="changed-while-omitted"),
                 "samplingRate": 0.75,
                 "evaluationTarget": "TRACE",
                 "filterCondition": "",
-                "enabled": True,
             }
         },
     )
     assert omitted_result.data and not omitted_result.errors
     omitted = omitted_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert omitted["inputMapping"] == _mapping(context="override")
+    assert omitted["enabled"] is False
     async with db() as session:
         criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
         assert criteria is not None
         assert criteria.input_mapping is not None
         assert criteria.input_mapping.literal_mapping == {"context": "override"}
+        evaluator = await session.get(models.CodeEvaluator, criteria.evaluator_id)
+        assert evaluator is not None
+        assert evaluator.description == "updated"
+        assert evaluator.input_mapping.literal_mapping == {"output": "updated"}
+        assert evaluator.user_id == owner_id
 
     inherited_result = await gql_client.execute(
         _UPDATE_CODE,
@@ -466,8 +503,15 @@ async def test_project_llm_evaluator_create_update_delete(
     assert created["evaluationTarget"] == "TRACE"
     assert created["evaluator"]["kind"] == "LLM"
 
+    disable_result = await gql_client.execute(
+        _SET_ENABLED,
+        {"input": {"projectEvaluatorId": created["id"], "enabled": False}},
+    )
+    assert disable_result.data and not disable_result.errors
+
     update_input = _llm_input(project, name="updated-llm", text="Updated {{input}}")
     update_input.pop("projectId")
+    update_input.pop("enabled")
     update_input["projectEvaluatorId"] = created["id"]
     update_input["evaluationTarget"] = "SPAN"
     update_result = await gql_client.execute(_UPDATE_LLM, {"input": update_input})
@@ -475,12 +519,111 @@ async def test_project_llm_evaluator_create_update_delete(
     updated = update_result.data["updateProjectLlmEvaluator"]["evaluator"]
     assert updated["evaluator"]["name"] == "updated-llm"
     assert updated["evaluationTarget"] == "SPAN"
+    assert updated["enabled"] is False
 
     delete_result = await gql_client.execute(
         _DELETE,
         {"input": {"projectEvaluatorIds": [created["id"]]}},
     )
     assert delete_result.data and not delete_result.errors
+
+
+@pytest.mark.parametrize("evaluator_kind", ["LLM", "CODE"])
+async def test_set_project_evaluator_enabled_toggles_only_enabled(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    evaluator_kind: str,
+) -> None:
+    project = await _add_project(db)
+    if evaluator_kind == "LLM":
+        create_mutation = _CREATE_LLM
+        create_input = _llm_input(project, name="toggle-llm", text="Evaluate {{input}}")
+        payload_name = "createProjectLlmEvaluator"
+    else:
+        create_mutation = _CREATE_CODE
+        create_input = _code_create_input(project, sandbox_config)
+        payload_name = "createProjectCodeEvaluator"
+    create_result = await gql_client.execute(create_mutation, {"input": create_input})
+    assert create_result.data and not create_result.errors
+    created = create_result.data[payload_name]["evaluator"]
+    assert created["evaluator"]["kind"] == evaluator_kind
+    assert created["enabled"] is True
+
+    disable_result = await gql_client.execute(
+        _SET_ENABLED,
+        {"input": {"projectEvaluatorId": created["id"], "enabled": False}},
+    )
+    assert disable_result.data and not disable_result.errors
+    disabled = disable_result.data["setProjectEvaluatorEnabled"]["evaluator"]
+    assert disabled["id"] == created["id"]
+    assert disabled["enabled"] is False
+    assert disabled["name"] == created["name"]
+    assert disabled["evaluationTarget"] == created["evaluationTarget"]
+    assert disabled["samplingRate"] == created["samplingRate"]
+
+
+async def test_set_project_evaluator_enabled_rejects_unknown_evaluator(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    project_evaluator_id = str(GlobalID("ProjectEvaluator", "999999999"))
+    result = await gql_client.execute(
+        _SET_ENABLED,
+        {"input": {"projectEvaluatorId": project_evaluator_id, "enabled": False}},
+    )
+
+    assert result.errors
+    assert result.errors[0].message == f"Project evaluator not found: {project_evaluator_id}"
+
+
+async def test_set_project_evaluator_enabled_rejects_malformed_global_id(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    project_evaluator_id = str(GlobalID("ProjectEvaluator", "not-an-integer"))
+    result = await gql_client.execute(
+        _SET_ENABLED,
+        {"input": {"projectEvaluatorId": project_evaluator_id, "enabled": False}},
+    )
+
+    assert result.errors
+    assert result.errors[0].message == (
+        "The node id must correspond to a node of type ProjectEvaluator, "
+        "but the id is not a valid integer"
+    )
+
+
+async def test_project_evaluator_node_resolves_by_global_id(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    project = await _add_project(db)
+    create_input = _llm_input(project, name="llm-node", text="Evaluate {{input}}")
+    create_result = await gql_client.execute(_CREATE_LLM, {"input": create_input})
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectLlmEvaluator"]["evaluator"]
+
+    node_result = await gql_client.execute(
+        _PROJECT_EVALUATOR_NODE,
+        {"id": created["id"]},
+    )
+    assert node_result.data and not node_result.errors
+    node = node_result.data["node"]
+    assert node["id"] == created["id"]
+    assert node["evaluationTarget"] == "TRACE"
+    assert node["evaluator"]["kind"] == "LLM"
+
+
+async def test_project_evaluator_node_rejects_unknown_global_id(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    project_evaluator_id = str(GlobalID("ProjectEvaluator", "999999999"))
+    result = await gql_client.execute(
+        _PROJECT_EVALUATOR_NODE,
+        {"id": project_evaluator_id},
+    )
+
+    assert result.errors
+    assert result.errors[0].message == f"Unknown project evaluator: {project_evaluator_id}"
 
 
 async def test_invalid_filter_rejects_before_project_evaluator_writes(
