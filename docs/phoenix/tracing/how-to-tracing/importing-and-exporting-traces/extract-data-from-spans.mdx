@@ -117,7 +117,7 @@ client.spans.get_spans_dataframe(query=query, project_name="<my-project>")
 
 Let's say we want to extract the retrieved documents into a DataFrame that looks something like the table below, where `input` denotes the query for the retriever, `reference` denotes the content of each document, and `document_position` denotes the (zero-based) index in each span's list of retrieved documents.
 
-Note that this DataFrame can be used directly as input for the [Retrieval (RAG) Relevance evaluations](/docs/phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance#how-to-run-the-rag-relevance-eval).
+Note that this DataFrame can be used directly as input for [Document Relevance evaluations](/docs/phoenix/evaluation/pre-built-metrics/document-relevance).
 
 | context.span\_id | document\_position | input                                            | reference                                                |
 | :---------------- | :------------------ | :------------------------------------------------ | :-------------------------------------------------------- |
@@ -178,7 +178,7 @@ query = SpanQuery().where(
 
 #### Filtering Spans by Evaluation Results
 
-Filtering spans by evaluation results, e.g. `score` or `label`, can be done via a special syntax. The name of the evaluation is specified as an indexer on the special keyword `evals`. The example below filters for spans with the `incorrect` label on their `correctness` evaluations. (See [here](/docs/phoenix/evaluation/running-pre-tested-evals) for how to compute evaluations for traces, and [here](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations) for how to ingest those results back to Phoenix.)
+Filtering spans by evaluation results, e.g. `score` or `label`, can be done via a special syntax. The name of the evaluation is specified as an indexer on the special keyword `evals`. The example below filters for spans with the `incorrect` label on their `correctness` evaluations. (See [here](/docs/phoenix/evaluation/pre-built-metrics) for how to compute evaluations for traces, and [here](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations) for how to ingest those results back to Phoenix.)
 
 ```python
 query = SpanQuery().where(
@@ -335,13 +335,13 @@ query = SpanQuery().where(
 client.spans.get_spans_dataframe(query=query)
 ```
 
-### Retrieval (RAG) Relevance Evaluations
+### Document Relevance Evaluations
 
-To extract the dataframe input for [Retrieval (RAG) Relevance evaluations](/docs/phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance#how-to-run-the-rag-relevance-eval), apply the query described in [Querying for Retrieved Documents](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#querying-for-retrieved-documents).
+To extract the dataframe input for [Document Relevance evaluations](/docs/phoenix/evaluation/pre-built-metrics/document-relevance), apply the query described in [Querying for Retrieved Documents](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#querying-for-retrieved-documents).
 
-### Q\&A on Retrieved Data Evaluations
+### Correctness Evaluations
 
-To extract the dataframe input to the [Q\&A on Retrieved Data evaluations](/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data#how-to-run-the-qa-eval), use the following query which applies techniques described in the [Advanced Usage](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#advanced-usage) section.
+To extract the dataframe input for [Correctness evaluations](/docs/phoenix/evaluation/pre-built-metrics/correctness), use the following query which applies techniques described in the [Advanced Usage](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#advanced-usage) section.
 
 ```python expandable
 import pandas as pd

@@ -40,6 +40,9 @@ LLM evaluators use a judge model to assess the quality of outputs. These are use
   <Card title="User Friction" icon="comments" href="/docs/phoenix/evaluation/pre-built-metrics/user-friction">
     Detects corrections, retries, frustration, and challenges expressed in a user's follow-up message.
   </Card>
+  <Card title="Toxicity" icon="triangle-exclamation" href="/docs/phoenix/evaluation/pre-built-metrics/toxicity">
+    Detect hateful, demeaning, abusive, or threatening text in model outputs or user inputs.
+  </Card>
 </CardGroup>
 
 ## Code Evaluators
@@ -55,31 +58,6 @@ Code evaluators use deterministic logic for evaluation. These are faster, cheape
   </Card>
   <Card title="Precision / Recall / F-Score" icon="chart-simple" href="/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore">
     Computes precision, recall, and F1 scores for comparing predicted vs actual values.
-  </Card>
-</CardGroup>
-
-## Legacy Evaluators
-
-Legacy evaluators are template-based evaluators from earlier versions of Phoenix. They remain available for backwards compatibility but we recommend using the modern evaluators above for new projects.
-
-<CardGroup cols={2}>
-  <Card title="Q&A Evaluation" icon="comments-question" href="/docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data">
-    Evaluates Q&A correctness using legacy templates.
-  </Card>
-  <Card title="Retrieval / RAG Relevance" icon="magnifying-glass" href="/docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance">
-    Legacy document relevance evaluation for RAG systems.
-  </Card>
-  <Card title="Summarization" icon="file-lines" href="/docs/phoenix/evaluation/pre-built-metrics/summarization-eval">
-    Evaluates summary quality using legacy templates.
-  </Card>
-  <Card title="Toxicity" icon="triangle-exclamation" href="/docs/phoenix/evaluation/pre-built-metrics/toxicity">
-    Detect hateful, demeaning, abusive, or threatening text.
-  </Card>
-  <Card title="SQL Generation" icon="database" href="/docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval">
-    Evaluates SQL query correctness using legacy templates.
-  </Card>
-  <Card title="Tool Calling (Legacy)" icon="gear" href="/docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval">
-    Legacy tool calling evaluation. Consider using Tool Invocation and Tool Selection instead.
   </Card>
 </CardGroup>
 
