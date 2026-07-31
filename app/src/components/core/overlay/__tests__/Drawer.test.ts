@@ -176,11 +176,11 @@ describe("Drawer", () => {
       );
     });
 
-    expect(drawer?.style.width).toBe("95vw");
-    expect(handle?.getAttribute("aria-valuenow")).toBe("95");
-    expect(onResize).toHaveBeenLastCalledWith(95, 950);
+    expect(drawer?.style.width).toBe("92vw");
+    expect(handle?.getAttribute("aria-valuenow")).toBe("92");
+    expect(onResize).toHaveBeenLastCalledWith(92, 920);
     expect(onResizeEnd).toHaveBeenCalledTimes(4);
-    expect(onResizeEnd).toHaveBeenLastCalledWith(95, 950);
+    expect(onResizeEnd).toHaveBeenLastCalledWith(92, 920);
   });
 
   it("keeps a pixel factory width independent of the viewport percentage", () => {
@@ -209,8 +209,8 @@ describe("Drawer", () => {
       '[role="separator"]'
     ) as HTMLDivElement | null;
 
-    expect(drawer?.style.width).toBe("1329px");
-    expect(drawer?.style.maxWidth).toBe("95vw");
+    expect(drawer?.style.width).toBe("920px");
+    expect(drawer?.style.maxWidth).toBe("920px");
 
     act(() => {
       handle?.dispatchEvent(
@@ -221,8 +221,8 @@ describe("Drawer", () => {
       );
     });
 
-    expect(drawer?.style.width).toBe("900px");
-    expect(onResize).toHaveBeenLastCalledWith(90, 900);
+    expect(drawer?.style.width).toBe("870px");
+    expect(onResize).toHaveBeenLastCalledWith(87, 870);
   });
 
   it("commits its current user-resized width again before closing", () => {

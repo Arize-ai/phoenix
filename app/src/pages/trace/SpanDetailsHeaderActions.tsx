@@ -8,8 +8,8 @@ import {
   Icons,
   LinkButton,
   Loading,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 
@@ -91,8 +91,8 @@ function AddSpanToDatasetButton({
       >
         {buttonText}
       </Button>
-      <ModalOverlay>
-        <Modal variant="slideover" size="L">
+      <ViewportModalOverlay>
+        <ViewportModal size="L">
           <Suspense fallback={<Loading />}>
             <SpanToDatasetExampleDialog
               spanId={spanNodeId}
@@ -108,8 +108,8 @@ function AddSpanToDatasetButton({
               }}
             />
           </Suspense>
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

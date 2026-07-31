@@ -298,9 +298,11 @@ export function Drawer({
     resizeHandle.setPointerCapture(event.pointerId);
     activePointerIdRef.current = event.pointerId;
     startXRef.current = event.clientX;
-    startSizeRef.current = isPixelBased
+    const renderedStartSize = isPixelBased
       ? getSizePixels(currentSizeRef.current)
-      : currentSizeRef.current;
+      : clampPercent(currentSizeRef.current);
+    currentSizeRef.current = renderedStartSize;
+    startSizeRef.current = renderedStartSize;
     dragSizeRef.current = startSizeRef.current;
     isDraggingRef.current = true;
     hasDragResizeEmittedRef.current = false;

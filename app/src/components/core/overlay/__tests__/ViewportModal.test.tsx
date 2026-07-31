@@ -7,6 +7,10 @@ import {
   AppFrameOverlayProvider,
   useAppFrameOverlay,
 } from "../AppFrameOverlayContext";
+import {
+  MODAL_OVERLAY_CLASS_NAME,
+  MODAL_PORTAL_CONTAINER_ATTR,
+} from "../constants";
 import { Modal, ModalOverlay } from "../Modal";
 import { ViewportModal, ViewportModalOverlay } from "../ViewportModal";
 
@@ -145,6 +149,10 @@ describe("ViewportModal", () => {
     const dialog = modalPlane?.querySelector('[role="dialog"]');
 
     expect(overlay).not.toBeNull();
+    expect(overlay?.classList.contains(MODAL_OVERLAY_CLASS_NAME)).toBe(true);
+    expect(
+      overlay?.querySelector(`[${MODAL_PORTAL_CONTAINER_ATTR}]`)
+    ).not.toBeNull();
     expect(dialog?.getAttribute("aria-modal")).toBeNull();
     expect(dialog?.getAttribute("aria-labelledby")).not.toBeNull();
     expect(
