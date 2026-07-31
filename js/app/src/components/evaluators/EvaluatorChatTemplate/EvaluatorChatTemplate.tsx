@@ -8,15 +8,17 @@ import { extractPathsFromDatasetExamples } from "@phoenix/utils/objectUtils";
 export const EvaluatorChatTemplate = () => {
   const instances = usePlaygroundContext((state) => state.instances);
   const instanceId = instances[0].id;
-  const example = useEvaluatorStore((state) => state.evaluatorMappingSource);
+  const example = useEvaluatorStore(
+    (state) => state.evaluatorMappingSource.source
+  );
   const availablePaths = useMemo(() => {
     return extractPathsFromDatasetExamples(
       [
         {
           input: example.input,
           taskOutput: example.output,
-          reference: example.reference,
           metadata: example.metadata,
+          ...("reference" in example ? { reference: example.reference } : {}),
         },
       ],
       null

@@ -82,8 +82,12 @@ const useEvaluatorNameInputForm = () => {
 
 export const EvaluatorNameInput = ({
   placeholder = "e.g. code_eval",
+  onValueChange,
   ...props
-}: Partial<TextFieldProps> & { placeholder?: string }) => {
+}: Partial<TextFieldProps> & {
+  placeholder?: string;
+  onValueChange?: () => void;
+}) => {
   const form = useEvaluatorNameInputForm();
   const store = useEvaluatorStoreInstance();
   const { control, trigger } = form;
@@ -122,6 +126,7 @@ export const EvaluatorNameInput = ({
         const displayedError = shouldShowError ? error.message : undefined;
 
         const handleChange = (value: string) => {
+          onValueChange?.();
           field.onChange(
             transformInputValue({ value, transform: transformIdentifierInput })
           );
@@ -136,7 +141,7 @@ export const EvaluatorNameInput = ({
           hasBlurredRef.current = true;
           field.onBlur();
           // Re-trigger validation to include blur-only rules
-          trigger("name");
+          void trigger("name");
         };
 
         return (

@@ -209,7 +209,7 @@ function EvaluatorPromptPreviewContent(
   const { inputMapping, evaluatorMappingSource } = useEvaluatorStore(
     useShallow((state) => ({
       inputMapping: state.evaluator.inputMapping,
-      evaluatorMappingSource: state.evaluatorMappingSource,
+      evaluatorMappingSource: state.evaluatorMappingSource.source,
     }))
   );
   const data = useLazyLoadQuery<EvaluatorPromptPreviewQuery>(

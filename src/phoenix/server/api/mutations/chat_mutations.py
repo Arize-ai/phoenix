@@ -12,6 +12,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     ContinuousOutputConfig,
     FreeformOutputConfig,
+    as_output_configs,
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
@@ -378,18 +379,7 @@ class ChatCompletionMutationMixin:
                     evaluator_name = code_evaluator_record.name.root
                     evaluator_description = code_evaluator_record.description
                     evaluator_source_code = code_evaluator_version.source_code
-                    output_configs = [
-                        c
-                        for c in code_evaluator_record.output_configs
-                        if isinstance(
-                            c,
-                            (
-                                CategoricalOutputConfig,
-                                ContinuousOutputConfig,
-                                FreeformOutputConfig,
-                            ),
-                        )
-                    ]
+                    output_configs = as_output_configs(code_evaluator_record.output_configs)
 
                     if live_sandbox_config is not None:
                         try:
