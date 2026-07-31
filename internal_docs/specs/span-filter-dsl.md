@@ -986,9 +986,14 @@ Things that are easy to leave unspecified until they bite:
 - **Text splicing must agree with the tokenizer.** Anything that edits source by
   offset needs the same line and byte model the parser used — `str.splitlines`
   breaks on characters the tokenizer does not treat as newlines.
-- **Sibling languages share defects.** SessionFilter inherited the same
-  unary-plus sign flip and the same non-boolean operand hole. A fix to shared
-  machinery needs regression coverage on every grain that uses it.
+- **Sibling languages share defects.** The experiment-run filter is a separate
+  implementation of the same idea — a Python grammar borrowed from `ast`,
+  compiled to the same two dialects — and independently had the non-boolean
+  operand hole, comparisons between incompatible types, JSON compared against
+  its own rendering, and the whole inherited literal and operator surface. None
+  of these transferred when they were fixed here, because nothing connects the
+  two. A fix to shared machinery needs regression coverage on every grain that
+  uses it, and a fix to *duplicated* machinery needs porting by hand.
 
 ### A checklist for changing this language
 
@@ -1002,7 +1007,8 @@ Things that are easy to leave unspecified until they bite:
 5. Is it a restriction? Then it is only possible before persistence ships.
 6. What does the error say, and is the suggestion always valid?
 7. Does it change what `root_span_scope` reports?
-8. Does SessionFilter share the machinery being touched?
+8. Does the experiment-run filter have the same defect? It is a separate
+   implementation, so a fix here does not reach it.
 9. If a snapshot changed, has the new SQL been *run* on both backends?
 
 ## Error Messages
@@ -1043,8 +1049,6 @@ PostgreSQL error text as the *symptom*.
   the validator and the database is asserted by hand-written cases only.
 - **`Projector`** (the projection sibling of `SpanFilter`) has weaker
   validation; `TestProjectorValidationGap` documents this deliberately.
-- **No declared minimum PostgreSQL version**, so the version floor the JSON
-  guarantees depend on is implicit.
 - **Collation and numeric precision** differ between backends and are not
   specified.
 
@@ -1086,18 +1090,28 @@ Python reads a leading space as indentation and fails with `IndentationError`,
 which is a poor answer for a condition pasted with a stray space. Widening is
 always safe under the additive-only policy.
 
-## Relationship to SessionFilter
+## Related filters
 
-`SessionFilter` (`src/phoenix/db/session_filters.py`) is a sibling language over
-sessions rather than spans, built on the same shape: a borrowed Python grammar,
-a structural allowlist, annotation aliasing, and translation to the same two
-dialects.
+Two other things are called filters in this codebase. Only one of them is a
+language, and confusing the two misdirects exactly the review effort this
+document is meant to focus.
 
-Shared shape means shared defects. A construct that is unsound here is very
-likely unsound there, and the reverse — so a finding on either grain is worth
-checking against the other, and a fix to shared machinery needs regression
-coverage on **both**. The principles in this document are grain-independent;
-only the vocabulary and the scope analysis are specific to spans.
+**The experiment-run filter** (`src/phoenix/server/api/helpers/experiment_run_filters.py`)
+is the real sibling: an independent implementation of the same idea, over
+experiment runs and dataset examples, with its own parser, its own validation,
+and its own translation to the same two dialects. Everything in this document
+applies to it. Because the two share intent but not code, a defect fixed here
+stays open there until it is ported by hand — which is how each of them was
+found.
+
+**The session filter** (`src/phoenix/server/session_filters.py`) is not a
+language at all. It is one function that takes a plain string and matches it
+case-insensitively against the input and output values of root spans. There is
+no grammar, no parser, no type system, and so none of the failure modes
+catalogued here: the string is data, never source. It uses `as_string()`
+already, so it does not have the JSON-rendering defect either. It is listed here
+so that the next person auditing "the filters" can stop at this line rather than
+go looking for a grammar that does not exist.
 
 ---
 

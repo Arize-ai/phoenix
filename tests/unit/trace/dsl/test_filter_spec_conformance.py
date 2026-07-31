@@ -109,6 +109,14 @@ REJECTED = [
     ("float('1_000') > 1", "cannot cast string to number"),
     ("float('nan') > 1", "cannot cast string to number"),
     ("float('inf') > 1", "cannot cast string to number"),
+    # A literal cast to text reaches the driver as a bind parameter typed
+    # VARCHAR holding a Python value. PostgreSQL refuses it outright; SQLite
+    # coerces, and the two do not agree on the spelling (`True` -> `true` vs
+    # `1`). Casting a column is portable and stays allowed.
+    ("str(True) == 'true'", "cannot cast the literal"),
+    ("str(False) == 'false'", "cannot cast the literal"),
+    ("str(1) == '1'", "cannot cast the literal"),
+    ("str(1.5) == '1.5'", "cannot cast the literal"),
     # datetime literals must carry an offset
     ("start_time > '2024-01-01T00:00:00'", "no timezone"),
     ("start_time in ['2024-01-01T00:00:00']", "no timezone"),

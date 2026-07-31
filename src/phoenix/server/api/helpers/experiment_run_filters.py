@@ -277,7 +277,8 @@ class ExperimentRun(ExperimentRunFilterConditionNode):
 
     def __post_init__(self) -> None:
         experiment_index = self.slice.value
-        if not isinstance(experiment_index, int):
+        # As above: `experiments[True]` must not silently mean `experiments[1]`.
+        if isinstance(experiment_index, bool) or not isinstance(experiment_index, int):
             raise ExperimentRunFilterConditionSyntaxError("Index to experiments must be an integer")
         if not (0 <= experiment_index < len(self.experiment_ids)):
             raise ExperimentRunFilterConditionSyntaxError("Select an experiment with [<index>]")
@@ -387,7 +388,9 @@ class JSONAttribute(Attribute):
 
     def __post_init__(self) -> None:
         index_value = self.index_constant.value
-        if not isinstance(index_value, (int, str)):
+        # `bool` is a subclass of `int`, so `input[True]` would otherwise be
+        # accepted as `input[1]` -- a position the user did not write.
+        if isinstance(index_value, bool) or not isinstance(index_value, (int, str)):
             raise ExperimentRunFilterConditionSyntaxError("Index must be an integer or string")
         object.__setattr__(self, "_index_value", index_value)
 
@@ -667,9 +670,16 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
     def visit_Subscript(self, node: ast.Subscript) -> ExperimentRunFilterConditionNode:
         container = self.visit(node.value)
         key = self.visit(node.slice)
+        if not isinstance(key, Constant):
+            # Anything the visitors do not turn into a `Constant` -- a slice, an
+            # f-string, a negative number (which parses as unary minus over a
+            # literal, not as a literal) -- used to arrive here untransformed and
+            # fail on attribute access further down, reported as a server-side
+            # fault rather than as the unsupported key it is.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Subscript key must be a literal: `{ast.unparse(node.slice)}`"
+            )
         if isinstance(container, ExperimentsName):
-            if not isinstance(key, Constant):
-                raise ExperimentRunFilterConditionSyntaxError("Index must be a constant")
             return ExperimentRun(
                 slice=key,
                 experiment_ids=self._experiment_ids,
@@ -677,6 +687,11 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
             )
         if isinstance(container, ExperimentRunAttribute):
             if container.is_eval_attribute:
+                if not isinstance(key.value, str):
+                    # `ExperimentRunEval` checks this too; narrowing here keeps
+                    # the call below typed without an ignore. Same message, so
+                    # which one fires is not observable.
+                    raise ExperimentRunFilterConditionSyntaxError("Eval must be indexed by string")
                 return ExperimentRunEval(
                     experiment_run_attribute=container,
                     eval_name=key.value,
@@ -861,6 +876,24 @@ def _validate_python_surface(body: ast.expr) -> None:
             # compilation untransformed.
             raise ExperimentRunFilterConditionSyntaxError(
                 f"Unsupported collection: `{ast.unparse(node)}`"
+            )
+        elif isinstance(node, ast.Slice):
+            # `input[1:2]`. A subscript selects one key or index.
+            raise ExperimentRunFilterConditionSyntaxError(
+                "Slicing is not supported; select a single key or index"
+            )
+        elif isinstance(node, (ast.JoinedStr, ast.FormattedValue)):
+            # An f-string builds its value at evaluation time, which is exactly
+            # what this language does not do -- there is nothing to interpolate
+            # against. These break inside the transformer rather than at a
+            # visitor, because the pieces are nested below the node.
+            raise ExperimentRunFilterConditionSyntaxError(
+                "Formatted strings are not supported; use a plain string literal"
+            )
+        elif isinstance(node, (ast.Await, ast.Yield, ast.YieldFrom)):
+            # Reachable only because `ast.parse` accepts them in an expression.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Unsupported expression: `{ast.unparse(node)}`"
             )
 
 

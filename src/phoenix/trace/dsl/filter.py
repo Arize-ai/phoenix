@@ -767,6 +767,26 @@ def _validate_operand_types(expression: ast.Expression) -> None:
                 # failed when the query ran.
                 raise SyntaxError("cannot cast boolean to number")
             continue
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "str":
+            if len(node.args) != 1:
+                raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
+            argument = node.args[0]
+            if isinstance(argument, ast.Constant) and not isinstance(argument.value, str):
+                # The cast reaches the driver as a bind parameter typed VARCHAR
+                # holding a Python bool/int/float. PostgreSQL refuses it
+                # (`invalid input for query argument: expected str`), so the
+                # condition validated and then failed when the query ran, while
+                # SQLite coerced it -- and the two do not agree on the result:
+                # `True` renders as `true` on PostgreSQL and `1` on SQLite.
+                #
+                # Only a literal is rejected. `str(latency_ms)` casts a column,
+                # which is the useful case and portable; `str(1)` compares a
+                # constant to a constant and means nothing either way.
+                raise SyntaxError(
+                    f"cannot cast the literal {ast.unparse(argument)} to text"
+                    ", the backends spell it differently"
+                )
+            continue
         if isinstance(node, ast.BoolOp):
             for value in node.values:
                 _require_condition(value)

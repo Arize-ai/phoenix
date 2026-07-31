@@ -388,7 +388,7 @@ def test_compile_sqlalchemy_filter_condition_correctly_compiles(
         ),
         pytest.param(
             "experiments[input]",
-            "Index must be a constant",
+            "Subscript key must be a literal",
             id="non-constant-index",
         ),
         pytest.param(
@@ -787,6 +787,29 @@ class TestInheritedPythonSurface:
             pytest.param("+latency_ms > 1", "Unsupported operator: `+latency_ms`", id="unary-plus"),
             pytest.param("{'a': 1} == error", "Unsupported collection: `{'a': 1}`", id="dict"),
             pytest.param("{1, 2} == error", "Unsupported collection: `{1, 2}`", id="set"),
+            pytest.param("input[1:2] == 'a'", "Slicing is not supported", id="slice"),
+            pytest.param(
+                "input[f'x'] == 'a'", "Formatted strings are not supported", id="fstring-key"
+            ),
+            pytest.param("f'{error}' == 'a'", "Formatted strings are not supported", id="fstring"),
+            pytest.param("await error == 'a'", "Unsupported expression: `await error`", id="await"),
+            pytest.param(
+                "input[-1] == 'a'", "Subscript key must be a literal: `-1`", id="negative-index"
+            ),
+            # `bool` is an `int` subclass, so these used to be read as index 1.
+            pytest.param(
+                "input[True] == 'a'", "Index must be an integer or string", id="bool-index"
+            ),
+            pytest.param(
+                "experiments[True].error == 'a'",
+                "Index to experiments must be an integer",
+                id="bool-experiment-index",
+            ),
+            pytest.param(
+                "experiments[0].evals[1].score > 1",
+                "Eval must be indexed by string",
+                id="non-string-eval-name",
+            ),
         ],
     )
     def test_rejected_with_a_message_naming_the_construct(
@@ -809,7 +832,15 @@ class TestInheritedPythonSurface:
         # The catch-all logs with a traceback, which is right for a gap we do
         # not know about and wrong for a construct we have decided to reject.
         with caplog.at_level(logging.ERROR):
-            for condition in ("error == b'abc'", "latency_ms ** 2 > 1", "~latency_ms > 1"):
+            for condition in (
+                "error == b'abc'",
+                "latency_ms ** 2 > 1",
+                "~latency_ms > 1",
+                "input[1:2] == 'a'",
+                "input[f'x'] == 'a'",
+                "input[-1] == 'a'",
+                "await error == 'a'",
+            ):
                 with pytest.raises(ExperimentRunFilterConditionSyntaxError):
                     compile_sqlalchemy_filter_condition(
                         filter_condition=condition, experiment_ids=[1]
