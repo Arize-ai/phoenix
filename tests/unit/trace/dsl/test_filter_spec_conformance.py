@@ -180,8 +180,8 @@ PYTHON_SURFACE_REJECTED = [
     pytest.param("llm.token_count.ｔｏｔａｌ > 0", "is interpreted as", id="nfkc-dotted-path"),
     pytest.param("ｎａｍｅ == 'name'", "is interpreted as", id="nfkc-ascii-in-literal"),
     # a bare boolean literal is a value, not a condition -- unlike as an operand
-    pytest.param("True", "is not a condition", id="bare-true"),
-    pytest.param("False", "is not a condition", id="bare-false"),
+    pytest.param("True", "only be used as an operand", id="bare-true"),
+    pytest.param("False", "only be used as an operand", id="bare-false"),
 ]
 
 # `is` against the singletons is retained: those are the only values Python's

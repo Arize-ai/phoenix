@@ -458,19 +458,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-unary-minus-comparison]
   dict({
     'filter_condition': '-experiments[0].latency_ms > -5',
-    'sql': "CAST(jsonb_path_query_first(-round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1), 'strict $.double()', '{}'::jsonb, true) AS NUMERIC) > CAST(jsonb_path_query_first(-5, 'strict $.double()', '{}'::jsonb, true) AS NUMERIC)",
+    'sql': '-round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > -5',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-unary-minus-constant]
   dict({
     'filter_condition': '-5',
     'sql': '-5',
-  })
-# ---
-# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-unary-minus-string-comparison]
-  dict({
-    'filter_condition': "-'hello' < 10",
-    'sql': "CAST(jsonb_path_query_first(-'hello', 'strict $.double()', '{}'::jsonb, true) AS NUMERIC) < 10",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-complex-negation]
@@ -836,18 +830,12 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-unary-minus-comparison]
   dict({
     'filter_condition': '-experiments[0].latency_ms > -5',
-    'sql': "CASE WHEN json_type(-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)) IN ('integer', 'real') THEN CAST(-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) AS FLOAT) WHEN json_type(-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)) = 'text' THEN CASE WHEN json_valid(json_extract(-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1), '$')) AND json_type(json_extract(-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1), '$')) IN ('integer', 'real') THEN CAST(json_extract(-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1), '$') AS FLOAT) END END > CASE WHEN json_type(-5) IN ('integer', 'real') THEN CAST(-5 AS FLOAT) WHEN json_type(-5) = 'text' THEN CASE WHEN json_valid(json_extract(-5, '$')) AND json_type(json_extract(-5, '$')) IN ('integer', 'real') THEN CAST(json_extract(-5, '$') AS FLOAT) END END",
+    'sql': "-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > -5",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-unary-minus-constant]
   dict({
     'filter_condition': '-5',
     'sql': '-5',
-  })
-# ---
-# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-unary-minus-string-comparison]
-  dict({
-    'filter_condition': "-'hello' < 10",
-    'sql': "CASE WHEN json_type(-'hello') IN ('integer', 'real') THEN CAST(-'hello' AS FLOAT) WHEN json_type(-'hello') = 'text' THEN CASE WHEN json_valid(json_extract(-'hello', '$')) AND json_type(json_extract(-'hello', '$')) IN ('integer', 'real') THEN CAST(json_extract(-'hello', '$') AS FLOAT) END END < 10",
   })
 # ---

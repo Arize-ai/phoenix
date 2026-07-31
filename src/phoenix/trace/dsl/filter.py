@@ -753,6 +753,11 @@ def _validate_operand_types(expression: ast.Expression) -> None:
                     raise SyntaxError("cannot cast string to number")
             elif _get_filter_value_type(argument) == "string":
                 raise SyntaxError("cannot cast string to number")
+            elif _get_filter_value_type(argument) == "boolean":
+                # `CAST(true AS FLOAT)` is rejected by PostgreSQL, and the cast
+                # compiles either way, so the condition validated and then
+                # failed when the query ran.
+                raise SyntaxError("cannot cast boolean to number")
             continue
         if isinstance(node, ast.BoolOp):
             for value in node.values:
@@ -1471,6 +1476,13 @@ def _validate_expression(
                 # Falling through to the generic message below would name the
                 # fragment without saying what is wrong with it.
                 source_segment = ast.unparse(node)
+                if _is_singleton_constant(node):
+                    # `True == ...` is not a repair anyone wants; the literals
+                    # are only meaningful beside a real condition.
+                    raise SyntaxError(
+                        f"`{source_segment}` is not a condition on its own"
+                        ", it can only be used as an operand of `and` / `or` / `not`"
+                    )
                 raise SyntaxError(
                     f"`{source_segment}` is not a condition"
                     f", expected a comparison such as `{source_segment} == ...`"

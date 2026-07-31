@@ -445,6 +445,23 @@ class UnaryTermOperation(Term):
     operand: Term
     operator: SupportedUnaryTermOperator
 
+    def __post_init__(self) -> None:
+        # Negating text is not something either backend agrees on: PostgreSQL
+        # rejects `-'hello'` as an ambiguous operator, SQLite coerces it to 0.
+        data_type = self.operand.data_type
+        if data_type is not None and _get_data_type_family(data_type) != "number":
+            raise ExperimentRunFilterConditionSyntaxError("Unary minus requires a numeric operand")
+
+    @property
+    def data_type(self) -> Optional[SQLAlchemyDataType]:
+        # Negating a number yields a number. Reporting "unknown" here made the
+        # comparison treat an already-numeric operand as a JSON value and wrap
+        # it in `SafeJsonFloat`, which PostgreSQL rejects outright --
+        # `jsonb_path_query_first(numeric, ...) does not exist`. An unknown
+        # operand is converted to a number by `compile` below, so the result is
+        # numeric either way and the comparison must not wrap it again.
+        return self.operand.data_type or Float()
+
     def compile(self) -> Any:
         operator = self.operator
         operand = self.operand
@@ -454,6 +471,11 @@ class UnaryTermOperation(Term):
         else:
             assert_never(operator)
         compiled_operand = operand.compile()
+        if operand.data_type is None:
+            # Convert before negating, not after. `-` has no meaning for a JSON
+            # value -- PostgreSQL rejects `- jsonb` outright, and SQLite quietly
+            # coerces -- so the safe numeric conversion has to happen first.
+            compiled_operand = SafeJsonFloat(compiled_operand)
         return sqlalchemy_operator(compiled_operand)
 
 

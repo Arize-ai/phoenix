@@ -269,11 +269,6 @@ from phoenix.server.api.helpers.experiment_run_filters import (
             "-experiments[0].latency_ms > -5",
             id="unary-minus-comparison",
         ),
-        # weird cases
-        pytest.param(
-            "-'hello' < 10",
-            id="unary-minus-string-comparison",
-        ),
     ),
 )
 def test_sqlalchemy_transformer_correctly_compiles(
@@ -491,6 +486,14 @@ def test_compile_sqlalchemy_filter_condition_correctly_compiles(
             "input and error",
             "Operands of `and` / `or` must be boolean expressions",
             id="json-attribute-as-and-operand",
+        ),
+        # PostgreSQL rejects `-'hello'` as an ambiguous operator and SQLite
+        # coerces it to 0. This compiled and was snapshot tested; the recorded
+        # PostgreSQL SQL could never have run.
+        pytest.param(
+            "-'hello' < 10",
+            "Unary minus requires a numeric operand",
+            id="unary-minus-on-text",
         ),
         pytest.param(
             "latency_ms > 1 and input",

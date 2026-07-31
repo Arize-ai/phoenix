@@ -94,7 +94,7 @@ _SPANS: tuple[tuple[str, Optional[str], str, str, int, dict[str, Any]], ...] = (
         {
             "r": None,
             "flag": None,
-            "num": "nope",
+            "num": "nan",
             "input": {"value": None},
             "deep": {},
             "arr": None,
@@ -113,7 +113,7 @@ _SPANS: tuple[tuple[str, Optional[str], str, str, int, dict[str, Any]], ...] = (
         {
             "r": {"nested": True},
             "flag": False,
-            "num": "also-not-a-number",
+            "num": "inf",
             "input": {"value": "x"},
             "deep": {"a": None},
             "arr": [[1]],
