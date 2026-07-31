@@ -963,14 +963,32 @@ class TestInheritedPythonSurface:
             compile_sqlalchemy_filter_condition(filter_condition=condition, experiment_ids=[1])
 
     def test_nul_in_the_source_is_not_a_server_error(self) -> None:
-        # `ast.parse` reports this as a `ValueError`, which callers do not
-        # catch, so it escaped the boundary that turns input into filter errors.
+        # `ast.parse` reports this as a `ValueError` on 3.10 and as a
+        # `SyntaxError` from 3.11 on; both must produce the same canonical
+        # message rather than escaping as a server error or surfacing the
+        # tokenizer's "null bytes" wording.
         with pytest.raises(
             ExperimentRunFilterConditionSyntaxError, match="cannot contain a NUL character"
         ):
             compile_sqlalchemy_filter_condition(
                 filter_condition="error == 'a\x00b'", experiment_ids=[1]
             )
+
+    def test_nul_reported_as_syntax_error_is_normalized(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Simulates the >= 3.11 exception type so the 3.10 CI leg exercises
+        # that branch too.
+        def parse_like_311(*args: Any, **kwargs: Any) -> Any:
+            raise SyntaxError("source code string cannot contain null bytes")
+
+        monkeypatch.setattr(
+            "phoenix.server.api.helpers.experiment_run_filters.ast.parse", parse_like_311
+        )
+        with pytest.raises(
+            ExperimentRunFilterConditionSyntaxError, match="cannot contain a NUL character"
+        ):
+            compile_sqlalchemy_filter_condition(filter_condition="error == 'x'", experiment_ids=[1])
 
     def test_rejection_does_not_log_an_error(self, caplog: pytest.LogCaptureFixture) -> None:
         # The catch-all logs with a traceback, which is right for a gap we do
