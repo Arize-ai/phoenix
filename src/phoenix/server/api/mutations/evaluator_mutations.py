@@ -25,6 +25,7 @@ from phoenix.db.types.annotation_configs import (
     ContinuousOutputConfig,
     FreeformOutputConfig,
     OutputConfigType,
+    as_output_configs,
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.identifier import Identifier as IdentifierModel
@@ -475,7 +476,7 @@ class UpdateProjectLLMEvaluatorInput:
     sampling_rate: float
     evaluation_target: EvaluationTarget
     filter_condition: str
-    enabled: bool
+    enabled: Optional[bool] = UNSET
     description: Optional[str] = None
     prompt_version_id: Optional[GlobalID] = UNSET
 
@@ -525,12 +526,12 @@ class CreateProjectCodeEvaluatorInput:
 class UpdateProjectCodeEvaluatorInput:
     project_evaluator_id: GlobalID
     name: Identifier
-    evaluator_input_mapping: EvaluatorInputMappingInput
     sampling_rate: float
     evaluation_target: EvaluationTarget
     filter_condition: str
-    enabled: bool
-    description: Optional[str] = None
+    evaluator_input_mapping: Optional[EvaluatorInputMappingInput] = UNSET
+    enabled: Optional[bool] = UNSET
+    description: Optional[str] = UNSET
     source_code: Optional[str] = UNSET
     sandbox_config_id: Optional[GlobalID] = UNSET
     output_configs: Optional[list[AnnotationConfigInput]] = UNSET
@@ -541,6 +542,12 @@ class UpdateProjectCodeEvaluatorInput:
             "use null to inherit the evaluator input mapping, or provide an object to override it."
         ),
     )
+
+
+@strawberry.input
+class SetProjectEvaluatorEnabledInput:
+    project_evaluator_id: GlobalID
+    enabled: bool
 
 
 @strawberry.type
@@ -733,6 +740,8 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid project evaluator id: {input.project_evaluator_id}")
         _validate_project_evaluator_filter(input.filter_condition)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
+        if input.enabled is None:
+            raise BadRequest("enabled cannot be set to null")
         try:
             name = IdentifierModel.model_validate(input.name)
             prompt_version = input.prompt_version.to_orm_prompt_version(None)
@@ -832,7 +841,9 @@ class EvaluatorMutationMixin:
                 criteria.sampling_rate = input.sampling_rate
                 criteria.evaluation_target = input.evaluation_target.value
                 criteria.input_mapping = input.input_mapping.to_orm()
-                criteria.enabled = input.enabled
+                if input.enabled is not UNSET:
+                    assert input.enabled is not None
+                    criteria.enabled = input.enabled
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise Conflict("A project evaluator with this name already exists for this project")
@@ -1003,6 +1014,10 @@ class EvaluatorMutationMixin:
             raise BadRequest(str(error))
         _validate_project_evaluator_filter(input.filter_condition)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
+        if input.evaluator_input_mapping is None:
+            raise BadRequest("evaluator_input_mapping cannot be set to null")
+        if input.enabled is None:
+            raise BadRequest("enabled cannot be set to null")
         if input.source_code is not UNSET and input.source_code is None:
             raise BadRequest("source_code cannot be set to null")
         if input.output_configs is None:
@@ -1036,27 +1051,41 @@ class EvaluatorMutationMixin:
                         f"CODE project evaluator not found: {input.project_evaluator_id}"
                     )
                 criteria, evaluator = pair
+                shared_evaluator_changed = False
                 if criteria.name != name:
                     evaluator.name = await _generate_unique_evaluator_name(session, name)
-                evaluator.description = input.description
-                evaluator.user_id = user_id
-                evaluator.input_mapping = input.evaluator_input_mapping.to_orm()
+                    shared_evaluator_changed = True
+                if input.description is not UNSET and evaluator.description != input.description:
+                    evaluator.description = input.description
+                    shared_evaluator_changed = True
+                if input.evaluator_input_mapping is not UNSET:
+                    assert input.evaluator_input_mapping is not None
+                    evaluator_input_mapping = input.evaluator_input_mapping.to_orm()
+                    if evaluator.input_mapping != evaluator_input_mapping:
+                        evaluator.input_mapping = evaluator_input_mapping
+                        shared_evaluator_changed = True
 
                 if input.sandbox_config_id is not UNSET:
                     if input.sandbox_config_id is None:
-                        evaluator.sandbox_config_id = None
+                        sandbox_config_id = None
                     else:
-                        evaluator.sandbox_config_id = await _validate_code_evaluator_sandbox_config(
+                        sandbox_config_id = await _validate_code_evaluator_sandbox_config(
                             session,
                             sandbox_config_global_id=input.sandbox_config_id,
                             language=evaluator.language,
                             action="updating this evaluator",
                         )
+                    if evaluator.sandbox_config_id != sandbox_config_id:
+                        evaluator.sandbox_config_id = sandbox_config_id
+                        shared_evaluator_changed = True
                 if input.output_configs is not UNSET:
-                    evaluator.output_configs = cast(
+                    output_configs = cast(
                         list[AnnotationConfigType],
                         _convert_output_config_inputs_to_pydantic(input.output_configs),
                     )
+                    if evaluator.output_configs != output_configs:
+                        evaluator.output_configs = output_configs
+                        shared_evaluator_changed = True
                 if input.source_code is not UNSET and input.source_code is not None:
                     _raise_on_uninferable_evaluate_signature(
                         input.source_code, Language(evaluator.language)
@@ -1078,6 +1107,10 @@ class EvaluatorMutationMixin:
                         candidate
                     ):
                         session.add(candidate)
+                        shared_evaluator_changed = True
+
+                if shared_evaluator_changed:
+                    evaluator.user_id = user_id
 
                 criteria.name = name
                 criteria.filter_condition = input.filter_condition
@@ -1087,11 +1120,41 @@ class EvaluatorMutationMixin:
                     criteria.input_mapping = (
                         input.input_mapping.to_orm() if input.input_mapping is not None else None
                     )
-                criteria.enabled = input.enabled
+                if input.enabled is not UNSET:
+                    assert input.enabled is not None
+                    criteria.enabled = input.enabled
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise Conflict("A project evaluator with this name already exists for this project")
 
+        return ProjectEvaluatorMutationPayload(
+            evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
+            query=Query(),
+        )
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
+            "Enable or disable a project evaluator. Flips only the enabled flag on the "
+            "project binding, leaving the underlying evaluator untouched. Works for both "
+            "LLM and CODE evaluators."
+        ),
+    )  # type: ignore
+    async def set_project_evaluator_enabled(
+        self, info: Info[Context, None], input: SetProjectEvaluatorEnabledInput
+    ) -> ProjectEvaluatorMutationPayload:
+        try:
+            criteria_id = from_global_id_with_expected_type(
+                input.project_evaluator_id, ProjectEvaluator.__name__
+            )
+        except ValueError as error:
+            raise BadRequest(str(error))
+        async with info.context.db() as session:
+            criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+            if criteria is None:
+                raise NotFound(f"Project evaluator not found: {input.project_evaluator_id}")
+            criteria.enabled = input.enabled
+            await session.flush()
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
             query=Query(),
@@ -1966,14 +2029,7 @@ class EvaluatorMutationMixin:
             )
 
         if output_configs is None:
-            dataset_evaluator.output_configs = [
-                config
-                for config in code_evaluator.output_configs
-                if isinstance(
-                    config,
-                    (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
-                )
-            ]
+            dataset_evaluator.output_configs = as_output_configs(code_evaluator.output_configs)
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator),
@@ -2055,14 +2111,7 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"DatasetEvaluator with name {input.name} already exists")
 
         if dataset_evaluator.output_configs is None:
-            dataset_evaluator.output_configs = [
-                config
-                for config in evaluator.output_configs
-                if isinstance(
-                    config,
-                    (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
-                )
-            ]
+            dataset_evaluator.output_configs = as_output_configs(evaluator.output_configs)
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator),
