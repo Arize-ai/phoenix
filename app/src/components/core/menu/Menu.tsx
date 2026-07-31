@@ -7,6 +7,8 @@ import {
   type MenuItemProps as AriaMenuItemProps,
   type MenuProps as AriaMenuProps,
   MenuTrigger as AriaMenuTrigger,
+  PopoverContext,
+  useSlottedContext,
 } from "react-aria-components";
 import type { AriaMenuOptions } from "react-aria/useMenu";
 
@@ -259,9 +261,44 @@ const menuContainerCss = css`
 `;
 
 /**
+ * Resolves MenuContainer's placement and flip defaults for its two hosts.
+ *
+ * A root menu hangs below its trigger button, so it defaults to "bottom end"
+ * without flipping. A submenu must open BESIDE its trigger item — React Aria's
+ * SubmenuTrigger provides "end top" through context, and MenuContainer must
+ * not override it: a submenu forced below its item dooms the pointer to cross
+ * sibling items on its way to the submenu, closing it before it can be used.
+ * Submenus keep flipping enabled so the side placement can mirror at a
+ * viewport edge instead of overflowing.
+ */
+export function resolveMenuContainerOverlayProps({
+  placement,
+  shouldFlip,
+  isSubmenu,
+}: {
+  placement: PopoverProps["placement"];
+  shouldFlip: PopoverProps["shouldFlip"];
+  isSubmenu: boolean;
+}): { placement: PopoverProps["placement"]; shouldFlip: boolean } {
+  return {
+    placement: placement ?? (isSubmenu ? undefined : "bottom end"),
+    shouldFlip: shouldFlip ?? isSubmenu,
+  };
+}
+
+/**
  * A menu container is a container for a menu.
  * This is the container for the menu items, and should be used in conjunction with MenuTrigger and Menu.
  * It includes a popover, as well as height, padding, and other styling.
+ *
+ * Phoenix menus are deliberately non-modal: a transient pick-one control must
+ * not lock document scrolling or hide the rest of the app from assistive
+ * technology (React Aria's modal `ariaHideOutside` walk is also measurably
+ * slow on Phoenix's large DOM). The dismissal guarantee a modal underlay
+ * would have provided is preserved by `closeOnInteractOutside`, which
+ * consumes the outside press that closes the menu so it cannot also activate
+ * whatever sits beneath. Submenus rely on React Aria's submenu dismissal
+ * instead, and closing the root closes the whole tree.
  * @see https://react-spectrum.adobe.com/react-aria/MenuContainer.html
  * @example
  * <MenuTrigger>
@@ -277,7 +314,8 @@ const menuContainerCss = css`
  */
 export const MenuContainer = ({
   children,
-  placement = "bottom end",
+  placement,
+  shouldFlip,
   minHeight = "var(--global-menu-min-height)",
   maxHeight = "var(--global-menu-max-height-large)",
   maxWidth = 450,
@@ -288,10 +326,18 @@ export const MenuContainer = ({
     maxHeight?: React.CSSProperties["maxHeight"];
     maxWidth?: React.CSSProperties["maxWidth"];
   }) => {
+  const popoverContext = useSlottedContext(PopoverContext);
+  const isSubmenu = popoverContext?.trigger === "SubmenuTrigger";
+  const overlayProps = resolveMenuContainerOverlayProps({
+    placement,
+    shouldFlip,
+    isSubmenu,
+  });
   return (
     <Popover
-      shouldFlip={false}
-      placement={placement}
+      isNonModal
+      closeOnInteractOutside={!isSubmenu}
+      {...overlayProps}
       css={menuContainerCss}
       {...popoverProps}
     >

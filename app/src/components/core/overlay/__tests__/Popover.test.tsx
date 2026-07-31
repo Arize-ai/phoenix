@@ -2,6 +2,7 @@ import { act } from "react";
 import { DialogTrigger } from "react-aria-components";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
+import { userEvent } from "storybook/test";
 
 import { Button } from "../../button";
 import { Popover } from "../Popover";
@@ -96,15 +97,19 @@ describe("Popover", () => {
     expect(popover?.style.zIndex).toBe("var(--global-z-index-app-floating)");
   });
 
+  // The band tests render non-modal popovers: modality is orthogonal to the
+  // stacking they assert, and jsdom's partial focus emulation cannot reliably
+  // keep a defaultOpen popover nested inside a MODAL popover mounted (the
+  // child self-closes on a focus bounce — reproducible with raw React Aria).
   it("clamps a nested popover to at least its parent's band", () => {
     act(() => {
       root.render(
         <DialogTrigger defaultOpen>
           <Button>Open parent</Button>
-          <Popover data-testid="parent">
+          <Popover isNonModal data-testid="parent">
             <DialogTrigger defaultOpen>
               <Button>Open child</Button>
-              <Popover data-testid="child" stacking="app-floating">
+              <Popover isNonModal data-testid="child" stacking="app-floating">
                 <span>child content</span>
               </Popover>
             </DialogTrigger>
@@ -124,15 +129,112 @@ describe("Popover", () => {
     );
   });
 
+  it("consumes the outside press that dismisses a closeOnInteractOutside popover", async () => {
+    const outsideButton = document.createElement("button");
+    const onOutsidePointerDown = vi.fn();
+    const onOutsideClick = vi.fn();
+    outsideButton.textContent = "Outside action";
+    outsideButton.addEventListener("pointerdown", onOutsidePointerDown);
+    outsideButton.addEventListener("click", onOutsideClick);
+    document.body.appendChild(outsideButton);
+    const user = userEvent.setup();
+
+    act(() => {
+      root.render(
+        <DialogTrigger defaultOpen>
+          <Button>Open popover</Button>
+          <Popover isNonModal closeOnInteractOutside>
+            <span>content</span>
+          </Popover>
+        </DialogTrigger>
+      );
+    });
+    expect(document.querySelector(".popover")).not.toBeNull();
+
+    await act(async () => user.click(outsideButton));
+
+    expect(document.querySelector(".popover")).toBeNull();
+    expect(onOutsidePointerDown).not.toHaveBeenCalled();
+    expect(onOutsideClick).not.toHaveBeenCalled();
+
+    await act(async () => user.click(outsideButton));
+    expect(onOutsideClick).toHaveBeenCalledOnce();
+
+    outsideButton.remove();
+  });
+
+  it("closes from its own trigger press without reopening", async () => {
+    const user = userEvent.setup();
+
+    act(() => {
+      root.render(
+        <DialogTrigger defaultOpen>
+          <Button>Open popover</Button>
+          <Popover isNonModal closeOnInteractOutside>
+            <span>content</span>
+          </Popover>
+        </DialogTrigger>
+      );
+    });
+    expect(document.querySelector(".popover")).not.toBeNull();
+
+    const trigger = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Open popover"
+    )!;
+
+    // The trigger press is consumed and closes (modal-parity toggle); it must
+    // not close-then-immediately-reopen. The next press reopens normally.
+    await act(async () => user.click(trigger));
+    expect(document.querySelector(".popover")).toBeNull();
+
+    await act(async () => user.click(trigger));
+    expect(document.querySelector(".popover")).not.toBeNull();
+  });
+
+  it("does not consume presses inside a descendant popover", async () => {
+    const onNestedActionClick = vi.fn();
+    const user = userEvent.setup();
+
+    act(() => {
+      root.render(
+        <DialogTrigger defaultOpen>
+          <Button>Open parent</Button>
+          <Popover isNonModal closeOnInteractOutside data-testid="parent">
+            <DialogTrigger defaultOpen>
+              <Button>Open child</Button>
+              <Popover isNonModal data-testid="child">
+                <button onClick={onNestedActionClick}>Nested action</button>
+              </Popover>
+            </DialogTrigger>
+          </Popover>
+        </DialogTrigger>
+      );
+    });
+
+    const nestedAction = Array.from(document.querySelectorAll("button")).find(
+      (button) => button.textContent === "Nested action"
+    )!;
+
+    // The child portals outside the parent's DOM, but the parent recognizes
+    // it through the overlay tree and must neither consume the press nor
+    // close itself.
+    await act(async () => user.click(nestedAction));
+
+    expect(onNestedActionClick).toHaveBeenCalledOnce();
+    expect(
+      document.querySelector('.popover[data-testid="parent"]')
+    ).not.toBeNull();
+  });
+
   it("keeps a nested popover's band when it already meets the parent's", () => {
     act(() => {
       root.render(
         <DialogTrigger defaultOpen>
           <Button>Open parent</Button>
-          <Popover data-testid="parent" stacking="app-floating">
+          <Popover isNonModal data-testid="parent" stacking="app-floating">
             <DialogTrigger defaultOpen>
               <Button>Open child</Button>
-              <Popover data-testid="child">
+              <Popover isNonModal data-testid="child">
                 <span>child content</span>
               </Popover>
             </DialogTrigger>

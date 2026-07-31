@@ -300,6 +300,11 @@ function CollapsibleAnnotationFilterActions({
           data-annotation-filter-menu
           placement="bottom end"
           isNonModal
+          // This menu belongs to a coordinated sibling group ("filter" |
+          // "more" | null): the press that dismisses it may be the press that
+          // opens its sibling, so it must not consume outside interactions.
+          // The enclosing annotation popover owns outside dismissal.
+          closeOnInteractOutside={false}
           minHeight={0}
           aria-label={`Filter ${targetLabel}`}
         >

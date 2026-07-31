@@ -591,6 +591,11 @@ export function DetailPanelAnnotationButton({
           data-annotation-overlay
           placement="bottom end"
           stacking="app-floating"
+          // Not a pick-one menu: this is an annotation-management panel that
+          // launches from a MenuTrigger. It keeps the modal contract it was
+          // built with (automatic dialog role, focus containment) rather than
+          // inheriting MenuContainer's non-modal menu default.
+          isNonModal={false}
           minHeight={0}
           maxHeight="min(520px, calc(100vh - var(--global-dimension-size-800)))"
           aria-label={`Manage ${targetLabel}`}
@@ -2493,6 +2498,11 @@ function AddAnnotationPopover({
           data-annotation-overlay
           placement="bottom end"
           stacking="app-floating"
+          // Not a pick-one menu: this is an annotation-management panel that
+          // launches from a MenuTrigger. It keeps the modal contract it was
+          // built with (automatic dialog role, focus containment) rather than
+          // inheriting MenuContainer's non-modal menu default.
+          isNonModal={false}
           minHeight={0}
           maxHeight="min(620px, calc(100vh - var(--global-dimension-size-800)))"
           aria-label={`Manage ${targetLabel.toLocaleLowerCase()} annotations`}
