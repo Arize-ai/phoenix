@@ -2,4 +2,5 @@ Dockerfile
 **/node_modules/
 **/.venv/
 **/__pycache__/
+**/.env
 src/phoenix/server/static/

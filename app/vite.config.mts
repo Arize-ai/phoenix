@@ -43,13 +43,24 @@ function getRemoteModernizrScript(html: string): string {
   return modernizrScript;
 }
 
-function createRemoteBackendPlugin(remoteBackendUrl: URL): Plugin {
+function getRemoteAuthorizationHeaders(): Record<string, string> | undefined {
+  const remoteApiKey = process.env.PHOENIX_REMOTE_API_KEY?.trim();
+  return remoteApiKey ? { authorization: `Bearer ${remoteApiKey}` } : undefined;
+}
+
+function createRemoteBackendPlugin({
+  remoteBackendUrl,
+}: {
+  remoteBackendUrl: URL;
+}): Plugin {
   return {
     name: "phoenix-remote-backend",
     transformIndexHtml: {
       order: "pre",
       async handler(html) {
-        const response = await fetch(remoteBackendUrl);
+        const response = await fetch(remoteBackendUrl, {
+          headers: getRemoteAuthorizationHeaders(),
+        });
         if (!response.ok) {
           throw new Error(
             `Could not load remote Phoenix config: ${response.status} ${response.statusText}`
@@ -65,12 +76,30 @@ function createRemoteBackendPlugin(remoteBackendUrl: URL): Plugin {
   };
 }
 
-function createRemoteBackendProxy(remoteBackendUrl: URL): ProxyOptions {
+function createRemoteBackendProxy({
+  remoteBackendUrl,
+}: {
+  remoteBackendUrl: URL;
+}): ProxyOptions {
   return {
     target: remoteBackendUrl.origin,
     changeOrigin: true,
     secure: true,
     ws: true,
+    configure(proxy) {
+      proxy.on("proxyReq", (proxyRequest) => {
+        const authorization = getRemoteAuthorizationHeaders()?.authorization;
+        if (authorization) {
+          proxyRequest.setHeader("authorization", authorization);
+        }
+      });
+      proxy.on("proxyReqWs", (proxyRequest) => {
+        const authorization = getRemoteAuthorizationHeaders()?.authorization;
+        if (authorization) {
+          proxyRequest.setHeader("authorization", authorization);
+        }
+      });
+    },
     bypass(request) {
       // Serve the local SPA for top-level navigation while proxying every
       // backend request (including the GraphQL and REST explorer iframes).
@@ -92,7 +121,16 @@ compilerPreset.preset = () => ({
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, "");
   const remoteBackend = env.PHOENIX_REMOTE_BACKEND?.trim();
+  const remoteAllowedHosts = env.PHOENIX_REMOTE_ALLOWED_HOSTS?.split(",")
+    .map((host) => host.trim())
+    .filter(Boolean);
   const remoteBackendUrl = remoteBackend ? new URL(remoteBackend) : null;
+  const remoteProxy = remoteBackendUrl
+    ? {
+        [remoteBackendUrl.pathname.replace(/\/$/, "")]:
+          createRemoteBackendProxy({ remoteBackendUrl }),
+      }
+    : undefined;
   const plugins = [
     // disable react's built-in 300ms suspense fallback timer
     // without this build plugin we see a 300ms delay on most UI interactions
@@ -108,7 +146,7 @@ export default defineConfig(({ mode }) => {
     circleDependency({ circleImportThrowErr: true }),
   ];
   if (remoteBackendUrl) {
-    plugins.push(createRemoteBackendPlugin(remoteBackendUrl));
+    plugins.push(createRemoteBackendPlugin({ remoteBackendUrl }));
   }
   // Uncomment below to visualize the bundle size after running the build command also uncomment import { visualizer } from "rollup-plugin-visualizer";
   // plugins.push(visualizer());
@@ -118,12 +156,11 @@ export default defineConfig(({ mode }) => {
     publicDir: resolve(__dirname, "static"),
     server: {
       port: parseInt(process.env.VITE_PORT || "5173"),
-      proxy: remoteBackendUrl
-        ? {
-            [remoteBackendUrl.pathname.replace(/\/$/, "")]:
-              createRemoteBackendProxy(remoteBackendUrl),
-          }
-        : undefined,
+      allowedHosts:
+        remoteAllowedHosts && remoteAllowedHosts.length > 0
+          ? remoteAllowedHosts
+          : undefined,
+      proxy: remoteProxy,
       warmup: {
         clientFiles: ["./index.tsx", "./App.tsx", "./Routes.tsx"],
       },
@@ -135,6 +172,14 @@ export default defineConfig(({ mode }) => {
     },
     preview: {
       port: 6006,
+      allowedHosts:
+        remoteAllowedHosts && remoteAllowedHosts.length > 0
+          ? remoteAllowedHosts
+          : undefined,
+      proxy: remoteProxy,
+      headers: {
+        "Cache-Control": "no-store",
+      },
     },
     resolve: {
       alias: {
@@ -165,7 +210,10 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
       sourcemap: enableSourceMap,
       rolldownOptions: {
-        input: resolve(__dirname, "src/index.tsx"),
+        input: resolve(
+          __dirname,
+          remoteBackendUrl ? "src/index.html" : "src/index.tsx"
+        ),
         output: {
           codeSplitting: {
             groups: [
