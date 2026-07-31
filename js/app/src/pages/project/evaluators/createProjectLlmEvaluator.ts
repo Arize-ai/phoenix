@@ -1,25 +1,53 @@
-import type { ProjectEvaluatorTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { Environment } from "relay-runtime";
+import { commitMutation, graphql } from "relay-runtime";
+
+import type { createProjectLlmEvaluatorMutation } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
 
 export type CreateProjectLLMEvaluatorResult = {
   id: string;
   name: string;
 };
 
-/**
- * TODO(project-evaluators): replace with a createProjectLlmEvaluator Relay
- * mutation once the project-evaluator GraphQL schema lands. Building the full
- * mutation input (prompt version, output configs, input mapping) comes with
- * that swap — see CreateLLMDatasetEvaluatorSlideover for the pattern.
- */
-export async function createProjectLlmEvaluator({
-  name,
+const mutation = graphql`
+  mutation createProjectLlmEvaluatorMutation(
+    $input: CreateProjectLLMEvaluatorInput!
+  ) {
+    createProjectLlmEvaluator(input: $input) {
+      evaluator {
+        id
+        name
+        evaluationTarget
+        filterCondition
+        samplingRate
+        enabled
+        evaluator {
+          kind
+        }
+      }
+    }
+  }
+`;
+
+export function createProjectLlmEvaluator({
+  environment,
+  input,
 }: {
-  projectId: string;
-  targetType: ProjectEvaluatorTarget;
-  name: string;
+  environment: Environment;
+  input: createProjectLlmEvaluatorMutation["variables"]["input"];
 }): Promise<CreateProjectLLMEvaluatorResult> {
-  return {
-    id: `stub-project-evaluator:${name}`,
-    name,
-  };
+  return new Promise((resolve, reject) => {
+    commitMutation<createProjectLlmEvaluatorMutation>(environment, {
+      mutation,
+      variables: { input },
+      onCompleted(response, errors) {
+        if (errors?.length) {
+          reject(new Error(errors.map(({ message }) => message).join("\n")));
+          return;
+        }
+        const evaluator = response.createProjectLlmEvaluator.evaluator;
+        resolve({ id: evaluator.id, name: evaluator.name });
+      },
+      onError: reject,
+    });
+  });
 }
