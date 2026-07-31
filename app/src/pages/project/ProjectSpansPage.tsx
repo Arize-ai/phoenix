@@ -69,9 +69,7 @@ export const ProjectSpansPage = () => {
             spansFilterSeed?.condition ?? DEFAULT_SPAN_FILTER_CONDITION
           }
         >
-          {/* A valid condition can still be rejected by the database, and Relay
-              rethrows that during render. Inside the provider so a resolved
-              seed -- a new `key` -- remounts the boundary with the table. */}
+          {/* Inside the provider so a resolved seed -- a new `key` -- remounts it. */}
           <ErrorBoundary fallback={SpansFilterErrorFallback}>
             <Suspense fallback={<Loading />}>
               {hasSpansQuery ? (

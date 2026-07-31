@@ -642,12 +642,12 @@ def test_unary_plus_does_not_negate_dynamic_json_attributes() -> None:
     """
     positive = str(
         SpanFilter("+metadata['x'] > 5")(select(models.Span.id)).compile(
-            dialect=postgresql.dialect()
+            dialect=postgresql.dialect()  # type: ignore[no-untyped-call]
         )
     )
     negative = str(
         SpanFilter("-metadata['x'] > 5")(select(models.Span.id)).compile(
-            dialect=postgresql.dialect()
+            dialect=postgresql.dialect()  # type: ignore[no-untyped-call]
         )
     )
     assert positive != negative

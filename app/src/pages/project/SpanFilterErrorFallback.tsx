@@ -4,9 +4,10 @@ import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 
 /**
- * Stands in for a table whose query failed. Re-renders the filter field, which
- * normally lives inside that table, so the condition that caused the failure is
- * still editable.
+ * Stands in for a table whose query failed — a condition can pass validation and
+ * still be rejected by the database. Re-renders the filter field, which normally
+ * lives inside that table, so the condition that caused the failure stays
+ * editable.
  */
 export function SpanFilterErrorFallback({
   onResolved,

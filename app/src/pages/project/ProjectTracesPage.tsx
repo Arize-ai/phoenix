@@ -60,9 +60,7 @@ export const ProjectTracesPage = () => {
           key={tracesFilterSeed ? tracesFilterSeed.condition : "pending"}
           fallbackFilterCondition={tracesFilterSeed?.condition ?? ""}
         >
-          {/* A valid condition can still be rejected by the database, and Relay
-              rethrows that during render. Inside the provider so a resolved
-              seed -- a new `key` -- remounts the boundary with the table. */}
+          {/* Inside the provider so a resolved seed -- a new `key` -- remounts it. */}
           <ErrorBoundary fallback={TracesFilterErrorFallback}>
             <Suspense fallback={<Loading />}>
               {isReady ? (

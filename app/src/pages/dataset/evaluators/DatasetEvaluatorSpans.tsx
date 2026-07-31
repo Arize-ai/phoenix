@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { useTimeRange } from "@phoenix/components/datetime";
+import { ErrorBoundary } from "@phoenix/components/exception";
 import { ProjectProvider } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { TracingProvider } from "@phoenix/contexts/TracingContext";
 import type { DatasetEvaluatorSpansQuery } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorSpansQuery.graphql";
 import { PendingSpanFilter } from "@phoenix/pages/project/PendingSpanFilter";
+import { SpanFilterErrorFallback } from "@phoenix/pages/project/SpanFilterErrorFallback";
 import { STRICT_ROOT_SPANS_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 import {
   SpanFiltersProvider,
@@ -38,6 +40,11 @@ function DatasetEvaluatorSpansContent({ projectId }: { projectId: string }) {
     const classified = spanFilterSeed(initialFilterCondition);
     return classified.requiresServerValidation ? null : classified;
   });
+  // Stable identity: an inline fallback would remount the field on every render.
+  const errorFallback = useCallback(
+    () => <SpanFilterErrorFallback onResolved={setSeed} />,
+    []
+  );
   return (
     <ProjectProvider projectId={projectId}>
       <StreamStateProvider>
@@ -46,11 +53,14 @@ function DatasetEvaluatorSpansContent({ projectId }: { projectId: string }) {
             key={seed ? seed.condition : "pending"}
             fallbackFilterCondition={seed?.condition ?? initialFilterCondition}
           >
-            {seed ? (
-              <DatasetEvaluatorSpansTable projectId={projectId} seed={seed} />
-            ) : (
-              <PendingSpanFilter onResolved={setSeed} />
-            )}
+            {/* Inside the provider so a resolved seed -- a new `key` -- remounts it. */}
+            <ErrorBoundary fallback={errorFallback}>
+              {seed ? (
+                <DatasetEvaluatorSpansTable projectId={projectId} seed={seed} />
+              ) : (
+                <PendingSpanFilter onResolved={setSeed} />
+              )}
+            </ErrorBoundary>
           </SpanFiltersProvider>
         </TracingProvider>
       </StreamStateProvider>
