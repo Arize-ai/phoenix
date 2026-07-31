@@ -10,8 +10,16 @@ A failure here means one of two things, and the difference matters:
 
 - **Something was added.** Additions are backward compatible. Update the spec.
 - **Something was restricted.** Previously-valid stored conditions will stop
-  parsing. That needs a migration story and a grammar-version bump, not just a
-  spec edit. See the Persistence Contract section of the spec.
+  parsing. Before persistence ships, that is a deliberate tightening the spec
+  must record; after, it is forbidden outright -- there is no grammar version
+  to bump, by policy -- and the only sanctioned path is the compatibility
+  policy's defined-divergence clause, for shapes already enumerated as
+  semantically undefined.
+
+This corpus is curated examples, not grammar conformance: it pins the
+documented subset and cannot detect newly admitted Python AST shapes.
+Exhaustiveness against novel constructs comes from the validator's structural
+rules and the catch-all boundary, not from this file.
 """
 
 import pytest

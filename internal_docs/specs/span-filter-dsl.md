@@ -10,6 +10,7 @@ was executed rather than reasoned about. The version matrix that claim rests on:
 |---|---|---|
 | SQLite | bundled `sqlean` build | `text_contains` and the JSON functions `sqlean` provides |
 | PostgreSQL | 12.22 and 17.10 | **14**, the product floor — the language itself needs only `jsonb_path_query_first` (PG 12) and `jsonb`→`numeric` casts (PG 11) |
+| CPython (grammar host) | 3.10 in pre-merge CI; 3.10 / 3.13 / 3.14 in the scheduled all-platforms run | 3.10 — the grammar is whatever `ast.parse` accepts on the running interpreter |
 
 Two floors are in play and only one is a support commitment. The *language's*
 feature floor is PostgreSQL 12, because `SafeJsonFloat` compiles to
@@ -20,6 +21,16 @@ version the guarantees here must hold on. Behavioral checks below were run on
 17; the cast and JSON-path shapes the guarantees depend on were additionally
 confirmed on 12.22, which bounds 14 from below. Anything claimed here for a
 version outside that matrix is unverified.
+
+The host interpreter belongs in this matrix because it *defines the grammar*:
+acceptance, AST shape, and error wording are properties of the running
+CPython's `ast.parse`, and they change across releases. Phoenix supports 3.10
+through 3.14. Pre-merge CI runs the unit suites — the conformance corpus
+included — on 3.10 only and against the runner's installed PostgreSQL
+(currently 16); the floor PostgreSQL and the newer interpreters are exercised
+by the scheduled all-platforms run, not per merge. A grammar or floor
+regression can therefore land and be caught on a delay, which is worth knowing
+when reading a green PR check as a guarantee.
 
 ## What This Is
 
@@ -448,7 +459,11 @@ Truthiness is not offered as an explicit cast either. There is no `bool()`.
 ## Dialect Semantics
 
 Phoenix supports SQLite and PostgreSQL. The DSL's goal is that **a condition
-means the same thing on both, or is rejected on both.**
+means the same thing on both, or is rejected on both.** The "Not guaranteed"
+list below is the measured distance from that goal: those shapes are accepted
+today and governed by the defined-divergence clause of the
+[compatibility policy](#the-compatibility-policy-additive-only) — semantically
+undefined, enumerated, and eligible to be given one meaning later.
 
 Guaranteed:
 
@@ -639,11 +654,16 @@ condition alone until both backends agree on it.
 
 **There is no grammar version, and there will not be one.**
 
-A version field is only useful if every caller can be asked which version it
-meant. Conditions arrive from GraphQL arguments, from client-managed state, and
-from URLs and history entries that no server controls — none of which can carry
-or negotiate a version. Absent that, there is no branch point for a rewrite and
-no migration hook to hang one from.
+Not because a version could not travel — stored rows can carry a column, URLs
+a parameter, the text an inline envelope. The reason is an invariant worth
+more than the mechanism: **condition text is context-free.** The same string
+means the same thing typed into a filter box, embedded in a URL, stored on a
+row, or sent by a client, and it survives copying between those contexts —
+which is how conditions actually move. A version travels in an envelope, and
+copying separates text from envelope constantly; the first unversioned paste
+re-creates every problem the version was meant to solve, now with two grammars
+in play. Freezing the grammar costs less than versioning every channel a
+string can cross.
 
 So the grammar evolves **additively**: nothing already accepted may be removed
 or given a different meaning. Internal structure — the translator, the planner,
@@ -660,7 +680,11 @@ undefined, later definition is a repair, and the ordered-comparison fix (text
 order on one backend, numeric on the other, later defined as numeric on both)
 is the precedent. The obligation this creates is enumeration — a divergent
 shape not on the list is a shape someone will treat as defined — and each
-repair must be executed on both backends before it lands.
+repair must be executed on both backends before it lands. Classification is
+the gate, not observation: text merely *seen* to fail is not thereby
+undefined — proving universal failure across data, drivers, and versions is
+harder than it looks, and a shape that executes successfully anywhere has a
+meaning someone may depend on. Only enumerated shapes are eligible.
 
 What "additive" covers is narrower than it first appears:
 
@@ -729,6 +753,12 @@ Before conditions become durable, bound at least:
 - **distinct annotation names**, which is the join count
 - **AST node count**, as a proxy for total work
 - **nesting depth**, explicitly rather than via the parser's limit
+
+These bounds are a requirement of the storage format, not optional follow-up
+hardening — but their *values* should come from measurement (the join table
+above is the start of one), not be invented in a document. What this spec can
+fix is the obligation and the deadline; the numbers belong to the persistence
+change, with the evidence attached.
 
 Limits are a restriction, so they are subject to the same window as everything
 else: a bound introduced after conditions are stored can invalidate saved rows.
@@ -903,9 +933,14 @@ that did not match, and the NULL a failed conversion produces then flows into
 three-valued logic — `not (attributes['x'] > 5)` excludes every row where `x`
 holds text, compounding the two mechanisms into exactly the wrong-rows failure
 the ladder's Result row describes. Nothing in the language today can tell the
-user this happened. Until a channel exists (a validation-time note is the
-cheapest), totality should be understood as trading a loud per-row failure for
-a quiet semantic one, and chosen with that trade in view.
+user this happened. The normative requirement this creates sits on the
+*contract*, not the UI: the NULL truth table — what a failed conversion
+contributes under `not`, `and`, `or` — must be defined and tested rather than
+inherited from whatever SQLAlchemy emits. Surfacing conversion drops to users
+(counts, warnings) is a separate product decision with real costs, worth
+weighing but not presumed. Either way, totality should be understood as
+trading a loud per-row failure for a quiet semantic one, and chosen with that
+trade in view.
 
 ### 3. Reject rather than coerce, when the types are known
 
@@ -923,17 +958,20 @@ two-valued truthiness, SQL has three-valued logic, and JSON adds a fourth state
 (absent). Any implicit bridge between them is a bug generator. This DSL offers
 no `bool()` for the same reason.
 
-Stated absolutely, the rule is false to the language, which ships four
-deliberate coercions: numeric strings inside `float()`, datetime string
-literals, `int()` as an alias for `float()`, and the case-folding of literals
-against `span_kind` / `status_code`. The honest form of the principle is the
-one those four practice: **reject when intent is ambiguous; coerce only where
-exactly one reading is defensible — and then document the coercion as
-semantics**, because each one changes what accepted text means and is
-therefore under the compatibility policy, not an implementation detail. The
-enum fold went undocumented for a while, which is the failure mode: an
-implicit coercion nobody wrote down is a meaning change waiting to be
-"fixed."
+Stated absolutely, the rule overreaches, and grading the apparent exceptions
+sharpens it. A numeric string inside `float()` is not a coercion at all — the
+user *requested* the conversion. The datetime literal rule is contextual
+typing, part of the documented grammar: a string beside a datetime field has
+exactly one sensible reading. `int()` behaving as `float()` is a documented
+misnomer, not a conversion decision. The one genuinely implicit coercion is
+the case-folding of literals against `span_kind` / `status_code`, which
+rewrites what the user typed with no syntactic signal — and it is the one
+that went undocumented for a while, which is the failure mode: an implicit
+coercion nobody wrote down is a meaning change waiting to be "fixed." The
+rule, made precise: **reject when intent is ambiguous; convert on request or
+on unambiguous context; and the moment a conversion is implicit, document it
+as semantics**, because it changes what accepted text means and is therefore
+under the compatibility policy, not an implementation detail.
 
 ### 4. The permissive backend is the dangerous one
 
@@ -1016,8 +1054,13 @@ Practical rules learned here:
   version rendered `write  instead of ''`.
 - **Never surface generated SQL.** The user did not write it and cannot act on
   it.
-- If the UI renders them, messages are **part of the contract** and their
-  stability matters as much as the grammar's.
+- If the UI renders them, messages are **part of the product** — but the
+  stability contract belongs on error *categories*, not prose. Freezing
+  wording "as much as the grammar" would forbid exactly the improvements this
+  principle demands; a stable category or code lets the words get better
+  without breaking anything that matches on them. No category field exists
+  yet, so today every wording change is de facto breaking for whatever
+  string-matches — an argument for adding one, not for freezing the prose.
 - **Echoed fragments need bounds.** Naming the offending fragment means
   reflecting user-controlled text into the UI, logs, and GraphQL responses; a
   message that interpolates a 320-digit literal or a multi-kilobyte expression
@@ -1100,9 +1143,10 @@ instructive story is not.
 
 **Snapshot tests are the seductive case.** They look like verification and are
 not: a snapshot records the SQL we *generate*, never whether that SQL *runs*.
-Three separate snapshots in this codebase recorded PostgreSQL that cannot
-execute — `X IS Y` between two expressions, a raw `CAST(jsonb AS FLOAT)`, and
-`-'hello'` — each passing for as long as it existed. A snapshot is a
+Three separate snapshots — all in the sibling experiment-filter suite, which
+leans on snapshots more heavily than this one — recorded PostgreSQL that
+cannot execute: `X IS Y` between two expressions, a raw `CAST(jsonb AS
+FLOAT)`, and `-'hello'`, each passing for as long as it existed. A snapshot is a
 change-detector for the compiler, and it is worth having as that; it is not
 evidence that anything works.
 
@@ -1317,8 +1361,12 @@ PostgreSQL error text as the *symptom*.
   generated alias names. Worth doing before conditions become durable.
 - **No `EXPLAIN`-based differential test** against PostgreSQL; agreement between
   the validator and the database is asserted by hand-written cases only.
-- **`Projector`** (the projection sibling of `SpanFilter`) has weaker
-  validation; `TestProjectorValidationGap` documents this deliberately.
+- **`Projector`** (the projection sibling of `SpanFilter`) validates less than
+  `SpanFilter` on purpose — a projection is a value, not a predicate, so the
+  operand-type and boolean-position rules do not apply. Its two real defects
+  (no structural validation, an unsandboxed `eval` namespace) are fixed:
+  `_validate_projection_expression` walks an allowlist and `__builtins__` is
+  pinned; `TestProjectorValidationGap` remains as the regression pin.
 - **Membership between two JSON operands** (`attributes['p'] in
   attributes['q']`) is accepted and compiles to string containment over the two
   text renderings. That is the same class of divergence as two-JSON equality —

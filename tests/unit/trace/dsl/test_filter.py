@@ -948,20 +948,22 @@ def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
 
 class TestProjectorValidationGap:
     """
-    Pins the two structural defects in ``Projector`` in
+    Pins the closure of two structural defects ``Projector`` used to have in
     ``src/phoenix/trace/dsl/filter.py``:
 
-    1. Unlike ``SpanFilter``, ``Projector`` does NOT call
-       ``_validate_expression``. It only runs ``_ProjectionTranslator.visit()``,
-       which leaves many AST constructs unchecked.
-    2. The ``eval()`` namespace is ``{**_NAMES}`` — it does not pin
-       ``__builtins__`` to ``{}``, so Python auto-populates the full
-       builtins dict into the namespace.
+    1. It ran no validation before translation, so AST shapes ``SpanFilter``
+       rejects reached compilation (``10 ** 100000000`` compiled with an
+       unbounded exponent). ``_validate_projection_expression`` now walks the
+       tree against an allowlist of node types.
+    2. Its ``eval()`` namespace did not pin ``__builtins__``, so CPython
+       auto-populated the full builtins dict -- ``__import__``, ``open``,
+       ``exec`` -- into the namespace. It is now pinned to ``{}``.
 
-    These tests assert that ``Projector`` rejects dangerous inputs the
-    same way ``SpanFilter`` does, and that the eval namespace is
-    sandboxed. They are expected to FAIL on the current code,
-    demonstrating the vulnerability.
+    These began as red tests demonstrating the vulnerability and are kept as
+    regression pins. ``Projector`` validation remains narrower than
+    ``SpanFilter``'s on purpose -- a projection is a value, not a predicate,
+    so the operand-type and boolean-position rules do not apply -- but the
+    structural allowlist and the sandbox must hold.
     """
 
     def test_projector_rejects_what_spanfilter_rejects(self) -> None:
