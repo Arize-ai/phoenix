@@ -27,10 +27,15 @@ acceptance, AST shape, and error wording are properties of the running
 CPython's `ast.parse`, and they change across releases. Phoenix supports 3.10
 through 3.14. Pre-merge CI runs the unit suites — the conformance corpus
 included — on 3.10 only and against the runner's installed PostgreSQL
-(currently 16); the floor PostgreSQL and the newer interpreters are exercised
-by the scheduled all-platforms run, not per merge. A grammar or floor
-regression can therefore land and be caught on a delay, which is worth knowing
-when reading a green PR check as a guarantee.
+(currently 16). The scheduled all-platforms run adds the newer interpreters
+but **not** the floor database: its unit job installs the runner's PostgreSQL
+the same way, and the `postgres:14` service containers back only the
+integration jobs, which do not run these suites. No job anywhere executes this
+language's guarantees on the floor version — "holds on 14" is a hand-verified
+claim, and giving it a CI leg (a floor-pinned unit run, e.g. via the PGDG apt
+repository) is open work. A grammar or floor regression can land and be caught
+late or not at all, which is worth knowing when reading a green check as a
+guarantee.
 
 ## What This Is
 
