@@ -167,3 +167,24 @@ export const FieldsOnly: StoryFn<DSLFilterConditionFieldProps> = (args) => {
     </View>
   );
 };
+
+/**
+ * At 250px and below, the field becomes a filter-icon button. Press the
+ * button to edit the same controlled condition in a modal with typeahead.
+ */
+export const Compact: StoryFn<DSLFilterConditionFieldProps> = (args) => {
+  const [value, setValue] = useState<string>("");
+  return (
+    <View width="250px">
+      <DSLFilterConditionField
+        {...args}
+        value={value}
+        onChange={setValue}
+        completions={completions}
+        snippets={snippets}
+        loadCompletions={loadCompletions}
+        validateCondition={validateCondition}
+      />
+    </View>
+  );
+};

@@ -2,6 +2,8 @@ import { css, keyframes } from "@emotion/react";
 
 import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 
+import { DSL_FILTER_CONDITION_FIELD_COMPACT_BREAKPOINT_PX } from "./constants";
+
 /**
  * The popover surface shared by every floating element the filter field
  * shows — the typeahead menu, its info panel, and the error popover — so
@@ -228,4 +230,31 @@ export const dslFilterFieldCSS = css`
   &[data-has-condition="true"] .clear-button {
     visibility: visible;
   }
+`;
+
+export const responsiveDSLFilterConditionFieldCSS = css`
+  container-type: inline-size;
+  flex: 1 1 auto;
+  min-width: var(--global-button-height-m);
+
+  .dsl-filter-condition-field__compact-trigger {
+    display: none;
+  }
+
+  @container (max-width: ${DSL_FILTER_CONDITION_FIELD_COMPACT_BREAKPOINT_PX}px) {
+    .dsl-filter-condition-field {
+      display: none;
+    }
+
+    .dsl-filter-condition-field__compact-trigger {
+      display: flex;
+    }
+  }
+`;
+
+export const dslFilterModalBodyCSS = css`
+  /* Reserve room for the CodeMirror typeahead, which is positioned outside
+     the editor's normal flow. The viewport cap keeps the dialog usable on
+     short screens, where its existing overflow behavior takes over. */
+  min-height: min(480px, 70vh);
 `;

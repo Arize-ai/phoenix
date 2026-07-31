@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { CSSProperties } from "react";
 import { Suspense, useRef } from "react";
 import { Group, Panel, useDefaultLayout } from "react-resizable-panels";
 import { Outlet, useLoaderData } from "react-router";
@@ -60,6 +61,7 @@ const layoutContentPanelCSS = css`
 `;
 
 const contentCSS = css`
+  --app-drawer-right-inset: 0px;
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
@@ -72,6 +74,10 @@ const contentCSS = css`
   border-top: 1px solid var(--global-border-color-default);
   border-radius: var(--global-rounding-medium) 0 0 0;
 `;
+
+type ContentStyle = CSSProperties & {
+  "--app-drawer-right-inset": string;
+};
 
 const bottomLinksCSS = css`
   display: flex;
@@ -101,6 +107,9 @@ export function Layout() {
   const hasOpenModal = useHasOpenModal();
   const hasOpenDrawer = useHasOpenDrawer();
   const activeDrawerWidth = useActiveDrawerWidth();
+  const contentStyle: ContentStyle = {
+    "--app-drawer-right-inset": `${activeDrawerWidth}px`,
+  };
   const shouldForceFloatingAgentPanel = hasOpenModal || hasOpenDrawer;
   const shouldShowDockedAgentPanel =
     isAgentAssistantEnabled &&
@@ -143,7 +152,12 @@ export function Layout() {
                 <TopNavActionsSlot />
                 {isAgentFabFloating ? null : <AgentChatTopNavButton />}
               </TopNavbar>
-              <div data-testid="content" css={contentCSS} ref={contentRef}>
+              <div
+                data-testid="content"
+                css={contentCSS}
+                ref={contentRef}
+                style={contentStyle}
+              >
                 {isAgentFabFloating ? (
                   <AgentChatWidget boundaryRef={contentRef} />
                 ) : null}

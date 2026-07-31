@@ -31,7 +31,6 @@ import {
   Icons,
   OverflowRow,
   Text,
-  View,
 } from "@phoenix/components";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
@@ -82,6 +81,7 @@ import {
   getGqlSessionSort,
   makeAnnotationColumnId,
 } from "./tableUtils";
+import { TracingTableToolbar } from "./TracingTableToolbar";
 type SessionsTableProps = {
   project: SessionsTable_sessions$key;
 };
@@ -604,31 +604,27 @@ export function SessionsTable(props: SessionsTableProps) {
   return (
     <TableMetricsChartsPanelGroup view="sessions">
       <div css={spansTableCSS}>
-        <View
-          paddingTop="size-100"
-          paddingBottom="size-100"
-          paddingStart="size-200"
-          paddingEnd="size-200"
-          borderBottomColor="default"
-          borderBottomWidth="thin"
-          flex="none"
-        >
-          <Flex direction="row" gap="size-100" width="100%" alignItems="center">
-            <View flex="1 1 auto">
-              <SessionSearchField />
-            </View>
-            <TableMetricsChartSelector view="sessions" />
+        <TracingTableToolbar
+          field={<SessionSearchField />}
+          columnSelector={
             <SessionColumnSelector
               columns={table.getAllColumns()}
               query={data}
             />
+          }
+          primaryAction={
             <RowExpandToggleButton
               isExpanded={areRowsExpanded}
               onChange={setAreRowsExpanded}
             />
-            <TableAsideToggleButton />
-          </Flex>
-        </View>
+          }
+          actions={
+            <>
+              <TableMetricsChartSelector view="sessions" />
+              <TableAsideToggleButton />
+            </>
+          }
+        />
         <Group
           orientation="horizontal"
           id="sessions-table-layout"

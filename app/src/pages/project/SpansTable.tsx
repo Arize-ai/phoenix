@@ -30,7 +30,6 @@ import {
   SegmentedControl,
   SegmentedControlItem,
   Text,
-  View,
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
@@ -106,6 +105,7 @@ import {
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
 import { TraceNotesTableCell } from "./TraceNotesTableCell";
+import { TracingTableToolbar } from "./TracingTableToolbar";
 
 type SpansTableProps = {
   project: SpansTable_spans$key;
@@ -917,48 +917,48 @@ export function SpansTable(props: SpansTableProps) {
   return (
     <TableMetricsChartsPanelGroup view="spans">
       <div css={spansTableCSS}>
-        <View
-          paddingTop="size-100"
-          paddingBottom="size-100"
-          paddingStart="size-200"
-          paddingEnd="size-200"
-          borderBottomColor="default"
-          borderBottomWidth="thin"
-          flex="none"
-        >
-          <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+        <TracingTableToolbar
+          collapseColumnWithField
+          field={
             <SpanFilterConditionField onValidCondition={setFilterCondition} />
-
-            <SegmentedControl
-              aria-label="Toggle between root and all spans"
-              selectedKey={rootSpansOnly ? "root" : "all"}
-              onSelectionChange={(selectedKey) => {
-                if (isRootSpanFilterValue(selectedKey)) {
-                  setRootSpansOnly(selectedKey === "root");
-                } else {
-                  throw new Error(
-                    `Unknown root span filter selection: ${selectedKey}`
-                  );
-                }
-              }}
-            >
-              <SegmentedControlItem aria-label="root spans" id="root">
-                Root Spans
-              </SegmentedControlItem>
-              <SegmentedControlItem aria-label="all spans" id="all">
-                All
-              </SegmentedControlItem>
-            </SegmentedControl>
-            <TableMetricsChartSelector view="spans" />
+          }
+          columnSelector={
             <SpanColumnSelector columns={table.getAllColumns()} query={data} />
+          }
+          primaryAction={
             <RowExpandToggleButton
               isExpanded={areRowsExpanded}
               onChange={setAreRowsExpanded}
             />
-            <ProjectFilterConfigButton />
-            <TableAsideToggleButton />
-          </Flex>
-        </View>
+          }
+          actions={
+            <>
+              <SegmentedControl
+                aria-label="Toggle between root and all spans"
+                selectedKey={rootSpansOnly ? "root" : "all"}
+                onSelectionChange={(selectedKey) => {
+                  if (isRootSpanFilterValue(selectedKey)) {
+                    setRootSpansOnly(selectedKey === "root");
+                  } else {
+                    throw new Error(
+                      `Unknown root span filter selection: ${selectedKey}`
+                    );
+                  }
+                }}
+              >
+                <SegmentedControlItem aria-label="root spans" id="root">
+                  Root Spans
+                </SegmentedControlItem>
+                <SegmentedControlItem aria-label="all spans" id="all">
+                  All
+                </SegmentedControlItem>
+              </SegmentedControl>
+              <TableMetricsChartSelector view="spans" />
+              <ProjectFilterConfigButton />
+              <TableAsideToggleButton />
+            </>
+          }
+        />
         <Group
           orientation="horizontal"
           id="spans-table-layout"

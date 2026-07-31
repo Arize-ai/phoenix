@@ -262,8 +262,12 @@ export function ColumnSelector({
 }: ColumnSelectorProps) {
   return (
     <DialogTrigger>
-      <Button leadingVisual={<Icon svg={<Icons.Column />} />}>
-        {buttonLabel}
+      <Button
+        aria-label={buttonLabel}
+        className="column-selector__button"
+        leadingVisual={<Icon svg={<Icons.Column />} />}
+      >
+        <span className="column-selector__button-label">{buttonLabel}</span>
       </Button>
       <Popover placement="bottom end">
         <ColumnSelectorMenu {...menuProps} />

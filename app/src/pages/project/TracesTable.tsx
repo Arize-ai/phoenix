@@ -35,7 +35,6 @@ import {
   Link,
   OverflowRow,
   Text,
-  View,
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
@@ -105,6 +104,7 @@ import {
   makeAnnotationColumnId,
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
+import { TracingTableToolbar } from "./TracingTableToolbar";
 
 type TracesTableProps = {
   project: TracesTable_spans$key;
@@ -1068,25 +1068,22 @@ export function TracesTable(props: TracesTableProps) {
   return (
     <TableMetricsChartsPanelGroup view="traces">
       <div css={spansTableCSS}>
-        <View
-          paddingTop="size-100"
-          paddingBottom="size-100"
-          paddingStart="size-200"
-          paddingEnd="size-200"
-          borderBottomColor="default"
-          borderBottomWidth="thin"
-          flex="none"
-        >
-          <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+        <TracingTableToolbar
+          collapseColumnWithField
+          field={
             <SpanFilterConditionField onValidCondition={setFilterCondition} />
-            <TableMetricsChartSelector view="traces" />
+          }
+          columnSelector={
             <SpanColumnSelector columns={table.getAllColumns()} query={data} />
+          }
+          primaryAction={
             <RowExpandToggleButton
               isExpanded={areRowsExpanded}
               onChange={setAreRowsExpanded}
             />
-          </Flex>
-        </View>
+          }
+          actions={<TableMetricsChartSelector view="traces" />}
+        />
         <div
           css={css`
             flex: 1 1 auto;

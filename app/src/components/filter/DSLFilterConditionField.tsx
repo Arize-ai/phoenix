@@ -26,12 +26,23 @@ import {
 import { Pressable } from "react-aria";
 
 import {
+  Button,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+  DialogTrigger,
   Flex,
   Icon,
   Icons,
+  Modal,
+  ModalOverlay,
   Text,
   Tooltip,
   TooltipTrigger,
+  View,
   VisuallyHidden,
 } from "@phoenix/components";
 import { pierreDark, pierreLight } from "@phoenix/components/code";
@@ -43,6 +54,8 @@ import {
   dslFilterCodeMirrorCSS,
   dslFilterErrorTooltipCSS,
   dslFilterFieldCSS,
+  dslFilterModalBodyCSS,
+  responsiveDSLFilterConditionFieldCSS,
 } from "./styles";
 
 /**
@@ -183,6 +196,8 @@ export type DSLFilterConditionFieldProps = {
  * suggested conditions and fields, arrow keys navigate, and Enter inserts.
  * The DSL itself is fully defined by the caller via `completions`,
  * `snippets`, `loadCompletions`, and `validateCondition`.
+ * At 250px and below, the field becomes an icon button that opens the same
+ * controlled editor and typeahead in a modal.
  *
  * The typeahead is the only floating surface the field opens on its own.
  * Validation errors surface passively — an in-field danger badge previewing
@@ -193,6 +208,50 @@ export type DSLFilterConditionFieldProps = {
  * space.
  */
 export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const ariaLabel = props["aria-label"] ?? "Filter condition";
+
+  return (
+    <div
+      css={responsiveDSLFilterConditionFieldCSS}
+      className="dsl-filter-condition-field-container"
+    >
+      {isModalOpen ? null : <DSLFilterConditionFieldInput {...props} />}
+      <DialogTrigger isOpen={isModalOpen} onOpenChange={setIsModalOpen}>
+        <Button
+          className="dsl-filter-condition-field__compact-trigger"
+          aria-label={`Open ${ariaLabel.toLowerCase()}`}
+          leadingVisual={<Icon svg={<Icons.ListFilter />} />}
+        />
+        <ModalOverlay>
+          <Modal size="M">
+            <Dialog>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{ariaLabel}</DialogTitle>
+                  <DialogTitleExtra>
+                    <DialogCloseButton />
+                  </DialogTitleExtra>
+                </DialogHeader>
+                <View
+                  css={dslFilterModalBodyCSS}
+                  padding="size-200"
+                  minWidth={0}
+                >
+                  <DSLFilterConditionFieldInput {...props} autoFocus />
+                </View>
+              </DialogContent>
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
+    </div>
+  );
+}
+
+function DSLFilterConditionFieldInput(
+  props: DSLFilterConditionFieldProps & { autoFocus?: boolean }
+) {
   const {
     value,
     onChange,
@@ -206,6 +265,7 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
     placeholder = "filter condition",
     "aria-label": ariaLabel = "filter condition",
     className,
+    autoFocus,
   } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
   // null means the condition is not known to be invalid; the empty string
@@ -393,6 +453,7 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
       <Flex direction="row" alignItems="center">
         <Icon svg={<Icons.ListFilter />} className="filter-icon" />
         <CodeMirror
+          autoFocus={autoFocus}
           css={dslFilterCodeMirrorCSS}
           indentWithTab={false}
           basicSetup={basicSetupOptions}
