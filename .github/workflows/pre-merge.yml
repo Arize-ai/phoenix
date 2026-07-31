@@ -1,0 +1,255 @@
+name: Pre-merge
+
+# Pre-merge gate for the manabie-com fork.
+#
+# Nothing here runs until a maintainer adds the "Ok to test" label to the PR.
+# The final `Pre-merge` job is the single required status check on `main`:
+# it fails while the label is missing, and fails if any gated job failed.
+#
+# This file is fork-local and has no upstream counterpart, so it should not
+# conflict when syncing with Arize-ai/phoenix.
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+concurrency:
+  group: pre-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  UV_VERSION: "0.11.12"
+  # fake openai key so that llama_index doesn't download huggingface embeddings
+  OPENAI_API_KEY: "sk-fake-openai-key"
+
+jobs:
+  changes:
+    name: Gate
+    runs-on: ubuntu-latest
+    outputs:
+      approved: ${{ steps.label.outputs.approved }}
+      python: ${{ steps.filter.outputs.python }}
+      app: ${{ steps.filter.outputs.app }}
+      packages: ${{ steps.filter.outputs.packages }}
+    steps:
+      - name: Check for the "Ok to test" label
+        id: label
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          if jq -e 'index("Ok to test")' <<< "$LABELS" > /dev/null; then
+            echo "approved=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::\"Ok to test\" label present - running pre-merge checks."
+          else
+            echo "approved=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::\"Ok to test\" label missing - pre-merge checks will not run."
+          fi
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: steps.label.outputs.approved == 'true'
+        with:
+          persist-credentials: false
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        if: steps.label.outputs.approved == 'true'
+        id: filter
+        with:
+          filters: |
+            python:
+              - "src/**"
+              - "tests/**"
+              - "evals/**"
+              - "packages/**"
+              - "pyproject.toml"
+              - "tox.ini"
+              - "uv.lock"
+            app:
+              - "app/**"
+              - "schemas/openapi.json"
+              - "src/phoenix/server/generative_ui/**"
+              - ".oxlintrc.json"
+              - ".oxfmtrc.jsonc"
+              - ".nvmrc"
+            packages:
+              - "js/**"
+              - "schemas/**"
+              - ".oxlintrc.json"
+              - ".oxfmtrc.jsonc"
+              - ".nvmrc"
+
+  python-lint:
+    name: Python Format & Lint
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.approved == 'true' && needs.changes.outputs.python == 'true' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.14"
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: ${{ env.UV_VERSION }}
+      - name: Run formatter and linter
+        run: |
+          make format-python
+          make lint-python
+      - name: Fail if formatting or lint autofixes changed files
+        run: git diff --exit-code
+
+  python-typecheck:
+    name: Python Type Check
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.approved == 'true' && needs.changes.outputs.python == 'true' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.10"
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: ${{ env.UV_VERSION }}
+      - name: Sync dependencies
+        run: uv sync --frozen
+      - name: Type check all Python code
+        run: uv run mypy
+      - name: Ensure GraphQL mutations have permission classes
+        run: make check-graphql-permissions
+
+  python-unit-tests:
+    name: Python Unit Tests
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.approved == 'true' && needs.changes.outputs.python == 'true' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.10"
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: ${{ env.UV_VERSION }}
+      - name: Run unit tests (SQLite)
+        timeout-minutes: 45
+        run: uvx tox run -e unit_tests -- -ra --reruns 5 -n auto --dist loadscope
+
+  typescript-app:
+    name: Frontend Lint, Type Check & Tests
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.approved == 'true' && needs.changes.outputs.app == 'true' }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Install PNPM
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: app/package.json
+      - name: Use Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          cache-dependency-path: ./app/pnpm-lock.yaml
+          node-version-file: .nvmrc
+          cache: "pnpm"
+      - name: Install dependencies
+        working-directory: ./app
+        run: pnpm install --frozen-lockfile
+      - name: Type Check
+        working-directory: ./app
+        run: pnpm run typecheck
+      - name: Formatting
+        working-directory: ./app
+        run: pnpm run fmt:check
+      - name: Lint
+        working-directory: ./app
+        run: pnpm run lint
+      - name: Test
+        working-directory: ./app
+        run: pnpm run test
+
+  typescript-packages:
+    name: JS Packages Lint, Type Check & Tests
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.approved == 'true' && needs.changes.outputs.packages == 'true' }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Setup PNPM
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: js/package.json
+      - name: Set up Nodejs
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          cache-dependency-path: ./js/pnpm-lock.yaml
+          node-version-file: .nvmrc
+          cache: "pnpm"
+      - name: Install Dependencies
+        working-directory: ./js
+        run: pnpm install --frozen-lockfile -r
+      - name: Build
+        working-directory: ./js
+        run: pnpm run -r build
+      - name: Formatting
+        working-directory: ./js
+        run: pnpm run fmt:check
+      - name: Type Checking
+        working-directory: ./js
+        run: pnpm run typecheck
+      - name: Linting
+        working-directory: ./js
+        run: pnpm run lint
+      - name: Test
+        working-directory: ./js
+        run: pnpm run -r test
+
+  pre-merge:
+    name: Pre-merge
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - changes
+      - python-lint
+      - python-typecheck
+      - python-unit-tests
+      - typescript-app
+      - typescript-packages
+    steps:
+      - name: Require the "Ok to test" label
+        if: ${{ needs.changes.outputs.approved != 'true' }}
+        run: |
+          echo "::error::Pre-merge checks have not run. A maintainer must add the \"Ok to test\" label to this pull request."
+          exit 1
+      - name: Check all gated jobs passed or were skipped
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "One or more pre-merge jobs failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more pre-merge jobs were cancelled"
+            exit 1
+          fi
+          echo "All pre-merge jobs passed or were skipped"
