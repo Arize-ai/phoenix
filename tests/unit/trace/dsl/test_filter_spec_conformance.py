@@ -172,7 +172,7 @@ PYTHON_SURFACE_REJECTED = [
     # the escape *sequence* in the source text, not a literal NUL byte -- the
     # latter is rejected by Python's own parser
     pytest.param(r"name == 'a\x00b'", "NUL character", id="nul-escape"),
-    pytest.param("ｎａｍｅ == 'a'", "not written the way it is interpreted", id="nfkc-identifier"),
+    pytest.param("ｎａｍｅ == 'a'", "is interpreted as", id="nfkc-identifier"),
 ]
 
 # `is` against the singletons is retained: those are the only values Python's

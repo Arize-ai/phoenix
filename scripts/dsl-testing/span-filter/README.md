@@ -6,8 +6,14 @@ real databases.
 The DSL's central promise is that a condition means the same thing on SQLite and
 PostgreSQL, or is rejected on both. That cannot be checked by compiling — the
 two backends disagree at *plan*, *bind*, and *row* time, none of which
-compilation reaches. So the tooling here seeds identical data onto both and runs
-conditions against each.
+compilation reaches. Checking it needs identical data on both backends and the
+same conditions executed against each.
+
+**This package currently provides the first half only: the corpus and a seeder.**
+Running conditions and comparing results is done by hand (see
+[Checking that the backends agree](#checking-that-the-backends-agree)); there is
+no runner, no expected-result table, and no CI hook. The cross-dialect guarantee
+is *asserted* by the spec and the unit suites, not enforced from here.
 
 See `internal_docs/specs/span-filter-dsl.md` for the language itself.
 

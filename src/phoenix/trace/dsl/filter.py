@@ -1439,15 +1439,22 @@ def _validate_python_surface(body: ast.expr, source: str) -> None:
             # written. The binary bitwise operators are already rejected as
             # arithmetic; this closes the unary hole beside them.
             raise SyntaxError(f"unsupported operator: {ast.unparse(node)}")
-        elif isinstance(node, ast.Name) and node.id not in source:
+        elif isinstance(node, ast.Name):
             # Python NFKC-normalizes identifiers while parsing, so a full-width
             # `ｎａｍｅ` silently becomes `name` and resolves to a real column the
-            # user never spelled. The normalized identifier is absent from the
-            # source text exactly when normalization rewrote it.
-            raise SyntaxError(
-                f"`{node.id}` is not written the way it is interpreted"
-                ", use unaccented ASCII for field names"
-            )
+            # user never spelled.
+            #
+            # Compared against this node's own source span, not against the
+            # whole condition: searching the text would pass whenever the
+            # normalized spelling appears anywhere else -- inside a string
+            # literal (`ｎａｍｅ == 'name'`) or in another operand
+            # (`ｎａｍｅ == 'x' or name == 'y'`).
+            written = ast.get_source_segment(source, node)
+            if written is not None and written != node.id:
+                raise SyntaxError(
+                    f"`{written}` is interpreted as `{node.id}`"
+                    ", use unaccented ASCII for field names"
+                )
 
 
 def _validate_literal(node: ast.Constant) -> None:

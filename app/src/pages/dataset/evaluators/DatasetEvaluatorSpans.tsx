@@ -3,6 +3,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { useTimeRange } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception";
+import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
 import { ProjectProvider } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { TracingProvider } from "@phoenix/contexts/TracingContext";
@@ -42,7 +43,9 @@ function DatasetEvaluatorSpansContent({ projectId }: { projectId: string }) {
   });
   // Stable identity: an inline fallback would remount the field on every render.
   const errorFallback = useCallback(
-    () => <SpanFilterErrorFallback onResolved={setSeed} />,
+    ({ error }: ErrorBoundaryFallbackProps) => (
+      <SpanFilterErrorFallback error={error} onResolved={setSeed} />
+    ),
     []
   );
   return (

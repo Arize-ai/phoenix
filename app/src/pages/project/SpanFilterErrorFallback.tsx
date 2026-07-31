@@ -10,8 +10,15 @@ import type { SettledSpanFilterSeed } from "./spanFilterSeed";
  * editable.
  */
 export function SpanFilterErrorFallback({
+  error,
   onResolved,
 }: {
+  /**
+   * The caught error. The boundary also covers the table itself, so a failure
+   * here is not necessarily the filter's fault and must not be reported as
+   * though it were.
+   */
+  error?: string | null;
   onResolved: (seed: SettledSpanFilterSeed, persistToUrl?: boolean) => void;
 }) {
   return (
@@ -45,9 +52,9 @@ export function SpanFilterErrorFallback({
         />
       </View>
       <Alert variant="danger" banner>
-        This filter condition could not be applied to the data. Comparing values
-        of different types is the usual cause. Edit the condition above to
-        continue.
+        This view could not be loaded. If the filter above is at fault, editing
+        it will reload — comparing values of different types is the usual cause.
+        {error ? ` (${error})` : null}
       </Alert>
     </>
   );

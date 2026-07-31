@@ -467,6 +467,16 @@ class ComparisonOperation(BooleanExpression):
         operator = self.operator
         if not _is_supported_comparison_operator(operator):
             raise ExperimentRunFilterConditionSyntaxError("Unsupported comparison operator")
+        if isinstance(operator, (ast.Is, ast.IsNot)) and not (
+            _is_singleton(self.left_operand) or _is_singleton(self.right_operand)
+        ):
+            # SQL has no identity comparison. `score is 1` compiled to
+            # `score IS %(param)s`, which PostgreSQL rejects; only the
+            # singletons have a SQL spelling (`IS NULL` / `IS TRUE` /
+            # `IS FALSE`).
+            raise ExperimentRunFilterConditionSyntaxError(
+                "`is` is only supported with None, True, or False"
+            )
         _validate_comparable_data_types(self.left_operand, self.right_operand)
         object.__setattr__(self, "_operator", operator)
 
@@ -520,6 +530,15 @@ class BooleanOperation(BooleanExpression):
             raise ExperimentRunFilterConditionSyntaxError(
                 "Boolean operators require at least two operands"
             )
+        # `not` already required this of its operand; `and` / `or` did not, so
+        # `input and error` compiled to `dataset_example_revisions.input AND
+        # experiment_runs_0.error` -- a JSON column in boolean position, which
+        # PostgreSQL rejects and SQLite silently coerces.
+        for operand in self.operands:
+            if not isinstance(operand, BooleanExpression):
+                raise ExperimentRunFilterConditionSyntaxError(
+                    "Operands of `and` / `or` must be boolean expressions"
+                )
 
     def compile(self) -> Any:
         ast_operator = self.operator
@@ -711,6 +730,14 @@ def _get_sqlalchemy_comparison_operator(
     elif isinstance(ast_operator, ast.NotIn):
         return lambda left, right: ~models.TextContains(right, left)
     assert_never(ast_operator)
+
+
+def _is_singleton(operand: Any) -> bool:
+    """`None`, `True`, `False` -- the only values SQL can compare identity
+    against (`IS NULL` / `IS TRUE` / `IS FALSE`)."""
+    return isinstance(operand, Constant) and (
+        operand.value is None or isinstance(operand.value, bool)
+    )
 
 
 def _get_data_type_family(data_type: SQLAlchemyDataType) -> str:

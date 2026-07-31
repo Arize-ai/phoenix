@@ -353,18 +353,6 @@
     'sql': "CAST(experiment_runs_0.output['task_output'] AS VARCHAR) LIKE '%' || 'x' || '%' ESCAPE '/'",
   })
 # ---
-# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-is-json-attribute]
-  dict({
-    'filter_condition': "experiments[0].input['question'] is experiments[0].output['question']",
-    'sql': "CAST((dataset_example_revisions.input -> 'question') AS VARCHAR) IS CAST(((experiment_runs_0.output -> 'task_output') -> 'question') AS VARCHAR)",
-  })
-# ---
-# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-is-not-json-attribute]
-  dict({
-    'filter_condition': "experiments[0].input['question'] is not experiments[0].output['question']",
-    'sql': "CAST((dataset_example_revisions.input -> 'question') AS VARCHAR) IS NOT CAST(((experiment_runs_0.output -> 'task_output') -> 'question') AS VARCHAR)",
-  })
-# ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-ne-json-attribute]
   dict({
     'filter_condition': "experiments[0].input['question'] != experiments[0].output['question']",
@@ -741,18 +729,6 @@
   dict({
     'filter_condition': "'x' in experiments[0].output",
     'sql': "CAST(experiment_runs_0.output['task_output'] AS VARCHAR) LIKE '%' || 'x' || '%' ESCAPE '/'",
-  })
-# ---
-# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-is-json-attribute]
-  dict({
-    'filter_condition': "experiments[0].input['question'] is experiments[0].output['question']",
-    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."question"\')) AS VARCHAR) IS CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')) AS VARCHAR)',
-  })
-# ---
-# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-is-not-json-attribute]
-  dict({
-    'filter_condition': "experiments[0].input['question'] is not experiments[0].output['question']",
-    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."question"\')) AS VARCHAR) IS NOT CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')) AS VARCHAR)',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-ne-json-attribute]

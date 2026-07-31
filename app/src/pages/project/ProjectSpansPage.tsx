@@ -5,6 +5,7 @@ import { Outlet } from "react-router";
 
 import { Loading } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
+import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
 import { SpanFilterErrorFallback } from "@phoenix/pages/project/SpanFilterErrorFallback";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
@@ -23,9 +24,11 @@ import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 
 // Module-level so the identity is stable: an inline component would remount the
 // field on every render.
-function SpansFilterErrorFallback() {
+function SpansFilterErrorFallback({ error }: ErrorBoundaryFallbackProps) {
   const { resolveSpansSeed } = useProjectPageQueryReferenceContext();
-  return <SpanFilterErrorFallback onResolved={resolveSpansSeed} />;
+  return (
+    <SpanFilterErrorFallback error={error} onResolved={resolveSpansSeed} />
+  );
 }
 
 function SpansTabContent({

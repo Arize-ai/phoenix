@@ -432,10 +432,14 @@ validator and PostgreSQL agree on a generated corpus — which is not yet built.
 
 ### What is stored
 
-The **condition string**, verbatim. `SpanFilter.to_dict()` emits
-`{"condition": ...}` and `from_dict` round-trips it exactly. No parsed or
-compiled form is persisted, and none should be: the AST and generated SQL are
-implementation details that change between releases.
+The **condition string**, canonicalized. `SpanFilter` strips surrounding
+whitespace at construction, so `to_dict()` emits that normalized text and
+`from_dict` round-trips it exactly. Stripping is the only normalization
+performed — see [Stored text must be canonical](#stored-text-must-be-canonical)
+for what remains textually distinct.
+
+No parsed or compiled form is persisted, and none should be: the AST and
+generated SQL are implementation details that change between releases.
 
 ### What can break a stored condition
 

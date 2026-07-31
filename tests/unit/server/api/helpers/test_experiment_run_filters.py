@@ -210,14 +210,6 @@ from phoenix.server.api.helpers.experiment_run_filters import (
             "experiments[0].input['question'] != experiments[0].output['question']",
             id="json-attribute-ne-json-attribute",
         ),
-        pytest.param(
-            "experiments[0].input['question'] is experiments[0].output['question']",
-            id="json-attribute-is-json-attribute",
-        ),
-        pytest.param(
-            "experiments[0].input['question'] is not experiments[0].output['question']",
-            id="json-attribute-is-not-json-attribute",
-        ),
         # eval attribute comparison expressions
         pytest.param(
             "experiments[0].evals['hallucination'].score > 0.5",
@@ -481,6 +473,29 @@ def test_compile_sqlalchemy_filter_condition_correctly_compiles(
             "evals['x'].score == True",
             "cannot compare number and boolean",
             id="eval-score-compared-to-boolean",
+        ),
+        # `X IS Y` between two non-singleton expressions is a PostgreSQL syntax
+        # error; SQLite accepts it. These previously compiled and were snapshot
+        # tested, but the recorded PostgreSQL SQL could never have run.
+        pytest.param(
+            "experiments[0].input['question'] is experiments[0].output['question']",
+            "`is` is only supported with None, True, or False",
+            id="is-between-json-attributes",
+        ),
+        pytest.param(
+            "experiments[0].input['question'] is not experiments[0].output['question']",
+            "`is` is only supported with None, True, or False",
+            id="is-not-between-json-attributes",
+        ),
+        pytest.param(
+            "input and error",
+            "Operands of `and` / `or` must be boolean expressions",
+            id="json-attribute-as-and-operand",
+        ),
+        pytest.param(
+            "latency_ms > 1 and input",
+            "Operands of `and` / `or` must be boolean expressions",
+            id="json-attribute-as-second-and-operand",
         ),
         pytest.param(
             "error == 1",
