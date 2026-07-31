@@ -1,4 +1,5 @@
 import ast
+import logging
 import operator
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -24,6 +25,8 @@ from sqlalchemy.sql import operators as sqlalchemy_operators
 from typing_extensions import TypeAlias, TypeGuard, assert_never
 
 from phoenix.db import models
+
+logger = logging.getLogger(__name__)
 
 SupportedComparisonOperator: TypeAlias = Union[
     ast.Is,
@@ -85,6 +88,42 @@ def update_examples_query_with_filter_condition(
 
 
 def compile_sqlalchemy_filter_condition(
+    filter_condition: str, experiment_ids: list[int]
+) -> tuple[Any, "SQLAlchemyTransformer"]:
+    """Compile a filter condition, reporting every rejection as a filter error.
+
+    Validation here happens during construction rather than as a pass over the
+    whole tree, so an expression can reach a branch no node anticipated and fail
+    with whatever Python raises there -- `AssertionError` from `assert_never`,
+    `TypeError` from an operation applied to the wrong shape. Those are not
+    caught by callers, which look only for
+    `ExperimentRunFilterConditionSyntaxError`, so an ordinary typo in a filter
+    box surfaced as a server error.
+
+    A condition is user input: every way it can fail is a filter error, not a
+    fault. The original is logged with its traceback, because an unexpected
+    exception type here still indicates a gap in validation worth closing.
+    """
+    try:
+        return _compile_sqlalchemy_filter_condition(
+            filter_condition=filter_condition, experiment_ids=experiment_ids
+        )
+    except ExperimentRunFilterConditionSyntaxError:
+        raise
+    except RecursionError:
+        # Parsing, transformation, and compilation all recurse, so deeply
+        # nested input can exhaust the stack at any of them.
+        raise ExperimentRunFilterConditionSyntaxError(
+            "Filter condition is nested too deeply"
+        ) from None
+    except Exception as error:
+        logger.exception("Unexpected error compiling filter condition: %r", filter_condition)
+        # Deliberately generic: the internal message ("Expected code to be
+        # unreachable!") describes our code, not the user's condition.
+        raise ExperimentRunFilterConditionSyntaxError("Invalid filter condition") from error
+
+
+def _compile_sqlalchemy_filter_condition(
     filter_condition: str, experiment_ids: list[int]
 ) -> tuple[Any, "SQLAlchemyTransformer"]:
     try:

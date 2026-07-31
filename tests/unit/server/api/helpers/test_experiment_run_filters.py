@@ -506,6 +506,49 @@ def test_compile_sqlalchemy_filter_condition_raises_appropriate_error_message(
 @pytest.mark.parametrize(
     "filter_condition",
     [
+        pytest.param("latency_ms ** 2 > 1", id="unsupported-binary-operator"),
+        pytest.param("error == b'abc'", id="bytes-literal"),
+        pytest.param("latency_ms == 1j", id="complex-literal"),
+        pytest.param("error == ...", id="ellipsis-literal"),
+        pytest.param("error == ('a','b')", id="tuple-comparand"),
+        pytest.param("error in [['a']]", id="nested-container"),
+        pytest.param("1 in [1, 2]", id="literal-membership"),
+        pytest.param("not (" * 400 + "latency_ms > 1" + ")" * 400, id="deeply-nested"),
+    ],
+)
+def test_compile_sqlalchemy_filter_condition_reports_every_failure_as_a_filter_error(
+    filter_condition: str,
+) -> None:
+    """No condition may fail with an exception type callers do not expect.
+
+    Validation happens during construction rather than as a pass over the tree,
+    so an expression can reach a branch no node anticipated and raise whatever
+    Python raises there -- `AssertionError` from `assert_never`, `TypeError`
+    from an operation applied to the wrong shape. Callers catch only
+    `ExperimentRunFilterConditionSyntaxError`, so anything else reaches the user
+    as a server error rather than an invalid-filter message.
+    """
+    with pytest.raises(ExperimentRunFilterConditionSyntaxError):
+        compile_sqlalchemy_filter_condition(
+            filter_condition=filter_condition,
+            experiment_ids=[0, 1, 2],
+        )
+
+
+def test_compile_sqlalchemy_filter_condition_does_not_leak_internal_messages() -> None:
+    """`assert_never` reports that our code believed a branch unreachable, which
+    describes the implementation rather than the user's condition."""
+    with pytest.raises(ExperimentRunFilterConditionSyntaxError) as exc_info:
+        compile_sqlalchemy_filter_condition(
+            filter_condition="error == b'abc'",
+            experiment_ids=[0],
+        )
+    assert str(exc_info.value) == "Invalid filter condition"
+
+
+@pytest.mark.parametrize(
+    "filter_condition",
+    [
         pytest.param("evals['x'].score > 0.5", id="number-vs-float"),
         pytest.param("evals['x'].score > 1", id="number-vs-int"),
         pytest.param("latency_ms > 1000", id="latency-vs-number"),
