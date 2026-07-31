@@ -645,6 +645,19 @@ So the grammar evolves **additively**: nothing already accepted may be removed
 or given a different meaning. Internal structure — the translator, the planner,
 the generated SQL — is free to change. Accepted text and its meaning are not.
 
+One qualification, load-bearing enough to state as policy: **the promise
+assumes accepted text *has* a meaning, and some of it does not.** The
+[Known Gaps](#known-gaps) and the "not guaranteed" list in
+[Dialect Semantics](#dialect-semantics) enumerate shapes that are accepted
+while returning different rows per backend. For those there is no single
+meaning to preserve, and this policy takes the position that **defining one
+later is not a breaking change**: divergent-accepted text is semantically
+undefined, later definition is a repair, and the ordered-comparison fix (text
+order on one backend, numeric on the other, later defined as numeric on both)
+is the precedent. The obligation this creates is enumeration — a divergent
+shape not on the list is a shape someone will treat as defined — and each
+repair must be executed on both backends before it lands.
+
 What "additive" covers is narrower than it first appears:
 
 | Change | Safe? |
@@ -746,6 +759,13 @@ already available and normalizes spacing and quoting, though not operand or
 conjunct order. Choosing "raw text is identity" is also defensible, but it
 should be chosen rather than inherited.
 
+Note that a half-choice has already been made: construction strips surrounding
+whitespace, so one dimension of textual identity is normalized while the
+others are not. That is defensible on its own terms (it fixes a poor
+`IndentationError` and keeps `to_dict` output canonical), but it means "raw
+text as written" is already not quite what is stored, and the persistence
+decision should be made knowing it.
+
 ### Recommendations for the persistence work
 
 - **Validate on read, and degrade visibly.** A stored condition that no longer
@@ -766,8 +786,9 @@ should be chosen rather than inherited.
 
 These follow from what this language is: a user-facing surface, borrowed from a
 host grammar, compiled to two SQL dialects, over partly schemaless data, whose
-accepted text becomes durable. Each constraint below is a consequence of one of
-those five facts.
+accepted text becomes durable — and whose compiled form is executed by the host
+language's `eval`. Each constraint below is a consequence of one of those six
+facts.
 
 ### Decomposing the problem: the failure-time ladder
 
@@ -807,9 +828,15 @@ also symmetric in a way that hides it — a comparison that never matches gives 
 empty table, which reads as "no such spans," and its negation over-matches,
 which reads as a working filter.
 
-The only detector is a returned row set compared against an expected one. Every
-other technique in this document — validation, totality, static analysis,
-snapshots, compiling against both dialects — is blind to it by construction.
+The primary detector is a returned row set compared against an expected one;
+validation, totality, static analysis, snapshots, and compiling against both
+dialects are all blind to it by construction. It is not quite the *only*
+detector: algebraic laws the language must satisfy — a predicate and its
+negation partition the non-NULL rows, adding a conjunct never grows the set —
+catch wrong translations without an authored expectation, which matters because
+an authored expectation shares its author's misunderstanding (see principle
+11). One such law is already enforced
+(`test_equality_and_inequality_still_partition`); the family deserves to grow.
 
 ### 1. Fail at the earliest layer that can know
 
@@ -825,6 +852,14 @@ uglier — it is *categorically* worse:
 This is also why `EXPLAIN`-at-validation was rejected as a strategy: it moves
 detection to layer 3 instead of doing the work at layer 2, and it is a no-op on
 SQLite, so it cannot be the *only* mechanism.
+
+This principle is time-boxed by the compatibility policy. Moving a failure
+earlier is a restriction, and restrictions end when conditions persist — so
+"fail at the earliest layer" is a *pre-persistence* discipline. Afterwards, a
+newly discovered defect in an accepted shape cannot be rejected into an earlier
+layer; the remaining tools are the next principle's totality and the
+defined-divergence clause of the [compatibility
+policy](#the-compatibility-policy-additive-only).
 
 ### 2. What cannot be known statically must be made total
 
@@ -857,6 +892,17 @@ value. The conversion has to happen at the innermost point where the value
 stops being JSON, not wherever the cast happens to be applied. A total leaf
 inside a partial expression is still partial.
 
+Totality also has a requirement the first two do not imply: **it must be
+observable, or it converts type errors into silent filter narrowing.** A row
+dropped because its value would not convert is indistinguishable from a row
+that did not match, and the NULL a failed conversion produces then flows into
+three-valued logic — `not (attributes['x'] > 5)` excludes every row where `x`
+holds text, compounding the two mechanisms into exactly the wrong-rows failure
+the ladder's Result row describes. Nothing in the language today can tell the
+user this happened. Until a channel exists (a validation-time note is the
+cheapest), totality should be understood as trading a loud per-row failure for
+a quiet semantic one, and chosen with that trade in view.
+
 ### 3. Reject rather than coerce, when the types are known
 
 Coercion hides intent; rejection reveals it. When both sides are statically
@@ -872,6 +918,18 @@ Corollary: **never implicitly coerce to boolean.** The host language has
 two-valued truthiness, SQL has three-valued logic, and JSON adds a fourth state
 (absent). Any implicit bridge between them is a bug generator. This DSL offers
 no `bool()` for the same reason.
+
+Stated absolutely, the rule is false to the language, which ships four
+deliberate coercions: numeric strings inside `float()`, datetime string
+literals, `int()` as an alias for `float()`, and the case-folding of literals
+against `span_kind` / `status_code`. The honest form of the principle is the
+one those four practice: **reject when intent is ambiguous; coerce only where
+exactly one reading is defensible — and then document the coercion as
+semantics**, because each one changes what accepted text means and is
+therefore under the compatibility policy, not an implementation detail. The
+enum fold went undocumented for a while, which is the failure mode: an
+implicit coercion nobody wrote down is a meaning change waiting to be
+"fixed."
 
 ### 4. The permissive backend is the dangerous one
 
@@ -889,13 +947,18 @@ not. An empty table reads as "the filter matched nothing", which is a plausible
 enough answer to stop investigating. The strict backend is where such a bug is
 *visible*; the permissive backend is where it gets *written*.
 
-Two practical consequences:
+Three practical consequences:
 
 - **Any coercion or cast change must be executed on both backends before it
   lands.** Compiling on both is not enough (see 1).
 - **Silently-wrong is worse than loudly-broken.** When the two dialects
   disagree, prefer the behavior that fails, and make the validator reject the
   input on *both* so they agree again.
+- **The environment must enforce what the principle preaches.** Local
+  development defaults to the permissive backend and local runs routinely skip
+  the strict one, so the discipline lives or dies in CI: the PostgreSQL jobs
+  are not an extra check but the only place this entire defect class is
+  visible at all.
 
 ### 5. A host-language parser is a liability, not a grammar
 
@@ -908,6 +971,15 @@ If the surface is borrowed, the grammar must be an **allowlist**, never a
 denylist. Every node type, every operator, every literal type is opt-in. A
 denylist is a permanent backlog of things you have not thought of yet — and
 under an additive-only policy, each one you miss becomes permanent.
+
+The rule applies to the *surface validator itself*, and this codebase has
+violated it there: rejecting Python constructs via an enumerated `isinstance`
+chain is a denylist wearing validation's clothes, and it missed the walrus
+operator in the experiment filter for exactly the predicted reason — nobody
+had thought of it yet. The catch-all boundary made the miss survivable, not
+invisible: the condition was reported as a server fault and logged in full. A
+structural walk that rejects every node type not in an approved set makes the
+next unconsidered construct unreachable by construction.
 
 ### 6. Every new *name* is a breaking change; new *operators* are not
 
@@ -942,6 +1014,11 @@ Practical rules learned here:
   it.
 - If the UI renders them, messages are **part of the contract** and their
   stability matters as much as the grammar's.
+- **Echoed fragments need bounds.** Naming the offending fragment means
+  reflecting user-controlled text into the UI, logs, and GraphQL responses; a
+  message that interpolates a 320-digit literal or a multi-kilobyte expression
+  does so unbounded. Truncate what is echoed, and never let the echo change
+  the message's meaning.
 
 ### 8. Static analysis of the condition is part of its meaning
 
@@ -976,6 +1053,14 @@ assumed:
 What is *not* available is treating refinement as silently additive. Soundness
 guarantees the rows are right; it says nothing about the columns.
 
+Until the persistence work chooses, position 3 is the *de facto* state and
+should be treated as chosen: verdicts may change as the analyzer improves, and
+saved views inherit the change. The principle also reaches further than
+`root_span_scope`: anything that reads condition text and alters observable
+behavior is under it, including the client's mount-time seed classification
+(`spanFilterSeed.ts`) — an analyzer that lives outside this module, is written
+in another language, and is currently under no compatibility policy at all.
+
 ### 9. Test at the layer where the failure lives
 
 A test that only constructs a `SpanFilter` exercises layers 1–2 and proves
@@ -1000,6 +1085,14 @@ number, numeric string, non-numeric string, boolean, null, array, object,
 absent. Ten spans with varied attributes found nothing; a single key with nine
 shapes found a cross-dialect divergence immediately, because every conversion
 path meets every input in one query.
+
+The anecdote generalizes to a rule the suite should enforce rather than
+remember: **every conversion path must meet every JSON shape — operator ×
+operand-type-pair × dialect, executed.** The nine-shape key found the equality
+divergence because it happened to complete that product for `==`; ordered
+comparison between two JSON operands escaped until much later because nothing
+demanded the product be complete. A coverage matrix is checkable; an
+instructive story is not.
 
 **Snapshot tests are the seductive case.** They look like verification and are
 not: a snapshot records the SQL we *generate*, never whether that SQL *runs*.
@@ -1036,6 +1129,12 @@ The same applies to reviews and bug reports about this module, from any source:
 a claim about what a database does is a hypothesis until it has been run on both
 backends.
 
+The claim decays without enforcement. "Verified on 12" is true the day someone
+runs it and unverifiable thereafter unless the floor version is a permanent CI
+job — and the SQLite side needs its own pin, since "the bundled `sqlean`
+build" is a version claim too. A guarantee that lives in a document ages; one
+that lives in CI does not.
+
 ### 11. Agreement is a stronger property than success
 
 "Runs without error on both backends" and "returns the same rows on both
@@ -1056,6 +1155,45 @@ is weaker than it looks: it passes whenever both are wrong in the same way. A
 shared defects alike — so the cross-dialect guarantee is best enforced by
 ordinary parametrized tests run under both dialects, not by a comparison
 harness.
+
+A fixed expectation has its own blind spot: it is authored by the same person
+who wrote the translation, so a shared misunderstanding pins wrong behavior
+green — which is how a reviewed, approved snapshot came to certify a
+comparison that matched no rows. The complement is the algebraic-law family
+from the ladder's Result discussion: laws are authored against the *language*,
+not against any particular translation, so they fail when author and
+translator are wrong together.
+
+### 12. Two encodings of one rule will drift; pin them to each other
+
+Failing at the earliest layer (principle 1) has a structural cost: the
+validator must know what the translator will do, so every rule ends up encoded
+twice — once as a check, once as behavior. The two drift. The validator
+accepted `float('1e400')` by checking the *spelling* of a numeric string while
+the literal rule rejected the *value* `1e400`; a comment in the translator
+claimed a shape reached the float path that actually compiled as text. Each
+was two encodings of one rule disagreeing.
+
+The remedies, in order of strength: derive both encodings from one source (a
+shared predicate, a shared table); where that is not practical, pin them
+against each other with a conformance test that exercises the rule through
+both; at minimum, colocate them so a change to one is a diff next to the
+other. What is not acceptable is the default that produced the drift —
+trusting the two to be maintained in sympathy by whoever edits either.
+
+### 13. The evaluation namespace is an attack surface
+
+The compiled expression is executed by the host language's `eval`, with
+`__builtins__` pinned to an empty dict and a namespace containing exactly the
+names the translation needs. That sandbox closed a real hole — builtins
+reachable from a filter string — and nothing about its current shape
+advertises how load-bearing it is: the pinning is one dict literal, the
+namespace allowlist is one mapping, and either can be "simplified" away in a
+refactor that passes every grammar test. Any change to how the compiled
+expression is evaluated is a security change, whatever it looks like. If the
+evaluation strategy is ever revisited, the sandbox properties — no builtins,
+nothing user-controlled resolving to a callable, nothing reachable outside the
+namespace — are the requirements; `eval` is merely the current implementation.
 
 ### Subtly overlooked
 
@@ -1093,7 +1231,13 @@ Things that are easy to leave unspecified until they bite:
   its own rendering, and the whole inherited literal and operator surface. None
   of these transferred when they were fixed here, because nothing connects the
   two. A fix to shared machinery needs regression coverage on every grain that
-  uses it, and a fix to *duplicated* machinery needs porting by hand.
+  uses it, and a fix to *duplicated* machinery needs porting by hand. The
+  codebase already trends toward the stronger fix — the dialect-sensitive
+  constructs (`SafeJsonFloat`, `SafeJsonBoolean`, `TextContains`) are shared
+  compiled elements serving both DSLs — but nothing demands it. The rule worth
+  stating: new dialect-sensitive behavior belongs in a shared element both
+  languages compile to, so the next divergence is a missing call site rather
+  than a missing reimplementation.
 
 ### A checklist for changing this language
 
@@ -1110,6 +1254,15 @@ Things that are easy to leave unspecified until they bite:
 8. Does the experiment-run filter have the same defect? It is a separate
    implementation, so a fix here does not reach it.
 9. If a snapshot changed, has the new SQL been *run* on both backends?
+10. Does the rule now exist in two encodings — a check and a behavior? What
+    pins them together?
+11. What does it cost at scale, and is the cost bounded by policy rather than
+    by the host's accidents?
+12. Does it touch how the compiled expression is evaluated? Then it is a
+    security change, whatever it looks like.
+13. If it defines meaning for a previously divergent shape, is the shape in
+    the divergence enumeration, and is the new meaning executed on both
+    backends?
 
 ## Error Messages
 
