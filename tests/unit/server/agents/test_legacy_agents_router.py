@@ -213,7 +213,6 @@ async def test_new_chat_route_is_unaffected_by_the_legacy_registration(
         agent_session = models.AgentSession(
             user_id=None,
             title="Already titled",
-            project_name=get_env_phoenix_agents_assistant_project_name(),
         )
         session.add(agent_session)
         await session.flush()
@@ -255,7 +254,6 @@ async def test_new_contract_body_on_the_server_agent_url_delegates_to_the_sessio
         agent_session = models.AgentSession(
             user_id=None,
             title="Already titled",
-            project_name=get_env_phoenix_agents_assistant_project_name(),
         )
         session.add(agent_session)
         await session.flush()

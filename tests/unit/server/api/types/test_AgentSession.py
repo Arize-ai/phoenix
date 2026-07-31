@@ -26,7 +26,6 @@ async def _seed_agent_session(
         agent_session = models.AgentSession(
             user_id=user_id,
             title=title,
-            project_name="assistant_agent",
             created_at=updated_at,
             updated_at=updated_at,
             is_ephemeral=is_ephemeral,

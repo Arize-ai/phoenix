@@ -3303,7 +3303,6 @@ def _compile_matches_uuid_format_postgresql(
 
 class AgentSession(HasId):
     __tablename__ = "agent_sessions"
-    project_name: Mapped[str] = mapped_column(String, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=True,  # sessions may be created while auth is disabled

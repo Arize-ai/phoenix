@@ -37,7 +37,6 @@ async def _add_agent_session(
 ) -> int:
     async with db() as session:
         agent_session = models.AgentSession(
-            project_name="assistant_agent",
             user_id=user_id,
             title=title,
             is_ephemeral=is_ephemeral,
@@ -85,21 +84,18 @@ async def test_agent_session_sweeper_deletes_only_expired_sessions_and_cascades(
     ttl = timedelta(hours=EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS)
     async with db() as session:
         expired = models.AgentSession(
-            project_name="assistant_agent",
             user_id=None,
             title="expired",
             is_ephemeral=True,
         )
         expired.created_at = expired.updated_at = now - ttl - timedelta(hours=1)
         active = models.AgentSession(
-            project_name="assistant_agent",
             user_id=None,
             title="active",
             is_ephemeral=True,
         )
         active.created_at = active.updated_at = now - timedelta(hours=1)
         persistent = models.AgentSession(
-            project_name="assistant_agent",
             user_id=None,
             title="persistent",
             is_ephemeral=False,

@@ -7,7 +7,10 @@ from fastapi import FastAPI
 from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
-from phoenix.config import EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS
+from phoenix.config import (
+    EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS,
+    get_env_phoenix_agents_assistant_project_name,
+)
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
@@ -156,7 +159,6 @@ async def _seed_session_with_transcript(
         agent_session = models.AgentSession(
             user_id=None,
             title=title,
-            project_name="assistant_agent",
             is_ephemeral=is_ephemeral,
         )
         if updated_at is not None:
@@ -358,11 +360,8 @@ async def test_truncate_agent_session_accepts_an_ephemeral_session_awaiting_the_
 async def test_branch_agent_session_copies_the_truncated_transcript(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     source_agent_session_id = await _seed_session_with_transcript(db)
-    configured_project_name = "configured-assistant-project"
-    monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", configured_project_name)
 
     response = await gql_client.execute(
         query=_BRANCH_MUTATION,
@@ -407,20 +406,18 @@ async def test_branch_agent_session_copies_the_truncated_transcript(
         assert set(row.message_id for row in branch_messages).isdisjoint(
             row.message_id for row in source_messages
         )
-        # The branch gets its own OTel session identity (derived from its own
-        # row id) and uses the currently configured trace project.
+        # The branch gets its own OTel session identity, derived from its own row id.
         source_session, branch_session = sorted(
             agent_sessions, key=lambda agent_session: agent_session.id
         )
+        project_name = get_env_phoenix_agents_assistant_project_name()
         assert get_otel_session_id(
-            project_name=branch_session.project_name,
+            project_name=project_name,
             agent_session_rowid=branch_session.id,
         ) != get_otel_session_id(
-            project_name=source_session.project_name,
+            project_name=project_name,
             agent_session_rowid=source_session.id,
         )
-        assert branch_session.project_name == configured_project_name
-        assert branch_session.project_name != source_session.project_name
 
 
 async def test_branch_agent_session_copies_durable_compaction_points(
@@ -673,7 +670,6 @@ async def test_update_agent_session_title(
         agent_session = models.AgentSession(
             user_id=None,
             title="Old title",
-            project_name="assistant_agent",
         )
         session.add(agent_session)
         await session.flush()
@@ -700,7 +696,6 @@ async def test_update_agent_session_title_rejects_empty_title(
         agent_session = models.AgentSession(
             user_id=None,
             title="Old title",
-            project_name="assistant_agent",
         )
         session.add(agent_session)
         await session.flush()
@@ -725,7 +720,6 @@ async def test_update_agent_session_title_rejects_long_title(
         agent_session = models.AgentSession(
             user_id=None,
             title="Old title",
-            project_name="assistant_agent",
         )
         session.add(agent_session)
         await session.flush()
@@ -756,7 +750,6 @@ async def test_delete_agent_session_cascades_snapshot(
         agent_session = models.AgentSession(
             user_id=None,
             title="doomed session",
-            project_name="assistant_agent",
             created_at=now,
             updated_at=now,
         )

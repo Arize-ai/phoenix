@@ -440,7 +440,6 @@ CREATE UNIQUE INDEX ix_users_username ON public.users
 -- ---------------------
 CREATE TABLE public.agent_sessions (
     id bigserial NOT NULL,
-    project_name VARCHAR NOT NULL,
     user_id BIGINT,
     title VARCHAR NOT NULL,
     is_ephemeral BOOLEAN NOT NULL,

@@ -1734,7 +1734,6 @@ def create_agents_router(
             agent_session = models.AgentSession(
                 user_id=int(phoenix_user.identity) if phoenix_user is not None else None,
                 title=title,
-                project_name=get_env_phoenix_agents_assistant_project_name(),
                 is_ephemeral=request_body.is_ephemeral,
             )
             session.add(agent_session)
@@ -2002,6 +2001,7 @@ def create_agents_router(
             allow_local_traces=recording.allow_local_traces,
             allow_remote_export=recording.allow_remote_export,
         )
+        project_name = get_env_phoenix_agents_assistant_project_name()
         resolved_contexts = resolve_contexts(body.contexts)
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
@@ -2038,7 +2038,6 @@ def create_agents_router(
                     agent_session_rowid=agent_session.id,
                 ):
                     return JSONResponse({"code": "agent_session_busy"}, status_code=409)
-                project_name = agent_session.project_name
                 session_needs_title = not agent_session.title
                 agent_session_rowid = agent_session.id
                 otel_session_id = get_otel_session_id(
