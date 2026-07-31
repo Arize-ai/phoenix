@@ -11,7 +11,6 @@ from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.types.db_helper_types import UNDEFINED
-from phoenix.db.types.media import MediaContent, MediaVariable
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
     ContentPart,
@@ -41,11 +40,13 @@ from phoenix.db.types.prompts import (
     ToolCallFunction,
     ToolResultContentPart,
 )
-from phoenix.db.types.media_parts import (
-    FileContentPart,
-    ImageContentPart,
-)
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.input_types.MediaContentInput import (
+    ImageContentValueInput,
+    ImageVariableValueInput,
+    first_validation_error_message,
+    media_content_part,
+)
 from phoenix.server.api.input_types.PromptInvocationParametersInput import (
     PromptInvocationParametersInput,
 )
@@ -54,21 +55,6 @@ from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 InvocationFamily = Literal["openai", "anthropic", "google", "aws"]
-
-
-def _first_error_message(error: ValidationError) -> str:
-    """
-    Reduce a Pydantic validation error to a single message fit for a GraphQL error.
-
-    Args:
-        error: The validation error raised while building a DB model.
-
-    Returns:
-        The first error's message, with Pydantic's ``Value error,`` prefix removed.
-    """
-    if not (errors := error.errors()):
-        return str(error)
-    return str(errors[0].get("msg", error)).removeprefix("Value error, ")
 
 
 def _expected_invocation_family(provider: ModelProvider) -> InvocationFamily:
@@ -286,28 +272,6 @@ class ToolCallContentValueInput:
     tool_call: ToolCallFunctionInput
 
 
-@strawberry.input
-class ImageContentValueInput:
-    url: str = strawberry.field(
-        description=(
-            "A `phoenix://media/<sha256>` reference to media stored in Phoenix (see the "
-            "`POST /v1/media` REST endpoint), or a base64 `data:` URL carrying the media "
-            "inline. External `http(s)` URLs are not accepted."
-        )
-    )
-    media_type: str
-
-
-@strawberry.input
-class ImageVariableValueInput:
-    variable: str = strawberry.field(
-        description=(
-            "The input name the image is supplied under at run time, letting one "
-            "prompt run against many images."
-        )
-    )
-
-
 @strawberry.input(one_of=True)
 class ContentPartInput:
     text: Optional[TextContentValueInput] = strawberry.UNSET
@@ -325,44 +289,8 @@ class ContentPartInput:
     )
 
     def to_orm(self) -> ContentPart:
-        if self.file_variable:
-            try:
-                return FileContentPart(
-                    type="file",
-                    file=MediaVariable(variable=self.file_variable.variable),
-                )
-            except ValidationError as error:
-                raise BadRequest(_first_error_message(error))
-        if self.file:
-            try:
-                return FileContentPart(
-                    type="file",
-                    file=MediaContent(
-                        url=self.file.url,
-                        media_type=self.file.media_type,
-                    ),
-                )
-            except ValidationError as error:
-                raise BadRequest(_first_error_message(error))
-        if self.image_variable:
-            try:
-                return ImageContentPart(
-                    type="image",
-                    image=MediaVariable(variable=self.image_variable.variable),
-                )
-            except ValidationError as error:
-                raise BadRequest(_first_error_message(error))
-        if self.image:
-            try:
-                return ImageContentPart(
-                    type="image",
-                    image=MediaContent(
-                        url=self.image.url,
-                        media_type=self.image.media_type,
-                    ),
-                )
-            except ValidationError as error:
-                raise BadRequest(_first_error_message(error))
+        if (media := media_content_part(self)) is not None:
+            return media
         if self.text:
             return TextContentPart(
                 type="text",
@@ -404,7 +332,7 @@ class PromptMessageInput:
                 content=[content_part.to_orm() for content_part in self.content],
             )
         except ValidationError as error:
-            raise BadRequest(_first_error_message(error))
+            raise BadRequest(first_validation_error_message(error))
 
 
 @strawberry.input
