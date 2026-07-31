@@ -285,6 +285,63 @@ describe("PXI client", () => {
     ]);
   });
 
+  it("follows pagination when listing persisted sessions", async () => {
+    const capturedCursors: Array<string | null> = [];
+    const capturedLimits: Array<string | null> = [];
+    const firstPage = Array.from({ length: 20 }, (_, index) => ({
+      id: `session-${index + 1}`,
+      title: `Session ${index + 1}`,
+      created_at: "2026-07-24T11:00:00Z",
+      updated_at: "2026-07-24T12:00:00Z",
+      is_temporary: false,
+    }));
+    const fetchImpl = vi.fn(
+      async (input: string | URL | Request, init?: RequestInit) => {
+        const request =
+          input instanceof Request ? input : new Request(input, init);
+        const query = new URL(request.url).searchParams;
+        const cursor = query.get("cursor");
+        capturedCursors.push(cursor);
+        capturedLimits.push(query.get("limit"));
+        return new Response(
+          JSON.stringify(
+            cursor === null
+              ? { data: firstPage, next_cursor: "cursor-page-2" }
+              : {
+                  data: [
+                    {
+                      id: "session-21",
+                      title: "Session 21",
+                      created_at: "2026-07-24T10:00:00Z",
+                      updated_at: "2026-07-24T10:00:00Z",
+                      is_temporary: false,
+                    },
+                  ],
+                  next_cursor: null,
+                }
+          ),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    ) as typeof fetch;
+    const sessionClient = createPxiSessionClient({
+      config: { endpoint: "http://localhost:6006" },
+      fetch: fetchImpl,
+    });
+
+    const sessions = await sessionClient.listSessions();
+
+    expect(capturedCursors).toEqual([null, "cursor-page-2"]);
+    expect(capturedLimits).toEqual(["100", "100"]);
+    expect(sessions).toHaveLength(21);
+    expect(sessions.at(-1)).toEqual({
+      id: "session-21",
+      title: "Session 21",
+      updatedAt: "2026-07-24T10:00:00Z",
+      isTemporary: false,
+    });
+  });
+
   it("compacts a session on the server-agent compact route", async () => {
     const checkpoint = {
       id: "checkpoint-1",
