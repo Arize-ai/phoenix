@@ -97,7 +97,13 @@ def fork_local_migrations() -> list[Path]:
         str(MIGRATIONS.relative_to(REPO_ROOT)),
         check=False,
     )
-    paths = [REPO_ROOT / line for line in diff.splitlines() if line.endswith(".py")]
+    # `exists` filters out a migration added on this branch and since deleted: git
+    # still reports it while the deletion is uncommitted.
+    paths = [
+        REPO_ROOT / line
+        for line in diff.splitlines()
+        if line.endswith(".py") and (REPO_ROOT / line).exists()
+    ]
     by_revision = {read_revision(path): path for path in paths}
     # Ordered by following the chain, so "earliest" means the one whose parent
     # belongs to upstream — the only one that has to be re-pointed on a sync.

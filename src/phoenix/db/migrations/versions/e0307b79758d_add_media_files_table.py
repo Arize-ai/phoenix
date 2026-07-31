@@ -21,10 +21,16 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         "media_files",
+        # Content-addressed: the digest is the identity, so storing the same bytes
+        # twice costs nothing and a prompt version can reference media by digest.
         sa.Column("sha256", sa.String, primary_key=True),
         sa.Column("media_type", sa.String, nullable=False),
         sa.Column("size_bytes", sa.Integer, nullable=False),
         sa.Column("content", sa.LargeBinary, nullable=False),
+        # Nullable: a name is not always known — a URL import may not supply one —
+        # and only the providers that require a name to carry a document need it.
+        # Because rows are keyed by digest, identical bytes keep the first name given.
+        sa.Column("file_name", sa.String, nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
