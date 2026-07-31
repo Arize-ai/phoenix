@@ -7,6 +7,9 @@ from strawberry.extensions.base_extension import SchemaExtension
 from strawberry.types.execution import ExecutionResult as StrawberryExecutionResult
 
 from phoenix.config import get_env_mask_internal_server_errors
+from phoenix.server.api.helpers.experiment_run_filters import (
+    ExperimentRunFilterConditionSyntaxError,
+)
 from phoenix.trace.dsl import SpanFilterError
 
 
@@ -53,7 +56,7 @@ _GENERIC_MASK_MESSAGE = "an unexpected error occurred"
 
 def _find_custom_error(
     error: BaseException,
-) -> Optional[Union[CustomGraphQLError, SpanFilterError]]:
+) -> Optional[Union[CustomGraphQLError, SpanFilterError, ExperimentRunFilterConditionSyntaxError]]:
     """Walk the original_error / __cause__ chain looking for a safe public error.
 
     graphql-core wraps scalar `parse_value` errors in an outer GraphQLError and
@@ -64,7 +67,10 @@ def _find_custom_error(
     current: Optional[BaseException] = error
     seen: set[int] = set()
     while current is not None and id(current) not in seen:
-        if isinstance(current, (CustomGraphQLError, SpanFilterError)):
+        if isinstance(
+            current,
+            (CustomGraphQLError, SpanFilterError, ExperimentRunFilterConditionSyntaxError),
+        ):
             return current
         seen.add(id(current))
         current = getattr(current, "original_error", None) or current.__cause__
@@ -73,8 +79,15 @@ def _find_custom_error(
 
 class PhoenixErrorMasker(SchemaExtension):
     """Replace error messages with the inner safe public error's message
-    (a CustomGraphQLError or SpanFilterError) if present; otherwise mask
-    with a generic message (when enabled)."""
+    (a CustomGraphQLError or one of the filter-condition errors) if present;
+    otherwise mask with a generic message (when enabled).
+
+    Both filter DSLs guarantee at their compile boundary that every raised
+    error carries a user-safe message about the condition, never internals,
+    which is what makes surfacing them verbatim correct. A filter error that
+    reaches a resolver without a local catch (e.g. `compareExperiments`)
+    would otherwise be masked to a generic message under the default config.
+    """
 
     def _rewrite(self, error: GraphQLError) -> GraphQLError:
         inner = _find_custom_error(error)
