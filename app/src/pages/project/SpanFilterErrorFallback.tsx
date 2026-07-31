@@ -1,6 +1,8 @@
 import { Alert, View } from "@phoenix/components";
 
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import { isKnownRootSpanCondition } from "./spanFilterRootScopeConstants";
+import { useSpanFilters } from "./SpanFiltersContext";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 
 /**
@@ -21,6 +23,13 @@ export function SpanFilterErrorFallback({
   error?: string | null;
   onResolved: (seed: SettledSpanFilterSeed, persistToUrl?: boolean) => void;
 }) {
+  const { filterCondition } = useSpanFilters();
+  // The root-span predicates are written by this app, not by the user, and a
+  // tab defaults to one -- so a non-empty condition is not by itself evidence
+  // that anyone filtered. Naming the filter as the likely cause is only honest
+  // when someone actually wrote one.
+  const hasUserFilter =
+    filterCondition.trim() !== "" && !isKnownRootSpanCondition(filterCondition);
   return (
     <>
       <View
@@ -52,8 +61,10 @@ export function SpanFilterErrorFallback({
         />
       </View>
       <Alert variant="danger" banner>
-        This view could not be loaded. If the filter above is at fault, editing
-        it will reload — comparing values of different types is the usual cause.
+        This view could not be loaded.
+        {hasUserFilter
+          ? " The filter above is a likely cause — comparing values of different types is the most common. Editing it reloads the view."
+          : " Editing the filter above reloads the view."}
         {error ? ` (${error})` : null}
       </Alert>
     </>
