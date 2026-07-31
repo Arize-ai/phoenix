@@ -18,11 +18,8 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.types.annotation_configs import (
-    CategoricalOutputConfig,
-    ContinuousOutputConfig,
-    FreeformOutputConfig,
-    OutputConfig,
     OutputConfigType,
+    as_output_configs,
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.prompts import PromptChatTemplate
@@ -248,16 +245,7 @@ class OnlineEvalExecutor:
                 f"Code evaluator {evaluator_orm.id}: no sandbox backend available for "
                 f"config {sandbox_config.id}"
             )
-        output_configs: list[OutputConfigType] = []
-        for config in evaluator_orm.output_configs:
-            if config.name is None:
-                continue
-            output_config = OutputConfig.model_validate(config.model_dump()).root
-            if isinstance(
-                output_config,
-                (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
-            ):
-                output_configs.append(output_config)
+        output_configs: list[OutputConfigType] = as_output_configs(evaluator_orm.output_configs)
         evaluator = CodeEvaluatorRunner(
             name=evaluator_orm.name.root,
             description=evaluator_orm.description,
