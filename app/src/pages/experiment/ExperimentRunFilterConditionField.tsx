@@ -130,7 +130,7 @@ const experimentRunFilterAISearch: DSLFilterAISearchProps = {
       "When experiments are compared side by side, experiments[i] scopes an expression to the i-th experiment, e.g. experiments[0].evals['name'].score.",
     ],
   }),
-  placeholder: "filter runs — DSL or plain English",
+  placeholder: "describe a run filter — Enter converts it to DSL",
 };
 
 /**

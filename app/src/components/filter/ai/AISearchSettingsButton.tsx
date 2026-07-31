@@ -8,37 +8,21 @@ import {
   Popover,
   View,
 } from "@phoenix/components";
-import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import { AISearchSettingsForm } from "./AISearchSettingsForm";
 
-const settingsButtonCSS = css`
-  &[data-ai-enabled="true"] {
-    color: var(--pxi-treatment-color-middle);
-    &:hover {
-      color: var(--pxi-treatment-color-end);
-    }
-  }
-`;
-
 /**
- * The AI-search entry point on a filter field: a sparkle button whose
- * popover holds the AI search configuration. The setting is global —
+ * The AI-search configuration entry point on a filter field: a gear button
+ * whose popover holds the AI search settings. The setting is global —
  * enabling AI search here enables it on every filter field that supports
  * it, and the same configuration appears on the settings and profile pages.
+ * Mode switching belongs to the sparkle toggle next to it.
  */
 export function AISearchSettingsButton() {
-  const isEnabled = usePreferencesContext((state) => state.isAISearchEnabled);
   return (
     <DialogTrigger>
-      <IconButton
-        size="S"
-        aria-label="AI search settings"
-        className="ai-search-settings-button"
-        data-ai-enabled={isEnabled}
-        css={settingsButtonCSS}
-      >
-        <Icon svg={<Icons.Sparkles />} />
+      <IconButton size="XS" aria-label="AI search settings">
+        <Icon svg={<Icons.Settings />} />
       </IconButton>
       <Popover
         placement="bottom end"

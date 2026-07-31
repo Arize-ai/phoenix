@@ -11,7 +11,10 @@ import {
   DSLFilterConditionField,
   type DSLFilterConditionFieldProps,
 } from "@phoenix/components/filter";
+import { PreferencesProvider } from "@phoenix/contexts";
 import { CredentialsProvider } from "@phoenix/contexts/CredentialsContext";
+
+import { AISearchRelayEnvironment } from "./utils/aiSearchRelayEnvironment";
 
 /**
  * An example DSL vocabulary: the fields an expression can reference
@@ -100,6 +103,15 @@ async function validateCondition(condition: string) {
 const meta: Meta<typeof DSLFilterConditionField> = {
   title: "Filter/DSLFilterConditionField",
   component: DSLFilterConditionField,
+  decorators: [
+    // The AI search settings popover's model picker loads providers over
+    // Relay; the stories answer it with a canned catalog
+    (Story) => (
+      <AISearchRelayEnvironment>
+        <Story />
+      </AISearchRelayEnvironment>
+    ),
+  ],
   parameters: {
     controls: { expanded: true },
   },
@@ -115,7 +127,7 @@ const Template: StoryFn<DSLFilterConditionFieldProps> = (args) => {
   const [value, setValue] = useState<string>("");
   const [validCondition, setValidCondition] = useState<string>("");
   return (
-    <View width="600px">
+    <View width="600px" padding="size-400">
       <Flex direction="column" gap="size-100">
         <DSLFilterConditionField
           {...args}
@@ -150,20 +162,12 @@ export const Default = {
   render: Template,
 };
 
-/**
- * The field with AI search available. Open the sparkle button to enable the
- * feature and pick a model — the on-device browser model by default (real
- * conversions in Chrome/Edge), or a provider with an API key. With AI
- * search on, plain-language drafts show the AI affordance and the PXI
- * treatment on the field border; Enter converts them to the DSL, and the
- * result can be undone from the badge or with Escape.
- */
-export const WithAISearch: StoryFn<DSLFilterConditionFieldProps> = (args) => {
+function AISearchTemplate(args: DSLFilterConditionFieldProps) {
   const [value, setValue] = useState<string>("");
   const [validCondition, setValidCondition] = useState<string>("");
   return (
     <CredentialsProvider>
-      <View width="600px">
+      <View width="600px" padding="size-400">
         <Flex direction="column" gap="size-100">
           <DSLFilterConditionField
             {...args}
@@ -179,7 +183,8 @@ export const WithAISearch: StoryFn<DSLFilterConditionFieldProps> = (args) => {
                 completions,
                 snippets,
               }),
-              placeholder: "filter records — DSL or plain English",
+              placeholder:
+                "describe a record filter — Enter converts it to DSL",
             }}
           />
           <Text color="text-700" size="XS">
@@ -191,7 +196,34 @@ export const WithAISearch: StoryFn<DSLFilterConditionFieldProps> = (args) => {
       </View>
     </CredentialsProvider>
   );
-};
+}
+
+/**
+ * The field with AI search available but not yet enabled: only the gear
+ * shows, whose popover holds the AI search settings. Enabling the feature
+ * there (the setting persists in this browser) reveals the sparkle mode
+ * toggle demonstrated in the next story.
+ */
+export const WithAISearch: StoryFn<DSLFilterConditionFieldProps> =
+  AISearchTemplate;
+
+/**
+ * The field with AI search enabled, showing the sparkle mode toggle beside
+ * the gear. The sparkle switches the field into plain-English mode: prose
+ * input with no DSL affordances (no typeahead, syntax highlighting, or
+ * validation), the PXI treatment on the border, and a sparkle leading icon
+ * so the mode is unmistakable. Enter converts the draft with the configured
+ * model — real conversions run in Chrome/Edge via the on-device model — and
+ * lands the field back in DSL mode showing the generated expression; undo
+ * (or Escape) restores your words and returns to plain-English mode.
+ */
+export const WithAISearchEnabled: StoryFn<DSLFilterConditionFieldProps> = (
+  args
+) => (
+  <PreferencesProvider isAISearchEnabled>
+    <AISearchTemplate {...args} />
+  </PreferencesProvider>
+);
 
 /**
  * Without `snippets` or `loadCompletions`, the typeahead surfaces only the
@@ -200,7 +232,7 @@ export const WithAISearch: StoryFn<DSLFilterConditionFieldProps> = (args) => {
 export const FieldsOnly: StoryFn<DSLFilterConditionFieldProps> = (args) => {
   const [value, setValue] = useState<string>("");
   return (
-    <View width="600px">
+    <View width="600px" padding="size-400">
       <DSLFilterConditionField
         {...args}
         value={value}
