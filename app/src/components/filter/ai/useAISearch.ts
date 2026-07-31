@@ -10,9 +10,8 @@ import {
 } from "./browserModel";
 import { createAISearchModel } from "./createAISearchModel";
 import { generateFilterCondition } from "./generateFilterCondition";
-import type { AISearchDSL, AISearchModelConfig } from "./types";
-
-const BROWSER_MODEL_CONFIG: AISearchModelConfig = { kind: "browser" };
+import type { AISearchDSL } from "./types";
+import { resolveAISearchModelConfig } from "./types";
 
 export type AISearchStatus = "idle" | "downloading" | "generating";
 
@@ -41,11 +40,11 @@ export type UseAISearchArgs = {
   ) => Promise<DSLFilterConditionValidationResult | null | undefined>;
 };
 
-function toErrorMessage(error: unknown): string {
+export function toErrorMessage(error: unknown, fallback = "AI search failed") {
   if (error instanceof Error && error.message) {
     return error.message;
   }
-  return "AI search failed";
+  return fallback;
 }
 
 /**
@@ -57,9 +56,9 @@ function toErrorMessage(error: unknown): string {
  * how the run ended.
  */
 export function useAISearch({ dsl, validate }: UseAISearchArgs) {
-  const modelConfig =
-    usePreferencesContext((state) => state.aiSearchModelConfig) ??
-    BROWSER_MODEL_CONFIG;
+  const modelConfig = resolveAISearchModelConfig(
+    usePreferencesContext((state) => state.aiSearchModelConfig)
+  );
   const credentials = useCredentialsContext((state) =>
     modelConfig.kind === "provider" ? state[modelConfig.provider] : undefined
   );
