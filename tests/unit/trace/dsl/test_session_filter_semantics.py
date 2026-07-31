@@ -144,11 +144,11 @@ REJECTED: tuple[tuple[str, str], ...] = (
     ),
     (
         "any(first_input == 'x' for s in spans)",
-        "`first_input` is a session-level term, not a spans element field",
+        "`first_input` is a top-level term, not a spans element field",
     ),
     (
         "any(s.latency_ms > duration_ms for s in spans)",
-        "`duration_ms` is a session-level term, not a spans element field",
+        "`duration_ms` is a top-level term, not a spans element field",
     ),
     (
         "any(annotations['q'].score > 0.5 for s in spans)",

@@ -208,6 +208,7 @@ class _FilterBindings:
     entity_id: "sqlalchemy.SQLColumnExpression[typing.Any]"
     annotation_table_prefix: str
     reject_unbound_names: bool
+    caller_bound_string_names: frozenset[str] = frozenset()
     boolean_names: NameMap = MappingProxyType({})
     quantifiers: frozenset[str] = frozenset()
     exists_names: frozenset[str] = frozenset()
@@ -251,6 +252,7 @@ class _FilterBindings:
                 self.boolean_names,
                 self.aggregate_names,
                 self.exists_names,
+                self.caller_bound_string_names,
             )
         )
 
@@ -1923,7 +1925,7 @@ def _is_string(node: typing.Any, bindings: _FilterBindings) -> TypeGuard[ast.Cal
     # inference stays as it is for the grain whose accepted surface it already defines.
     return (
         isinstance(node, ast.Name)
-        and node.id in bindings.string_names
+        and (node.id in bindings.string_names or node.id in bindings.caller_bound_string_names)
         or _is_cast(node, "String")
         or _is_string_constant(node)
         or _is_string_attribute(node)
@@ -1976,6 +1978,7 @@ class _ProjectionTranslator(ast.NodeTransformer):
                 bindings.boolean_names.keys(),
                 bindings.aggregate_names,
                 bindings.exists_names,
+                bindings.caller_bound_string_names,
             )
         )
 
@@ -2190,6 +2193,7 @@ class _FilterTranslator(_ProjectionTranslator):
                 or ast.unparse(right) in self._bindings.names
                 or isinstance(right, ast.Name)
                 and right.id in self._string_keywords
+                or ast.unparse(right) in self._bindings.caller_bound_string_names
             ):
                 call = ast.Call(
                     func=ast.Name(id=self._containment_function, ctx=ast.Load()),
@@ -2652,14 +2656,14 @@ class _SemanticPolicy:
             if name in self._bindings.binding_names:
                 fields = scope.grammar.element_bindings.binding_names
                 raise SyntaxError(
-                    f"`{name}` is a session-level term, not a {scope.iterable} element field; "
+                    f"`{name}` is a top-level term, not a {scope.iterable} element field; "
                     f"a {scope.iterable} element exposes {_disjunction(sorted(fields))}"
                 )
             _raise_invalid_name(name, scope.grammar.element_bindings)
         return self._binding(name, self._bindings)
 
     def _binding(self, name: str, bindings: _FilterBindings) -> _Kind:
-        if name in bindings.string_names:
+        if name in bindings.string_names or name in bindings.caller_bound_string_names:
             return "string"
         if name in bindings.float_names or name in bindings.aggregate_names:
             return "float"
