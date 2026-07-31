@@ -1,11 +1,4 @@
-import {
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import {
   ConnectionHandler,
@@ -162,40 +155,33 @@ function AgentSessionsContent({
     setActiveSession(DRAFT_SESSION_ID);
   }, [setActiveSession, store]);
 
-  const serverSessions: AgentSessionListItem[] = data.agentSessions.edges.map(
-    ({ node }) => ({
-      id: node.id,
-      title: node.title,
-      isTemporary: node.isTemporary,
-      createdAt: Date.parse(node.createdAt as string),
-      isDeleteDisabled:
-        chatStatusBySessionId[node.id] === "submitted" ||
-        chatStatusBySessionId[node.id] === "streaming",
-    })
+  // The active draft is deliberately absent from the menu: it has no server
+  // row yet, so listing it would only offer a "New chat" entry that cannot be
+  // deleted or meaningfully switched to. The header still labels the active
+  // draft via the display-name fallback below.
+  const serverSessions: AgentSessionListItem[] = useMemo(
+    () =>
+      data.agentSessions.edges.map(({ node }) => ({
+        id: node.id,
+        title: node.title,
+        isTemporary: node.isTemporary,
+        createdAt: Date.parse(node.createdAt as string),
+        isDeleteDisabled:
+          chatStatusBySessionId[node.id] === "submitted" ||
+          chatStatusBySessionId[node.id] === "streaming",
+      })),
+    [chatStatusBySessionId, data.agentSessions.edges]
   );
-  const draftSession: AgentSessionListItem | null =
-    activeSessionId === DRAFT_SESSION_ID
-      ? {
-          id: DRAFT_SESSION_ID,
-          title: "",
-          createdAt: Date.now(),
-        }
-      : null;
-  const orderedSessions = draftSession
-    ? [draftSession, ...serverSessions]
-    : serverSessions;
-  const orderedSessionsRef = useRef(orderedSessions);
-  orderedSessionsRef.current = orderedSessions;
 
   // On first open with no selection, resume the most recent conversation, or
   // start a draft when the user has no sessions yet.
+  const mostRecentServerSessionId = data.agentSessions.edges[0]?.node.id;
   useEffect(() => {
     if (activeSessionId !== null || store.getState().activeSessionId !== null) {
       return;
     }
-    const mostRecentSession = orderedSessionsRef.current[0];
-    setActiveSession(mostRecentSession?.id ?? DRAFT_SESSION_ID);
-  }, [activeSessionId, setActiveSession, store]);
+    setActiveSession(mostRecentServerSessionId ?? DRAFT_SESSION_ID);
+  }, [activeSessionId, mostRecentServerSessionId, setActiveSession, store]);
 
   const [commitDelete] =
     useMutation<AgentSessionsResourceDeleteMutation>(graphql`
@@ -222,7 +208,7 @@ function AgentSessionsContent({
       }
       const isDeletingActiveSession = activeSessionId === sessionId;
       if (isDeletingActiveSession) {
-        const nextSession = orderedSessionsRef.current.find(
+        const nextSession = serverSessions.find(
           (candidate) => candidate.id !== sessionId
         );
         setActiveSession(nextSession?.id ?? DRAFT_SESSION_ID);
@@ -253,12 +239,13 @@ function AgentSessionsContent({
       commitDelete,
       connectionId,
       runtime,
+      serverSessions,
       setActiveSession,
       store,
     ]
   );
 
-  const activeSession = orderedSessions.find(
+  const activeSession = serverSessions.find(
     (session) => session.id === activeSessionId
   );
   const sessionDisplayName = activeSession?.title || EMPTY_SESSION_DISPLAY_NAME;
@@ -301,12 +288,12 @@ function AgentSessionsContent({
           ConnectionHandler.deleteNode(connection, sessionId);
         }
       });
-      const nextSession = orderedSessionsRef.current.find(
+      const nextSession = serverSessions.find(
         (session) => session.id !== sessionId
       );
       setActiveSession(nextSession?.id ?? DRAFT_SESSION_ID);
     },
-    [relayEnvironment, setActiveSession]
+    [relayEnvironment, serverSessions, setActiveSession]
   );
 
   // Decide once per session activation whether the surface must first seed
@@ -326,7 +313,7 @@ function AgentSessionsContent({
     <>
       <AgentChatHeader
         sessionDisplayName={sessionDisplayName}
-        orderedSessions={orderedSessions}
+        orderedSessions={serverSessions}
         activeSessionId={activeSessionId}
         activeSessionTitleFragment={
           activeSessionId == null
