@@ -85,6 +85,10 @@ import {
   TOOLS_PARSING_ERROR,
 } from "./constants";
 import {
+  mediaContentPartInputs,
+  withMediaVariableValues,
+} from "./playgroundMedia";
+import {
   getVisibleInvocationParameterSpecs,
   getDefaultInvocationConfig,
   invocationConfigToPromptInput,
@@ -1551,6 +1555,10 @@ function chatMessageToPromptMessageInput(message: ChatMessage): {
       toolCall: { name: string; arguments: string; type?: string | null };
     } | null;
     toolResult?: { toolCallId: string; result: unknown } | null;
+    image?: { url: string; mediaType: string } | null;
+    imageVariable?: { variable: string } | null;
+    file?: { url: string; mediaType: string } | null;
+    fileVariable?: { variable: string } | null;
   }[];
 } {
   const toolCalls = message.toolCalls ?? [];
@@ -1592,6 +1600,7 @@ function chatMessageToPromptMessageInput(message: ChatMessage): {
     if (message.content) {
       content.push({ text: { text: message.content } });
     }
+    content.push(...mediaContentPartInputs(message));
   }
 
   return { role: chatRoleToPromptRole(message.role), content };
@@ -2171,7 +2180,10 @@ export const getChatCompletionInput = ({
     headers: baseChatCompletionVariables.headers,
     credentials: baseChatCompletionVariables.credentials,
     template: {
-      variables: variablesMap,
+      variables: withMediaVariableValues(variablesMap, {
+        instances: playgroundInstances,
+        input,
+      }),
       format: templateFormat,
     },
     promptName: instance.prompt?.name,

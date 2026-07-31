@@ -28,8 +28,11 @@ import {
   safelyStringifyJSON,
 } from "@phoenix/utils/jsonUtils";
 
+import { MEDIA_PART_TYPE_TITLE } from "./media/partTitles";
+
 const PART_TYPE_TITLE = {
   text: "Text",
+  ...MEDIA_PART_TYPE_TITLE,
   toolCall: "Tool Call",
   toolResult: "Tool Result",
 } as const;
@@ -146,7 +149,7 @@ export function ChatTemplateMessageTextPart(
 /**
  * Internal container component for ChatTemplateMessage*Type*Part components
  */
-function ChatTemplateMessagePartContainer({
+export function ChatTemplateMessagePartContainer({
   title,
   children,
   isOnlyChild,

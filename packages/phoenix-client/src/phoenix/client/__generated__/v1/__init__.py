@@ -67,6 +67,10 @@ class AssistantMessageMetadataUsageTokens(TypedDict):
     total: int
 
 
+class BodyUploadMedia(TypedDict):
+    file: str
+
+
 class CategoricalAnnotationValue(TypedDict):
     label: str
     score: NotRequired[float]
@@ -259,6 +263,14 @@ class GraphQLContext(TypedDict):
     mutationsEnabled: bool
 
 
+class ImportMediaRequestBody(TypedDict):
+    url: str
+
+
+class ImportMediaRequestBodyWrapper(TypedDict):
+    data: ImportMediaRequestBody
+
+
 class InsertedSessionAnnotation(TypedDict):
     id: str
 
@@ -334,6 +346,22 @@ class LocalUser(LocalUserData):
     created_at: str
     updated_at: str
     password_needs_reset: bool
+
+
+class MediaContent(TypedDict):
+    url: str
+    media_type: str
+
+
+class MediaFileData(TypedDict):
+    sha256: str
+    media_type: str
+    size_bytes: int
+    url: str
+
+
+class MediaVariable(TypedDict):
+    variable: str
 
 
 class OAuth2UserData(TypedDict):
@@ -999,6 +1027,10 @@ class UploadDatasetResponseBody(TypedDict):
     data: UploadDatasetData
 
 
+class UploadMediaResponseBody(TypedDict):
+    data: MediaFileData
+
+
 class UpsertExperimentEvaluationRequestBody(TypedDict):
     experiment_run_id: str
     name: str
@@ -1393,6 +1425,11 @@ class HTTPValidationError(TypedDict):
     detail: NotRequired[Sequence[ValidationError]]
 
 
+class ImageContentPart(TypedDict):
+    type: Literal["image"]
+    image: Union[MediaContent, MediaVariable]
+
+
 class IncompleteExperimentEvaluation(TypedDict):
     experiment_run: ExperimentRun
     dataset_example: DatasetExample
@@ -1745,7 +1782,10 @@ class PromptGoogleInvocationParameters(TypedDict):
 class PromptMessage(TypedDict):
     role: Literal["user", "assistant", "model", "ai", "tool", "system", "developer"]
     content: Union[
-        str, Sequence[Union[TextContentPart, ToolCallContentPart, ToolResultContentPart]]
+        str,
+        Sequence[
+            Union[TextContentPart, ToolCallContentPart, ToolResultContentPart, ImageContentPart]
+        ],
     ]
 
 

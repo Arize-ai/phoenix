@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0be470fe09b0393c0d9bbfff453b0cb9>>
+ * @generated SignedSource<<fd47453ae1a2cb1c7c2c778337e1e3d7>>
  * @lightSyntaxTransform
  */
 
@@ -59,17 +59,61 @@ export type PromptMessageInput = {
   role: PromptMessageRole;
 };
 export type ContentPartInput = {
+  file?: never;
+  fileVariable?: never;
+  image?: never;
+  imageVariable?: never;
   text: TextContentValueInput;
   toolCall?: never;
   toolResult?: never;
 } | {
+  file?: never;
+  fileVariable?: never;
+  image?: never;
+  imageVariable?: never;
   text?: never;
   toolCall: ToolCallContentValueInput;
   toolResult?: never;
 } | {
+  file?: never;
+  fileVariable?: never;
+  image?: never;
+  imageVariable?: never;
   text?: never;
   toolCall?: never;
   toolResult: ToolResultContentValueInput;
+} | {
+  file?: never;
+  fileVariable?: never;
+  image: ImageContentValueInput;
+  imageVariable?: never;
+  text?: never;
+  toolCall?: never;
+  toolResult?: never;
+} | {
+  file?: never;
+  fileVariable?: never;
+  image?: never;
+  imageVariable: ImageVariableValueInput;
+  text?: never;
+  toolCall?: never;
+  toolResult?: never;
+} | {
+  file: ImageContentValueInput;
+  fileVariable?: never;
+  image?: never;
+  imageVariable?: never;
+  text?: never;
+  toolCall?: never;
+  toolResult?: never;
+} | {
+  file?: never;
+  fileVariable: ImageVariableValueInput;
+  image?: never;
+  imageVariable?: never;
+  text?: never;
+  toolCall?: never;
+  toolResult?: never;
 };
 export type TextContentValueInput = {
   text: string;
@@ -86,6 +130,13 @@ export type ToolCallFunctionInput = {
 export type ToolResultContentValueInput = {
   result: any;
   toolCallId: string;
+};
+export type ImageContentValueInput = {
+  mediaType: string;
+  url: string;
+};
+export type ImageVariableValueInput = {
+  variable: string;
 };
 export type PromptInvocationParametersInput = {
   anthropic?: never;

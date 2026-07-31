@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aabb9da02d32eeb2643dc6e002d70fb5>>
+ * @generated SignedSource<<83fba37a57de8885e8c72dee3af43b9d>>
  * @lightSyntaxTransform
  */
 
@@ -35,29 +35,22 @@ export type fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$data = {
     readonly __typename: "PromptChatTemplate";
     readonly messages: ReadonlyArray<{
       readonly content: ReadonlyArray<{
-        readonly __typename: "TextContentPart";
-        readonly text: {
+        readonly __typename: string;
+        readonly text?: {
           readonly text: string;
         };
-      } | {
-        readonly __typename: "ToolCallContentPart";
-        readonly toolCall: {
+        readonly toolCall?: {
           readonly toolCall: {
             readonly arguments: string;
             readonly name: string;
           };
           readonly toolCallId: string;
         };
-      } | {
-        readonly __typename: "ToolResultContentPart";
-        readonly toolResult: {
+        readonly toolResult?: {
           readonly result: any;
           readonly toolCallId: string;
         };
-      } | {
-        // This will never be '%other', but we need some
-        // value in case none of the concrete values match.
-        readonly __typename: "%other";
+        readonly " $fragmentSpreads": FragmentRefs<"mediaContentPartFragment">;
       }>;
       readonly role: PromptMessageRole;
     }>;
@@ -104,6 +97,6 @@ const node: ReaderInlineDataFragment = {
   "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion"
 };
 
-(node as any).hash = "7e4c7139f27764907b329345e0b2dabc";
+(node as any).hash = "eeb524887f846aa475c11f76161710c6";
 
 export default node;

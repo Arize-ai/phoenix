@@ -653,12 +653,20 @@ input ConnectionConfigInput {
   project: String = null
 }
 
-union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
+union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart | ImageContentPart | FileContentPart
 
 input ContentPartInput @oneOf {
   text: TextContentValueInput
   toolCall: ToolCallContentValueInput
   toolResult: ToolResultContentValueInput
+  image: ImageContentValueInput
+  imageVariable: ImageVariableValueInput
+
+  """A stored document, e.g. a PDF."""
+  file: ImageContentValueInput
+
+  """A document supplied at run time under the named input."""
+  fileVariable: ImageVariableValueInput
 }
 
 type ContinuousAnnotationConfig implements Node & AnnotationConfigBase {
@@ -2071,6 +2079,13 @@ type FailureDetail {
   errorType: String!
 }
 
+type FileContentPart {
+  """
+  Where the document comes from. Shares `ImageSource` because a stored reference and a run-time variable look the same for either kind.
+  """
+  file: ImageSource!
+}
+
 type FreeformAnnotationConfig implements Node & AnnotationConfigBase {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -2301,6 +2316,40 @@ enum GoogleThinkingLevel {
 }
 
 scalar Identifier
+
+type ImageContentPart {
+  image: ImageSource!
+}
+
+type ImageContentValue {
+  """
+  A `phoenix://media/<sha256>` reference to media stored in Phoenix, or a base64 `data:` URL carrying the media inline.
+  """
+  url: String!
+  mediaType: String!
+}
+
+input ImageContentValueInput {
+  """
+  A `phoenix://media/<sha256>` reference to media stored in Phoenix (see the `POST /v1/media` REST endpoint), or a base64 `data:` URL carrying the media inline. External `http(s)` URLs are not accepted.
+  """
+  url: String!
+  mediaType: String!
+}
+
+union ImageSource = ImageContentValue | ImageVariableValue
+
+type ImageVariableValue {
+  """The input name the image is supplied under at run time."""
+  variable: String!
+}
+
+input ImageVariableValueInput {
+  """
+  The input name the image is supplied under at run time, letting one prompt run against many images.
+  """
+  variable: String!
+}
 
 input InlineCodeEvaluatorInput {
   name: String!

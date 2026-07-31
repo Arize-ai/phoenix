@@ -2719,6 +2719,33 @@ class PromptVersionTag(HasId):
     __table_args__ = (UniqueConstraint("name", "prompt_id"),)
 
 
+class MediaFile(Base):
+    """
+    Content-addressed binary media referenced by prompt templates.
+
+    Rows are immutable and shared. The SHA-256 digest of ``content`` is the
+    primary key, so re-uploading identical bytes is a no-op and saving a new
+    prompt version whose media is unchanged costs no additional storage —
+    important because prompt versions are immutable and accumulate.
+
+    Referenced from prompt templates by URL (``phoenix://media/<sha256>``) rather
+    than by foreign key, so that a prompt version remains readable even if its
+    media has been garbage-collected.
+    """
+
+    __tablename__ = "media_files"
+
+    sha256: Mapped[str] = mapped_column(String, primary_key=True)
+    media_type: Mapped[str] = mapped_column(String, nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    # The name the media was first uploaded under. Some providers require a name to
+    # carry a document; identical bytes uploaded twice keep the first name, which is
+    # the trade content-addressing makes.
+    file_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+
 class AnnotationConfig(HasId):
     __tablename__ = "annotation_configs"
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)

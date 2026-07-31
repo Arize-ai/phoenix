@@ -5,6 +5,11 @@ from pydantic import Field, RootModel, model_validator
 from typing_extensions import Annotated, Self, TypeAlias, TypeGuard, assert_never
 
 from phoenix.db.types.db_helper_types import UNDEFINED, DBBaseModel
+from phoenix.db.types.media_parts import (
+    FileContentPart,
+    ImageContentPart,
+    reject_media_on_non_user_role,
+)
 
 JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
 
@@ -54,7 +59,13 @@ class ToolResultContentPart(DBBaseModel):
 
 
 ContentPart: TypeAlias = Annotated[
-    Union[TextContentPart, ToolCallContentPart, ToolResultContentPart],
+    Union[
+        TextContentPart,
+        ToolCallContentPart,
+        ToolResultContentPart,
+        ImageContentPart,
+        FileContentPart,
+    ],
     Field(..., discriminator="type"),
 ]
 
@@ -96,6 +107,11 @@ class RoleConversion:
 class PromptMessage(DBBaseModel):
     role: Role
     content: Union[str, Annotated[list[ContentPart], Field(..., min_length=1)]]
+
+    @model_validator(mode="after")
+    def _validate_media_placement(self) -> Self:
+        reject_media_on_non_user_role(self.role, self.content)
+        return self
 
 
 class PromptChatTemplate(DBBaseModel):

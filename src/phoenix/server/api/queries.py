@@ -120,6 +120,8 @@ from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
 from phoenix.server.api.types.PromptVersionTemplate import (
     ContentPart,
+    ImageContentPart,
+    ImageContentValue,
     PromptChatTemplate,
     PromptMessage,
     TextContentPart,
@@ -1845,6 +1847,22 @@ class Query:
                             tool_result=ToolResultContentValue(
                                 tool_call_id=tr.tool_call_id,
                                 result=tr.result,
+                            )
+                        )
+                    )
+                elif part.image is not UNSET:
+                    assert part.image is not None
+                    # The media URL is formatted like any other template value, so a
+                    # variable can select the media a prompt runs against.
+                    try:
+                        formatted_url = formatter.format(part.image.url, **variables)
+                    except TemplateFormatterError as error:
+                        raise BadRequest(str(error))
+                    content_parts.append(
+                        ImageContentPart(
+                            image=ImageContentValue(
+                                url=formatted_url,
+                                media_type=part.image.media_type,
                             )
                         )
                     )

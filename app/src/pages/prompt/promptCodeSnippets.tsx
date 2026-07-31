@@ -9,6 +9,7 @@ import type { ProgrammingLanguage } from "@phoenix/types/code";
 import { isObject } from "@phoenix/typeUtils";
 
 import type { PromptCodeExportCard__main$data as PromptVersion } from "./__generated__/PromptCodeExportCard__main.graphql";
+import { withRepresentableContentOnly } from "./media/representableContent";
 
 export type PromptToSDKSnippetFn = ({
   invocationParameters,
@@ -631,7 +632,9 @@ export const mapPromptToSDKSnippet = ({
         .map((message) => {
           try {
             return fromOpenAIMessage({
-              message: promptMessageToOpenAI.parse(message),
+              message: promptMessageToOpenAI.parse(
+                withRepresentableContentOnly(message)
+              ),
               targetProvider: promptVersion.modelProvider as ModelProvider,
             });
           } catch (e) {

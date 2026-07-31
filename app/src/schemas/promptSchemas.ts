@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { jsonLiteralSchema } from "@phoenix/schemas/jsonLiteralSchema";
+import type { MediaPart } from "@phoenix/schemas/mediaPartSchemas";
 
 export const textPartSchema = z.object({
   text: z.object({
@@ -31,4 +32,4 @@ export const toolResultPartSchema = z.object({
 
 export type ToolResultPart = z.infer<typeof toolResultPartSchema>;
 
-export type AnyPart = TextPart | ToolCallPart | ToolResultPart;
+export type AnyPart = TextPart | ToolCallPart | ToolResultPart | MediaPart;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0ca0dde16dd0a8a656f41281846d8a8b>>
+ * @generated SignedSource<<16d1b6f447856d60ace3d15d946cafe8>>
  * @lightSyntaxTransform
  */
 
@@ -15,6 +15,7 @@ export type promptUtils_promptMessages$data = {
     readonly text?: {
       readonly text: string;
     };
+    readonly " $fragmentSpreads": FragmentRefs<"mediaContentPartFragment">;
   }>;
   readonly role: PromptMessageRole;
   readonly " $fragmentType": "promptUtils_promptMessages";
@@ -29,6 +30,6 @@ const node: ReaderInlineDataFragment = {
   "name": "promptUtils_promptMessages"
 };
 
-(node as any).hash = "5db150860a995de3213f6f2d02a10506";
+(node as any).hash = "09443bb77e4104525ab8147af640a9f3";
 
 export default node;
