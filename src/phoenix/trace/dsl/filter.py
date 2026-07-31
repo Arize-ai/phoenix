@@ -1514,6 +1514,13 @@ def _format_syntax_error(error: SyntaxError) -> str:
     pass through as their message alone.
     """
     message = error.msg or "invalid syntax"
+    if "null bytes" in message:
+        # A NUL in the source. CPython reports it as `ValueError` on 3.10
+        # (handled at the parse site) and as `SyntaxError` from 3.11 on;
+        # either way the message is the tokenizer's ("source code string
+        # cannot contain null bytes"), which describes source code the user
+        # never wrote. One canonical message, whatever the interpreter.
+        return "condition cannot contain a NUL character"
     if "integer string conversion" in message:
         # CPython's 4300-digit guard fires during parsing, and its message
         # advises `sys.set_int_max_str_digits()` -- Python's remedy, not the
