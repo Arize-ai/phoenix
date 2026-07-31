@@ -122,6 +122,25 @@ class AgentSession(Node):
         return is_turn_active(heartbeat_at, now=datetime.now(timezone.utc))
 
     @strawberry.field(
+        description=(
+            "The message ID of the most recently persisted transcript message, or null "
+            "for an empty transcript."
+        ),
+        permission_classes=[CanAccessAgentSession],
+    )  # type: ignore
+    async def last_message_id(self, info: Info[Context, None]) -> Optional[str]:
+        stmt = (
+            select(models.AgentSessionMessage.message_id)
+            .where(models.AgentSessionMessage.agent_session_id == self.id)
+            .order_by(models.AgentSessionMessage.id.desc())
+            .limit(1)
+        )
+        async with info.context.db.read() as session:
+            last_message_id = await session.scalar(stmt)
+        assert last_message_id is None or isinstance(last_message_id, str)
+        return last_message_id
+
+    @strawberry.field(
         description="The persisted transcript as Vercel AI UIMessage JSON objects.",
         permission_classes=[CanAccessAgentSession],
     )  # type: ignore

@@ -1092,6 +1092,9 @@ describe("PXI app", () => {
       getSession: async () => {
         throw new Error("not used");
       },
+      getSessionSyncState: async () => {
+        throw new Error("not used");
+      },
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1128,6 +1131,9 @@ describe("PXI app", () => {
       }),
       listSessions: async () => [],
       getSession: async () => {
+        throw new Error("not used");
+      },
+      getSessionSyncState: async () => {
         throw new Error("not used");
       },
       compactSession: async () => {
@@ -1189,6 +1195,9 @@ describe("PXI app", () => {
         },
       ],
       getSession,
+      getSessionSyncState: async () => {
+        throw new Error("not used");
+      },
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1233,14 +1242,35 @@ describe("PXI app", () => {
     let getSessionCallCount = 0;
     const getSession = vi.fn(async ({ sessionId }: { sessionId: string }) => {
       getSessionCallCount += 1;
+      const isSynchronized = getSessionCallCount >= 2;
       return {
         id: sessionId,
         title: "Shared session",
-        updatedAt: "2026-07-24T12:00:00Z",
+        updatedAt: isSynchronized
+          ? "2026-07-24T12:05:00Z"
+          : "2026-07-24T12:00:00Z",
         isTemporary: false,
-        isActive: getSessionCallCount === 2,
-        messages:
-          getSessionCallCount < 3 ? [originalMessage] : [synchronizedMessage],
+        isActive: false,
+        lastMessageId: isSynchronized
+          ? synchronizedMessage.id
+          : originalMessage.id,
+        messages: isSynchronized ? [synchronizedMessage] : [originalMessage],
+      };
+    });
+    let syncStateCallCount = 0;
+    const getSessionSyncState = vi.fn(async () => {
+      syncStateCallCount += 1;
+      // Probe 1: another client's turn holds the lock. Probes 2+: the turn
+      // completed and the transcript's tail moved once, then stays put.
+      const isSynchronized = syncStateCallCount >= 2;
+      return {
+        isActive: syncStateCallCount === 1,
+        updatedAt: isSynchronized
+          ? "2026-07-24T12:05:00Z"
+          : "2026-07-24T12:00:00Z",
+        lastMessageId: isSynchronized
+          ? synchronizedMessage.id
+          : originalMessage.id,
       };
     });
     const sessionClient: PxiSessionClient = {
@@ -1256,6 +1286,7 @@ describe("PXI app", () => {
         },
       ],
       getSession,
+      getSessionSyncState,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1281,11 +1312,14 @@ describe("PXI app", () => {
       expect(getSession).toHaveBeenCalledTimes(1);
       expect(stripAnsi(lastFrame() ?? "")).toContain("original conversation");
 
+      // Probe 1: another client holds the lock. The cheap probe alone drives
+      // the busy state; the full transcript is not refetched.
       await act(async () => {
         await vi.advanceTimersByTimeAsync(10_000);
       });
 
-      expect(getSession).toHaveBeenCalledTimes(2);
+      expect(getSessionSyncState).toHaveBeenCalledTimes(1);
+      expect(getSession).toHaveBeenCalledTimes(1);
       expect(stripAnsi(lastFrame() ?? "")).toContain(
         "Session is being used elsewhere"
       );
@@ -1293,23 +1327,36 @@ describe("PXI app", () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(2_999);
       });
-      expect(getSession).toHaveBeenCalledTimes(2);
+      expect(getSessionSyncState).toHaveBeenCalledTimes(1);
 
+      // Probe 2 (fast cadence): the turn completed and the tail moved, so the
+      // full transcript is fetched and swapped in.
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1);
       });
-      expect(getSession).toHaveBeenCalledTimes(3);
+      expect(getSessionSyncState).toHaveBeenCalledTimes(2);
+      expect(getSession).toHaveBeenCalledTimes(2);
       expect(stripAnsi(lastFrame() ?? "")).toContain(
         "updated by another client"
       );
 
+      // Probe 3 (slow cadence): the tail has not moved since the last full
+      // fetch, so the transcript download is skipped.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      expect(getSessionSyncState).toHaveBeenCalledTimes(3);
+      expect(getSession).toHaveBeenCalledTimes(2);
+
+      // Local generation pauses polling entirely.
       await writeInput({ stdin, input: "local question" });
       await writeInput({ stdin, input: "\r" });
       await act(async () => {
         await vi.advanceTimersByTimeAsync(10_000);
       });
 
-      expect(getSession).toHaveBeenCalledTimes(3);
+      expect(getSessionSyncState).toHaveBeenCalledTimes(3);
+      expect(getSession).toHaveBeenCalledTimes(2);
     } finally {
       unmount();
       vi.useRealTimers();
@@ -1341,6 +1388,9 @@ describe("PXI app", () => {
         });
       },
       getSession: async () => {
+        throw new Error("not used");
+      },
+      getSessionSyncState: async () => {
         throw new Error("not used");
       },
       compactSession: async () => {
@@ -1408,6 +1458,9 @@ describe("PXI app", () => {
       }),
       listSessions: async () => [],
       getSession: async () => {
+        throw new Error("not used");
+      },
+      getSessionSyncState: async () => {
         throw new Error("not used");
       },
       compactSession: async () => {

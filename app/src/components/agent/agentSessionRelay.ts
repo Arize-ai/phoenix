@@ -1,6 +1,7 @@
 import { fetchQuery, graphql } from "react-relay";
 
 import type { agentSessionRelaySessionQuery } from "./__generated__/agentSessionRelaySessionQuery.graphql";
+import type { agentSessionRelaySessionSyncStateQuery } from "./__generated__/agentSessionRelaySessionSyncStateQuery.graphql";
 
 export const AGENT_SESSIONS_CONNECTION_KEY =
   "AgentSessionsResource_agentSessions";
@@ -35,11 +36,71 @@ export const agentSessionQuery = graphql`
           username
           profilePictureUrl
         }
+        lastMessageId
         messages
       }
     }
   }
 `;
+
+/**
+ * Cheap synchronization probe: whether another client's turn holds the
+ * session lock and where the persisted transcript's tail currently is.
+ * Polling fetches this first and only refetches the full transcript when the
+ * tail has moved, so idle sessions don't re-download megabytes of messages.
+ */
+export const agentSessionSyncStateQuery = graphql`
+  query agentSessionRelaySessionSyncStateQuery($id: ID!) {
+    agentSession: node(id: $id) {
+      __typename
+      ... on AgentSession {
+        id
+        isActive
+        updatedAt
+        lastMessageId
+      }
+    }
+  }
+`;
+
+/**
+ * The probe's change signal. `updatedAt` moves on every persistence path
+ * (turn persist, trailing-message rewrite, truncate, compact) and
+ * `lastMessageId` guards against timestamp-resolution collisions on appends.
+ */
+export type AgentSessionSyncState = {
+  updatedAt: string;
+  lastMessageId: string | null;
+};
+
+/**
+ * Fetches the cheap sync probe for a session (network-only), returning null
+ * when the node is missing or not an AgentSession.
+ */
+export async function fetchAgentSessionSyncState({
+  environment,
+  sessionId,
+}: {
+  environment: RelayEnvironment;
+  sessionId: string;
+}): Promise<(AgentSessionSyncState & { isActive: boolean }) | null> {
+  const data = await fetchQuery<agentSessionRelaySessionSyncStateQuery>(
+    environment,
+    agentSessionSyncStateQuery,
+    { id: sessionId },
+    { fetchPolicy: "network-only" }
+  ).toPromise();
+  const agentSession =
+    data?.agentSession.__typename === "AgentSession" ? data.agentSession : null;
+  if (!agentSession) {
+    return null;
+  }
+  return {
+    isActive: agentSession.isActive,
+    updatedAt: agentSession.updatedAt,
+    lastMessageId: agentSession.lastMessageId,
+  };
+}
 
 /**
  * Refetches a session's canonical record (title, timestamps, transcript) from

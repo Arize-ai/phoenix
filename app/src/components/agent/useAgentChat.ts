@@ -54,6 +54,7 @@ import type { paths } from "@phoenix/api/__generated__/v1";
 import { authFetch } from "@phoenix/authFetch";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
+import { useInterval } from "@phoenix/hooks/useInterval";
 import {
   DRAFT_SESSION_ID,
   type PendingAgentMessage,
@@ -67,7 +68,9 @@ import type { useAgentChatTruncateAgentSessionMutation } from "./__generated__/u
 import {
   AGENT_SESSIONS_CONNECTION_KEY,
   SETTINGS_AGENT_SESSIONS_CONNECTION_KEY,
+  fetchAgentSessionSyncState,
   refetchAgentSession,
+  type AgentSessionSyncState,
 } from "./agentSessionRelay";
 import { selectAgentModel } from "./useAgentChatPanelState";
 
@@ -247,6 +250,17 @@ export function useAgentChat({
   const [operationError, setOperationError] =
     useState<AgentChatOperationError | null>(null);
   const shouldSyncOnNextPollSetupRef = useRef(shouldSyncOnMount);
+  /**
+   * The persisted transcript's tail as of this client's last full fetch.
+   * Polling probes the cheap sync state first and skips the full transcript
+   * fetch while the tail hasn't moved, so idle sessions cost a tiny metadata
+   * read instead of re-downloading every message.
+   */
+  const lastSyncedSessionStateRef = useRef<
+    (AgentSessionSyncState & { sessionId: string }) | null
+  >(null);
+  /** Prevents overlapping poll requests on slow networks. */
+  const isPollInFlightRef = useRef(false);
   const [compactionStatus, setCompactionStatus] = useState<string | null>(null);
   const isDraft = sessionId == null || sessionId === DRAFT_SESSION_ID;
   const isCompacting = useAgentContext((state) =>
@@ -318,7 +332,25 @@ export function useAgentChat({
           void refetchAgentSession({
             environment: relayEnvironment,
             sessionId: targetSessionId,
-          });
+          })
+            .then((data) => {
+              // Record the refetched tail so the next poll's sync probe can
+              // recognize this client's own turn and skip the full fetch.
+              const agentSession =
+                data?.agentSession.__typename === "AgentSession"
+                  ? data.agentSession
+                  : null;
+              if (agentSession) {
+                lastSyncedSessionStateRef.current = {
+                  sessionId: targetSessionId,
+                  updatedAt: agentSession.updatedAt,
+                  lastMessageId: agentSession.lastMessageId,
+                };
+              }
+            })
+            .catch(() => {
+              // Transient failure: the next poll re-synchronizes.
+            });
         },
       });
       const chat = new Chat<AgentUIMessage>({
@@ -532,71 +564,119 @@ export function useAgentChat({
   const isSessionPollingPaused = isRequestActive(status) || isCompacting;
 
   // Keep idle sessions synchronized with turns completed by other clients.
+  // Each tick fetches the cheap sync probe (isActive + transcript tail) and
+  // only refetches the full transcript when the tail has moved since this
+  // client's last full fetch. This client's own generation disables polling
+  // so an older persisted transcript cannot replace its in-flight optimistic
+  // messages. Refetching through Relay normalizes session metadata into every
+  // mounted view as well as refreshing this chat runtime.
+  const pollSession = useCallback(async () => {
+    if (!persistedSessionId || !chatInstance || isPollInFlightRef.current) {
+      return;
+    }
+    isPollInFlightRef.current = true;
+    try {
+      const syncState = await fetchAgentSessionSyncState({
+        environment: relayEnvironment,
+        sessionId: persistedSessionId,
+      });
+      if (!syncState) {
+        return;
+      }
+      shouldSyncOnNextPollSetupRef.current = false;
+      if (syncState.isActive) {
+        store.getState().setSessionBusyElsewhere(persistedSessionId, true);
+        return;
+      }
+      // Read busy state fresh from the store: the probe may have set it on a
+      // previous tick and this closure could be stale.
+      const wasBusyElsewhere =
+        store.getState().isBusyElsewhereBySessionId[persistedSessionId] ??
+        false;
+      const lastSynced = lastSyncedSessionStateRef.current;
+      const isTranscriptUnchanged =
+        lastSynced != null &&
+        lastSynced.sessionId === persistedSessionId &&
+        lastSynced.updatedAt === syncState.updatedAt &&
+        lastSynced.lastMessageId === syncState.lastMessageId;
+      if (isTranscriptUnchanged && !wasBusyElsewhere) {
+        return;
+      }
+      const data = await refetchAgentSession({
+        environment: relayEnvironment,
+        sessionId: persistedSessionId,
+      });
+      const agentSession =
+        data?.agentSession.__typename === "AgentSession"
+          ? data.agentSession
+          : null;
+      if (!agentSession) {
+        return;
+      }
+      if (agentSession.isActive) {
+        // Another client claimed the turn lock between the probe and the
+        // full fetch; treat this tick as busy and let the next tick resync.
+        store.getState().setSessionBusyElsewhere(persistedSessionId, true);
+        return;
+      }
+      // This client started its own turn (or a compaction) while the fetch
+      // was in flight; never replace its in-flight optimistic messages.
+      if (
+        isRequestActive(chatInstance.status) ||
+        (store.getState().isCompactionPendingBySessionId[persistedSessionId] ??
+          false)
+      ) {
+        return;
+      }
+      // Clear a lingering conflict error only after the other client's turn
+      // has completed; the SDK can assign error state after onError runs.
+      if (wasBusyElsewhere) {
+        chatInstance.clearError();
+      }
+      chatInstance.messages = Array.isArray(agentSession.messages)
+        ? (agentSession.messages as AgentUIMessage[])
+        : [];
+      // Record the applied tail (from the full fetch, not the probe: the
+      // transcript may have moved again in between) so unchanged idle ticks
+      // stop at the probe.
+      lastSyncedSessionStateRef.current = {
+        sessionId: persistedSessionId,
+        updatedAt: agentSession.updatedAt,
+        lastMessageId: agentSession.lastMessageId,
+      };
+      store.getState().setSessionBusyElsewhere(persistedSessionId, false);
+    } catch {
+      // Transient failure: wait for the next poll tick.
+    } finally {
+      isPollInFlightRef.current = false;
+    }
+  }, [persistedSessionId, chatInstance, relayEnvironment, store]);
+
   // Poll slowly during normal use and switch to the existing faster cadence
-  // while another client holds the turn lock. This client's own generation
-  // disables polling so an older persisted transcript cannot replace its
-  // in-flight optimistic messages. Refetching through Relay normalizes session
-  // metadata into every mounted view as well as refreshing this chat runtime.
+  // while another client holds the turn lock. The visibility-aware interval
+  // pauses polling entirely in hidden tabs and fires immediately (with a
+  // fresh probe) when the tab becomes visible again.
+  const sessionPollDelay =
+    !persistedSessionId || !chatInstance || isSessionPollingPaused
+      ? null
+      : isBusyElsewhere
+        ? SESSION_BUSY_POLL_INTERVAL_MS
+        : SESSION_POLL_INTERVAL_MS;
+  useInterval(() => void pollSession(), sessionPollDelay);
+
   useEffect(() => {
-    if (!persistedSessionId || !chatInstance || isSessionPollingPaused) {
+    if (sessionPollDelay === null) {
       // A runtime first observed during its own generation will be canonicalized
       // by the turn-completion refetch, so it does not also need a mount sync.
       shouldSyncOnNextPollSetupRef.current = false;
-      return undefined;
+      return;
     }
-    let disposed = false;
-    const pollSession = async () => {
-      try {
-        const data = await refetchAgentSession({
-          environment: relayEnvironment,
-          sessionId: persistedSessionId,
-        });
-        const agentSession =
-          data?.agentSession.__typename === "AgentSession"
-            ? data.agentSession
-            : null;
-        if (!agentSession || disposed) {
-          return;
-        }
-        shouldSyncOnNextPollSetupRef.current = false;
-        if (agentSession.isActive) {
-          store.getState().setSessionBusyElsewhere(persistedSessionId, true);
-          return;
-        }
-        // Clear a lingering conflict error only after the other client's turn
-        // has completed; the SDK can assign error state after onError runs.
-        if (isBusyElsewhere) {
-          chatInstance.clearError();
-        }
-        chatInstance.messages = Array.isArray(agentSession.messages)
-          ? (agentSession.messages as AgentUIMessage[])
-          : [];
-        store.getState().setSessionBusyElsewhere(persistedSessionId, false);
-      } catch {
-        // Transient failure: wait for the next poll tick.
-      }
-    };
     // Resident runtimes skip the transcript loader when reopened, so refresh
     // those once on mount. Newly seeded runtimes already came from this query.
     if (shouldSyncOnNextPollSetupRef.current) {
       void pollSession();
     }
-    const intervalId = setInterval(
-      () => void pollSession(),
-      isBusyElsewhere ? SESSION_BUSY_POLL_INTERVAL_MS : SESSION_POLL_INTERVAL_MS
-    );
-    return () => {
-      disposed = true;
-      clearInterval(intervalId);
-    };
-  }, [
-    persistedSessionId,
-    chatInstance,
-    isBusyElsewhere,
-    isSessionPollingPaused,
-    relayEnvironment,
-    store,
-  ]);
+  }, [sessionPollDelay, pollSession]);
 
   // Anthropic doesn't accept unresolved tool calls, so we resolve them by
   // marking them as error before the next request goes out.

@@ -107,6 +107,11 @@ type AgentSession implements Node {
   """
   isActive: Boolean!
 
+  """
+  The message ID of the most recently persisted transcript message, or null for an empty transcript.
+  """
+  lastMessageId: String
+
   """The persisted transcript as Vercel AI UIMessage JSON objects."""
   messages: JSON!
 }
