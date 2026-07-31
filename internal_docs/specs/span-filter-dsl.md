@@ -241,6 +241,12 @@ the same rule covers unbounded int literals: Python parses `'9' * 320` digits
 happily, but neither backend has a faithful float for it — asyncpg refuses the
 bind while SQLite quietly stores infinity.
 
+The finiteness rule is a boundary, not a precision guarantee: an int inside the
+float range but past the 53-bit mantissa (`2**53 + 1`) is accepted and compares
+in float precision, silently rounding. That falls under the numeric-precision
+non-guarantee in [Dialect Semantics](#dialect-semantics) rather than under
+validation.
+
 ### Operators
 
 | Category | Supported | Rejected |
@@ -389,10 +395,18 @@ verified against deliberately hostile rows (`"abc"`, `"1_000"`, `"nan"`,
 
 Every rule above resolves an unknown type against a *known* one. When both
 operands are unknown — one attribute compared to another — there is nothing to
-resolve against, and the comparison falls to text with whatever type the
-extraction produced. This is the one place the type system has no answer, and
-the backends do not agree on what it means; see
-[Dialect Semantics](#dialect-semantics).
+resolve against, and what happens depends on the operator:
+
+- **Ordered** (`<` `<=` `>` `>=`) → both sides take `SafeJsonFloat`. Text
+  ordering would not merely disagree on near-equivalent encodings — it inverts
+  numeric order (`'9' > '10'` as PostgreSQL text, `9 < 10` as SQLite numbers) —
+  so order is defined numerically, and a row with no number on either side
+  drops out. This matches the experiment-run filter's treatment of the same
+  shape.
+- **Equality and membership** → the comparison falls to text with whatever the
+  extraction produced. This is the one place the type system has no answer, and
+  the backends do not agree on what it means; see
+  [Dialect Semantics](#dialect-semantics).
 
 Unknown types are *not* admitted in boolean position — see below.
 
@@ -477,14 +491,18 @@ Not guaranteed:
   the literal's — which is to say, to exactly the rows a schemaless column is
   likely to hold. Substring search (`in`) agrees on both and is the portable way
   to ask.
-- **Two JSON values compared against each other.** A literal fixes the type of
-  the comparison; a second JSON value fixes nothing, so the comparison happens
+- **Two JSON values compared for equality.** A literal fixes the type of
+  the comparison; a second JSON value fixes nothing, so `==`/`!=` happen
   in whatever type extraction produced. PostgreSQL compares jsonb text, where
   object key order is canonical but `1` and `1.0` are different strings; SQLite
   compares native values, where `1 == 1.0` holds and `true` has already become
   `1`. All three cases disagree, in both directions. Note that comparing a key
   against *itself* is unaffected — both sides render identically whatever the
-  rule — and is only ever an expensive spelling of `is not None`.
+  rule — and is only ever an expensive spelling of `is not None`. (*Ordered*
+  comparison between two JSON values does not share this fate: it is defined
+  numerically via `SafeJsonFloat` on both sides — see
+  [Unknown types](#unknown-types) — precisely because text ordering would
+  invert numeric order rather than merely skew edge cases.)
 - **Row-level ordering and collation.** String comparison collation differs.
 - **Numeric precision.** PostgreSQL `NUMERIC` vs SQLite `REAL`.
 - **NULL sort position** in downstream `ORDER BY`.
@@ -1229,7 +1247,7 @@ go looking for a grammar that does not exist.
 | `src/phoenix/trace/dsl/filter.py` | Parser, validator, translator, scope analysis |
 | `src/phoenix/db/models.py` | `SafeJsonFloat`, `SafeJsonBoolean`, `TextContains` — the dialect-specific SQL the guarantees compile to |
 | `src/phoenix/server/api/types/Project.py` | `validateSpanFilterCondition`, `analyzeSpanFilterCondition` |
-| `src/phoenix/server/api/exceptions.py` | `SpanFilterError` → GraphQL error mapping |
+| `src/phoenix/server/api/exceptions.py` | Filter errors (`SpanFilterError`, `ExperimentRunFilterConditionSyntaxError`) → GraphQL error mapping |
 | `app/src/components/filter/DSLFilterConditionField.tsx` | Debounced field, error badge |
 | `app/src/pages/project/spanFilterValidation.ts` | Client validation + cache |
 | `app/src/pages/project/spanFilterSeed.ts` | Mount-time seed classification |
