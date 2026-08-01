@@ -412,7 +412,13 @@ export const GlobalEvaluatorsEmptyState = ({
 
   // Unfiltered empty state - full quickstart
   return (
-    <View width="100%" paddingY="size-400">
+    <View
+      width="100%"
+      paddingY="size-400"
+      flex="1 1 auto"
+      minHeight={0}
+      overflow="auto"
+    >
       <Flex
         direction="column"
         width="100%"
@@ -468,24 +474,6 @@ export const GlobalEvaluatorsEmptyState = ({
           </Flex>
         </Flex>
 
-        {/* Tracing → evaluation bridge */}
-        <div css={evaluateTracesCardCSS}>
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <Icon svg={<Icons.Trace />} />
-            <Text weight="heavy">Evaluate traces in a project</Text>
-          </Flex>
-          <Text size="S" color="text-700">
-            Already tracing? Evals can score production traces too — results are
-            logged as annotations and show up in your{" "}
-            <Link to="/projects">project&apos;s</Link> annotation score charts.
-            See{" "}
-            <ExternalLink href="https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces">
-              evaluating traces
-            </ExternalLink>{" "}
-            to get started.
-          </Text>
-        </div>
-
         {/* CTAs */}
         <Flex direction="row" gap="size-200">
           <Button
@@ -504,6 +492,24 @@ export const GlobalEvaluatorsEmptyState = ({
             Documentation
           </ExternalLinkButton>
         </Flex>
+
+        {/* Tracing → evaluation bridge */}
+        <div css={evaluateTracesCardCSS}>
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <Icon svg={<Icons.Trace />} />
+            <Text weight="heavy">Evaluate traces in a project</Text>
+          </Flex>
+          <Text size="S" color="text-700">
+            Already tracing? Evals can score production traces too — results are
+            logged as annotations and show up in your{" "}
+            <Link to="/projects">project&apos;s</Link> annotation score charts.
+            See{" "}
+            <ExternalLink href="https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces">
+              evaluating traces
+            </ExternalLink>{" "}
+            to get started.
+          </Text>
+        </div>
       </Flex>
     </View>
   );
