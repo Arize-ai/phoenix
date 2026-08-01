@@ -34,6 +34,7 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetSelectorPopoverContent } from "./DatasetSelectorPopoverContent";
+import { EvaluateSpansDialog } from "./EvaluateSpansDialog";
 import { SpanSelectionDownloadButton } from "./SpanSelectionDownloadButton";
 import { TransferTracesButton } from "./TransferTracesButton";
 
@@ -78,6 +79,10 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
 
   const traceIds = useMemo(
     () => [...new Set(selectedSpans.map((span) => span.trace.id))],
+    [selectedSpans]
+  );
+  const spanIds = useMemo(
+    () => selectedSpans.map((span) => span.spanId),
     [selectedSpans]
   );
   const [commitSpansToDataset, isAddingSpansToDataset] = useMutation(graphql`
@@ -226,6 +231,24 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                 </Dialog>
               </Suspense>
             </Popover>
+          </DialogTrigger>
+          {/* Tracing → evaluation bridge: guide for scoring the selection */}
+          <DialogTrigger>
+            <Button
+              size="M"
+              leadingVisual={<Icon svg={<Icons.Scale />} />}
+              aria-label="Evaluate selected spans"
+            >
+              Evaluate
+            </Button>
+            <ModalOverlay>
+              <Modal variant="slideover" size="L">
+                <EvaluateSpansDialog
+                  projectName={projectName}
+                  spanIds={spanIds}
+                />
+              </Modal>
+            </ModalOverlay>
           </DialogTrigger>
           <TransferTracesButton
             traceIds={traceIds}

@@ -85,6 +85,25 @@ describe("computeChecklistSteps", () => {
     expect(steps.find((s) => s.id === "api-key")!.isComplete).toBe(false);
   });
 
+  it("completes the api-key step from a browser-stored (playground) credential", () => {
+    const steps = computeChecklistSteps(makeData({}), 1);
+    const apiKey = steps.find((s) => s.id === "api-key")!;
+    expect(apiKey.isComplete).toBe(true);
+    expect(apiKey.stat.value).toBe("1");
+    expect(apiKey.stat.label).toBe("provider connected");
+  });
+
+  it("sums server-side and browser-stored providers for the api-key step", () => {
+    const steps = computeChecklistSteps(
+      makeData({ modelProviders: [providerWithKey] }),
+      1
+    );
+    const apiKey = steps.find((s) => s.id === "api-key")!;
+    expect(apiKey.isComplete).toBe(true);
+    expect(apiKey.stat.value).toBe("2");
+    expect(apiKey.stat.label).toBe("providers connected");
+  });
+
   it("uses singular stat labels for a single item", () => {
     const steps = computeChecklistSteps(
       makeData({

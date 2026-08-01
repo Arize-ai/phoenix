@@ -10,7 +10,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { Text } from "@phoenix/components";
+import { ExternalLink, Link, Text } from "@phoenix/components";
 import {
   ChartEmptyStateOverlay,
   ChartTooltip,
@@ -90,6 +90,26 @@ function AnnotationLine({
   );
 }
 
+/**
+ * Empty-state copy that bridges tracing to evaluation: instead of a dead-end
+ * "no data" message, point at the two flows that produce annotation scores.
+ */
+function EmptyScoresMessage() {
+  return (
+    <>
+      <Text size="S" color="text-700">
+        No annotation scores in this time range
+      </Text>
+      <Text size="S" color="text-700">
+        Score your traces — <Link to="/evaluators">set up an evaluator</Link> or{" "}
+        <ExternalLink href="https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui">
+          annotate spans
+        </ExternalLink>
+      </Text>
+    </>
+  );
+}
+
 export function AnnotationScoreTimeSeriesChart({
   data,
   names,
@@ -130,7 +150,7 @@ export function AnnotationScoreTimeSeriesChart({
       {({ chartProps }) => (
         <ChartEmptyStateOverlay
           isEmpty={!hasData}
-          message="No data in this time range"
+          message={<EmptyScoresMessage />}
           chartType="line"
         >
           <ResponsiveContainer width="100%" height="100%">

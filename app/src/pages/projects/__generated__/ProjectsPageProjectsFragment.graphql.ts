@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<28f9c30f722fe5471e8d001979af02cd>>
+ * @generated SignedSource<<e2ba4cd7cbca63b25a39270c0c28f82d>>
  * @lightSyntaxTransform
  */
 
@@ -16,6 +16,7 @@ export type ProjectsPageProjectsFragment$data = {
         readonly endTime: string | null;
         readonly gradientEndColor: string;
         readonly gradientStartColor: string;
+        readonly hasTraces: boolean;
         readonly id: string;
         readonly name: string;
         readonly startTime: string | null;
@@ -159,6 +160,13 @@ return {
                   "kind": "ScalarField",
                   "name": "startTime",
                   "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "hasTraces",
+                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -225,6 +233,6 @@ return {
 };
 })();
 
-(node as any).hash = "d4c6c361639eeba67a41568089bf699a";
+(node as any).hash = "c8864b93369924d50c4d1f852975fc3c";
 
 export default node;

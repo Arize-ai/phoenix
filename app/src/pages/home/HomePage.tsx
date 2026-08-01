@@ -10,6 +10,8 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { HomePageQuery as HomePageQueryType } from "./__generated__/HomePageQuery.graphql";
 import { OnboardingChecklist } from "./OnboardingChecklist";
@@ -41,7 +43,8 @@ const HomePageQuery = graphql`
  * always accurate and needs no local persistence. Exported for unit testing.
  */
 export function computeChecklistSteps(
-  data: HomePageQueryType["response"]
+  data: HomePageQueryType["response"],
+  browserCredentialProviderCount = 0
 ): ChecklistStep[] {
   const totalTraces = (data.projects?.edges ?? []).reduce(
     (sum, edge) => sum + (edge.node.traceCount ?? 0),
@@ -51,13 +54,19 @@ export function computeChecklistSteps(
   // `credentialsSet: true` trivially — it needs no key. Only count providers
   // that actually require credentials AND have them set on the server, so this
   // step reflects a real API key the user added rather than a no-auth provider.
-  const providersWithCredentials = (data.modelProviders ?? []).filter(
+  const serverProvidersWithCredentials = (data.modelProviders ?? []).filter(
     (provider) =>
       provider.credentialsSet &&
       provider.credentialRequirements.some(
         (requirement) => requirement.isRequired
       )
   ).length;
+  // Credentials can also live client-side: the playground stores provider keys
+  // in the browser (localStorage), which never set `credentialsSet` on the
+  // server. Count those too so a key added in this browser marks the step
+  // complete and reflects what actually unlocks the playground.
+  const connectedProviderCount =
+    serverProvidersWithCredentials + browserCredentialProviderCount;
   const datasetCount = data.datasetCount ?? 0;
   const evaluatorCount = data.evaluatorCount ?? 0;
 
@@ -81,14 +90,14 @@ export function computeChecklistSteps(
       description:
         "Unlock the playground and LLM-as-a-judge evaluators by configuring a provider.",
       icon: <Icons.Key />,
-      isComplete: providersWithCredentials > 0,
+      isComplete: connectedProviderCount > 0,
       cta: { label: "Configure providers", to: "/settings/providers" },
       stat: {
         label:
-          providersWithCredentials === 1
+          connectedProviderCount === 1
             ? "provider connected"
             : "providers connected",
-        value: providersWithCredentials.toLocaleString(),
+        value: connectedProviderCount.toLocaleString(),
       },
     },
     {
@@ -135,9 +144,30 @@ export function HomePage() {
     { fetchPolicy: "store-and-network" }
   );
 
+  // Count providers that have at least one non-empty credential stored in the
+  // browser (the playground's client-side keys). These never surface on the
+  // server's `credentialsSet`, so we detect them here to complete the api-key
+  // step for users who added a key in this browser.
+  const browserCredentialProviderCount = useCredentialsContext((state) =>
+    Object.entries(state).reduce((count, [key, value]) => {
+      if (
+        isModelProvider(key) &&
+        value &&
+        typeof value === "object" &&
+        Object.values(value).some(
+          (credential) =>
+            typeof credential === "string" && credential.trim().length > 0
+        )
+      ) {
+        return count + 1;
+      }
+      return count;
+    }, 0)
+  );
+
   const steps = useMemo<ChecklistStep[]>(
-    () => computeChecklistSteps(data),
-    [data]
+    () => computeChecklistSteps(data, browserCredentialProviderCount),
+    [data, browserCredentialProviderCount]
   );
 
   const completedCount = steps.filter((step) => step.isComplete).length;
@@ -145,10 +175,7 @@ export function HomePage() {
   const allComplete = completedCount === totalCount;
 
   return (
-    <main
-      css={{ overflowY: "auto", height: "100%" }}
-      data-testid="home-page"
-    >
+    <main css={{ overflowY: "auto", height: "100%" }} data-testid="home-page">
       <View
         paddingX="size-400"
         paddingY="size-600"

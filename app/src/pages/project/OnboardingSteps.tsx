@@ -1,6 +1,15 @@
 import { css } from "@emotion/react";
 
-import { ExternalLink, Flex, Heading, Text, View } from "@phoenix/components";
+import {
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
+  ExternalLink,
+  Flex,
+  Text,
+  View,
+} from "@phoenix/components";
 import { IsAuthenticated } from "@phoenix/components/auth";
 import { GenerateAPIKeyButton } from "@phoenix/components/auth";
 import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
@@ -22,6 +31,22 @@ const docsOnlyContainerCSS = css`
   flex-direction: column;
   gap: var(--global-dimension-size-100);
 `;
+
+// A bordered container that renders the setup instructions as an accordion,
+// so each main section (install / environment / trace) can be collapsed.
+const stepsAccordionCSS = css`
+  border: 1px solid var(--global-border-color-default);
+  border-radius: var(--global-rounding-medium);
+  overflow: hidden;
+`;
+
+function StepSectionTitle({ children }: { children: string }) {
+  return (
+    <Text weight="heavy" size="M">
+      {children}
+    </Text>
+  );
+}
 
 export function DocsOnlyOnboardingView({
   docsHref,
@@ -47,46 +72,57 @@ export function DocsOnlyOnboardingView({
 
   return (
     <View paddingTop="size-200">
-      <View paddingBottom="size-200">
-        <View paddingBottom="size-100">
-          <Heading level={3} weight="heavy">
-            Environment variables
-          </Heading>
-        </View>
-        {isAuthEnabled ? (
-          <View paddingBottom="size-100">
-            <IsAuthenticated>
-              <GenerateAPIKeyButton
-                onApiKeyGenerated={onApiKeyGenerated}
-                keyName="project-setup-generated"
-                isDisabled={!!generatedApiKey}
-              />
-            </IsAuthenticated>
-          </View>
-        ) : null}
-        <CodeWrap>
-          <BashBlockWithCopy value={envVars} />
-        </CodeWrap>
-      </View>
-      <View paddingBottom="size-200">
-        <View paddingBottom="size-100">
-          <Heading level={3} weight="heavy">
-            Setup guide
-          </Heading>
-        </View>
-        <div css={docsOnlyContainerCSS}>
-          <Text>
-            Follow the documentation to set up tracing for this integration.
-          </Text>
-          <Flex direction="row" alignItems="center" gap="size-100">
-            <ExternalLink href={docsHref}>Documentation</ExternalLink>
-            {githubHref && <Separator orientation="vertical" />}
-            {githubHref && (
-              <ExternalLink href={githubHref}>Github</ExternalLink>
-            )}
-          </Flex>
-        </div>
-      </View>
+      <div css={stepsAccordionCSS}>
+        <DisclosureGroup defaultExpandedKeys={["environment", "setup-guide"]}>
+          <Disclosure id="environment">
+            <DisclosureTrigger>
+              <StepSectionTitle>
+                Configure environment variables
+              </StepSectionTitle>
+            </DisclosureTrigger>
+            <DisclosurePanel>
+              <View padding="size-200">
+                {isAuthEnabled ? (
+                  <View paddingBottom="size-100">
+                    <IsAuthenticated>
+                      <GenerateAPIKeyButton
+                        onApiKeyGenerated={onApiKeyGenerated}
+                        keyName="project-setup-generated"
+                        isDisabled={!!generatedApiKey}
+                      />
+                    </IsAuthenticated>
+                  </View>
+                ) : null}
+                <CodeWrap>
+                  <BashBlockWithCopy value={envVars} />
+                </CodeWrap>
+              </View>
+            </DisclosurePanel>
+          </Disclosure>
+          <Disclosure id="setup-guide">
+            <DisclosureTrigger>
+              <StepSectionTitle>Setup guide</StepSectionTitle>
+            </DisclosureTrigger>
+            <DisclosurePanel>
+              <View padding="size-200">
+                <div css={docsOnlyContainerCSS}>
+                  <Text>
+                    Follow the documentation to set up tracing for this
+                    integration.
+                  </Text>
+                  <Flex direction="row" alignItems="center" gap="size-100">
+                    <ExternalLink href={docsHref}>Documentation</ExternalLink>
+                    {githubHref && <Separator orientation="vertical" />}
+                    {githubHref && (
+                      <ExternalLink href={githubHref}>Github</ExternalLink>
+                    )}
+                  </Flex>
+                </div>
+              </View>
+            </DisclosurePanel>
+          </Disclosure>
+        </DisclosureGroup>
+      </div>
     </View>
   );
 }
@@ -121,64 +157,84 @@ export function OnboardingSteps({
 
   return (
     <View paddingTop="size-200">
-      <View paddingBottom="size-200">
-        <View paddingBottom="size-100">
-          <Heading level={3} weight="heavy">
-            Install dependencies
-          </Heading>
-        </View>
-        <PackageManagerCommandBlock language={language} packages={packages} />
-      </View>
-      <View paddingBottom="size-200">
-        <View paddingBottom="size-100">
-          <Heading level={3} weight="heavy">
-            Environment variables
-          </Heading>
-        </View>
-        {isAuthEnabled ? (
-          <View paddingBottom="size-100">
-            <IsAuthenticated>
-              <GenerateAPIKeyButton
-                onApiKeyGenerated={onApiKeyGenerated}
-                keyName="project-setup-generated"
-                isDisabled={!!generatedApiKey}
-              />
-            </IsAuthenticated>
-          </View>
-        ) : null}
-        <CodeWrap>
-          <BashBlockWithCopy value={envVars} />
-        </CodeWrap>
-      </View>
-      <View paddingBottom="size-200">
-        <View paddingBottom="size-100">
-          <Flex direction="row" alignItems="center" gap="size-100">
-            <Heading level={3} weight="heavy">
-              Implementation
-            </Heading>
-            {(docsHref || githubHref) && (
-              <Flex
-                direction="row"
-                alignItems="center"
-                gap="size-50"
-                marginStart="auto"
-              >
-                {githubHref && (
-                  <ExternalLink href={githubHref}>Github</ExternalLink>
+      <div css={stepsAccordionCSS}>
+        <DisclosureGroup
+          defaultExpandedKeys={["install", "environment", "trace"]}
+        >
+          <Disclosure id="install">
+            <DisclosureTrigger>
+              <StepSectionTitle>Install dependencies</StepSectionTitle>
+            </DisclosureTrigger>
+            <DisclosurePanel>
+              <View padding="size-200">
+                <PackageManagerCommandBlock
+                  language={language}
+                  packages={packages}
+                />
+              </View>
+            </DisclosurePanel>
+          </Disclosure>
+          <Disclosure id="environment">
+            <DisclosureTrigger>
+              <StepSectionTitle>
+                Configure environment variables
+              </StepSectionTitle>
+            </DisclosureTrigger>
+            <DisclosurePanel>
+              <View padding="size-200">
+                {isAuthEnabled ? (
+                  <View paddingBottom="size-100">
+                    <IsAuthenticated>
+                      <GenerateAPIKeyButton
+                        onApiKeyGenerated={onApiKeyGenerated}
+                        keyName="project-setup-generated"
+                        isDisabled={!!generatedApiKey}
+                      />
+                    </IsAuthenticated>
+                  </View>
+                ) : null}
+                <CodeWrap>
+                  <BashBlockWithCopy value={envVars} />
+                </CodeWrap>
+              </View>
+            </DisclosurePanel>
+          </Disclosure>
+          <Disclosure id="trace">
+            <DisclosureTrigger>
+              <StepSectionTitle>Trace LLM calls</StepSectionTitle>
+            </DisclosureTrigger>
+            <DisclosurePanel>
+              <View padding="size-200">
+                {(docsHref || githubHref) && (
+                  <Flex
+                    direction="row"
+                    alignItems="center"
+                    gap="size-50"
+                    justifyContent="end"
+                    marginBottom="size-100"
+                  >
+                    {githubHref && (
+                      <ExternalLink href={githubHref}>Github</ExternalLink>
+                    )}
+                    {githubHref && docsHref && (
+                      <Separator orientation="vertical" />
+                    )}
+                    {docsHref && (
+                      <ExternalLink href={docsHref}>Docs</ExternalLink>
+                    )}
+                  </Flex>
                 )}
-                {githubHref && docsHref && <Separator orientation="vertical" />}
-                {docsHref && <ExternalLink href={docsHref}>Docs</ExternalLink>}
-              </Flex>
-            )}
-          </Flex>
-        </View>
-        <CodeWrap>
-          <ImplementationCodeBlock
-            language={language}
-            code={implementationCode}
-          />
-        </CodeWrap>
-      </View>
+                <CodeWrap>
+                  <ImplementationCodeBlock
+                    language={language}
+                    code={implementationCode}
+                  />
+                </CodeWrap>
+              </View>
+            </DisclosurePanel>
+          </Disclosure>
+        </DisclosureGroup>
+      </div>
     </View>
   );
 }

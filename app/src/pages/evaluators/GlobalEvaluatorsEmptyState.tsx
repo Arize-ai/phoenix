@@ -1,18 +1,35 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
+import { useState } from "react";
+import { Focusable } from "react-aria";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 
 import {
   Button,
+  ExternalLink,
   ExternalLinkButton,
   Flex,
   Icon,
   Icons,
+  Link,
   Text,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
+import { DatasetSelect } from "@phoenix/components/dataset";
+import {
+  CREATE_CODE_EVALUATOR_PARAM,
+  CREATE_LLM_EVALUATOR_PARAM,
+} from "@phoenix/constants/searchParams";
+import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
+import type { GlobalEvaluatorsEmptyStateQuery } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsEmptyStateQuery.graphql";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
-const evaluatorTypeCardCSS = css`
+const evaluateTracesCardCSS = css`
   display: flex;
   flex-direction: column;
   gap: var(--global-dimension-size-50);
@@ -20,7 +37,66 @@ const evaluatorTypeCardCSS = css`
   border-radius: var(--global-rounding-small);
   border: 1px solid var(--global-border-color-default);
   background-color: transparent;
-  width: 220px;
+  max-width: 456px;
+`;
+
+const checklistCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-300);
+  padding: var(--global-dimension-size-300);
+  border-radius: var(--global-rounding-small);
+  border: 1px solid var(--global-border-color-default);
+  width: 100%;
+  max-width: 560px;
+`;
+
+const stepCSS = css`
+  display: flex;
+  flex-direction: row;
+  gap: var(--global-dimension-size-200);
+  align-items: flex-start;
+`;
+
+const stepMarkerColumnCSS = css`
+  flex: none;
+  width: 24px;
+  display: flex;
+  justify-content: center;
+  padding-top: 2px;
+`;
+
+const stepMarkerCSS = css`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--global-border-color-default);
+  color: var(--global-text-color-700);
+  font-size: 12px;
+  line-height: 1;
+`;
+
+const stepContentCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+  min-width: 0;
+  flex: 1 1 auto;
+`;
+
+const datasetSelectWrapperCSS = css`
+  max-width: 320px;
+  width: 100%;
+`;
+
+// Wraps a disabled CTA so the tooltip trigger has a hoverable/focusable host.
+// Natively disabled buttons don't emit pointer events, so the tooltip is
+// attached to this focusable span instead.
+const inactiveCtaWrapperCSS = css`
+  display: inline-flex;
 `;
 
 /**
@@ -384,8 +460,6 @@ export const GlobalEvaluatorsEmptyState = ({
 }: {
   hasActiveFilter: boolean;
 }) => {
-  const navigate = useNavigate();
-
   // Filtered empty state - simple message
   if (hasActiveFilter) {
     return (
@@ -397,9 +471,132 @@ export const GlobalEvaluatorsEmptyState = ({
     );
   }
 
-  // Unfiltered empty state - full quickstart
+  // Unfiltered empty state - actionable quickstart checklist
+  return <EvaluatorsQuickstart />;
+};
+
+/**
+ * A numbered checklist step. Renders a success checkmark in place of the number
+ * once `isComplete` is true so users can see their progress at a glance.
+ */
+const ChecklistStep = ({
+  index,
+  isComplete,
+  title,
+  children,
+}: {
+  index: number;
+  isComplete: boolean;
+  title: ReactNode;
+  children: ReactNode;
+}) => {
   return (
-    <View width="100%" paddingY="size-400">
+    <div css={stepCSS}>
+      <div css={stepMarkerColumnCSS}>
+        {isComplete ? (
+          <Icon color="success" svg={<Icons.CheckmarkCircleFilled />} />
+        ) : (
+          <div css={stepMarkerCSS}>{index}</div>
+        )}
+      </div>
+      <div css={stepContentCSS}>
+        <Text weight="heavy">{title}</Text>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Actionable onboarding for the global evaluators page. Evaluators can only be
+ * created against a dataset, and LLM evaluators additionally require a usable
+ * model provider, so this walks the user through: pick a dataset → (for LLM)
+ * configure a model provider → add the evaluator on that dataset.
+ */
+const EvaluatorsQuickstart = () => {
+  const navigate = useNavigate();
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(
+    null
+  );
+  const data = useLazyLoadQuery<GlobalEvaluatorsEmptyStateQuery>(
+    graphql`
+      query GlobalEvaluatorsEmptyStateQuery {
+        modelProviders {
+          credentialsSet
+          credentialRequirements {
+            isRequired
+          }
+        }
+      }
+    `,
+    {},
+    // Revalidate against the network on mount so a provider key added elsewhere
+    // (e.g. Settings → AI Providers) is reflected without a full page reload.
+    { fetchPolicy: "store-and-network" }
+  );
+
+  // Providers can also be configured client-side: the playground stores keys in
+  // the browser (localStorage), which never set `credentialsSet` on the server.
+  // The LLM evaluator creation flow uses those browser keys, so count a provider
+  // with a non-empty browser-stored credential toward this step as well.
+  const hasBrowserModelCredential = useCredentialsContext((state) =>
+    Object.entries(state).some(
+      ([key, value]) =>
+        isModelProvider(key) &&
+        value &&
+        typeof value === "object" &&
+        Object.values(value).some(
+          (credential) =>
+            typeof credential === "string" && credential.trim().length > 0
+        )
+    )
+  );
+
+  // A real API key is configured only when a provider that actually *requires*
+  // credentials has them set. Local providers like Ollama report
+  // `credentialsSet: true` with no credential requirements, so they must not
+  // mark this step complete. A browser-stored key also counts.
+  const hasApiKey =
+    hasBrowserModelCredential ||
+    data.modelProviders.some(
+      (provider) =>
+        provider.credentialsSet &&
+        provider.credentialRequirements.some(
+          (requirement) => requirement.isRequired
+        )
+    );
+  // Any provider with credentials set can run LLM evaluators — including
+  // credential-less local providers like Ollama and browser-stored keys.
+  const hasUsableModelProvider =
+    hasBrowserModelCredential ||
+    data.modelProviders.some((provider) => provider.credentialsSet);
+  const hasDataset = selectedDatasetId != null;
+
+  // The LLM evaluator CTA requires both a dataset and a real model API key. When
+  // inactive, this reason is surfaced in a tooltip on the disabled button.
+  const llmEvaluatorDisabledReason = !hasDataset
+    ? "Select a dataset to continue"
+    : !hasApiKey
+      ? "At least one API key is required"
+      : null;
+
+  const openDatasetEvaluators = (createParam: string) => {
+    if (!selectedDatasetId) {
+      return;
+    }
+    void navigate(
+      `/datasets/${selectedDatasetId}/evaluators?${createParam}=true`
+    );
+  };
+
+  return (
+    <View
+      width="100%"
+      paddingY="size-400"
+      flex="1 1 auto"
+      minHeight={0}
+      overflow="auto"
+    >
       <Flex
         direction="column"
         width="100%"
@@ -427,44 +624,164 @@ export const GlobalEvaluatorsEmptyState = ({
           </Flex>
         </Flex>
 
-        {/* Evaluator type cards */}
-        <Flex direction="column" gap="size-200" alignItems="center">
+        {/* Actionable setup checklist */}
+        <div css={checklistCSS}>
           <Text size="S" color="text-700">
-            Get started with your first evaluator by creating a dataset and
-            adding evaluators to it.
+            Evaluators run against a dataset. Follow these steps to create your
+            first one.
           </Text>
-          <Flex direction="row" gap="size-200">
-            <div css={evaluatorTypeCardCSS}>
-              <Flex direction="row" gap="size-100" alignItems="center">
-                <Icon svg={<Icons.LLMOutput />} />
-                <Text weight="heavy">LLM Evaluators</Text>
-              </Flex>
-              <Text size="S" color="text-700">
-                Use AI to assess correctness, relevance, and tone
-              </Text>
-            </div>
-            <div css={evaluatorTypeCardCSS}>
-              <Flex direction="row" gap="size-100" alignItems="center">
-                <Icon svg={<Icons.Code />} />
-                <Text weight="heavy">Code Evaluators</Text>
-              </Flex>
-              <Text size="S" color="text-700">
-                Deterministic checks like exact_match, contains, and regex
-              </Text>
-            </div>
-          </Flex>
-        </Flex>
 
-        {/* CTAs */}
-        <Flex direction="row" gap="size-200">
-          <Button
-            variant="primary"
-            onClick={() => {
-              navigate("/datasets");
-            }}
+          <ChecklistStep
+            index={1}
+            isComplete={hasDataset}
+            title="Pick a dataset"
           >
-            View Datasets
-          </Button>
+            <Text size="S" color="text-700">
+              Choose the dataset you want to add evaluators to.
+            </Text>
+            <div css={datasetSelectWrapperCSS}>
+              <DatasetSelect
+                value={selectedDatasetId}
+                onChange={setSelectedDatasetId}
+                placeholder="Select a dataset"
+              />
+            </div>
+          </ChecklistStep>
+
+          <ChecklistStep
+            index={2}
+            isComplete={hasApiKey}
+            title={
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <Text weight="heavy">Add a model API key</Text>
+                <Text size="XS" color="text-500">
+                  for LLM evaluators
+                </Text>
+              </Flex>
+            }
+          >
+            {hasApiKey ? (
+              <Text size="S" color="text-700">
+                A model provider API key is configured. You can create LLM
+                evaluators.
+              </Text>
+            ) : (
+              <>
+                <Text size="S" color="text-700">
+                  Add an API key to use hosted models like OpenAI or Anthropic.
+                  Local providers such as Ollama need no key. Code evaluators
+                  don&apos;t require a model at all — skip this step if you only
+                  need code checks.
+                </Text>
+                <Flex direction="row">
+                  <Button
+                    size="S"
+                    leadingVisual={<Icon svg={<Icons.Key />} />}
+                    onClick={() => navigate("/settings/providers")}
+                  >
+                    Add an API key
+                  </Button>
+                </Flex>
+              </>
+            )}
+          </ChecklistStep>
+
+          <ChecklistStep
+            index={3}
+            isComplete={false}
+            title={
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <Text weight="heavy">Create a playground prompt</Text>
+                <Text size="XS" color="text-500">
+                  optional
+                </Text>
+              </Flex>
+            }
+          >
+            <Text size="S" color="text-700">
+              Build and save a prompt in the Playground, then reuse it as the
+              template for an LLM evaluator instead of writing one from scratch.
+            </Text>
+            <Flex direction="row">
+              <Button
+                size="S"
+                isDisabled={!hasUsableModelProvider}
+                leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+                onClick={() => navigate("/playground")}
+              >
+                Open Playground
+              </Button>
+            </Flex>
+            {!hasUsableModelProvider && (
+              <Text size="XS" color="text-500">
+                Configure a model provider above to use the Playground.
+              </Text>
+            )}
+          </ChecklistStep>
+
+          <ChecklistStep index={4} isComplete={false} title="Add an evaluator">
+            <Text size="S" color="text-700">
+              Create a code or LLM evaluator on your selected dataset.
+            </Text>
+            <Flex direction="row" gap="size-200" alignItems="center">
+              <Button
+                variant="primary"
+                size="S"
+                isDisabled={!hasDataset}
+                leadingVisual={<Icon svg={<Icons.Code />} />}
+                onClick={() =>
+                  openDatasetEvaluators(CREATE_CODE_EVALUATOR_PARAM)
+                }
+              >
+                Code evaluator
+              </Button>
+              {llmEvaluatorDisabledReason ? (
+                <TooltipTrigger delay={0} closeDelay={0}>
+                  <Focusable>
+                    <span css={inactiveCtaWrapperCSS}>
+                      <Button
+                        variant="primary"
+                        size="S"
+                        isDisabled
+                        leadingVisual={<Icon svg={<Icons.LLMOutput />} />}
+                      >
+                        LLM evaluator
+                      </Button>
+                    </span>
+                  </Focusable>
+                  <Tooltip placement="bottom" offset={5}>
+                    <TooltipArrow />
+                    {llmEvaluatorDisabledReason}
+                  </Tooltip>
+                </TooltipTrigger>
+              ) : (
+                <Button
+                  variant="primary"
+                  size="S"
+                  leadingVisual={<Icon svg={<Icons.LLMOutput />} />}
+                  onClick={() =>
+                    openDatasetEvaluators(CREATE_LLM_EVALUATOR_PARAM)
+                  }
+                >
+                  LLM evaluator
+                </Button>
+              )}
+            </Flex>
+            {!hasDataset && (
+              <Text size="XS" color="text-500">
+                Pick a dataset above to continue.
+              </Text>
+            )}
+            {hasDataset && !hasApiKey && (
+              <Text size="XS" color="text-500">
+                Add a model API key above to enable LLM evaluators.
+              </Text>
+            )}
+          </ChecklistStep>
+        </div>
+
+        {/* Documentation */}
+        <Flex direction="row" gap="size-200">
           <ExternalLinkButton
             href="https://arize.com/docs/phoenix/evaluation/server-evals/overview"
             target="_blank"
@@ -473,6 +790,24 @@ export const GlobalEvaluatorsEmptyState = ({
             Documentation
           </ExternalLinkButton>
         </Flex>
+
+        {/* Tracing → evaluation bridge */}
+        <div css={evaluateTracesCardCSS}>
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <Icon svg={<Icons.Trace />} />
+            <Text weight="heavy">Evaluate traces in a project</Text>
+          </Flex>
+          <Text size="S" color="text-700">
+            Already tracing? Evals can score production traces too — results are
+            logged as annotations and show up in your{" "}
+            <Link to="/projects">project&apos;s</Link> annotation score charts.
+            See{" "}
+            <ExternalLink href="https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces">
+              evaluating traces
+            </ExternalLink>{" "}
+            to get started.
+          </Text>
+        </div>
       </Flex>
     </View>
   );
