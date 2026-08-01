@@ -11,7 +11,10 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 
-export type FeatureFlag = "agent-experimental-settings" | "ai-search";
+export type FeatureFlag =
+  | "agent-experimental-settings"
+  | "ai-search"
+  | "chat";
 
 export type FeatureFlagsContextType = {
   featureFlags: Record<FeatureFlag, boolean>;
@@ -25,6 +28,7 @@ const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   // AI search is still being tuned; keep every surface hidden until the
   // prompts reliably produce valid filter expressions
   "ai-search": false,
+  chat: false,
 };
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {

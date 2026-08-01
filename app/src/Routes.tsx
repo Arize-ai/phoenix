@@ -66,6 +66,7 @@ import {
   ExamplePage,
   examplesLoader,
   ExamplesPage,
+  ChatPage,
   ExperimentComparePage,
   ExperimentDetailPage,
   ExperimentsPage,
@@ -700,6 +701,13 @@ export const appRouteObjects = createRoutesFromElements(
             }}
           />
         </Route>
+        <Route
+          path="/chat"
+          element={<ChatPage />}
+          handle={{
+            crumb: () => "Chat",
+          }}
+        />
         <Route
           path="/evaluators"
           handle={{

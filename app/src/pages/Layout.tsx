@@ -28,6 +28,7 @@ import {
 } from "@phoenix/components/nav";
 import { GlobalSearch } from "@phoenix/components/search";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import {
   useActiveDrawerWidth,
   useHasOpenDrawer,
@@ -169,6 +170,7 @@ export function Layout() {
 
 function SideNav({ isExpanded }: { isExpanded: boolean }) {
   const loaderData = useLoaderData<LayoutLoaderData>();
+  const isChatEnabled = useFeatureFlag("chat");
   return (
     <SideNavbar isExpanded={isExpanded}>
       <Brand />
@@ -219,6 +221,16 @@ function SideNav({ isExpanded }: { isExpanded: boolean }) {
               isExpanded={isExpanded}
             />
           </li>
+          {isChatEnabled ? (
+            <li key="chat">
+              <NavLink
+                to="/chat"
+                text="Chat"
+                leadingVisual={<Icon svg={<Icons.MessageCircle />} />}
+                isExpanded={isExpanded}
+              />
+            </li>
+          ) : null}
           <li key="evaluators">
             <NavLink
               to="/evaluators"
