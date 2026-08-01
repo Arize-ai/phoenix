@@ -1,28 +1,23 @@
-"""
-OpenAI-compatible chat completions endpoint that proxies to configured LLM providers.
+"""OpenAI-compatible ``POST /v1/chat/completions`` proxy.
 
-``POST /v1/chat/completions`` speaks the OpenAI chat completions wire format —
-request and response bodies, SSE streaming, and ``{"error": {...}}`` payloads —
-so any OpenAI client (the openai SDKs, the Vercel AI SDK's ``openai-compatible``
-provider, curl) can point its base URL at ``{origin}/v1`` and call the models
-Phoenix knows about. Credentials never reach the caller: the ``model`` string
-selects a Phoenix model definition and the server resolves the provider
-credentials exactly like the agents endpoints do (secret store first, process
-environment second) via :func:`phoenix.server.agents.model_factory.build_model`.
+Speaks the OpenAI wire format (request/response bodies, SSE streaming, and
+``{"error": {...}}`` payloads) so any OpenAI client can point its base URL at
+``{origin}/v1``. The ``model`` string selects a Phoenix model definition; the
+server resolves provider credentials the same way the agents endpoints do
+(secret store first, environment second) via
+:func:`phoenix.server.agents.model_factory.build_model`, so callers never
+handle API keys.
 
-The ``model`` string formats:
+The ``model`` string has two formats:
 
-- ``{provider}:{model_name}`` — a built-in provider, e.g. ``openai:gpt-4o``,
-  ``anthropic:claude-sonnet-4-5``, ``ollama:llama3:8b``. The provider segment is
-  matched case-insensitively against :class:`ModelProvider`; everything after
-  the first colon is the provider's model name, so model names containing
-  colons survive intact.
-- ``custom:{provider_id}:{model_name}`` — a stored custom provider record,
-  where ``provider_id`` is the ``GenerativeModelCustomProvider`` Global ID.
+- ``{provider}:{model_name}`` — a built-in provider, e.g. ``openai:gpt-4o``.
+  The provider is matched case-insensitively against :class:`ModelProvider`;
+  everything after the first colon is the model name (colons survive intact).
+- ``custom:{provider_id}:{model_name}`` — a stored custom provider, where
+  ``provider_id`` is the ``GenerativeModelCustomProvider`` Global ID.
 
-This module deliberately deviates from the v1 ``{"data": ...}`` envelope and
-response-model-exclusion conventions: OpenAI compatibility fixes the wire
-format, defaults included.
+Unlike other v1 routes, this endpoint keeps the OpenAI wire format verbatim
+instead of the ``{"data": ...}`` envelope and default-exclusion conventions.
 """
 
 import asyncio
