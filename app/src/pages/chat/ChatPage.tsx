@@ -334,6 +334,17 @@ function ChatSurface() {
     useDirectChat();
   const [draft, setDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const hasAutoFocusedRef = useRef(false);
+  const handleTextareaRef = (element: HTMLTextAreaElement | null) => {
+    textareaRef.current = element;
+    // Focus the composer once on mount so the page is ready to type into.
+    // preventScroll keeps the focus from scroll-revealing the input, which
+    // would cancel its transform enter animation.
+    if (element && !hasAutoFocusedRef.current) {
+      hasAutoFocusedRef.current = true;
+      element.focus({ preventScroll: true });
+    }
+  };
   const { contentRef, scrollRef, scrollToBottom } = useStickToBottom({
     initial: "instant",
     resize: "instant",
@@ -445,7 +456,7 @@ function ChatSurface() {
         >
           <PromptInputBody>
             <PromptInputTextarea
-              ref={textareaRef}
+              ref={handleTextareaRef}
               placeholder={
                 model
                   ? `Message ${model.modelName}...`
