@@ -131,6 +131,18 @@ _NAMES: typing.Mapping[str, sqlalchemy.SQLColumnExpression[typing.Any]] = Mappin
         "events": models.Span.events,
     }
 )
+
+# The scalar fields a user may reference as a *bare identifier* -- exactly the
+# names `_ProjectionTranslator.visit_Name` passes through untouched. Every other
+# bare identifier falls through to `attributes['<name>']` (the schemaless
+# contract). This set is therefore both the allow-list that suppresses a
+# spurious warning and the suggestion vocabulary a near-miss is matched against.
+# Dotted attribute fields (`_FLOAT_ATTRIBUTES`, e.g. `llm.token_count.total`)
+# are deliberately excluded: they are never bare `ast.Name` nodes, so they can
+# neither trigger nor repair a bare-identifier warning.
+_BARE_FIELD_NAMES: frozenset[str] = frozenset(
+    chain(_STRING_NAMES.keys(), _FLOAT_NAMES.keys(), _DATETIME_NAMES.keys())
+)
 _BACKWARD_COMPATIBILITY_REPLACEMENTS: typing.Mapping[str, str] = MappingProxyType(
     {
         # for backward-compatibility
@@ -1861,6 +1873,134 @@ def _find_best_match(
         if score > best_score:
             best_choice, best_score = choice, score
     return best_choice, best_score
+
+
+# The similarity above which a near-miss field name is offered as a repair.
+# Shared with the eval-attribute suggestion at the same threshold, and kept
+# conservative: a wrong guess ("did you mean X?" when the user meant an
+# attribute) is worse than no guess, because the warning is advisory and the
+# attribute reading is a legitimate outcome.
+_FIELD_SUGGESTION_THRESHOLD = 0.75
+
+# Shortest identifier eligible for the substring heuristic below. A one- or
+# two-character fragment (`id`) is contained in too many field names to point
+# at one honestly, so only fuzzy matching applies to it.
+_MIN_SUBSTRING_SUGGESTION_LEN = 3
+
+
+def _suggest_field(identifier: str) -> typing.Optional[str]:
+    """The closest span field to a bare identifier, or None if none is close.
+
+    Two signals, because they catch different mistakes. Edit-distance
+    (`_find_best_match`) catches a genuine typo (`stat_code`). Substring
+    containment catches a *shorter* spelling of a real field -- `kind` for
+    `span_kind`, `latency` for `latency_ms` -- where the edit ratio stays under
+    the threshold precisely because the field name is longer. The containment
+    check is one-directional (identifier inside field) and length-gated so it
+    suggests a field the user under-typed, not one that merely shares a
+    fragment.
+    """
+    choice, score = _find_best_match(identifier, _BARE_FIELD_NAMES)
+    if choice and score > _FIELD_SUGGESTION_THRESHOLD:
+        return choice
+    if len(identifier) < _MIN_SUBSTRING_SUGGESTION_LEN:
+        return None
+    lowered = identifier.lower()
+    contained_in = [field for field in _BARE_FIELD_NAMES if lowered in field.lower()]
+    if not contained_in:
+        return None
+    # Ambiguous fragments (`status` in both status_code and status_message)
+    # resolve to the nearest by the same ratio, keeping the choice stable.
+    return max(
+        contained_in,
+        key=lambda field: SequenceMatcher(None, identifier, field).ratio(),
+    )
+
+
+@dataclass(frozen=True)
+class FilterConditionWarning:
+    """A non-blocking diagnostic about an otherwise-valid filter condition.
+
+    Emitted for a bare identifier that resolves to a JSON attribute path rather
+    than to a span field -- the silent `kind == 'AGENT'` -> `attributes['kind']`
+    footgun. The condition is valid and runs; the warning only explains why it
+    may match nothing and offers a field name when one is close.
+    """
+
+    message: str
+    identifier: str
+    suggestion: typing.Optional[str]
+
+
+def collect_filter_condition_warnings(condition: str) -> list[FilterConditionWarning]:
+    """Advisory diagnostics for a filter condition, distinct from validity.
+
+    Reports each bare identifier that falls through to the attribute namespace
+    (`attributes['<name>']`) instead of naming a span field -- the shape that
+    silently returns zero rows because no such attribute exists. This is the
+    schemaless contract working as designed, so it is a *warning*, never an
+    error: the grammar is unchanged and the condition still applies.
+
+    Returns an empty list for an empty or invalid condition -- an invalid one is
+    the province of `validateSpanFilterCondition`, and surfacing a warning
+    beside a hard error would only compete with it.
+
+    Only *terminal* bare names are reported. The root of a subscript or
+    attribute chain (`attributes['x']`, `metadata['k']`, `llm.model_name`,
+    `annotations['q']`) is the intended way to reach schemaless data, and the
+    callee of a cast (`str(...)`) is not a field reference -- neither is a
+    mistake, so neither warns.
+    """
+    if not (condition := condition.strip()):
+        return []
+    try:
+        # Gate on real validity so warnings accompany only conditions that run.
+        # `SpanFilter` normalizes and fully validates; a failure here means the
+        # error path owns this condition, not us.
+        SpanFilter(condition=condition)
+        # Re-parse the original source: `SpanFilter` keeps only the *translated*
+        # tree, in which every bare name has already become `attributes[...]`,
+        # erasing exactly the distinction this walk depends on.
+        tree = ast.parse(condition, mode="eval")
+    except (SpanFilterError, SyntaxError, ValueError):
+        return []
+    parent_by_child: dict[int, ast.AST] = {}
+    for parent in ast.walk(tree):
+        for child in ast.iter_child_nodes(parent):
+            parent_by_child[id(child)] = parent
+    warnings: list[FilterConditionWarning] = []
+    reported: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Name):
+            continue
+        name = node.id
+        if name in _BARE_FIELD_NAMES or name == _PARENT_KEYWORD or name in reported:
+            continue
+        parent_node = parent_by_child.get(id(node))
+        # The root of `attributes['x']` / `llm.model_name` / `annotations['q']`:
+        # the whole chain is the intended attribute access, not a stray field.
+        if isinstance(parent_node, (ast.Attribute, ast.Subscript)) and parent_node.value is node:
+            continue
+        # The callee of `str(...)` / `float(...)` / `int(...)`.
+        if isinstance(parent_node, ast.Call) and parent_node.func is node:
+            continue
+        reported.add(name)
+        suggestion = _suggest_field(name)
+        message = (
+            f"`{name}` is not a known span field, so it is read as the "
+            f"attribute `attributes['{name}']` and matches only spans with "
+            f"that attribute."
+        )
+        if suggestion:
+            message += f" Did you mean the field `{suggestion}`?"
+        warnings.append(
+            FilterConditionWarning(
+                message=message,
+                identifier=name,
+                suggestion=suggestion,
+            )
+        )
+    return warnings
 
 
 def _apply_eval_aliasing(
