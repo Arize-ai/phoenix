@@ -12,6 +12,13 @@ export type DirectChatMessage = {
   content: string;
 };
 
+/** Token totals accumulated across every completed turn of the conversation. */
+export type DirectChatUsage = {
+  total: number;
+  prompt: number;
+  completion: number;
+};
+
 function toModelMessages(messages: DirectChatMessage[]): ModelMessage[] {
   return messages.map((message) =>
     message.role === "user"
@@ -83,6 +90,7 @@ export function useDirectChat() {
   const [messages, setMessages] = useState<DirectChatMessage[]>([]);
   const [status, setStatus] = useState<ChatStatus>("ready");
   const [error, setError] = useState<string | null>(null);
+  const [usage, setUsage] = useState<DirectChatUsage | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const run = async (history: DirectChatMessage[], model: ModelMenuValue) => {
@@ -137,6 +145,25 @@ export function useDirectChat() {
       }
       if (streamError != null) {
         throw streamError;
+      }
+      if (!controller.signal.aborted) {
+        // The stream ended normally, so the usage promise has settled. Not
+        // every provider reports usage — skip the turn when it doesn't.
+        try {
+          const turnUsage = await result.totalUsage;
+          const prompt = turnUsage.inputTokens ?? 0;
+          const completion = turnUsage.outputTokens ?? 0;
+          const total = turnUsage.totalTokens ?? prompt + completion;
+          if (total > 0 && ownsChatState()) {
+            setUsage((previous) => ({
+              total: (previous?.total ?? 0) + total,
+              prompt: (previous?.prompt ?? 0) + prompt,
+              completion: (previous?.completion ?? 0) + completion,
+            }));
+          }
+        } catch {
+          // Usage unavailable for this turn — the running totals stand.
+        }
       }
       if (ownsChatState()) {
         setStatus("ready");
@@ -202,7 +229,8 @@ export function useDirectChat() {
     setMessages([]);
     setStatus("ready");
     setError(null);
+    setUsage(null);
   };
 
-  return { messages, status, error, sendMessage, retry, stop, clear };
+  return { messages, status, error, usage, sendMessage, retry, stop, clear };
 }

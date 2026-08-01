@@ -14,6 +14,7 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
+import { ChatTokenUsage } from "@phoenix/components/agent/ChatTokenUsage";
 import { MessageCopyAction } from "@phoenix/components/agent/MessageCopyAction";
 import {
   Message,
@@ -244,6 +245,19 @@ const chatPageCSS = css`
     padding-block: var(--global-dimension-size-50);
   }
 
+  /* Mirrors the PXI chat's input-meta grid: the usage summary sits right-
+     aligned in the second column and its expanded breakdown spans the row
+     below. */
+  .chat-page__input-meta {
+    box-sizing: border-box;
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--global-dimension-size-100);
+    padding-top: var(--global-dimension-size-50);
+  }
+
   .chat-page__input {
     flex-shrink: 0;
     margin: 0 auto;
@@ -379,7 +393,7 @@ function ChatSurface() {
       visibleProviders,
     });
 
-  const { messages, status, error, sendMessage, retry, stop, clear } =
+  const { messages, status, error, usage, sendMessage, retry, stop, clear } =
     useDirectChat();
   const [draft, setDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -532,6 +546,15 @@ function ChatSurface() {
             </PromptInputActions>
           </PromptInputFooter>
         </PromptInput>
+        {usage ? (
+          <div className="chat-page__input-meta">
+            <ChatTokenUsage
+              total={usage.total}
+              prompt={usage.prompt}
+              completion={usage.completion}
+            />
+          </div>
+        ) : null}
       </div>
     </main>
   );

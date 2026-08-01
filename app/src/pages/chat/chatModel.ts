@@ -38,5 +38,8 @@ export async function createChatModel(
     name: "phoenix",
     baseURL,
     fetch: authFetch,
+    // Ask the proxy for the final usage chunk so the page can report token
+    // totals per conversation.
+    includeUsage: true,
   })(toChatModelId(model));
 }
