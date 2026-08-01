@@ -17,8 +17,8 @@ importers:
         specifier: ^4.2.8
         version: 4.2.8(graphql@17.0.2)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rxjs@7.8.2)
       '@arizeai/openinference-semantic-conventions':
-        specifier: ^2.5.0
-        version: 2.5.0
+        specifier: ^2.6.0
+        version: 2.6.0
       '@codemirror/autocomplete':
         specifier: 6.20.3
         version: 6.20.3
@@ -135,7 +135,7 @@ importers:
         version: 4.4.0
       just-bash:
         specifier: ^2.14.5
-        version: 2.14.5
+        version: 2.14.5(supports-color@10.2.2)
       lodash:
         specifier: ^4.18.1
         version: 4.18.1
@@ -229,7 +229,7 @@ importers:
         version: 4.0.11(zod@4.4.3)
       '@arizeai/phoenix-client':
         specifier: 6.12.1
-        version: 6.12.1(@opentelemetry/api@1.9.1)(@opentelemetry/semantic-conventions@1.43.0)(ai@7.0.37(zod@4.4.3))(vitest@4.1.10)
+        version: 6.12.1(@opentelemetry/api@1.9.1)(@opentelemetry/semantic-conventions@1.43.0)(ai@7.0.37(zod@4.4.3))(supports-color@10.2.2)(vitest@4.1.10)
       '@arizeai/phoenix-evals':
         specifier: ^1.2.0
         version: 1.2.0
@@ -238,7 +238,7 @@ importers:
         version: 10.0.1
       '@figma/code-connect':
         specifier: ^1.4.9
-        version: 1.4.9
+        version: 1.4.9(supports-color@10.2.2)
       '@lezer/generator':
         specifier: ^1.8.0
         version: 1.8.0
@@ -490,6 +490,9 @@ packages:
 
   '@arizeai/openinference-semantic-conventions@2.5.0':
     resolution: {integrity: sha512-4ZeSwiFX3YxB0WSE6x568wM4PVHiYmz3yiOxic6WGKVrE/KIGggMFP/eqUNQhikBKP68IDV0qiILlZAIYnheAQ==}
+
+  '@arizeai/openinference-semantic-conventions@2.6.0':
+    resolution: {integrity: sha512-0J1h97WG8K7cVVAtUKa7Tdv49yt0xZ+tebHcBzhSOdjJN5SWoc4CsoGadjO6G/nf+W4qYtRzraBOWKm7/20cyA==}
 
   '@arizeai/openinference-vercel@2.8.1':
     resolution: {integrity: sha512-gTgUSJd9HHTfNyI2ZoorPGHt1ID5LFtZZCDFmosXzdPzYoAzwknEC9Ja3iKKs+c27uvNiS6N5P8iyxf8qC+sDg==}
@@ -5956,6 +5959,8 @@ snapshots:
 
   '@arizeai/openinference-semantic-conventions@2.5.0': {}
 
+  '@arizeai/openinference-semantic-conventions@2.6.0': {}
+
   '@arizeai/openinference-vercel@2.8.1(@opentelemetry/api@1.9.1)(@opentelemetry/semantic-conventions@1.43.0)':
     dependencies:
       '@arizeai/openinference-core': 2.3.0
@@ -5966,12 +5971,12 @@ snapshots:
     transitivePeerDependencies:
       - '@opentelemetry/semantic-conventions'
 
-  '@arizeai/phoenix-client@6.12.1(@opentelemetry/api@1.9.1)(@opentelemetry/semantic-conventions@1.43.0)(ai@7.0.37(zod@4.4.3))(vitest@4.1.10)':
+  '@arizeai/phoenix-client@6.12.1(@opentelemetry/api@1.9.1)(@opentelemetry/semantic-conventions@1.43.0)(ai@7.0.37(zod@4.4.3))(supports-color@10.2.2)(vitest@4.1.10)':
     dependencies:
-      '@arizeai/openinference-semantic-conventions': 2.5.0
+      '@arizeai/openinference-semantic-conventions': 2.6.0
       '@arizeai/openinference-vercel': 2.8.1(@opentelemetry/api@1.9.1)(@opentelemetry/semantic-conventions@1.43.0)
       '@arizeai/phoenix-config': 0.2.0
-      '@arizeai/phoenix-otel': 1.1.0(@opentelemetry/semantic-conventions@1.43.0)
+      '@arizeai/phoenix-otel': 1.1.0(@opentelemetry/semantic-conventions@1.43.0)(supports-color@10.2.2)
       async: 3.2.6
       openapi-fetch: 0.17.0
       tiny-invariant: 1.3.3
@@ -5995,17 +6000,17 @@ snapshots:
       mustache: 4.2.0
       zod: 4.4.3
 
-  '@arizeai/phoenix-otel@1.1.0(@opentelemetry/semantic-conventions@1.43.0)':
+  '@arizeai/phoenix-otel@1.1.0(@opentelemetry/semantic-conventions@1.43.0)(supports-color@10.2.2)':
     dependencies:
       '@arizeai/openinference-core': 2.4.0
-      '@arizeai/openinference-semantic-conventions': 2.5.0
+      '@arizeai/openinference-semantic-conventions': 2.6.0
       '@arizeai/openinference-vercel': 2.8.1(@opentelemetry/api@1.9.1)(@opentelemetry/semantic-conventions@1.43.0)
       '@arizeai/phoenix-config': 0.2.0
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/context-async-hooks': 2.10.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/core': 2.10.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/exporter-trace-otlp-proto': 0.218.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/instrumentation': 0.218.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/instrumentation': 0.218.0(@opentelemetry/api@1.9.1)(supports-color@10.2.2)
       '@opentelemetry/resources': 2.10.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace-base': 2.10.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace-node': 2.10.0(@opentelemetry/api@1.9.1)
@@ -6525,7 +6530,7 @@ snapshots:
 
   '@exodus/bytes@1.15.1': {}
 
-  '@figma/code-connect@1.4.9':
+  '@figma/code-connect@1.4.9(supports-color@10.2.2)':
     dependencies:
       boxen: 5.1.1
       chalk: 4.1.2
@@ -6536,7 +6541,7 @@ snapshots:
       fast-fuzzy: 1.12.0
       find-up: 5.0.0
       glob: 11.1.0
-      jsdom: 24.1.3
+      jsdom: 24.1.3(supports-color@10.2.2)
       lodash: 4.18.1
       minimatch: 9.0.9
       ora: 5.4.1
@@ -6801,12 +6806,12 @@ snapshots:
       '@opentelemetry/resources': 2.7.1(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace-base': 2.7.1(@opentelemetry/api@1.9.1)
 
-  '@opentelemetry/instrumentation@0.218.0(@opentelemetry/api@1.9.1)':
+  '@opentelemetry/instrumentation@0.218.0(@opentelemetry/api@1.9.1)(supports-color@10.2.2)':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/api-logs': 0.218.0
       import-in-the-middle: 3.3.2
-      require-in-the-middle: 8.0.1
+      require-in-the-middle: 8.0.1(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -7594,7 +7599,7 @@ snapshots:
     dependencies:
       '@testing-library/dom': 10.4.1
 
-  '@tokenizer/inflate@0.4.1':
+  '@tokenizer/inflate@0.4.1(supports-color@10.2.2)':
     dependencies:
       debug: 4.4.3(supports-color@10.2.2)
       token-types: 6.1.2
@@ -8912,9 +8917,9 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.5
 
-  file-type@21.3.4:
+  file-type@21.3.4(supports-color@10.2.2):
     dependencies:
-      '@tokenizer/inflate': 0.4.1
+      '@tokenizer/inflate': 0.4.1(supports-color@10.2.2)
       strtok3: 10.3.5
       token-types: 6.1.2
       uint8array-extras: 1.5.0
@@ -9171,7 +9176,7 @@ snapshots:
 
   html-void-elements@3.0.0: {}
 
-  http-proxy-agent@7.0.2:
+  http-proxy-agent@7.0.2(supports-color@10.2.2):
     dependencies:
       agent-base: 7.1.4
       debug: 4.4.3(supports-color@10.2.2)
@@ -9323,14 +9328,14 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
-  jsdom@24.1.3:
+  jsdom@24.1.3(supports-color@10.2.2):
     dependencies:
       cssstyle: 4.6.0
       data-urls: 5.0.0
       decimal.js: 10.6.0
       form-data: 4.0.6
       html-encoding-sniffer: 4.0.0
-      http-proxy-agent: 7.0.2
+      http-proxy-agent: 7.0.2(supports-color@10.2.2)
       https-proxy-agent: 7.0.6(supports-color@10.2.2)
       is-potential-custom-element-name: 1.0.1
       nwsapi: 2.2.24
@@ -9411,11 +9416,11 @@ snapshots:
 
   junk@4.0.1: {}
 
-  just-bash@2.14.5:
+  just-bash@2.14.5(supports-color@10.2.2):
     dependencies:
       diff: 8.0.4
       fast-xml-parser: 5.10.1
-      file-type: 21.3.4
+      file-type: 21.3.4(supports-color@10.2.2)
       ini: 6.0.0
       minimatch: 10.2.5
       modern-tar: 0.7.7
@@ -10716,7 +10721,7 @@ snapshots:
 
   require-from-string@2.0.2: {}
 
-  require-in-the-middle@8.0.1:
+  require-in-the-middle@8.0.1(supports-color@10.2.2):
     dependencies:
       debug: 4.4.3(supports-color@10.2.2)
       module-details-from-path: 1.0.4

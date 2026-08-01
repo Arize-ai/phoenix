@@ -84,6 +84,8 @@ describe("spanDownloadUtils", () => {
       spanId: "span-id",
       format: "json",
       fileName: "span.json",
+      includeSpanAnnotations: false,
+      includeTraceAnnotations: false,
     });
 
     expect(authApiFetch.GET).toHaveBeenCalledWith(
@@ -95,6 +97,7 @@ describe("spanDownloadUtils", () => {
         },
       }
     );
+    expect(authApiFetch.GET).toHaveBeenCalledTimes(1);
     await expect(readBlob(getDownloadedBlob())).resolves.toBe(
       `${JSON.stringify(span, null, 2)}\n`
     );
@@ -112,6 +115,8 @@ describe("spanDownloadUtils", () => {
       spanId: "span-id",
       format: "otlp-json",
       fileName: "span-otlp.json",
+      includeSpanAnnotations: false,
+      includeTraceAnnotations: false,
     });
 
     expect(authApiFetch.GET).toHaveBeenCalledWith(
@@ -123,6 +128,7 @@ describe("spanDownloadUtils", () => {
         },
       }
     );
+    expect(authApiFetch.GET).toHaveBeenCalledTimes(1);
     await expect(readBlob(getDownloadedBlob())).resolves.toBe(
       JSON.stringify({
         resource_spans: [{ scope_spans: [{ spans: [otlpSpan] }] }],
@@ -138,11 +144,51 @@ describe("spanDownloadUtils", () => {
       start_time: "2026-07-24T18:30:45Z",
       end_time: "2026-07-24T18:30:46Z",
       status_code: "OK",
+      attributes: { existing: "value" },
     };
-    vi.mocked(authApiFetch.GET).mockResolvedValueOnce({
-      data: { data: [span], next_cursor: null },
-      response: new Response(null, { status: 200 }),
-    });
+    const spanAnnotation = {
+      id: "span-annotation-id",
+      created_at: "2026-07-24T18:30:47Z",
+      updated_at: "2026-07-24T18:30:47Z",
+      source: "API" as const,
+      user_id: null,
+      name: "hallucination",
+      annotator_kind: "LLM" as const,
+      result: {
+        score: 0.25,
+        label: "likely",
+        explanation: "Unsupported claim",
+      },
+      metadata: { evaluator: "faithfulness" },
+      identifier: "eval-1",
+      span_id: "span-id",
+    };
+    const traceAnnotation = {
+      id: "trace-annotation-id",
+      created_at: "2026-07-24T18:30:48Z",
+      updated_at: "2026-07-24T18:30:48Z",
+      source: "APP" as const,
+      user_id: null,
+      name: "user_frustration",
+      annotator_kind: "HUMAN" as const,
+      result: { label: "high" },
+      metadata: {},
+      identifier: "",
+      trace_id: "trace-id",
+    };
+    vi.mocked(authApiFetch.GET)
+      .mockResolvedValueOnce({
+        data: { data: [span], next_cursor: null },
+        response: new Response(null, { status: 200 }),
+      })
+      .mockResolvedValueOnce({
+        data: { data: [spanAnnotation], next_cursor: null },
+        response: new Response(null, { status: 200 }),
+      })
+      .mockResolvedValueOnce({
+        data: { data: [traceAnnotation], next_cursor: null },
+        response: new Response(null, { status: 200 }),
+      });
 
     await downloadSpanCollection({
       projectId: "project-id",
@@ -151,7 +197,8 @@ describe("spanDownloadUtils", () => {
       fileName: "trace.jsonl",
     });
 
-    expect(authApiFetch.GET).toHaveBeenCalledWith(
+    expect(authApiFetch.GET).toHaveBeenNthCalledWith(
+      1,
       "/v1/projects/{project_identifier}/spans",
       {
         params: {
@@ -160,8 +207,209 @@ describe("spanDownloadUtils", () => {
         },
       }
     );
-    await expect(readBlob(getDownloadedBlob())).resolves.toBe(
-      `${JSON.stringify(span)}\n`
+    expect(authApiFetch.GET).toHaveBeenNthCalledWith(
+      2,
+      "/v1/projects/{project_identifier}/span_annotations",
+      {
+        params: {
+          path: { project_identifier: "project-id" },
+          query: { limit: 1000, span_ids: ["span-id"] },
+        },
+      }
     );
+    expect(authApiFetch.GET).toHaveBeenNthCalledWith(
+      3,
+      "/v1/projects/{project_identifier}/trace_annotations",
+      {
+        params: {
+          path: { project_identifier: "project-id" },
+          query: { limit: 1000, trace_ids: ["trace-id"] },
+        },
+      }
+    );
+    await expect(readBlob(getDownloadedBlob())).resolves.toBe(
+      `${JSON.stringify({
+        ...span,
+        attributes: {
+          existing: "value",
+          "annotations.0.annotation.name": "hallucination",
+          "annotations.0.annotation.annotator_kind": "LLM",
+          "annotations.0.annotation.score": 0.25,
+          "annotations.0.annotation.label": "likely",
+          "annotations.0.annotation.explanation": "Unsupported claim",
+          "annotations.0.annotation.identifier": "eval-1",
+          "annotations.0.annotation.metadata": '{"evaluator":"faithfulness"}',
+          "trace.annotations.0.annotation.name": "user_frustration",
+          "trace.annotations.0.annotation.annotator_kind": "HUMAN",
+          "trace.annotations.0.annotation.label": "high",
+        },
+      })}\n`
+    );
+  });
+
+  it("adds annotations as OTLP attributes", async () => {
+    const otlpSpan = {
+      span_id: "span-id",
+      trace_id: "trace-id",
+      attributes: [{ key: "existing", value: { string_value: "value" } }],
+    };
+    const spanAnnotation = {
+      id: "span-annotation-id",
+      created_at: "2026-07-24T18:30:47Z",
+      updated_at: "2026-07-24T18:30:47Z",
+      source: "API" as const,
+      user_id: null,
+      name: "hallucination",
+      annotator_kind: "CODE" as const,
+      result: { score: 0.5 },
+      metadata: {},
+      identifier: "",
+      span_id: "span-id",
+    };
+    const traceAnnotation = {
+      id: "trace-annotation-id",
+      created_at: "2026-07-24T18:30:48Z",
+      updated_at: "2026-07-24T18:30:48Z",
+      source: "APP" as const,
+      user_id: null,
+      name: "user_frustration",
+      annotator_kind: "HUMAN" as const,
+      result: { label: "high" },
+      metadata: {},
+      identifier: "",
+      trace_id: "trace-id",
+    };
+    vi.mocked(authApiFetch.GET)
+      .mockResolvedValueOnce({
+        data: { data: [otlpSpan], next_cursor: null },
+        response: new Response(null, { status: 200 }),
+      })
+      .mockResolvedValueOnce({
+        data: { data: [spanAnnotation], next_cursor: null },
+        response: new Response(null, { status: 200 }),
+      })
+      .mockResolvedValueOnce({
+        data: { data: [traceAnnotation], next_cursor: null },
+        response: new Response(null, { status: 200 }),
+      });
+
+    await downloadSpanCollection({
+      projectId: "project-id",
+      traceIds: ["trace-id"],
+      format: "otlp-json",
+      fileName: "trace.json",
+    });
+
+    await expect(readBlob(getDownloadedBlob())).resolves.toBe(
+      JSON.stringify({
+        resource_spans: [
+          {
+            scope_spans: [
+              {
+                spans: [
+                  {
+                    ...otlpSpan,
+                    attributes: [
+                      ...otlpSpan.attributes,
+                      {
+                        key: "annotations.0.annotation.name",
+                        value: { string_value: "hallucination" },
+                      },
+                      {
+                        key: "annotations.0.annotation.annotator_kind",
+                        value: { string_value: "CODE" },
+                      },
+                      {
+                        key: "annotations.0.annotation.score",
+                        value: { double_value: 0.5 },
+                      },
+                      {
+                        key: "trace.annotations.0.annotation.name",
+                        value: { string_value: "user_frustration" },
+                      },
+                      {
+                        key: "trace.annotations.0.annotation.annotator_kind",
+                        value: { string_value: "HUMAN" },
+                      },
+                      {
+                        key: "trace.annotations.0.annotation.label",
+                        value: { string_value: "high" },
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      })
+    );
+  });
+
+  it("adds trace annotations only to the root span", async () => {
+    const childSpan = {
+      name: "child-span",
+      context: { span_id: "child-span-id", trace_id: "trace-id" },
+      span_kind: "LLM",
+      parent_id: "root-span-id",
+      start_time: "2026-07-24T18:30:45Z",
+      end_time: "2026-07-24T18:30:46Z",
+      status_code: "OK",
+    };
+    const rootSpan = {
+      name: "root-span",
+      context: { span_id: "root-span-id", trace_id: "trace-id" },
+      span_kind: "CHAIN",
+      parent_id: null,
+      start_time: "2026-07-24T18:30:44Z",
+      end_time: "2026-07-24T18:30:47Z",
+      status_code: "OK",
+    };
+    const traceAnnotation = {
+      id: "trace-annotation-id",
+      created_at: "2026-07-24T18:30:48Z",
+      updated_at: "2026-07-24T18:30:48Z",
+      source: "APP" as const,
+      user_id: null,
+      name: "user_frustration",
+      annotator_kind: "HUMAN" as const,
+      result: { label: "high" },
+      metadata: {},
+      identifier: "",
+      trace_id: "trace-id",
+    };
+    vi.mocked(authApiFetch.GET)
+      .mockResolvedValueOnce({
+        data: { data: [childSpan, rootSpan], next_cursor: null },
+        response: new Response(null, { status: 200 }),
+      })
+      .mockResolvedValueOnce({
+        data: { data: [traceAnnotation], next_cursor: null },
+        response: new Response(null, { status: 200 }),
+      });
+
+    await downloadSpanCollection({
+      projectId: "project-id",
+      traceIds: ["trace-id"],
+      format: "jsonl",
+      fileName: "trace.jsonl",
+      includeSpanAnnotations: false,
+    });
+
+    const [exportedChild, exportedRoot] = (await readBlob(getDownloadedBlob()))
+      .trim()
+      .split("\n");
+    expect(exportedChild).toBe(JSON.stringify(childSpan));
+    expect(exportedRoot).toBe(
+      JSON.stringify({
+        ...rootSpan,
+        attributes: {
+          "trace.annotations.0.annotation.name": "user_frustration",
+          "trace.annotations.0.annotation.annotator_kind": "HUMAN",
+          "trace.annotations.0.annotation.label": "high",
+        },
+      })
+    );
+    expect(authApiFetch.GET).toHaveBeenCalledTimes(2);
   });
 });
