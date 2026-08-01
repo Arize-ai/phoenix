@@ -1,5 +1,13 @@
 # Changelog
 
+## [19.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.12.0...arize-phoenix-v19.13.0) (2026-08-01)
+
+
+### Features
+
+* **app:** include span and trace annotations in span exports ([#14990](https://github.com/Arize-ai/phoenix/issues/14990)) ([f9fa685](https://github.com/Arize-ai/phoenix/commit/f9fa685617e8a7c55f4b61dd0db6a09969fe7f26))
+* **experiments:** lift metric chart selection limit ([#14987](https://github.com/Arize-ai/phoenix/issues/14987)) ([6f647cb](https://github.com/Arize-ai/phoenix/commit/6f647cb546474170c1e5c29c6e13cd4f4c12fd42))
+
 ## [19.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.11.1...arize-phoenix-v19.12.0) (2026-07-31)
 
 
