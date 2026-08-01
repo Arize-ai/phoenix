@@ -84,10 +84,17 @@ export function useDirectChat() {
     const ownsChatState = () => abortControllerRef.current === controller;
     try {
       const chatModel = await createChatModel(model);
+      // streamText delivers request/stream failures to onError and ends the
+      // text stream quietly — without this capture a failed request would
+      // settle as an empty, error-free turn.
+      let streamError: unknown = null;
       const result = streamText({
         model: chatModel,
         messages: toModelMessages(history),
         abortSignal: controller.signal,
+        onError: ({ error: caughtError }) => {
+          streamError = caughtError;
+        },
       });
       const assistantId = crypto.randomUUID();
       let hasStartedStreaming = false;
@@ -111,6 +118,9 @@ export function useDirectChat() {
             )
           );
         }
+      }
+      if (streamError != null) {
+        throw streamError;
       }
       if (ownsChatState()) {
         setStatus("ready");
