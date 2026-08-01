@@ -1982,6 +1982,21 @@ export interface components {
             /** Finish Reason */
             finish_reason: string;
         };
+        /** ChatCompletionErrorDetail */
+        ChatCompletionErrorDetail: {
+            /** Message */
+            message: string;
+            /** Type */
+            type: string;
+            /** Param */
+            param?: string | null;
+            /** Code */
+            code?: string | null;
+        };
+        /** ChatCompletionErrorResponse */
+        ChatCompletionErrorResponse: {
+            error: components["schemas"]["ChatCompletionErrorDetail"];
+        };
         /** ChatCompletionMessage */
         ChatCompletionMessage: {
             /**
@@ -2002,6 +2017,14 @@ export interface components {
             role: "system" | "developer" | "user" | "assistant";
             /** Content */
             content: string | components["schemas"]["ChatCompletionTextPart"][];
+        };
+        /** ChatCompletionStreamOptions */
+        ChatCompletionStreamOptions: {
+            /**
+             * Include Usage
+             * @default false
+             */
+            include_usage?: boolean;
         };
         /** ChatCompletionTextPart */
         ChatCompletionTextPart: {
@@ -2228,10 +2251,7 @@ export interface components {
             seed?: number | null;
             /** N */
             n?: number | null;
-            /** Stream Options */
-            stream_options?: {
-                [key: string]: unknown;
-            } | null;
+            stream_options?: components["schemas"]["ChatCompletionStreamOptions"] | null;
             /** Tools */
             tools?: unknown[] | null;
             /** Tool Choice */
@@ -10836,7 +10856,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/json": components["schemas"]["ChatCompletionErrorResponse"];
                 };
             };
             /** @description Forbidden */
@@ -10854,7 +10874,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/json": components["schemas"]["ChatCompletionErrorResponse"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -10863,7 +10883,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/json": components["schemas"]["ChatCompletionErrorResponse"];
                 };
             };
         };

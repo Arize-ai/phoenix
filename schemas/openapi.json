@@ -7698,9 +7698,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ChatCompletionErrorResponse"
                 }
               }
             }
@@ -7708,9 +7708,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ChatCompletionErrorResponse"
                 }
               }
             }
@@ -7718,9 +7718,9 @@
           "422": {
             "description": "Unprocessable Entity",
             "content": {
-              "text/plain": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ChatCompletionErrorResponse"
                 }
               }
             }
@@ -9047,6 +9047,58 @@
         ],
         "title": "ChatCompletionChoice"
       },
+      "ChatCompletionErrorDetail": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "param": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Param"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "type"
+        ],
+        "title": "ChatCompletionErrorDetail"
+      },
+      "ChatCompletionErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ChatCompletionErrorDetail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ChatCompletionErrorResponse"
+      },
       "ChatCompletionMessage": {
         "properties": {
           "role": {
@@ -9099,6 +9151,17 @@
           "content"
         ],
         "title": "ChatCompletionRequestMessage"
+      },
+      "ChatCompletionStreamOptions": {
+        "properties": {
+          "include_usage": {
+            "type": "boolean",
+            "title": "Include Usage",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ChatCompletionStreamOptions"
       },
       "ChatCompletionTextPart": {
         "properties": {
@@ -9783,14 +9846,12 @@
           "stream_options": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "$ref": "#/components/schemas/ChatCompletionStreamOptions"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Stream Options"
+            ]
           },
           "tools": {
             "anyOf": [

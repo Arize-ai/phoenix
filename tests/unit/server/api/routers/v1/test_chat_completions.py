@@ -5,6 +5,7 @@ from typing import Any, AsyncIterator, Union
 
 import httpx
 import pytest
+from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -144,15 +145,17 @@ class TestCreateChatCompletion:
         assert selection.provider is ModelProvider.OLLAMA
         assert selection.model_name == "llama3:8b"
 
+    @pytest.mark.parametrize("prefix", ["custom", "Custom"])
     async def test_custom_provider_model_selection(
         self,
         httpx_client: httpx.AsyncClient,
         build_model_spy: _BuildModelSpy,
+        prefix: str,
     ) -> None:
         provider_id = str(GlobalID("GenerativeModelCustomProvider", "7"))
         response = await httpx_client.post(
             "v1/chat/completions",
-            json=_request_body(model=f"custom:{provider_id}:my-model"),
+            json=_request_body(model=f"{prefix}:{provider_id}:my-model"),
         )
         assert response.status_code == 200, response.text
         (selection,) = build_model_spy.selections
@@ -183,8 +186,42 @@ class TestCreateChatCompletion:
         final = chunks[-1]["choices"][0]
         assert final["delta"] == {}
         assert final["finish_reason"] == "stop"
-        usage = chunks[-1]["usage"]
+        # Without stream_options.include_usage, no chunk reports usage.
+        assert all("usage" not in chunk for chunk in chunks)
+
+    async def test_streaming_with_include_usage_emits_final_usage_chunk(
+        self,
+        httpx_client: httpx.AsyncClient,
+        build_model_spy: _BuildModelSpy,
+    ) -> None:
+        response = await httpx_client.post(
+            "v1/chat/completions",
+            json=_request_body(stream=True, stream_options={"include_usage": True}),
+        )
+        assert response.status_code == 200, response.text
+
+        events = _data_events(response.text)
+        assert events[-1] == "[DONE]"
+        chunks = [json.loads(event) for event in events[:-1]]
+        *deltas, usage_chunk = chunks
+        assert all(chunk["usage"] is None for chunk in deltas)
+        assert deltas[-1]["choices"][0]["finish_reason"] == "stop"
+        assert usage_chunk["choices"] == []
+        usage = usage_chunk["usage"]
         assert usage["total_tokens"] == usage["prompt_tokens"] + usage["completion_tokens"]
+
+    async def test_stream_options_without_stream_is_rejected(
+        self,
+        httpx_client: httpx.AsyncClient,
+        build_model_spy: _BuildModelSpy,
+    ) -> None:
+        response = await httpx_client.post(
+            "v1/chat/completions",
+            json=_request_body(stream_options={"include_usage": True}),
+        )
+        assert response.status_code == 400, response.text
+        assert "stream_options" in response.json()["error"]["message"]
+        assert not build_model_spy.selections
 
     @pytest.mark.parametrize(
         "model",
@@ -222,6 +259,60 @@ class TestCreateChatCompletion:
         )
         assert response.status_code == 400, response.text
         assert "Tool calling" in response.json()["error"]["message"]
+        assert not build_model_spy.selections
+
+    @pytest.mark.parametrize("stream", [False, True])
+    async def test_provider_connection_failure_returns_openai_502(
+        self,
+        httpx_client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        stream: bool,
+    ) -> None:
+        async def build_unreachable_model(*_: Any, **__: Any) -> FunctionModel:
+            def respond(messages: list[ModelMessage], _info: AgentInfo) -> ModelResponse:
+                raise ModelAPIError("claude-sonnet-4-5", "connection refused")
+
+            async def respond_stream(
+                messages: list[ModelMessage], _info: AgentInfo
+            ) -> AsyncIterator[Union[str, DeltaToolCalls]]:
+                raise ModelAPIError("claude-sonnet-4-5", "connection refused")
+                yield ""
+
+            return FunctionModel(function=respond, stream_function=respond_stream)
+
+        monkeypatch.setattr(chat_completions_module, "build_model", build_unreachable_model)
+        response = await httpx_client.post("v1/chat/completions", json=_request_body(stream=stream))
+        assert response.status_code == 502, response.text
+        error = response.json()["error"]
+        assert error["type"] == "api_error"
+        assert "connection refused" in error["message"]
+
+    async def test_malformed_custom_provider_id_returns_404(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        response = await httpx_client.post(
+            "v1/chat/completions",
+            json=_request_body(model="custom:not-a-global-id:gpt-4"),
+        )
+        assert response.status_code == 404, response.text
+        error = response.json()["error"]
+        assert error["code"] == "model_not_found"
+        assert "Unknown model" in error["message"]
+
+    async def test_validation_failure_returns_openai_error_shape(
+        self,
+        httpx_client: httpx.AsyncClient,
+        build_model_spy: _BuildModelSpy,
+    ) -> None:
+        body = _request_body(
+            messages=[{"role": "tool", "content": "result", "tool_call_id": "call_1"}]
+        )
+        response = await httpx_client.post("v1/chat/completions", json=body)
+        assert response.status_code == 422, response.text
+        error = response.json()["error"]
+        assert error["type"] == "invalid_request_error"
+        assert "role" in error["message"]
         assert not build_model_spy.selections
 
     async def test_custom_provider_not_found_returns_404(
