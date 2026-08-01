@@ -65,6 +65,8 @@ export type DSLFilterConditionValidationResult = {
 export type DSLFilterSnippet = {
   label: string;
   snippet: string;
+  /** Additional context shown when the suggestion is selected. */
+  info?: string;
 };
 
 const pythonLanguage = python();
@@ -112,10 +114,15 @@ const VALIDATION_DEBOUNCE_MS = 250;
 const defaultSnippets: DSLFilterSnippet[] = [];
 const defaultCompletionSources: CompletionSource[] = [];
 
-function snippetToCompletion({ label, snippet }: DSLFilterSnippet): Completion {
+function snippetToCompletion({
+  label,
+  snippet,
+  info,
+}: DSLFilterSnippet): Completion {
   return snippetCompletion(snippet, {
     label,
     detail: snippet.replace(/\$\{([^{}]*)\}/g, "$1"),
+    info,
     type: "text",
     section: suggestionsSection,
   });
