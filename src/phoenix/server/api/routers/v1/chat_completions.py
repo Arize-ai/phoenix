@@ -413,6 +413,14 @@ async def create_chat_completion(
             )
     except AgentError as exc:
         return _error_response(str(exc), status_code=exc.status_code)
+    except ValueError:
+        # A malformed custom provider_id fails Global ID parsing inside
+        # build_model with a raw ValueError before any AgentError can be
+        # raised; to the caller it is simply an unknown model. TODO: move
+        # this into build_model (raise ProviderNotFoundError) in a follow-up
+        # PR — that change touches the shared agents module and is gated
+        # separately by the PXI eval suite.
+        raise _unknown_model_error(body.model) from None
     messages = _to_pydantic_ai_messages(body.messages)
     # Honor settings attached to the model itself (e.g. the Anthropic
     # max_tokens floor) the same way an agent run would.
