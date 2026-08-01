@@ -40,30 +40,80 @@ describe("readDSLFilterConditionHistory", () => {
       JSON.stringify(["latency_ms > 100", 42, null])
     );
     expect(readDSLFilterConditionHistory(STORAGE_KEY)).toEqual([
-      "latency_ms > 100",
+      { condition: "latency_ms > 100" },
+    ]);
+  });
+
+  it("reads legacy bare-string entries as entries with no outcome", () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(["span_kind == 'LLM'", "latency_ms > 100"])
+    );
+    expect(readDSLFilterConditionHistory(STORAGE_KEY)).toEqual([
+      { condition: "span_kind == 'LLM'" },
+      { condition: "latency_ms > 100" },
+    ]);
+  });
+
+  it("reads object entries and keeps a valid recorded outcome", () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        { condition: "kind == 'AGENT'", lastOutcome: "warned" },
+        { condition: "status_code == 'OK'", lastOutcome: "ok" },
+        { condition: "name == 'x'", lastOutcome: "bogus" },
+        { condition: "latency_ms > 1" },
+      ])
+    );
+    expect(readDSLFilterConditionHistory(STORAGE_KEY)).toEqual([
+      { condition: "kind == 'AGENT'", lastOutcome: "warned" },
+      { condition: "status_code == 'OK'", lastOutcome: "ok" },
+      { condition: "name == 'x'" },
+      { condition: "latency_ms > 1" },
     ]);
   });
 });
 
 describe("pushDSLFilterConditionHistory", () => {
   it("adds the newest condition first", () => {
-    expect(pushDSLFilterConditionHistory(["a"], "b", 5)).toEqual(["b", "a"]);
+    expect(
+      pushDSLFilterConditionHistory([{ condition: "a" }], "b", 5)
+    ).toEqual([{ condition: "b" }, { condition: "a" }]);
   });
 
-  it("moves a repeated condition to the front instead of duplicating it", () => {
-    expect(pushDSLFilterConditionHistory(["a", "b", "c"], "b", 5)).toEqual([
-      "b",
-      "a",
-      "c",
+  it("records the outcome on the new entry when provided", () => {
+    expect(
+      pushDSLFilterConditionHistory([], "kind == 'AGENT'", 5, "warned")
+    ).toEqual([{ condition: "kind == 'AGENT'", lastOutcome: "warned" }]);
+  });
+
+  it("moves a repeated condition to the front, refreshing its outcome", () => {
+    expect(
+      pushDSLFilterConditionHistory(
+        [
+          { condition: "a" },
+          { condition: "b", lastOutcome: "warned" },
+          { condition: "c" },
+        ],
+        "b",
+        5,
+        "ok"
+      )
+    ).toEqual([
+      { condition: "b", lastOutcome: "ok" },
+      { condition: "a" },
+      { condition: "c" },
     ]);
   });
 
   it("drops the oldest entries beyond the capacity", () => {
-    expect(pushDSLFilterConditionHistory(["a", "b", "c"], "d", 3)).toEqual([
-      "d",
-      "a",
-      "b",
-    ]);
+    expect(
+      pushDSLFilterConditionHistory(
+        [{ condition: "a" }, { condition: "b" }, { condition: "c" }],
+        "d",
+        3
+      )
+    ).toEqual([{ condition: "d" }, { condition: "a" }, { condition: "b" }]);
   });
 });
 
@@ -112,7 +162,17 @@ describe("useDSLFilterConditionHistory", () => {
 
     vi.advanceTimersByTime(1);
     expect(readDSLFilterConditionHistory(STORAGE_KEY)).toEqual([
-      "status_code == 'ERROR'",
+      { condition: "status_code == 'ERROR'" },
+    ]);
+  });
+
+  it("records the applied outcome so a warned search can be flagged", () => {
+    mountHarness();
+    history.recordValidCondition("kind == 'AGENT'", "warned");
+
+    vi.advanceTimersByTime(DSL_FILTER_HISTORY_DWELL_MS);
+    expect(readDSLFilterConditionHistory(STORAGE_KEY)).toEqual([
+      { condition: "kind == 'AGENT'", lastOutcome: "warned" },
     ]);
   });
 
@@ -124,7 +184,7 @@ describe("useDSLFilterConditionHistory", () => {
 
     vi.advanceTimersByTime(DSL_FILTER_HISTORY_DWELL_MS);
     expect(readDSLFilterConditionHistory(STORAGE_KEY)).toEqual([
-      "latency_ms > 1000",
+      { condition: "latency_ms > 1000" },
     ]);
   });
 
@@ -143,7 +203,7 @@ describe("useDSLFilterConditionHistory", () => {
     unmountHarness();
 
     expect(readDSLFilterConditionHistory(STORAGE_KEY)).toEqual([
-      "span_kind == 'LLM'",
+      { condition: "span_kind == 'LLM'" },
     ]);
   });
 
@@ -160,12 +220,12 @@ describe("useDSLFilterConditionHistory", () => {
       readDSLFilterConditionHistory(
         getDSLFilterConditionHistoryStorageKey("project-a")
       )
-    ).toEqual(["latency_ms > 100"]);
+    ).toEqual([{ condition: "latency_ms > 100" }]);
     expect(
       readDSLFilterConditionHistory(
         getDSLFilterConditionHistoryStorageKey("project-b")
       )
-    ).toEqual(["status_code == 'ERROR'"]);
+    ).toEqual([{ condition: "status_code == 'ERROR'" }]);
   });
 
   it("serves recent searches through the completion source in recency order", async () => {
@@ -198,6 +258,36 @@ describe("useDSLFilterConditionHistory", () => {
         (option) => option.section === result.options[0]?.section
       )
     ).toBe(true);
+  });
+
+  it("flags a recent search whose last run carried a warning", async () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        { condition: "kind == 'AGENT'", lastOutcome: "warned" },
+        { condition: "status_code == 'ERROR'", lastOutcome: "ok" },
+      ])
+    );
+    mountHarness();
+
+    const context = {
+      pos: 0,
+      explicit: true,
+      state: { doc: { sliceString: () => "" } },
+    } as unknown as CompletionContext;
+    const result = (await history.completionSource(
+      context
+    )) as CompletionResult;
+
+    const warned = result.options.find(
+      (option) => option.label === "kind == 'AGENT'"
+    );
+    const clean = result.options.find(
+      (option) => option.label === "status_code == 'ERROR'"
+    );
+    expect(warned?.detail).toBeTruthy();
+    expect(warned?.info).toBeTruthy();
+    expect(clean?.detail).toBeUndefined();
   });
 
   it("replaces the entire field contents when a recent search is accepted", async () => {

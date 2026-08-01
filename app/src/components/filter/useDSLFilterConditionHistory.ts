@@ -40,17 +40,67 @@ export function getDSLFilterConditionHistoryStorageKey(
 }
 
 /**
- * Reads a persisted history list, tolerating missing, malformed, or foreign
- * values — history is a progressive enhancement, never an error
+ * The outcome of the last time a remembered condition was applied. `warned`
+ * means it was valid but carried an advisory diagnostic (e.g. a bare
+ * identifier that silently resolved to an attribute path); `ok` means it ran
+ * clean. Absent when the outcome was never recorded (e.g. a legacy entry).
  */
-export function readDSLFilterConditionHistory(storageKey: string): string[] {
+export type DSLFilterConditionOutcome = "ok" | "warned";
+
+/**
+ * A remembered condition plus the outcome of its last application. Stored as
+ * an object (rather than a bare string) so the typeahead can flag a recent
+ * search that previously misfired.
+ */
+export type DSLFilterConditionHistoryEntry = {
+  condition: string;
+  lastOutcome?: DSLFilterConditionOutcome;
+};
+
+function isOutcome(value: unknown): value is DSLFilterConditionOutcome {
+  return value === "ok" || value === "warned";
+}
+
+/**
+ * Coerces one persisted value into a history entry, tolerating both the legacy
+ * bare-string shape and the current object shape. Returns null for anything
+ * unrecognizable so a single bad value never poisons the list.
+ */
+function coerceHistoryEntry(
+  value: unknown
+): DSLFilterConditionHistoryEntry | null {
+  if (typeof value === "string") {
+    return { condition: value };
+  }
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  if (typeof record.condition !== "string") {
+    return null;
+  }
+  return isOutcome(record.lastOutcome)
+    ? { condition: record.condition, lastOutcome: record.lastOutcome }
+    : { condition: record.condition };
+}
+
+/**
+ * Reads a persisted history list, tolerating missing, malformed, or foreign
+ * values — history is a progressive enhancement, never an error. Legacy
+ * bare-string entries are read as entries with no recorded outcome.
+ */
+export function readDSLFilterConditionHistory(
+  storageKey: string
+): DSLFilterConditionHistoryEntry[] {
   try {
     const raw = localStorage.getItem(storageKey);
     const parsed: unknown = raw ? JSON.parse(raw) : null;
     if (!Array.isArray(parsed)) {
       return [];
     }
-    return parsed.filter((entry): entry is string => typeof entry === "string");
+    return parsed
+      .map(coerceHistoryEntry)
+      .filter((entry): entry is DSLFilterConditionHistoryEntry => entry !== null);
   } catch {
     return [];
   }
@@ -58,28 +108,33 @@ export function readDSLFilterConditionHistory(storageKey: string): string[] {
 
 /**
  * Returns the history with `condition` as its most recent entry — deduped
- * against earlier runs of the same expression and capped at `capacity`
+ * against earlier runs of the same expression and capped at `capacity`. The
+ * entry records `outcome` so the typeahead can flag a search that previously
+ * misfired.
  */
 export function pushDSLFilterConditionHistory(
-  history: string[],
+  history: DSLFilterConditionHistoryEntry[],
   condition: string,
-  capacity: number
-): string[] {
-  return [condition, ...history.filter((entry) => entry !== condition)].slice(
-    0,
-    capacity
-  );
+  capacity: number,
+  outcome?: DSLFilterConditionOutcome
+): DSLFilterConditionHistoryEntry[] {
+  return [
+    { condition, ...(outcome ? { lastOutcome: outcome } : {}) },
+    ...history.filter((entry) => entry.condition !== condition),
+  ].slice(0, capacity);
 }
 
 function commitConditionToHistory(
   storageKey: string,
   condition: string,
-  capacity: number
+  capacity: number,
+  outcome?: DSLFilterConditionOutcome
 ) {
   const history = pushDSLFilterConditionHistory(
     readDSLFilterConditionHistory(storageKey),
     condition,
-    capacity
+    capacity,
+    outcome
   );
   try {
     localStorage.setItem(storageKey, JSON.stringify(history));
@@ -113,9 +168,13 @@ export type DSLFilterConditionHistory = {
    * condition is committed to history only after it stays applied for a
    * short dwell (or the hook unmounts with it applied), so the intermediate
    * expressions hit while typing don't pollute the list. An empty condition
-   * discards whatever is pending.
+   * discards whatever is pending. Pass `outcome` to remember whether the
+   * condition ran clean or carried an advisory warning.
    */
-  recordValidCondition: (condition: string) => void;
+  recordValidCondition: (
+    condition: string,
+    outcome?: DSLFilterConditionOutcome
+  ) => void;
 };
 
 /**
@@ -137,8 +196,8 @@ export function useDSLFilterConditionHistory({
   // (`latency_ms > 1` on the way to `latency_ms > 1000`) is never committed
   const commitAfterDwell = useMemo(
     () =>
-      debounce((condition: string) => {
-        commitConditionToHistory(storageKey, condition, capacity);
+      debounce((condition: string, outcome?: DSLFilterConditionOutcome) => {
+        commitConditionToHistory(storageKey, condition, capacity, outcome);
       }, DSL_FILTER_HISTORY_DWELL_MS),
     [storageKey, capacity]
   );
@@ -149,7 +208,7 @@ export function useDSLFilterConditionHistory({
   useEffect(() => () => commitAfterDwell.flush(), [commitAfterDwell]);
 
   const recordValidCondition = useCallback(
-    (condition: string) => {
+    (condition: string, outcome?: DSLFilterConditionOutcome) => {
       const trimmed = condition.trim();
       if (trimmed === "") {
         // The field was cleared — whatever was pending was a stepping
@@ -157,7 +216,7 @@ export function useDSLFilterConditionHistory({
         commitAfterDwell.cancel();
         return;
       }
-      commitAfterDwell(trimmed);
+      commitAfterDwell(trimmed, outcome);
     },
     [commitAfterDwell]
   );
@@ -168,28 +227,41 @@ export function useDSLFilterConditionHistory({
       // the latest history, including entries committed by a sibling field
       // sharing the same key (e.g. the spans and traces tabs)
       createDSLFilterCompletionSource(() =>
-        readDSLFilterConditionHistory(storageKey).map((condition, index) => ({
-          label: condition,
-          type: "recent-search",
-          section: recentSearchesSection,
-          // Recency order — without a boost CodeMirror sorts a section's
-          // equally-scored options alphabetically
-          boost: -index,
-          // The label is a full expression, not a token — the default apply
-          // would splice it in at the token before the cursor, corrupting
-          // whatever is already typed. Replace the whole document instead.
-          apply: (view) => {
-            view.dispatch({
-              changes: {
-                from: 0,
-                to: view.state.doc.length,
-                insert: condition,
-              },
-              selection: { anchor: condition.length },
-              userEvent: "input.complete",
-            });
-          },
-        }))
+        readDSLFilterConditionHistory(storageKey).map((entry, index) => {
+          const { condition, lastOutcome } = entry;
+          const warned = lastOutcome === "warned";
+          return {
+            label: condition,
+            type: "recent-search",
+            section: recentSearchesSection,
+            // Flag a recent search that last ran with an advisory warning, so
+            // the user isn't nudged back toward an expression that silently
+            // matched nothing. `detail` renders as dimmed text after the label.
+            ...(warned
+              ? {
+                  detail: "⚠ unrecognized field",
+                  info: "The last time this ran it referenced a field Phoenix didn't recognize, so it may not match what you expect.",
+                }
+              : {}),
+            // Recency order — without a boost CodeMirror sorts a section's
+            // equally-scored options alphabetically
+            boost: -index,
+            // The label is a full expression, not a token — the default apply
+            // would splice it in at the token before the cursor, corrupting
+            // whatever is already typed. Replace the whole document instead.
+            apply: (view) => {
+              view.dispatch({
+                changes: {
+                  from: 0,
+                  to: view.state.doc.length,
+                  insert: condition,
+                },
+                selection: { anchor: condition.length },
+                userEvent: "input.complete",
+              });
+            },
+          };
+        })
       ),
     [storageKey]
   );

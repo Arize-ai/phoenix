@@ -348,7 +348,10 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       // URL's condition -- recording it would stamp text the user never typed
       // into one of the few history slots on every visit.
       if (!isInitialSettlement) {
-        recordValidCondition(condition);
+        recordValidCondition(
+          condition,
+          (validationResult?.warnings.length ?? 0) > 0 ? "warned" : "ok"
+        );
       }
       // A null validation result means the condition was empty, which the
       // field resolves without asking the server. An empty condition restricts
