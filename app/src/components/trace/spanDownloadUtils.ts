@@ -121,7 +121,9 @@ function toDownloadError({
  * Rejects with the first error and stops handing out further items.
  * @param params.items - work items, consumed in order
  * @param params.concurrency - maximum number of concurrent `run` calls
- * @param params.run - the work to perform for a single item
+ * @param params.run - the work to perform for a single item. Receives
+ *   `hasFailed` so work that outlives a sibling's failure can bail out early
+ *   instead of running to completion against a doomed export.
  */
 async function runWithConcurrency<Item>({
   items,
@@ -130,16 +132,17 @@ async function runWithConcurrency<Item>({
 }: {
   items: Item[];
   concurrency: number;
-  run: (item: Item) => Promise<void>;
+  run: (item: Item, hasFailed: () => boolean) => Promise<void>;
 }): Promise<void> {
   let nextIndex = 0;
   let hasFailed = false;
+  const getHasFailed = () => hasFailed;
   const runWorker = async () => {
     while (!hasFailed && nextIndex < items.length) {
       const item = items[nextIndex];
       nextIndex += 1;
       try {
-        await run(item);
+        await run(item, getHasFailed);
       } catch (error) {
         hasFailed = true;
         throw error;
@@ -176,7 +179,7 @@ async function fetchSpans<Span>({
   await runWithConcurrency({
     items: chunk(idList, batchSize),
     concurrency: ID_BATCH_CONCURRENCY,
-    run: async (batch: string[]) => {
+    run: async (batch: string[], hasFailed) => {
       let cursor: string | null = null;
       do {
         const page = await fetchPage({
@@ -186,7 +189,9 @@ async function fetchSpans<Span>({
         });
         await onPage(page.data);
         cursor = page.next_cursor ?? null;
-      } while (cursor);
+        // Another batch failing abandons the whole export, so there is no
+        // point paginating this one to the end.
+      } while (cursor && !hasFailed());
     },
   });
 }
@@ -278,9 +283,9 @@ function createOtlpSpanFormat({
  * the last span is known.
  *
  * A trace's spans can straddle pages, so `emittedTraceIds` records which
- * traces have already had their trace-level annotations written and suppresses
- * them everywhere else — the annotations land on the first page carrying that
- * trace, preferring a root span within that page.
+ * traces have already had their trace-level annotations written. The
+ * annotations land on the first page carrying that trace, preferring a root
+ * span within that page.
  *
  * @param params.emittedTraceIds - mutated in place; shared across the export
  */
@@ -298,30 +303,40 @@ async function attachAnnotationsToPage<Span>({
   emittedTraceIds: Set<string>;
 } & SpanDownloadIncludeAnnotations): Promise<Span[]> {
   const targets = spans.map(exportFormat.getTarget);
-  const lookup = await fetchAnnotationsForTargets({
-    projectId,
-    targets: targets.filter(
-      (target): target is SpanAnnotationTarget => target != null
-    ),
-    includeSpanAnnotations,
-    includeTraceAnnotations,
-  });
-  // Claiming the traces has to stay synchronous with applying them, otherwise
-  // a concurrently fetched page could claim the same trace.
-  const traceAnnotationsByTraceId = new Map(
-    [...lookup.traceAnnotationsByTraceId].filter(
-      ([traceId]) => !emittedTraceIds.has(traceId)
-    )
+  const presentTargets = targets.filter(
+    (target): target is SpanAnnotationTarget => target != null
   );
-  for (const traceId of traceAnnotationsByTraceId.keys()) {
-    emittedTraceIds.add(traceId);
+  // Claim traces before awaiting anything. A trace's annotations do not depend
+  // on which page asked for them, so only the page that claims a trace needs
+  // to fetch them — every later page it appears on skips the request outright.
+  // Claiming synchronously is also what stops two concurrently processed pages
+  // from both emitting the same trace's annotations.
+  const carrierTargets = includeTraceAnnotations
+    ? presentTargets.filter((target) => !emittedTraceIds.has(target.traceId))
+    : [];
+  for (const target of carrierTargets) {
+    emittedTraceIds.add(target.traceId);
   }
+  const [spanLookup, traceLookup] = await Promise.all([
+    fetchAnnotationsForTargets({
+      projectId,
+      targets: presentTargets,
+      includeSpanAnnotations,
+      includeTraceAnnotations: false,
+    }),
+    fetchAnnotationsForTargets({
+      projectId,
+      targets: carrierTargets,
+      includeSpanAnnotations: false,
+      includeTraceAnnotations,
+    }),
+  ]);
   return applyAnnotationsToSpans({
     spans,
     targets,
     lookup: {
-      spanAnnotationsBySpanId: lookup.spanAnnotationsBySpanId,
-      traceAnnotationsByTraceId,
+      spanAnnotationsBySpanId: spanLookup.spanAnnotationsBySpanId,
+      traceAnnotationsByTraceId: traceLookup.traceAnnotationsByTraceId,
     },
     withAnnotations: exportFormat.withAnnotations,
   });
@@ -418,25 +433,137 @@ async function openSpanExportWriter({
     showSaveFilePicker?: ShowSaveFilePicker;
   };
   if (windowWithPicker.showSaveFilePicker != null) {
+    let fileHandle;
     try {
-      const fileHandle = await windowWithPicker.showSaveFilePicker({
+      fileHandle = await windowWithPicker.showSaveFilePicker({
         suggestedName: fileName,
       });
-      const writable = await fileHandle.createWritable();
-      return {
-        write: (text) => writable.write(text),
-        close: () => writable.close(),
-        // A failed cleanup must not mask the error that triggered it.
-        abort: () => writable.abort().catch(() => {}),
-      };
     } catch (error) {
       if (isAbortError(error)) {
         return null;
       }
-      // Any other picker failure degrades to the in-memory fallback.
+      // The picker never opened, so nothing has been created on disk and the
+      // in-memory fallback is still the download the user asked for.
+      return createBlobExportWriter({ fileName, mimeType });
     }
+    // Past this point the user has committed to a location and the browser has
+    // created the file there. Degrading to a blob would leave that file empty
+    // and quietly save the export somewhere else, so failures have to surface.
+    const writable = await fileHandle.createWritable();
+    return {
+      write: (text) => writable.write(text),
+      close: () => writable.close(),
+      // A failed cleanup must not mask the error that triggered it.
+      abort: () => writable.abort().catch(() => {}),
+    };
   }
   return createBlobExportWriter({ fileName, mimeType });
+}
+
+/**
+ * Turns pages of spans into export text.
+ *
+ * `serializePage` is called synchronously in write order, so a serializer may
+ * carry mutable framing state — such as whether a separator is due — across
+ * pages that arrive from concurrent batches.
+ */
+type SpanExportSerializer<Span> = {
+  /** Written before the first page, if the format needs an opening. */
+  prefix?: string;
+  serializePage: (spans: Span[]) => string;
+  /** Written after the last page, if the format needs a closing. */
+  suffix?: string;
+};
+
+/** One span per line, so pages need no framing of their own. */
+function createJsonlSerializer(): SpanExportSerializer<PhoenixSpan> {
+  return {
+    // Built in a single pass rather than `map(...).join(...)`, which would
+    // hold a per-span array alongside the flattened result.
+    serializePage: (spans) => {
+      let text = "";
+      for (const span of spans) {
+        text += `${JSON.stringify(span)}\n`;
+      }
+      return text;
+    },
+  };
+}
+
+/** One `ExportTraceServiceRequest` whose span array is filled in page by page. */
+function createOtlpJsonSerializer(): SpanExportSerializer<OtlpSpan> {
+  let hasWrittenSpan = false;
+  return {
+    prefix: OTLP_ENVELOPE_PREFIX,
+    serializePage: (spans) => {
+      let text = "";
+      for (const span of spans) {
+        text += hasWrittenSpan
+          ? `,${JSON.stringify(span)}`
+          : JSON.stringify(span);
+        hasWrittenSpan = true;
+      }
+      return text;
+    },
+    suffix: OTLP_ENVELOPE_SUFFIX,
+  };
+}
+
+/**
+ * Fetches, annotates, serializes and writes every page of one export.
+ *
+ * Serializing and writing a page happen in one synchronous step, so pages
+ * arriving from concurrent ID batches keep their framing and their order in
+ * step with the running span count.
+ */
+async function streamSpanExport<Span>({
+  projectId,
+  spanIds,
+  traceIds,
+  exportFormat,
+  serializer,
+  writer,
+  onProgress,
+  includeSpanAnnotations,
+  includeTraceAnnotations,
+}: {
+  projectId: string;
+  spanIds?: string[];
+  traceIds?: string[];
+  exportFormat: SpanExportFormat<Span>;
+  serializer: SpanExportSerializer<Span>;
+  writer: SpanExportWriter;
+  onProgress?: (spanCount: number) => void;
+} & SpanDownloadIncludeAnnotations): Promise<void> {
+  let spanCount = 0;
+  const emittedTraceIds = new Set<string>();
+  if (serializer.prefix != null) {
+    await writer.write(serializer.prefix);
+  }
+  await fetchSpans<Span>({
+    spanIds,
+    traceIds,
+    fetchPage: exportFormat.fetchPage,
+    onPage: async (spans) => {
+      if (spans.length === 0) {
+        return;
+      }
+      const annotatedSpans = await attachAnnotationsToPage({
+        projectId,
+        spans,
+        exportFormat,
+        emittedTraceIds,
+        includeSpanAnnotations,
+        includeTraceAnnotations,
+      });
+      spanCount += annotatedSpans.length;
+      await writer.write(serializer.serializePage(annotatedSpans));
+      onProgress?.(spanCount);
+    },
+  });
+  if (serializer.suffix != null) {
+    await writer.write(serializer.suffix);
+  }
 }
 
 /**
@@ -477,86 +604,36 @@ export async function downloadSpanCollection({
   if (writer == null) {
     return "cancelled";
   }
-  let spanCount = 0;
-  const emittedTraceIds = new Set<string>();
-  const annotationOptions = {
+  const shared = {
     projectId,
-    emittedTraceIds,
+    spanIds,
+    traceIds,
+    writer,
+    onProgress,
     includeSpanAnnotations,
     includeTraceAnnotations,
   };
-  // Both formats append through this so the running count and the progress
-  // callback stay in step. Each page is built in a single pass rather than
-  // `map(...).join(...)`, which would hold a per-span array alongside the
-  // flattened result.
-  const writePage = async ({
-    text,
-    pageSpanCount,
-  }: {
-    text: string;
-    pageSpanCount: number;
-  }) => {
-    spanCount += pageSpanCount;
-    await writer.write(text);
-    onProgress?.(spanCount);
-  };
   try {
     if (format === "jsonl") {
-      const exportFormat = createPhoenixSpanFormat({ projectId });
-      await fetchSpans<PhoenixSpan>({
-        spanIds,
-        traceIds,
-        fetchPage: exportFormat.fetchPage,
-        onPage: async (spans) => {
-          if (spans.length === 0) {
-            return;
-          }
-          const annotatedSpans = await attachAnnotationsToPage({
-            ...annotationOptions,
-            spans,
-            exportFormat,
-          });
-          let text = "";
-          for (const span of annotatedSpans) {
-            text += `${JSON.stringify(span)}\n`;
-          }
-          await writePage({ text, pageSpanCount: annotatedSpans.length });
-        },
+      await streamSpanExport({
+        ...shared,
+        exportFormat: createPhoenixSpanFormat({ projectId }),
+        serializer: createJsonlSerializer(),
       });
     } else {
-      const exportFormat = createOtlpSpanFormat({ projectId });
-      await writer.write(OTLP_ENVELOPE_PREFIX);
-      let hasWrittenSpan = false;
-      await fetchSpans<OtlpSpan>({
-        spanIds,
-        traceIds,
-        fetchPage: exportFormat.fetchPage,
-        onPage: async (spans) => {
-          if (spans.length === 0) {
-            return;
-          }
-          const annotatedSpans = await attachAnnotationsToPage({
-            ...annotationOptions,
-            spans,
-            exportFormat,
-          });
-          let text = "";
-          for (const span of annotatedSpans) {
-            text += hasWrittenSpan
-              ? `,${JSON.stringify(span)}`
-              : JSON.stringify(span);
-            hasWrittenSpan = true;
-          }
-          await writePage({ text, pageSpanCount: annotatedSpans.length });
-        },
+      await streamSpanExport({
+        ...shared,
+        exportFormat: createOtlpSpanFormat({ projectId }),
+        serializer: createOtlpJsonSerializer(),
       });
-      await writer.write(OTLP_ENVELOPE_SUFFIX);
     }
+    // Closing is part of the export: a failure while flushing would otherwise
+    // leave a truncated file behind with nothing to clean it up.
+    await writer.close();
   } catch (error) {
     await writer.abort();
     throw error;
   }
-  await writer.close();
   return "completed";
 }
 

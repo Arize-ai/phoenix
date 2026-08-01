@@ -512,8 +512,7 @@ describe("spanDownloadUtils", () => {
         okPage({ spans: [childSpan], nextCursor: "cursor-1" })
       )
       .mockResolvedValueOnce(okPage({ spans: [traceAnnotation] }))
-      .mockResolvedValueOnce(okPage({ spans: [rootSpan] }))
-      .mockResolvedValueOnce(okPage({ spans: [traceAnnotation] }));
+      .mockResolvedValueOnce(okPage({ spans: [rootSpan] }));
 
     await downloadSpanCollection({
       projectId: "project-id",
@@ -524,6 +523,13 @@ describe("spanDownloadUtils", () => {
       includeTraceAnnotations: true,
     });
 
+    // Having claimed the trace, the second page skips the request entirely
+    // instead of re-fetching annotations it would only discard.
+    expect(
+      apiGet.mock.calls.filter(([route]) =>
+        String(route).endsWith("/trace_annotations")
+      )
+    ).toHaveLength(1);
     // The first page to carry the trace wins, so the later root span goes out
     // unannotated rather than repeating the trace annotation.
     const [exportedChild, exportedRoot] = (await readBlob(getDownloadedBlob()))
@@ -540,6 +546,32 @@ describe("spanDownloadUtils", () => {
       })
     );
     expect(exportedRoot).toBe(JSON.stringify(rootSpan));
+  });
+
+  it("frames a multi-page OTLP export as a single span array", async () => {
+    const firstSpan = { span_id: "span-1", trace_id: "trace-id" };
+    const secondSpan = { span_id: "span-2", trace_id: "trace-id" };
+    apiGet
+      .mockResolvedValueOnce(
+        okPage({ spans: [firstSpan], nextCursor: "cursor-1" })
+      )
+      .mockResolvedValueOnce(okPage({ spans: [secondSpan] }));
+
+    await downloadSpanCollection({
+      projectId: "project-id",
+      traceIds: ["trace-id"],
+      format: "otlp-json",
+      fileName: "trace.json",
+      ...withoutAnnotations,
+    });
+
+    // The separator between pages is the export's only cross-page state, so a
+    // second page must extend the array rather than restart or double-comma it.
+    await expect(readBlob(getDownloadedBlob())).resolves.toBe(
+      JSON.stringify({
+        resource_spans: [{ scope_spans: [{ spans: [firstSpan, secondSpan] }] }],
+      })
+    );
   });
 
   it("batches span IDs 250 at a time and trace IDs 125 at a time", async () => {
