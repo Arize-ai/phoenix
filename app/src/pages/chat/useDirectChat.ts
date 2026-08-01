@@ -219,7 +219,16 @@ export function useDirectChat() {
 
   /** Aborts the in-flight completion, keeping any partial response. */
   const stop = () => {
-    abortControllerRef.current?.abort();
+    const controller = abortControllerRef.current;
+    if (!controller) {
+      return;
+    }
+    controller.abort();
+    // Settle immediately instead of waiting for the aborted stream to unwind:
+    // when the abort lands before the first chunk, the SDK's text stream can
+    // hang on its first read and would leave the UI stuck on "submitted".
+    // The run's own state writes are guarded, so a late unwind is a no-op.
+    setStatus("ready");
   };
 
   /** Discards the conversation and settles back to an empty, ready chat. */
