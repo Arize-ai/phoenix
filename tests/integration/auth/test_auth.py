@@ -2078,8 +2078,13 @@ class TestApiAccessViaCookiesOrApiKeys:
                         f"for {method} {endpoint}"
                     )
 
-            # Test 4: User credential self-service is available to every human role.
-            for expected_status_code, method, endpoint in _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS:
+            # Test 4: Operations available to every role — credential
+            # self-service and viewer-allowed writes (e.g. the LLM proxy) —
+            # except session-only credential issuance, which API keys cannot use.
+            for expected_status_code, method, endpoint in (
+                *_VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
+                *_VIEWER_ALLOWED_WRITE_OPERATIONS,
+            ):
                 if (
                     is_api_key
                     and (
@@ -2089,16 +2094,6 @@ class TestApiAccessViaCookiesOrApiKeys:
                     in _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS
                 ):
                     expected_status_code = 403
-                endpoint = endpoint.format(token_hex(4))
-                response = client.request(method, endpoint)
-                assert response.status_code == expected_status_code, (
-                    f"Expected {expected_status_code} but got {response.status_code} "
-                    f"for {method} {endpoint}"
-                )
-
-            # Test 5: Viewer-allowed writes (e.g. the LLM proxy) accept every
-            # authenticated principal, API keys included.
-            for expected_status_code, method, endpoint in _VIEWER_ALLOWED_WRITE_OPERATIONS:
                 endpoint = endpoint.format(token_hex(4))
                 response = client.request(method, endpoint)
                 assert response.status_code == expected_status_code, (

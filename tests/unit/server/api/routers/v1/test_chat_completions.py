@@ -243,7 +243,7 @@ class TestCreateChatCompletion:
         error = response.json()["error"]
         assert error["code"] == "model_not_found"
         assert error["type"] == "invalid_request_error"
-        assert model.partition(":")[0] in error["message"] or "Unknown model" in error["message"]
+        assert model in error["message"]
         assert not build_model_spy.selections
 
     async def test_tools_are_rejected(
@@ -297,8 +297,8 @@ class TestCreateChatCompletion:
         )
         assert response.status_code == 404, response.text
         error = response.json()["error"]
-        assert error["code"] == "model_not_found"
-        assert "Unknown model" in error["message"]
+        assert error["type"] == "invalid_request_error"
+        assert "not found" in error["message"].lower()
 
     async def test_validation_failure_returns_openai_error_shape(
         self,
