@@ -177,6 +177,14 @@ function SideNav({ isExpanded }: { isExpanded: boolean }) {
           <li key="search">
             <GlobalSearch isExpanded={isExpanded} />
           </li>
+          <li key="home">
+            <NavLink
+              to="/home"
+              text="Home"
+              leadingVisual={<Icon svg={<Icons.Rocket />} />}
+              isExpanded={isExpanded}
+            />
+          </li>
           <li>
             <NavLink
               to="/projects"
