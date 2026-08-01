@@ -1,4 +1,30 @@
+from typing import Optional
+
 import strawberry
+
+
+@strawberry.type
+class FilterConditionWarning:
+    """A non-blocking diagnostic about an otherwise-valid span filter condition.
+
+    Emitted for a bare identifier that resolves to a JSON attribute path rather
+    than a span field -- the silent `kind == 'AGENT'` -> `attributes['kind']`
+    footgun. The condition is valid and runs; the warning explains why it may
+    match nothing and, when a field name is close, suggests one. Advisory only:
+    a client may surface it but must not treat it as a validation failure.
+    """
+
+    message: str = strawberry.field(
+        description="A user-safe explanation of how the identifier is interpreted."
+    )
+    identifier: str = strawberry.field(
+        description="The bare identifier that resolved to an attribute path."
+    )
+    suggestion: Optional[str] = strawberry.field(
+        description=(
+            "The closest span field name, if one is close enough to recommend; otherwise null."
+        )
+    )
 
 
 @strawberry.type
@@ -24,4 +50,13 @@ class SpanFilterConditionAnalysis:
             "binds every row the condition can match. `true` is a guarantee; `false` "
             "means not established, not that non-root spans are admitted."
         )
+    )
+    warnings: list[FilterConditionWarning] = strawberry.field(
+        default_factory=list,
+        description=(
+            "Advisory diagnostics for a valid condition -- notably bare identifiers "
+            "that resolve to attribute paths (`kind` -> `attributes['kind']`) and so "
+            "silently match nothing. Empty for an empty or invalid condition; an "
+            "invalid one is reported by `validateSpanFilterCondition` instead."
+        ),
     )

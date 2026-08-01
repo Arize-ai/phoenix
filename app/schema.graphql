@@ -2071,6 +2071,19 @@ type FailureDetail {
   errorType: String!
 }
 
+type FilterConditionWarning {
+  """A user-safe explanation of how the identifier is interpreted."""
+  message: String!
+
+  """The bare identifier that resolved to an attribute path."""
+  identifier: String!
+
+  """
+  The closest span field name, if one is close enough to recommend; otherwise null.
+  """
+  suggestion: String
+}
+
 type FreeformAnnotationConfig implements Node & AnnotationConfigBase {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -4199,6 +4212,11 @@ type SpanFilterConditionAnalysis {
   Whether a root predicate (`parent_span is None` or `parent_id is None`) binds every row the condition can match. `true` is a guarantee; `false` means not established, not that non-root spans are admitted.
   """
   selectsRootSpansOnly: Boolean!
+
+  """
+  Advisory diagnostics for a valid condition -- notably bare identifiers that resolve to attribute paths (`kind` -> `attributes['kind']`) and so silently match nothing. Empty for an empty or invalid condition; an invalid one is reported by `validateSpanFilterCondition` instead.
+  """
+  warnings: [FilterConditionWarning!]!
 }
 
 type SpanIOValue {

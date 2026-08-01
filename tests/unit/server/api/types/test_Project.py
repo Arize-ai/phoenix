@@ -3127,6 +3127,39 @@ class TestProject:
         )
         assert scoped_ids == {e["node"]["id"] for e in flag_res["edges"]}
 
+    async def test_analyze_span_filter_condition_warns_on_bare_identifier(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """A bare identifier that resolves to an attribute path (`kind` ->
+        `attributes['kind']`) is valid and runs, but silently matches nothing.
+        `analyzeSpanFilterCondition` surfaces that as an advisory warning with a
+        field suggestion, without reporting the condition invalid.
+        """
+        project = _orphan_spans.projects[0]
+
+        async def warnings(condition: str) -> list[dict[str, object]]:
+            result = await self._node(
+                f'analyzeSpanFilterCondition(condition:"{condition}")'
+                "{warnings{message identifier suggestion}}",
+                project,
+                httpx_client,
+            )
+            return list(result["warnings"])
+
+        bare = await warnings("kind == 'AGENT'")
+        assert len(bare) == 1
+        assert bare[0]["identifier"] == "kind"
+        assert bare[0]["suggestion"] == "span_kind"
+        assert "span_kind" in str(bare[0]["message"])
+
+        # A real field, an explicit attribute path, and an empty condition are
+        # all unremarkable -- no advisory noise.
+        assert await warnings("span_kind == 'AGENT'") == []
+        assert await warnings("attributes['kind'] == 'AGENT'") == []
+        assert await warnings("") == []
+
     @pytest.fixture
     async def _time_series_data(
         self,

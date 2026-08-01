@@ -52,6 +52,7 @@ from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.SpanFilterConditionAnalysis import (
+    FilterConditionWarning,
     SpanFilterConditionAnalysis,
 )
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
@@ -60,7 +61,11 @@ from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter, SpanFilterError
-from phoenix.trace.dsl.filter import RootSpanScope, root_span_scope
+from phoenix.trace.dsl.filter import (
+    RootSpanScope,
+    collect_filter_condition_warnings,
+    root_span_scope,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1136,6 +1141,14 @@ class Project(Node):
     ) -> SpanFilterConditionAnalysis:
         return SpanFilterConditionAnalysis(
             selects_root_spans_only=root_span_scope(condition) is not None,
+            warnings=[
+                FilterConditionWarning(
+                    message=warning.message,
+                    identifier=warning.identifier,
+                    suggestion=warning.suggestion,
+                )
+                for warning in collect_filter_condition_warnings(condition)
+            ],
         )
 
     @strawberry.field
