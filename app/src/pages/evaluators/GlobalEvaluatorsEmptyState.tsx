@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 
@@ -13,6 +14,9 @@ import {
   Icons,
   Link,
   Text,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
@@ -86,6 +90,13 @@ const stepContentCSS = css`
 const datasetSelectWrapperCSS = css`
   max-width: 320px;
   width: 100%;
+`;
+
+// Wraps a disabled CTA so the tooltip trigger has a hoverable/focusable host.
+// Natively disabled buttons don't emit pointer events, so the tooltip is
+// attached to this focusable span instead.
+const inactiveCtaWrapperCSS = css`
+  display: inline-flex;
 `;
 
 /**
@@ -561,6 +572,14 @@ const EvaluatorsQuickstart = () => {
     data.modelProviders.some((provider) => provider.credentialsSet);
   const hasDataset = selectedDatasetId != null;
 
+  // The LLM evaluator CTA requires both a dataset and a real model API key. When
+  // inactive, this reason is surfaced in a tooltip on the disabled button.
+  const llmEvaluatorDisabledReason = !hasDataset
+    ? "Select a dataset to continue"
+    : !hasApiKey
+      ? "At least one API key is required"
+      : null;
+
   const openDatasetEvaluators = (createParam: string) => {
     if (!selectedDatasetId) {
       return;
@@ -667,7 +686,40 @@ const EvaluatorsQuickstart = () => {
             )}
           </ChecklistStep>
 
-          <ChecklistStep index={3} isComplete={false} title="Add an evaluator">
+          <ChecklistStep
+            index={3}
+            isComplete={false}
+            title={
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <Text weight="heavy">Create a playground prompt</Text>
+                <Text size="XS" color="text-500">
+                  optional
+                </Text>
+              </Flex>
+            }
+          >
+            <Text size="S" color="text-700">
+              Build and save a prompt in the Playground, then reuse it as the
+              template for an LLM evaluator instead of writing one from scratch.
+            </Text>
+            <Flex direction="row">
+              <Button
+                size="S"
+                isDisabled={!hasUsableModelProvider}
+                leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+                onClick={() => navigate("/playground")}
+              >
+                Open Playground
+              </Button>
+            </Flex>
+            {!hasUsableModelProvider && (
+              <Text size="XS" color="text-500">
+                Configure a model provider above to use the Playground.
+              </Text>
+            )}
+          </ChecklistStep>
+
+          <ChecklistStep index={4} isComplete={false} title="Add an evaluator">
             <Text size="S" color="text-700">
               Create a code or LLM evaluator on your selected dataset.
             </Text>
@@ -683,26 +735,46 @@ const EvaluatorsQuickstart = () => {
               >
                 Code evaluator
               </Button>
-              <Button
-                variant="primary"
-                size="S"
-                isDisabled={!hasDataset || !hasUsableModelProvider}
-                leadingVisual={<Icon svg={<Icons.LLMOutput />} />}
-                onClick={() =>
-                  openDatasetEvaluators(CREATE_LLM_EVALUATOR_PARAM)
-                }
-              >
-                LLM evaluator
-              </Button>
+              {llmEvaluatorDisabledReason ? (
+                <TooltipTrigger delay={0} closeDelay={0}>
+                  <Focusable>
+                    <span css={inactiveCtaWrapperCSS}>
+                      <Button
+                        variant="primary"
+                        size="S"
+                        isDisabled
+                        leadingVisual={<Icon svg={<Icons.LLMOutput />} />}
+                      >
+                        LLM evaluator
+                      </Button>
+                    </span>
+                  </Focusable>
+                  <Tooltip placement="bottom" offset={5}>
+                    <TooltipArrow />
+                    {llmEvaluatorDisabledReason}
+                  </Tooltip>
+                </TooltipTrigger>
+              ) : (
+                <Button
+                  variant="primary"
+                  size="S"
+                  leadingVisual={<Icon svg={<Icons.LLMOutput />} />}
+                  onClick={() =>
+                    openDatasetEvaluators(CREATE_LLM_EVALUATOR_PARAM)
+                  }
+                >
+                  LLM evaluator
+                </Button>
+              )}
             </Flex>
             {!hasDataset && (
               <Text size="XS" color="text-500">
                 Pick a dataset above to continue.
               </Text>
             )}
-            {hasDataset && !hasUsableModelProvider && (
+            {hasDataset && !hasApiKey && (
               <Text size="XS" color="text-500">
-                Configure a model provider above to enable LLM evaluators.
+                Add a model API key above to enable LLM evaluators.
               </Text>
             )}
           </ChecklistStep>
