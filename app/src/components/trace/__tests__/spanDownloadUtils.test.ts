@@ -195,6 +195,8 @@ describe("spanDownloadUtils", () => {
       traceIds: ["trace-id"],
       format: "jsonl",
       fileName: "trace.jsonl",
+      includeSpanAnnotations: true,
+      includeTraceAnnotations: true,
     });
 
     expect(authApiFetch.GET).toHaveBeenNthCalledWith(
@@ -298,6 +300,8 @@ describe("spanDownloadUtils", () => {
       traceIds: ["trace-id"],
       format: "otlp-json",
       fileName: "trace.json",
+      includeSpanAnnotations: true,
+      includeTraceAnnotations: true,
     });
 
     await expect(readBlob(getDownloadedBlob())).resolves.toBe(
@@ -394,6 +398,7 @@ describe("spanDownloadUtils", () => {
       format: "jsonl",
       fileName: "trace.jsonl",
       includeSpanAnnotations: false,
+      includeTraceAnnotations: true,
     });
 
     const [exportedChild, exportedRoot] = (await readBlob(getDownloadedBlob()))

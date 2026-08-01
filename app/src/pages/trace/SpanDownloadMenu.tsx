@@ -59,6 +59,8 @@ export function SpanDownloadMenu({
         spanId,
         format,
         fileName: `${safeTraceId}-span-${spanId}${formatSuffix}-${timestamp}.json`,
+        includeSpanAnnotations: true,
+        includeTraceAnnotations: true,
       });
     } catch (error) {
       setDownloadError(
