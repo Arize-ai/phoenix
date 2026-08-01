@@ -35,6 +35,7 @@ import {
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
+import { providerRequiresCredentials } from "@phoenix/components/generative/modelProviderUtils";
 import { useModelMenuData } from "@phoenix/components/generative/useModelMenuData";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
@@ -294,19 +295,48 @@ function EnabledChatPage() {
 
 /**
  * Picks the model the chat starts on: the last-used model when one was
- * saved, otherwise the first model available to this deployment.
+ * saved, otherwise the first model this deployment can actually run.
+ * Preference order reflects how deliberate the configuration is:
+ * providers with credentials explicitly set, then stored custom providers,
+ * then zero-credential providers that merely report ready (e.g. Ollama,
+ * which still needs a base URL on the server), then anything installed.
  */
 function getDefaultModel({
   availableBuiltinModels,
   availableCustomModels,
+  visibleProviders,
 }: Pick<
   ReturnType<typeof useModelMenuData>,
-  "availableBuiltinModels" | "availableCustomModels"
+  "availableBuiltinModels" | "availableCustomModels" | "visibleProviders"
 >): ModelMenuValue | null {
-  const builtin = availableBuiltinModels[0];
-  if (builtin) {
-    return { provider: builtin.provider, modelName: builtin.modelName };
+  const toValue = (model: {
+    provider: ModelMenuValue["provider"];
+    modelName: string;
+  }): ModelMenuValue => ({
+    provider: model.provider,
+    modelName: model.modelName,
+  });
+
+  // credentialsSet alone can't rank providers: it is vacuously true for
+  // zero-credential providers like Ollama, which still need server-side
+  // configuration (a base URL) to actually answer.
+  const provisionedProviderKeys = new Set<string>(
+    visibleProviders
+      .filter(
+        (provider) =>
+          provider.dependenciesInstalled &&
+          provider.credentialsSet &&
+          providerRequiresCredentials({ providerKey: provider.key })
+      )
+      .map((provider) => provider.key)
+  );
+  const provisionedBuiltin = availableBuiltinModels.find((model) =>
+    provisionedProviderKeys.has(model.provider)
+  );
+  if (provisionedBuiltin) {
+    return toValue(provisionedBuiltin);
   }
+
   const custom = availableCustomModels[0];
   if (custom) {
     return {
@@ -318,17 +348,36 @@ function getDefaultModel({
       },
     };
   }
-  return null;
+
+  const readyProviderKeys = new Set<string>(
+    visibleProviders
+      .filter((provider) => provider.dependenciesInstalled)
+      .map((provider) => provider.key)
+  );
+  const readyBuiltin = availableBuiltinModels.find((model) =>
+    readyProviderKeys.has(model.provider)
+  );
+  if (readyBuiltin) {
+    return toValue(readyBuiltin);
+  }
+
+  const builtin = availableBuiltinModels[0];
+  return builtin ? toValue(builtin) : null;
 }
 
 function ChatSurface() {
-  const { availableBuiltinModels, availableCustomModels } = useModelMenuData();
+  const { availableBuiltinModels, availableCustomModels, visibleProviders } =
+    useModelMenuData();
   const [selectedModel, setSelectedModel] = useState<ModelMenuValue | null>(
     getStoredChatModel
   );
   const model =
     selectedModel ??
-    getDefaultModel({ availableBuiltinModels, availableCustomModels });
+    getDefaultModel({
+      availableBuiltinModels,
+      availableCustomModels,
+      visibleProviders,
+    });
 
   const { messages, status, error, sendMessage, retry, stop, clear } =
     useDirectChat();

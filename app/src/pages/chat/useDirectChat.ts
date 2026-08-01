@@ -27,6 +27,18 @@ function toModelMessages(messages: DirectChatMessage[]): ModelMessage[] {
  * they're present rather than the SDK's generic status-code message.
  */
 function getChatErrorMessage(error: unknown): string {
+  // Retried failures arrive wrapped in a RetryError whose message buries the
+  // real cause ("Failed after N attempts...") — unwrap to the last
+  // underlying error first.
+  if (
+    error != null &&
+    typeof error === "object" &&
+    "lastError" in error &&
+    error.lastError != null &&
+    error.lastError !== error
+  ) {
+    return getChatErrorMessage(error.lastError);
+  }
   if (
     error != null &&
     typeof error === "object" &&
@@ -92,6 +104,10 @@ export function useDirectChat() {
         model: chatModel,
         messages: toModelMessages(history),
         abortSignal: controller.signal,
+        // One retry keeps transient blips invisible without leaving the user
+        // staring at "Thinking..." through the SDK's default three attempts
+        // when a provider is genuinely down.
+        maxRetries: 1,
         onError: ({ error: caughtError }) => {
           streamError = caughtError;
         },
