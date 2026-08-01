@@ -1,6 +1,6 @@
 import type { LanguageModel } from "ai";
 
-import { prependBasename } from "@phoenix/utils/routingUtils";
+import { createServerLanguageModel } from "@phoenix/components/generative/serverLanguageModel";
 
 import type { AISearchServerModelConfig } from "./types";
 
@@ -20,11 +20,8 @@ export function toServerModelId(config: AISearchServerModelConfig): string {
 }
 
 /**
- * Creates an AI SDK model that calls the Phoenix server's OpenAI-compatible
- * chat completions proxy. Credentials are resolved on the server, and the
- * browser's same-origin cookies carry authentication — no key ever reaches
- * this client. The adapter loads on demand so it doesn't weigh down the
- * main bundle.
+ * Creates the AI SDK model that AI search runs through the Phoenix server's
+ * chat completions proxy.
  */
 export async function createServerModel(
   config: AISearchServerModelConfig
@@ -32,12 +29,5 @@ export async function createServerModel(
   if (config.modelName.trim() === "") {
     throw new Error("Choose a model name in the AI search settings.");
   }
-  const { createOpenAICompatible } = await import("@ai-sdk/openai-compatible");
-  const baseURL = new URL(
-    prependBasename("/v1"),
-    window.location.origin
-  ).toString();
-  return createOpenAICompatible({ name: "phoenix", baseURL })(
-    toServerModelId(config)
-  );
+  return createServerLanguageModel(toServerModelId(config));
 }

@@ -14,13 +14,12 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
-import { ChatTokenUsage } from "@phoenix/components/agent/ChatTokenUsage";
-import { MessageCopyAction } from "@phoenix/components/agent/MessageCopyAction";
 import {
   Message,
   MessageAction,
   MessageActions,
   MessageContent,
+  MessageCopyAction,
   MessageResponse,
   MessageToolbar,
 } from "@phoenix/components/ai/message";
@@ -34,6 +33,7 @@ import {
   PromptInputTools,
 } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
+import { ChatTokenUsage } from "@phoenix/components/ai/token-usage";
 import {
   BROWSER_AI_MENU_ITEM_ID,
   getBrowserBuiltInModel,

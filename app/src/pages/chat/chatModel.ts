@@ -1,9 +1,8 @@
 import type { LanguageModel } from "ai";
 
-import { authFetch } from "@phoenix/authFetch";
 import { createBrowserModel } from "@phoenix/components/generative/browserAI";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
-import { prependBasename } from "@phoenix/utils/routingUtils";
+import { createServerLanguageModel } from "@phoenix/components/generative/serverLanguageModel";
 
 /**
  * What the chat runs on: Browser AI — the browser's built-in on-device
@@ -31,11 +30,9 @@ export function toChatModelId(model: ModelMenuValue): string {
 
 /**
  * Resolves a chat model selection to a runnable AI SDK model. Browser AI
- * runs entirely on-device; server models talk to the Phoenix server's
- * OpenAI-compatible chat completions proxy, where credentials are resolved
- * and requests ride on the app's normal auth (cookie or refreshed token via
- * `authFetch`) — no key ever reaches this client. The proxy adapter loads
- * on demand so it doesn't weigh down the main bundle.
+ * runs entirely on-device; server models stream through the Phoenix
+ * server's OpenAI-compatible proxy with usage reporting enabled so the page
+ * can show per-conversation token totals.
  */
 export async function createChatModel(
   selection: ChatModelSelection
@@ -43,18 +40,7 @@ export async function createChatModel(
   if (selection.kind === "browser") {
     return createBrowserModel();
   }
-  const { model } = selection;
-  const { createOpenAICompatible } = await import("@ai-sdk/openai-compatible");
-  const baseURL = new URL(
-    prependBasename("/v1"),
-    window.location.origin
-  ).toString();
-  return createOpenAICompatible({
-    name: "phoenix",
-    baseURL,
-    fetch: authFetch,
-    // Ask the proxy for the final usage chunk so the page can report token
-    // totals per conversation.
+  return createServerLanguageModel(toChatModelId(selection.model), {
     includeUsage: true,
-  })(toChatModelId(model));
+  });
 }
