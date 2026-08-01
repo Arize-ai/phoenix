@@ -233,7 +233,7 @@ describe("getToolAttributes", () => {
             type: "object",
             properties: { query: { type: "string" } },
             required: ["query"],
-          },
+          } as unknown as string,
         },
       })
     ).toEqual({
