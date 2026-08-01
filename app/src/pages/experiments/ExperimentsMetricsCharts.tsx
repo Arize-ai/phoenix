@@ -10,7 +10,10 @@ import {
 import { ChartPanelStrip } from "@phoenix/components/chart";
 import { transparentResizeHandleCSS } from "@phoenix/components/resize";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
-import { getExperimentMetricCharts } from "@phoenix/pages/dataset/metrics/chartCatalog";
+import {
+  DeferredExperimentMetricPanel,
+  getExperimentMetricCharts,
+} from "@phoenix/pages/dataset/metrics/chartCatalog";
 
 const CHARTS_PANEL_DEFAULT_SIZE_PIXELS = 230;
 const CHARTS_PANEL_MIN_SIZE_PIXELS = 160;
@@ -44,11 +47,11 @@ export function ExperimentsMetricsCharts() {
   const charts = getExperimentMetricCharts(selectedChartKeys);
   return (
     <ChartPanelStrip chartCount={charts.length}>
-      {charts.map(({ key, annotationName, Panel }) => (
-        <Panel
-          key={key}
+      {charts.map((chart) => (
+        <DeferredExperimentMetricPanel
+          key={chart.key}
+          chart={chart}
           datasetId={datasetId}
-          annotationName={annotationName}
           fillHeight
         />
       ))}

@@ -15,7 +15,6 @@ import {
   type ExperimentMetricChartKey,
   getExperimentAnnotationMetricChartKey,
   getExperimentAnnotationName,
-  MAX_SELECTED_EXPERIMENT_METRIC_CHARTS,
 } from "@phoenix/pages/dataset/constants";
 import {
   EXPERIMENT_METRIC_CHARTS,
@@ -97,7 +96,6 @@ function ExperimentChartSelectorMenu({
         ]),
       ]}
       selectedKeys={selectedChartKeys}
-      maxSelected={MAX_SELECTED_EXPERIMENT_METRIC_CHARTS}
       onSelectionChange={onSelectionChange}
     />
   );

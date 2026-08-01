@@ -6,7 +6,6 @@ import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants"
 import {
   DEFAULT_EXPERIMENT_METRIC_CHART_KEYS,
   isExperimentMetricChartKey,
-  MAX_SELECTED_EXPERIMENT_METRIC_CHARTS,
 } from "@phoenix/pages/dataset/constants";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -106,13 +105,11 @@ export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
             ...(persistedState as Partial<DatasetStoreState>),
           };
           // Persisted chart keys may reference charts that no longer exist in
-          // the chart catalog; drop them so stale keys don't count against the
-          // selection limit
+          // the chart catalog; drop them so stale keys don't render as empty
+          // panels
           const keys = merged.experimentsMetricChartKeys;
           merged.experimentsMetricChartKeys = Array.isArray(keys)
-            ? keys
-                .filter(isExperimentMetricChartKey)
-                .slice(0, MAX_SELECTED_EXPERIMENT_METRIC_CHARTS)
+            ? keys.filter(isExperimentMetricChartKey)
             : DEFAULT_EXPERIMENT_METRIC_CHART_KEYS;
           return merged;
         },
