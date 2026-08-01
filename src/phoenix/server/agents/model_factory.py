@@ -180,16 +180,10 @@ async def build_model(
             recognised by this builder.
     """
     if isinstance(model, CustomProviderModelSelection):
-        try:
-            provider_id = from_global_id_with_expected_type(
-                GlobalID.from_id(model.provider_id),
-                "GenerativeModelCustomProvider",
-            )
-        except ValueError:
-            # A malformed or wrong-typed Global ID means no such provider
-            # exists; keep the documented AgentError contract rather than
-            # leaking a raw ValueError to callers.
-            raise ProviderNotFoundError("Custom provider not found.") from None
+        provider_id = from_global_id_with_expected_type(
+            GlobalID.from_id(model.provider_id),
+            "GenerativeModelCustomProvider",
+        )
         provider = await session.get(
             models.GenerativeModelCustomProvider,
             provider_id,

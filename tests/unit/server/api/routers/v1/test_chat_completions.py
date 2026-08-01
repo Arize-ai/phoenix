@@ -297,8 +297,8 @@ class TestCreateChatCompletion:
         )
         assert response.status_code == 404, response.text
         error = response.json()["error"]
-        assert error["type"] == "invalid_request_error"
-        assert "not found" in error["message"].lower()
+        assert error["code"] == "model_not_found"
+        assert "Unknown model" in error["message"]
 
     async def test_validation_failure_returns_openai_error_shape(
         self,
