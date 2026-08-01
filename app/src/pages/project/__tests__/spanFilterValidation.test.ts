@@ -18,6 +18,12 @@ import {
 } from "../spanFilterRootScopeConstants";
 import { validateSpanFilterCondition } from "../spanFilterValidation";
 
+type ValidationWarning = {
+  message: string;
+  identifier: string;
+  suggestion: string | null;
+};
+
 type ValidationPayload = {
   project: {
     validateSpanFilterCondition: {
@@ -26,18 +32,22 @@ type ValidationPayload = {
     };
     analyzeSpanFilterCondition: {
       selectsRootSpansOnly: boolean;
+      warnings?: ValidationWarning[];
     };
   };
 };
 
-function validPayload(selectsRootSpansOnly = false): ValidationPayload {
+function validPayload(
+  selectsRootSpansOnly = false,
+  warnings: ValidationWarning[] = []
+): ValidationPayload {
   return {
     project: {
       validateSpanFilterCondition: {
         isValid: true,
         errorMessage: null,
       },
-      analyzeSpanFilterCondition: { selectsRootSpansOnly },
+      analyzeSpanFilterCondition: { selectsRootSpansOnly, warnings },
     },
   };
 }
@@ -118,6 +128,57 @@ describe("validateSpanFilterCondition server exemptions", () => {
     );
 
     expect(relayMocks.fetchQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it("maps the server's advisory warnings onto the result", async () => {
+    mockValidationResponse(
+      validPayload(false, [
+        {
+          message: "`kind` is not a known span field.",
+          identifier: "kind",
+          suggestion: "span_kind",
+        },
+      ])
+    );
+
+    const result = await validateSpanFilterCondition(
+      "kind == 'AGENT'",
+      "project-warnings"
+    );
+
+    expect(result.isValid).toBe(true);
+    expect(result.warnings).toEqual([
+      {
+        message: "`kind` is not a known span field.",
+        identifier: "kind",
+        suggestion: "span_kind",
+      },
+    ]);
+  });
+
+  it("normalizes a missing suggestion on a warning to null", async () => {
+    mockValidationResponse(
+      validPayload(false, [
+        {
+          message: "`foo` is not a known span field.",
+          identifier: "foo",
+          suggestion: null,
+        },
+      ])
+    );
+
+    const result = await validateSpanFilterCondition(
+      "foo == 'bar'",
+      "project-warnings-null-suggestion"
+    );
+
+    expect(result.warnings).toEqual([
+      {
+        message: "`foo` is not a known span field.",
+        identifier: "foo",
+        suggestion: null,
+      },
+    ]);
   });
 });
 

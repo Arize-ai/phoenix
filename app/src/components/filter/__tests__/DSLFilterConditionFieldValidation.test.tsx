@@ -124,6 +124,50 @@ describe("DSLFilterConditionField validation outcomes", () => {
       })
     );
   });
+
+  it("surfaces an advisory warning without flagging the field invalid", async () => {
+    const onValidCondition = vi.fn();
+    const validateCondition = vi.fn().mockResolvedValue({
+      isValid: true,
+      warnings: [
+        {
+          message: "`kind` is not a known span field.",
+          identifier: "kind",
+          suggestion: "span_kind",
+        },
+      ],
+    });
+
+    await renderField({
+      root,
+      value: "kind == 'AGENT'",
+      validateCondition,
+      onValidCondition,
+      onValidationFailed: vi.fn(),
+      validationRetryKey: 0,
+    });
+
+    // A warning is a nudge, not a failure: the amber badge shows, the red
+    // error badge does not, and the field is never marked invalid.
+    expect(container.querySelector(".warning-badge")).not.toBeNull();
+    expect(container.querySelector(".error-badge")).toBeNull();
+    expect(container.textContent).toContain("Did you mean span_kind?");
+    // The warnings still ride along to consumers (empty state, history).
+    expect(onValidCondition).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        condition: "kind == 'AGENT'",
+        validationResult: expect.objectContaining({
+          warnings: [
+            {
+              message: "`kind` is not a known span field.",
+              identifier: "kind",
+              suggestion: "span_kind",
+            },
+          ],
+        }),
+      })
+    );
+  });
 });
 
 async function renderField({
@@ -136,11 +180,25 @@ async function renderField({
 }: {
   root: Root;
   value: string;
-  validateCondition: (
-    condition: string
-  ) => Promise<{ isValid: boolean; errorMessage?: string }>;
+  validateCondition: (condition: string) => Promise<{
+    isValid: boolean;
+    errorMessage?: string;
+    warnings?: {
+      message: string;
+      identifier?: string;
+      suggestion?: string | null;
+    }[];
+  }>;
   onValidCondition?: (args: {
     condition: string;
+    validationResult?: {
+      isValid: boolean;
+      warnings?: {
+        message: string;
+        identifier?: string;
+        suggestion?: string | null;
+      }[];
+    } | null;
     isInitialSettlement: boolean;
   }) => void;
   onValidationFailed: (reason: "invalid" | "transport") => void;
