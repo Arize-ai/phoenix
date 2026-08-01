@@ -9892,7 +9892,22 @@
           "model",
           "messages"
         ],
-        "title": "CreateChatCompletionRequestBody"
+        "title": "CreateChatCompletionRequestBody",
+        "examples": [
+          {
+            "messages": [
+              {
+                "content": "You are a helpful assistant.",
+                "role": "system"
+              },
+              {
+                "content": "Say hello.",
+                "role": "user"
+              }
+            ],
+            "model": "openai:gpt-4o"
+          }
+        ]
       },
       "CreateDatasetLabelRequestBody": {
         "properties": {
