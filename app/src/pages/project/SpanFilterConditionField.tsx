@@ -27,6 +27,7 @@ import {
   openInferenceAttributeValueCompletionSource,
 } from "./spanFilterSemanticConventionCompletions";
 import {
+  type FilterConditionWarning,
   type SpanFilterConditionValidation,
   validateSpanFilterCondition,
 } from "./spanFilterValidation";
@@ -266,6 +267,13 @@ export type SpanFilterValidConditionArgs = {
   condition: string;
   selectsRootSpansOnly: boolean | null;
   /**
+   * Advisory, non-blocking diagnostics for this (valid) condition -- e.g. a
+   * bare identifier that silently resolves to an attribute path and so matches
+   * nothing. Empty when the condition looks unambiguous. Consumers can surface
+   * these on other surfaces (e.g. a filter-aware empty state).
+   */
+  warnings: FilterConditionWarning[];
+  /**
    * True when this settlement is of the value the field mounted with -- a
    * seeded default or a condition already in the URL -- rather than one
    * applied while the field was on screen. Consumers that persist applied
@@ -351,6 +359,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
         selectsRootSpansOnly: validationResult
           ? validationResult.selectsRootSpansOnly
           : false,
+        warnings: validationResult?.warnings ?? [],
         isInitialSettlement,
       });
     },
