@@ -95,6 +95,7 @@ from phoenix.server.agents.context import (
 )
 from phoenix.server.agents.data_stream_protocol import build_stream_error_chunk
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
+from phoenix.server.agents.interrupted_tool_calls import resolve_unresolved_tool_calls
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
@@ -1449,6 +1450,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             user_id=user_id,
             is_viewer=is_viewer,
         )
+        body.messages = resolve_unresolved_tool_calls(body.messages)
         agent_prompts = AgentPrompts()
         forced_skills: list[Skill] = []
         if body.requested_skills:
