@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a4bfd77f6a12c3216e7341a64af78cb1>>
+ * @generated SignedSource<<f9fbe860fbf02528f80ce7ba18650f19>>
  * @lightSyntaxTransform
  */
 
@@ -16,6 +16,11 @@ export type spanFilterValidationQuery$data = {
   readonly project: {
     readonly analyzeSpanFilterCondition?: {
       readonly selectsRootSpansOnly: boolean;
+      readonly warnings: ReadonlyArray<{
+        readonly identifier: string;
+        readonly message: string;
+        readonly suggestion: string | null;
+      }>;
     };
     readonly validateSpanFilterCondition?: {
       readonly errorMessage: string | null;
@@ -97,6 +102,38 @@ v3 = {
           "kind": "ScalarField",
           "name": "selectsRootSpansOnly",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "FilterConditionWarning",
+          "kind": "LinkedField",
+          "name": "warnings",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "message",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "identifier",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "suggestion",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -163,16 +200,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "79857c1cebc3823a1b24607c243aa966",
+    "cacheID": "ec4d4a62fe7e6fa715c7541b32f0950f",
     "id": null,
     "metadata": {},
     "name": "spanFilterValidationQuery",
     "operationKind": "query",
-    "text": "query spanFilterValidationQuery(\n  $condition: String!\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      validateSpanFilterCondition(condition: $condition) {\n        isValid\n        errorMessage\n      }\n      analyzeSpanFilterCondition(condition: $condition) {\n        selectsRootSpansOnly\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query spanFilterValidationQuery(\n  $condition: String!\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      validateSpanFilterCondition(condition: $condition) {\n        isValid\n        errorMessage\n      }\n      analyzeSpanFilterCondition(condition: $condition) {\n        selectsRootSpansOnly\n        warnings {\n          message\n          identifier\n          suggestion\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b4cdaf04cbca83085e1138be06ab2a77";
+(node as any).hash = "a21d741b14dae0d172a82db2b85d1eef";
 
 export default node;

@@ -5,6 +5,12 @@ import environment from "@phoenix/RelayEnvironment";
 import type { spanFilterValidationQuery } from "./__generated__/spanFilterValidationQuery.graphql";
 import { isKnownRootSpanCondition } from "./spanFilterRootScopeConstants";
 
+export type FilterConditionWarning = {
+  message: string;
+  identifier: string;
+  suggestion: string | null;
+};
+
 export type SpanFilterConditionValidation = {
   isValid: boolean;
   errorMessage?: string | null;
@@ -15,6 +21,12 @@ export type SpanFilterConditionValidation = {
    * root-scoped, which is not the same as knowing it admits non-root spans.
    */
   selectsRootSpansOnly: boolean | null;
+  /**
+   * Advisory, non-blocking diagnostics for a *valid* condition — notably bare
+   * identifiers that resolve to attribute paths (`kind` → `attributes['kind']`)
+   * and so silently match nothing. Empty unless the server answered with some.
+   */
+  warnings: FilterConditionWarning[];
 };
 
 const MAX_VALIDATION_CACHE_ENTRIES = 100;
@@ -72,6 +84,7 @@ export async function validateSpanFilterCondition(
       isValid: true,
       errorMessage: null,
       selectsRootSpansOnly: false,
+      warnings: [],
     };
   }
   if (isKnownRootSpanCondition(condition)) {
@@ -82,6 +95,7 @@ export async function validateSpanFilterCondition(
       isValid: true,
       errorMessage: null,
       selectsRootSpansOnly: true,
+      warnings: [],
     };
   }
   const cacheKey = validationCacheKey(projectId, condition);
@@ -102,6 +116,11 @@ export async function validateSpanFilterCondition(
             }
             analyzeSpanFilterCondition(condition: $condition) {
               selectsRootSpansOnly
+              warnings {
+                message
+                identifier
+                suggestion
+              }
             }
           }
         }
@@ -122,6 +141,12 @@ export async function validateSpanFilterCondition(
         errorMessage: project.validateSpanFilterCondition?.errorMessage ?? null,
         selectsRootSpansOnly:
           project.analyzeSpanFilterCondition?.selectsRootSpansOnly ?? null,
+        warnings:
+          project.analyzeSpanFilterCondition?.warnings?.map((warning) => ({
+            message: warning.message,
+            identifier: warning.identifier,
+            suggestion: warning.suggestion ?? null,
+          })) ?? [],
       };
     });
   cacheValidation(cacheKey, validation);
