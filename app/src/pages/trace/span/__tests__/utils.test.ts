@@ -332,6 +332,30 @@ describe("getToolAttributes", () => {
       parameters: '{"type": "object"}',
     });
   });
+
+  it("stringifies parameters that ingestion rebuilt as an object", () => {
+    // An instrumentation that emits flattened `tool.parameters.*` keys makes
+    // ingestion store `parameters` as a nested object instead of a JSON string.
+    expect(
+      getToolAttributes({
+        tool: {
+          name: "search_phoenix",
+          description: "Search the docs",
+          parameters: {
+            type: "object",
+            properties: { query: { type: "string" } },
+            required: ["query"],
+          },
+        },
+      })
+    ).toEqual({
+      hasToolAttributes: true,
+      name: "search_phoenix",
+      description: "Search the docs",
+      parameters:
+        '{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}',
+    });
+  });
 });
 
 describe("groupDocumentEvaluationsByPosition", () => {

@@ -295,6 +295,21 @@ export type ToolSpanAttributes = {
 };
 
 /**
+ * Tool attributes are conventionally single string values, but an
+ * instrumentation that flattens e.g. `tool.parameters.*` into dotted keys makes
+ * Phoenix ingestion rebuild them as a nested object. The span view assumes a
+ * string (it re-parses `parameters` and renders the others as text), so coerce
+ * any non-string value back to its JSON text here rather than letting an object
+ * reach the renderer — where it throws `Objects are not valid as a React child`.
+ */
+function asToolAttributeString(value: unknown): string | undefined {
+  if (value == null) {
+    return undefined;
+  }
+  return typeof value === "string" ? value : JSON.stringify(value);
+}
+
+/**
  * Extract the tool description from the parsed span attributes of a tool span.
  */
 export function getToolAttributes(
@@ -303,9 +318,13 @@ export function getToolAttributes(
   const toolAttributes = spanAttributes[SemanticAttributePrefixes.tool] || {};
   return {
     hasToolAttributes: Object.keys(toolAttributes).length > 0,
-    name: toolAttributes[ToolAttributePostfixes.name],
-    description: toolAttributes[ToolAttributePostfixes.description],
-    parameters: toolAttributes[ToolAttributePostfixes.parameters],
+    name: asToolAttributeString(toolAttributes[ToolAttributePostfixes.name]),
+    description: asToolAttributeString(
+      toolAttributes[ToolAttributePostfixes.description]
+    ),
+    parameters: asToolAttributeString(
+      toolAttributes[ToolAttributePostfixes.parameters]
+    ),
   };
 }
 
