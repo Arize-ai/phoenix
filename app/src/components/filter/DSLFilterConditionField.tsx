@@ -44,6 +44,7 @@ import {
   dslFilterCodeMirrorCSS,
   dslFilterErrorTooltipCSS,
   dslFilterFieldCSS,
+  dslFilterWarningTooltipCSS,
 } from "./styles";
 
 /**
@@ -53,6 +54,24 @@ import {
 export type DSLFilterConditionValidationResult = {
   isValid: boolean;
   errorMessage?: string | null;
+  /**
+   * Advisory, non-blocking diagnostics for a *valid* condition. The field
+   * surfaces these as a calmer amber badge (never a red error, never a border,
+   * never an invalid state) — e.g. a bare identifier that resolves to an
+   * attribute path and so matches nothing. Absent or empty means none.
+   */
+  warnings?: DSLFilterConditionWarning[];
+};
+
+/**
+ * A single advisory diagnostic attached to a valid condition. Only `message`
+ * is rendered by the field; `identifier`/`suggestion` are carried for callers
+ * that want richer surfaces (e.g. an empty-state hint).
+ */
+export type DSLFilterConditionWarning = {
+  message: string;
+  identifier?: string;
+  suggestion?: string | null;
 };
 
 /**
@@ -270,6 +289,10 @@ export function DSLFilterConditionField<
   // null means the condition is not known to be invalid; the empty string
   // means invalid with no server-provided detail
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Advisory diagnostics for a valid condition — shown as a calmer amber badge
+  // that never flips the field invalid. Cleared whenever the text changes so a
+  // stale nudge never trails an edit.
+  const [warnings, setWarnings] = useState<DSLFilterConditionWarning[]>([]);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
 
@@ -282,6 +305,7 @@ export function DSLFilterConditionField<
 
   const hasError = errorMessage !== null;
   const hasCondition = value !== "";
+  const hasWarnings = !hasError && warnings.length > 0;
 
   // A cached result from a previous loader no longer describes the data
   useEffect(() => {
@@ -376,12 +400,12 @@ export function DSLFilterConditionField<
       return;
     }
     content.setAttribute("aria-invalid", hasError ? "true" : "false");
-    if (hasError) {
+    if (hasError || hasWarnings) {
       content.setAttribute("aria-describedby", errorId);
     } else {
       content.removeAttribute("aria-describedby");
     }
-  }, [hasError, errorId]);
+  }, [hasError, hasWarnings, errorId]);
 
   // Held as effect events so the validation effect below does not depend on
   // their identity. A caller passing an inline arrow would otherwise revalidate
@@ -408,6 +432,9 @@ export function DSLFilterConditionField<
     // stale error so the field isn't flagged invalid mid-edit. An error only
     // shows once the current text has settled and failed validation.
     setErrorMessage(null);
+    // Warnings likewise describe the previous text; clear them so an amber
+    // nudge never lingers past the edit that would resolve it.
+    setWarnings([]);
 
     // Whether this run settles the mount-time value. Read before the branches
     // below flip the ref: both settle paths report it, so consumers can tell
@@ -457,6 +484,7 @@ export function DSLFilterConditionField<
             reportValidationFailed("invalid");
           } else {
             setErrorMessage(null);
+            setWarnings(result.warnings ?? []);
             reportValidationState(true);
             startTransition(() => {
               reportValidCondition({
@@ -550,6 +578,44 @@ export function DSLFilterConditionField<
             </Tooltip>
           </TooltipTrigger>
         ) : null}
+        {hasWarnings ? (
+          <TooltipTrigger delay={0}>
+            <Pressable>
+              <div
+                role="button"
+                tabIndex={0}
+                className="warning-badge"
+                aria-label="Filter condition warning"
+              >
+                <Icon svg={<Icons.AlertTriangle />} color="warning" />
+                <span className="warning-badge__message">
+                  {warnings.length > 1
+                    ? `${warnings.length} filter warnings`
+                    : warnings[0].suggestion
+                      ? `Did you mean ${warnings[0].suggestion}?`
+                      : warnings[0].identifier
+                        ? `Unrecognized field \`${warnings[0].identifier}\``
+                        : "Filter warning"}
+                </span>
+              </div>
+            </Pressable>
+            <Tooltip placement="bottom end" css={dslFilterWarningTooltipCSS}>
+              <Flex direction="row" gap="size-100" alignItems="start">
+                <Icon svg={<Icons.AlertTriangle />} color="warning" />
+                <Flex direction="column" gap="size-50">
+                  <Text size="S" weight="heavy">
+                    This filter may not match what you expect
+                  </Text>
+                  {warnings.map((warning, index) => (
+                    <Text key={index} size="S" color="text-700">
+                      {warning.message}
+                    </Text>
+                  ))}
+                </Flex>
+              </Flex>
+            </Tooltip>
+          </TooltipTrigger>
+        ) : null}
         <button
           onClick={() => {
             onChange("");
@@ -563,7 +629,11 @@ export function DSLFilterConditionField<
       </Flex>
       <VisuallyHidden>
         <span id={errorId} role="status">
-          {hasError ? `Invalid filter condition. ${errorMessage}`.trim() : ""}
+          {hasError
+            ? `Invalid filter condition. ${errorMessage}`.trim()
+            : hasWarnings
+              ? warnings.map((warning) => warning.message).join(" ")
+              : ""}
         </span>
       </VisuallyHidden>
     </div>

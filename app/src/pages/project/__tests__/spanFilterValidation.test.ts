@@ -63,6 +63,7 @@ describe("validateSpanFilterCondition server exemptions", () => {
       isValid: true,
       errorMessage: null,
       selectsRootSpansOnly: true,
+      warnings: [],
     });
 
     expect(relayMocks.fetchQuery).not.toHaveBeenCalled();
@@ -78,6 +79,7 @@ describe("validateSpanFilterCondition server exemptions", () => {
       isValid: true,
       errorMessage: null,
       selectsRootSpansOnly: true,
+      warnings: [],
     });
 
     expect(relayMocks.fetchQuery).not.toHaveBeenCalled();
@@ -90,6 +92,7 @@ describe("validateSpanFilterCondition server exemptions", () => {
       isValid: true,
       errorMessage: null,
       selectsRootSpansOnly: false,
+      warnings: [],
     });
 
     expect(relayMocks.fetchQuery).not.toHaveBeenCalled();

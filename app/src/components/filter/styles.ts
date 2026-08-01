@@ -133,6 +133,17 @@ export const dslFilterErrorTooltipCSS = css`
 `;
 
 /**
+ * The advisory-warning counterpart to the error tooltip. Same surface family,
+ * distinguished only by the amber content inside — the warning is a nudge, not
+ * a failure, so it stays visually quieter than the danger tooltip.
+ */
+export const dslFilterWarningTooltipCSS = css`
+  ${popoverSurfaceCSS}
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
+  max-width: 400px;
+`;
+
+/**
  * Grows the error badge out from the editor's right edge. Animating
  * max-width alongside opacity keeps the appearance smooth — the editor
  * cedes the space gradually instead of the badge popping in at full size.
@@ -203,6 +214,40 @@ export const dslFilterFieldCSS = css`
     }
   }
   .error-badge__message {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* The advisory-warning badge mirrors the error badge's shape and animation
+     but in amber, so a valid-but-suspicious condition reads as a nudge rather
+     than a failure. It never sets the field's invalid border. */
+  .warning-badge {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-50);
+    max-width: 200px;
+    overflow: hidden;
+    padding: 2px var(--global-dimension-size-65);
+    margin-right: var(--global-dimension-size-50);
+    border-radius: var(--global-rounding-small);
+    background-color: rgba(var(--global-color-warning-rgb), 0.15);
+    color: var(--global-color-warning-700);
+    font-size: var(--global-font-size-xs);
+    line-height: var(--global-line-height-xs);
+    white-space: nowrap;
+    cursor: default;
+    animation: ${errorBadgeIn} 0.25s ease-out;
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+    .icon-wrap {
+      flex-shrink: 0;
+    }
+    &:focus-visible {
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
+    }
+  }
+  .warning-badge__message {
     overflow: hidden;
     text-overflow: ellipsis;
   }
