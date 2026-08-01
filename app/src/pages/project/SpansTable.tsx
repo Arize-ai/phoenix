@@ -92,6 +92,7 @@ import {
   type SpanFilterValidConditionArgs,
 } from "./SpanFilterConditionField";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
+import { useSpanFilters } from "./SpanFiltersContext";
 import { SpanNotesTableCell } from "./SpanNotesTableCell";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { SpansTableAside } from "./SpansTableAside";
@@ -219,6 +220,13 @@ export function SpansTable(props: SpansTableProps) {
     rootSpansOnly: props.seed.rootSpansOnly,
   }));
   const { condition: filterCondition, rootSpansOnly } = appliedQuery;
+  // Advisory diagnostics for the applied filter, surfaced in the empty state so
+  // a valid-but-mismatched filter (e.g. a bare identifier that silently
+  // resolved to an attribute path) explains why it matched nothing.
+  const [filterWarnings, setFilterWarnings] = useState<
+    SpanFilterValidConditionArgs["warnings"]
+  >([]);
+  const { setFilterCondition } = useSpanFilters();
 
   // Persist the applied filter to the URL. Written only from the change
   // handler, so in-progress edits and render churn never touch the URL; other
@@ -249,8 +257,10 @@ export function SpansTable(props: SpansTableProps) {
     ({
       condition,
       selectsRootSpansOnly,
+      warnings,
       isInitialSettlement,
     }: SpanFilterValidConditionArgs) => {
+      setFilterWarnings(warnings);
       setAppliedQuery((previous) => {
         const next = {
           condition,
@@ -1119,7 +1129,12 @@ export function SpansTable(props: SpansTableProps) {
                     // can result in isEmpty=true and hasNext=true when traces exist but lack matching root
                     // spans. This is an undesirable edge case. The optimization is a stopgap solution that
                     // will be replaced to eliminate this condition.
-                    <ProjectTableEmpty />
+                    <ProjectTableEmpty
+                      noun="span"
+                      hasActiveFilter={filterCondition.trim() !== ""}
+                      warnings={filterWarnings}
+                      onClearFilter={() => setFilterCondition("")}
+                    />
                   ) : columnSizingInfo.isResizingColumn ? (
                     <MemoizedTableBody
                       table={table}

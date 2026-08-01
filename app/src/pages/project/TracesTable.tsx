@@ -94,8 +94,12 @@ import {
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
-import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import {
+  SpanFilterConditionField,
+  type SpanFilterValidConditionArgs,
+} from "./SpanFilterConditionField";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
+import { useSpanFilters } from "./SpanFiltersContext";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
 import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
@@ -265,6 +269,14 @@ export function TracesTable(props: TracesTableProps) {
   const [filterCondition, setFilterCondition] = useState<string>(
     props.seed.condition
   );
+  // Advisory diagnostics for the applied filter, surfaced in the empty state
+  // so a valid-but-mismatched filter explains why it matched nothing.
+  const [filterWarnings, setFilterWarnings] = useState<
+    SpanFilterValidConditionArgs["warnings"]
+  >([]);
+  // The field's displayed text is owned by the shared filter context; clearing
+  // it there flows back through `onValidCondition` to reset the applied query.
+  const { setFilterCondition: setFilterConditionText } = useSpanFilters();
   const { fetchKey } = useStreamState();
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the filter
@@ -1104,8 +1116,13 @@ export function TracesTable(props: TracesTableProps) {
         >
           <Flex direction="row" gap="size-100" width="100%" alignItems="center">
             <SpanFilterConditionField
-              onValidCondition={({ condition, isInitialSettlement }) => {
+              onValidCondition={({
+                condition,
+                warnings,
+                isInitialSettlement,
+              }) => {
                 setFilterCondition(condition);
+                setFilterWarnings(warnings);
                 // The mount settlement is the seed coming back around, not a
                 // filter the user applied. Writing it would persist this tab's
                 // default (the empty condition) into the param the tabs share,
@@ -1225,7 +1242,12 @@ export function TracesTable(props: TracesTableProps) {
                   ))}
               </thead>
               {isEmpty ? (
-                <ProjectTableEmpty />
+                <ProjectTableEmpty
+                  noun="trace"
+                  hasActiveFilter={filterCondition.trim() !== ""}
+                  warnings={filterWarnings}
+                  onClearFilter={() => setFilterConditionText("")}
+                />
               ) : columnSizingInfo.isResizingColumn ? (
                 <MemoizedTableBody
                   table={
