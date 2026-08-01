@@ -348,20 +348,20 @@ export async function fetchAnnotationsForTargets({
  */
 export function applyAnnotationsToSpans<Span>({
   spans,
+  targets,
   lookup,
-  getTarget,
   withAnnotations,
 }: {
   spans: Span[];
+  /** Target for each span, positionally aligned with `spans`. */
+  targets: (SpanAnnotationTarget | null)[];
   lookup: AnnotationLookup;
-  getTarget: (span: Span) => SpanAnnotationTarget | null;
   withAnnotations: (
     span: Span,
     spanAnnotations: SpanAnnotation[],
     traceAnnotations: TraceAnnotation[]
   ) => Span;
 }): Span[] {
-  const targets = spans.map(getTarget);
   const carrierSpanIdsByTraceId = getTraceAnnotationCarrierSpanIds(
     targets.filter((target): target is SpanAnnotationTarget => target != null)
   );

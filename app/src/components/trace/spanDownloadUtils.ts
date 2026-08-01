@@ -292,8 +292,8 @@ async function downloadWithFormat<Span>({
   });
   const spansWithAnnotations = applyAnnotationsToSpans({
     spans,
+    targets,
     lookup,
-    getTarget: exportFormat.getTarget,
     withAnnotations: exportFormat.withAnnotations,
   });
   downloadBlob({
@@ -384,7 +384,8 @@ export async function downloadSingleSpan({
   const spanWithAnnotations = addAnnotationsToPhoenixSpan({
     span,
     spanAnnotations: lookup.spanAnnotationsBySpanId.get(target.spanId) ?? [],
-    traceAnnotations: lookup.traceAnnotationsByTraceId.get(target.traceId) ?? [],
+    traceAnnotations:
+      lookup.traceAnnotationsByTraceId.get(target.traceId) ?? [],
   });
   downloadBlob({
     fileName,
