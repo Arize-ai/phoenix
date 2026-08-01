@@ -25,15 +25,18 @@ response-model-exclusion conventions: OpenAI compatibility fixes the wire
 format, defaults included.
 """
 
+import asyncio
 import json
-from contextlib import AsyncExitStack
+import logging
 from secrets import token_hex
-from typing import Annotated, Any, AsyncIterator, Literal, Optional, Union
+from typing import Annotated, Any, AsyncIterator, Callable, Coroutine, Literal, Optional, Union
 
 from fastapi import APIRouter, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi.routing import APIRoute
 from pydantic import Field
-from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
 from pydantic_ai.messages import (
     FinishReason,
     ModelMessage,
@@ -48,9 +51,10 @@ from pydantic_ai.messages import (
 from pydantic_ai.messages import (
     ModelResponse as PydanticAIModelResponse,
 )
-from pydantic_ai.models import Model, ModelRequestParameters
+from pydantic_ai.models import Model, ModelRequestParameters, StreamedResponse
 from pydantic_ai.settings import ModelSettings, merge_model_settings
 from pydantic_ai.usage import RequestUsage
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.agents.exceptions import AgentError
@@ -61,9 +65,8 @@ from phoenix.server.agents.model_selection import (
     CustomProviderModelSelection,
 )
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
-from phoenix.server.api.routers.v1.utils import add_errors_to_responses
 
-router = APIRouter(tags=["chat_completions"])
+logger = logging.getLogger(__name__)
 
 _CUSTOM_PROVIDER_PREFIX = "custom"
 
@@ -91,6 +94,22 @@ class _ChatCompletionError(Exception):
         self.error_type = error_type
         self.code = code
 
+    def to_response(self) -> JSONResponse:
+        return _error_response(
+            str(self), status_code=self.status_code, error_type=self.error_type, code=self.code
+        )
+
+
+class ChatCompletionErrorDetail(V1RoutesBaseModel):
+    message: str
+    type: str
+    param: Optional[str] = None
+    code: Optional[str] = None
+
+
+class ChatCompletionErrorResponse(V1RoutesBaseModel):
+    error: ChatCompletionErrorDetail
+
 
 def _error_response(
     message: str,
@@ -99,10 +118,55 @@ def _error_response(
     error_type: str,
     code: Optional[str] = None,
 ) -> JSONResponse:
-    return JSONResponse(
-        {"error": {"message": message, "type": error_type, "param": None, "code": code}},
-        status_code=status_code,
+    body = ChatCompletionErrorResponse(
+        error=ChatCompletionErrorDetail(message=message, type=error_type, code=code)
     )
+    return JSONResponse(body.model_dump(), status_code=status_code)
+
+
+def _validation_error_message(exc: RequestValidationError) -> str:
+    problems = []
+    for error in exc.errors():
+        location = ".".join(str(part) for part in error.get("loc", ()) if part != "body")
+        message = error.get("msg", "Invalid value")
+        problems.append(f"{location}: {message}" if location else message)
+    return "; ".join(problems) or "Invalid request body."
+
+
+class _OpenAIErrorAPIRoute(APIRoute):
+    """Route class that keeps every failure in the OpenAI error shape.
+
+    FastAPI renders request-validation failures as ``{"detail": [...]}`` and
+    unhandled exceptions as bare 500s, neither of which OpenAI clients can
+    parse. Convert both into ``{"error": {...}}`` payloads here so the error
+    contract holds on every path out of the endpoint.
+    """
+
+    def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
+        handler = super().get_route_handler()
+
+        async def handle_with_openai_errors(request: Request) -> Response:
+            try:
+                return await handler(request)
+            except StarletteHTTPException:
+                # Auth and framework-level errors keep their app-wide handling.
+                raise
+            except RequestValidationError as exc:
+                return _error_response(
+                    _validation_error_message(exc),
+                    status_code=422,
+                    error_type="invalid_request_error",
+                )
+            except Exception:
+                logger.exception("Unhandled error in chat completions endpoint")
+                return _error_response(
+                    "Internal server error.", status_code=500, error_type="api_error"
+                )
+
+        return handle_with_openai_errors
+
+
+router = APIRouter(tags=["chat_completions"], route_class=_OpenAIErrorAPIRoute)
 
 
 class ChatCompletionTextPart(V1RoutesBaseModel):
@@ -113,6 +177,10 @@ class ChatCompletionTextPart(V1RoutesBaseModel):
 class ChatCompletionRequestMessage(V1RoutesBaseModel):
     role: Literal["system", "developer", "user", "assistant"]
     content: Union[str, list[ChatCompletionTextPart]]
+
+
+class ChatCompletionStreamOptions(V1RoutesBaseModel):
+    include_usage: bool = False
 
 
 class CreateChatCompletionRequestBody(V1RoutesBaseModel):
@@ -128,7 +196,7 @@ class CreateChatCompletionRequestBody(V1RoutesBaseModel):
     presence_penalty: Optional[float] = None
     seed: Optional[int] = None
     n: Optional[int] = None
-    stream_options: Optional[dict[str, Any]] = None
+    stream_options: Optional[ChatCompletionStreamOptions] = None
     tools: Optional[list[Any]] = None
     tool_choice: Optional[Any] = None
     response_format: Optional[dict[str, Any]] = None
@@ -160,22 +228,22 @@ class ChatCompletion(V1RoutesBaseModel):
     usage: ChatCompletionUsage
 
 
+def _unknown_model_error(model_id: str) -> _ChatCompletionError:
+    return _ChatCompletionError(
+        f"Unknown model {model_id!r}. {_MODEL_FORMAT_HELP}",
+        status_code=404,
+        code="model_not_found",
+    )
+
+
 def _parse_model_id(model_id: str) -> AgentModelSelection:
     prefix, sep, remainder = model_id.partition(":")
     if not sep or not prefix or not remainder:
-        raise _ChatCompletionError(
-            f"Unknown model {model_id!r}. {_MODEL_FORMAT_HELP}",
-            status_code=404,
-            code="model_not_found",
-        )
-    if prefix == _CUSTOM_PROVIDER_PREFIX:
+        raise _unknown_model_error(model_id)
+    if prefix.lower() == _CUSTOM_PROVIDER_PREFIX:
         provider_id, sep, model_name = remainder.partition(":")
         if not sep or not provider_id or not model_name:
-            raise _ChatCompletionError(
-                f"Unknown model {model_id!r}. {_MODEL_FORMAT_HELP}",
-                status_code=404,
-                code="model_not_found",
-            )
+            raise _unknown_model_error(model_id)
         return CustomProviderModelSelection(
             provider_type="custom",
             provider_id=provider_id,
@@ -212,6 +280,11 @@ def _reject_unsupported_parameters(body: CreateChatCompletionRequestBody) -> Non
             "Only response_format of type 'text' is supported.",
             status_code=400,
         )
+    if body.stream_options is not None and not body.stream:
+        raise _ChatCompletionError(
+            "stream_options is only allowed when stream is true.",
+            status_code=400,
+        )
 
 
 def _content_to_text(content: Union[str, list[ChatCompletionTextPart]]) -> str:
@@ -237,7 +310,10 @@ def _to_pydantic_ai_messages(
 
 def _to_model_settings(body: CreateChatCompletionRequestBody) -> Optional[ModelSettings]:
     settings: ModelSettings = {}
-    if (max_tokens := body.max_completion_tokens or body.max_tokens) is not None:
+    max_tokens = (
+        body.max_completion_tokens if body.max_completion_tokens is not None else body.max_tokens
+    )
+    if max_tokens is not None:
         settings["max_tokens"] = max_tokens
     if body.temperature is not None:
         settings["temperature"] = body.temperature
@@ -290,7 +366,9 @@ def _sse_event(payload: dict[str, Any]) -> str:
     response_model=None,
     responses={
         200: {"model": ChatCompletion},
-        **add_errors_to_responses([400, 404, 422]),
+        400: {"model": ChatCompletionErrorResponse},
+        404: {"model": ChatCompletionErrorResponse},
+        422: {"model": ChatCompletionErrorResponse},
     },
     summary="OpenAI-compatible chat completions",
     description=(
@@ -310,9 +388,7 @@ async def create_chat_completion(
         selection = _parse_model_id(body.model)
         _reject_unsupported_parameters(body)
     except _ChatCompletionError as exc:
-        return _error_response(
-            str(exc), status_code=exc.status_code, error_type=exc.error_type, code=exc.code
-        )
+        return exc.to_response()
     try:
         # The session is only needed to resolve the model definition and its
         # credentials; release it before any provider call so a slow LLM
@@ -329,6 +405,11 @@ async def create_chat_completion(
             status_code=exc.status_code,
             error_type="invalid_request_error" if exc.status_code < 500 else "api_error",
         )
+    except ValueError:
+        # A malformed custom provider_id fails Global ID parsing inside
+        # build_model with a ValueError before any AgentError can be raised;
+        # to the caller it is simply an unknown model.
+        return _unknown_model_error(body.model).to_response()
     messages = _to_pydantic_ai_messages(body.messages)
     # Honor settings attached to the model itself (e.g. the Anthropic
     # max_tokens floor) the same way an agent run would.
@@ -341,10 +422,11 @@ async def create_chat_completion(
             settings=settings,
             parameters=parameters,
             model_id=body.model,
+            include_usage=body.stream_options is not None and body.stream_options.include_usage,
         )
     try:
         response = await model.request(messages, settings, parameters)
-    except ModelHTTPError as exc:
+    except ModelAPIError as exc:
         return _provider_error_response(exc)
     completion = ChatCompletion(
         id=_completion_id(response.provider_response_id),
@@ -361,15 +443,62 @@ async def create_chat_completion(
     return JSONResponse(completion.model_dump())
 
 
-def _provider_error_response(exc: ModelHTTPError) -> JSONResponse:
-    # Surface the provider's own status when it is a valid HTTP error code so
-    # callers can tell a bad model name (404) from bad server credentials (401).
-    status_code = exc.status_code if 400 <= exc.status_code < 600 else 502
+def _provider_error_response(exc: ModelAPIError) -> JSONResponse:
+    if isinstance(exc, ModelHTTPError):
+        # Surface the provider's own status when it is a valid HTTP error code
+        # so callers can tell a bad model name (404) from bad server
+        # credentials (401).
+        status_code = exc.status_code if 400 <= exc.status_code < 600 else 502
+    else:
+        # Connection-level failure (DNS, refused connection, timeout): the
+        # provider never answered, which makes this proxy a bad gateway.
+        status_code = 502
     return _error_response(
         str(exc),
         status_code=status_code,
         error_type="invalid_request_error" if status_code < 500 else "api_error",
     )
+
+
+async def _stream_events(
+    stream: StreamedResponse,
+    *,
+    model_id: str,
+    include_usage: bool,
+) -> AsyncIterator[str]:
+    """Render an entered model stream as OpenAI ``chat.completion.chunk`` SSE events."""
+    envelope: dict[str, Any] = {
+        "id": _completion_id(stream.provider_response_id),
+        "object": "chat.completion.chunk",
+        "created": int(stream.timestamp.timestamp()),
+        "model": model_id,
+    }
+
+    def chunk(delta: dict[str, Any], finish_reason: Optional[str] = None) -> str:
+        payload = {
+            **envelope,
+            "choices": [{"index": 0, "delta": delta, "finish_reason": finish_reason}],
+        }
+        if include_usage:
+            # Per stream_options.include_usage, every chunk carries a null
+            # usage; the numbers arrive in a dedicated final chunk.
+            payload["usage"] = None
+        return _sse_event(payload)
+
+    yield chunk({"role": "assistant", "content": ""})
+    async for event in stream:
+        text: Optional[str] = None
+        if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
+            text = event.part.content
+        elif isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
+            text = event.delta.content_delta
+        if text:
+            yield chunk({"content": text})
+    yield chunk({}, finish_reason=_to_openai_finish_reason(stream.finish_reason))
+    if include_usage:
+        yield _sse_event(
+            {**envelope, "choices": [], "usage": _to_openai_usage(stream.usage).model_dump()}
+        )
 
 
 async def _create_streaming_response(
@@ -379,72 +508,70 @@ async def _create_streaming_response(
     settings: Optional[ModelSettings],
     parameters: ModelRequestParameters,
     model_id: str,
+    include_usage: bool,
 ) -> Response:
-    stack = AsyncExitStack()
+    # The OpenInference span inside ``model.request_stream`` attaches OTel
+    # context on entry and must detach it in the task that attached it, but
+    # starlette consumes streaming bodies in a child task. A dedicated producer
+    # task therefore owns the stream's entire lifecycle and hands rendered SSE
+    # events over a queue, while ``startup`` lets connection and auth failures
+    # still surface as proper HTTP errors instead of a 200 that errors
+    # mid-body.
+    startup: asyncio.Future[Optional[JSONResponse]] = asyncio.get_running_loop().create_future()
+    # maxsize=1 preserves generator-style backpressure: the provider stream is
+    # consumed no faster than the client reads.
+    events: asyncio.Queue[Optional[str]] = asyncio.Queue(maxsize=1)
+
+    async def produce() -> None:
+        try:
+            async with model.request_stream(messages, settings, parameters) as stream:
+                startup.set_result(None)
+                try:
+                    async for event in _stream_events(
+                        stream, model_id=model_id, include_usage=include_usage
+                    ):
+                        await events.put(event)
+                except Exception as exc:
+                    # The 200 header is already on the wire — surface the
+                    # failure as an OpenAI-style error event rather than
+                    # severing the connection.
+                    await events.put(
+                        _sse_event({"error": {"message": str(exc), "type": "api_error"}})
+                    )
+        except Exception as exc:
+            if not startup.done():
+                # Stream entry failed before anything was sent; let the
+                # endpoint turn it into a proper HTTP error response.
+                if isinstance(exc, ModelAPIError):
+                    startup.set_result(_provider_error_response(exc))
+                else:
+                    startup.set_exception(exc)
+                return
+            logger.exception("Failed to close chat completion stream")
+        await events.put("data: [DONE]\n\n")
+        await events.put(None)
+
+    producer = asyncio.create_task(produce())
     try:
-        # Enter the stream before responding so connection and auth failures
-        # surface as proper HTTP errors instead of a 200 that errors mid-body.
-        stream = await stack.enter_async_context(
-            model.request_stream(messages, settings, parameters)
-        )
-    except ModelHTTPError as exc:
-        await stack.aclose()
-        return _provider_error_response(exc)
+        if (error := await startup) is not None:
+            return error
     except BaseException:
-        await stack.aclose()
+        # Startup failed or this request was cancelled; either way the
+        # producer must not outlive the request.
+        producer.cancel()
         raise
 
-    completion_id = _completion_id(stream.provider_response_id)
-    created = int(stream.timestamp.timestamp())
-
-    def chunk(delta: dict[str, Any], finish_reason: Optional[str] = None) -> str:
-        return _sse_event(
-            {
-                "id": completion_id,
-                "object": "chat.completion.chunk",
-                "created": created,
-                "model": model_id,
-                "choices": [{"index": 0, "delta": delta, "finish_reason": finish_reason}],
-            }
-        )
-
-    async def stream_chunks() -> AsyncIterator[str]:
+    async def stream_body() -> AsyncIterator[str]:
         try:
-            yield chunk({"role": "assistant", "content": ""})
-            async for event in stream:
-                text: Optional[str] = None
-                if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
-                    text = event.part.content
-                elif isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
-                    text = event.delta.content_delta
-                if text:
-                    yield chunk({"content": text})
-            yield _sse_event(
-                {
-                    "id": completion_id,
-                    "object": "chat.completion.chunk",
-                    "created": created,
-                    "model": model_id,
-                    "choices": [
-                        {
-                            "index": 0,
-                            "delta": {},
-                            "finish_reason": _to_openai_finish_reason(stream.finish_reason),
-                        }
-                    ],
-                    "usage": _to_openai_usage(stream.usage).model_dump(),
-                }
-            )
-        except Exception as exc:
-            # The 200 header is already on the wire — surface the failure as an
-            # OpenAI-style error event rather than severing the connection.
-            yield _sse_event({"error": {"message": str(exc), "type": "api_error"}})
+            while (event := await events.get()) is not None:
+                yield event
         finally:
-            await stack.aclose()
-        yield "data: [DONE]\n\n"
+            # Client disconnects cancel this generator; take the producer (and
+            # the provider stream it holds open) down with it.
+            producer.cancel()
 
     return StreamingResponse(
-        stream_chunks(),
+        stream_body(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache"},
     )

@@ -72,9 +72,24 @@ class CategoricalAnnotationValue(TypedDict):
     score: NotRequired[float]
 
 
+class ChatCompletionErrorDetail(TypedDict):
+    message: str
+    type: str
+    param: NotRequired[str]
+    code: NotRequired[str]
+
+
+class ChatCompletionErrorResponse(TypedDict):
+    error: ChatCompletionErrorDetail
+
+
 class ChatCompletionMessage(TypedDict):
     content: str
     role: NotRequired[str]
+
+
+class ChatCompletionStreamOptions(TypedDict):
+    include_usage: NotRequired[bool]
 
 
 class ChatCompletionTextPart(TypedDict):
@@ -1211,7 +1226,7 @@ class CreateChatCompletionRequestBody(TypedDict):
     presence_penalty: NotRequired[float]
     seed: NotRequired[int]
     n: NotRequired[int]
-    stream_options: NotRequired[Mapping[str, Any]]
+    stream_options: NotRequired[ChatCompletionStreamOptions]
     tools: NotRequired[Sequence[Any]]
     tool_choice: NotRequired[Any]
     response_format: NotRequired[Mapping[str, Any]]
