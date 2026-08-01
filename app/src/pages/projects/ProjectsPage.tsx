@@ -83,9 +83,15 @@ import type {
 import type { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
+import { ProjectsOnboardingCard } from "./ProjectsOnboardingCard";
 
 const PAGE_SIZE = 10;
 const PROJECTS_POLL_INTERVAL_MS = 60_000;
+// While the "send your first trace" onboarding card is showing (0 traces
+// anywhere), poll quickly so the page notices the first trace within seconds
+// instead of waiting for the slow steady-state poll. Mirrors the in-project
+// auto-transition (ProjectOnboardingGate) for the projects list context.
+const ONBOARDING_POLL_INTERVAL_MS = 5_000;
 
 const useProjectSortQueryParams = () => {
   const { projectSortOrder } = usePreferencesContext((state) => ({
@@ -187,6 +193,7 @@ export function ProjectsPageContent({
               gradientEndColor
               endTime
               startTime
+              hasTraces
             }
           }
         }
@@ -229,9 +236,58 @@ export function ProjectsPageContent({
     [_refetch, queryArgs]
   );
 
-  useInterval(() => refetch({}), PROJECTS_POLL_INTERVAL_MS);
-
   const projects = projectsData?.projects?.edges?.map((p) => p.project);
+
+  // On a fresh instance (0 traces anywhere), surface setup instructions at the
+  // top of the page so users can send their first trace without drilling into a
+  // project. Only show when not searching, so a filtered result set that
+  // happens to contain trace-less projects doesn't trigger it.
+  const hasNoTraces =
+    filter === "" &&
+    projects != null &&
+    projects.length > 0 &&
+    projects.every((project) => !project.hasTraces);
+  const onboardingProjectName =
+    projects?.find((project) => project.name === "default")?.name ??
+    projects?.[0]?.name ??
+    "my-project";
+  const onboardingProjectNames = useMemo(
+    () => projects?.map((project) => project.name) ?? [],
+    [projects]
+  );
+
+  // While the onboarding card is up, poll fast so the first trace is noticed
+  // within seconds; otherwise fall back to the steady-state cadence.
+  useInterval(
+    () => refetch({}),
+    hasNoTraces ? ONBOARDING_POLL_INTERVAL_MS : PROJECTS_POLL_INTERVAL_MS
+  );
+
+  // Auto-transition: while the onboarding card is up, poll fast (above); when
+  // the first trace lands, `hasTraces` flips (it is not time-range scoped) and
+  // the next poll clears `hasNoTraces`, hiding the card and revealing the now
+  // populated grid. Celebrate that moment once, mirroring the in-project gate.
+  const sawEmptyRef = useRef(false);
+  const hasCelebratedRef = useRef(false);
+  useEffect(() => {
+    if (hasNoTraces) {
+      sawEmptyRef.current = true;
+      return;
+    }
+    if (
+      sawEmptyRef.current &&
+      !hasCelebratedRef.current &&
+      projects != null &&
+      projects.some((project) => project.hasTraces)
+    ) {
+      hasCelebratedRef.current = true;
+      notifySuccess({
+        title: "First trace received 🎉",
+        message:
+          "Your instrumentation is working. New traces will appear as they arrive.",
+      });
+    }
+  }, [hasNoTraces, projects, notifySuccess]);
 
   const projectsContainerRef = useRef<HTMLDivElement>(null);
   const fetchMoreOnBottomReached = useCallback(
@@ -370,6 +426,20 @@ export function ProjectsPageContent({
           </Flex>
         </Flex>
       </View>
+      {hasNoTraces ? (
+        <View
+          paddingStart="size-200"
+          paddingEnd="size-200"
+          paddingTop="size-200"
+          width="100%"
+          flex="none"
+        >
+          <ProjectsOnboardingCard
+            projectName={onboardingProjectName}
+            projectNames={onboardingProjectNames}
+          />
+        </View>
+      ) : null}
       {projectViewMode === "grid" ? (
         <div
           css={css`

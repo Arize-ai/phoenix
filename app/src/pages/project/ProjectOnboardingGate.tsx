@@ -47,11 +47,7 @@ export function ProjectOnboardingGate({
   const wasEmptyOnMountRef = useRef(!hasTraces);
   const hasCelebratedRef = useRef(false);
   useEffect(() => {
-    if (
-      wasEmptyOnMountRef.current &&
-      hasTraces &&
-      !hasCelebratedRef.current
-    ) {
+    if (wasEmptyOnMountRef.current && hasTraces && !hasCelebratedRef.current) {
       hasCelebratedRef.current = true;
       notifySuccess({
         title: "First trace received 🎉",
