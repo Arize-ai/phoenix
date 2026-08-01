@@ -516,7 +516,10 @@ const EvaluatorsQuickstart = () => {
         }
       }
     `,
-    {}
+    {},
+    // Revalidate against the network on mount so a provider key added elsewhere
+    // (e.g. Settings → AI Providers) is reflected without a full page reload.
+    { fetchPolicy: "store-and-network" }
   );
 
   // A real API key is configured only when a provider that actually *requires*
