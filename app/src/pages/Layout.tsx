@@ -16,6 +16,7 @@ import {
   Brand,
   GitHubLink,
   NavBreadcrumb,
+  NavGroupHeading,
   NavLink,
   NavTitle,
   SideNavbar,
@@ -185,6 +186,9 @@ function SideNav({ isExpanded }: { isExpanded: boolean }) {
               isExpanded={isExpanded}
             />
           </li>
+          <li key="observe-heading">
+            <NavGroupHeading text="Observe" isExpanded={isExpanded} />
+          </li>
           <li>
             <NavLink
               to="/projects"
@@ -206,6 +210,25 @@ function SideNav({ isExpanded }: { isExpanded: boolean }) {
               isExpanded={isExpanded}
             />
           </li>
+          <li key="evaluate-heading">
+            <NavGroupHeading text="Evaluate" isExpanded={isExpanded} />
+          </li>
+          <li key="evaluators">
+            <NavLink
+              to="/evaluators"
+              text="Evaluators"
+              leadingVisual={<Icon svg={<Icons.Scale />} />}
+              trailingVisual={
+                loaderData?.evaluatorCount != null ? (
+                  <Counter variant="quiet">{loaderData.evaluatorCount}</Counter>
+                ) : undefined
+              }
+              isExpanded={isExpanded}
+            />
+          </li>
+          <li key="improve-heading">
+            <NavGroupHeading text="Improve" isExpanded={isExpanded} />
+          </li>
           <li key="datasets">
             <NavLink
               to="/datasets"
@@ -224,19 +247,6 @@ function SideNav({ isExpanded }: { isExpanded: boolean }) {
               to="/playground"
               text="Playground"
               leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-              isExpanded={isExpanded}
-            />
-          </li>
-          <li key="evaluators">
-            <NavLink
-              to="/evaluators"
-              text="Evaluators"
-              leadingVisual={<Icon svg={<Icons.Scale />} />}
-              trailingVisual={
-                loaderData?.evaluatorCount != null ? (
-                  <Counter variant="quiet">{loaderData.evaluatorCount}</Counter>
-                ) : undefined
-              }
               isExpanded={isExpanded}
             />
           </li>

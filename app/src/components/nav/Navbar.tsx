@@ -241,6 +241,46 @@ export function SideNavbar({
   );
 }
 
+const navGroupHeadingCSS = css`
+  display: flex;
+  align-items: center;
+  min-height: var(--global-dimension-size-300);
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100) 0;
+
+  .nav-group-heading__label {
+    color: var(--global-color-gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: var(--global-font-size-xs);
+    font-weight: var(--global-font-weight-semibold);
+    white-space: nowrap;
+  }
+
+  .nav-group-heading__divider {
+    width: 100%;
+    height: 1px;
+    background-color: var(--global-border-color-default);
+  }
+`;
+
+export function NavGroupHeading({
+  text,
+  isExpanded,
+}: {
+  text: string;
+  isExpanded: boolean;
+}) {
+  return (
+    <div css={navGroupHeadingCSS} role="presentation">
+      {isExpanded ? (
+        <span className="nav-group-heading__label">{text}</span>
+      ) : (
+        <span className="nav-group-heading__divider" aria-hidden="true" />
+      )}
+    </div>
+  );
+}
+
 export function NavLink(props: {
   to: string;
   text: string;
