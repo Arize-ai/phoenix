@@ -51,6 +51,12 @@ const chartEmptyStateOverlayCSS = css`
     gap: var(--global-dimension-size-100);
     text-wrap: balance;
   }
+
+  /* Links and buttons inside the empty-state message stay interactive even
+   * though the message layer itself is click-through */
+  .chart-empty-state-overlay__message-content :is(a, button) {
+    pointer-events: auto;
+  }
 `;
 
 /**

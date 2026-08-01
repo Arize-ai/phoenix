@@ -3,10 +3,12 @@ import { useNavigate } from "react-router";
 
 import {
   Button,
+  ExternalLink,
   ExternalLinkButton,
   Flex,
   Icon,
   Icons,
+  Link,
   Text,
   View,
 } from "@phoenix/components";
@@ -21,6 +23,17 @@ const evaluatorTypeCardCSS = css`
   border: 1px solid var(--global-border-color-default);
   background-color: transparent;
   width: 220px;
+`;
+
+const evaluateTracesCardCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-50);
+  padding: var(--global-dimension-size-200);
+  border-radius: var(--global-rounding-small);
+  border: 1px solid var(--global-border-color-default);
+  background-color: transparent;
+  max-width: 456px;
 `;
 
 /**
@@ -454,6 +467,24 @@ export const GlobalEvaluatorsEmptyState = ({
             </div>
           </Flex>
         </Flex>
+
+        {/* Tracing → evaluation bridge */}
+        <div css={evaluateTracesCardCSS}>
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <Icon svg={<Icons.Trace />} />
+            <Text weight="heavy">Evaluate traces in a project</Text>
+          </Flex>
+          <Text size="S" color="text-700">
+            Already tracing? Evals can score production traces too — results are
+            logged as annotations and show up in your{" "}
+            <Link to="/projects">project&apos;s</Link> annotation score charts.
+            See{" "}
+            <ExternalLink href="https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces">
+              evaluating traces
+            </ExternalLink>{" "}
+            to get started.
+          </Text>
+        </div>
 
         {/* CTAs */}
         <Flex direction="row" gap="size-200">
