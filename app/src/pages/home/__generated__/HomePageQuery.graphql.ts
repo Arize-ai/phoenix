@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a7a687fc276965ec30f9fd4d2e6aa9c5>>
+ * @generated SignedSource<<4b12a8bfe797e62fe761c2a35ce8a69f>>
  * @lightSyntaxTransform
  */
 
@@ -13,6 +13,9 @@ export type HomePageQuery$data = {
   readonly datasetCount: number;
   readonly evaluatorCount: number;
   readonly modelProviders: ReadonlyArray<{
+    readonly credentialRequirements: ReadonlyArray<{
+      readonly isRequired: boolean;
+    }>;
     readonly credentialsSet: boolean;
   }>;
   readonly projects: {
@@ -56,6 +59,24 @@ v2 = {
       "args": null,
       "kind": "ScalarField",
       "name": "credentialsSet",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "GenerativeProviderCredentialConfig",
+      "kind": "LinkedField",
+      "name": "credentialRequirements",
+      "plural": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "isRequired",
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     }
   ],
@@ -176,16 +197,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bfbb4c7a484c6958c9b70679eca23f13",
+    "cacheID": "e2b83aab95c8e9689915e9bbe392f6d9",
     "id": null,
     "metadata": {},
     "name": "HomePageQuery",
     "operationKind": "query",
-    "text": "query HomePageQuery {\n  datasetCount\n  evaluatorCount\n  modelProviders {\n    credentialsSet\n  }\n  projects(first: 100) {\n    edges {\n      node {\n        traceCount\n        id\n      }\n    }\n  }\n}\n"
+    "text": "query HomePageQuery {\n  datasetCount\n  evaluatorCount\n  modelProviders {\n    credentialsSet\n    credentialRequirements {\n      isRequired\n    }\n  }\n  projects(first: 100) {\n    edges {\n      node {\n        traceCount\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "95125693e868bff2d2120e4cd6896fcb";
+(node as any).hash = "5ea1bc563651fbe765c0925c06bb4ca4";
 
 export default node;

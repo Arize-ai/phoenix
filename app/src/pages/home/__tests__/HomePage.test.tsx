@@ -13,6 +13,21 @@ function makeData(overrides: Partial<HomePageQuery$data>): HomePageQuery$data {
   } as HomePageQuery$data;
 }
 
+// A provider that requires a key (e.g. OpenAI) has a required credential;
+// a no-auth provider (e.g. Ollama) has no requirements.
+const providerWithKey = {
+  credentialsSet: true,
+  credentialRequirements: [{ isRequired: true }],
+};
+const providerWithoutKey = {
+  credentialsSet: false,
+  credentialRequirements: [{ isRequired: true }],
+};
+const noAuthProvider = {
+  credentialsSet: true,
+  credentialRequirements: [],
+};
+
 describe("computeChecklistSteps", () => {
   it("marks every step incomplete for a brand-new instance", () => {
     const steps = computeChecklistSteps(makeData({}));
@@ -46,21 +61,28 @@ describe("computeChecklistSteps", () => {
     expect(steps.filter((s) => s.isComplete)).toHaveLength(1);
   });
 
-  it("completes the api-key step only when a provider has credentials", () => {
+  it("completes the api-key step only when a provider with a required key is set", () => {
     const none = computeChecklistSteps(
-      makeData({ modelProviders: [{ credentialsSet: false }] })
+      makeData({ modelProviders: [providerWithoutKey] })
     );
     expect(none.find((s) => s.id === "api-key")!.isComplete).toBe(false);
 
     const set = computeChecklistSteps(
       makeData({
-        modelProviders: [{ credentialsSet: false }, { credentialsSet: true }],
+        modelProviders: [providerWithoutKey, providerWithKey],
       })
     );
     const apiKey = set.find((s) => s.id === "api-key")!;
     expect(apiKey.isComplete).toBe(true);
     expect(apiKey.stat.value).toBe("1");
     expect(apiKey.stat.label).toBe("provider connected");
+  });
+
+  it("does NOT count no-auth providers (e.g. Ollama) as an added API key", () => {
+    const steps = computeChecklistSteps(
+      makeData({ modelProviders: [noAuthProvider] })
+    );
+    expect(steps.find((s) => s.id === "api-key")!.isComplete).toBe(false);
   });
 
   it("uses singular stat labels for a single item", () => {
@@ -87,7 +109,7 @@ describe("computeChecklistSteps", () => {
       makeData({
         datasetCount: 2,
         evaluatorCount: 4,
-        modelProviders: [{ credentialsSet: true }],
+        modelProviders: [providerWithKey],
         projects: { edges: [{ node: { traceCount: 10 } }] },
       })
     );

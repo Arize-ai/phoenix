@@ -21,6 +21,9 @@ const HomePageQuery = graphql`
     evaluatorCount
     modelProviders {
       credentialsSet
+      credentialRequirements {
+        isRequired
+      }
     }
     projects(first: 100) {
       edges {
@@ -44,8 +47,16 @@ export function computeChecklistSteps(
     (sum, edge) => sum + (edge.node.traceCount ?? 0),
     0
   );
+  // A provider that requires no credentials (e.g. Ollama) reports
+  // `credentialsSet: true` trivially — it needs no key. Only count providers
+  // that actually require credentials AND have them set on the server, so this
+  // step reflects a real API key the user added rather than a no-auth provider.
   const providersWithCredentials = (data.modelProviders ?? []).filter(
-    (provider) => provider.credentialsSet
+    (provider) =>
+      provider.credentialsSet &&
+      provider.credentialRequirements.some(
+        (requirement) => requirement.isRequired
+      )
   ).length;
   const datasetCount = data.datasetCount ?? 0;
   const evaluatorCount = data.evaluatorCount ?? 0;
