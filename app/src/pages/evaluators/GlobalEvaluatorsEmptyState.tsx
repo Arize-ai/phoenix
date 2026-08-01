@@ -21,7 +21,9 @@ import {
   CREATE_CODE_EVALUATOR_PARAM,
   CREATE_LLM_EVALUATOR_PARAM,
 } from "@phoenix/constants/searchParams";
+import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import type { GlobalEvaluatorsEmptyStateQuery } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsEmptyStateQuery.graphql";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 const evaluateTracesCardCSS = css`
   display: flex;
@@ -522,22 +524,41 @@ const EvaluatorsQuickstart = () => {
     { fetchPolicy: "store-and-network" }
   );
 
+  // Providers can also be configured client-side: the playground stores keys in
+  // the browser (localStorage), which never set `credentialsSet` on the server.
+  // The LLM evaluator creation flow uses those browser keys, so count a provider
+  // with a non-empty browser-stored credential toward this step as well.
+  const hasBrowserModelCredential = useCredentialsContext((state) =>
+    Object.entries(state).some(
+      ([key, value]) =>
+        isModelProvider(key) &&
+        value &&
+        typeof value === "object" &&
+        Object.values(value).some(
+          (credential) =>
+            typeof credential === "string" && credential.trim().length > 0
+        )
+    )
+  );
+
   // A real API key is configured only when a provider that actually *requires*
   // credentials has them set. Local providers like Ollama report
   // `credentialsSet: true` with no credential requirements, so they must not
-  // mark this step complete.
-  const hasApiKey = data.modelProviders.some(
-    (provider) =>
-      provider.credentialsSet &&
-      provider.credentialRequirements.some(
-        (requirement) => requirement.isRequired
-      )
-  );
+  // mark this step complete. A browser-stored key also counts.
+  const hasApiKey =
+    hasBrowserModelCredential ||
+    data.modelProviders.some(
+      (provider) =>
+        provider.credentialsSet &&
+        provider.credentialRequirements.some(
+          (requirement) => requirement.isRequired
+        )
+    );
   // Any provider with credentials set can run LLM evaluators — including
-  // credential-less local providers like Ollama.
-  const hasUsableModelProvider = data.modelProviders.some(
-    (provider) => provider.credentialsSet
-  );
+  // credential-less local providers like Ollama and browser-stored keys.
+  const hasUsableModelProvider =
+    hasBrowserModelCredential ||
+    data.modelProviders.some((provider) => provider.credentialsSet);
   const hasDataset = selectedDatasetId != null;
 
   const openDatasetEvaluators = (createParam: string) => {
