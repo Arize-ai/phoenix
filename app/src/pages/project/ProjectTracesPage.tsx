@@ -15,7 +15,7 @@ import { TracePaginationProvider } from "@phoenix/pages/trace/TracePaginationCon
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
 
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
-import { ProjectOnboarding } from "./ProjectOnboarding";
+import { ProjectOnboardingGate } from "./ProjectOnboardingGate";
 import {
   ProjectPageQueriesTracesQuery,
   useProjectPageQueryReferenceContext,
@@ -42,13 +42,17 @@ const TracesTabContent = ({
     tracesQueryReference
   );
 
-  if (!data.project.hasTraces) {
-    return (
-      <ProjectOnboarding projectName={data.project.name ?? "my-project"} />
-    );
-  }
-
-  return <TracesTable project={data.project} seed={seed} />;
+  // The gate keeps the onboarding screen live and swaps in the table when
+  // the first trace arrives -- the preloaded query above is never refetched,
+  // so without it an empty project's waiting screen would wait forever.
+  return (
+    <ProjectOnboardingGate
+      hasTraces={data.project.hasTraces === true}
+      projectName={data.project.name ?? "my-project"}
+    >
+      <TracesTable project={data.project} seed={seed} />
+    </ProjectOnboardingGate>
+  );
 };
 
 export const ProjectTracesPage = () => {

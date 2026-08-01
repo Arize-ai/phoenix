@@ -15,7 +15,7 @@ import { TracingRoot } from "@phoenix/pages/TracingRoot";
 
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
 import { PendingSpanFilter } from "./PendingSpanFilter";
-import { ProjectOnboarding } from "./ProjectOnboarding";
+import { ProjectOnboardingGate } from "./ProjectOnboardingGate";
 import {
   ProjectPageQueriesSpansQuery,
   useProjectPageQueryReferenceContext,
@@ -43,13 +43,17 @@ function SpansTabContent({
     queryReference
   );
 
-  if (!data.project.hasTraces) {
-    return (
-      <ProjectOnboarding projectName={data.project.name ?? "my-project"} />
-    );
-  }
-
-  return <SpansTable project={data.project} seed={seed} />;
+  // The gate keeps the onboarding screen live and swaps in the table when
+  // the first trace arrives -- the preloaded query above is never refetched,
+  // so without it an empty project's waiting screen would wait forever.
+  return (
+    <ProjectOnboardingGate
+      hasTraces={data.project.hasTraces === true}
+      projectName={data.project.name ?? "my-project"}
+    >
+      <SpansTable project={data.project} seed={seed} />
+    </ProjectOnboardingGate>
+  );
 }
 
 export const ProjectSpansPage = () => {
