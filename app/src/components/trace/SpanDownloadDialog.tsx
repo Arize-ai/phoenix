@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   Alert,
   Button,
+  Checkbox,
   ContextualHelp,
   Dialog,
   DialogCloseButton,
@@ -76,6 +77,8 @@ export function SpanDownloadDialog({
   const [error, setError] = useState<string | null>(null);
   const [scope, setScope] = useState<SpanDownloadScope>(initialScope);
   const [format, setFormat] = useState<SpanDownloadFormat>("jsonl");
+  const [includeSpanAnnotations, setIncludeSpanAnnotations] = useState(true);
+  const [includeTraceAnnotations, setIncludeTraceAnnotations] = useState(true);
   const [timestamp] = useState(() => getSpanDownloadTimestamp());
   const getDefaultFileName = (downloadScope: SpanDownloadScope) =>
     `${sanitizeSpanDownloadFileName(fileNamePrefix)}-${downloadScope}-${timestamp}`;
@@ -105,6 +108,8 @@ export function SpanDownloadDialog({
         ...idFilter,
         format,
         fileName: fullFileName,
+        includeSpanAnnotations,
+        includeTraceAnnotations,
       });
       close();
     } catch (error) {
@@ -205,6 +210,34 @@ export function SpanDownloadDialog({
                   </SegmentedControl>
                 </div>
               </Flex>
+              <div css={labeledGroupCSS}>
+                <Flex direction="row" alignItems="center" gap="size-50">
+                  <Label>Annotations</Label>
+                  <ContextualHelp variant="info">
+                    <Heading weight="heavy" level={4}>
+                      Include annotations
+                    </Heading>
+                    <Text>
+                      Adds span annotations to their spans and trace annotations
+                      once per trace as OpenInference semantic attributes.
+                    </Text>
+                  </ContextualHelp>
+                </Flex>
+                <Flex direction="row" gap="size-200">
+                  <Checkbox
+                    isSelected={includeSpanAnnotations}
+                    onChange={setIncludeSpanAnnotations}
+                  >
+                    Include span annotations
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={includeTraceAnnotations}
+                    onChange={setIncludeTraceAnnotations}
+                  >
+                    Include trace annotations
+                  </Checkbox>
+                </Flex>
+              </div>
               <TextField
                 value={fileName}
                 onChange={(value) => {

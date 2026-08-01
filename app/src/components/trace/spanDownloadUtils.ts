@@ -3,8 +3,18 @@ import chunk from "lodash/chunk";
 import type { components } from "@phoenix/api/__generated__/v1";
 import { authApiFetch } from "@phoenix/api/authApiFetch";
 
+import {
+  addAnnotationsToOtlpSpan,
+  addAnnotationsToPhoenixSpan,
+  applyAnnotationsToSpans,
+  fetchAnnotationsForTargets,
+  type SpanAnnotationTarget,
+} from "./spanDownloadAnnotations";
+
 type OtlpSpan = components["schemas"]["OtlpSpan"];
 type PhoenixSpan = components["schemas"]["Span"];
+type SpanAnnotation = components["schemas"]["SpanAnnotation"];
+type TraceAnnotation = components["schemas"]["TraceAnnotation"];
 
 const PAGE_SIZE = 1000;
 
@@ -35,6 +45,23 @@ type SpanSearchQuery = {
 };
 
 type SpanPage<Span> = { data: Span[]; next_cursor?: string | null };
+
+type SpanDownloadIncludeAnnotations = {
+  includeSpanAnnotations: boolean;
+  includeTraceAnnotations: boolean;
+};
+
+type SpanExportFormat<Span> = {
+  fetchPage: (query: SpanSearchQuery) => Promise<SpanPage<Span>>;
+  getTarget: (span: Span) => SpanAnnotationTarget | null;
+  withAnnotations: (
+    span: Span,
+    spanAnnotations: SpanAnnotation[],
+    traceAnnotations: TraceAnnotation[]
+  ) => Span;
+  toBlobParts: (spans: Span[]) => BlobPart[];
+  mimeType: string;
+};
 
 /** Makes a name safe to use in a file name. */
 export function sanitizeSpanDownloadFileName(name: string): string {
@@ -79,7 +106,7 @@ async function fetchSpans<Span>({
   spanIds?: string[];
   traceIds?: string[];
   fetchPage: (query: SpanSearchQuery) => Promise<SpanPage<Span>>;
-  onPage: (spans: Span[]) => void;
+  onPage: (spans: Span[]) => void | Promise<void>;
 }): Promise<void> {
   const useSpanIds = spanIds != null;
   const idList = spanIds ?? traceIds ?? [];
@@ -91,7 +118,7 @@ async function fetchSpans<Span>({
         ...(useSpanIds ? { span_id: batch } : { trace_id: batch }),
         ...(cursor ? { cursor } : {}),
       });
-      onPage(page.data);
+      await onPage(page.data);
       cursor = page.next_cursor ?? null;
     } while (cursor);
   }
@@ -131,6 +158,87 @@ async function fetchSpanPage({
   return data;
 }
 
+function getPhoenixSpanTarget(span: PhoenixSpan): SpanAnnotationTarget {
+  return {
+    spanId: span.context.span_id,
+    traceId: span.context.trace_id,
+    isRoot: span.parent_id == null || span.parent_id === "",
+  };
+}
+
+function getOtlpSpanTarget(span: OtlpSpan): SpanAnnotationTarget | null {
+  if (span.span_id == null || span.trace_id == null) {
+    return null;
+  }
+  return {
+    spanId: span.span_id,
+    traceId: span.trace_id,
+    isRoot: span.parent_span_id == null || span.parent_span_id === "",
+  };
+}
+
+/** Emits JSONL as page-sized BlobParts instead of one giant joined string. */
+function toJsonlBlobParts(spans: PhoenixSpan[]): BlobPart[] {
+  if (spans.length === 0) {
+    return [];
+  }
+  const parts: BlobPart[] = [];
+  for (const batch of chunk(spans, PAGE_SIZE)) {
+    parts.push(batch.map((span) => JSON.stringify(span)).join("\n"));
+    parts.push("\n");
+  }
+  return parts;
+}
+
+/**
+ * Emits OTLP JSON with open/body/close framing so each page is its own
+ * BlobPart rather than one JSON.stringify of the full spans array.
+ */
+function toOtlpBlobParts(spans: OtlpSpan[]): BlobPart[] {
+  const parts: BlobPart[] = ['{"resource_spans":[{"scope_spans":[{"spans":['];
+  let isFirstBatch = true;
+  for (const batch of chunk(spans, PAGE_SIZE)) {
+    if (batch.length === 0) {
+      continue;
+    }
+    const serialized = batch.map((span) => JSON.stringify(span)).join(",");
+    parts.push(isFirstBatch ? serialized : `,${serialized}`);
+    isFirstBatch = false;
+  }
+  parts.push("]}]}]}");
+  return parts;
+}
+
+function createPhoenixJsonlFormat({
+  projectId,
+}: {
+  projectId: string;
+}): SpanExportFormat<PhoenixSpan> {
+  return {
+    fetchPage: (query) => fetchSpanPage({ projectId, query }),
+    getTarget: getPhoenixSpanTarget,
+    withAnnotations: (span, spanAnnotations, traceAnnotations) =>
+      addAnnotationsToPhoenixSpan({ span, spanAnnotations, traceAnnotations }),
+    toBlobParts: toJsonlBlobParts,
+    mimeType: "application/x-ndjson",
+  };
+}
+
+function createOtlpJsonFormat({
+  projectId,
+}: {
+  projectId: string;
+}): SpanExportFormat<OtlpSpan> {
+  return {
+    fetchPage: (query) => fetchOtlpSpanPage({ projectId, query }),
+    getTarget: getOtlpSpanTarget,
+    withAnnotations: (span, spanAnnotations, traceAnnotations) =>
+      addAnnotationsToOtlpSpan({ span, spanAnnotations, traceAnnotations }),
+    toBlobParts: toOtlpBlobParts,
+    mimeType: "application/json",
+  };
+}
+
 /** Downloads blob parts without first joining them into one large JS string. */
 function downloadBlob({
   fileName,
@@ -149,6 +257,52 @@ function downloadBlob({
   setTimeout(() => URL.revokeObjectURL(url), URL_REVOKE_DELAY_MS);
 }
 
+async function downloadWithFormat<Span>({
+  projectId,
+  spanIds,
+  traceIds,
+  exportFormat,
+  fileName,
+  includeSpanAnnotations,
+  includeTraceAnnotations,
+}: {
+  projectId: string;
+  spanIds?: string[];
+  traceIds?: string[];
+  exportFormat: SpanExportFormat<Span>;
+  fileName: string;
+} & SpanDownloadIncludeAnnotations): Promise<void> {
+  const spans: Span[] = [];
+  await fetchSpans({
+    spanIds,
+    traceIds,
+    fetchPage: exportFormat.fetchPage,
+    onPage: (pageSpans) => {
+      spans.push(...pageSpans);
+    },
+  });
+  const targets = spans.map(exportFormat.getTarget);
+  const lookup = await fetchAnnotationsForTargets({
+    projectId,
+    targets: targets.filter(
+      (target): target is SpanAnnotationTarget => target != null
+    ),
+    includeSpanAnnotations,
+    includeTraceAnnotations,
+  });
+  const spansWithAnnotations = applyAnnotationsToSpans({
+    spans,
+    targets,
+    lookup,
+    withAnnotations: exportFormat.withAnnotations,
+  });
+  downloadBlob({
+    fileName,
+    parts: exportFormat.toBlobParts(spansWithAnnotations),
+    type: exportFormat.mimeType,
+  });
+}
+
 /** Downloads spans or complete traces in one of the bulk export formats. */
 export async function downloadSpanCollection({
   projectId,
@@ -156,55 +310,33 @@ export async function downloadSpanCollection({
   traceIds,
   format,
   fileName,
+  includeSpanAnnotations,
+  includeTraceAnnotations,
 }: {
   projectId: string;
   spanIds?: string[];
   traceIds?: string[];
   format: SpanDownloadFormat;
   fileName: string;
-}): Promise<void> {
-  const parts: BlobPart[] = [];
+} & SpanDownloadIncludeAnnotations): Promise<void> {
+  const shared = {
+    projectId,
+    spanIds,
+    traceIds,
+    fileName,
+    includeSpanAnnotations,
+    includeTraceAnnotations,
+  };
   if (format === "jsonl") {
-    await fetchSpans<PhoenixSpan>({
-      spanIds,
-      traceIds,
-      fetchPage: (query) => fetchSpanPage({ projectId, query }),
-      onPage: (spans) => {
-        if (spans.length === 0) {
-          return;
-        }
-        parts.push(spans.map((span) => JSON.stringify(span)).join("\n"));
-        parts.push("\n");
-      },
-    });
-    downloadBlob({
-      fileName,
-      parts,
-      type: "application/x-ndjson",
+    await downloadWithFormat({
+      ...shared,
+      exportFormat: createPhoenixJsonlFormat({ projectId }),
     });
     return;
   }
-
-  parts.push('{"resource_spans":[{"scope_spans":[{"spans":[');
-  let isFirstPage = true;
-  await fetchSpans<OtlpSpan>({
-    spanIds,
-    traceIds,
-    fetchPage: (query) => fetchOtlpSpanPage({ projectId, query }),
-    onPage: (spans) => {
-      if (spans.length === 0) {
-        return;
-      }
-      const serialized = spans.map((span) => JSON.stringify(span)).join(",");
-      parts.push(isFirstPage ? serialized : `,${serialized}`);
-      isFirstPage = false;
-    },
-  });
-  parts.push("]}]}]}");
-  downloadBlob({
-    fileName,
-    parts,
-    type: "application/json",
+  await downloadWithFormat({
+    ...shared,
+    exportFormat: createOtlpJsonFormat({ projectId }),
   });
 }
 
@@ -214,18 +346,22 @@ export async function downloadSingleSpan({
   spanId,
   format,
   fileName,
+  includeSpanAnnotations,
+  includeTraceAnnotations,
 }: {
   projectId: string;
   spanId: string;
   format: SingleSpanDownloadFormat;
   fileName: string;
-}): Promise<void> {
+} & SpanDownloadIncludeAnnotations): Promise<void> {
   if (format === "otlp-json") {
     await downloadSpanCollection({
       projectId,
       spanIds: [spanId],
       format,
       fileName,
+      includeSpanAnnotations,
+      includeTraceAnnotations,
     });
     return;
   }
@@ -238,9 +374,22 @@ export async function downloadSingleSpan({
   if (span == null) {
     throw new Error("Span not found");
   }
+  const target = getPhoenixSpanTarget(span);
+  const lookup = await fetchAnnotationsForTargets({
+    projectId,
+    targets: [target],
+    includeSpanAnnotations,
+    includeTraceAnnotations,
+  });
+  const spanWithAnnotations = addAnnotationsToPhoenixSpan({
+    span,
+    spanAnnotations: lookup.spanAnnotationsBySpanId.get(target.spanId) ?? [],
+    traceAnnotations:
+      lookup.traceAnnotationsByTraceId.get(target.traceId) ?? [],
+  });
   downloadBlob({
     fileName,
-    parts: [JSON.stringify(span, null, 2), "\n"],
+    parts: [JSON.stringify(spanWithAnnotations, null, 2), "\n"],
     type: "application/json",
   });
 }
