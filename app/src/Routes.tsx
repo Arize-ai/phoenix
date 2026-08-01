@@ -70,6 +70,7 @@ import {
   ExperimentDetailPage,
   ExperimentsPage,
   ForgotPasswordPage,
+  HomePage,
   homeLoader,
   LoggedOutPage,
   LoginPage,
@@ -275,6 +276,18 @@ export const appRouteObjects = createRoutesFromElements(
           <Route path="*" />
         </Route>
         <Route index loader={homeLoader} />
+        <Route
+          path="/home"
+          handle={{
+            crumb: () => "Home",
+            agentRoute: {
+              label: "Home",
+              description:
+                "Getting-started home page with a stateful onboarding checklist.",
+            },
+          }}
+          element={<HomePage />}
+        />
         <Route
           path="/projects"
           handle={{
