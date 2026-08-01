@@ -94,11 +94,6 @@ class _ChatCompletionError(Exception):
         self.error_type = error_type
         self.code = code
 
-    def to_response(self) -> JSONResponse:
-        return _error_response(
-            str(self), status_code=self.status_code, error_type=self.error_type, code=self.code
-        )
-
 
 class ChatCompletionErrorDetail(V1RoutesBaseModel):
     message: str
@@ -115,9 +110,11 @@ def _error_response(
     message: str,
     *,
     status_code: int,
-    error_type: str,
+    error_type: Optional[str] = None,
     code: Optional[str] = None,
 ) -> JSONResponse:
+    if error_type is None:
+        error_type = "invalid_request_error" if status_code < 500 else "api_error"
     body = ChatCompletionErrorResponse(
         error=ChatCompletionErrorDetail(message=message, type=error_type, code=code)
     )
@@ -148,6 +145,10 @@ class _OpenAIErrorAPIRoute(APIRoute):
         async def handle_with_openai_errors(request: Request) -> Response:
             try:
                 return await handler(request)
+            except _ChatCompletionError as exc:
+                return _error_response(
+                    str(exc), status_code=exc.status_code, error_type=exc.error_type, code=exc.code
+                )
             except StarletteHTTPException:
                 # Auth and framework-level errors keep their app-wide handling.
                 raise
@@ -398,11 +399,8 @@ async def create_chat_completion(
     request: Request,
     body: CreateChatCompletionRequestBody,
 ) -> Response:
-    try:
-        selection = _parse_model_id(body.model)
-        _reject_unsupported_parameters(body)
-    except _ChatCompletionError as exc:
-        return exc.to_response()
+    selection = _parse_model_id(body.model)
+    _reject_unsupported_parameters(body)
     try:
         # The session is only needed to resolve the model definition and its
         # credentials; release it before any provider call so a slow LLM
@@ -414,32 +412,21 @@ async def create_chat_completion(
                 decrypt=request.app.state.decrypt,
             )
     except AgentError as exc:
-        return _error_response(
-            str(exc),
-            status_code=exc.status_code,
-            error_type="invalid_request_error" if exc.status_code < 500 else "api_error",
-        )
-    except ValueError:
-        # A malformed custom provider_id fails Global ID parsing inside
-        # build_model with a ValueError before any AgentError can be raised;
-        # to the caller it is simply an unknown model.
-        return _unknown_model_error(body.model).to_response()
+        return _error_response(str(exc), status_code=exc.status_code)
     messages = _to_pydantic_ai_messages(body.messages)
     # Honor settings attached to the model itself (e.g. the Anthropic
     # max_tokens floor) the same way an agent run would.
     settings = merge_model_settings(model.settings, _to_model_settings(body))
-    parameters = ModelRequestParameters()
     if body.stream:
         return await _create_streaming_response(
             model=model,
             messages=messages,
             settings=settings,
-            parameters=parameters,
             model_id=body.model,
-            include_usage=body.stream_options is not None and body.stream_options.include_usage,
+            include_usage=bool(body.stream_options and body.stream_options.include_usage),
         )
     try:
-        response = await model.request(messages, settings, parameters)
+        response = await model.request(messages, settings, ModelRequestParameters())
     except ModelAPIError as exc:
         return _provider_error_response(exc)
     completion = ChatCompletion(
@@ -454,7 +441,9 @@ async def create_chat_completion(
         ],
         usage=_to_openai_usage(response.usage),
     )
-    return JSONResponse(completion.model_dump())
+    # Serialize straight to JSON bytes in one pass rather than model_dump()
+    # into a dict that JSONResponse walks a second time.
+    return Response(completion.model_dump_json(), media_type="application/json")
 
 
 def _provider_error_response(exc: ModelAPIError) -> JSONResponse:
@@ -467,11 +456,10 @@ def _provider_error_response(exc: ModelAPIError) -> JSONResponse:
         # Connection-level failure (DNS, refused connection, timeout): the
         # provider never answered, which makes this proxy a bad gateway.
         status_code = 502
-    return _error_response(
-        str(exc),
-        status_code=status_code,
-        error_type="invalid_request_error" if status_code < 500 else "api_error",
-    )
+    # Pass the provider's message through verbatim — OpenAI-compatible callers
+    # handle these programmatically, unlike the agents surface, which rewrites
+    # them into UI-facing remediation text (``format_stream_error_text``).
+    return _error_response(str(exc), status_code=status_code)
 
 
 async def _stream_events(
@@ -520,7 +508,6 @@ async def _create_streaming_response(
     model: Model,
     messages: list[ModelMessage],
     settings: Optional[ModelSettings],
-    parameters: ModelRequestParameters,
     model_id: str,
     include_usage: bool,
 ) -> Response:
@@ -531,14 +518,14 @@ async def _create_streaming_response(
     # events over a queue, while ``startup`` lets connection and auth failures
     # still surface as proper HTTP errors instead of a 200 that errors
     # mid-body.
-    startup: asyncio.Future[Optional[JSONResponse]] = asyncio.get_running_loop().create_future()
-    # maxsize=1 preserves generator-style backpressure: the provider stream is
-    # consumed no faster than the client reads.
-    events: asyncio.Queue[Optional[str]] = asyncio.Queue(maxsize=1)
+    startup: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+    # A small buffer keeps backpressure bounded (memory stays at a handful of
+    # short strings) without forcing a producer/consumer task switch per token.
+    events: asyncio.Queue[Optional[str]] = asyncio.Queue(maxsize=16)
 
     async def produce() -> None:
         try:
-            async with model.request_stream(messages, settings, parameters) as stream:
+            async with model.request_stream(messages, settings, ModelRequestParameters()) as stream:
                 startup.set_result(None)
                 try:
                     async for event in _stream_events(
@@ -556,10 +543,7 @@ async def _create_streaming_response(
             if not startup.done():
                 # Stream entry failed before anything was sent; let the
                 # endpoint turn it into a proper HTTP error response.
-                if isinstance(exc, ModelAPIError):
-                    startup.set_result(_provider_error_response(exc))
-                else:
-                    startup.set_exception(exc)
+                startup.set_exception(exc)
                 return
             logger.exception("Failed to close chat completion stream")
         await events.put("data: [DONE]\n\n")
@@ -567,8 +551,9 @@ async def _create_streaming_response(
 
     producer = asyncio.create_task(produce())
     try:
-        if (error := await startup) is not None:
-            return error
+        await startup
+    except ModelAPIError as exc:
+        return _provider_error_response(exc)
     except BaseException:
         # Startup failed or this request was cancelled; either way the
         # producer must not outlive the request.
