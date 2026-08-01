@@ -284,8 +284,13 @@ function createOtlpSpanFormat({
  *
  * A trace's spans can straddle pages, so `emittedTraceIds` records which
  * traces have already had their trace-level annotations written. The
- * annotations land on the first page carrying that trace, preferring a root
+ * annotations land on the first page to claim the trace, preferring a root
  * span within that page.
+ *
+ * Known limitation: because ID batches are fetched concurrently, the claiming
+ * page — and therefore the carrier span — depends on which page arrives first.
+ * A whole-export pass could always pick the root, but only by buffering every
+ * span before writing any, which is exactly what streaming trades away.
  *
  * @param params.emittedTraceIds - mutated in place; shared across the export
  */
@@ -311,10 +316,10 @@ async function attachAnnotationsToPage<Span>({
   // to fetch them — every later page it appears on skips the request outright.
   // Claiming synchronously is also what stops two concurrently processed pages
   // from both emitting the same trace's annotations.
-  const carrierTargets = includeTraceAnnotations
+  const claimedTargets = includeTraceAnnotations
     ? presentTargets.filter((target) => !emittedTraceIds.has(target.traceId))
     : [];
-  for (const target of carrierTargets) {
+  for (const target of claimedTargets) {
     emittedTraceIds.add(target.traceId);
   }
   const [spanLookup, traceLookup] = await Promise.all([
@@ -326,7 +331,7 @@ async function attachAnnotationsToPage<Span>({
     }),
     fetchAnnotationsForTargets({
       projectId,
-      targets: carrierTargets,
+      targets: claimedTargets,
       includeSpanAnnotations: false,
       includeTraceAnnotations,
     }),
