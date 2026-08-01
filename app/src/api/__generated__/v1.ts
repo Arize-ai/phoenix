@@ -2219,7 +2219,22 @@ export interface components {
         CreateApiKeyResponseBody: {
             data: components["schemas"]["CreatedApiKey"];
         };
-        /** CreateChatCompletionRequestBody */
+        /**
+         * CreateChatCompletionRequestBody
+         * @example {
+         *       "messages": [
+         *         {
+         *           "content": "You are a helpful assistant.",
+         *           "role": "system"
+         *         },
+         *         {
+         *           "content": "Say hello.",
+         *           "role": "user"
+         *         }
+         *       ],
+         *       "model": "openai:gpt-4o"
+         *     }
+         */
         CreateChatCompletionRequestBody: {
             /**
              * Model

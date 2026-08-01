@@ -35,7 +35,7 @@ from fastapi import APIRouter, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.routing import APIRoute
-from pydantic import Field
+from pydantic import ConfigDict, Field
 from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
 from pydantic_ai.messages import (
     FinishReason,
@@ -200,6 +200,20 @@ class CreateChatCompletionRequestBody(V1RoutesBaseModel):
     tools: Optional[list[Any]] = None
     tool_choice: Optional[Any] = None
     response_format: Optional[dict[str, Any]] = None
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "model": "openai:gpt-4o",
+                    "messages": [
+                        {"role": "system", "content": "You are a helpful assistant."},
+                        {"role": "user", "content": "Say hello."},
+                    ],
+                }
+            ]
+        }
+    )
 
 
 class ChatCompletionMessage(V1RoutesBaseModel):
