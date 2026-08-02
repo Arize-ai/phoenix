@@ -352,16 +352,9 @@ class BashToolset(FunctionToolset[None]):
                 ),
             },
         )
-        # `/skills` must exist before its children are mounted, or `ls` reports it
-        # missing even with mounts underneath. Only created when something will be
-        # mounted, so an agent without skills has no empty directory to explore.
         roots = f"{WORKSPACE_ROOT} {TMP_ROOT}" + (f" {SKILLS_ROOT}" if skills else "")
         shell.execute_sync_or_throw(f"mkdir -p {roots} && cd {WORKSPACE_ROOT}")
         for skill in skills:
-            # `Skill.path` is the skill's own folder, so mounting it per skill keeps
-            # the sibling Jinja templates in `prompts/skills/` out of `ls /skills`
-            # and requires no files to move. `writable=False` is what makes the
-            # mount read-only; the in-memory filesystem would be agent-writable.
             shell.mount(
                 f"{SKILLS_ROOT}/{skill.name}",
                 FileSystem.real(str(skill.path), writable=False),
@@ -383,8 +376,6 @@ class BashToolset(FunctionToolset[None]):
                 Tool(
                     bash,
                     takes_ctx=False,
-                    # The mount is described in the bash tool's system-prompt
-                    # instructions, not here, so this stays as it is on main.
                     description=_BASH_TOOL_DESCRIPTION_TEMPLATE.render(),
                 )
             ]
@@ -393,20 +384,7 @@ class BashToolset(FunctionToolset[None]):
 
 @dataclass
 class BashCapability(AbstractStaticCapability[None]):
-    """Capability that adds a ``bash`` toolset, and mounts skills for it to read.
-
-    Owning both the mount and the manifest is deliberate: the manifest names the
-    directories the mount creates, so splitting them across two capabilities would
-    let the advertised catalog and the mounted one drift apart, and the failure is
-    quiet — the model is pointed at a path that does not exist, or a mounted skill
-    is never advertised.
-
-    Attributes:
-        instructions: Bash tool instructions template. Rendered with the mounted
-            ``skills`` so the catalog it advertises is the catalog on disk.
-        skills: Skills to mount under :data:`SKILLS_ROOT`. Empty means no mount, and
-            the instructions omit the skills section entirely.
-    """
+    """Capability that adds a ``bash`` toolset."""
 
     schema: strawberry.Schema
     build_graphql_context: Callable[[], Context]
