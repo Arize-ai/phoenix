@@ -79,6 +79,29 @@ describe("getLLMAttributes", () => {
     });
   });
 
+  it("stringifies a json_schema that ingestion rebuilt as an object", () => {
+    const result = getLLMAttributes({
+      llm: {
+        tools: [
+          {
+            tool: {
+              // An instrumentation that flattens `tool.json_schema.*` makes
+              // ingestion store json_schema as a nested object instead of a
+              // JSON string.
+              json_schema: {
+                name: "search",
+                parameters: { type: "object" },
+              } as unknown as string,
+            },
+          },
+        ],
+      },
+    });
+    expect(result.toolSchemas).toEqual([
+      '{"name":"search","parameters":{"type":"object"}}',
+    ]);
+  });
+
   it("ignores messages that do not conform to the messages shape", () => {
     const result = getLLMAttributes({
       llm: {
