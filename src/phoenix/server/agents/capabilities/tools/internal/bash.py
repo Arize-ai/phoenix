@@ -391,16 +391,19 @@ class BashCapability(AbstractStaticCapability[None]):
     instructions: Template
     allow_mutations: bool = False
     internal_skills: Sequence[Skill] = field(default_factory=tuple)
+    external_skills: Sequence[Skill] = field(default_factory=tuple)
 
     def get_toolset(self) -> AgentToolset[None] | None:
         return BashToolset(
             schema=self.schema,
             build_graphql_context=self.build_graphql_context,
             allow_mutations=self.allow_mutations,
-            skills=self.internal_skills,
+            skills=[*self.internal_skills, *self.external_skills],
         )
 
     def get_static_instructions(self) -> str:
         return self.instructions.render(
-            internal_skills=self.internal_skills, skills_root=SKILLS_ROOT
+            internal_skills=self.internal_skills,
+            external_skills=self.external_skills,
+            skills_root=SKILLS_ROOT,
         )

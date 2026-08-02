@@ -1670,7 +1670,10 @@ class Query:
             AgentSkill(
                 name=skill.name,
                 description=skill.description,
-                summary=skill.summary,
+                # `summary` is optional on a skill and is the label this menu shows.
+                # Only built-in skills reach this catalog and they all define one, so
+                # the fallback is belt-and-braces rather than an expected path.
+                summary=skill.summary or skill.description,
             )
             for skill in skills
         ]
