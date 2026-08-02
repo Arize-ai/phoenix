@@ -306,10 +306,6 @@ class ServerAgentPrompts:
     bash_tool: Template = _SERVER_BASH_TOOL_INSTRUCTIONS
     write_span_note_tool: Template = _WRITE_SPAN_NOTE_TOOL_INSTRUCTIONS
     docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
-    skills: Template = _SKILLS_TEMPLATE
-    load_skill: Template = _LOAD_SKILL_TEMPLATE
-    load_skill_tool: Template = _LOAD_SKILL_TOOL_TEMPLATE
-    read_skill_resource_tool: Template = _READ_SKILL_RESOURCE_TOOL_TEMPLATE
     call_subagent_tool: Template = _CALL_SUBAGENT_TOOL_INSTRUCTIONS
 
 

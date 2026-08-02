@@ -6,6 +6,7 @@ import pytest
 import strawberry
 from pydantic_ai.models.test import TestModel
 
+from phoenix.server.agents.capabilities.tools.internal.bash import SKILLS_ROOT
 from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.api.context import Context
 from phoenix.server.types import DbSessionFactory
@@ -29,11 +30,12 @@ def model() -> TestModel:
     return TestModel(call_tools=[])
 
 
-async def test_skills_toolset_advertised(
+async def test_toolsets_advertised(
     model: TestModel,
     schema: strawberry.Schema,
     db: DbSessionFactory,
 ) -> None:
+    """Skills are files here, so they contribute no tools — only `bash` reads them."""
     agent = build_server_agent(
         model=model,
         schema=schema,
@@ -47,8 +49,8 @@ async def test_skills_toolset_advertised(
     tool_names = {tool.name for tool in model.last_model_request_parameters.function_tools}
     assert "bash" in tool_names
     assert "write_span_note" in tool_names
-    assert "load_skill" in tool_names
-    assert "read_skill_resource" in tool_names
+    assert "load_skill" not in tool_names
+    assert "read_skill_resource" not in tool_names
     assert "call_subagent" not in tool_names
 
 
@@ -91,3 +93,9 @@ async def test_skill_catalog_rendered_into_instructions(
     assert "<available_skills>" in instructions
     assert "phoenix-graphql" in instructions
     assert "span-coding" in instructions
+    # With no skill tool, the manifest is the only thing pointing at the mount, so it
+    # has to name each skill's directory and must not still reach for the dropped tools.
+    assert f"{SKILLS_ROOT}/phoenix-graphql/" in instructions
+    assert f"{SKILLS_ROOT}/span-coding/" in instructions
+    assert "load_skill" not in instructions
+    assert "read_skill_resource" not in instructions

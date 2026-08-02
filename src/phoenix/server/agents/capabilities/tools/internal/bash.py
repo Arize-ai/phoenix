@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 import posixpath
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Optional
 
 import strawberry
-from bashkit import Bash, BuiltinContext, BuiltinResult
+from bashkit import Bash, BuiltinContext, BuiltinResult, FileSystem
 from graphql import GraphQLSyntaxError
 from graphql import OperationType as GraphQLOperationType
 from graphql import parse as parse_graphql
@@ -18,10 +19,12 @@ from strawberry.types.graphql import OperationType
 from typing_extensions import TypedDict
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
+from phoenix.server.agents.capabilities.skills.skill import Skill
 from phoenix.server.api.context import Context
 
 WORKSPACE_ROOT = "/home/user/workspace"
 TMP_ROOT = "/tmp"
+SKILLS_ROOT = "/skills"
 
 _BASH_TOOL_DESCRIPTION_TEMPLATE = Template(
     """\
@@ -336,6 +339,7 @@ class BashToolset(FunctionToolset[None]):
         schema: strawberry.Schema,
         build_graphql_context: Callable[[], Context],
         allow_mutations: bool,
+        skills: Sequence[Skill] = (),
     ) -> None:
         shell = Bash(
             python=False,
@@ -348,7 +352,20 @@ class BashToolset(FunctionToolset[None]):
                 ),
             },
         )
-        shell.execute_sync_or_throw(f"mkdir -p {WORKSPACE_ROOT} {TMP_ROOT} && cd {WORKSPACE_ROOT}")
+        # `/skills` must exist before its children are mounted, or `ls` reports it
+        # missing even with mounts underneath. Only created when something will be
+        # mounted, so an agent without skills has no empty directory to explore.
+        roots = f"{WORKSPACE_ROOT} {TMP_ROOT}" + (f" {SKILLS_ROOT}" if skills else "")
+        shell.execute_sync_or_throw(f"mkdir -p {roots} && cd {WORKSPACE_ROOT}")
+        for skill in skills:
+            # `Skill.path` is the skill's own folder, so mounting it per skill keeps
+            # the sibling Jinja templates in `prompts/skills/` out of `ls /skills`
+            # and requires no files to move. `writable=False` is what makes the
+            # mount read-only; the in-memory filesystem would be agent-writable.
+            shell.mount(
+                f"{SKILLS_ROOT}/{skill.name}",
+                FileSystem.real(str(skill.path), writable=False),
+            )
 
         async def bash(summary: str, command: str) -> BashToolResult:
             result = await shell.execute(command)
@@ -366,6 +383,8 @@ class BashToolset(FunctionToolset[None]):
                 Tool(
                     bash,
                     takes_ctx=False,
+                    # The mount is described in the bash tool's system-prompt
+                    # instructions, not here, so this stays as it is on main.
                     description=_BASH_TOOL_DESCRIPTION_TEMPLATE.render(),
                 )
             ]
@@ -374,19 +393,34 @@ class BashToolset(FunctionToolset[None]):
 
 @dataclass
 class BashCapability(AbstractStaticCapability[None]):
-    """Capability that adds a ``bash`` toolset."""
+    """Capability that adds a ``bash`` toolset, and mounts skills for it to read.
+
+    Owning both the mount and the manifest is deliberate: the manifest names the
+    directories the mount creates, so splitting them across two capabilities would
+    let the advertised catalog and the mounted one drift apart, and the failure is
+    quiet — the model is pointed at a path that does not exist, or a mounted skill
+    is never advertised.
+
+    Attributes:
+        instructions: Bash tool instructions template. Rendered with the mounted
+            ``skills`` so the catalog it advertises is the catalog on disk.
+        skills: Skills to mount under :data:`SKILLS_ROOT`. Empty means no mount, and
+            the instructions omit the skills section entirely.
+    """
 
     schema: strawberry.Schema
     build_graphql_context: Callable[[], Context]
-    instructions: str
+    instructions: Template
     allow_mutations: bool = False
+    skills: Sequence[Skill] = field(default_factory=tuple)
 
     def get_toolset(self) -> AgentToolset[None] | None:
         return BashToolset(
             schema=self.schema,
             build_graphql_context=self.build_graphql_context,
             allow_mutations=self.allow_mutations,
+            skills=self.skills,
         )
 
     def get_static_instructions(self) -> str:
-        return self.instructions
+        return self.instructions.render(skills=self.skills, skills_root=SKILLS_ROOT)

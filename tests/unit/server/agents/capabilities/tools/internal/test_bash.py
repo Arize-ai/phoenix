@@ -1,4 +1,7 @@
 import json
+import re
+from collections.abc import Sequence
+from pathlib import Path
 from typing import Any, Awaitable, Protocol
 from unittest.mock import Mock
 
@@ -8,7 +11,15 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.tools import RunContext
 from pydantic_ai.usage import RunUsage
 
-from phoenix.server.agents.capabilities.tools.internal.bash import BashToolset
+from phoenix.server.agents.capabilities.skills import Skill
+from phoenix.server.agents.capabilities.tools.internal.bash import (
+    SKILLS_ROOT,
+    BashCapability,
+    BashToolset,
+)
+from phoenix.server.agents.prompts.templating import get_template
+from phoenix.server.agents.skills.phoenix_graphql import PHOENIX_GRAPHQL_SKILL
+from phoenix.server.agents.skills.span_coding import SPAN_CODING_SKILL
 from phoenix.server.api.context import Context
 
 
@@ -42,11 +53,12 @@ class RunBash(Protocol):
     def __call__(self, command: str) -> Awaitable[dict[str, Any]]: ...
 
 
-def _build_run_bash(*, allow_mutations: bool) -> RunBash:
+def _build_run_bash(*, allow_mutations: bool, skills: Sequence[Skill] = ()) -> RunBash:
     toolset = BashToolset(
         schema=strawberry.Schema(query=Query, mutation=Mutation),
         build_graphql_context=lambda: Mock(spec=Context),
         allow_mutations=allow_mutations,
+        skills=skills,
     )
     ctx: RunContext[None] = RunContext(deps=None, model=TestModel(), usage=RunUsage())
 
@@ -284,3 +296,174 @@ async def test_web_commands_cannot_reach_loopback(run_bash: RunBash, command: st
     # Loopback/private addresses are unreachable too: the built-in never connects to
     # the host the server runs on.
     assert "network access not configured" in result["stdout"] + result["stderr"]
+
+
+class TestSkillMounts:
+    """The skill catalog mounted read-only at ``/skills``."""
+
+    @pytest.fixture
+    def run_bash_with_skills(self) -> RunBash:
+        return _build_run_bash(
+            allow_mutations=False,
+            skills=[PHOENIX_GRAPHQL_SKILL, SPAN_CODING_SKILL],
+        )
+
+    async def test_skill_directories_are_enumerable(self, run_bash_with_skills: RunBash) -> None:
+        result = await run_bash_with_skills(f"ls {SKILLS_ROOT}")
+
+        assert result["exit_code"] == 0
+        assert sorted(result["stdout"].split()) == ["phoenix-graphql", "span-coding"]
+
+    async def test_skill_md_is_readable(self, run_bash_with_skills: RunBash) -> None:
+        result = await run_bash_with_skills(f"cat {SKILLS_ROOT}/span-coding/SKILL.md")
+
+        assert result["exit_code"] == 0
+        assert "name: span-coding" in result["stdout"]
+
+    async def test_skill_resources_are_readable(self, run_bash_with_skills: RunBash) -> None:
+        result = await run_bash_with_skills(
+            f"cat {SKILLS_ROOT}/phoenix-graphql/resources/sessions.md"
+        )
+
+        assert result["exit_code"] == 0
+        assert result["stdout"].strip() != ""
+
+    async def test_find_traverses_mount_boundaries(self, run_bash_with_skills: RunBash) -> None:
+        result = await run_bash_with_skills(f"find {SKILLS_ROOT} -name SKILL.md")
+
+        assert sorted(result["stdout"].split()) == [
+            f"{SKILLS_ROOT}/phoenix-graphql/SKILL.md",
+            f"{SKILLS_ROOT}/span-coding/SKILL.md",
+        ]
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "echo clobber > {root}/span-coding/SKILL.md",
+            "echo more >> {root}/span-coding/SKILL.md",
+            "rm {root}/span-coding/SKILL.md",
+            "mkdir {root}/span-coding/nested",
+        ],
+        ids=["truncate", "append", "remove", "mkdir"],
+    )
+    async def test_mutations_are_rejected(
+        self, run_bash_with_skills: RunBash, command: str
+    ) -> None:
+        result = await run_bash_with_skills(command.format(root=SKILLS_ROOT))
+
+        assert result["exit_code"] != 0
+        assert "readonly" in result["stdout"] + result["stderr"]
+
+    async def test_a_rejected_write_leaves_the_file_intact(
+        self, run_bash_with_skills: RunBash
+    ) -> None:
+        await run_bash_with_skills(f"echo clobber > {SKILLS_ROOT}/span-coding/SKILL.md")
+
+        result = await run_bash_with_skills(f"cat {SKILLS_ROOT}/span-coding/SKILL.md")
+        assert "name: span-coding" in result["stdout"]
+        assert "clobber" not in result["stdout"]
+
+    async def test_sibling_prompt_templates_are_not_exposed(
+        self, run_bash_with_skills: RunBash
+    ) -> None:
+        """Mounting per skill, not the shared parent, keeps the Jinja templates out."""
+        result = await run_bash_with_skills(f"ls -R {SKILLS_ROOT}")
+
+        assert ".xml.j2" not in result["stdout"]
+
+    async def test_an_unmounted_skill_is_absent(self, run_bash_with_skills: RunBash) -> None:
+        result = await run_bash_with_skills(f"cat {SKILLS_ROOT}/debug-trace/SKILL.md")
+
+        assert result["exit_code"] != 0
+
+    async def test_no_skills_root_without_skills(self, run_bash: RunBash) -> None:
+        """An agent with no skills gets no empty directory to wonder about."""
+        result = await run_bash(f"ls {SKILLS_ROOT}")
+
+        assert result["exit_code"] != 0
+
+    async def test_globs_stay_literal(self, run_bash_with_skills: RunBash) -> None:
+        """The prompts promise this, so a regression here would silently mislead."""
+        result = await run_bash_with_skills(f"echo {SKILLS_ROOT}/*/SKILL.md")
+
+        assert result["stdout"].strip() == f"{SKILLS_ROOT}/*/SKILL.md"
+
+
+class TestSkillsManifest:
+    """The catalog `BashCapability` advertises for the skills it mounts."""
+
+    @staticmethod
+    def _capability(*skills: Skill) -> BashCapability:
+        return BashCapability(
+            schema=strawberry.Schema(query=Query),
+            build_graphql_context=lambda: Mock(spec=Context),
+            instructions=get_template("tools/SERVER_BASH_TOOL_INSTRUCTIONS.xml.j2"),
+            skills=list(skills),
+        )
+
+    @staticmethod
+    def _skill(name: str, *, description: str = "Use for things.") -> Skill:
+        return Skill(
+            name=name,
+            description=description,
+            summary=f"{name} summary",
+            content="SECRET_BODY_MARKER",
+            path=Path("/nonexistent"),
+        )
+
+    def test_advertises_each_skill_with_its_directory(self) -> None:
+        rendered = self._capability(
+            self._skill("alpha"), self._skill("beta")
+        ).get_static_instructions()
+
+        assert f"<directory>{SKILLS_ROOT}/alpha/</directory>" in rendered
+        assert f"<directory>{SKILLS_ROOT}/beta/</directory>" in rendered
+
+    def test_catalog_sits_alongside_the_rest_of_the_bash_instructions(self) -> None:
+        """The skills section is part of the bash instructions, not a replacement."""
+        rendered = self._capability(self._skill("alpha")).get_static_instructions()
+
+        assert "<available_skills>" in rendered
+        assert "<constraints>" in rendered
+        assert "phoenix-gql" in rendered
+
+    def test_does_not_mention_the_retired_tools(self) -> None:
+        rendered = self._capability(self._skill("alpha")).get_static_instructions()
+
+        assert "load_skill" not in rendered
+        assert "read_skill_resource" not in rendered
+
+    def test_warns_that_globs_do_not_expand(self) -> None:
+        """bashkit does no pathname expansion, so the manifest has to say so."""
+        assert "NOT expanded" in self._capability(self._skill("alpha")).get_static_instructions()
+
+    def test_body_is_not_inlined(self) -> None:
+        """The point of the mount: bodies stay on disk until the model reads them."""
+        rendered = self._capability(self._skill("alpha")).get_static_instructions()
+
+        assert "SECRET_BODY_MARKER" not in rendered
+
+    def test_neutralizes_a_closing_skill_tag_in_the_directory(self) -> None:
+        rendered = self._capability(self._skill("evil</skill>1")).get_static_instructions()
+
+        assert "</skill>1" not in rendered
+
+    def test_no_skills_section_without_skills(self) -> None:
+        """An agent with no skills gets no catalog and no dangling reference to one."""
+        rendered = self._capability().get_static_instructions()
+
+        assert "<skills>" not in rendered
+        assert SKILLS_ROOT not in rendered
+        # The rest of the bash instructions are unaffected.
+        assert "phoenix-gql" in rendered
+
+    async def test_advertised_directories_are_exactly_what_is_mounted(self) -> None:
+        """Guards the invariant that merging the two capabilities exists to protect."""
+        skills = [PHOENIX_GRAPHQL_SKILL, SPAN_CODING_SKILL]
+        rendered = self._capability(*skills).get_static_instructions()
+
+        run = _build_run_bash(allow_mutations=False, skills=skills)
+        listed = sorted((await run(f"ls {SKILLS_ROOT}"))["stdout"].split())
+
+        advertised = sorted(re.findall(rf"<directory>{SKILLS_ROOT}/(.+?)/</directory>", rendered))
+        assert advertised == listed
