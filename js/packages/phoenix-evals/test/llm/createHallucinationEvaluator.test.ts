@@ -44,7 +44,7 @@ describe("createHallucinationEvaluator", () => {
           expect.objectContaining({
             role: "user",
             content: expect.stringContaining(
-              "labeling whether an AI assistant's latest response contains hallucinations"
+              "labeling whether an assistant's response is grounded in the input it came from"
             ),
           }),
         ]),
