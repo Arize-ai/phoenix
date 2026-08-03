@@ -32,12 +32,14 @@ export function getMatchingSearchDestinationSections({
   contains,
   startsWith,
   hasViewer,
+  featureFlags,
 }: {
   sections?: readonly SearchDestinationSection[];
   inputValue: string;
   contains: (value: string, substring: string) => boolean;
   startsWith: (value: string, substring: string) => boolean;
   hasViewer: boolean;
+  featureFlags?: Record<string, boolean>;
 }): SearchDestinationSection[] {
   return sections
     .map((section) => {
@@ -51,6 +53,7 @@ export function getMatchingSearchDestinationSections({
         const isVisible = isRouteNavigationEntryVisible({
           entry: destination,
           hasViewer,
+          featureFlags,
         });
         const matchesSearch =
           inputValue.length === 0 ||

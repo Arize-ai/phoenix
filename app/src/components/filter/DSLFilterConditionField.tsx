@@ -46,6 +46,7 @@ import {
 } from "@phoenix/components/agent/PxiOutline";
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { classNames } from "@phoenix/utils/classNames";
 
@@ -380,7 +381,10 @@ export function DSLFilterConditionField<
   TValidationResult extends DSLFilterConditionValidationResult,
 >(props: DSLFilterConditionFieldProps<TValidationResult>) {
   const { aiSearch, ...rest } = props;
-  if (aiSearch != null) {
+  // AI search is still being tuned, so the whole capability — the mode
+  // toggle, its settings, and the model it would load — stays behind a flag
+  const isAISearchAvailable = useFeatureFlag("ai-search");
+  if (aiSearch != null && isAISearchAvailable) {
     return (
       <DSLFilterConditionFieldWithAISearch {...rest} aiSearch={aiSearch} />
     );

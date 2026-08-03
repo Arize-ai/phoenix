@@ -5,6 +5,7 @@ import { Collection } from "react-aria-components";
 import { Navigate, Outlet, useMatches, useNavigate } from "react-router";
 
 import { Loading, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
+import { useFeatureFlags } from "@phoenix/contexts/FeatureFlagsContext";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 import { useMediaQuery } from "@phoenix/hooks";
 import {
@@ -58,11 +59,16 @@ export function ProfilePage() {
   const matches = useMatches();
   const isLargeScreen = useMediaQuery(VERTICAL_TABS_MEDIA_QUERY);
   const { viewer, refetchViewer } = useViewer();
+  const { featureFlags } = useFeatureFlags();
   const profileRoutes = getRegisteredRouteNavigationCatalog().filter(
     (route) => route.metadata.section === "Profile"
   );
   const tabs = profileRoutes.filter((route) =>
-    isRouteNavigationEntryVisible({ entry: route, hasViewer: viewer !== null })
+    isRouteNavigationEntryVisible({
+      entry: route,
+      hasViewer: viewer !== null,
+      featureFlags,
+    })
   );
   const activeProfileMatch = matches.findLast(
     (match) => getRouteNavigationMetadata(match.handle)?.section === "Profile"

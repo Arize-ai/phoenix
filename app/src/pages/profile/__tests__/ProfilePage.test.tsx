@@ -16,10 +16,21 @@ const viewerState = vi.hoisted((): { viewer: object | null } => ({
   viewer: {},
 }));
 
+const featureFlagState = vi.hoisted(
+  (): { featureFlags: Record<string, boolean> } => ({ featureFlags: {} })
+);
+
 vi.mock("@phoenix/contexts/ViewerContext", () => ({
   useViewer: () => ({
     viewer: viewerState.viewer,
     refetchViewer: () => undefined,
+  }),
+}));
+
+vi.mock("@phoenix/contexts/FeatureFlagsContext", () => ({
+  useFeatureFlags: () => ({
+    featureFlags: featureFlagState.featureFlags,
+    setFeatureFlags: () => undefined,
   }),
 }));
 
@@ -30,6 +41,7 @@ let root: Root;
 
 beforeEach(() => {
   viewerState.viewer = {};
+  featureFlagState.featureFlags = {};
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -52,8 +64,9 @@ async function renderProfilePage(initialEntry: string) {
   const route = (
     path: string,
     label: string,
-    icon: "Person" | "Key" | "Link2" | "Options",
-    requiresViewer = true
+    icon: "Person" | "Key" | "Link2" | "Options" | "Sparkles",
+    requiresViewer = true,
+    requiresFeatureFlag?: string
   ) => ({
     path,
     element: <CurrentProfileRoute />,
@@ -64,6 +77,7 @@ async function renderProfilePage(initialEntry: string) {
         description: `${label} profile settings`,
         icon,
         requiresViewer,
+        ...(requiresFeatureFlag ? { requiresFeatureFlag } : {}),
       },
     },
   });
@@ -76,6 +90,7 @@ async function renderProfilePage(initialEntry: string) {
         route("api-keys", "API Keys", "Key"),
         route("apps", "Apps", "Link2"),
         route("preferences", "Preferences", "Options", false),
+        route("generative-ai", "Generative AI", "Sparkles", false, "ai-search"),
         { path: "*", element: <CurrentProfileRoute /> },
       ],
     },
@@ -113,6 +128,29 @@ describe("ProfilePage", () => {
       expect(selectedTab?.textContent).toBe("API Keys");
     }
   );
+
+  it("hides a feature-flagged tab until its flag is on", async () => {
+    await renderProfilePage("/profile/account");
+
+    const tabLabels = () =>
+      Array.from(container.querySelectorAll('[role="tab"]')).map(
+        (tab) => tab.textContent
+      );
+    expect(tabLabels()).not.toContain("Generative AI");
+
+    featureFlagState.featureFlags = { "ai-search": true };
+    await renderProfilePage("/profile/account");
+
+    expect(tabLabels()).toContain("Generative AI");
+  });
+
+  it("redirects away from a feature-flagged section while its flag is off", async () => {
+    await renderProfilePage("/profile/generative-ai");
+
+    expect(container.querySelector("output")?.textContent).toBe(
+      "/profile/account"
+    );
+  });
 
   it("shows preferences when authentication is disabled", async () => {
     viewerState.viewer = null;

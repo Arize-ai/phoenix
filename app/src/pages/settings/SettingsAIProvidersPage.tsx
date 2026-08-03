@@ -3,6 +3,7 @@ import { useLoaderData } from "react-router";
 
 import { Flex } from "@phoenix/components";
 import { AISearchSettingsCard } from "@phoenix/components/filter";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { AIProviderSettingsCard } from "@phoenix/pages/settings/AIProviderSettingsCard";
 import { CustomProvidersCard } from "@phoenix/pages/settings/CustomProvidersCard";
 import { GenerativeProvidersCard } from "@phoenix/pages/settings/GenerativeProvidersCard";
@@ -19,12 +20,13 @@ export function SettingsAIProvidersPage() {
     settingsAIProvidersPageLoaderQuery,
     loaderData.queryRef
   );
+  const isAISearchAvailable = useFeatureFlag("ai-search");
   return (
     <Flex direction="column" gap="size-200">
       <GenerativeProvidersCard query={data} />
       <CustomProvidersCard query={data} />
       <AIProviderSettingsCard />
-      <AISearchSettingsCard />
+      {isAISearchAvailable ? <AISearchSettingsCard /> : null}
     </Flex>
   );
 }

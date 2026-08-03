@@ -17,6 +17,10 @@ vi.mock("@phoenix/contexts", () => ({
   useTheme: () => ({ theme: "light" }),
 }));
 
+vi.mock("@phoenix/contexts/FeatureFlagsContext", () => ({
+  useFeatureFlag: () => false,
+}));
+
 describe("DSLFilterConditionField validation outcomes", () => {
   let container: HTMLDivElement;
   let root: Root;

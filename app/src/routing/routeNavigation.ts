@@ -33,6 +33,11 @@ const routeNavigationMetadataSchema = z
       "Trace",
     ]),
     requiresViewer: z.boolean().optional(),
+    /**
+     * Name of the feature flag that must be on for the entry to appear.
+     * Kept a plain string so routing stays independent of the flag registry.
+     */
+    requiresFeatureFlag: z.string().min(1).optional(),
   })
   .strict();
 
@@ -83,16 +88,27 @@ export function buildRouteNavigationCatalog(
 
 /**
  * Entries flagged requiresViewer are only meaningful when someone is logged
- * in, so they are hidden from navigation when there is no viewer.
+ * in, so they are hidden from navigation when there is no viewer. Entries
+ * flagged requiresFeatureFlag are hidden until that flag is turned on, which
+ * keeps an in-progress feature out of navigation and search.
  */
 export function isRouteNavigationEntryVisible({
   entry,
   hasViewer,
+  featureFlags,
 }: {
   entry: RouteNavigationEntry;
   hasViewer: boolean;
+  featureFlags?: Record<string, boolean>;
 }): boolean {
-  return !entry.metadata.requiresViewer || hasViewer;
+  const { requiresViewer, requiresFeatureFlag } = entry.metadata;
+  if (requiresViewer && !hasViewer) {
+    return false;
+  }
+  if (requiresFeatureFlag && !featureFlags?.[requiresFeatureFlag]) {
+    return false;
+  }
+  return true;
 }
 
 let registeredRouteNavigationCatalog: RouteNavigationEntry[] = [];

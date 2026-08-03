@@ -13,6 +13,7 @@ import {
   MatchText,
   useFilter,
 } from "@phoenix/components";
+import { useFeatureFlags } from "@phoenix/contexts/FeatureFlagsContext";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 import { RouteNavigationIcon } from "@phoenix/routing/RouteNavigationIcon";
 import type {
@@ -55,6 +56,7 @@ export function GlobalSearchPalette({
 }) {
   const navigate = useNavigate();
   const { viewer } = useViewer();
+  const { featureFlags } = useFeatureFlags();
   const { contains, startsWith } = useFilter({ sensitivity: "base" });
   const [inputValue, setInputValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -94,6 +96,7 @@ export function GlobalSearchPalette({
     contains,
     startsWith,
     hasViewer: viewer !== null,
+    featureFlags,
   });
 
   return (

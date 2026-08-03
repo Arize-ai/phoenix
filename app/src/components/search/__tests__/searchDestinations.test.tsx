@@ -28,6 +28,21 @@ describe("search destinations", () => {
     expect(sections[0]?.title).toBe("Profile");
     expect(
       sections[0]?.destinations.map((destination) => destination.metadata.label)
+    ).toEqual(["Account", "API Keys", "Apps", "Preferences"]);
+  });
+
+  it("shows a feature-flagged destination once its flag is on", () => {
+    const sections = getMatchingSearchDestinationSections({
+      inputValue: "profile",
+      contains,
+      startsWith,
+      hasViewer: true,
+      featureFlags: { "ai-search": true },
+      sections: routeSections,
+    });
+
+    expect(
+      sections[0]?.destinations.map((destination) => destination.metadata.label)
     ).toEqual(["Account", "API Keys", "Apps", "Preferences", "Generative AI"]);
   });
 
@@ -72,7 +87,7 @@ describe("search destinations", () => {
     expect(sections).toHaveLength(1);
     expect(
       sections[0]?.destinations.map((destination) => destination.metadata.label)
-    ).toEqual(["Preferences", "Generative AI"]);
+    ).toEqual(["Preferences"]);
   });
 
   it("provides a direct destination and icon for every profile section", () => {

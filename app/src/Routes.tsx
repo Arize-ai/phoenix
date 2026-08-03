@@ -288,6 +288,7 @@ export const appRouteObjects = createRoutesFromElements(
                 label: "Generative AI",
                 description: "AI search and model configuration",
                 icon: "Sparkles",
+                requiresFeatureFlag: "ai-search",
               },
             }}
           />
@@ -976,7 +977,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "AI Providers",
                 description:
-                  "Configure AI providers, custom providers, provider credentials, base URLs, default model, provider headers, and AI search (natural-language filter conditions using the in-browser model or a provider).",
+                  "Configure AI providers, custom providers, provider credentials, base URLs, default model, provider headers, and AI search (natural-language filter conditions using Browser AI or a model provider).",
               },
             }}
           />

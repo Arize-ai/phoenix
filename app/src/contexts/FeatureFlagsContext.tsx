@@ -11,7 +11,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 
-type FeatureFlag = "agent-experimental-settings";
+export type FeatureFlag = "agent-experimental-settings" | "ai-search";
 
 export type FeatureFlagsContextType = {
   featureFlags: Record<FeatureFlag, boolean>;
@@ -22,6 +22,9 @@ export const LOCAL_STORAGE_FEATURE_FLAGS_KEY = "arize-phoenix-feature-flags";
 
 const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   "agent-experimental-settings": false,
+  // AI search is still being tuned; keep every surface hidden until the
+  // prompts reliably produce valid filter expressions
+  "ai-search": false,
 };
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {
