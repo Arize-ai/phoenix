@@ -51,12 +51,6 @@ export const isExperimentMetricChartKey = (
   ) || getExperimentAnnotationName(key) != null;
 
 /**
- * The maximum number of metric charts that can be shown above the experiments
- * table at once.
- */
-export const MAX_SELECTED_EXPERIMENT_METRIC_CHARTS = 3;
-
-/**
  * The default metric charts shown above the experiments table.
  */
 export const DEFAULT_EXPERIMENT_METRIC_CHART_KEYS: ExperimentMetricChartKey[] =

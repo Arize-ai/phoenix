@@ -64,6 +64,61 @@ Explicit arguments and environment variables always win — the file never
 overrides anything already set. Set `PHOENIX_DISCOVER_CONFIG=false` to disable
 discovery.
 
+## Custom Span Processors
+
+`register()` accepts `spanProcessors?: SpanProcessor[]`, which **replaces** the
+default Phoenix exporter setup rather than adding to it. For these setups you do
+not need to install the underlying OTel/OpenInference packages:
+
+- The package root re-exports `OTLPTraceExporter` and `ensureCollectorEndpoint`.
+- The **ESM-only** subpath `@arizeai/phoenix-otel/vercel` re-exports
+  `@arizeai/openinference-vercel` — `OpenInferenceSimpleSpanProcessor`,
+  `OpenInferenceBatchSpanProcessor`, `isOpenInferenceSpan`, and types.
+
+```typescript
+import {
+  ensureCollectorEndpoint,
+  OTLPTraceExporter,
+  register,
+} from "@arizeai/phoenix-otel";
+import {
+  isOpenInferenceSpan,
+  OpenInferenceSimpleSpanProcessor,
+} from "@arizeai/phoenix-otel/vercel";
+
+register({
+  projectName: "my-agent",
+  spanProcessors: [
+    new OpenInferenceSimpleSpanProcessor({
+      exporter: new OTLPTraceExporter({
+        url: ensureCollectorEndpoint("http://localhost:6006"),
+      }),
+      // Export only AI spans, re-rooting any left orphaned by the filter
+      spanFilter: isOpenInferenceSpan,
+      reparentOrphanedSpans: true,
+    }),
+  ],
+});
+```
+
+`ensureCollectorEndpoint()` normalizes a Phoenix base URL into the OTLP traces
+endpoint, so pass the same URL you would give `register({ url })`.
+
+**The `/vercel` subpath has no CommonJS build** — `@arizeai/openinference-vercel`
+is ESM-only, which is why these re-exports are not on the package root. From CJS,
+use `LazyOpenInferenceSpanProcessor` (exported from the root), which loads the
+processors via dynamic `import()` and buffers spans recorded before the load
+resolves:
+
+```typescript
+new LazyOpenInferenceSpanProcessor({ exporter, batch });  // batch: boolean
+```
+
+If the module cannot be loaded at all (e.g. a bundler stripped dynamic imports),
+it falls back to the plain OTel batch/simple processors and emits a diagnostic
+warning: spans still reach Phoenix, but AI SDK telemetry is not translated to
+OpenInference. This is the processor `register()` uses by default.
+
 ## ESM vs CommonJS
 
 **CommonJS (automatic):**

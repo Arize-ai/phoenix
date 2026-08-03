@@ -283,6 +283,32 @@ async def test_unstartable_pool_reports_a_tool_error(monkeypatch: pytest.MonkeyP
         await runtime.aclose()
 
 
+async def test_pool_startup_failure_of_any_type_reports_a_tool_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Startup failures are not confined to OSError.
+
+    Locating the worker binary happens inside pool startup, and upstream's
+    editable-install probe walks four parent directories unguarded, so an
+    install nearer the filesystem root — a container that flattens
+    site-packages onto its Python path, for one — raises IndexError instead of
+    FileNotFoundError. Type-based handling would let that reach the caller raw.
+    """
+
+    def unresolvable_binary(*args: Any, **kwargs: Any) -> Any:
+        del args, kwargs
+        raise IndexError("tuple index out of range")
+
+    monkeypatch.setattr("pydantic_monty.AsyncMonty", unresolvable_binary)
+    runtime = MontyRuntime()
+    provider = MontyPoolSandboxProvider(runtime=runtime)
+    try:
+        with pytest.raises(ToolError, match="could not be started"):
+            await provider.run("return 1")
+    finally:
+        await runtime.aclose()
+
+
 async def test_dropped_pool_during_shutdown_reports_a_tool_error() -> None:
     """A call that loses its pool to shutdown reports shutdown, not RuntimeError."""
     runtime = MontyRuntime()

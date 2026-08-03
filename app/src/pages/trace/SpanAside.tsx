@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 import { Group } from "react-resizable-panels";
@@ -21,7 +21,6 @@ import { usePreferencesContext } from "@phoenix/contexts";
 
 import type { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";
 import { useSpanAsideOpenRequest } from "./SpanAsideContext";
-import { SpanNotesEditor, SpanNotesEditorSkeleton } from "./SpanNotesEditor";
 
 type SpanAsideProps = {
   span: SpanAside_span$key;
@@ -86,17 +85,14 @@ export function SpanAside(props: SpanAsideProps) {
     (state) => state.setIsAnnotatingSpans
   );
   const editAnnotationsPanelRef = useRef<PanelImperativeHandle>(null);
-  const notesPanelRef = useRef<PanelImperativeHandle>(null);
-  // this component owns the section panels, so it does the expanding
+  // this component owns the section panel, so it does the expanding
   const openRequest = useSpanAsideOpenRequest();
   useEffect(() => {
     if (openRequest == null) {
       return;
     }
-    const panelRef =
-      openRequest.section === "notes" ? notesPanelRef : editAnnotationsPanelRef;
-    if (panelRef.current?.isCollapsed()) {
-      panelRef.current.expand();
+    if (editAnnotationsPanelRef.current?.isCollapsed()) {
+      editAnnotationsPanelRef.current.expand();
     }
   }, [openRequest]);
 
@@ -140,18 +136,6 @@ export function SpanAside(props: SpanAsideProps) {
             spanNodeId={data.id}
             annotationConfigsRefetchKey={annotationConfigsRefetchKey}
           />
-        </View>
-      </TitledPanel>
-      <TitledPanel
-        ref={notesPanelRef}
-        resizable
-        title="Notes"
-        panelProps={{ minSize: "10%" }}
-      >
-        <View height="100%" maxHeight="100%" padding="size-100">
-          <Suspense fallback={<SpanNotesEditorSkeleton />}>
-            <SpanNotesEditor spanNodeId={data.id} />
-          </Suspense>
         </View>
       </TitledPanel>
     </Group>

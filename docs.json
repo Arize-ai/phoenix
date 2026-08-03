@@ -218,6 +218,7 @@
                       "docs/phoenix/evaluation/pre-built-metrics/tool-invocation",
                       "docs/phoenix/evaluation/pre-built-metrics/tool-response-handling",
                       "docs/phoenix/evaluation/pre-built-metrics/refusal",
+                      "docs/phoenix/evaluation/pre-built-metrics/toxicity",
                       "docs/phoenix/evaluation/pre-built-metrics/user-friction",
                       "docs/phoenix/evaluation/pre-built-metrics/exact-match",
                       "docs/phoenix/evaluation/pre-built-metrics/matches-regex",
@@ -228,7 +229,6 @@
                           "docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data",
                           "docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance",
                           "docs/phoenix/evaluation/pre-built-metrics/summarization-eval",
-                          "docs/phoenix/evaluation/pre-built-metrics/toxicity",
                           "docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval",
                           "docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval"
                         ]
@@ -1335,6 +1335,7 @@
               {
                 "group": "07.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/07-2026/07-28-2026-experiment-charts-span-downloads-and-root-span-filters",
                   "docs/phoenix/release-notes/07-2026/07-22-2026-mcp-setup-provider-filter-and-evals",
                   "docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server",
                   "docs/phoenix/release-notes/07-2026/07-14-2026-command-palette-sessions-and-tables",

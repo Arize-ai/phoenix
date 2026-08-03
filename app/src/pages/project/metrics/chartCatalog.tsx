@@ -1,11 +1,26 @@
-import type { ReactNode } from "react";
+import type { ComponentType } from "react";
+import invariant from "tiny-invariant";
 
-import type { ChartTypeIconType } from "@phoenix/components/chart";
-import type { ProjectMetricChartKey } from "@phoenix/pages/project/constants";
-import { PROJECT_METRIC_CHART_KEYS } from "@phoenix/pages/project/constants";
+import {
+  ChartPanel,
+  type ChartTypeIconType,
+  DeferredChartPanel,
+} from "@phoenix/components/chart";
+import { useFrozenWhileHidden } from "@phoenix/hooks/useFrozenWhileHidden";
+import type {
+  BuiltInProjectMetricChartKey,
+  MetricChartTableView,
+  ProjectMetricChartKey,
+} from "@phoenix/pages/project/constants";
+import {
+  getProjectAnnotationMetricChartInfo,
+  PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION,
+  PROJECT_METRIC_CHART_KEYS,
+} from "@phoenix/pages/project/constants";
 
 import { LLMSpanCountTimeSeries } from "./LLMSpanCountTimeSeries";
 import { LLMSpanErrorsTimeSeries } from "./LLMSpanErrorsTimeSeries";
+import { ProjectAnnotationMetricPanel } from "./ProjectAnnotationMetrics";
 import { SessionAnnotationScoreTimeSeries } from "./SessionAnnotationScoreTimeSeries";
 import { SpanAnnotationScoreTimeSeries } from "./SpanAnnotationScoreTimeSeries";
 import { SpanCountTimeSeries } from "./SpanCountTimeSeries";
@@ -26,6 +41,8 @@ import type { ProjectMetricViewProps } from "./types";
 
 export type ProjectMetricChart = {
   key: ProjectMetricChartKey;
+  annotationLevel?: MetricChartTableView;
+  annotationName?: string;
   /**
    * Shown as the chart panel title and as the chart's name in chart pickers
    */
@@ -40,7 +57,20 @@ export type ProjectMetricChart = {
    * chart pickers so a chart can be recognized by its shape.
    */
   chartType: ChartTypeIconType;
-  Component: (props: ProjectMetricViewProps) => ReactNode;
+  Panel: ComponentType<ProjectMetricPanelProps>;
+};
+
+type ProjectMetricPanelProps = ProjectMetricViewProps & {
+  annotationLevel?: MetricChartTableView;
+  annotationName?: string;
+  fillHeight?: boolean;
+};
+
+type ProjectMetricChartDefinition = Omit<
+  ProjectMetricChart,
+  "key" | "Panel"
+> & {
+  Component: ComponentType<ProjectMetricViewProps>;
 };
 
 /**
@@ -49,8 +79,8 @@ export type ProjectMetricChart = {
  * charts above the spans table.
  */
 const CHART_DEFINITIONS: Record<
-  ProjectMetricChartKey,
-  Omit<ProjectMetricChart, "key">
+  BuiltInProjectMetricChartKey,
+  ProjectMetricChartDefinition
 > = {
   traffic: {
     name: "Traffic",
@@ -150,20 +180,137 @@ const CHART_DEFINITIONS: Record<
   },
 };
 
+function createProjectMetricPanel({
+  name,
+  description,
+  Component,
+}: ProjectMetricChartDefinition): ComponentType<ProjectMetricPanelProps> {
+  return function ProjectMetricPanel({ fillHeight = false, ...props }) {
+    return (
+      <ChartPanel title={name} subtitle={description} fillHeight={fillHeight}>
+        <Component {...props} />
+      </ChartPanel>
+    );
+  };
+}
+
 /**
- * The canonical chart objects, built once so repeated lookups return stable
- * references.
+ * The built-in chart objects, built once so repeated lookups return stable
+ * references. Annotation chart objects are derived from their keys and share
+ * one stable panel component.
  */
 const CHARTS_BY_KEY = Object.fromEntries(
-  PROJECT_METRIC_CHART_KEYS.map((key) => [
-    key,
-    { key, ...CHART_DEFINITIONS[key] },
-  ])
-) as Record<ProjectMetricChartKey, ProjectMetricChart>;
+  PROJECT_METRIC_CHART_KEYS.map((key) => {
+    const definition = CHART_DEFINITIONS[key];
+    return [
+      key,
+      {
+        key,
+        name: definition.name,
+        description: definition.description,
+        chartType: definition.chartType,
+        Panel: createProjectMetricPanel(definition),
+      },
+    ];
+  })
+) as Record<BuiltInProjectMetricChartKey, ProjectMetricChart>;
+
+function ProjectAnnotationChartPanel({
+  annotationLevel,
+  annotationName,
+  ...props
+}: ProjectMetricPanelProps) {
+  invariant(
+    annotationLevel != null,
+    "annotationLevel is required for a project annotation metric chart"
+  );
+  invariant(
+    annotationName != null,
+    "annotationName is required for a project annotation metric chart"
+  );
+  return (
+    <ProjectAnnotationMetricPanel
+      {...props}
+      annotationLevel={annotationLevel}
+      annotationName={annotationName}
+    />
+  );
+}
+
+/**
+ * A catalog chart wrapped in a {@link DeferredChartPanel} so it doesn't fetch
+ * until scrolled into view. The placeholder's title and subtitle come from
+ * the same catalog entry as the chart's, so they can't drift apart.
+ */
+export function DeferredProjectMetricPanel({
+  chart,
+  fillHeight = false,
+  ...props
+}: ProjectMetricViewProps & {
+  chart: ProjectMetricChart;
+  fillHeight?: boolean;
+}) {
+  return (
+    <DeferredChartPanel
+      title={chart.name}
+      subtitle={chart.description}
+      fillHeight={fillHeight}
+    >
+      <MetricPanelWithFrozenTimeRange
+        chart={chart}
+        fillHeight={fillHeight}
+        {...props}
+      />
+    </DeferredChartPanel>
+  );
+}
+
+/**
+ * Split out so useFrozenWhileHidden runs inside the deferred panel's
+ * visibility context: the time range is a query variable, and a live range
+ * advancing while the chart is hidden would refetch data the user can't see.
+ */
+function MetricPanelWithFrozenTimeRange({
+  chart,
+  timeRange,
+  fillHeight,
+  ...props
+}: ProjectMetricViewProps & {
+  chart: ProjectMetricChart;
+  fillHeight?: boolean;
+}) {
+  const visibleTimeRange = useFrozenWhileHidden(timeRange);
+  return (
+    <chart.Panel
+      {...props}
+      timeRange={visibleTimeRange}
+      annotationLevel={chart.annotationLevel}
+      annotationName={chart.annotationName}
+      fillHeight={fillHeight}
+    />
+  );
+}
 
 export const getProjectMetricChart = (
   key: ProjectMetricChartKey
-): ProjectMetricChart => CHARTS_BY_KEY[key];
+): ProjectMetricChart => {
+  const annotationInfo = getProjectAnnotationMetricChartInfo(key);
+  if (annotationInfo == null) {
+    return CHARTS_BY_KEY[key as BuiltInProjectMetricChartKey];
+  }
+  const { view: annotationLevel, annotationName } = annotationInfo;
+  return {
+    key,
+    annotationLevel,
+    annotationName,
+    name: annotationName,
+    description: PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION,
+    // An annotation's view (line or bars) is only known once its metric data
+    // loads, so the catalog shows a neutral line glyph.
+    chartType: "line",
+    Panel: ProjectAnnotationChartPanel,
+  };
+};
 
 export const getProjectMetricCharts = (
   keys: readonly ProjectMetricChartKey[]

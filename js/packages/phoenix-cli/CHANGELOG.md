@@ -1,5 +1,17 @@
 # @arizeai/phoenix-cli
 
+## 1.14.0
+
+### Minor Changes
+
+- df9db47: Suggest upgrading `px` when an unknown command is run and a newer version is published.
+
+## 1.13.1
+
+### Patch Changes
+
+- 1d9dd4e: Fix `px auth status` when a profile contains stale OAuth credentials but the Phoenix server now allows anonymous access
+
 ## 1.13.0
 
 ### Minor Changes

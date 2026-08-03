@@ -1,7 +1,11 @@
 import type { ComponentType } from "react";
 import invariant from "tiny-invariant";
 
-import { ChartPanel, type ChartTypeIconType } from "@phoenix/components/chart";
+import {
+  ChartPanel,
+  type ChartTypeIconType,
+  DeferredChartPanel,
+} from "@phoenix/components/chart";
 import type {
   BuiltInExperimentMetricChartKey,
   ExperimentMetricChartKey,
@@ -139,6 +143,34 @@ function ExperimentAnnotationChartPanel({
       {...props}
       annotationName={annotationName}
     />
+  );
+}
+
+/**
+ * A catalog chart wrapped in a {@link DeferredChartPanel} so it doesn't fetch
+ * until scrolled into view. The placeholder uses the catalog title and
+ * subtitle so it matches the loaded panel.
+ */
+export function DeferredExperimentMetricPanel({
+  chart,
+  fillHeight = false,
+  ...props
+}: ExperimentMetricViewProps & {
+  chart: ExperimentMetricChart;
+  fillHeight?: boolean;
+}) {
+  return (
+    <DeferredChartPanel
+      title={chart.name}
+      subtitle={chart.description}
+      fillHeight={fillHeight}
+    >
+      <chart.Panel
+        {...props}
+        annotationName={chart.annotationName}
+        fillHeight={fillHeight}
+      />
+    </DeferredChartPanel>
   );
 }
 

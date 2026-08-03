@@ -1,8 +1,9 @@
 import ast
+import math
 import re
-import sys
 import typing
 from dataclasses import dataclass, field
+from datetime import datetime
 from difflib import SequenceMatcher
 from itertools import chain
 from types import MappingProxyType
@@ -16,20 +17,13 @@ from sqlalchemy.sql.expression import ColumnElement, Select
 from typing_extensions import TypeAlias, TypeGuard, assert_never
 
 from phoenix.db import models
+from phoenix.db.models import SafeJsonBoolean, SafeJsonFloat
 
 _VALID_EVAL_ATTRIBUTES: tuple[str, ...] = ("score", "label", "explanation")
 
 
-AnnotationType: TypeAlias = typing.Literal["annotations", "evals"]
-AnnotationAttribute: TypeAlias = typing.Literal["label", "score"]
-AnnotationExpression: TypeAlias = str
+AnnotationAttribute: TypeAlias = typing.Literal["explanation", "label", "score"]
 AnnotationName: TypeAlias = str
-
-EVAL_EXPRESSION_PATTERN = re.compile(
-    r"""\b((annotations|evals)\[(".*?"|'.*?')\][.](label|score))\b"""
-)
-
-EVAL_NAME_PATTERN = re.compile(r"""(?<!\w)((annotations|evals)\[(".*?"|'.*?')\])(?![\w\.])""")
 
 
 @dataclass(frozen=True)
@@ -46,6 +40,7 @@ class AliasedAnnotationRelation:
     table: AliasedClass[models.SpanAnnotation] = field(init=False, repr=False)
     _label_attribute_alias: str = field(init=False, repr=False)
     _score_attribute_alias: str = field(init=False, repr=False)
+    _explanation_attribute_alias: str = field(init=False, repr=False)
     _exists_attribute_alias: str = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -53,11 +48,13 @@ class AliasedAnnotationRelation:
         alias_id = uuid4().hex
         label_attribute_alias = f"{table_alias}_label_{alias_id}"
         score_attribute_alias = f"{table_alias}_score_{alias_id}"
+        explanation_attribute_alias = f"{table_alias}_explanation_{alias_id}"
         exists_attribute_alias = f"{table_alias}_exists_{alias_id}"
 
         table = aliased(models.SpanAnnotation, name=table_alias)
         object.__setattr__(self, "_label_attribute_alias", label_attribute_alias)
         object.__setattr__(self, "_score_attribute_alias", score_attribute_alias)
+        object.__setattr__(self, "_explanation_attribute_alias", explanation_attribute_alias)
         object.__setattr__(self, "_exists_attribute_alias", exists_attribute_alias)
         object.__setattr__(self, "table", table)
 
@@ -69,6 +66,7 @@ class AliasedAnnotationRelation:
         """
         yield self._label_attribute_alias, self.table.label
         yield self._score_attribute_alias, self.table.score
+        yield self._explanation_attribute_alias, self.table.explanation
         yield (
             self._exists_attribute_alias,
             case((self.table.id.is_not(None), literal(True)), else_=literal(False)),
@@ -82,6 +80,8 @@ class AliasedAnnotationRelation:
             return self._label_attribute_alias
         if attribute == "score":
             return self._score_attribute_alias
+        if attribute == "explanation":
+            return self._explanation_attribute_alias
         assert_never(attribute)
 
 
@@ -164,43 +164,28 @@ parent pointer, or a pointer to a span absent from the table).
 """
 
 
+class SpanFilterError(SyntaxError):
+    """An invalid span filter condition supplied by a caller."""
+
+
 @dataclass(frozen=True)
 class SpanFilter:
     condition: str = ""
-    valid_eval_names: typing.Optional[typing.Sequence[str]] = None
     translated: ast.Expression = field(init=False, repr=False)
     compiled: typing.Any = field(init=False, repr=False)
     root_scope: typing.Optional[RootSpanScope] = field(init=False, repr=False)
     _aliased_annotation_relations: tuple[AliasedAnnotationRelation] = field(init=False, repr=False)
     _aliased_annotation_attributes: dict[str, Mapped[typing.Any]] = field(init=False, repr=False)
+    _literal_bindings: dict[str, typing.Any] = field(init=False, repr=False)
 
     def __bool__(self) -> bool:
         return bool(self.condition)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "root_scope", None)
-        if not (source := self.condition):
-            return
         try:
-            root = ast.parse(source, mode="eval")
-            _validate_expression(root, valid_eval_names=self.valid_eval_names)
-            # Derived from the tree parsed just above rather than from the source
-            # again, so a caller holding a filter is spared a parse of its own.
-            # Taken after validation so that a filter which escapes this
-            # constructor always carries the scope of a condition known to be
-            # valid, and so that invalid input is not analyzed for nothing.
-            object.__setattr__(self, "root_scope", _scope_or_none(root.body))
-            source, aliased_annotation_relations = _apply_eval_aliasing(source)
-            root = ast.parse(source, mode="eval")
-            translated = _FilterTranslator(
-                reserved_keywords=(
-                    alias
-                    for aliased_annotation in aliased_annotation_relations
-                    for alias, _ in aliased_annotation.attributes
-                ),
-            ).visit(root)
-            ast.fix_missing_locations(translated)
-            compiled = compile(translated, filename="", mode="eval")
+            self._initialize()
+        except SpanFilterError:
+            raise
         except RecursionError:
             # Input nested deeply enough to exhaust the stack, which every stage
             # above is vulnerable to -- the parser, the translator, and
@@ -208,7 +193,59 @@ class SpanFilter:
             # has to read as a malformed filter like any other rather than
             # escaping as a crash from whichever stage happened to run out
             # first.
-            raise SyntaxError("filter condition is nested too deeply") from None
+            raise SpanFilterError("filter condition is nested too deeply") from None
+        except SyntaxError as error:
+            raise SpanFilterError(_format_syntax_error(error)) from error
+
+    def _initialize(self) -> None:
+        object.__setattr__(self, "root_scope", None)
+        # Normalize the condition itself rather than a local copy, so that
+        # `condition` and `to_dict()` expose the canonical text. Two spellings
+        # that differ only in surrounding whitespace mean the same thing, and a
+        # caller persisting or de-duplicating conditions should not have to
+        # discover that on its own -- identity is only well defined if the
+        # stored form is canonical.
+        #
+        # Stripping also avoids a poor error: Python reads a leading space as
+        # indentation and fails with `IndentationError`. Accepting more input is
+        # safe under the additive-only compatibility policy.
+        object.__setattr__(self, "condition", self.condition.strip())
+        if not (source := self.condition):
+            return
+        try:
+            root = ast.parse(source, mode="eval")
+        except ValueError as error:
+            # A NUL anywhere in the source, which `ast.parse` reports as a
+            # `ValueError` rather than a `SyntaxError`. Callers catch only the
+            # latter, so it would escape as a server error.
+            raise SyntaxError("condition cannot contain a NUL character") from error
+        _validate_expression(root, source)
+        # Derived from the tree parsed just above rather than from the source
+        # again, so a caller holding a filter is spared a parse of its own.
+        # Taken after validation so that a filter which escapes this
+        # constructor always carries the scope of a condition known to be
+        # valid, and so that invalid input is not analyzed for nothing.
+        object.__setattr__(self, "root_scope", _scope_or_none(root.body))
+        source, aliased_annotation_relations = _apply_eval_aliasing(source)
+        root = ast.parse(source, mode="eval")
+        translator = _FilterTranslator(
+            reserved_keywords=(
+                alias
+                for aliased_annotation in aliased_annotation_relations
+                for alias, _ in aliased_annotation.attributes
+            ),
+            string_keywords=(
+                alias
+                for aliased_annotation in aliased_annotation_relations
+                for alias in (
+                    aliased_annotation._label_attribute_alias,
+                    aliased_annotation._explanation_attribute_alias,
+                )
+            ),
+        )
+        translated = translator.visit(root)
+        ast.fix_missing_locations(translated)
+        compiled = compile(translated, filename="", mode="eval")
         aliased_annotation_attributes = {
             alias: attribute
             for aliased_annotation in aliased_annotation_relations
@@ -218,6 +255,7 @@ class SpanFilter:
         object.__setattr__(self, "compiled", compiled)
         object.__setattr__(self, "_aliased_annotation_relations", aliased_annotation_relations)
         object.__setattr__(self, "_aliased_annotation_attributes", aliased_annotation_attributes)
+        object.__setattr__(self, "_literal_bindings", translator.literal_bindings)
 
     def __call__(self, select: Select[typing.Any]) -> Select[typing.Any]:
         if not self.condition:
@@ -239,12 +277,16 @@ class SpanFilter:
                     "__builtins__": {},
                     **_NAMES,
                     **self._aliased_annotation_attributes,
+                    **self._literal_bindings,
                     "not_": sqlalchemy.not_,
                     "and_": sqlalchemy.and_,
                     "or_": sqlalchemy.or_,
+                    "nullif": sqlalchemy.func.nullif,
                     "cast": sqlalchemy.cast,
                     "Float": sqlalchemy.Float,
                     "String": sqlalchemy.String,
+                    "SafeJsonBoolean": SafeJsonBoolean,
+                    "SafeJsonFloat": SafeJsonFloat,
                     "TextContains": models.TextContains,
                     _PARENT_IS_NULL: ~parent_exists,
                     _PARENT_IS_NOT_NULL: parent_exists,
@@ -259,12 +301,8 @@ class SpanFilter:
     def from_dict(
         cls,
         obj: typing.Mapping[str, typing.Any],
-        valid_eval_names: typing.Optional[typing.Sequence[str]] = None,
     ) -> "SpanFilter":
-        return cls(
-            condition=obj.get("condition") or "",
-            valid_eval_names=valid_eval_names,
-        )
+        return cls(condition=obj.get("condition") or "")
 
     def _join_aliased_relations(self, stmt: Select[typing.Any]) -> Select[typing.Any]:
         """
@@ -329,11 +367,18 @@ def root_span_scope(condition: str) -> typing.Optional[RootSpanScope]:
     (and, in the orphan-aware branch, a CTE over `spans`) that select what one
     of them already selects.
     """
-    if not condition.strip():
+    # Normalize exactly as `SpanFilter` does at construction, so the two entry
+    # points always analyze the same text. They diverged here once: a leading
+    # space parses as an `IndentationError`, so `" parent_id is None "`
+    # validated (stripped) while this function reported `None` (unstripped) --
+    # and the UI chose metric columns from the wrong verdict.
+    if not (condition := condition.strip()):
         return None
     try:
         body = ast.parse(condition, mode="eval").body
-    except SyntaxError:
+    except (SyntaxError, ValueError):
+        # `ValueError` is a NUL in the source. This entry point takes arbitrary
+        # strings from the API, so anything unparseable reads as "cannot tell".
         return None
     except RecursionError:
         # Deeply nested input, e.g. a long chain of `not`. Both the parser and
@@ -497,6 +542,11 @@ class Projector:
         if not (source := self.expression):
             raise ValueError("missing expression")
         root = ast.parse(source, mode="eval")
+        # The same inherited-Python-surface rules `SpanFilter` applies --
+        # notably the NFKC check: a full-width projection name silently
+        # resolved to the ASCII field the user never spelled, exactly the
+        # confusable-identifier hazard the filter side already rejects.
+        _validate_python_surface(root.body, source)
         _validate_projection_expression(root)
         translated = _ProjectionTranslator(source).visit(root)
         ast.fix_missing_locations(translated)
@@ -536,7 +586,7 @@ def _is_parent_rooted(node: typing.Any) -> bool:
 def _parent_traversal_error(node: ast.expr) -> SyntaxError:
     # `parent_span.<field>` traversal is not supported yet (a follow-up).
     return SyntaxError(
-        f"`{ast.unparse(node)}` is not supported: `parent_span` traversal "
+        f"`{_ellipsize(ast.unparse(node), 80)}` is not supported: `parent_span` traversal "
         "(`parent_span.<field>`) is not yet available; only `parent_span is None` "
         "and `parent_span is not None` are supported"
     )
@@ -544,6 +594,10 @@ def _parent_traversal_error(node: ast.expr) -> SyntaxError:
 
 def _is_none_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     return isinstance(node, ast.Constant) and node.value is None
+
+
+def _is_datetime_name(node: typing.Any) -> TypeGuard[ast.Name]:
+    return isinstance(node, ast.Name) and node.id in _DATETIME_NAMES
 
 
 def _convert_to_uppercase(node: ast.expr) -> ast.expr:
@@ -568,8 +622,388 @@ def _is_float_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     )
 
 
+def _is_singleton_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
+    """`None`, `True`, `False` -- the only values Python's `is` is meaningful
+    against, and the only ones SQL can express (`IS NULL`/`IS TRUE`/`IS FALSE`)."""
+    return isinstance(node, ast.Constant) and (node.value is None or isinstance(node.value, bool))
+
+
 def _is_bool_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     return isinstance(node, ast.Constant) and isinstance(node.value, bool)
+
+
+def _is_bool_sequence(node: typing.Any) -> TypeGuard[typing.Union[ast.List, ast.Tuple]]:
+    return (
+        isinstance(node, (ast.List, ast.Tuple))
+        and bool(node.elts)
+        and all(_is_bool_constant(element) for element in node.elts)
+    )
+
+
+FilterValueType: TypeAlias = typing.Literal["boolean", "datetime", "number", "string", "null"]
+
+
+def _get_filter_value_type(node: ast.AST) -> typing.Optional[FilterValueType]:
+    if isinstance(node, ast.Constant):
+        if node.value is None:
+            return "null"
+        if isinstance(node.value, bool):
+            return "boolean"
+        if isinstance(node.value, (int, float)):
+            return "number"
+        if isinstance(node.value, str):
+            return "string"
+        return None
+    if isinstance(node, ast.Name):
+        return _get_named_filter_value_type(node.id)
+    if isinstance(node, ast.Attribute) and _is_annotation(node.value):
+        if node.attr in ("label", "explanation"):
+            return "string"
+        if node.attr == "score":
+            return "number"
+        return None
+    if isinstance(node, ast.Attribute):
+        return _get_named_filter_value_type(ast.unparse(node))
+    if _is_annotation(node):
+        return "boolean"
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+        if node.func.id == "str":
+            return "string"
+        if node.func.id in ("float", "int"):
+            return "number"
+    if isinstance(node, ast.BinOp):
+        if not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Mod)):
+            raise SyntaxError(f"invalid arithmetic operator: {ast.unparse(node.op)}")
+        left_type = _get_filter_value_type(node.left)
+        right_type = _get_filter_value_type(node.right)
+        if isinstance(node.op, ast.Add):
+            known_types = {value_type for value_type in (left_type, right_type) if value_type}
+            if not known_types:
+                return "string"
+            if len(known_types) == 1 and known_types <= {"number", "string"}:
+                return known_types.pop()
+        elif left_type in (None, "number") and right_type in (None, "number"):
+            return "number"
+        raise SyntaxError("invalid arithmetic operands")
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        operand_type = _get_filter_value_type(node.operand)
+        if operand_type not in (None, "number"):
+            raise SyntaxError("invalid arithmetic operand")
+        return "number"
+    if isinstance(node, ast.Compare):
+        return "boolean"
+    if isinstance(node, ast.BoolOp):
+        return "boolean"
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+        return "boolean"
+    return None
+
+
+def _require_condition(node: ast.expr) -> None:
+    """Require `node` to be a condition rather than a value.
+
+    Each operand of `and` / `or` / `not` becomes an argument of SQL `AND` / `OR`
+    / `NOT`, which only accepts a predicate. A value in that position is
+    accepted by Python's grammar and by the structural pass, so without this it
+    reaches the database, and the two backends disagree about what happens
+    next: PostgreSQL rejects the statement (`argument of AND must be type
+    boolean, not type jsonb`) while SQLite coerces to a truth value and quietly
+    returns the wrong rows.
+
+    Unknown-typed operands -- a bare JSON attribute such as `metadata['flag']`
+    -- are deliberately included. Their type cannot be known statically, so
+    allowing them as truthy values is what let the raw JSON through in the
+    first place. Truthiness is not offered as an explicit cast either: the
+    overwhelmingly common source of this shape is a half-typed expression
+    (`name == 'x' and ` plus one more character), and reporting that as an
+    error is more useful than silently filtering on whatever was typed.
+
+    `_get_filter_value_type` already answers this exactly -- it returns
+    ``"boolean"`` for comparisons, logical expressions, boolean literals, and
+    bare annotations (an existence check) -- so this is a use of that judgment,
+    not a second one.
+    """
+    if _get_filter_value_type(node) == "boolean":
+        return
+    # Bounded at the format site: this fragment *precedes* the advice, so the
+    # whole-message backstop cannot protect the guidance here.
+    source_segment = _ellipsize(ast.unparse(node), 80)
+    raise SyntaxError(
+        f"`{source_segment}` is not a condition"
+        f", expected a comparison such as `{source_segment} == ...`"
+    )
+
+
+def _get_named_filter_value_type(name: str) -> typing.Optional[FilterValueType]:
+    name = _BACKWARD_COMPATIBILITY_REPLACEMENTS.get(name, name)
+    if name in _STRING_NAMES:
+        return "string"
+    if name in _FLOAT_NAMES or name in _FLOAT_ATTRIBUTES:
+        return "number"
+    if name in _DATETIME_NAMES:
+        return "datetime"
+    return None
+
+
+def _validate_operand_types(expression: ast.Expression) -> None:
+    for node in ast.walk(expression.body):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in ("float", "int")
+        ):
+            # `int()` is an alias for `float()` and does not truncate, so
+            # `int(1.9)` compares against 1.9. It is kept rather than corrected:
+            # truncation cannot be expressed portably (`CAST(x AS INTEGER)`
+            # rounds on PostgreSQL, 1.9 -> 2, and truncates on SQLite, 1.9 -> 1),
+            # and the name is already load-bearing in the SpanQuery surface. The
+            # behavior is documented rather than changed.
+            if len(node.args) != 1:
+                raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
+            argument = node.args[0]
+            if isinstance(argument, ast.Constant) and isinstance(argument.value, str):
+                # The same grammar as an implicitly-cast numeric string, so an
+                # explicit cast cannot smuggle in a literal the databases
+                # disagree about (`float('1_000')`, `float('nan')`).
+                if not _is_numeric_string(argument.value):
+                    raise SyntaxError("cannot cast string to number")
+                # The grammar bounds the spelling, not the magnitude:
+                # `float('1e400')` passes it and overflows to `inf`, the exact
+                # value the literal rule rejects. Check the converted value,
+                # not the text.
+                if not _is_finite_number(argument.value):
+                    raise SyntaxError(f"invalid numeric literal: {argument.value}")
+            elif _get_filter_value_type(argument) == "string":
+                raise SyntaxError("cannot cast string to number")
+            elif _get_filter_value_type(argument) == "boolean":
+                # `CAST(true AS FLOAT)` is rejected by PostgreSQL, and the cast
+                # compiles either way, so the condition validated and then
+                # failed when the query ran.
+                raise SyntaxError("cannot cast boolean to number")
+            continue
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "str":
+            if len(node.args) != 1:
+                raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
+            argument = node.args[0]
+            argument_type = _get_filter_value_type(argument)
+            if argument_type == "boolean":
+                # `true`/`false` on PostgreSQL, `1`/`0` on SQLite, so the same
+                # condition matches opposite rows. Arrives as a literal
+                # (`str(True)`) or as any boolean-valued expression, notably the
+                # annotation existence check, which compiles to `CASE WHEN ...
+                # THEN <bind> ELSE <bind> END` over Python bools.
+                raise SyntaxError("cannot cast boolean to text")
+            if argument_type == "number":
+                # A float renders its integral values differently -- PostgreSQL
+                # prints 1.0 as `1`, SQLite as `1.0` -- so `str(score) == '1'`
+                # matches on one backend only. The divergence is *per value*:
+                # 0.1 agrees and 1.0 does not, which means no fixture of
+                # convenient numbers can find it and no user can predict it.
+                raise SyntaxError("cannot cast number to text")
+            if argument_type == "datetime":
+                # No shared spelling at all: PostgreSQL renders in the session
+                # time zone (`2025-12-31 16:00:00-08`) and SQLite in UTC with
+                # microseconds (`2026-01-01 00:00:00.000000`) -- different
+                # format and a different instant on the page.
+                raise SyntaxError("cannot cast datetime to text")
+            if isinstance(argument, ast.Constant) and not isinstance(argument.value, str):
+                raise SyntaxError(
+                    f"cannot cast the literal {_ellipsize(ast.unparse(argument), 80)} to text"
+                    ", the backends spell it differently"
+                )
+            continue
+        if isinstance(node, ast.BoolOp):
+            for value in node.values:
+                _require_condition(value)
+            continue
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            _require_condition(node.operand)
+            continue
+        if not isinstance(node, ast.Compare):
+            continue
+        left = node.left
+        for operator, right in zip(node.ops, node.comparators):
+            if isinstance(operator, (ast.Lt, ast.LtE, ast.Gt, ast.GtE)) and "boolean" in (
+                _get_filter_value_type(left),
+                _get_filter_value_type(right),
+            ):
+                # `attributes['x'] > False` validated and then crashed at
+                # *evaluation* -- SQLAlchemy refuses to order against a raw
+                # True/False -- which happens in `SpanFilter.__call__`, outside
+                # the error boundary, so it surfaced as a server error rather
+                # than a filter error. Ordering a boolean is a confusion with a
+                # clearer spelling in every case, so the rule is by type: it
+                # also covers boolean-valued expressions like the bare
+                # annotation existence check.
+                raise SyntaxError(
+                    f"`{_ellipsize(ast.unparse(node), 80)}` orders a boolean"
+                    ", use `==`, `!=`, or `is` instead of `<` / `>`"
+                )
+            if isinstance(operator, (ast.Is, ast.IsNot)) and not (
+                _is_singleton_constant(left) or _is_singleton_constant(right)
+            ):
+                # Python's `is` is only meaningful against the singletons, and
+                # those are exactly the ones SQL can express: `IS NULL`,
+                # `IS TRUE`, `IS FALSE`. Against any other value it silently
+                # degrades to `==`, so `name is 'abc'` compiles to something the
+                # user did not write.
+                raise SyntaxError(
+                    f"`{_ellipsize(ast.unparse(node), 80)}` uses `is` with a value"
+                    ", which SQL cannot express; use `==`, or `is` with None/True/False"
+                )
+            if not isinstance(operator, (ast.In, ast.NotIn)) and isinstance(
+                left if isinstance(left, (ast.List, ast.Tuple)) else right, (ast.List, ast.Tuple)
+            ):
+                # A collection is only meaningful on the right of `in`/`not in`.
+                # Elsewhere it is bound whole as a scalar comparand, which no
+                # column can equal.
+                raise SyntaxError(
+                    f"`{_ellipsize(ast.unparse(node), 80)}` compares against a collection"
+                    ", which is only supported with `in` / `not in`"
+                )
+            if isinstance(operator, (ast.In, ast.NotIn)) and isinstance(
+                right, (ast.List, ast.Tuple)
+            ):
+                for element in right.elts:
+                    if isinstance(element, (ast.List, ast.Tuple)):
+                        # A nested container has no scalar value to match a
+                        # column against.
+                        raise SyntaxError(
+                            f"`{_ellipsize(ast.unparse(element), 80)}` is not a value"
+                            ", collections cannot be nested"
+                        )
+                    if isinstance(element, ast.Constant) and element.value is None:
+                        # SQL `IN` compares elements with `=`, and `= NULL` is
+                        # never true, so a None element can never match --
+                        # worse, `NOT IN ('a', NULL)` is never true for *any*
+                        # row, silently emptying the result set.
+                        raise SyntaxError(
+                            f"`{_ellipsize(ast.unparse(node), 80)}` includes None"
+                            ", which never matches in SQL"
+                            "; test for missing values with `is None` / `is not None`"
+                        )
+                if isinstance(left, ast.Constant):
+                    # Membership against a literal collection is translated to
+                    # `left.in_(...)`, which needs `left` to be a column
+                    # expression. A constant there reaches evaluation as
+                    # `1.in_([1, 2])` and raises a bare `AttributeError` from
+                    # inside `SpanFilter.__call__` -- the wrong exception type
+                    # for what is simply an invalid condition.
+                    raise SyntaxError(
+                        f"`{_ellipsize(ast.unparse(node), 80)}` compares two literals"
+                        ", expected a span field on the left"
+                    )
+                element_types = {
+                    element_type
+                    for element in right.elts
+                    if (element_type := _get_filter_value_type(element)) not in (None, "null")
+                }
+                if len(element_types) > 1:
+                    ordered_types: tuple[FilterValueType, ...] = (
+                        "boolean",
+                        "datetime",
+                        "number",
+                        "string",
+                    )
+                    present_types = [
+                        value_type for value_type in ordered_types if value_type in element_types
+                    ]
+                    first_type, second_type = present_types[0], present_types[1]
+                    raise SyntaxError(f"cannot compare {first_type} and {second_type}")
+                for element in right.elts:
+                    _validate_comparable_types(left, element)
+            elif isinstance(operator, (ast.In, ast.NotIn)):
+                left_type = _get_filter_value_type(left)
+                right_type = _get_filter_value_type(right)
+                if left_type not in (None, "string") or right_type not in (None, "string"):
+                    raise SyntaxError(
+                        f"cannot compare {left_type or 'value'} and {right_type or 'string'}"
+                    )
+            else:
+                _validate_comparable_types(left, right)
+            left = right
+
+
+def _validate_comparable_types(left: ast.AST, right: ast.AST) -> None:
+    left_type = _get_filter_value_type(left)
+    right_type = _get_filter_value_type(right)
+    if {left_type, right_type} == {"datetime", "string"}:
+        # only a string literal can be bound as a datetime
+        string_node = left if left_type == "string" else right
+        if _is_string_constant(string_node):
+            return
+    if "datetime" in (left_type, right_type) and None in (left_type, right_type):
+        # An unknown-typed operand -- a JSON attribute -- has no datetime
+        # reading either backend can perform: PostgreSQL has no comparison
+        # operator between timestamp and varchar at all, so
+        # `start_time > attributes['x']` validated and then failed at plan
+        # time, while SQLite quietly compared text. No total datetime
+        # conversion exists to define the shape with, so it is rejected;
+        # only a datetime *literal* has a portable binding.
+        raise SyntaxError(
+            "cannot compare a datetime field and an attribute"
+            ", use an ISO 8601 string literal (e.g. '2024-01-01T00:00:00+00:00')"
+        )
+    if (
+        left_type is not None
+        and right_type is not None
+        and left_type != right_type
+        and "null" not in (left_type, right_type)
+    ):
+        # A quoted number against a numeric field (`latency_ms > '100'`) is
+        # rejected rather than coerced. The type of both sides is known here, so
+        # there is nothing to infer -- and the coercion never worked on
+        # PostgreSQL anyway: it bound the string as a float parameter, which
+        # asyncpg refuses, so the condition validated and then failed when the
+        # query ran. It only appeared to work because SQLite is loosely typed.
+        # Users who want a string parsed as a number can say so with `float()`.
+        hint = ""
+        if {left_type, right_type} == {"number", "string"}:
+            string_node = left if left_type == "string" else right
+            # Only suggest dropping the quotes when doing so would actually be
+            # valid. `score == ''` would otherwise read "write  instead of ''".
+            if (
+                isinstance(string_node, ast.Constant)
+                and isinstance(string_node.value, str)
+                and _is_numeric_string(string_node.value)
+            ):
+                hint = f", write {string_node.value} instead of '{string_node.value}'"
+        raise SyntaxError(f"cannot compare {left_type} and {right_type}{hint}")
+
+
+# A numeric string literal is cast to a number in SQL, so the accepted grammar
+# has to be one both backends agree on. Python's `float()` is deliberately not
+# used as the test: it also accepts `1_000`, `nan`, `inf`, and surrounding
+# whitespace, none of which the two databases treat alike -- SQLite casts
+# `'1_000'` to 1.0 while PostgreSQL rejects it, and the infinities and NaN have
+# dialect-dependent behavior. Anything outside this grammar has to be written as
+# an explicit `float(...)` cast, which is checked against the same rule.
+_NUMERIC_STRING_PATTERN = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
+
+
+def _is_numeric_string(value: str) -> bool:
+    # `fullmatch` rather than `match` with anchors: `$` would also accept a
+    # trailing newline, which neither database does.
+    return _NUMERIC_STRING_PATTERN.fullmatch(value) is not None
+
+
+def _is_finite_number(value: typing.Union[int, float, str]) -> bool:
+    """Whether the value converts to a finite float -- the portability bound
+    every numeric spelling must satisfy, whatever its shape.
+
+    One predicate on purpose: the bound was previously re-derived at each
+    site, and two encodings of one rule drift -- `float('1e400')` passed the
+    cast check (which tested only the spelling) while the literal rule
+    rejected `1e400` (which tested the value). Every numeric admission point
+    consults this instead.
+    """
+    try:
+        return math.isfinite(float(value))
+    except (OverflowError, ValueError):
+        # `OverflowError`: an int too large for a float. `ValueError` cannot
+        # arise from callers (they pre-check the spelling), but a total
+        # predicate should not crash on a string it was never promised.
+        return False
 
 
 def _is_string_attribute(node: typing.Any) -> TypeGuard[ast.Call]:
@@ -586,9 +1020,10 @@ def _is_string_attribute(node: typing.Any) -> TypeGuard[ast.Call]:
 def _is_float_attribute(node: typing.Any) -> TypeGuard[ast.Call]:
     return (
         isinstance(node, ast.Call)
-        and isinstance(func := node.func, ast.Attribute)
-        and func.attr == "as_float"
-        and isinstance(value := func.value, ast.Subscript)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "SafeJsonFloat"
+        and len(node.args) == 1
+        and isinstance(value := node.args[0], ast.Subscript)
         and isinstance(name := value.value, ast.Name)
         and name.id == "attributes"
     )
@@ -596,7 +1031,11 @@ def _is_float_attribute(node: typing.Any) -> TypeGuard[ast.Call]:
 
 def _as_string_attribute(node: typing.Union[ast.Subscript, ast.Call]) -> ast.Call:
     if isinstance(node, ast.Call):
-        value = typing.cast(ast.Attribute, node.func).value
+        value = (
+            node.args[0]
+            if isinstance(node.func, ast.Name) and node.func.id == "SafeJsonFloat"
+            else typing.cast(ast.Attribute, node.func).value
+        )
     elif isinstance(node, ast.Subscript):
         value = node
     else:
@@ -620,12 +1059,8 @@ def _as_float_attribute(node: typing.Union[ast.Subscript, ast.Call]) -> ast.Call
     else:
         assert_never(node)
     return ast.Call(
-        func=ast.Attribute(
-            value=value,
-            attr="as_float",
-            ctx=ast.Load(),
-        ),
-        args=[],
+        func=ast.Name(id="SafeJsonFloat", ctx=ast.Load()),
+        args=[value],
         keywords=[],
     )
 
@@ -638,12 +1073,8 @@ def _as_bool_attribute(node: typing.Union[ast.Subscript, ast.Call]) -> ast.Call:
     else:
         assert_never(node)
     return ast.Call(
-        func=ast.Attribute(
-            value=value,
-            attr="as_boolean",
-            ctx=ast.Load(),
-        ),
-        args=[],
+        func=ast.Name(id="SafeJsonBoolean", ctx=ast.Load()),
+        args=[value],
         keywords=[],
     )
 
@@ -666,13 +1097,55 @@ def _remove_cast(node: typing.Any) -> typing.Any:
     return node.args[0] if _is_cast(node) else node
 
 
+def _as_float_operand(node: ast.expr) -> ast.expr:
+    """Coerce an operand being compared against a number.
+
+    A numeric string *literal* is converted here rather than wrapped in a SQL
+    cast. `cast('1000', Float)` binds the Python `str` as a float-typed
+    parameter, which asyncpg refuses to encode -- `invalid input for query
+    argument $1: '1000' (must be real number, not str)` -- so the condition
+    validates and then fails when the query runs. Converting the literal makes
+    it a real number before it is ever bound.
+
+    Dynamic values still take the cast, which is total by construction
+    (`SafeJsonFloat`), so an uncastable row excludes itself rather than
+    aborting the statement.
+    """
+    if (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and _is_numeric_string(node.value)
+    ):
+        # A spelling within the grammar can still overflow (`'1e400'` -> inf).
+        # The cast validation already rejects the shapes it sees; checking the
+        # converted value here keeps the guarantee local to the conversion
+        # rather than trusting every caller to have validated first.
+        if not _is_finite_number(node.value):
+            raise SyntaxError(f"invalid numeric literal: {node.value}")
+        return ast.Constant(value=float(node.value), kind=None)
+    return _cast_as("Float", node)
+
+
+def _is_json_attribute(node: typing.Any) -> TypeGuard[ast.Subscript]:
+    """An unknown-typed JSON operand: a subscript rooted at `attributes`.
+
+    Every syntactic gate that decides JSON behavior -- String casting, the
+    ordered-comparison numeric conversion -- consults this one predicate, so a
+    future namespace (`parent_span.<column>` traversal) has a single place to
+    register its own JSON operands instead of auditing scattered
+    `_is_subscript` calls. See principle 12 in the spec: this is the "derive
+    both encodings from one source" remedy applied to the translator's gates.
+    """
+    return _is_subscript(node, "attributes")
+
+
 def _cast_as(
     type_: typing.Literal["Float", "String"],
     node: typing.Any,
 ) -> ast.Call:
-    if type_ == "Float" and (_is_subscript(node, "attributes") or _is_string_attribute(node)):
+    if type_ == "Float" and (_is_json_attribute(node) or _is_string_attribute(node)):
         return _as_float_attribute(node)
-    if type_ == "String" and (_is_subscript(node, "attributes") or _is_float_attribute(node)):
+    if type_ == "String" and (_is_json_attribute(node) or _is_float_attribute(node)):
         return _as_string_attribute(node)
     return ast.Call(
         func=ast.Name(id="cast", ctx=ast.Load()),
@@ -753,6 +1226,15 @@ class _ProjectionTranslator(ast.NodeTransformer):
 
 
 class _FilterTranslator(_ProjectionTranslator):
+    def __init__(
+        self,
+        reserved_keywords: typing.Iterable[str] = (),
+        string_keywords: typing.Iterable[str] = (),
+    ) -> None:
+        super().__init__(reserved_keywords)
+        self._string_keywords = frozenset(string_keywords)
+        self.literal_bindings: dict[str, typing.Any] = {}
+
     def visit_Name(self, node: ast.Name) -> typing.Any:
         if _is_parent_name(node):
             # A bare `parent_span` that reaches this point is not part of a supported
@@ -815,25 +1297,69 @@ class _FilterTranslator(_ProjectionTranslator):
                 args.append(self.visit(ast.Compare(left=left, ops=[op], comparators=[comparator])))
                 left = comparator
             return ast.Call(func=ast.Name(id="and_", ctx=ast.Load()), args=args, keywords=[])
-        left, op, right = self.visit(node.left), node.ops[0], self.visit(node.comparators[0])
+        left_node, right_node = node.left, node.comparators[0]
+        left, op, right = self.visit(left_node), node.ops[0], self.visit(right_node)
+        if _is_datetime_name(left_node):
+            right = self._bind_datetime_literal(right_node, right)
+        elif _is_datetime_name(right_node):
+            left = self._bind_datetime_literal(left_node, left)
         if _is_uppercase_enum(left):
             right = _convert_to_uppercase(right)
         elif _is_uppercase_enum(right):
             left = _convert_to_uppercase(left)
-        if _is_subscript(left, "attributes"):
+        if (
+            isinstance(op, (ast.Lt, ast.LtE, ast.Gt, ast.GtE))
+            and _is_json_attribute(left)
+            and _is_json_attribute(right)
+        ):
+            # An ordered comparison between two unknown JSON operands. Extracted
+            # as text (the branch below), the backends order differently:
+            # PostgreSQL compares the renderings, where `'9' > '10'` is true,
+            # and SQLite compares native values, where `9 > 10` is false -- the
+            # same stored numbers order oppositely. Order is only portable in
+            # one type, so both sides take the total numeric conversion, exactly
+            # as a comparison against a numeric literal would; a value with no
+            # number in it becomes NULL and its row drops out.
+            left, right = _as_float_attribute(left), _as_float_attribute(right)
+        if _is_json_attribute(left):
             left = (
-                _as_bool_attribute(left) if _is_bool_constant(right) else _cast_as("String", left)
+                _as_bool_attribute(left)
+                if _is_bool_constant(right) or _is_bool_sequence(right)
+                else _cast_as("String", left)
             )
-        if _is_subscript(right, "attributes"):
+        if _is_json_attribute(right):
             right = (
-                _as_bool_attribute(right) if _is_bool_constant(left) else _cast_as("String", right)
+                _as_bool_attribute(right)
+                if _is_bool_constant(left) or _is_bool_sequence(left)
+                else _cast_as("String", right)
             )
-        if _is_float(left) and not _is_float(right):
-            right = _cast_as("Float", right)
-        elif not _is_float(left) and _is_float(right):
-            left = _cast_as("Float", left)
+        if _is_float(left) and not _is_float(right) and not _is_none_constant(right):
+            if isinstance(op, (ast.In, ast.NotIn)) and isinstance(right, (ast.List, ast.Tuple)):
+                # Coerce the elements, not the collection. Casting the collection
+                # replaces the `List` node with a `Call`, which then misses the
+                # membership branch below and lands on its `else` -- reported as
+                # `invalid expression: ` (empty, because `ast.unparse` of a bare
+                # operator is the empty string).
+                elements: list[ast.expr] = [
+                    element if _is_float(element) else _as_float_operand(element)
+                    for element in right.elts
+                ]
+                right = (
+                    ast.List(elts=elements, ctx=ast.Load())
+                    if isinstance(right, ast.List)
+                    else ast.Tuple(elts=elements, ctx=ast.Load())
+                )
+            else:
+                right = _as_float_operand(right)
+        elif not _is_float(left) and not _is_none_constant(left) and _is_float(right):
+            left = _as_float_operand(left)
         if isinstance(op, (ast.In, ast.NotIn)):
-            if _is_string_attribute(right) or ast.unparse(right) in _NAMES:
+            if (
+                _is_string_attribute(right)
+                or ast.unparse(right) in _NAMES
+                or isinstance(right, ast.Name)
+                and right.id in self._string_keywords
+            ):
                 call = ast.Call(
                     func=ast.Name(id="TextContains", ctx=ast.Load()),
                     args=[right, left],
@@ -852,12 +1378,56 @@ class _FilterTranslator(_ProjectionTranslator):
                     keywords=[],
                 )
             else:
-                raise SyntaxError(f"invalid expression: {ast.unparse(op)}")
+                # `ast.unparse` of a bare operator node is the empty string, so
+                # naming the operator here produced `invalid expression: ` with
+                # nothing after it. Report the comparison instead.
+                keyword = "not in" if isinstance(op, ast.NotIn) else "in"
+                raise SyntaxError(
+                    f"`{keyword}` expects a collection or a text field on the right"
+                    f", got `{ast.unparse(right)}`"
+                )
         if isinstance(op, ast.Is):
             op = ast.Eq()
         elif isinstance(op, ast.IsNot):
             op = ast.NotEq()
         return ast.Compare(left=left, ops=[op], comparators=[right])
+
+    def _bind_datetime_literal(self, source: ast.expr, translated: ast.expr) -> ast.expr:
+        if isinstance(source, (ast.List, ast.Tuple)) and isinstance(
+            translated, (ast.List, ast.Tuple)
+        ):
+            elts = [
+                self._bind_datetime_literal(source_elt, translated_elt)
+                for source_elt, translated_elt in zip(source.elts, translated.elts)
+            ]
+            if isinstance(translated, ast.List):
+                return ast.List(elts=elts, ctx=ast.Load())
+            return ast.Tuple(elts=elts, ctx=ast.Load())
+        if not (isinstance(source, ast.Constant) and isinstance(source.value, str)):
+            return translated
+        raw = source.value
+        if raw.endswith(("Z", "z")):
+            # Python 3.10's fromisoformat does not accept the Z suffix
+            raw = raw[:-1] + "+00:00"
+        try:
+            value = datetime.fromisoformat(raw)
+        except ValueError as error:
+            raise SyntaxError(f"invalid datetime literal: {source.value!r}") from error
+        if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+            # A naive literal has no single defensible meaning here. Phoenix's
+            # own `datetime_utils` reads naive values as server-local, so
+            # binding one would give the same saved filter a different boundary
+            # in deployments with different timezones -- and filter conditions
+            # travel in URLs. Reading it as UTC instead would be deterministic
+            # but would silently disagree with that existing convention. Asking
+            # for the offset is the only reading that cannot be wrong.
+            raise SyntaxError(
+                f"datetime literal {_ellipsize(source.value, 80)!r} has no timezone"
+                ", add an offset (e.g. 'Z' for UTC)"
+            )
+        name = f"__datetime_literal_{len(self.literal_bindings)}"
+        self.literal_bindings[name] = value
+        return ast.Name(id=name, ctx=ast.Load())
 
     def visit_BoolOp(self, node: ast.BoolOp) -> typing.Any:
         if isinstance(node.op, ast.And):
@@ -879,17 +1449,23 @@ class _FilterTranslator(_ProjectionTranslator):
             )
         node = ast.UnaryOp(op=node.op, operand=operand)
         if isinstance(node.op, (ast.USub, ast.UAdd)):
-            if not _is_float(node.operand):
-                operand = _cast_as("Float", node.operand)
-                return ast.UnaryOp(op=ast.USub(), operand=operand)
-            return node
+            numeric = node.operand if _is_float(node.operand) else _cast_as("Float", node.operand)
+            if isinstance(node.op, ast.UAdd):
+                # Unary plus is the identity on a number, so it is dropped
+                # rather than translated. Emitting it was wrong twice over: the
+                # cast branch hardcoded `USub`, so `+attributes['x'] > 5`
+                # silently filtered on the negation, and SQLAlchemy expressions
+                # implement no `__pos__`, so keeping the operator raises
+                # `bad operand type for unary +` when the filter is evaluated.
+                return numeric
+            return ast.UnaryOp(op=ast.USub(), operand=numeric)
         return node
 
     def visit_BinOp(self, node: ast.BinOp) -> typing.Any:
         left, op, right = self.visit(node.left), node.op, self.visit(node.right)
-        if _is_subscript(left, "attributes"):
+        if _is_json_attribute(left):
             left = _cast_as("String", left)
-        if _is_subscript(right, "attributes"):
+        if _is_json_attribute(right):
             right = _cast_as("String", right)
         type_: typing.Literal["Float", "String"] = "String"
         if not isinstance(op, ast.Add) or _is_float(left) or _is_float(right):
@@ -898,6 +1474,12 @@ class _FilterTranslator(_ProjectionTranslator):
                 left = _cast_as(type_, left)
             if not _is_float(right):
                 right = _cast_as(type_, right)
+            if isinstance(op, (ast.Div, ast.Mod)):
+                right = ast.Call(
+                    func=ast.Name(id="nullif", ctx=ast.Load()),
+                    args=[right, ast.Constant(value=0)],
+                    keywords=[],
+                )
             return ast.BinOp(left=left, op=op, right=right)
         return _cast_as(type_, ast.BinOp(left=left, op=op, right=right))
 
@@ -909,28 +1491,161 @@ class _FilterTranslator(_ProjectionTranslator):
             raise SyntaxError(f"invalid expression: {ast.unparse(node.func)}")
         arg = self.visit(node.args[0])
         if node.func.id in ("float", "int") and not _is_float(arg):
-            return _cast_as("Float", arg)
+            # `_as_float_operand`, not `_cast_as`: a string literal has to be
+            # converted here rather than wrapped in a SQL cast, or it is bound
+            # as a float-typed parameter that asyncpg refuses to encode.
+            return _as_float_operand(arg)
         if node.func.id in ("str",) and not _is_string(arg):
             return _cast_as("String", arg)
         return arg
 
 
+def _format_syntax_error(error: SyntaxError) -> str:
+    """Render a `SyntaxError` as a message about the condition.
+
+    `str()` on a parser error appends the filename and line -- `invalid syntax
+    (<unknown>, line 1)` -- which describes a file the user never wrote in.
+    Half-typed input is the most common thing this language sees, so that
+    wording is what most rejections would say.
+
+    `msg` carries the useful part on its own, and `offset` gives the column,
+    which is worth keeping: for a one-line condition it is the only thing that
+    locates the problem. Errors raised inside this module have no offset and
+    pass through as their message alone.
+    """
+    message = error.msg or "invalid syntax"
+    if "null bytes" in message:
+        # A NUL in the source. CPython reports it as `ValueError` on 3.10
+        # (handled at the parse site) and as `SyntaxError` from 3.11 on;
+        # either way the message is the tokenizer's ("source code string
+        # cannot contain null bytes"), which describes source code the user
+        # never wrote. One canonical message, whatever the interpreter.
+        return "condition cannot contain a NUL character"
+    if "integer string conversion" in message:
+        # CPython's 4300-digit guard fires during parsing, and its message
+        # advises `sys.set_int_max_str_digits()` -- Python's remedy, not the
+        # condition's. Every such literal is invalid here anyway (nothing that
+        # long is a finite float), so say that instead.
+        return "invalid numeric literal: too many digits"
+    # Single-line conditions make the line number noise.
+    message = message.replace(" (detected at line 1)", "")
+    offset = error.offset
+    if offset is not None and offset > 0:
+        return _ellipsize(f"{message} at character {offset}")
+    return _ellipsize(message)
+
+
+def _ellipsize(message: str, limit: int = 300) -> str:
+    """Bound text that echoes user-controlled input.
+
+    Messages name the offending fragment, which means reflecting condition
+    text into the UI, logs, and GraphQL responses -- and a fragment can be a
+    320-digit literal or a multi-kilobyte expression. Bounding happens at two
+    layers, and both are needed:
+
+    - **Format sites whose fragment precedes the advice** bound the fragment
+      itself (limit 80), because tail truncation there would eat the guidance
+      -- a 1000-character literal in boolean position once produced 300
+      characters of echo and no "expected a comparison" at all.
+    - **The error boundary** bounds the whole message as the backstop, so a
+      format site that forgets cannot ship an unbounded echo -- it can only
+      ship a worse message.
+    """
+    return message if len(message) <= limit else message[: limit - 1] + "…"
+
+
+def _validate_python_surface(body: ast.expr, source: str) -> None:
+    """Reject Python constructs that have no meaning in SQL.
+
+    This DSL began as a Python-evaluated filter and only later gained a SQL
+    backend, so it inherited the whole of Python's literal and operator surface.
+    Much of that surface cannot be expressed faithfully in SQL: it either binds a
+    value the driver cannot encode, compiles to something unrelated to what was
+    written, or means different things on the two dialects.
+
+    Each rule below closes one such inheritance. They are grouped here rather
+    than scattered through the structural walk because they share a rationale --
+    the language should admit exactly what a SQL backend can evaluate honestly.
+    """
+    for node in ast.walk(body):
+        if isinstance(node, ast.Constant):
+            _validate_literal(node)
+        elif isinstance(node, ast.UnaryOp) and not isinstance(
+            node.op, (ast.Not, ast.USub, ast.UAdd)
+        ):
+            # `~x` reaches SQLAlchemy as `NOT x`, so `~latency_ms == 1` compiles
+            # to `CAST(NOT latency_ms AS FLOAT) = 1` -- unrelated to what was
+            # written. The binary bitwise operators are already rejected as
+            # arithmetic; this closes the unary hole beside them.
+            raise SyntaxError(f"unsupported operator: {ast.unparse(node)}")
+        elif isinstance(node, (ast.Name, ast.Attribute)):
+            # Python NFKC-normalizes identifiers while parsing, so a full-width
+            # `ｎａｍｅ` silently becomes `name` and resolves to a real column the
+            # user never spelled. Attribute segments normalize too, which is how
+            # `context.ｓｐａｎ_id` and `annotations['q'].ｓｃｏｒｅ` reach real fields.
+            #
+            # Compared against the node's own source span, not against the whole
+            # condition: searching the text would pass whenever the normalized
+            # spelling appears anywhere else -- inside a string literal
+            # (`ｎａｍｅ == 'name'`) or in another operand
+            # (`ｎａｍｅ == 'x' or name == 'y'`).
+            written = ast.get_source_segment(source, node)
+            normalized = node.id if isinstance(node, ast.Name) else node.attr
+            # An attribute's span covers its whole chain, so compare only the
+            # trailing segment the parser normalized.
+            if written is not None and isinstance(node, ast.Attribute):
+                written = written.rpartition(".")[2].strip()
+            if written and written != normalized:
+                raise SyntaxError(
+                    f"`{_ellipsize(written, 80)}` is interpreted as `{_ellipsize(normalized, 80)}`"
+                    ", use unaccented ASCII for field names"
+                )
+
+
+def _validate_literal(node: ast.Constant) -> None:
+    """Literals are limited to the DSL's own value types.
+
+    `b'x'`, `1j`, and `...` are Python values with no column type to compare
+    against; the driver either refuses them or binds something meaningless.
+    Non-finite floats and embedded NULs are accepted by SQLite and rejected by
+    PostgreSQL, so admitting them would make a stored condition's validity
+    depend on the backend.
+    """
+    value = node.value
+    if value is None or isinstance(value, bool):
+        return
+    if isinstance(value, str):
+        if "\x00" in value:
+            raise SyntaxError("string literals cannot contain a NUL character")
+        return
+    if isinstance(value, (int, float)):
+        # Python ints are unbounded and floats admit inf/nan; both backends
+        # evaluate numeric fields in float, so a value with no faithful finite
+        # float has nothing to bind -- asyncpg refuses it while SQLite quietly
+        # stores infinity.
+        if not _is_finite_number(value):
+            raise SyntaxError(f"invalid numeric literal: {ast.unparse(node)}")
+        return
+    raise SyntaxError(f"unsupported literal: {ast.unparse(node)}")
+
+
 def _validate_expression(
     expression: ast.Expression,
-    valid_eval_names: typing.Optional[typing.Sequence[str]] = None,
+    source: str,
     valid_eval_attributes: tuple[str, ...] = _VALID_EVAL_ATTRIBUTES,
 ) -> None:
-    """
-    Validate primarily the structural (i.e. not semantic) characteristics of an
-    expression, e.g. function calls are not allowed. Note that the separation
-    between structural and semantic validation is a matter of convenience and is
-    not meant to be strict. Some validations such as that for the evaluation name
-    may be considered semantic but is placed here because it's convenient, and
-    additional exceptions may be raised later by the NodeTransformer regarding
-    either structural and semantic issues.
+    """Validate the expression's structure, names, attributes, and operand types.
+
+    Annotation *name* existence is deliberately not validated: an unknown name
+    is valid and matches nothing, exactly as an unknown attribute path does --
+    the schemaless contract. A dormant hook that could have checked names
+    against the project at validation time was removed: it had no caller, and
+    as a hard gate it would have made a condition's validity depend on the
+    live annotation table rather than on the text.
     """
     if not isinstance(expression, ast.Expression):
         raise SyntaxError(f"invalid expression: {ast.unparse(expression)}")
+    _validate_python_surface(expression.body, source)
     for i, node in enumerate(ast.walk(expression.body)):
         if i == 0:
             if (
@@ -940,6 +1655,23 @@ def _validate_expression(
                 or _is_annotation(node)
             ):
                 continue
+            if isinstance(node, (ast.Name, ast.Attribute, ast.Subscript, ast.Constant)):
+                # A value as the whole condition, which is the same mistake as a
+                # value in `and` / `or` position and deserves the same wording.
+                # Falling through to the generic message below would name the
+                # fragment without saying what is wrong with it.
+                source_segment = _ellipsize(ast.unparse(node), 80)
+                if _is_singleton_constant(node):
+                    # `True == ...` is not a repair anyone wants; the literals
+                    # are only meaningful beside a real condition.
+                    raise SyntaxError(
+                        f"`{source_segment}` is not a condition on its own"
+                        ", it can only be used as an operand of `and` / `or` / `not`"
+                    )
+                raise SyntaxError(
+                    f"`{source_segment}` is not a condition"
+                    f", expected a comparison such as `{source_segment} == ...`"
+                )
         elif isinstance(node, (ast.Attribute, ast.Subscript)) and _is_parent_rooted(node):
             # `parent_span.<field>` traversal is not supported yet (the `parent_span`
             # keyword is fully reserved); reject with a clear message rather than
@@ -951,31 +1683,18 @@ def _validate_expression(
         ) and _get_attribute_keys_list(node) is not None:
             continue
         elif _is_annotation(node) and _get_subscript_key(node) is not None:
-            # e.g. `evals["name"]`
-            if not (eval_name := _get_subscript_key(node)) or (
-                valid_eval_names is not None and eval_name not in valid_eval_names
-            ):
-                source_segment = ast.unparse(node)
-                if eval_name and valid_eval_names:
-                    # suggest a valid eval name most similar to the one given
-                    choice, score = _find_best_match(eval_name, valid_eval_names)
-                    if choice and score > 0.75:  # arbitrary threshold
-                        raise SyntaxError(
-                            f"invalid eval name `{eval_name}` in `{source_segment}`"
-                            + f', did you mean "{choice}"?'
-                        )
-                expected = _disjunction([f'"{name}"' for name in valid_eval_names or ()])
-                raise SyntaxError(
-                    f"invalid eval name `{eval_name}` in `{source_segment}`"
-                    + f", expected {expected}"
-                    if expected
-                    else ""
-                )
+            # e.g. `evals["name"]`. The name itself is not checked for
+            # existence (see the docstring); only the empty name is rejected,
+            # since it can never match an annotation and previously fell to
+            # the generic "invalid syntax" via an empty error message.
+            if not _get_subscript_key(node):
+                raise SyntaxError(f"missing eval name in `{ast.unparse(node)}`")
             continue
         elif isinstance(node, ast.Attribute) and _is_annotation(node.value):
             # e.g. `evals["name"].score`
             if (attr := node.attr) not in valid_eval_attributes:
-                source_segment = ast.unparse(node)
+                attr = _ellipsize(attr, 80)
+                source_segment = _ellipsize(ast.unparse(node), 80)
                 # suggest a valid attribute most similar to the one given
                 choice, score = _find_best_match(attr, valid_eval_attributes)
                 if choice and score > 0.75:  # arbitrary threshold
@@ -1020,6 +1739,7 @@ def _validate_expression(
             continue
         source_segment = ast.unparse(node)
         raise SyntaxError(f"invalid expression: {source_segment}")
+    _validate_operand_types(expression)
 
 
 def _as_attribute(
@@ -1028,9 +1748,7 @@ def _as_attribute(
 ) -> ast.Subscript:
     return ast.Subscript(
         value=ast.Name(id="attributes", ctx=ast.Load()),
-        slice=ast.List(elts=keys, ctx=ast.Load())  # type: ignore[arg-type]
-        if sys.version_info >= (3, 9)
-        else ast.Index(value=ast.List(elts=keys, ctx=ast.Load())),  # type: ignore
+        slice=ast.List(elts=keys, ctx=ast.Load()),  # type: ignore[arg-type]
         ctx=ast.Load(),
     )
 
@@ -1169,54 +1887,73 @@ def _apply_eval_aliasing(
     span_annotation_0_label_123 == 'correct' or span_annotation_0_score_456 < 0.5
     ```
     """
-    eval_aliases: dict[AnnotationName, AliasedAnnotationRelation] = {}
-    for (
-        annotation_expression,
-        _annotation_type,
-        annotation_name,
-        annotation_attribute,
-    ) in _parse_annotation_expressions_and_names(source):
-        if (eval_alias := eval_aliases.get(annotation_name)) is None:
-            eval_alias = AliasedAnnotationRelation(index=len(eval_aliases), name=annotation_name)
-            eval_aliases[annotation_name] = eval_alias
-        alias_name = eval_alias.attribute_alias(annotation_attribute)
-        source = source.replace(annotation_expression, alias_name)
-
-    for match in EVAL_NAME_PATTERN.finditer(source):
-        annotation_expression, _, quoted_eval_name = match.groups()
-        annotation_name = quoted_eval_name[1:-1]
-        if (eval_alias := eval_aliases.get(annotation_name)) is None:
-            eval_alias = AliasedAnnotationRelation(index=len(eval_aliases), name=annotation_name)
-            eval_aliases[annotation_name] = eval_alias
-        alias_name = eval_alias._exists_attribute_alias
-        source = source.replace(annotation_expression, alias_name)
-    return source, tuple(eval_aliases.values())
+    try:
+        root = ast.parse(source, mode="eval")
+    except SyntaxError:
+        return source, ()
+    aliaser = _AnnotationExpressionAliaser(source)
+    aliaser.visit(root)
+    encoded = source.encode()
+    for start, end, alias in sorted(aliaser.replacements, reverse=True):
+        encoded = encoded[:start] + alias.encode() + encoded[end:]
+    return encoded.decode(), aliaser.relations
 
 
-def _parse_annotation_expressions_and_names(
-    source: str,
-) -> typing.Iterator[
-    tuple[AnnotationExpression, AnnotationType, AnnotationName, AnnotationAttribute]
-]:
-    """
-    Parses filter conditions for evaluation expressions of the form:
+class _AnnotationExpressionAliaser(ast.NodeVisitor):
+    def __init__(self, source: str) -> None:
+        # Split on "\n" only. `str.splitlines` also breaks on \v, \f, \x1c-\x1e,
+        # \x85, \u2028 and \u2029, while the tokenizer that produced the AST
+        # positions these offsets are matched against counts none of them. One
+        # of those characters inside an earlier string literal would start a
+        # line here that the tokenizer never saw, shifting every later offset
+        # and splicing the alias at the wrong byte.
+        lines = source.split("\n")
+        self._line_offsets = [0]
+        for line in lines:
+            # +1 for the "\n" that `split` consumed. A trailing "\r" of a CRLF
+            # pair stays in `line`, so its byte is already counted.
+            self._line_offsets.append(self._line_offsets[-1] + len(line.encode()) + 1)
+        self._relations_by_name: dict[AnnotationName, AliasedAnnotationRelation] = {}
+        self.replacements: list[tuple[int, int, str]] = []
 
-    ```
-    evals["<eval-name>"].<attribute>
-    annotations["eval-name"].<attribute>
-    ```
-    """
-    for match in EVAL_EXPRESSION_PATTERN.finditer(source):
-        (
-            annotation_expression,
-            _annotation_type,
-            quoted_eval_name,
-            evaluation_attribute_name,
-        ) = match.groups()
-        annotation_type = typing.cast(AnnotationType, _annotation_type)
-        yield (
-            annotation_expression,
-            annotation_type,
-            quoted_eval_name[1:-1],
-            typing.cast(AnnotationAttribute, evaluation_attribute_name),
-        )
+    @property
+    def relations(self) -> tuple[AliasedAnnotationRelation, ...]:
+        return tuple(self._relations_by_name.values())
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        if not _is_annotation(node.value):
+            self.generic_visit(node)
+            return
+        if node.attr not in _VALID_EVAL_ATTRIBUTES:
+            return
+        annotation_name = _get_subscript_key(node.value)
+        if annotation_name is None:
+            return
+        relation = self._get_relation(annotation_name)
+        attribute = typing.cast(AnnotationAttribute, node.attr)
+        self._add_replacement(node, relation.attribute_alias(attribute))
+
+    def visit_Subscript(self, node: ast.Subscript) -> None:
+        if not _is_annotation(node):
+            self.generic_visit(node)
+            return
+        annotation_name = _get_subscript_key(node)
+        if annotation_name is None:
+            return
+        relation = self._get_relation(annotation_name)
+        self._add_replacement(node, relation._exists_attribute_alias)
+
+    def _get_relation(self, annotation_name: str) -> AliasedAnnotationRelation:
+        if (relation := self._relations_by_name.get(annotation_name)) is None:
+            relation = AliasedAnnotationRelation(
+                index=len(self._relations_by_name),
+                name=annotation_name,
+            )
+            self._relations_by_name[annotation_name] = relation
+        return relation
+
+    def _add_replacement(self, node: ast.expr, alias: str) -> None:
+        if node.end_lineno is not None and node.end_col_offset is not None:
+            start = self._line_offsets[node.lineno - 1] + node.col_offset
+            end = self._line_offsets[node.end_lineno - 1] + node.end_col_offset
+            self.replacements.append((start, end, alias))

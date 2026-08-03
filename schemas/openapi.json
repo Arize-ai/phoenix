@@ -13548,17 +13548,6 @@
               }
             ],
             "title": "Spanfilter"
-          },
-          "rootSpansOnly": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rootspansonly"
           }
         },
         "type": "object",
@@ -13567,7 +13556,7 @@
           "projectNodeId"
         ],
         "title": "ProjectContext",
-        "description": "Project the user is currently viewing.\n\n``span_filter`` carries the project-scoped span filter expression when the\nspan filter field is mounted \u2014 empty string when the field is mounted with\nno condition applied, ``None`` when the field is not present at all.\n\n``root_spans_only`` carries the current state of the spans-table root vs.\nall toggle when that toggle is mounted \u2014 ``True`` when the table is\nrestricted to root spans, ``False`` when it shows every span, ``None``\nwhen the toggle is not present (e.g. on the traces tab)."
+        "description": "Project the user is currently viewing.\n\n``span_filter`` carries the project-scoped span filter expression when the\nspan filter field is mounted \u2014 empty string when the field is mounted with\nno condition applied, ``None`` when the field is not present at all. It\ndescribes the view in full, root-span scoping included (which is expressed\nwithin the filter DSL as ``parent_id is None``)."
       },
       "Prompt": {
         "properties": {

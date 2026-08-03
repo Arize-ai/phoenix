@@ -29,18 +29,21 @@ export function createAnnotationMemberCompletions({
     {
       label: `${accessor}['${name}'].label`,
       type: "variable",
+      detail: `${noun} label`,
       info: `The label of the '${name}' ${noun}`,
       section,
     },
     {
       label: `${accessor}['${name}'].score`,
       type: "variable",
+      detail: `${noun} score`,
       info: `The score of the '${name}' ${noun}`,
       section,
     },
     {
       label: `${accessor}['${name}'].explanation`,
       type: "variable",
+      detail: `${noun} explanation`,
       info: `The explanation of the '${name}' ${noun}`,
       section,
     },

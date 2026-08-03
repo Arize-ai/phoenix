@@ -1,3 +1,4 @@
+import logging
 import operator
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, cast
@@ -58,8 +59,10 @@ from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
-from phoenix.trace.dsl import SpanFilter
+from phoenix.trace.dsl import SpanFilter, SpanFilterError
 from phoenix.trace.dsl.filter import RootSpanScope, root_span_scope
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_PAGE_SIZE = 30
 _TOKEN_COUNT_DETAIL_EPSILON = 1e-9
@@ -478,8 +481,8 @@ class Project(Node):
     async def spans(
         self,
         info: Info[Context, None],
+        first: int,
         time_range: Optional[TimeRange] = UNSET,
-        first: Optional[int] = UNSET,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
@@ -566,10 +569,9 @@ class Project(Node):
             else:
                 # Only include explicit root spans (spans with parent_id = NULL)
                 stmt = stmt.where(models.Span.parent_id.is_(None))
-        if first:
-            stmt = stmt.limit(
-                first + 1  # overfetch by one to determine whether there's a next page
-            )
+        stmt = stmt.limit(
+            first + 1  # overfetch by one to determine whether there's a next page
+        )
         cursors_and_nodes = []
         async with info.context.db.read() as session:
             span_records = await session.stream(stmt)
@@ -596,16 +598,17 @@ class Project(Node):
         )
 
     @strawberry.field(
+        extensions=[RequireForwardPaginationExtension()],
         description="Sessions in the project. The time range filter uses interval-overlap "
         "semantics: a session is included iff [startTime, endTime] intersects "
         "[timeRange.start, timeRange.end), i.e. the session had activity inside the "
-        "window. Long-running sessions therefore appear in every window they overlap."
+        "window. Long-running sessions therefore appear in every window they overlap.",
     )  # type: ignore
     async def sessions(
         self,
         info: Info[Context, None],
+        first: int,
         time_range: Optional[TimeRange] = UNSET,
-        first: Optional[int] = DEFAULT_PAGE_SIZE,
         after: Optional[CursorString] = UNSET,
         sort: Optional[ProjectSessionSort] = UNSET,
         filter_io_substring: Optional[str] = UNSET,
@@ -661,10 +664,9 @@ class Project(Node):
             else:
                 stmt = stmt.where(table.id < cursor.rowid)
         stmt = stmt.order_by(cursor_rowid_column)
-        if first:
-            stmt = stmt.limit(
-                first + 1  # over-fetch by one to determine whether there's a next page
-            )
+        stmt = stmt.limit(
+            first + 1  # over-fetch by one to determine whether there's a next page
+        )
         cursors_and_nodes = []
         async with info.context.db.read() as session:
             records = await session.stream(stmt)
@@ -1093,26 +1095,32 @@ class Project(Node):
                 - is_valid (bool): True if the condition is valid, False otherwise
                 - error_message (Optional[str]): Error message if validation fails, None if valid
         """  # noqa: E501
-        # This query is too expensive to run on every validation
-        # valid_eval_names = await self.span_annotation_names()
+        # Annotation-name existence is deliberately not validated: an unknown
+        # name is valid and matches nothing (the schemaless contract, as with
+        # attribute paths), and a validation-time check would make validity
+        # depend on the live annotation table -- besides costing a query per
+        # keystroke. See the spec's Known Gaps.
         try:
-            span_filter = SpanFilter(
-                condition=condition,
-                # valid_eval_names=valid_eval_names,
-            )
+            span_filter = SpanFilter(condition=condition)
             stmt = span_filter(select(models.Span))
-            dialect = info.context.db.dialect
-            if dialect is SupportedSQLDialect.POSTGRESQL:
-                str(stmt.compile(dialect=sqlite.dialect()))
-            elif dialect is SupportedSQLDialect.SQLITE:
-                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
-            else:
-                assert_never(dialect)
+            str(stmt.compile(dialect=sqlite.dialect()))
+            str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
             return ValidationResult(is_valid=True, error_message=None)
-        except Exception as e:
+        except SpanFilterError as e:
+            # The DSL guarantees these messages are user-safe statements about
+            # the condition.
             return ValidationResult(
                 is_valid=False,
                 error_message=str(e),
+            )
+        except Exception:
+            # Anything else is our gap, not the user's condition, and its
+            # message can name SQLAlchemy internals. Log for diagnosis (the
+            # traceback, not the condition) and mask the response.
+            logger.exception("Unexpected error validating span filter condition")
+            return ValidationResult(
+                is_valid=False,
+                error_message="invalid filter condition",
             )
 
     @strawberry.field(
@@ -2404,8 +2412,8 @@ def _as_datetime(value: Any) -> datetime:
 async def _paginate_span_by_trace_start_time(
     db: DbSessionFactory,
     project_rowid: int,
+    first: int,
     time_range: Optional[TimeRange] = None,
-    first: Optional[int] = DEFAULT_PAGE_SIZE,
     after: Optional[CursorString] = None,
     sort: SpanSort = SpanSort(col=SpanColumn.startTime, dir=SortDir.desc),
     orphan_span_as_root_span: Optional[bool] = True,
@@ -2480,10 +2488,9 @@ async def _paginate_span_by_trace_start_time(
         )
 
     # Limit for pagination
-    if first:
-        traces = traces.limit(
-            first + 1  # over-fetch by one to determine whether there's a next page
-        )
+    traces = traces.limit(
+        first + 1  # over-fetch by one to determine whether there's a next page
+    )
     traces_cte = traces.cte()
 
     # Define join condition for root spans
@@ -2569,7 +2576,7 @@ async def _paginate_span_by_trace_start_time(
             has_next_page = False
 
     # Retry if we need more edges and more traces exist
-    if first and len(edges) < first and has_next_page:
+    if len(edges) < first and has_next_page:
         while retries and (num_needed := first - len(edges)) and has_next_page:
             retries -= 1
             batch_size = max(first, 1000)

@@ -3,10 +3,13 @@ import { memo } from "react";
 import { useParams } from "react-router";
 
 import { Flex, useTimeRange } from "@phoenix/components";
-import { ChartPanel } from "@phoenix/components/chart";
 import type { ProjectMetricChartKey } from "@phoenix/pages/project/constants";
 
-import { getProjectMetricChart } from "./chartCatalog";
+import {
+  DeferredProjectMetricPanel,
+  getProjectMetricChart,
+} from "./chartCatalog";
+import { ProjectAnnotationMetricsGrid } from "./ProjectAnnotationMetrics";
 import { useClosedTimeRange } from "./useClosedTimeRange";
 
 /**
@@ -20,9 +23,6 @@ const METRIC_PAGE_ROWS: ProjectMetricChartKey[][] = [
   ["prompt_token_details", "completion_token_details"],
   ["llm_spans", "llm_span_errors"],
   ["tool_spans", "tool_span_errors"],
-  ["span_annotations"],
-  ["trace_annotations"],
-  ["session_annotations"],
 ];
 
 export function ProjectMetricsPage() {
@@ -67,6 +67,7 @@ const MetricPanels = memo(function MetricPanels({
       css={css`
         display: flex;
         flex-direction: column;
+        container-type: inline-size;
         gap: var(--global-dimension-size-200);
         padding: var(--global-dimension-size-200);
         /* The widest row's charts at their minimum width. Every row stretches
@@ -75,22 +76,76 @@ const MetricPanels = memo(function MetricPanels({
       `}
     >
       {METRIC_PAGE_ROWS.map((row) => (
-        <Flex direction="row" gap="size-200" key={row.join("+")}>
-          {row.map((chartKey) => {
-            const { name, description, Component } =
-              getProjectMetricChart(chartKey);
-            return (
-              <ChartPanel key={chartKey} title={name} subtitle={description}>
-                <Component
-                  projectId={projectId}
-                  timeRange={timeRange}
-                  onTimeRangeSelected={onTimeRangeSelected}
-                />
-              </ChartPanel>
-            );
-          })}
-        </Flex>
+        <MetricRow
+          key={row.join("+")}
+          projectId={projectId}
+          timeRange={timeRange}
+          onTimeRangeSelected={onTimeRangeSelected}
+          row={row}
+        />
       ))}
+      <MetricRow
+        projectId={projectId}
+        timeRange={timeRange}
+        onTimeRangeSelected={onTimeRangeSelected}
+        row={["span_annotations"]}
+      />
+      <ProjectAnnotationMetricsGrid
+        annotationLevel="spans"
+        projectId={projectId}
+        timeRange={timeRange}
+        onTimeRangeSelected={onTimeRangeSelected}
+      />
+      <MetricRow
+        projectId={projectId}
+        timeRange={timeRange}
+        onTimeRangeSelected={onTimeRangeSelected}
+        row={["trace_annotations"]}
+      />
+      <ProjectAnnotationMetricsGrid
+        annotationLevel="traces"
+        projectId={projectId}
+        timeRange={timeRange}
+        onTimeRangeSelected={onTimeRangeSelected}
+      />
+      <MetricRow
+        projectId={projectId}
+        timeRange={timeRange}
+        onTimeRangeSelected={onTimeRangeSelected}
+        row={["session_annotations"]}
+      />
+      <ProjectAnnotationMetricsGrid
+        annotationLevel="sessions"
+        projectId={projectId}
+        timeRange={timeRange}
+        onTimeRangeSelected={onTimeRangeSelected}
+      />
     </div>
   );
 });
+
+function MetricRow({
+  projectId,
+  timeRange,
+  onTimeRangeSelected,
+  row,
+}: {
+  projectId: string;
+  timeRange: TimeRange;
+  onTimeRangeSelected: (timeRange: TimeRange) => void;
+  row: ProjectMetricChartKey[];
+}) {
+  return (
+    <Flex direction="row" gap="size-200">
+      {row.map((chartKey) => (
+        <DeferredProjectMetricPanel
+          key={chartKey}
+          chart={getProjectMetricChart(chartKey)}
+          projectId={projectId}
+          timeRange={timeRange}
+          onTimeRangeSelected={onTimeRangeSelected}
+        />
+      ))}
+    </Flex>
+  );
+}
