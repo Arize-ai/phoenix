@@ -11,7 +11,7 @@ export const SETTINGS_AGENT_SESSIONS_CONNECTION_KEY =
 export const SESSION_PAGE_SIZE = 20;
 export const MAX_AGENT_SESSION_TITLE_LENGTH = 100;
 
-type RelayEnvironment = Parameters<typeof fetchQuery>[0];
+export type RelayEnvironment = Parameters<typeof fetchQuery>[0];
 
 /**
  * Canonical per-session read: identity, title, and the persisted transcript.

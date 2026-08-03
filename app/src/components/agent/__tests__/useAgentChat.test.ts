@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 
-import { getRemovedUserMessageText } from "../useAgentChat";
+import { getRemovedUserMessageText } from "@phoenix/agent/chat/removedUserMessageText";
 
 describe("getRemovedUserMessageText", () => {
   it("does not restore a compaction checkpoint into the composer", () => {
