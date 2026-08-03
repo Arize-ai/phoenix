@@ -108,7 +108,11 @@ function useViewportOverlayState({
 export function ViewportModalOverlay({
   children,
   defaultOpen,
-  isDismissable = false,
+  // Matches Phoenix's ModalOverlay wrapper (not React Aria's default): a
+  // backdrop press dismisses unless a caller opts out. Presses outside the
+  // application viewport (e.g. on the assistant rail) never dismiss — see
+  // canCloseForTarget.
+  isDismissable = true,
   isKeyboardDismissDisabled = false,
   isOpen,
   onOpenChange,
