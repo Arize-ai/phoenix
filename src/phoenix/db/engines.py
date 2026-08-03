@@ -5,14 +5,15 @@ import logging
 from enum import Enum
 from sqlite3 import Connection
 from threading import Thread
-from typing import Any
+from typing import Any, Callable, Literal, Optional
 
 import aiosqlite
 import numpy as np
 import orjson
 import sqlean
-from sqlalchemy import URL, NullPool, StaticPool, event, make_url
+from sqlalchemy import URL, NullPool, event, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.pool import AsyncAdaptedQueuePool
 from typing_extensions import assert_never
 
 from phoenix.db.helpers import SupportedSQLDialect
@@ -20,7 +21,9 @@ from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
 from phoenix.db.pg_config import get_pg_config
 
-sqlean.extensions.enable("text", "stats")
+SQLEAN_EXTENSIONS = ("text", "stats")
+
+sqlean.extensions.enable(*SQLEAN_EXTENSIONS)
 
 logger = logging.getLogger(__name__)
 
@@ -34,15 +37,44 @@ logger = logging.getLogger(__name__)
 # range where connection churn is cheap and staleness stays bounded.
 _POOL_RECYCLE_SECONDS = 3300
 
+# Reader connections kept open, and so also aiosqlite worker threads. WAL
+# imposes no reader limit; this bounds threads. Untuned -- 8 saturated the
+# benchmark below, but Phoenix's real concurrent-read profile is unmeasured.
+_READ_POOL_SIZE = 8
+
+# Extra connections opened past the pool when every reader is busy, closed again
+# on return. They absorb a burst without holding threads for the process
+# lifetime; past them callers wait (see pool_timeout below) rather than fail.
+_READ_MAX_OVERFLOW = 8
+
+
+# Settings scoped to one connection. Safe anywhere: none touches the file.
+_CONNECTION_PRAGMAS = (
+    "PRAGMA foreign_keys = ON;",
+    "PRAGMA cache_size = -32000;",
+    "PRAGMA busy_timeout = 10000;",
+)
+
+# Properties of the database file. `journal_mode` writes to its header, so a
+# read-only connection cannot set these and inherits whatever the writer left --
+# which makes the writer opening first load-bearing rather than incidental.
+_DATABASE_PRAGMAS = (
+    "PRAGMA journal_mode = WAL;",
+    "PRAGMA synchronous = OFF;",
+)
+
+
+def _apply_pragmas(connection: Connection, statements: tuple[str, ...]) -> None:
+    cursor = connection.cursor()
+    try:
+        for statement in statements:
+            cursor.execute(statement)
+    finally:
+        cursor.close()
+
 
 def set_sqlite_pragma(connection: Connection, _: Any) -> None:
-    cursor = connection.cursor()
-    cursor.execute("PRAGMA foreign_keys = ON;")
-    cursor.execute("PRAGMA journal_mode = WAL;")
-    cursor.execute("PRAGMA synchronous = OFF;")
-    cursor.execute("PRAGMA cache_size = -32000;")
-    cursor.execute("PRAGMA busy_timeout = 10000;")
-    cursor.close()
+    _apply_pragmas(connection, _CONNECTION_PRAGMAS + _DATABASE_PRAGMAS)
 
 
 def get_printable_db_url(connection_str: str) -> str:
@@ -72,6 +104,108 @@ def get_async_db_url(connection_str: str) -> URL:
         return url
     else:
         assert_never(backend)
+
+
+SQLiteAccessMode = Literal["ro", "rw", "rwc", "memory"]
+
+
+def sqlite_connection_factory(
+    database: str,
+    *,
+    mode: SQLiteAccessMode = "rwc",
+    uri: bool = True,
+    iter_chunk_size: int = 64,
+) -> Callable[[], aiosqlite.Connection]:
+    """Build the connector SQLAlchemy calls to open one SQLite connection.
+
+    sqlean rather than the standard library: Phoenix's extensions are loaded
+    there, so a stdlib connection would offer a different set of functions.
+
+    `mode` is fixed when the file is opened and cannot be imposed afterwards, so
+    it is the only place read-only-ness can be established -- `ro` refuses
+    writes beneath every layer of application code, which no amount of careful
+    calling can match.
+
+    It defaults to `rwc` because connections open lazily: an engine built before
+    migrations run may still connect first, and `rw` against a database that
+    does not exist yet fails outright. Use `rw` only where the file is known to
+    be there.
+    """
+
+    def connect() -> aiosqlite.Connection:
+        # `mode` is a URI query parameter, so it only means anything when the
+        # target is parsed as a URI. Appending it to a plain path would make the
+        # filename literally contain "?mode=rw" rather than open read-write.
+        if uri:
+            separator = "&" if "?" in database else "?"
+            target = f"file:{database}{separator}mode={mode}"
+        else:
+            target = database
+        conn = aiosqlite.Connection(
+            lambda: sqlean.connect(target, uri=uri),
+            iter_chunk_size=iter_chunk_size,
+        )
+        # aiosqlite>=0.22 moved the worker to Connection._thread; SQLAlchemy's
+        # aiosqlite dialect daemonizes it only when it creates the connection
+        # itself, not when an async_creator is used.
+        conn._thread.daemon = True
+        return conn
+
+    return connect
+
+
+def set_sqlite_read_pragma(connection: Connection, _: Any) -> None:
+    """The connection-scoped subset, for connections that cannot write.
+
+    A `mode=ro` connection fails on `PRAGMA journal_mode = WAL`, so a read
+    engine opened against a database whose WAL was never initialised cannot
+    initialise it -- it can only inherit.
+    """
+    _apply_pragmas(connection, _CONNECTION_PRAGMAS)
+
+
+def aio_sqlite_read_engine(url: URL) -> Optional[AsyncEngine]:
+    """A read-only engine giving each concurrent reader its own connection.
+
+    The primary engine shares one connection across every session, so reads run
+    serialised behind the lock that keeps their transactions from interleaving
+    (see `DbSessionFactory.read`). Here each session owns its connection, so
+    there is nothing to serialise and no lock to take.
+
+    `mode=ro` is the second reason to route reads here rather than widen the
+    primary pool: writes are refused by the engine, not by convention.
+
+    None for in-memory databases -- a second connection to `:memory:` is a
+    different, empty database, and one developer has no concurrency to win.
+    """
+    if (url.database or ":memory:").startswith(":memory:"):
+        return None
+    database = url.render_as_string().partition("///")[-1]
+
+    # Persistent connections, not one per checkout: each open spawns an aiosqlite
+    # worker thread, which dominates a short read. Measured at 8 concurrent,
+    # 200 reads ran at 490/s per-checkout against 3,879/s pooled.
+    #
+    # pool_timeout=None so a caller past the pool waits rather than fails.
+    # Reads previously queued on an asyncio.Lock, which has no timeout, so
+    # rejecting them here would narrow the contract that already exists --
+    # a burst would start returning errors where it used to return answers
+    # slowly. Waiting keeps that policy; the cost is that a connection held
+    # indefinitely stalls its waiters, which was equally true of the lock.
+    #
+    # pre_ping is off because the target is a local file, with no network for
+    # a connection to go stale across.
+    engine = create_async_engine(
+        url=url,
+        json_serializer=_dumps,
+        async_creator=sqlite_connection_factory(database, mode="ro"),
+        pool_size=_READ_POOL_SIZE,
+        max_overflow=_READ_MAX_OVERFLOW,
+        pool_timeout=None,
+        pool_pre_ping=False,
+    )
+    event.listen(engine.sync_engine, "connect", set_sqlite_read_pragma)
+    return engine
 
 
 def create_engine(
@@ -120,23 +254,30 @@ def aio_sqlite_engine(
         url = url.set(query={**url.query, "cache": "shared"}, database=":memory:")
     database = url.render_as_string().partition("///")[-1]
 
-    def async_creator() -> aiosqlite.Connection:
-        conn = aiosqlite.Connection(
-            lambda: sqlean.connect(f"file:{database}", uri=True),
-            iter_chunk_size=64,
-        )
-        # aiosqlite>=0.22 moved the worker to Connection._thread; SQLAlchemy's
-        # aiosqlite dialect daemonizes it only when it creates the connection
-        # itself, not when an async_creator is used.
-        conn._thread.daemon = True
-        return conn
-
     engine = create_async_engine(
         url=url,
         echo=log_to_stdout,
         json_serializer=_dumps,
-        async_creator=async_creator,
-        poolclass=StaticPool,
+        # rwc, not rw. Connections are lazy, so this engine can open before the
+        # migration engine has created the file -- and a `rw` connection to a
+        # database that does not exist yet fails rather than waiting for it.
+        async_creator=sqlite_connection_factory(database, mode="rwc"),
+        # One connection, checked out exclusively. StaticPool also holds one
+        # but hands it to every caller at once, and aiosqlite serialises
+        # statements rather than transactions -- so concurrent sessions
+        # interleaved their BEGIN/COMMIT spans and one session's commit landed
+        # another's uncommitted work. Checkout expresses that exclusion where
+        # the resource is; it previously lived in a lock callers had to pass.
+        #
+        # poolclass is explicit because the SQLite dialect otherwise defaults
+        # :memory: to StaticPool and rejects the sizing arguments.
+        poolclass=AsyncAdaptedQueuePool,
+        pool_size=1,
+        max_overflow=0,
+        # None, matching the lock this replaces: writes queue indefinitely and
+        # none are rejected. The 30s default would turn slow-under-contention
+        # into fails-under-contention.
+        pool_timeout=None,
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
     if not migrate:
@@ -147,7 +288,8 @@ def aio_sqlite_engine(
         migration_engine = create_async_engine(
             url=url,
             json_serializer=_dumps,
-            async_creator=async_creator,
+            # rwc: the migration engine is the only one that creates the file.
+            async_creator=sqlite_connection_factory(database, mode="rwc"),
             poolclass=NullPool,
             echo=log_migrations,
         )

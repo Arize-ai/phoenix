@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Iterator
 from secrets import token_hex
 from typing import Any
@@ -598,7 +599,7 @@ class TestDisabledProviderAndConfigGuards:
 
 
 class TestCodeEvaluatorSandboxMutationIds:
-    async def test_create_releases_database_lock_and_reports_unavailable_validation(
+    async def test_create_reports_unavailable_validation_as_a_clean_result(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
@@ -608,13 +609,11 @@ class TestCodeEvaluatorSandboxMutationIds:
         adapter = sandbox_module.SANDBOX_ADAPTERS.get("MONTY")
         assert adapter is not None
 
-        async def unavailable_without_database_lock(*args: object, **kwargs: object) -> None:
+        async def unavailable(*args: object, **kwargs: object) -> None:
             del args, kwargs
-            if db.lock is not None:
-                assert not db.lock.locked()
             raise SandboxValidationUnavailable("capacity is busy")
 
-        with patch.object(adapter, "validate_code", side_effect=unavailable_without_database_lock):
+        with patch.object(adapter, "validate_code", side_effect=unavailable):
             result = await gql_client.execute(
                 _CREATE_CODE_EVALUATOR,
                 variables={
@@ -627,6 +626,66 @@ class TestCodeEvaluatorSandboxMutationIds:
 
         assert result.errors
         assert "could not be validated by the Monty runtime" in str(result.errors)
+        assert "Retry shortly" in str(result.errors)
+
+    async def test_create_does_not_hold_a_database_session_during_validation(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Sandboxed validation must run outside the metadata transaction.
+
+        `_validate_code_evaluator_sandbox_config` reads the config in a short
+        `async with db()` block, closes it, and only then calls the adapter. That
+        ordering is load-bearing rather than stylistic: validation waits on
+        sandbox worker capacity, and SQLite serves every writer from one
+        connection, so holding the session across the call stalls all other
+        writes in the process for as long as the sandbox is busy. Moving the
+        call inside the block reintroduces that without changing any result.
+
+        An earlier version asserted `db.lock` was free at this point. That lock
+        no longer exists, and its removal deleted the only check on an ordering
+        the source still depends on -- the comment above the call is otherwise
+        the sole thing defending it.
+
+        Opening a second session from inside the adapter is what makes this
+        discriminate: the SQLite fixture serialises sessions on a lock of its
+        own, so a session still held by the mutation blocks this one until the
+        timeout. That is the same shape as the production hazard.
+        """
+        config = await _create_monty_config(db)
+        adapter = sandbox_module.SANDBOX_ADAPTERS.get("MONTY")
+        assert adapter is not None
+        reached_database = False
+
+        async def unavailable(*args: object, **kwargs: object) -> None:
+            del args, kwargs
+            nonlocal reached_database
+
+            async def touch_database() -> None:
+                async with db() as session:
+                    await session.execute(sa.text("SELECT 1"))
+
+            # Bounded, because the failure this guards against is a block that
+            # never resolves rather than one that resolves slowly.
+            await asyncio.wait_for(touch_database(), timeout=5)
+            reached_database = True
+            raise SandboxValidationUnavailable("capacity is busy")
+
+        with patch.object(adapter, "validate_code", side_effect=unavailable):
+            result = await gql_client.execute(
+                _CREATE_CODE_EVALUATOR,
+                variables={
+                    "input": _create_code_evaluator_input(
+                        sandbox_config_id=config.id,
+                        name=f"concurrent-monty-{token_hex(4)}",
+                    )
+                },
+            )
+
+        assert reached_database, "the mutation was still holding a session during validation"
+        assert result.errors
         assert "Retry shortly" in str(result.errors)
 
     async def test_create_rejects_code_unsupported_by_selected_sandbox_before_write(
