@@ -1,5 +1,13 @@
 # Changelog
 
+## [19.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.14.0...arize-phoenix-v19.15.0) (2026-08-03)
+
+
+### Features
+
+* **project:** defer annotation metric chart loading ([#14968](https://github.com/Arize-ai/phoenix/issues/14968)) ([8e81af0](https://github.com/Arize-ai/phoenix/commit/8e81af000e11f1fda9c33f710346f4fd917ce066))
+* **project:** fetch annotation metric charts independently ([#14938](https://github.com/Arize-ai/phoenix/issues/14938)) ([8c49a9d](https://github.com/Arize-ai/phoenix/commit/8c49a9d9919b8f3fb2b2516453fb91587d21f790))
+
 ## [19.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.13.0...arize-phoenix-v19.14.0) (2026-08-03)
 
 
