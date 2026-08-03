@@ -7,6 +7,7 @@ from typing import Generic
 from pydantic import BaseModel
 from pydantic_ai import AgentRunResult, RunContext, Tool
 from pydantic_ai.agent.abstract import AbstractAgent
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from pydantic_ai.ui.vercel_ai import VercelAIEventStream
@@ -20,7 +21,6 @@ from pydantic_ai.ui.vercel_ai.request_types import (
 )
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
-from phoenix.server.agents.capabilities.tools.base import AbstractToolCapability
 from phoenix.server.agents.data_stream_protocol import (
     accumulate_ui_message_chunks_to_ui_messages,
 )
@@ -131,7 +131,7 @@ class CallSubAgentToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
 
 
 @dataclass
-class CallSubAgentCapability(AbstractToolCapability[AgentDepsT], Generic[AgentDepsT]):
+class CallSubAgentCapability(AbstractCapability[AgentDepsT], Generic[AgentDepsT]):
     """Capability that adds the `call_subagent` tool to an agent."""
 
     server_agent: AbstractAgent[None, str]

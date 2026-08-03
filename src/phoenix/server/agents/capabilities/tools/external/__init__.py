@@ -4,10 +4,7 @@ from pydantic_ai import RunContext
 from pydantic_ai.capabilities import AbstractCapability, CapabilityFunc, CombinedCapability
 from pydantic_ai.tools import ToolDefinition
 
-from phoenix.server.agents.capabilities.tools.base import (
-    AbstractGatedToolCapability,
-    AbstractToolCapability,
-)
+from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.capabilities.tools.external import (
     add_dataset_examples,
     add_prompt_instance,
@@ -333,7 +330,7 @@ def get_external_tool_capability_function() -> CapabilityFunc[AgentDependencies]
     capability bundle. Ungated capabilities are always included; gated
     capabilities self-gate via ``include_for_run``.
     """
-    ungated_capabilities: list[AbstractToolCapability[AgentDependencies]] = [
+    ungated_capabilities: list[AbstractCapability[AgentDependencies]] = [
         BashCapability(),
         AskUserCapability(),
         BatchSpanAnnotateCapability(),
