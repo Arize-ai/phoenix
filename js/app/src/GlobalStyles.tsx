@@ -115,6 +115,30 @@ const dimensionsCSS = css`
   }
 `;
 
+const zIndexCSS = css`
+  :root,
+  .theme {
+    /* Component-local layers. These values only compete within the same
+       stacking context; the gaps leave room for intermediate states. */
+    --global-z-index-local-base: 0;
+    --global-z-index-local-raised: 100;
+    --global-z-index-local-overlay: 200;
+    --global-z-index-local-control: 300;
+
+    /* Root app surfaces. Each category owns a 1,000-point band so new layers
+       can be inserted without renumbering unrelated categories. */
+    --global-z-index-app-drawer: 500;
+    --global-z-index-app-floating: 1000;
+    --global-z-index-app-floating-control: 1100;
+    --global-z-index-app-modal-backdrop: 2000;
+    --global-z-index-app-modal: 2100;
+    --global-z-index-app-modal-floating: 2200;
+    --global-z-index-app-modal-floating-control: 2300;
+    --global-z-index-app-portaled-overlay: 3000;
+    --global-z-index-app-notification: 4000;
+  }
+`;
+
 export const darkThemeCSS = css`
   :root,
   .theme--dark {
@@ -1610,6 +1634,7 @@ export function GlobalStyles() {
     <Global
       styles={css(
         dimensionsCSS,
+        zIndexCSS,
         staticCSS,
         themeCSS,
         derivedCSS(theme),

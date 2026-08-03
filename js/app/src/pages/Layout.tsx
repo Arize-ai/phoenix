@@ -15,7 +15,7 @@ import {
   AppFrameOverlayProvider,
   useAppFrameOverlay,
 } from "@phoenix/components/core/overlay";
-import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
+import { APP_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 import {
   AccountMenu,
   Brand,
@@ -84,7 +84,7 @@ const topNavPageControlsCSS = css`
 
 const topNavAssistantControlCSS = css`
   position: relative;
-  z-index: ${NON_MODAL_FLOATING_Z_INDEX};
+  z-index: ${APP_FLOATING_Z_INDEX};
   flex: none;
 `;
 

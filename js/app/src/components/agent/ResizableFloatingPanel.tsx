@@ -8,7 +8,10 @@ import type {
 } from "react";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
-import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
+import {
+  APP_FLOATING_CONTROL_Z_INDEX,
+  APP_FLOATING_Z_INDEX,
+} from "@phoenix/components/core/zIndex";
 import type { AgentFabPlacement } from "@phoenix/store/agentStore";
 import type { Bounds, Point, Size } from "@phoenix/types/geometry";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -453,7 +456,7 @@ const resizableFloatingPanelCSS = css`
   --resizable-floating-panel-viewport-margin: var(--global-dimension-size-400);
 
   position: fixed;
-  z-index: ${NON_MODAL_FLOATING_Z_INDEX};
+  z-index: ${APP_FLOATING_Z_INDEX};
   top: var(--resizable-floating-panel-y);
   left: var(--resizable-floating-panel-x);
   display: flex;
@@ -517,7 +520,7 @@ const resizableFloatingPanelCSS = css`
 
 const resizeHandleCSS = css`
   position: fixed;
-  z-index: ${NON_MODAL_FLOATING_Z_INDEX + 1};
+  z-index: ${APP_FLOATING_CONTROL_Z_INDEX};
   border: none;
   outline: none;
   padding: 0;
