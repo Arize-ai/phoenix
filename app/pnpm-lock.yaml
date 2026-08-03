@@ -4,6 +4,8 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+packageExtensionsChecksum: sha256-lEi/Adlq7iuofsBacGgLyqbcgF4MN6zyZciufGakZSo=
+
 pnpmfileChecksum: sha256-waxnGx40MK99Z9YS4RRZbMG8uyvMWs7nL9oiIMtsZpA=
 
 importers:
@@ -3183,6 +3185,7 @@ packages:
   cron-parser@5.6.2:
     resolution: {integrity: sha512-yJ/G1LVir6CnlkLI40CsampPLKl1SprGGlUagWtGJxewytRVYezv5xVyzzbT+Pvzx+VIRvZVF7/a0eEMTxdnTA==}
     engines: {node: '>=18'}
+    deprecated: 'Published tarball was built from a stale dist/ and is missing the fixes from #414 and #415 — its contents are effectively v5.6.1. Upgrade to v5.7.0.'
 
   cronstrue@3.24.0:
     resolution: {integrity: sha512-t/Ji3Ur2c/pzhIAWNwC0ftl3JAE4dLfCjAdZoTZXmPDZwcispnS1PaMcMS4OmIIXyIVouAz+yw+mfQiE3hz5OQ==}
@@ -6223,6 +6226,7 @@ snapshots:
 
   '@browser-ai/core@2.1.13(ai@7.0.37(zod@4.4.3))':
     dependencies:
+      '@ai-sdk/provider': 4.0.4
       '@mediapipe/tasks-text': 0.10.35
       ai: 7.0.37(zod@4.4.3)
 
