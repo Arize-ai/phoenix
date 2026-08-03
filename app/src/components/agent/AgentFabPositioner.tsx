@@ -9,7 +9,7 @@ import type {
 import { useLayoutEffect, useRef, useState } from "react";
 import invariant from "tiny-invariant";
 
-import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
+import { APP_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 import type { AgentFabPlacement } from "@phoenix/store/agentStore";
 import type { Bounds, Point, Size } from "@phoenix/types/geometry";
 
@@ -38,7 +38,7 @@ const positionerCSS = css`
   position: fixed;
   top: 0;
   left: 0;
-  z-index: ${NON_MODAL_FLOATING_Z_INDEX};
+  z-index: ${APP_FLOATING_Z_INDEX};
   cursor: pointer;
   touch-action: none;
   transform: translate3d(0, 0, 0);
