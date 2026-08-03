@@ -47,6 +47,8 @@ class SpanSelector:
     ) -> None:
         if not names:
             raise ValueError("names must contain at least one span name")
+        if any(not isinstance(name, str) or not name for name in names):
+            raise ValueError("names must contain only non-empty span names")
         object.__setattr__(self, "names", tuple(names))
         object.__setattr__(self, "span_kinds", tuple(span_kinds))
         object.__setattr__(self, "parent_id", parent_id)
@@ -62,8 +64,10 @@ class SpanSelector:
             return False
         if self.span_kinds and span.get("span_kind") not in self.span_kinds:
             return False
-        if self.parent_id == "null" and span.get("parent_id") is not None:
-            return False
+        if self.parent_id is not None:
+            expected_parent_id = None if self.parent_id == "null" else self.parent_id
+            if span.get("parent_id") != expected_parent_id:
+                return False
         return True
 
 

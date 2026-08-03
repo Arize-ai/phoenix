@@ -16,7 +16,7 @@ from evals.pxi.online_evals.evaluators.suggestion_accepted import (
     SUGGESTION_ACCEPTED,
 )
 from evals.pxi.online_evals.evaluators.tool_count_per_turn import TOOL_COUNT_PER_TURN
-from evals.pxi.online_evals.models import EvaluatorSpec, RunSummary
+from evals.pxi.online_evals.models import EvaluatorSpec, RunSummary, SpanSelector
 from evals.pxi.online_evals.run import _fetch_batch_spans, _sampled, run_evaluators
 from phoenix.client.__generated__ import v1
 from phoenix.evals.evaluators import Score
@@ -234,6 +234,23 @@ def test_evaluator_spec_requires_explicit_annotator_kind() -> None:
             selector=TOOL_COUNT_PER_TURN.selector,
             evaluate=TOOL_COUNT_PER_TURN.evaluate,
         )
+
+
+@pytest.mark.parametrize("names", [(), ("",), ("pxi.turn", "")])
+def test_span_selector_requires_non_empty_names(names: tuple[str, ...]) -> None:
+    with pytest.raises(ValueError, match="non-empty span names|at least one span name"):
+        SpanSelector(names=names)
+
+
+def test_span_selector_matches_a_concrete_parent_id() -> None:
+    selector = SpanSelector(names=("tool",), parent_id="expected-parent")
+    matching = _span(
+        "matching", trace_id="trace", name="tool", kind="TOOL", parent_id="expected-parent"
+    )
+    sibling = _span("sibling", trace_id="trace", name="tool", kind="TOOL", parent_id="other-parent")
+
+    assert selector.matches(matching)
+    assert not selector.matches(sibling)
 
 
 def test_filters_existing_annotations_before_hydrating_traces() -> None:
