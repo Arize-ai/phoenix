@@ -47,6 +47,13 @@ def test_render_displays_configured_urls() -> None:
     assert "http://localhost:6006/phoenix/v1/traces" in rendered
 
 
+def test_render_omits_assistant_section_before_system_settings_are_known() -> None:
+    rendered = _boot_message().render(unicode_ok=False)
+
+    assert "Assistant" not in rendered
+    assert "Agent assistant" not in rendered
+
+
 def test_render_displays_effective_assistant_configuration() -> None:
     message = replace(
         _boot_message(),

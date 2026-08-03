@@ -197,7 +197,7 @@ NEW_DB_AGE_THRESHOLD_MINUTES = 2
 
 ProjectName: TypeAlias = str
 _Callback: TypeAlias = Callable[[], Union[None, Awaitable[None]]]
-_WelcomeMessage: TypeAlias = Union[str, Callable[[SystemSettings], str]]
+_WelcomeMessage: TypeAlias = Callable[[SystemSettings], str]
 
 
 def import_object_from_file(file_path: str, object_name: str) -> Any:
@@ -731,12 +731,12 @@ def _lifespan(
                 await stack.enter_async_context(token_store)
             _warn_if_missing_aioboto3()
             if welcome_message:
-                rendered_welcome_message = (
-                    welcome_message(system_settings)
-                    if callable(welcome_message)
-                    else welcome_message
-                )
-                print(rendered_welcome_message, flush=True)
+                # The banner is cosmetic and renders after migrations have run and
+                # ports are bound, so a defect in it must not abort a started server.
+                try:
+                    print(welcome_message(system_settings), flush=True)
+                except Exception:
+                    logger.exception("Failed to render the startup banner")
             yield {
                 "event_queue": dml_event_handler,
                 "enqueue_annotations": enqueue_annotations,

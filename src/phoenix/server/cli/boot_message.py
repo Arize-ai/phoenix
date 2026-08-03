@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Optional
+from urllib.parse import urlsplit, urlunsplit
 
 from jinja2 import BaseLoader, Environment
 
@@ -78,9 +79,6 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
 {% if disabled_sandboxes %}
   {{ disabled_sandbox_prefix }}{{ disabled_marker }}{{ disabled_sandboxes | join(", ") }}
 {% endif %}
-{% if not assistant_config %}
-  Agent assistant     {{ enabled if agent_assistant_enabled else disabled }}
-{% endif %}
   Prometheus metrics  {{ enabled if prometheus_enabled else disabled }}
   Email (SMTP)        {{ smtp_hostname or not_configured }}
   Telemetry           {{ enabled if telemetry_enabled else disabled }}
@@ -88,10 +86,10 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
 {% if assistant_config %}
 {{ header("✨", "Assistant") }}
   Agent assistant     {{ enabled if agent_assistant_enabled else disabled }}
-  Trace project       {{ assistant_config.project_name }}
+  Trace project       {{ assistant_config.project_name or not_configured }}
   Local traces        {{ enabled if assistant_config.allow_local_traces else disabled }}
   Remote export       {{ enabled if assistant_config.allow_remote_export else disabled }}
-  Remote collector    {{ assistant_config.collector_endpoint or not_configured }}
+  Remote collector    {{ assistant_config.printable_collector_endpoint or not_configured }}
 {% set collector_api_key = configured if assistant_config.api_key_configured else not_configured %}
   Collector API key   {{ collector_api_key }}
   Force tracing       {{ enabled if assistant_config.force_tracing else disabled }}
@@ -139,6 +137,23 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
 )
 
 
+def _hide_url_password(url: Optional[str]) -> Optional[str]:
+    """Mask a password embedded in a URL's userinfo so it never reaches stdout.
+
+    Mirrors how the banner prints the database URL, which goes through
+    SQLAlchemy's `render_as_string(hide_password=True)`.
+    """
+    if not url:
+        return url
+    parsed = urlsplit(url)
+    userinfo, separator, host = parsed.netloc.rpartition("@")
+    if not separator:
+        return url
+    username, has_password, _ = userinfo.partition(":")
+    redacted = f"{username}:***@{host}" if has_password else f"{username}@{host}"
+    return urlunsplit(parsed._replace(netloc=redacted))
+
+
 @dataclass(frozen=True)
 class AssistantConfig:
     """Effective server-side assistant configuration displayed at startup."""
@@ -151,6 +166,11 @@ class AssistantConfig:
     force_tracing: bool
     web_access_enabled: bool
     server_bash_enabled: bool
+
+    @property
+    def printable_collector_endpoint(self) -> Optional[str]:
+        """The collector endpoint with any embedded password masked."""
+        return _hide_url_password(self.collector_endpoint)
 
 
 @dataclass(frozen=True)
@@ -184,6 +204,9 @@ class BootMessage:
     prometheus_enabled: bool
     smtp_hostname: str
     telemetry_enabled: bool
+    # Depends on database-backed system settings, so it is only known once the
+    # server has started. `phoenix serve` fills it in at render time; until then
+    # the banner omits the Assistant section entirely.
     assistant_config: Optional[AssistantConfig] = None
     dev_mode: bool = False
     debug_logging: bool = False

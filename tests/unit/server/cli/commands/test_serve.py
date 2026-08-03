@@ -1,5 +1,6 @@
 import inspect
 from argparse import Namespace
+from dataclasses import replace
 from datetime import datetime, timezone
 from secrets import token_hex
 from types import SimpleNamespace
@@ -12,6 +13,9 @@ from sqlalchemy import URL, text
 
 from phoenix.db import models
 from phoenix.db.insertion.types import Precursors
+from phoenix.server.agents.config import AgentsEnvConfig
+from phoenix.server.cli import boot_message as boot_message_module
+from phoenix.server.cli.boot_message import BootMessage
 from phoenix.server.cli.commands import serve
 from phoenix.server.cli.commands.serve import (
     _create_db_session_factory,
@@ -19,6 +23,10 @@ from phoenix.server.cli.commands.serve import (
     _load_trace_fixture_initial_batches,
     _render_boot_message,
     _resolve_grpc_port,
+)
+from phoenix.server.settings.registry import (
+    AgentAssistantEnabledSetting,
+    AgentTraceRecordingSetting,
 )
 from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
 from phoenix.trace.trace_dataset import TraceDataset
@@ -49,48 +57,162 @@ def test_join_url_path_preserves_deployment_root(path: str, expected_url: str) -
     assert _join_url_path("http://localhost:6006/phoenix", path) == expected_url
 
 
-def test_render_boot_message_adds_effective_assistant_config(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", "custom_assistant")
-    monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "http://collector.example:4318")
-    monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_API_KEY", "secret-api-key")
-    monkeypatch.setenv("PHOENIX_AGENTS_FORCE_TRACING", "false")
-    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "true")
-    monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_WEB_ACCESS", "false")
-    monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_BASH", "true")
-    boot_message = SimpleNamespace(agent_assistant_enabled=True)
-    system_settings = SimpleNamespace(
-        agent_assistant_enabled=SimpleNamespace(enabled=False),
-        agent_trace_recording=SimpleNamespace(
-            allow_local_traces=True,
-            allow_remote_export=False,
+@pytest.fixture
+def ascii_banner(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Render banners without Unicode so assertions hold on every platform."""
+    monkeypatch.setattr(boot_message_module, "stdout_supports_unicode", lambda: False)
+
+
+def _boot_message(**changes: Any) -> BootMessage:
+    return replace(
+        BootMessage(
+            version="1.2.3",
+            ui_url="http://localhost:6006",
+            rest_api_url="http://localhost:6006/v1",
+            graphql_url="http://localhost:6006/graphql",
+            mcp_url=None,
+            read_only=False,
+            otlp_grpc_url="http://localhost:4317",
+            otlp_http_url="http://localhost:6006/v1/traces",
+            database="sqlite:///phoenix.db",
+            database_schema=None,
+            read_replica=None,
+            storage_capacity_gibibytes=None,
+            retention_policy_days=0,
+            auth_enabled=False,
+            basic_auth_disabled=False,
+            oauth2_idp_names=[],
+            ldap_enabled=False,
+            tls_enabled_for_http=False,
+            tls_enabled_for_grpc=False,
+            tls_verify_client=False,
+            allowed_origins=None,
+            sandbox_providers=[],
+            agent_assistant_enabled=True,
+            docs_mcp_url="https://docs.example/mcp",
+            prometheus_enabled=False,
+            smtp_hostname="",
+            telemetry_enabled=True,
+        ),
+        **changes,
+    )
+
+
+def _system_settings(
+    *,
+    assistant_enabled: bool = True,
+    allow_local_traces: bool = False,
+    allow_remote_export: bool = False,
+) -> Any:
+    return SimpleNamespace(
+        agent_assistant_enabled=AgentAssistantEnabledSetting(enabled=assistant_enabled),
+        agent_trace_recording=AgentTraceRecordingSetting(
+            allow_local_traces=allow_local_traces,
+            allow_remote_export=allow_remote_export,
         ),
     )
-    captured: dict[str, Any] = {}
 
-    class _RenderedBootMessage:
-        def render(self) -> str:
-            return "rendered"
 
-    def capture_replace(message: Any, **changes: Any) -> _RenderedBootMessage:
-        assert message is boot_message
-        captured.update(changes)
-        return _RenderedBootMessage()
+def test_render_boot_message_shows_effective_assistant_config(ascii_banner: None) -> None:
+    agents_env = AgentsEnvConfig(
+        assistant_project_name="custom_assistant",
+        collector_endpoint="http://collector.example:4318",
+        collector_api_key_configured=True,
+        force_tracing=False,
+        web_access_enabled=True,
+        server_bash_enabled=False,
+    )
 
-    monkeypatch.setattr(serve, "replace", capture_replace)
+    rendered = _render_boot_message(
+        _boot_message(),
+        agents_env,
+        _system_settings(allow_local_traces=True, allow_remote_export=False),
+    )
 
-    assert _render_boot_message(boot_message, system_settings) == "rendered"  # type: ignore[arg-type]
-    assert captured["agent_assistant_enabled"] is False
-    assistant_config = captured["assistant_config"]
-    assert assistant_config.project_name == "custom_assistant"
-    assert assistant_config.allow_local_traces is True
-    assert assistant_config.allow_remote_export is False
-    assert assistant_config.collector_endpoint == "http://collector.example:4318"
-    assert assistant_config.api_key_configured is True
-    assert assistant_config.force_tracing is False
-    assert assistant_config.web_access_enabled is True
-    assert assistant_config.server_bash_enabled is False
+    assert "Agent assistant     Enabled" in rendered
+    assert "Trace project       custom_assistant" in rendered
+    assert "Local traces        Enabled" in rendered
+    assert "Remote export       Disabled" in rendered
+    assert "Remote collector    http://collector.example:4318" in rendered
+    assert "Collector API key   Configured" in rendered
+    assert "Force tracing       Disabled" in rendered
+    assert "Web access          Enabled" in rendered
+    assert "Server-side bash    Disabled" in rendered
+
+
+def test_render_boot_message_force_tracing_overrides_admin_ceilings(ascii_banner: None) -> None:
+    agents_env = AgentsEnvConfig(
+        assistant_project_name="assistant_agent",
+        collector_endpoint=None,
+        collector_api_key_configured=False,
+        force_tracing=True,
+        web_access_enabled=False,
+        server_bash_enabled=True,
+    )
+
+    rendered = _render_boot_message(
+        _boot_message(),
+        agents_env,
+        _system_settings(allow_local_traces=False, allow_remote_export=False),
+    )
+
+    assert "Force tracing       Enabled" in rendered
+    assert "Local traces        Enabled" in rendered
+    assert "Remote export       Enabled" in rendered
+    assert "Remote collector    Not configured" in rendered
+    assert "Collector API key   Not configured" in rendered
+
+
+def test_render_boot_message_admin_kill_switch_also_hides_docs_mcp(ascii_banner: None) -> None:
+    agents_env = AgentsEnvConfig(
+        assistant_project_name="assistant_agent",
+        collector_endpoint=None,
+        collector_api_key_configured=False,
+        force_tracing=False,
+        web_access_enabled=True,
+        server_bash_enabled=True,
+    )
+
+    rendered = _render_boot_message(
+        _boot_message(),
+        agents_env,
+        _system_settings(assistant_enabled=False),
+    )
+
+    assert "Agent assistant     Disabled" in rendered
+    assert "Docs MCP            Disabled" in rendered
+    assert "https://docs.example/mcp" not in rendered
+
+
+def test_render_boot_message_masks_collector_endpoint_password(ascii_banner: None) -> None:
+    agents_env = AgentsEnvConfig(
+        assistant_project_name="assistant_agent",
+        collector_endpoint="https://otel:s3cr3t@collector.example/v1/traces",
+        collector_api_key_configured=False,
+        force_tracing=False,
+        web_access_enabled=True,
+        server_bash_enabled=True,
+    )
+
+    rendered = _render_boot_message(_boot_message(), agents_env, _system_settings())
+
+    assert "s3cr3t" not in rendered
+    assert "Remote collector    https://otel:***@collector.example/v1/traces" in rendered
+
+
+def test_render_boot_message_falls_back_when_project_name_is_blank(ascii_banner: None) -> None:
+    agents_env = AgentsEnvConfig(
+        assistant_project_name="",
+        collector_endpoint=None,
+        collector_api_key_configured=False,
+        force_tracing=False,
+        web_access_enabled=True,
+        server_bash_enabled=True,
+    )
+
+    rendered = _render_boot_message(_boot_message(), agents_env, _system_settings())
+
+    assert "Trace project       Not configured" in rendered
 
 
 async def _run_shutdown_callbacks(
