@@ -47,10 +47,10 @@ export function AgentChatTopNavButton() {
       }
       const didCloseDetachedPanel =
         previousState.isOpen && !state.isOpen && state.position === "detached";
-      // While a response is pending the button shows the thinking treatment,
+      // While a response is pending the button shows the thinking glow,
       // whose infinite animations override the flash animations in CSS — the
       // flash would never play and never fire animationend, leaving it armed
-      // until the response settles. The thinking treatment already marks the
+      // until the response settles. The thinking glow already marks the
       // button, so skip arming. The reverse race (a response becoming pending
       // while armed) cannot occur: sends require the open panel, and opening
       // disarms here.
