@@ -88,6 +88,43 @@ describe("Card", () => {
     });
   });
 
+  describe("with a collapsed preview", () => {
+    function renderCard() {
+      render(
+        <Card
+          title="user"
+          collapsible
+          collapsedPreview="Hi, I am your friendly assistant"
+        >
+          body
+        </Card>
+      );
+    }
+
+    it("shows the preview only once the card is collapsed", () => {
+      renderCard();
+      expect(container.querySelector(".card__collapsed-preview")).toBeNull();
+
+      click(query(".card__collapsible-button"));
+      expect(query(".card__collapsed-preview").textContent).toBe(
+        "Hi, I am your friendly assistant"
+      );
+
+      click(query(".card__collapsible-button"));
+      expect(container.querySelector(".card__collapsed-preview")).toBeNull();
+    });
+
+    it("leaves a card that cannot collapse without a preview", () => {
+      render(
+        <Card title="user" collapsedPreview="Hi, I am your friendly assistant">
+          body
+        </Card>
+      );
+
+      expect(container.querySelector(".card__collapsed-preview")).toBeNull();
+    });
+  });
+
   it("collapses when the header is clicked without an interactive title", () => {
     render(
       <Card title="Attributes" collapsible>

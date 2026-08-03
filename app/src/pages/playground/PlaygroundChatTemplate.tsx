@@ -30,6 +30,7 @@ import { validateMustacheSections } from "@phoenix/components/templateEditor/lan
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
+import { findToolCallName } from "@phoenix/schemas/toolCallSchemas";
 import type { ChatMessage, PlaygroundState } from "@phoenix/store";
 import { convertMessageToolCallsToProvider } from "@phoenix/store/playground/playgroundStoreUtils";
 import {
@@ -37,6 +38,10 @@ import {
   selectPlaygroundInstanceMessage,
 } from "@phoenix/store/playground/selectors";
 import { assertUnreachable } from "@phoenix/typeUtils";
+import {
+  toContentPreview,
+  toToolCallsPreview,
+} from "@phoenix/utils/contentPreviewUtils";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
@@ -56,6 +61,22 @@ import type { PlaygroundInstanceProps } from "./types";
  * that would clip autocomplete dropdowns.
  */
 const DRAGGING_MESSAGE_Z_INDEX = 10;
+
+/**
+ * A one-line excerpt of a message for its card's collapsed header, so a
+ * collapsed template still reads as the conversation it is. Falls back to what
+ * the message calls: an AI turn in tool-call mode has no text of its own.
+ */
+function getMessagePreview(message: ChatMessage): string | undefined {
+  return (
+    toContentPreview(message.content) ??
+    toToolCallsPreview(
+      (message.toolCalls ?? []).map((toolCall) => ({
+        name: findToolCallName(toolCall),
+      }))
+    )
+  );
+}
 
 interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {
   appendedMessagesPath?: string | null;
@@ -344,6 +365,7 @@ function SortableMessageItem({
         collapsible
         interactiveTitle
         collapseButtonLabel={`${message.role} message`}
+        collapsedPreview={getMessagePreview(message)}
         {...messageCardStyles}
         title={
           <MessageRoleSelect

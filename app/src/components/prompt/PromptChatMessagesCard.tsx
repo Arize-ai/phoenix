@@ -16,6 +16,10 @@ import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { openInferenceModelProviderToPhoenixModelProvider } from "@phoenix/pages/playground/playgroundUtils";
 import type { AnyPart } from "@phoenix/schemas/promptSchemas";
 import {
+  toContentPreview,
+  toToolCallsPreview,
+} from "@phoenix/utils/contentPreviewUtils";
+import {
   asTextPart,
   asToolCallPart,
   asToolResultPart,
@@ -141,6 +145,35 @@ function ChatMessageContentPart({
   return null;
 }
 
+type ChatTemplateMessage = Extract<
+  PromptChatMessagesCard__main$data["template"],
+  { __typename: "PromptChatTemplate" }
+>["messages"][number];
+
+/**
+ * A one-line excerpt of a template message for its card's collapsed header.
+ * Prefers the message's text, then what it calls, then what a tool returned to
+ * it — the same order the parts render in, so the preview is of what the reader
+ * would see first on expanding the card.
+ */
+function getMessagePreview(message: ChatTemplateMessage): string | undefined {
+  const text = message.content
+    .map((part) => asTextPart(part)?.text.text)
+    .filter(Boolean)
+    .join(" ");
+  const toolCalls = message.content
+    .map((part) => asToolCallPart(part)?.toolCall.toolCall)
+    .filter((toolCall) => toolCall != null);
+  const toolResults = message.content
+    .map((part) => asToolResultPart(part)?.toolResult.result)
+    .filter((result) => result != null);
+  return (
+    toContentPreview(text) ??
+    toToolCallsPreview(toolCalls) ??
+    toContentPreview(toolResults[0])
+  );
+}
+
 function ChatMessages({
   template,
   templateFormat,
@@ -161,7 +194,11 @@ function ChatMessages({
           message.content.length === 1 &&
           message.content.find(asTextPart) != null;
         return (
-          <ChatTemplateMessageCard key={i} role={message.role as string}>
+          <ChatTemplateMessageCard
+            key={i}
+            role={message.role as string}
+            preview={getMessagePreview(message)}
+          >
             {message.content.map((content, i) => (
               <ChatMessageContentPart
                 key={`${i}-${content.__typename}`}

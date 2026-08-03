@@ -55,8 +55,23 @@ export const cardCSS = (style?: CSSProperties) => css`
     }
 
     /* The heading has room to give only if it grows itself */
-    & .card__heading:has(.card__header-content) {
+    & .card__heading:has(.card__header-content),
+    & .card__heading:has(.card__collapsed-preview) {
       flex: 1 1 auto;
+    }
+
+    /* A collapsed card's excerpt of its body. It takes whatever the title
+       leaves and truncates rather than wrapping, so previewing a card costs
+       nothing in height */
+    & .card__collapsed-preview {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--global-text-color-700);
+      font-size: var(--global-font-size-s);
+      line-height: var(--global-line-height-s);
     }
 
     /* The subtitle truncates rather than wrapping the fixed-height header */
@@ -90,6 +105,9 @@ export const cardCSS = (style?: CSSProperties) => css`
     & .card__collapsible-button {
       display: flex;
       flex: 1;
+      /* Without this the button floors at the width of the title and preview it
+         wraps, and pushes the extra slot's controls past the card's edge */
+      min-width: 0;
       flex-direction: row;
       align-items: center;
       text-align: left;

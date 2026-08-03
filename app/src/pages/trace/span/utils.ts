@@ -18,6 +18,10 @@ import type {
 } from "@phoenix/openInference/tracing/types";
 import { isAttributeMessages } from "@phoenix/openInference/tracing/types";
 import { isStringArray } from "@phoenix/typeUtils";
+import {
+  toContentPreview,
+  toToolCallsPreview,
+} from "@phoenix/utils/contentPreviewUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import type {
@@ -78,6 +82,36 @@ export function getToolCalls(message: AttributeMessage): AttributeToolCall[] {
   return (message[MessageAttributePostfixes.tool_calls]
     ?.map((obj) => obj[SemanticAttributePrefixes.tool_call])
     .filter(Boolean) || []) as AttributeToolCall[];
+}
+
+/**
+ * A one-line excerpt of a message, shown in the header of its card while that
+ * card is collapsed. Follows the order the card renders in, so the preview is
+ * of what the reader would see first on expanding it, and falls through to the
+ * message's calls when it has no content of its own — an assistant turn that
+ * only calls tools would otherwise preview as nothing at all.
+ */
+export function getMessagePreview(
+  message: AttributeMessage
+): string | undefined {
+  const contentsText = (message[MessageAttributePostfixes.contents] ?? [])
+    .map(
+      (content) => content?.[SemanticAttributePrefixes.message_content]?.text
+    )
+    .filter(Boolean)
+    .join(" ");
+  return (
+    toContentPreview(contentsText) ??
+    toContentPreview(message[MessageAttributePostfixes.content]) ??
+    toToolCallsPreview(
+      getToolCalls(message).map((toolCall) => ({
+        name: toolCall.function?.name,
+      }))
+    ) ??
+    toToolCallsPreview([
+      { name: message[MessageAttributePostfixes.function_call_name] },
+    ])
+  );
 }
 
 /**

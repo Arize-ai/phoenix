@@ -34,6 +34,11 @@ const meta: Meta = {
       control: "boolean",
       description: "Whether the card can be collapsed/expanded",
     },
+    collapsedPreview: {
+      control: "text",
+      description:
+        "A one-line excerpt of the body shown in the header while the card is collapsed",
+    },
     width: {
       control: "text",
       description: "Width of the card",
@@ -78,6 +83,19 @@ export const Collapsible = {
     title: "Collapsible Card",
     subTitle: "Click the header to expand/collapse",
     collapsible: true,
+    width: "400px",
+  },
+};
+
+export const CollapsedPreview = {
+  render: Template,
+
+  args: {
+    title: "assistant",
+    collapsible: true,
+    defaultOpen: false,
+    collapsedPreview:
+      "Hi, I am your friendly assistant. I can look up the weather, search your documents, and answer questions about them.",
     width: "400px",
   },
 };

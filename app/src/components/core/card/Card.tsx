@@ -16,6 +16,7 @@ function Card({
   headerContent,
   children,
   collapsible = false,
+  collapsedPreview,
   interactiveTitle = false,
   collapseButtonLabel,
   defaultOpen = true,
@@ -56,6 +57,9 @@ function Card({
         <Heading level={4} className="card__sub-title">
           {subTitle}
         </Heading>
+      )}
+      {collapsible && isCollapsed && collapsedPreview && (
+        <span className="card__collapsed-preview">{collapsedPreview}</span>
       )}
       {headerContent && (
         <div className="card__header-content">{headerContent}</div>

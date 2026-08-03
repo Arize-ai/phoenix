@@ -27,7 +27,7 @@ import {
 
 import { defaultCardProps } from "./constants";
 import { MessageContentsList } from "./MessageContentsList";
-import { formatJSONForCopy, getToolCalls } from "./utils";
+import { formatJSONForCopy, getMessagePreview, getToolCalls } from "./utils";
 
 /**
  * Displays a single LLM message (input or output) including its contents,
@@ -60,6 +60,7 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
             ? `: ${message[MessageAttributePostfixes.name]}`
             : "")
         }
+        collapsedPreview={getMessagePreview(message)}
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             <ConnectedMarkdownModeSelect />
