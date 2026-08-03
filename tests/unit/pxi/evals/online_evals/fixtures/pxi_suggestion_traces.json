@@ -1,0 +1,616 @@
+{
+  "accepted_prompt_edit": [
+    {
+      "name": "pxi.turn",
+      "context": {
+        "trace_id": "00000000000000000015bfc9bdc170aa",
+        "span_id": "0000000000000000"
+      },
+      "span_kind": "AGENT",
+      "parent_id": null,
+      "start_time": "2026-07-24T12:00:00+00:00",
+      "end_time": "2026-07-24T12:00:01+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "text/plain",
+        "input.value": "redacted input",
+        "output.mime_type": "text/plain",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "gpt-5.5",
+      "context": {
+        "trace_id": "00000000000000000015bfc9bdc170aa",
+        "span_id": "0000000000000001"
+      },
+      "span_kind": "LLM",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:02+00:00",
+      "end_time": "2026-07-24T12:00:03+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "read_prompt_instance",
+      "context": {
+        "trace_id": "00000000000000000015bfc9bdc170aa",
+        "span_id": "0000000000000002"
+      },
+      "span_kind": "TOOL",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:04+00:00",
+      "end_time": "2026-07-24T12:00:05+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "tool.name": "read_prompt_instance",
+        "session.id": "session-0000",
+        "tool.id": "call_0002",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "gpt-5.5",
+      "context": {
+        "trace_id": "00000000000000000015bfc9bdc170aa",
+        "span_id": "0000000000000003"
+      },
+      "span_kind": "LLM",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:06+00:00",
+      "end_time": "2026-07-24T12:00:07+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "edit_prompt_instance",
+      "context": {
+        "trace_id": "00000000000000000015bfc9bdc170aa",
+        "span_id": "0000000000000004"
+      },
+      "span_kind": "TOOL",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:08+00:00",
+      "end_time": "2026-07-24T12:00:09+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "tool.name": "edit_prompt_instance",
+        "session.id": "session-0000",
+        "tool.id": "call_0004",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "{\"status\": \"accepted\", \"acceptedBy\": \"user\", \"instanceId\": 5, \"revision\": \"redacted revision\", \"summary\": {\"instanceIndex\": 0, \"instanceLabel\": \"redacted instanceLabel\", \"additions\": 16, \"deletions\": 2}, \"message\": \"redacted message\"}"
+      }
+    },
+    {
+      "name": "gpt-5.5",
+      "context": {
+        "trace_id": "00000000000000000015bfc9bdc170aa",
+        "span_id": "0000000000000005"
+      },
+      "span_kind": "LLM",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:10+00:00",
+      "end_time": "2026-07-24T12:00:11+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "save_prompt",
+      "context": {
+        "trace_id": "00000000000000000015bfc9bdc170aa",
+        "span_id": "0000000000000006"
+      },
+      "span_kind": "TOOL",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:12+00:00",
+      "end_time": "2026-07-24T12:00:13+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "tool.name": "save_prompt",
+        "session.id": "session-0000",
+        "tool.id": "call_0006",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "{\"status\": \"saved\", \"mode\": \"redacted mode\", \"instanceId\": 5, \"label\": \"redacted label\", \"promptId\": \"redacted promptId\", \"promptName\": \"redacted promptName\", \"promptVersionId\": \"redacted promptVersionId\", \"tag\": null, \"dirtyBeforeSave\": true, \"message\": \"redacted message\", \"approvalStatus\": \"accepted\", \"acceptedBy\": \"user\"}"
+      }
+    },
+    {
+      "name": "gpt-5.5",
+      "context": {
+        "trace_id": "00000000000000000015bfc9bdc170aa",
+        "span_id": "0000000000000007"
+      },
+      "span_kind": "LLM",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:14+00:00",
+      "end_time": "2026-07-24T12:00:15+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "open_llm_evaluator_form",
+      "context": {
+        "trace_id": "00000000000000000015bfc9bdc170aa",
+        "span_id": "0000000000000008"
+      },
+      "span_kind": "TOOL",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:16+00:00",
+      "end_time": "2026-07-24T12:00:17+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "tool.name": "open_llm_evaluator_form",
+        "session.id": "session-0000",
+        "tool.id": "call_0008",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "gpt-5.5",
+      "context": {
+        "trace_id": "00000000000000000015bfc9bdc170aa",
+        "span_id": "0000000000000009"
+      },
+      "span_kind": "LLM",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:18+00:00",
+      "end_time": "2026-07-24T12:00:19+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    }
+  ],
+  "rejected_prompt_edit": [
+    {
+      "name": "pxi.turn",
+      "context": {
+        "trace_id": "000000000000000003e86c1ad72fb951",
+        "span_id": "0000000000000000"
+      },
+      "span_kind": "AGENT",
+      "parent_id": null,
+      "start_time": "2026-07-24T12:00:00+00:00",
+      "end_time": "2026-07-24T12:00:01+00:00",
+      "status_code": "ERROR",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "text/plain",
+        "input.value": "redacted input"
+      }
+    },
+    {
+      "name": "gpt-5.5",
+      "context": {
+        "trace_id": "000000000000000003e86c1ad72fb951",
+        "span_id": "0000000000000001"
+      },
+      "span_kind": "LLM",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:02+00:00",
+      "end_time": "2026-07-24T12:00:03+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "load_skill",
+      "context": {
+        "trace_id": "000000000000000003e86c1ad72fb951",
+        "span_id": "0000000000000002"
+      },
+      "span_kind": "TOOL",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:04+00:00",
+      "end_time": "2026-07-24T12:00:05+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "tool.name": "load_skill",
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "text/plain",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "gpt-5.5",
+      "context": {
+        "trace_id": "000000000000000003e86c1ad72fb951",
+        "span_id": "0000000000000003"
+      },
+      "span_kind": "LLM",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:06+00:00",
+      "end_time": "2026-07-24T12:00:07+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "read_prompt_instance",
+      "context": {
+        "trace_id": "000000000000000003e86c1ad72fb951",
+        "span_id": "0000000000000004"
+      },
+      "span_kind": "TOOL",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:08+00:00",
+      "end_time": "2026-07-24T12:00:09+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "tool.name": "read_prompt_instance",
+        "session.id": "session-0000",
+        "tool.id": "call_0004",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "gpt-5.5",
+      "context": {
+        "trace_id": "000000000000000003e86c1ad72fb951",
+        "span_id": "0000000000000005"
+      },
+      "span_kind": "LLM",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:10+00:00",
+      "end_time": "2026-07-24T12:00:11+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "edit_prompt_instance",
+      "context": {
+        "trace_id": "000000000000000003e86c1ad72fb951",
+        "span_id": "0000000000000006"
+      },
+      "span_kind": "TOOL",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:12+00:00",
+      "end_time": "2026-07-24T12:00:13+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "tool.name": "edit_prompt_instance",
+        "session.id": "session-0000",
+        "tool.id": "call_0006",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "{\"status\": \"rejected\", \"instanceId\": 5, \"message\": \"redacted message\"}"
+      }
+    },
+    {
+      "name": "gpt-5.5",
+      "context": {
+        "trace_id": "000000000000000003e86c1ad72fb951",
+        "span_id": "0000000000000007"
+      },
+      "span_kind": "LLM",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:14+00:00",
+      "end_time": "2026-07-24T12:00:15+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "open_llm_evaluator_form",
+      "context": {
+        "trace_id": "000000000000000003e86c1ad72fb951",
+        "span_id": "0000000000000008"
+      },
+      "span_kind": "TOOL",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:16+00:00",
+      "end_time": "2026-07-24T12:00:17+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "tool.name": "open_llm_evaluator_form",
+        "session.id": "session-0000",
+        "tool.id": "call_0008",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "gpt-5.5",
+      "context": {
+        "trace_id": "000000000000000003e86c1ad72fb951",
+        "span_id": "0000000000000009"
+      },
+      "span_kind": "LLM",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:18+00:00",
+      "end_time": "2026-07-24T12:00:19+00:00",
+      "status_code": "UNSET",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input"
+      }
+    },
+    {
+      "name": "gpt-5.5",
+      "context": {
+        "trace_id": "000000000000000003e86c1ad72fb951",
+        "span_id": "000000000000000a"
+      },
+      "span_kind": "LLM",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:20+00:00",
+      "end_time": "2026-07-24T12:00:21+00:00",
+      "status_code": "UNSET",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    }
+  ],
+  "mixed_annotation_config": [
+    {
+      "name": "pxi.turn",
+      "context": {
+        "trace_id": "00000000000000001bf57a831f82dc02",
+        "span_id": "0000000000000000"
+      },
+      "span_kind": "AGENT",
+      "parent_id": null,
+      "start_time": "2026-07-24T12:00:00+00:00",
+      "end_time": "2026-07-24T12:00:01+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "text/plain",
+        "input.value": "redacted input",
+        "output.mime_type": "text/plain",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "gpt-5.6-sol",
+      "context": {
+        "trace_id": "00000000000000001bf57a831f82dc02",
+        "span_id": "0000000000000001"
+      },
+      "span_kind": "LLM",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:02+00:00",
+      "end_time": "2026-07-24T12:00:03+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "update_annotation_config",
+      "context": {
+        "trace_id": "00000000000000001bf57a831f82dc02",
+        "span_id": "0000000000000002"
+      },
+      "span_kind": "TOOL",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:04+00:00",
+      "end_time": "2026-07-24T12:00:05+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "tool.name": "update_annotation_config",
+        "session.id": "session-0000",
+        "tool.id": "call_0002",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "{\"status\": \"rejected\", \"message\": \"redacted message\"}"
+      }
+    },
+    {
+      "name": "gpt-5.6-sol",
+      "context": {
+        "trace_id": "00000000000000001bf57a831f82dc02",
+        "span_id": "0000000000000003"
+      },
+      "span_kind": "LLM",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:06+00:00",
+      "end_time": "2026-07-24T12:00:07+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "ask_user",
+      "context": {
+        "trace_id": "00000000000000001bf57a831f82dc02",
+        "span_id": "0000000000000004"
+      },
+      "span_kind": "TOOL",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:08+00:00",
+      "end_time": "2026-07-24T12:00:09+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "tool.name": "ask_user",
+        "session.id": "session-0000",
+        "tool.id": "call_0004",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "gpt-5.6-sol",
+      "context": {
+        "trace_id": "00000000000000001bf57a831f82dc02",
+        "span_id": "0000000000000005"
+      },
+      "span_kind": "LLM",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:10+00:00",
+      "end_time": "2026-07-24T12:00:11+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "update_annotation_config",
+      "context": {
+        "trace_id": "00000000000000001bf57a831f82dc02",
+        "span_id": "0000000000000006"
+      },
+      "span_kind": "TOOL",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:12+00:00",
+      "end_time": "2026-07-24T12:00:13+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "tool.name": "update_annotation_config",
+        "session.id": "session-0000",
+        "tool.id": "call_0006",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "{\"status\": \"accepted\", \"acceptedBy\": \"user\", \"message\": \"redacted message\"}"
+      }
+    },
+    {
+      "name": "gpt-5.6-sol",
+      "context": {
+        "trace_id": "00000000000000001bf57a831f82dc02",
+        "span_id": "0000000000000007"
+      },
+      "span_kind": "LLM",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:14+00:00",
+      "end_time": "2026-07-24T12:00:15+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    },
+    {
+      "name": "batch_span_annotate",
+      "context": {
+        "trace_id": "00000000000000001bf57a831f82dc02",
+        "span_id": "0000000000000008"
+      },
+      "span_kind": "TOOL",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:16+00:00",
+      "end_time": "2026-07-24T12:00:17+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "tool.name": "batch_span_annotate",
+        "session.id": "session-0000",
+        "tool.id": "call_0008",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "{\"status\": \"accepted\", \"acceptedBy\": \"user\", \"count\": 5, \"annotations\": [{\"spanId\": \"redacted spanId\", \"spanNodeId\": null, \"name\": \"redacted name\", \"label\": \"redacted label\", \"score\": 1, \"explanation\": \"redacted explanation\"}, {\"spanId\": \"redacted spanId\", \"spanNodeId\": null, \"name\": \"redacted name\", \"label\": \"redacted label\", \"score\": 1, \"explanation\": \"redacted explanation\"}, {\"spanId\": \"redacted spanId\", \"spanNodeId\": null, \"name\": \"redacted name\", \"label\": \"redacted label\", \"score\": 1, \"explanation\": \"redacted explanation\"}, {\"spanId\": \"redacted spanId\", \"spanNodeId\": null, \"name\": \"redacted name\", \"label\": \"redacted label\", \"score\": 1, \"explanation\": \"redacted explanation\"}, {\"spanId\": \"redacted spanId\", \"spanNodeId\": null, \"name\": \"redacted name\", \"label\": \"redacted label\", \"score\": 1, \"explanation\": \"redacted explanation\"}], \"message\": \"redacted message\"}"
+      }
+    },
+    {
+      "name": "gpt-5.6-sol",
+      "context": {
+        "trace_id": "00000000000000001bf57a831f82dc02",
+        "span_id": "0000000000000009"
+      },
+      "span_kind": "LLM",
+      "parent_id": "0000000000000000",
+      "start_time": "2026-07-24T12:00:18+00:00",
+      "end_time": "2026-07-24T12:00:19+00:00",
+      "status_code": "OK",
+      "attributes": {
+        "session.id": "session-0000",
+        "input.mime_type": "application/json",
+        "input.value": "redacted input",
+        "output.mime_type": "application/json",
+        "output.value": "redacted output"
+      }
+    }
+  ]
+}
