@@ -1842,9 +1842,7 @@ def create_agents_router(
         except ValueError as error:
             raise HTTPException(status_code=422, detail="Invalid agent session ID") from error
 
-        statement = select(models.AgentSession).where(
-            models.AgentSession.id == session_rowid
-        )
+        statement = select(models.AgentSession).where(models.AgentSession.id == session_rowid)
         if include_messages:
             statement = statement.options(selectinload(models.AgentSession.messages))
         if (user_id := _get_request_user_id(request)) is not None:
