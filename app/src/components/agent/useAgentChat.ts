@@ -26,6 +26,10 @@ import {
   SYSTEM_INTERRUPT_ERROR,
   USER_INTERRUPT_ERROR,
 } from "@phoenix/agent/chat/shouldSendAutomatically";
+import {
+  REWIND_CLEARED_TOOL_NAMES,
+  clearPendingToolState,
+} from "@phoenix/agent/chat/pendingToolStateClearers";
 import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
 import { createTurnTraceContextManager } from "@phoenix/agent/chat/turnTraceContext";
@@ -36,20 +40,10 @@ import {
 } from "@phoenix/agent/chat/types";
 import { buildUserMessageMetadata } from "@phoenix/agent/chat/userMessageMetadata";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
-import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
-import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type {
   ElicitToolOutput,
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
-import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
-import {
-  EDIT_PROMPT_TOOL_NAME,
-  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
-} from "@phoenix/agent/tools/playgroundPrompt";
-import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
-import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import type { paths } from "@phoenix/api/__generated__/v1";
 import { authFetch } from "@phoenix/authFetch";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
@@ -264,15 +258,13 @@ export function useAgentChat({
   const [compactionStatus, setCompactionStatus] = useState<string | null>(null);
   const isDraft = sessionId == null || sessionId === DRAFT_SESSION_ID;
   const isCompacting = useAgentContext((state) =>
-    sessionId
-      ? (state.isCompactionPendingBySessionId[sessionId] ?? false)
-      : false
+    sessionId ? state.isCompactionPendingBySessionId[sessionId] ?? false : false
   );
   const pendingElicitation = useAgentContext((state) =>
-    sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
+    sessionId ? state.pendingElicitationBySessionId[sessionId] ?? null : null
   );
   const isBusyElsewhere = useAgentContext((state) =>
-    sessionId ? (state.isBusyElsewhereBySessionId[sessionId] ?? false) : false
+    sessionId ? state.isBusyElsewhereBySessionId[sessionId] ?? false : false
   );
 
   const [commitCreateAgentSession] =
@@ -660,8 +652,8 @@ export function useAgentChat({
     !persistedSessionId || !chatInstance || isSessionPollingPaused
       ? null
       : isBusyElsewhere
-        ? SESSION_BUSY_POLL_INTERVAL_MS
-        : SESSION_POLL_INTERVAL_MS;
+      ? SESSION_BUSY_POLL_INTERVAL_MS
+      : SESSION_POLL_INTERVAL_MS;
   useInterval(() => void pollSession(), sessionPollDelay);
 
   useEffect(() => {
@@ -690,32 +682,11 @@ export function useAgentChat({
     const unresolvedToolCalls = getUnresolvedToolCalls(messages);
 
     unresolvedToolCalls.forEach((toolCall) => {
-      if (toolCall.tool === EDIT_PROMPT_TOOL_NAME) {
-        store.getState().setPendingPromptEdit(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === REMOVE_PROMPT_INSTANCE_TOOL_NAME) {
-        store
-          .getState()
-          .setPendingPromptInstanceRemoval(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === BATCH_SPAN_ANNOTATE_TOOL_NAME) {
-        store.getState().setPendingBatchSpanAnnotate(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === WRITE_PROMPT_TOOLS_TOOL_NAME) {
-        store.getState().setPendingPromptToolWrite(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === SAVE_PROMPT_TOOL_NAME) {
-        store.getState().setPendingSavePrompt(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME) {
-        store.getState().setPendingCodeEvaluatorEdit(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME) {
-        store.getState().setPendingLlmEvaluatorEdit(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === LOAD_DATASET_TOOL_NAME) {
-        store.getState().setPendingLoadDataset(toolCall.toolCallId, null);
-      }
+      clearPendingToolState(
+        store.getState(),
+        toolCall.tool,
+        toolCall.toolCallId
+      );
     });
 
     const turnClientState = chatInstance
@@ -1026,14 +997,8 @@ export function useAgentChat({
             continue;
           }
           const toolName = getToolName(part);
-          if (toolName === EDIT_PROMPT_TOOL_NAME) {
-            state.setPendingPromptEdit(part.toolCallId, null);
-          } else if (toolName === REMOVE_PROMPT_INSTANCE_TOOL_NAME) {
-            state.setPendingPromptInstanceRemoval(part.toolCallId, null);
-          } else if (toolName === BATCH_SPAN_ANNOTATE_TOOL_NAME) {
-            state.setPendingBatchSpanAnnotate(part.toolCallId, null);
-          } else if (toolName === WRITE_PROMPT_TOOLS_TOOL_NAME) {
-            state.setPendingPromptToolWrite(part.toolCallId, null);
+          if (REWIND_CLEARED_TOOL_NAMES.has(toolName)) {
+            clearPendingToolState(state, toolName, part.toolCallId);
           } else if (pendingElicitation?.toolCallId === part.toolCallId) {
             state.setPendingElicitation(sessionId, null);
           }
