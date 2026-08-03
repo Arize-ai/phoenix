@@ -4,12 +4,12 @@ import json
 from dataclasses import dataclass
 from typing import Any, cast
 
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
 from phoenix.config import SERVER_DIR
-from phoenix.server.agents.capabilities.tools.base import AbstractToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 RENDER_GENERATIVE_UI_TOOL_NAME = "render_generative_ui"
@@ -108,6 +108,6 @@ RENDER_GENERATIVE_UI_TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class RenderGenerativeUICapability(AbstractToolCapability[AgentDependencies]):
+class RenderGenerativeUICapability(AbstractCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([RENDER_GENERATIVE_UI_TOOL_DEFINITION])
