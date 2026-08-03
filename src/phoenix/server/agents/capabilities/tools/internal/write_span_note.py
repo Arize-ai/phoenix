@@ -5,6 +5,7 @@ from typing import Annotated
 
 from pydantic import Field, StringConstraints
 from pydantic_ai import ModelRetry, Tool
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from sqlalchemy import select
@@ -13,7 +14,6 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
-from phoenix.server.agents.capabilities.tools.base import AbstractToolCapability
 from phoenix.server.dml_event import DmlEvent, SpanAnnotationInsertEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
 
@@ -100,7 +100,7 @@ class WriteSpanNoteToolset(FunctionToolset[AgentDepsT]):
 
 
 @dataclass
-class WriteSpanNoteCapability(AbstractToolCapability[AgentDepsT]):
+class WriteSpanNoteCapability(AbstractCapability[AgentDepsT]):
     """Capability that adds the PXI span-note writer."""
 
     db: DbSessionFactory

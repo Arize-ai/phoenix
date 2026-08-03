@@ -16,12 +16,12 @@ from graphql import parse as parse_graphql
 from graphql.language.ast import OperationDefinitionNode
 from jinja2 import Template
 from pydantic_ai import Tool
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from strawberry.types.graphql import OperationType
 from typing_extensions import TypedDict
 
-from phoenix.server.agents.capabilities.tools.base import AbstractToolCapability
 from phoenix.server.api.context import Context
 
 logger = logging.getLogger(__name__)
@@ -429,7 +429,7 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
 
 
 @dataclass
-class BashCapability(AbstractToolCapability[AgentDepsT], Generic[AgentDepsT]):
+class BashCapability(AbstractCapability[AgentDepsT], Generic[AgentDepsT]):
     """Capability that adds a ``bash`` toolset."""
 
     schema: strawberry.Schema
