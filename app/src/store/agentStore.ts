@@ -152,7 +152,7 @@ export type AgentSession = {
 
 const DEFAULT_MODEL_CONFIG: ModelConfig = {
   provider: "ANTHROPIC",
-  modelName: "claude-opus-4-6",
+  modelName: "claude-opus-5",
   invocationParameters: getDefaultInvocationConfig("ANTHROPIC"),
 };
 

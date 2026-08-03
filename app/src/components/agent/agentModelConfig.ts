@@ -33,7 +33,7 @@ export type AgentModelConfig = z.infer<typeof AGENT_MODEL_CONFIG_SCHEMA>;
 
 export const DEFAULT_MODEL_MENU_VALUE: ModelMenuValue = {
   provider: "ANTHROPIC",
-  modelName: "claude-opus-4-6",
+  modelName: "claude-opus-5",
 };
 
 /**

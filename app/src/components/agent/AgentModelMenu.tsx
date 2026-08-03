@@ -10,8 +10,13 @@ import {
   MenuItem,
   MenuSectionTitle,
   MenuTrigger,
+  RichTooltip,
+  RichTooltipDescription,
+  RichTooltipTitle,
   Separator,
   Text,
+  TooltipTrigger,
+  TriggerWrap,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import type {
@@ -30,6 +35,8 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import {
+  AGENT_MODEL_TAG_INFO,
+  type AgentModelTag,
   getCuratedBuiltInModels,
   isAgentCuratedBuiltInModel,
 } from "./agentCuratedModels";
@@ -49,11 +56,30 @@ function applyBedrockPrefix(modelName: string, prefix: string): string {
     : `${prefixDot}${modelName}`;
 }
 
+function AgentModelTagText({ tag }: { tag: AgentModelTag }) {
+  const { label, description } = AGENT_MODEL_TAG_INFO[tag];
+  return (
+    <TooltipTrigger delay={200}>
+      <TriggerWrap aria-label={`${label}: ${description}`}>
+        <Text size="S" color="text-500">
+          {label}
+        </Text>
+      </TriggerWrap>
+      <RichTooltip placement="end" offset={12}>
+        <RichTooltipTitle>{label}</RichTooltipTitle>
+        <RichTooltipDescription>{description}</RichTooltipDescription>
+      </RichTooltip>
+    </TooltipTrigger>
+  );
+}
+
 function AgentModelItem({
   model,
+  tag,
   onChange,
 }: {
   model: ModelMenuValue;
+  tag?: AgentModelTag;
   onChange?: (model: ModelMenuValue) => void;
 }) {
   return (
@@ -63,6 +89,7 @@ function AgentModelItem({
       onAction={() => {
         onChange?.(model);
       }}
+      trailingContent={tag ? <AgentModelTagText tag={tag} /> : undefined}
     >
       <Flex direction="row" gap="size-100" alignItems="center">
         <GenerativeProviderIcon provider={model.provider} height={16} />
@@ -79,7 +106,7 @@ function CuratedAndOtherModelMenuSections({
   modelProviders,
   onChange,
 }: {
-  curatedBuiltInModels: ModelMenuValue[];
+  curatedBuiltInModels: (ModelMenuValue & { tag: AgentModelTag })[];
   modelsByProvider: Map<string, string[]>;
   customProviders: CustomProviderInfo[];
   modelProviders: readonly ModelProviderInfo[];
@@ -93,6 +120,7 @@ function CuratedAndOtherModelMenuSections({
           <AgentModelItem
             key={`${model.provider}:${model.modelName}`}
             model={model}
+            tag={model.tag}
             onChange={onChange}
           />
         ))}
@@ -208,6 +236,7 @@ export function AgentModelMenu({
               <AgentModelItem
                 key={`${model.provider}:${model.modelName}`}
                 model={model}
+                tag={model.tag}
                 onChange={handleModelChange}
               />
             ))
