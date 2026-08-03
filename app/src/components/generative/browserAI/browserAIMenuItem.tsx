@@ -44,19 +44,21 @@ export function BrowserModelAvailabilityStatus({
 }
 
 /**
- * The model picker entry for Browser AI — the browser's built-in on-device
- * model — or null in browsers without one, where the picker simply doesn't
- * offer it. A plugin for the generic ModelMenu's `leadingItems` extension
- * point; the menu itself knows nothing about Browser AI.
+ * The model picker entry for the browser's built-in on-device model,
+ * labeled with the model's actual name (e.g. "Gemini Nano") — or null in
+ * browsers without one, where the picker simply doesn't offer it. A plugin
+ * for the generic ModelMenu's `leadingItems` extension point; the menu
+ * itself knows nothing about Browser AI.
  */
 export function useBrowserAIMenuItem(): ModelMenuLeadingItem | null {
   const availability = useBrowserModelAvailability();
-  if (getBrowserBuiltInModel() === null) {
+  const builtInModel = getBrowserBuiltInModel();
+  if (builtInModel === null) {
     return null;
   }
   return {
     id: BROWSER_AI_MENU_ITEM_ID,
-    label: "Browser AI",
+    label: builtInModel.modelName,
     icon: <Icon svg={<Icons.Globe />} />,
     trailing: <BrowserModelAvailabilityStatus />,
     // The Prompt API exists but no model can be provisioned on this device

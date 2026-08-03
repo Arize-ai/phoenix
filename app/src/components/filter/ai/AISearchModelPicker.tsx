@@ -25,8 +25,8 @@ const pickerCSS = css`
 `;
 
 /**
- * Names the on-device model Browser AI actually runs — e.g. "Gemini Nano —
- * Chrome's built-in model" — so the choice is never a mystery box. Falls
+ * Explains what the selected on-device model is — e.g. "Chrome's built-in
+ * model" — the picker itself already names it (e.g. "Gemini Nano"). Falls
  * back to a generic description in browsers without a built-in model, where
  * the availability status explains it's unsupported.
  */
@@ -37,8 +37,8 @@ function BrowserBuiltInModelText() {
   }
   return (
     <>
-      {builtInModel.modelName} — {builtInModel.browserName}’s built-in model.
-      Runs on-device; queries never leave your browser.
+      {builtInModel.browserName}’s built-in model. Runs on-device; queries never
+      leave your browser.
     </>
   );
 }

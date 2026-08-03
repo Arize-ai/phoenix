@@ -284,7 +284,7 @@ export const WithLeadingItem: Story = {
       leadingItems={[
         {
           id: "browser-ai",
-          label: "Browser AI",
+          label: "Gemini Nano",
           icon: <Icon svg={<Icons.Globe />} />,
           trailing: (
             <Text color="success" size="XS">
