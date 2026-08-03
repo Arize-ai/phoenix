@@ -214,7 +214,7 @@ def test_evaluator_spec_requires_explicit_annotator_kind() -> None:
     with pytest.raises(TypeError, match="annotator_kind"):
         EvaluatorSpec(  # type: ignore[call-arg]
             name="ambiguous",
-            root_span_name="pxi.turn",
+            selector=TOOL_COUNT_PER_TURN.selector,
             evaluate=TOOL_COUNT_PER_TURN.evaluate,
         )
 
