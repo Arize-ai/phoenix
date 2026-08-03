@@ -291,6 +291,8 @@ export function Drawer({
 
   // Provide OverlayTriggerStateContext so react-aria's Dialog render prop
   // surfaces a working `close` function and `slot="close"` auto-wires.
+  // `point` anchors an overlay to the cursor (context menus). A drawer is
+  // anchored to the viewport edge, so it stays null and `setPoint` is a no-op.
   const overlayState = {
     isOpen: true as const,
     open: () => {},
@@ -299,6 +301,8 @@ export function Drawer({
     setOpen: (open: boolean) => {
       if (!open) onClose?.();
     },
+    point: null,
+    setPoint: () => {},
   };
 
   return (
