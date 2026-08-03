@@ -221,16 +221,6 @@ function SideNav({ isExpanded }: { isExpanded: boolean }) {
               isExpanded={isExpanded}
             />
           </li>
-          {isChatEnabled ? (
-            <li key="chat">
-              <NavLink
-                to="/chat"
-                text="Chat"
-                leadingVisual={<Icon svg={<Icons.MessageCircle />} />}
-                isExpanded={isExpanded}
-              />
-            </li>
-          ) : null}
           <li key="evaluators">
             <NavLink
               to="/evaluators"
@@ -257,6 +247,16 @@ function SideNav({ isExpanded }: { isExpanded: boolean }) {
               isExpanded={isExpanded}
             />
           </li>
+          {isChatEnabled ? (
+            <li key="chat">
+              <NavLink
+                to="/chat"
+                text="Chat"
+                leadingVisual={<Icon svg={<Icons.MessageCircle />} />}
+                isExpanded={isExpanded}
+              />
+            </li>
+          ) : null}
           <li key="rest-api">
             <NavLink
               to="/apis/rest"
