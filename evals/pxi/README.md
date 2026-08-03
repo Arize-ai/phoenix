@@ -26,7 +26,22 @@ Trace evaluators live in `evals/pxi/online_evals/evaluators/`; run the CLI
 with `--help` to list what is currently registered. They remain separate from
 `evals.pxi.evaluators` because the latter implements the experiment contract
 over `(output, expected)` pairs, while online evaluators consume a hydrated
-`(root_span, trace_spans)` pair and produce root-span annotations.
+`(target_span, trace_spans)` pair and annotate the target span.
+
+Each evaluator declares a `SpanSelector` saying which spans it targets, and
+the runner issues one discovery query per distinct selector:
+
+- **Root targets** — `tool_count_per_turn` and `user_friction` select
+  `names=("pxi.turn",)`, `span_kinds=("AGENT",)`, `parent_id="null"`, so they
+  score and annotate one turn root per trace. They share a single query.
+- **TOOL targets** — `suggestion_accepted` selects the approval-gated tool
+  names with `span_kinds=("TOOL",)` and no parent restriction, so it annotates
+  individual tool spans anywhere inside a turn.
+
+Targeting inner spans matters because one turn can contain several suggestions
+that the user decided differently; a turn-level annotation would collapse them
+into a single label. Sampling stays keyed on `trace_id`, so every target within
+one turn is sampled in or out together and a turn is never partly annotated.
 
 All LLM evaluators share one judge configuration:
 `PHOENIX_AGENTS_EVALS_PROVIDER` / `PHOENIX_AGENTS_EVALS_MODEL`, defaulting to
@@ -36,9 +51,60 @@ OpenAI `gpt-5.5`. Supported providers are `openai` (`OPENAI_API_KEY`),
 matching API key fail once at startup, before trace discovery.
 
 Evaluators consume a trace-shaped input and attach their result as a span
-annotation on the trace's root `pxi.turn` span. The runner does not create or
-update project annotation configs; configure display or optimization metadata
-in Phoenix separately when needed.
+annotation on their target span. The runner does not create or update project
+annotation configs; configure display or optimization metadata in Phoenix
+separately when needed.
+
+### `suggestion_accepted`
+
+A deterministic CODE evaluator (no LLM call, no new secret) that records
+whether a user **manually** accepted or rejected an approval-gated PXI
+suggestion. It annotates the TOOL span itself:
+
+| Recorded outcome | Annotation |
+|---|---|
+| `status: "rejected"` | `rejected` / `0.0` |
+| `acceptedBy: "user"` | `accepted` / `1.0` |
+| anything else | *no annotation* |
+
+Rejection is evaluated first: the reject path writes `status: "rejected"` and
+never sets `acceptedBy`, so a payload carrying both is contradictory and the
+explicit terminal rejection wins. Acceptance keys off `acceptedBy` rather than
+the status string because the success vocabulary is tool-specific (`accepted`,
+`saved`, `loaded`, `applied`, `removed`) while `acceptedBy` is the only field
+that separates a human click from an automatic bypass.
+
+Deliberately **not** annotated, because none is a user decision:
+
+- automatic/system accepts (`acceptedBy: "auto"`, i.e. bypass edit permission);
+- still-pending approvals (`awaiting_user`);
+- approvals cancelled by navigation, and errored tools (`output-error`);
+- missing, malformed, non-object, or unrecognized `output.value`;
+- any tool not on the allowlist.
+
+Classification is purely structural — the evaluator never searches message
+text for words like "accepted" or "rejected". Annotations carry only
+`{"tool_name": ...}`: never prompt text, tool arguments, raw output, user
+content, instance ids, or proposal diffs.
+
+The allowlist in `evaluators/suggestion_accepted.py` is an intentional
+**cross-language maintenance contract**: it lists exactly the frontend tools
+whose pending-action implementation records both outcomes. When a new
+approval-gated tool lands under `app/src/agent/tools/*/pending*.ts`, add it
+here too or its decisions go unmeasured. `submit_code_evaluator_draft` and
+`submit_llm_evaluator_draft` are excluded on purpose: they record only
+`awaiting_user`, and the dialog's real decision is never written back to the
+tool span.
+
+Preview it without writing anything:
+
+```bash
+PHOENIX_PROJECT=pxi_dev \
+uv run python -m evals.pxi.online_evals.run --eval suggestion_accepted --dry-run
+```
+
+Registering the evaluator was enough to add it to the existing scheduled job —
+no provider, secret, or workflow change is needed.
 
 Annotation identifiers are evaluator-specific versioned checkpoints. Increment
 an evaluator's `vN` identifier whenever its scoring semantics or rubric
@@ -90,9 +156,9 @@ runner on new-format development traces.
 
 ### Adding an online evaluator
 
-An evaluator is an async function that receives the root span and every
+An evaluator is an async function that receives one target span and every
 hydrated span in its trace. It returns a `phoenix.evals` `Score`, or `None`
-when the turn is not applicable:
+when the target is not applicable:
 
 ```python
 from collections.abc import Sequence
@@ -101,14 +167,15 @@ from phoenix.client.__generated__ import v1
 from phoenix.evals.evaluators import Score
 
 
-async def evaluate(root: v1.Span, spans: Sequence[v1.Span]) -> Score | None:
+async def evaluate(target: v1.Span, spans: Sequence[v1.Span]) -> Score | None:
     if not spans:
         return None
     return Score(score=1.0, label="example", explanation="why")
 ```
 
-Declare an `EvaluatorSpec` with a name, the expected root span name, the
-evaluate function, annotator kind, sampling rate, and a versioned identifier.
+Declare an `EvaluatorSpec` with a name, a `SpanSelector` (use the shared
+`PXI_TURN_ROOT_SELECTOR` for turn-level evaluators), the evaluate function,
+annotator kind, sampling rate, and a versioned identifier.
 The annotator kind is required rather than defaulted: declare every evaluator
 explicitly as `"CODE"` or `"LLM"` because it also controls judge credential
 validation and model-specific checkpointing.
