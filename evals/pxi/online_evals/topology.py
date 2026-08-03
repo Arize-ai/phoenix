@@ -6,9 +6,17 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from operator import itemgetter
 
+from evals.pxi.online_evals.models import SpanSelector
 from phoenix.client.__generated__ import v1
 
 PXI_TURN_ROOT_NAME = "pxi.turn"
+
+PXI_TURN_ROOT_SELECTOR = SpanSelector(
+    names=(PXI_TURN_ROOT_NAME,),
+    span_kinds=("AGENT",),
+    parent_id="null",
+)
+"""Turn-level evaluators target the `pxi.turn` AGENT root of each trace."""
 
 
 class InvalidTurnTrace(ValueError):
