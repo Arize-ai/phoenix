@@ -10,6 +10,7 @@ import {
   AnnotationScoreLabelToggle,
   ChartPanel,
   ChartSkeleton,
+  DeferredChartPanel,
   TimeRangeChartBrush,
   compactTimeXAxisProps,
   compactYAxisProps,
@@ -18,6 +19,7 @@ import {
   useBinTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { ErrorBoundary } from "@phoenix/components/exception";
+import { useFrozenWhileHidden } from "@phoenix/hooks/useFrozenWhileHidden";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
@@ -88,7 +90,7 @@ function ProjectAnnotationMetricsGridView({
   return (
     <div css={annotationGridCSS}>
       {annotationNames.map((annotationName) => (
-        <ProjectAnnotationMetricPanel
+        <DeferredProjectAnnotationMetricPanel
           {...props}
           key={annotationName}
           annotationLevel={annotationLevel}
@@ -165,6 +167,38 @@ type ProjectAnnotationMetricPanelProps = ProjectMetricViewProps & {
   annotationName: string;
   fillHeight?: boolean;
 };
+
+function DeferredProjectAnnotationMetricPanel({
+  annotationName,
+  fillHeight = false,
+  ...props
+}: ProjectAnnotationMetricPanelProps) {
+  return (
+    <DeferredChartPanel
+      title={annotationName}
+      subtitle={PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION}
+      fillHeight={fillHeight}
+    >
+      <ProjectAnnotationMetricPanelWithFrozenTimeRange
+        {...props}
+        annotationName={annotationName}
+        fillHeight={fillHeight}
+      />
+    </DeferredChartPanel>
+  );
+}
+
+// Keep live query inputs frozen while an already-mounted chart is hidden.
+// This must render inside DeferredChartPanel's visibility context.
+function ProjectAnnotationMetricPanelWithFrozenTimeRange({
+  timeRange,
+  ...props
+}: ProjectAnnotationMetricPanelProps) {
+  const visibleTimeRange = useFrozenWhileHidden(timeRange);
+  return (
+    <ProjectAnnotationMetricPanel {...props} timeRange={visibleTimeRange} />
+  );
+}
 
 export function ProjectAnnotationMetricPanel({
   fillHeight = false,
