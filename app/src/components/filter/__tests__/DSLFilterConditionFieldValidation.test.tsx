@@ -11,6 +11,10 @@ vi.mock("@uiw/react-codemirror", () => ({
     updateListener: { of: vi.fn(() => ({})) },
   },
   keymap: { of: vi.fn(() => ({})) },
+  Decoration: {
+    mark: vi.fn(() => ({ range: vi.fn() })),
+    none: {},
+  },
 }));
 
 vi.mock("@phoenix/contexts", () => ({

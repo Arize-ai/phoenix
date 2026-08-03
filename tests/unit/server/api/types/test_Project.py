@@ -4340,7 +4340,7 @@ class TestProject:
         expected_session_gid = _gid(_data.project_sessions[2])
 
         sessions_result = await self._node(
-            f'sessions(sessionFilterCondition:"{condition}"){{edges{{node{{id}}}}}}',
+            f'sessions(first:50,sessionFilterCondition:"{condition}"){{edges{{node{{id}}}}}}',
             project,
             httpx_client,
         )
@@ -4402,7 +4402,7 @@ class TestProject:
           query ($id: ID!, $condition: String!) {
             node(id: $id) {
               ... on Project {
-                sessions(sessionFilterCondition: $condition) { edges { node { id } } }
+                sessions(first: 50, sessionFilterCondition: $condition) { edges { node { id } } }
                 sessionCount(sessionFilterCondition: $condition)
                 averageSessionDurationMs(sessionFilterCondition: $condition)
                 averageTracesPerSession(sessionFilterCondition: $condition)
@@ -4489,7 +4489,7 @@ class TestProject:
 
         condition = 'annotations["Quality"].score > 0.5'
         page = await self._node(
-            f"sessions(sessionFilterCondition:{json.dumps(condition)}){{edges{{node{{id}}}}}}",
+            f"sessions(first:50,sessionFilterCondition:{json.dumps(condition)}){{edges{{node{{id}}}}}}",
             project,
             httpx_client,
         )
@@ -4514,7 +4514,7 @@ class TestProject:
 
         condition = "len([s for s in spans]) > 2"
         page = await self._node(
-            f"sessions(sessionFilterCondition:{json.dumps(condition)}){{edges{{node{{id}}}}}}",
+            f"sessions(first:50,sessionFilterCondition:{json.dumps(condition)}){{edges{{node{{id}}}}}}",
             project,
             httpx_client,
         )

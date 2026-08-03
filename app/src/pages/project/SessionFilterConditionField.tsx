@@ -415,8 +415,18 @@ export function SessionFilterConditionField(
   );
 
   const handleValidCondition = useCallback(
-    (condition: string) => {
-      recordValidCondition(condition);
+    ({
+      condition,
+      isInitialSettlement,
+    }: {
+      condition: string;
+      isInitialSettlement: boolean;
+    }) => {
+      if (!isInitialSettlement) {
+        // A mount value arrives from the URL or a caller's default; recording
+        // it would turn "no filter chosen" into a history entry.
+        recordValidCondition(condition);
+      }
       onValidCondition(condition);
     },
     [recordValidCondition, onValidCondition]

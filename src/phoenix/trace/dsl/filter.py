@@ -1252,12 +1252,6 @@ def _is_none_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     return isinstance(node, ast.Constant) and node.value is None
 
 
-def _is_datetime_name(
-    node: typing.Any, bindings: _FilterBindings = SPAN_BINDINGS
-) -> TypeGuard[ast.Name]:
-    return isinstance(node, ast.Name) and node.id in bindings.datetime_names
-
-
 def _convert_to_uppercase(node: ast.expr) -> ast.expr:
     """Converts constants and lists/ tuples of constants to uppercase."""
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
