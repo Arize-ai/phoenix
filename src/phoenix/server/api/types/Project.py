@@ -156,6 +156,7 @@ def _apply_project_session_filters(
     time_range: Optional[TimeRange],
     filter_io_substring: Optional[str],
     session_id: Optional[str] = None,
+    user_id: Optional[str] = None,
 ) -> Select[Any]:
     """Restrict a ``ProjectSession`` aggregation to the project, time range, and
     input/output substring filter used by the sessions table.
@@ -168,6 +169,10 @@ def _apply_project_session_filters(
     semantics: an exact session-ID match wins (ignoring the time range and
     substring filter); otherwise fall back to the substring/time-range filters,
     or to no sessions at all when there is no substring to fall back to.
+
+    ``user_id`` is an independent exact-match filter applied after session_id
+    logic: only sessions with at least one span whose user.id equals ``user_id``
+    are returned.
     """
     table = models.ProjectSession
     stmt = stmt.where(table.project_id == project_rowid)
@@ -186,20 +191,34 @@ def _apply_project_session_filters(
         )
         conditions.append(table.id.in_(filtered_session_rowids))
     if not session_id:
-        return stmt.where(*conditions)
-    exact_match = exists(
-        select(1).where(
-            table.project_id == project_rowid,
-            table.session_id == session_id,
+        stmt = stmt.where(*conditions)
+    else:
+        exact_match = exists(
+            select(1).where(
+                table.project_id == project_rowid,
+                table.session_id == session_id,
+            )
         )
-    )
-    fallback = and_(*conditions) if filter_io_substring else false()
-    return stmt.where(
-        or_(
-            and_(exact_match, table.session_id == session_id),
-            and_(~exact_match, fallback),
+        fallback = and_(*conditions) if filter_io_substring else false()
+        stmt = stmt.where(
+            or_(
+                and_(exact_match, table.session_id == session_id),
+                and_(~exact_match, fallback),
+            )
         )
-    )
+    if user_id:
+        stmt = stmt.where(
+            exists(
+                select(1)
+                .select_from(models.Trace)
+                .join(models.Span, models.Span.trace_rowid == models.Trace.id)
+                .where(
+                    models.Trace.project_session_rowid == table.id,
+                    models.Span.attributes[models.USER_ID].as_string() == user_id,
+                )
+            )
+        )
+    return stmt
 
 
 @strawberry.type
@@ -613,9 +632,10 @@ class Project(Node):
         sort: Optional[ProjectSessionSort] = UNSET,
         filter_io_substring: Optional[str] = UNSET,
         session_id: Optional[str] = UNSET,
+        user_id: Optional[str] = UNSET,
     ) -> Connection[ProjectSession]:
         table = models.ProjectSession
-        if session_id:
+        if session_id and not user_id:
             async with info.context.db.read() as session:
                 ans = await session.scalar(
                     select(table).filter_by(
@@ -638,6 +658,8 @@ class Project(Node):
             project_rowid=self.id,
             time_range=time_range or None,
             filter_io_substring=filter_io_substring or None,
+            session_id=session_id or None,
+            user_id=user_id or None,
         )
         sort_config: Optional[ProjectSessionSortConfig] = None
         cursor_rowid_column: Any = table.id
@@ -705,12 +727,11 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
         filter_io_substring: Optional[str] = UNSET,
         session_id: Optional[str] = UNSET,
+        user_id: Optional[str] = UNSET,
     ) -> int:
-        # When there is no substring / session-ID filter, the count depends only on
-        # the project and time range, so it can be batched across projects through
-        # the record_counts dataloader (this is the projects-list / project-card
-        # path, which would otherwise issue one query per project).
-        if not filter_io_substring and not session_id:
+        # When there is no substring / session-ID / user-ID filter, the count can be
+        # batched across projects through the record_counts dataloader.
+        if not filter_io_substring and not session_id and not (user_id or None):
             return await info.context.data_loaders.record_counts.load(
                 (
                     "session",
@@ -726,6 +747,7 @@ class Project(Node):
             time_range=time_range or None,
             filter_io_substring=filter_io_substring or None,
             session_id=session_id or None,
+            user_id=user_id or None,
         )
         async with info.context.db.read() as session:
             return await session.scalar(stmt) or 0
@@ -743,6 +765,7 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
         filter_io_substring: Optional[str] = UNSET,
         session_id: Optional[str] = UNSET,
+        user_id: Optional[str] = UNSET,
     ) -> Optional[float]:
         stmt = _apply_project_session_filters(
             select(
@@ -757,6 +780,7 @@ class Project(Node):
             time_range=time_range or None,
             filter_io_substring=filter_io_substring or None,
             session_id=session_id or None,
+            user_id=user_id or None,
         )
         async with info.context.db.read() as session:
             average_duration_ms = await session.scalar(stmt)
@@ -774,6 +798,7 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
         filter_io_substring: Optional[str] = UNSET,
         session_id: Optional[str] = UNSET,
+        user_id: Optional[str] = UNSET,
     ) -> Optional[float]:
         traces_per_session = _apply_project_session_filters(
             select(func.count(models.Trace.id).label("num_traces"))
@@ -787,6 +812,7 @@ class Project(Node):
             time_range=time_range or None,
             filter_io_substring=filter_io_substring or None,
             session_id=session_id or None,
+            user_id=user_id or None,
         ).subquery()
         stmt = select(func.avg(traces_per_session.c.num_traces))
         async with info.context.db.read() as session:
@@ -807,6 +833,7 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
         filter_io_substring: Optional[str] = UNSET,
         session_id: Optional[str] = UNSET,
+        user_id: Optional[str] = UNSET,
     ) -> Optional[float]:
         if not 0 <= probability <= 1:
             raise BadRequest("Probability must be between 0 and 1 (inclusive)")
@@ -828,6 +855,7 @@ class Project(Node):
             time_range=time_range or None,
             filter_io_substring=filter_io_substring or None,
             session_id=session_id or None,
+            user_id=user_id or None,
         )
         async with info.context.db.read() as session:
             quantile_value = await session.scalar(stmt)
