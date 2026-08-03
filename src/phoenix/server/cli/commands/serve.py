@@ -4,6 +4,8 @@ import atexit
 import logging
 import os
 from argparse import SUPPRESS, ArgumentParser, Namespace
+from dataclasses import replace
+from functools import partial
 from pathlib import Path
 from ssl import CERT_REQUIRED
 from threading import Thread
@@ -37,6 +39,12 @@ from phoenix.config import (
     get_env_management_url,
     get_env_oauth2_settings,
     get_env_password_reset_token_expiry,
+    get_env_phoenix_agents_assistant_project_name,
+    get_env_phoenix_agents_collector_api_key,
+    get_env_phoenix_agents_collector_endpoint,
+    get_env_phoenix_agents_disable_bash,
+    get_env_phoenix_agents_force_tracing,
+    get_env_phoenix_agents_web_access_enabled,
     get_env_port,
     get_env_read_replica_url,
     get_env_refresh_token_expiry,
@@ -62,7 +70,8 @@ from phoenix.server.app import (
     create_app,
     instrument_engine_if_enabled,
 )
-from phoenix.server.cli.boot_message import BootMessage
+from phoenix.server.cli.boot_message import AssistantConfig, BootMessage
+from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.email.sender import SimpleEmailSender
 from phoenix.server.email.types import EmailSender
 from phoenix.server.types import DbSessionFactory
@@ -100,6 +109,29 @@ def _get_sandbox_provider_statuses() -> list[tuple[str, bool]]:
 
     allowed = get_env_allowed_sandbox_providers()
     return [(name, name in allowed) for name in sorted(SANDBOX_BACKEND_TYPES)]
+
+
+def _render_boot_message(boot_message: BootMessage, system_settings: SystemSettings) -> str:
+    """Render the launch banner after database-backed assistant settings are available."""
+    force_tracing = get_env_phoenix_agents_force_tracing()
+    trace_recording = system_settings.agent_trace_recording
+    assistant_config = AssistantConfig(
+        project_name=get_env_phoenix_agents_assistant_project_name(),
+        allow_local_traces=force_tracing or trace_recording.allow_local_traces,
+        allow_remote_export=force_tracing or trace_recording.allow_remote_export,
+        collector_endpoint=get_env_phoenix_agents_collector_endpoint(),
+        api_key_configured=bool(get_env_phoenix_agents_collector_api_key()),
+        force_tracing=force_tracing,
+        web_access_enabled=get_env_phoenix_agents_web_access_enabled(),
+        server_bash_enabled=not get_env_phoenix_agents_disable_bash(),
+    )
+    return replace(
+        boot_message,
+        agent_assistant_enabled=(
+            boot_message.agent_assistant_enabled and system_settings.agent_assistant_enabled.enabled
+        ),
+        assistant_config=assistant_config,
+    ).render()
 
 
 def _add_server_args(parser: ArgumentParser) -> None:
@@ -254,7 +286,7 @@ def run(args: Namespace) -> None:
     # Dev tooling ports set by the frontend dev scripts (e.g. `pnpm dev:server`)
     vite_port = os.getenv("VITE_PORT") or (str(args.dev_vite_port) if args.dev else None)
     debugpy_port = os.getenv("DEBUGPY_PORT")
-    msg = BootMessage(
+    boot_message = BootMessage(
         version=phoenix_version,
         ui_url=display_root_path,
         rest_api_url=_join_url_path(display_root_path, "v1"),
@@ -298,7 +330,7 @@ def run(args: Namespace) -> None:
         debug_logging=args.debug,
         dev_vite_url=f"http://localhost:{vite_port}" if vite_port else None,
         debugpy_url=f"localhost:{debugpy_port}" if debugpy_port else None,
-    ).render()
+    )
 
     scaffolder_config = ScaffolderConfig(
         db=factory,
@@ -345,7 +377,7 @@ def run(args: Namespace) -> None:
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
         initial_annotation_precursors=fixture_annotation_precursors,
-        welcome_message=msg,
+        welcome_message=partial(_render_boot_message, boot_message),
         shutdown_callbacks=shutdown_callbacks,
         secret=auth_settings.phoenix_secret,
         password_reset_token_expiry=get_env_password_reset_token_expiry(),

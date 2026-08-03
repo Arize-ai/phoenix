@@ -78,11 +78,27 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
 {% if disabled_sandboxes %}
   {{ disabled_sandbox_prefix }}{{ disabled_marker }}{{ disabled_sandboxes | join(", ") }}
 {% endif %}
+{% if not assistant_config %}
   Agent assistant     {{ enabled if agent_assistant_enabled else disabled }}
+{% endif %}
   Prometheus metrics  {{ enabled if prometheus_enabled else disabled }}
   Email (SMTP)        {{ smtp_hostname or not_configured }}
   Telemetry           {{ enabled if telemetry_enabled else disabled }}
 
+{% if assistant_config %}
+{{ header("✨", "Assistant") }}
+  Agent assistant     {{ enabled if agent_assistant_enabled else disabled }}
+  Trace project       {{ assistant_config.project_name }}
+  Local traces        {{ enabled if assistant_config.allow_local_traces else disabled }}
+  Remote export       {{ enabled if assistant_config.allow_remote_export else disabled }}
+  Remote collector    {{ assistant_config.collector_endpoint or not_configured }}
+{% set collector_api_key = configured if assistant_config.api_key_configured else not_configured %}
+  Collector API key   {{ collector_api_key }}
+  Force tracing       {{ enabled if assistant_config.force_tracing else disabled }}
+  Web access          {{ enabled if assistant_config.web_access_enabled else disabled }}
+  Server-side bash    {{ enabled if assistant_config.server_bash_enabled else disabled }}
+
+{% endif %}
 {% if dev_mode or debug_logging or dev_vite_url or debugpy_url %}
 {{ header("🐛", "Development") }}
 {% if dev_mode %}
@@ -124,6 +140,20 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
 
 
 @dataclass(frozen=True)
+class AssistantConfig:
+    """Effective server-side assistant configuration displayed at startup."""
+
+    project_name: str
+    allow_local_traces: bool
+    allow_remote_export: bool
+    collector_endpoint: Optional[str]
+    api_key_configured: bool
+    force_tracing: bool
+    web_access_enabled: bool
+    server_bash_enabled: bool
+
+
+@dataclass(frozen=True)
 class BootMessage:
     """Effective server configuration displayed when `phoenix serve` starts."""
 
@@ -154,6 +184,7 @@ class BootMessage:
     prometheus_enabled: bool
     smtp_hostname: str
     telemetry_enabled: bool
+    assistant_config: Optional[AssistantConfig] = None
     dev_mode: bool = False
     debug_logging: bool = False
     dev_vite_url: Optional[str] = None
@@ -176,6 +207,7 @@ class BootMessage:
                 enabled="✅ Enabled" if unicode_ok else "Enabled",
                 disabled="➖ Disabled" if unicode_ok else "Disabled",
                 not_configured="➖ Not configured" if unicode_ok else "Not configured",
+                configured="✅ Configured" if unicode_ok else "Configured",
                 enabled_marker="✅ " if unicode_ok else "Enabled: ",
                 disabled_marker="➖ " if unicode_ok else "Disabled: ",
                 enabled_sandboxes=enabled_sandboxes,

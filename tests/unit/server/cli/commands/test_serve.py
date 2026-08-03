@@ -2,6 +2,7 @@ import inspect
 from argparse import Namespace
 from datetime import datetime, timezone
 from secrets import token_hex
+from types import SimpleNamespace
 from typing import Any, Awaitable, Callable, Iterator, NamedTuple
 
 import pandas as pd
@@ -16,6 +17,7 @@ from phoenix.server.cli.commands.serve import (
     _create_db_session_factory,
     _join_url_path,
     _load_trace_fixture_initial_batches,
+    _render_boot_message,
     _resolve_grpc_port,
 )
 from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
@@ -45,6 +47,50 @@ def test_resolve_grpc_port_uses_env_when_cli_flag_missing(monkeypatch: pytest.Mo
 )
 def test_join_url_path_preserves_deployment_root(path: str, expected_url: str) -> None:
     assert _join_url_path("http://localhost:6006/phoenix", path) == expected_url
+
+
+def test_render_boot_message_adds_effective_assistant_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", "custom_assistant")
+    monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "http://collector.example:4318")
+    monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_API_KEY", "secret-api-key")
+    monkeypatch.setenv("PHOENIX_AGENTS_FORCE_TRACING", "false")
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "true")
+    monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_WEB_ACCESS", "false")
+    monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_BASH", "true")
+    boot_message = SimpleNamespace(agent_assistant_enabled=True)
+    system_settings = SimpleNamespace(
+        agent_assistant_enabled=SimpleNamespace(enabled=False),
+        agent_trace_recording=SimpleNamespace(
+            allow_local_traces=True,
+            allow_remote_export=False,
+        ),
+    )
+    captured: dict[str, Any] = {}
+
+    class _RenderedBootMessage:
+        def render(self) -> str:
+            return "rendered"
+
+    def capture_replace(message: Any, **changes: Any) -> _RenderedBootMessage:
+        assert message is boot_message
+        captured.update(changes)
+        return _RenderedBootMessage()
+
+    monkeypatch.setattr(serve, "replace", capture_replace)
+
+    assert _render_boot_message(boot_message, system_settings) == "rendered"  # type: ignore[arg-type]
+    assert captured["agent_assistant_enabled"] is False
+    assistant_config = captured["assistant_config"]
+    assert assistant_config.project_name == "custom_assistant"
+    assert assistant_config.allow_local_traces is True
+    assert assistant_config.allow_remote_export is False
+    assert assistant_config.collector_endpoint == "http://collector.example:4318"
+    assert assistant_config.api_key_configured is True
+    assert assistant_config.force_tracing is False
+    assert assistant_config.web_access_enabled is True
+    assert assistant_config.server_bash_enabled is False
 
 
 async def _run_shutdown_callbacks(
