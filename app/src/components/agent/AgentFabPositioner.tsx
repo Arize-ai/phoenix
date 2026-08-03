@@ -473,7 +473,7 @@ export function AgentFabPositioner({
   useLayoutEffect(() => {
     if (!requiresBoundary) {
       setResolvedBoundary(null);
-      return;
+      return undefined;
     }
 
     let animationFrameId: number | null = null;
