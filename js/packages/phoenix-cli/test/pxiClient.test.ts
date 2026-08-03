@@ -293,7 +293,7 @@ describe("PXI client", () => {
       title: `Session ${index + 1}`,
       created_at: "2026-07-24T11:00:00Z",
       updated_at: "2026-07-24T12:00:00Z",
-      is_temporary: false,
+      is_ephemeral: false,
     }));
     const fetchImpl = vi.fn(
       async (input: string | URL | Request, init?: RequestInit) => {
@@ -314,7 +314,7 @@ describe("PXI client", () => {
                       title: "Session 21",
                       created_at: "2026-07-24T10:00:00Z",
                       updated_at: "2026-07-24T10:00:00Z",
-                      is_temporary: false,
+                      is_ephemeral: false,
                     },
                   ],
                   next_cursor: null,
