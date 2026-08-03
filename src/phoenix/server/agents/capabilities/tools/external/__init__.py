@@ -4,9 +4,9 @@ from pydantic_ai import RunContext
 from pydantic_ai.capabilities import AbstractCapability, CapabilityFunc, CombinedCapability
 from pydantic_ai.tools import ToolDefinition
 
-from phoenix.server.agents.capabilities.base import (
-    AbstractDynamicCapability,
-    AbstractStaticCapability,
+from phoenix.server.agents.capabilities.tools.base import (
+    AbstractGatedToolCapability,
+    AbstractToolCapability,
 )
 from phoenix.server.agents.capabilities.tools.external import (
     add_dataset_examples,
@@ -252,7 +252,6 @@ from phoenix.server.agents.capabilities.tools.external.update_annotation_config 
 from phoenix.server.agents.capabilities.tools.external.write_prompt_tools import (
     WritePromptToolsCapability,
 )
-from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import AgentDependencies
 
 _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
@@ -329,94 +328,81 @@ def get_external_tool_definition(name: str) -> ToolDefinition | None:
     return _EXTERNAL_TOOL_DEFINITIONS_BY_NAME.get(name)
 
 
-def get_external_tool_capability_function(
-    *,
-    prompts: AgentPrompts,
-) -> CapabilityFunc[AgentDependencies]:
+def get_external_tool_capability_function() -> CapabilityFunc[AgentDependencies]:
     """Return a ``CapabilityFunc`` that assembles the per-run external-tool
-    capability bundle. Static capabilities are always included; dynamic
+    capability bundle. Ungated capabilities are always included; gated
     capabilities self-gate via ``include_for_run``.
     """
-    static_capabilities: list[AbstractStaticCapability[AgentDependencies]] = [
-        BashCapability(instructions=prompts.bash_tool),
-        AskUserCapability(instructions=prompts.ask_user_tool),
-        BatchSpanAnnotateCapability(instructions=prompts.batch_span_annotate_tool),
-        ListDatasetsCapability(instructions=prompts.list_datasets_tool),
-        ListLabelsCapability(instructions=prompts.list_labels_tool),
-        ListSplitsCapability(instructions=prompts.list_splits_tool),
-        SetTimeRangeCapability(instructions=prompts.set_time_range_tool),
-        GetRouteInfoCapability(instructions=prompts.get_route_info_tool),
-        RenderGenerativeUICapability(instructions=prompts.render_generative_ui_tool),
+    ungated_capabilities: list[AbstractToolCapability[AgentDependencies]] = [
+        BashCapability(),
+        AskUserCapability(),
+        BatchSpanAnnotateCapability(),
+        ListDatasetsCapability(),
+        ListLabelsCapability(),
+        ListSplitsCapability(),
+        SetTimeRangeCapability(),
+        GetRouteInfoCapability(),
+        RenderGenerativeUICapability(),
     ]
-    dynamic_capabilities: list[AbstractDynamicCapability[AgentDependencies]] = [
-        AddDatasetExamplesCapability(instructions=prompts.add_dataset_examples_tool),
-        AddSpansToDatasetCapability(instructions=prompts.add_spans_to_dataset_tool),
-        CreateDatasetCapability(instructions=prompts.create_dataset_tool),
-        ListDatasetExamplesCapability(instructions=prompts.list_dataset_examples_tool),
-        ListDatasetSplitsCapability(instructions=prompts.list_dataset_splits_tool),
-        CreateDatasetSplitCapability(instructions=prompts.create_dataset_split_tool),
-        SetDatasetExampleSplitsCapability(instructions=prompts.set_dataset_example_splits_tool),
-        ListDatasetLabelsCapability(instructions=prompts.list_dataset_labels_tool),
-        CreateDatasetLabelCapability(instructions=prompts.create_dataset_label_tool),
-        SetDatasetLabelsCapability(instructions=prompts.set_dataset_labels_tool),
-        PatchDatasetCapability(instructions=prompts.patch_dataset_tool),
-        DeleteDatasetCapability(instructions=prompts.delete_dataset_tool),
-        PatchDatasetExamplesCapability(instructions=prompts.patch_dataset_examples_tool),
-        DeleteDatasetExamplesCapability(instructions=prompts.delete_dataset_examples_tool),
-        PatchDatasetSplitCapability(instructions=prompts.patch_dataset_split_tool),
-        DeleteDatasetSplitsCapability(instructions=prompts.delete_dataset_splits_tool),
-        DeleteDatasetLabelsCapability(instructions=prompts.delete_dataset_labels_tool),
-        SetSpansFilterCapability(instructions=prompts.set_spans_filter_tool),
-        SetPlaygroundModelCapability(instructions=prompts.set_playground_model_tool),
-        ListPlaygroundModelTargetsCapability(
-            instructions=prompts.list_playground_model_targets_tool
-        ),
-        ReadPromptInstanceCapability(instructions=prompts.read_prompt_instance_tool),
-        ReadPromptToolsCapability(instructions=prompts.read_prompt_tools_tool),
-        ReadPlaygroundOutputCapability(instructions=prompts.read_playground_output_tool),
-        ClonePromptInstanceCapability(instructions=prompts.clone_prompt_instance_tool),
-        AddPromptInstanceCapability(instructions=prompts.add_prompt_instance_tool),
-        RemovePromptInstanceCapability(instructions=prompts.remove_prompt_instance_tool),
-        EditPromptInstanceCapability(instructions=prompts.edit_prompt_instance_tool),
-        SavePromptCapability(instructions=prompts.save_prompt_tool),
-        WritePromptToolsCapability(instructions=prompts.write_prompt_tools_tool),
-        RunPlaygroundCapability(instructions=prompts.run_playground_tool),
-        CancelPlaygroundRunCapability(instructions=prompts.cancel_playground_run_tool),
-        SetVariableValuesCapability(instructions=prompts.set_variable_values_tool),
-        SetPlaygroundExperimentRecordingCapability(
-            instructions=prompts.set_playground_experiment_recording_tool
-        ),
-        SetPlaygroundRepetitionsCapability(instructions=prompts.set_playground_repetitions_tool),
-        SetTemplateVariablesPathCapability(instructions=prompts.set_template_variables_path_tool),
-        SetAppendedMessagesPathCapability(instructions=prompts.set_appended_messages_path_tool),
-        LoadDatasetCapability(instructions=prompts.load_dataset_tool),
-        SetDatasetEvaluatorSelectionCapability(
-            instructions=prompts.set_dataset_evaluator_selection_tool
-        ),
-        OpenDatasetEvaluatorForEditCapability(
-            instructions=prompts.open_dataset_evaluator_for_edit_tool
-        ),
-        ReadDatasetEvaluatorDefinitionCapability(
-            instructions=prompts.read_dataset_evaluator_definition_tool
-        ),
-        PatchExperimentCapability(instructions=prompts.patch_experiment_tool),
-        CreateAnnotationConfigCapability(instructions=prompts.create_annotation_config_tool),
-        UpdateAnnotationConfigCapability(instructions=prompts.update_annotation_config_tool),
-        OpenCodeEvaluatorFormCapability(instructions=prompts.open_code_evaluator_form_tool),
-        OpenLlmEvaluatorFormCapability(instructions=prompts.open_llm_evaluator_form_tool),
-        ReadCodeEvaluatorDraftCapability(instructions=prompts.read_code_evaluator_draft_tool),
-        EditCodeEvaluatorDraftCapability(instructions=prompts.edit_code_evaluator_draft_tool),
-        RunCodeEvaluatorDraftCapability(instructions=prompts.test_code_evaluator_draft_tool),
-        SubmitCodeEvaluatorDraftCapability(instructions=prompts.submit_code_evaluator_draft_tool),
-        ReadLlmEvaluatorDraftCapability(instructions=prompts.read_llm_evaluator_draft_tool),
-        EditLlmEvaluatorDraftCapability(instructions=prompts.edit_llm_evaluator_draft_tool),
-        RunLlmEvaluatorDraftCapability(instructions=prompts.test_llm_evaluator_draft_tool),
-        SubmitLlmEvaluatorDraftCapability(instructions=prompts.submit_llm_evaluator_draft_tool),
+    gated_capabilities: list[AbstractGatedToolCapability[AgentDependencies]] = [
+        AddDatasetExamplesCapability(),
+        AddSpansToDatasetCapability(),
+        CreateDatasetCapability(),
+        ListDatasetExamplesCapability(),
+        ListDatasetSplitsCapability(),
+        CreateDatasetSplitCapability(),
+        SetDatasetExampleSplitsCapability(),
+        ListDatasetLabelsCapability(),
+        CreateDatasetLabelCapability(),
+        SetDatasetLabelsCapability(),
+        PatchDatasetCapability(),
+        DeleteDatasetCapability(),
+        PatchDatasetExamplesCapability(),
+        DeleteDatasetExamplesCapability(),
+        PatchDatasetSplitCapability(),
+        DeleteDatasetSplitsCapability(),
+        DeleteDatasetLabelsCapability(),
+        SetSpansFilterCapability(),
+        SetPlaygroundModelCapability(),
+        ListPlaygroundModelTargetsCapability(),
+        ReadPromptInstanceCapability(),
+        ReadPromptToolsCapability(),
+        ReadPlaygroundOutputCapability(),
+        ClonePromptInstanceCapability(),
+        AddPromptInstanceCapability(),
+        RemovePromptInstanceCapability(),
+        EditPromptInstanceCapability(),
+        SavePromptCapability(),
+        WritePromptToolsCapability(),
+        RunPlaygroundCapability(),
+        CancelPlaygroundRunCapability(),
+        SetVariableValuesCapability(),
+        SetPlaygroundExperimentRecordingCapability(),
+        SetPlaygroundRepetitionsCapability(),
+        SetTemplateVariablesPathCapability(),
+        SetAppendedMessagesPathCapability(),
+        LoadDatasetCapability(),
+        SetDatasetEvaluatorSelectionCapability(),
+        OpenDatasetEvaluatorForEditCapability(),
+        ReadDatasetEvaluatorDefinitionCapability(),
+        PatchExperimentCapability(),
+        CreateAnnotationConfigCapability(),
+        UpdateAnnotationConfigCapability(),
+        OpenCodeEvaluatorFormCapability(),
+        OpenLlmEvaluatorFormCapability(),
+        ReadCodeEvaluatorDraftCapability(),
+        EditCodeEvaluatorDraftCapability(),
+        RunCodeEvaluatorDraftCapability(),
+        SubmitCodeEvaluatorDraftCapability(),
+        ReadLlmEvaluatorDraftCapability(),
+        EditLlmEvaluatorDraftCapability(),
+        RunLlmEvaluatorDraftCapability(),
+        SubmitLlmEvaluatorDraftCapability(),
     ]
 
     def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:
-        included_dynamic = [cap for cap in dynamic_capabilities if cap.include_for_run(ctx)]
-        return CombinedCapability(capabilities=[*static_capabilities, *included_dynamic])
+        included_gated = [cap for cap in gated_capabilities if cap.include_for_run(ctx)]
+        return CombinedCapability(capabilities=[*ungated_capabilities, *included_gated])
 
     return _build
 

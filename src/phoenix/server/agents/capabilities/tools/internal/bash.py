@@ -17,7 +17,7 @@ from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from strawberry.types.graphql import OperationType
 from typing_extensions import TypedDict
 
-from phoenix.server.agents.capabilities.base import AbstractStaticCapability
+from phoenix.server.agents.capabilities.tools.base import AbstractToolCapability
 from phoenix.server.api.context import Context
 
 WORKSPACE_ROOT = "/home/user/workspace"
@@ -36,7 +36,9 @@ should not be assumed to work.
 other host binaries exist.
 - Language runtimes such as python, python3, and node are not available.
 - phoenix-gql is available for GraphQL operations against the Phoenix GraphQL API. \
-Run `phoenix-gql --help` for usage and current permissions.
+Run `phoenix-gql --help` for usage and current permissions. It is read-only by \
+default: only `query` operations are permitted, and mutations and subscriptions are \
+rejected unless mutations have been explicitly enabled.
 
 Args:
     summary: Short, user-facing description of what this command does. Shown as the
@@ -373,12 +375,11 @@ class BashToolset(FunctionToolset[None]):
 
 
 @dataclass
-class BashCapability(AbstractStaticCapability[None]):
+class BashCapability(AbstractToolCapability[None]):
     """Capability that adds a ``bash`` toolset."""
 
     schema: strawberry.Schema
     build_graphql_context: Callable[[], Context]
-    instructions: str
     allow_mutations: bool = False
 
     def get_toolset(self) -> AgentToolset[None] | None:
@@ -387,6 +388,3 @@ class BashCapability(AbstractStaticCapability[None]):
             build_graphql_context=self.build_graphql_context,
             allow_mutations=self.allow_mutations,
         )
-
-    def get_static_instructions(self) -> str:
-        return self.instructions
