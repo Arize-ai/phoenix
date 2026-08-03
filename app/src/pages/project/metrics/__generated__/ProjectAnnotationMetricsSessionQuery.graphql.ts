@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7dca1ee8e6bc0f7f6a69ac7badcbc866>>
+ * @generated SignedSource<<b559590e6cb93458df778cbfb2d258cf>>
  * @lightSyntaxTransform
  */
 
@@ -18,6 +18,7 @@ export type TimeBinConfig = {
   utcOffsetMinutes?: number;
 };
 export type ProjectAnnotationMetricsSessionQuery$variables = {
+  annotationName: string;
   projectId: string;
   timeBinConfig: TimeBinConfig;
   timeRange: TimeRange;
@@ -48,31 +49,41 @@ const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "projectId"
+  "name": "annotationName"
 },
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "timeBinConfig"
+  "name": "projectId"
 },
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "timeBinConfig"
+},
+v3 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "timeRange"
 },
-v3 = [
+v4 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "projectId"
   }
 ],
-v4 = {
+v5 = {
   "kind": "InlineFragment",
   "selections": [
     {
       "alias": null,
       "args": [
+        {
+          "kind": "Variable",
+          "name": "annotationName",
+          "variableName": "annotationName"
+        },
         {
           "kind": "Variable",
           "name": "timeBinConfig",
@@ -169,7 +180,8 @@ return {
     "argumentDefinitions": [
       (v0/*:: as any*/),
       (v1/*:: as any*/),
-      (v2/*:: as any*/)
+      (v2/*:: as any*/),
+      (v3/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -177,13 +189,13 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*:: as any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*:: as any*/)
+          (v5/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -194,16 +206,17 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
+      (v1/*:: as any*/),
       (v0/*:: as any*/),
-      (v2/*:: as any*/),
-      (v1/*:: as any*/)
+      (v3/*:: as any*/),
+      (v2/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "ProjectAnnotationMetricsSessionQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*:: as any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -216,7 +229,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v4/*:: as any*/),
+          (v5/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -230,16 +243,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7cb6893ceb88edac440d40c6fd3e4084",
+    "cacheID": "12432efec3a268a16a45d1711f2706f0",
     "id": null,
     "metadata": {},
     "name": "ProjectAnnotationMetricsSessionQuery",
     "operationKind": "query",
-    "text": "query ProjectAnnotationMetricsSessionQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      sessionAnnotationMetricsTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectAnnotationMetricsSessionQuery(\n  $projectId: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      sessionAnnotationMetricsTimeSeries(annotationName: $annotationName, timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "07443607dcdc1026031d1d4cb6157f7f";
+(node as any).hash = "44830346da58f8d9ab79e4ac927cdbe5";
 
 export default node;

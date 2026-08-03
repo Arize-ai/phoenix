@@ -5952,6 +5952,216 @@ class TestAnnotationMetricsTimeSeries:
             ]
             assert metrics["data"][2]["annotationSummaries"] == []
 
+    async def test_annotation_metrics_time_series_filters_by_name_at_all_levels(
+        self,
+        _annotation_metrics_data: models.Project,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        query = """
+            query(
+                $id: ID!
+                $annotationName: String!
+                $timeRange: TimeRange!
+                $timeBinConfig: TimeBinConfig
+            ) {
+                node(id: $id) {
+                    ... on Project {
+                        span: spanAnnotationMetricsTimeSeries(
+                            annotationName: $annotationName
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                        trace: traceAnnotationMetricsTimeSeries(
+                            annotationName: $annotationName
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                        session: sessionAnnotationMetricsTimeSeries(
+                            annotationName: $annotationName
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                    }
+                }
+            }
+
+            fragment metrics on AnnotationMetricsTimeSeries {
+                names
+                data {
+                    timestamp
+                    annotationSummaries {
+                        name
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID(type_name="Project", node_id=str(_annotation_metrics_data.id))),
+                "annotationName": "mixed",
+                "timeRange": {
+                    "start": "2024-01-01T01:00:00+00:00",
+                    "end": "2024-01-01T04:00:00+00:00",
+                },
+                "timeBinConfig": {"scale": "HOUR", "utcOffsetMinutes": 0},
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        for level in ("span", "trace", "session"):
+            metrics = response.data["node"][level]
+            assert metrics["names"] == ["mixed"]
+            assert [point["timestamp"] for point in metrics["data"]] == [
+                "2024-01-01T01:00:00+00:00",
+                "2024-01-01T02:00:00+00:00",
+                "2024-01-01T03:00:00+00:00",
+            ]
+            assert [
+                [summary["name"] for summary in point["annotationSummaries"]]
+                for point in metrics["data"]
+            ] == [["mixed"], ["mixed"], []]
+
+    async def test_annotation_metric_names_are_chartable_and_time_range_scoped(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        annotations = (
+            ("before", "2024-01-01T00:59:00+00:00", 0.1, None, None),
+            ("z-start", "2024-01-01T01:00:00+00:00", 0.2, None, None),
+            (
+                "explanation-only",
+                "2024-01-01T01:15:00+00:00",
+                None,
+                None,
+                "not chartable",
+            ),
+            ("a-within", "2024-01-01T01:30:00+00:00", None, "pass", None),
+            ("at-end", "2024-01-01T02:00:00+00:00", 0.9, None, None),
+        )
+        async with db() as session:
+            project = await _add_project(session)
+            for name, timestamp_string, score, label, explanation in annotations:
+                timestamp = datetime.fromisoformat(timestamp_string)
+                project_session = await _add_project_session(session, project, start_time=timestamp)
+                trace = await _add_trace(
+                    session,
+                    project,
+                    project_session,
+                    start_time=timestamp,
+                )
+                span = await _add_span(session, trace, start_time=timestamp)
+                common_annotation_fields: dict[str, Any] = {
+                    "label": label,
+                    "score": score,
+                    "explanation": explanation,
+                    "metadata_": {},
+                    "annotator_kind": "HUMAN",
+                    "source": "APP",
+                    "user_id": None,
+                }
+                session.add_all(
+                    [
+                        models.SpanAnnotation(
+                            span_rowid=span.id,
+                            name=f"span-{name}",
+                            identifier=f"span-{name}",
+                            **common_annotation_fields,
+                        ),
+                        models.TraceAnnotation(
+                            trace_rowid=trace.id,
+                            name=f"trace-{name}",
+                            identifier=f"trace-{name}",
+                            **common_annotation_fields,
+                        ),
+                        models.ProjectSessionAnnotation(
+                            project_session_id=project_session.id,
+                            name=f"session-{name}",
+                            identifier=f"session-{name}",
+                            **common_annotation_fields,
+                        ),
+                    ]
+                )
+
+            other_project = await _add_project(
+                session,
+                name="other-annotation-metrics-project",
+            )
+            other_timestamp = datetime.fromisoformat("2024-01-01T01:45:00+00:00")
+            other_project_session = await _add_project_session(
+                session,
+                other_project,
+                start_time=other_timestamp,
+            )
+            other_trace = await _add_trace(
+                session,
+                other_project,
+                other_project_session,
+                start_time=other_timestamp,
+            )
+            other_span = await _add_span(session, other_trace, start_time=other_timestamp)
+            other_annotation_fields: dict[str, Any] = {
+                "label": None,
+                "score": 1.0,
+                "explanation": None,
+                "metadata_": {},
+                "annotator_kind": "HUMAN",
+                "source": "APP",
+                "user_id": None,
+            }
+            session.add_all(
+                [
+                    models.SpanAnnotation(
+                        span_rowid=other_span.id,
+                        name="other-project-span",
+                        identifier="other-project-span",
+                        **other_annotation_fields,
+                    ),
+                    models.TraceAnnotation(
+                        trace_rowid=other_trace.id,
+                        name="other-project-trace",
+                        identifier="other-project-trace",
+                        **other_annotation_fields,
+                    ),
+                    models.ProjectSessionAnnotation(
+                        project_session_id=other_project_session.id,
+                        name="other-project-session",
+                        identifier="other-project-session",
+                        **other_annotation_fields,
+                    ),
+                ]
+            )
+
+        query = """
+            query($id: ID!, $timeRange: TimeRange!) {
+                node(id: $id) {
+                    ... on Project {
+                        spanAnnotationMetricNames(timeRange: $timeRange)
+                        traceAnnotationMetricNames(timeRange: $timeRange)
+                        sessionAnnotationMetricNames(timeRange: $timeRange)
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID(type_name="Project", node_id=str(project.id))),
+                "timeRange": {
+                    "start": "2024-01-01T01:00:00+00:00",
+                    "end": "2024-01-01T02:00:00+00:00",
+                },
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        assert response.data["node"] == {
+            "spanAnnotationMetricNames": ["span-a-within", "span-z-start"],
+            "traceAnnotationMetricNames": ["trace-a-within", "trace-z-start"],
+            "sessionAnnotationMetricNames": ["session-a-within", "session-z-start"],
+        }
+
     async def test_label_fractions_weight_entities_instead_of_annotation_rows(
         self,
         db: DbSessionFactory,
