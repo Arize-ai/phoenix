@@ -3,11 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.tools.base import AbstractToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "ask_user"
@@ -113,6 +113,6 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class AskUserCapability(AbstractToolCapability[AgentDependencies]):
+class AskUserCapability(AbstractCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
