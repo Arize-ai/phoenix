@@ -11,6 +11,10 @@ from unittest import mock
 import pytest
 
 from evals.pxi.online_evals import run as run_module
+from evals.pxi.online_evals.evaluators.suggestion_accepted import (
+    APPROVAL_GATED_TOOLS,
+    SUGGESTION_ACCEPTED,
+)
 from evals.pxi.online_evals.evaluators.tool_count_per_turn import TOOL_COUNT_PER_TURN
 from evals.pxi.online_evals.models import EvaluatorSpec, RunSummary
 from evals.pxi.online_evals.run import _fetch_batch_spans, _sampled, run_evaluators
@@ -46,11 +50,11 @@ def _span(
 class _FakeSpans:
     def __init__(
         self,
-        roots: list[v1.Span],
+        candidates: list[v1.Span],
         traces: dict[str, list[v1.Span]],
         annotations: list[v1.SpanAnnotation],
     ) -> None:
-        self.roots = roots
+        self.candidates = candidates
         self.traces = traces
         self.annotations = annotations
         self.hydrated_trace_ids: list[str] = []
@@ -65,7 +69,18 @@ class _FakeSpans:
         if trace_ids := kwargs.get("trace_ids"):
             self.hydrated_trace_ids.extend(trace_ids)
             return [span for trace_id in trace_ids for span in self.traces[trace_id]]
-        return self.roots
+        # Discovery: apply the same filters the server would, so a test with
+        # two selectors sees each query return only its own candidates.
+        names = kwargs.get("name")
+        kinds = kwargs.get("span_kind")
+        parent_id = kwargs.get("parent_id")
+        return [
+            span
+            for span in self.candidates
+            if (names is None or span["name"] in names)
+            and (kinds is None or span["span_kind"] in kinds)
+            and (parent_id != "null" or span.get("parent_id") is None)
+        ]
 
     def get_span_annotations(self, **_: Any) -> list[v1.SpanAnnotation]:
         return self.annotations
@@ -707,3 +722,280 @@ def test_project_defaults_from_environment(variable: str) -> None:
         args = run_module.build_arg_parser().parse_args([])
 
     assert args.project == "configured-project"
+
+
+# --- mixed root and TOOL targeting ---------------------------------------
+
+
+def _approval_tool(
+    span_id: str,
+    *,
+    trace_id: str,
+    parent_id: str,
+    output: dict[str, Any],
+    name: str = "edit_prompt_instance",
+) -> v1.Span:
+    span = _span(span_id, trace_id=trace_id, name=name, kind="TOOL", parent_id=parent_id)
+    span["attributes"] = {"tool.name": name, "output.value": output}
+    return span
+
+
+def _accepted(span_id: str, *, trace_id: str, parent_id: str) -> v1.Span:
+    return _approval_tool(
+        span_id,
+        trace_id=trace_id,
+        parent_id=parent_id,
+        output={"status": "accepted", "acceptedBy": "user"},
+    )
+
+
+def _rejected(span_id: str, *, trace_id: str, parent_id: str) -> v1.Span:
+    return _approval_tool(
+        span_id, trace_id=trace_id, parent_id=parent_id, output={"status": "rejected"}
+    )
+
+
+def _discovery_requests(spans: _FakeSpans) -> list[dict[str, Any]]:
+    return [request for request in spans.get_spans_requests if "trace_ids" not in request]
+
+
+def test_both_root_evaluators_share_one_discovery_query() -> None:
+    """Identical selectors are grouped, so two turn evaluators cost one query."""
+    root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
+    spans = _FakeSpans([root], {"trace": [root]}, [])
+
+    async def stub(_target: v1.Span, _spans: Any) -> Score:
+        return Score(score=1.0)
+
+    specs = [
+        replace(TOOL_COUNT_PER_TURN, name="first", evaluate=stub),
+        replace(TOOL_COUNT_PER_TURN, name="second", evaluate=stub),
+    ]
+    summaries = _run(
+        _FakeClient(spans),
+        project="pxi_dev",
+        specs=specs,
+        now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+    )
+
+    assert len(_discovery_requests(spans)) == 1
+    assert summaries["first"].discovered == 1
+    assert summaries["second"].discovered == 1
+
+
+def test_tool_selector_issues_its_own_unparented_query() -> None:
+    root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
+    tool = _accepted("tool", trace_id="trace", parent_id="root")
+    spans = _FakeSpans([root, tool], {"trace": [root, tool]}, [])
+
+    _run(
+        _FakeClient(spans),
+        project="pxi_dev",
+        specs=[SUGGESTION_ACCEPTED],
+        now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+    )
+
+    (request,) = _discovery_requests(spans)
+    assert "parent_id" not in request
+    assert request["span_kind"] == ["TOOL"]
+    assert request["name"] == sorted(APPROVAL_GATED_TOOLS)
+
+
+def test_mixed_selectors_each_receive_only_their_own_candidates() -> None:
+    root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
+    tool = _rejected("tool", trace_id="trace", parent_id="root")
+    spans = _FakeSpans([root, tool], {"trace": [root, tool]}, [])
+
+    summaries = _run(
+        _FakeClient(spans),
+        project="pxi_dev",
+        specs=[TOOL_COUNT_PER_TURN, SUGGESTION_ACCEPTED],
+        now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+    )
+
+    assert len(_discovery_requests(spans)) == 2
+    assert summaries["tool_count_per_turn"].discovered == 1
+    assert summaries["suggestion_accepted"].discovered == 1
+    assert {(annotation["name"], annotation["span_id"]) for annotation in spans.writes} == {
+        ("tool_count_per_turn", "root"),
+        ("suggestion_accepted", "tool"),
+    }
+
+
+def test_multiple_targets_in_one_trace_hydrate_once_and_annotate_separately() -> None:
+    """One turn can contain suggestions the user decided differently; each
+    TOOL span keeps its own outcome rather than collapsing to a turn label."""
+    root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
+    rejected = _rejected("tool-rejected", trace_id="trace", parent_id="root")
+    accepted = _accepted("tool-accepted", trace_id="trace", parent_id="root")
+    spans = _FakeSpans([root, rejected, accepted], {"trace": [root, rejected, accepted]}, [])
+
+    summary = _run(
+        _FakeClient(spans),
+        project="pxi_dev",
+        specs=[SUGGESTION_ACCEPTED],
+        now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+    )["suggestion_accepted"]
+
+    assert spans.hydrated_trace_ids == ["trace"]
+    assert summary.discovered == 2
+    assert summary.evaluated == 2
+    assert {
+        annotation["span_id"]: annotation["result"]["label"] for annotation in spans.writes
+    } == {"tool-rejected": "rejected", "tool-accepted": "accepted"}
+
+
+def test_checkpoint_on_one_target_does_not_suppress_another_in_the_same_trace() -> None:
+    root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
+    done = _accepted("tool-done", trace_id="trace", parent_id="root")
+    todo = _rejected("tool-todo", trace_id="trace", parent_id="root")
+    existing: v1.SpanAnnotation = {
+        **_existing("tool-done", identifier=SUGGESTION_ACCEPTED.identifier),
+        "name": "suggestion_accepted",
+    }
+    spans = _FakeSpans([root, done, todo], {"trace": [root, done, todo]}, [existing])
+
+    summary = _run(
+        _FakeClient(spans),
+        project="pxi_dev",
+        specs=[SUGGESTION_ACCEPTED],
+        now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+    )["suggestion_accepted"]
+
+    assert summary.discovered == 2
+    assert summary.already_annotated == 1
+    assert summary.evaluated == 1
+    assert [annotation["span_id"] for annotation in spans.writes] == ["tool-todo"]
+
+
+@pytest.mark.parametrize("sample_rate", [1.0, 0.0])
+def test_sampling_includes_or_excludes_every_target_in_a_trace(sample_rate: float) -> None:
+    """Sampling is keyed on trace_id, so a turn is never partially annotated."""
+    root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
+    first = _accepted("tool-1", trace_id="trace", parent_id="root")
+    second = _rejected("tool-2", trace_id="trace", parent_id="root")
+    spans = _FakeSpans([root, first, second], {"trace": [root, first, second]}, [])
+
+    summary = _run(
+        _FakeClient(spans),
+        project="pxi_dev",
+        specs=[replace(SUGGESTION_ACCEPTED, sample_rate=sample_rate)],
+        now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+    )["suggestion_accepted"]
+
+    assert summary.discovered == 2
+    assert (summary.evaluated, summary.sampled_out) == ((2, 0) if sample_rate else (0, 2))
+
+
+def test_settle_delay_applies_to_a_non_root_target_end_time() -> None:
+    """An in-flight TOOL span waits for the next run even though its root settled."""
+    root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
+    root["end_time"] = "2026-07-09T01:00:00+00:00"
+    settled = _accepted("tool-settled", trace_id="trace", parent_id="root")
+    settled["end_time"] = "2026-07-09T01:50:00+00:00"
+    recent = _accepted("tool-recent", trace_id="trace", parent_id="root")
+    recent["end_time"] = "2026-07-09T01:59:00+00:00"
+    spans = _FakeSpans([root, settled, recent], {"trace": [root, settled, recent]}, [])
+
+    summary = _run(
+        _FakeClient(spans),
+        project="pxi_dev",
+        specs=[SUGGESTION_ACCEPTED],
+        now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+    )["suggestion_accepted"]
+
+    assert summary.discovered == 1
+    assert [annotation["span_id"] for annotation in spans.writes] == ["tool-settled"]
+
+
+def test_candidate_limit_failure_identifies_the_offending_selector() -> None:
+    tools = [
+        _accepted(f"tool-{index}", trace_id=f"trace-{index}", parent_id="root")
+        for index in range(2)
+    ]
+    spans = _FakeSpans(tools, {}, [])
+
+    with (
+        mock.patch.object(run_module, "MAX_CANDIDATE_SPANS", 2),
+        pytest.raises(RuntimeError, match="candidate discovery for selector .*TOOL"),
+    ):
+        _run(
+            _FakeClient(spans),
+            project="pxi_dev",
+            specs=[SUGGESTION_ACCEPTED],
+            now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+        )
+
+
+def test_failure_on_one_target_is_isolated_from_its_sibling() -> None:
+    root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
+    failing = _accepted("tool-failing", trace_id="trace", parent_id="root")
+    healthy = _accepted("tool-healthy", trace_id="trace", parent_id="root")
+    spans = _FakeSpans([root, failing, healthy], {"trace": [root, failing, healthy]}, [])
+
+    async def evaluate(target: v1.Span, trace_spans: Any) -> Any:
+        if target["context"]["span_id"] == "tool-failing":
+            raise ValueError("malformed output")
+        return await SUGGESTION_ACCEPTED.evaluate(target, trace_spans)
+
+    summary = _run(
+        _FakeClient(spans),
+        project="pxi_dev",
+        specs=[replace(SUGGESTION_ACCEPTED, evaluate=evaluate)],
+        now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+    )["suggestion_accepted"]
+
+    assert (summary.errors, summary.evaluated) == (1, 1)
+    assert [annotation["span_id"] for annotation in spans.writes] == ["tool-healthy"]
+
+
+def test_non_root_targets_batch_and_respect_dry_run() -> None:
+    root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
+    tools = [_accepted(f"tool-{index}", trace_id="trace", parent_id="root") for index in range(3)]
+    spans = _FakeSpans([root, *tools], {"trace": [root, *tools]}, [])
+
+    with mock.patch.object(run_module, "ANNOTATION_WRITE_BATCH_SIZE", 2):
+        batched = _run(
+            _FakeClient(spans),
+            project="pxi_dev",
+            specs=[SUGGESTION_ACCEPTED],
+            now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+        )["suggestion_accepted"]
+
+    assert [len(batch) for batch in spans.write_batches] == [2, 1]
+    assert batched.annotations == 3
+
+    dry_spans = _FakeSpans([root, *tools], {"trace": [root, *tools]}, [])
+    dry = _run(
+        _FakeClient(dry_spans),
+        project="pxi_dev",
+        specs=[SUGGESTION_ACCEPTED],
+        now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+        dry_run=True,
+    )["suggestion_accepted"]
+
+    assert dry.annotations == 3
+    assert dry_spans.writes == []
+
+
+def test_suggestion_accepted_needs_no_judge_credentials() -> None:
+    root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
+    tool = _accepted("tool", trace_id="trace", parent_id="root")
+    spans = _FakeSpans([root, tool], {"trace": [root, tool]}, [])
+
+    with mock.patch.dict("os.environ", {}, clear=True):
+        summary = _run(
+            _FakeClient(spans),
+            project="pxi_dev",
+            specs=[SUGGESTION_ACCEPTED],
+            now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+        )["suggestion_accepted"]
+
+    assert summary.evaluated == 1
+
+
+def test_cli_help_lists_the_suggestion_evaluator() -> None:
+    action = next(
+        action for action in run_module.build_arg_parser()._actions if action.dest == "eval"
+    )
+    assert "suggestion_accepted" in (action.choices or [])
