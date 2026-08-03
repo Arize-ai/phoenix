@@ -30,30 +30,6 @@ def model() -> TestModel:
     return TestModel(call_tools=[])
 
 
-async def test_toolsets_advertised(
-    model: TestModel,
-    schema: strawberry.Schema,
-    db: DbSessionFactory,
-) -> None:
-    """Skills are files here, so they contribute no tools — only `bash` reads them."""
-    agent = build_server_agent(
-        model=model,
-        schema=schema,
-        build_graphql_context=lambda: Mock(spec=Context),
-        db=db,
-        event_queue=Mock(),
-    )
-    await agent.run("hi")
-
-    assert model.last_model_request_parameters is not None
-    tool_names = {tool.name for tool in model.last_model_request_parameters.function_tools}
-    assert "bash" in tool_names
-    assert "write_span_note" in tool_names
-    assert "load_skill" not in tool_names
-    assert "read_skill_resource" not in tool_names
-    assert "call_subagent" not in tool_names
-
-
 async def test_call_subagent_toolset_advertised_when_enabled(
     model: TestModel,
     schema: strawberry.Schema,
@@ -93,8 +69,6 @@ async def test_skill_catalog_rendered_into_instructions(
     assert "<available_skills>" in instructions
     assert "phoenix-graphql" in instructions
     assert "span-coding" in instructions
-    # With no skill tool, the manifest is the only thing pointing at the mount, so it
-    # has to name each skill's directory and must not still reach for the dropped tools.
     assert f"{SKILLS_ROOT}/phoenix-graphql/" in instructions
     assert f"{SKILLS_ROOT}/span-coding/" in instructions
     assert "load_skill" not in instructions

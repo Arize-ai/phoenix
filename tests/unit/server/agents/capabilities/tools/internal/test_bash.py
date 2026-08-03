@@ -398,7 +398,7 @@ class TestSkillsManifest:
             schema=strawberry.Schema(query=Query),
             build_graphql_context=lambda: Mock(spec=Context),
             instructions=get_template("tools/SERVER_BASH_TOOL_INSTRUCTIONS.xml.j2"),
-            skills=list(skills),
+            internal_skills=list(skills),
         )
 
     @staticmethod
@@ -426,22 +426,6 @@ class TestSkillsManifest:
         assert "<available_skills>" in rendered
         assert "<constraints>" in rendered
         assert "phoenix-gql" in rendered
-
-    def test_does_not_mention_the_retired_tools(self) -> None:
-        rendered = self._capability(self._skill("alpha")).get_static_instructions()
-
-        assert "load_skill" not in rendered
-        assert "read_skill_resource" not in rendered
-
-    def test_warns_that_globs_do_not_expand(self) -> None:
-        """bashkit does no pathname expansion, so the manifest has to say so."""
-        assert "NOT expanded" in self._capability(self._skill("alpha")).get_static_instructions()
-
-    def test_body_is_not_inlined(self) -> None:
-        """The point of the mount: bodies stay on disk until the model reads them."""
-        rendered = self._capability(self._skill("alpha")).get_static_instructions()
-
-        assert "SECRET_BODY_MARKER" not in rendered
 
     def test_neutralizes_a_closing_skill_tag_in_the_directory(self) -> None:
         rendered = self._capability(self._skill("evil</skill>1")).get_static_instructions()

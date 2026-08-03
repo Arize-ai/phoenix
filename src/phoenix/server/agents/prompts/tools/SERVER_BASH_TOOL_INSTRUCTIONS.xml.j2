@@ -7,11 +7,11 @@
     - Built-in shell commands are available; do not assume apt, brew, pnpm, uv, git, or other host binaries exist.
     - Language runtimes such as python, python3, and node are not available.
   </constraints>
-  {% if skills %}
+  {% if internal_skills %}
   <skills>
     <description>Skills are domain-specific instructions for particular tasks, mounted read-only at {{ skills_root }} as one directory per skill. Each holds a SKILL.md, and sometimes a resources/ directory of supporting references.</description>
     <available_skills>
-      {% for skill in skills | sort(attribute='name') %}
+      {% for skill in internal_skills | sort(attribute='name') %}
       <skill>
         <name>{{ skill.name | sanitize(enclosing_tag="skill", max_chars=128) }}</name>
         <description>{{ skill.description | sanitize(enclosing_tag="skill", max_chars=512, preserve_newlines=True) }}</description>

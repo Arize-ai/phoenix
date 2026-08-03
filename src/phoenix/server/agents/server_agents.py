@@ -80,7 +80,7 @@ def build_server_agent(
             build_graphql_context=build_graphql_context,
             instructions=resolved_prompts.bash_tool,
             allow_mutations=allow_mutations,
-            skills=[PHOENIX_GRAPHQL_SKILL, SPAN_CODING_SKILL],
+            internal_skills=[PHOENIX_GRAPHQL_SKILL, SPAN_CODING_SKILL],
         ),
         WriteSpanNoteCapability(
             db=db,
