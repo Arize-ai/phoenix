@@ -1,5 +1,17 @@
 # Changelog
 
+## [19.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.13.0...arize-phoenix-v19.14.0) (2026-08-03)
+
+
+### Features
+
+* **evals:** add hallucination evaluator ([#14708](https://github.com/Arize-ai/phoenix/issues/14708)) ([1aa1a84](https://github.com/Arize-ai/phoenix/commit/1aa1a8454b6524a9e7618f3c9970ae9466df67d2))
+
+
+### Bug Fixes
+
+* **traces:** render ReasoningPart in gen_ai message flattening ([#14995](https://github.com/Arize-ai/phoenix/issues/14995)) ([05d5999](https://github.com/Arize-ai/phoenix/commit/05d59990cd5050c0effc9e17eaf2d97ec28a69b4)), closes [#14962](https://github.com/Arize-ai/phoenix/issues/14962)
+
 ## [19.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.12.0...arize-phoenix-v19.13.0) (2026-08-01)
 
 
