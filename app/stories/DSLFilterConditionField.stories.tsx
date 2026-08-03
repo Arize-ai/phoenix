@@ -13,8 +13,17 @@ import {
 } from "@phoenix/components/filter";
 import { PreferencesProvider } from "@phoenix/contexts";
 import { CredentialsProvider } from "@phoenix/contexts/CredentialsContext";
+import type { FeatureFlagsContextType } from "@phoenix/contexts/FeatureFlagsContext";
+import { FeatureFlagsContext } from "@phoenix/contexts/FeatureFlagsContext";
 
 import { AISearchRelayEnvironment } from "./utils/aiSearchRelayEnvironment";
+
+// The field reads the ai-search flag; seed it on so the AI search surfaces
+// (the sparkle toggle and the settings popover) render in the stories
+const FEATURE_FLAGS: FeatureFlagsContextType = {
+  featureFlags: { "agent-experimental-settings": false, "ai-search": true },
+  setFeatureFlags: () => undefined,
+};
 
 /**
  * An example DSL vocabulary: the fields an expression can reference
@@ -107,9 +116,11 @@ const meta: Meta<typeof DSLFilterConditionField> = {
     // The AI search settings popover's model picker loads providers over
     // Relay; the stories answer it with a canned catalog
     (Story) => (
-      <AISearchRelayEnvironment>
-        <Story />
-      </AISearchRelayEnvironment>
+      <FeatureFlagsContext.Provider value={FEATURE_FLAGS}>
+        <AISearchRelayEnvironment>
+          <Story />
+        </AISearchRelayEnvironment>
+      </FeatureFlagsContext.Provider>
     ),
   ],
   parameters: {
@@ -200,9 +211,9 @@ function AISearchTemplate(args: DSLFilterConditionFieldProps) {
 
 /**
  * The field with AI search available but not yet enabled: only the gear
- * shows, whose popover holds the AI search settings. Enabling the feature
- * there (the setting persists in this browser) reveals the sparkle mode
- * toggle demonstrated in the next story.
+ * shows, whose settings dropdown reports the feature is off and links to
+ * the Generative AI page where it can be enabled. The next story seeds the
+ * feature on to demonstrate the sparkle mode toggle.
  */
 export const WithAISearch: StoryFn<DSLFilterConditionFieldProps> =
   AISearchTemplate;

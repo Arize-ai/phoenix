@@ -16,8 +16,8 @@ const meta: Meta<typeof AISearchSettingsCard> = {
   title: "Filter/AISearchSettingsCard",
   component: AISearchSettingsCard,
   decorators: [
-    // The model-provider option's picker loads providers over Relay; the
-    // stories answer it with a canned catalog
+    // The model picker loads providers over Relay; the stories answer it
+    // with a canned catalog
     (Story) => (
       <AISearchRelayEnvironment>
         <Story />
@@ -29,10 +29,10 @@ const meta: Meta<typeof AISearchSettingsCard> = {
 export default meta;
 
 /**
- * The feature switch and, once enabled, the model choice: the on-device
- * browser model (availability reflects the browser viewing the story) or a
- * provider called with credentials held only in this browser. Changes
- * persist in this browser's storage.
+ * The feature switch and, once enabled, the model picker: Browser AI — the
+ * on-device built-in model (availability reflects the browser viewing the
+ * story) — alongside providers called with credentials held only in this
+ * browser. Changes persist in this browser's storage.
  */
 export const Default: StoryFn = () => (
   <CredentialsProvider>

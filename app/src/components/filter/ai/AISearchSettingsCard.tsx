@@ -30,7 +30,7 @@ export function AISearchSettingsCard() {
       }
     >
       <View padding="size-200">
-        <AISearchSettingsForm variant="card" />
+        <AISearchSettingsForm />
       </View>
     </Card>
   );

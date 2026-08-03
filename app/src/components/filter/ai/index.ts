@@ -1,7 +1,9 @@
 export * from "./types";
+export * from "./AISearchModelPicker";
 export * from "./AISearchSettingsButton";
 export * from "./AISearchSettingsCard";
 export * from "./AISearchSettingsForm";
+export * from "./browserAIMenuItem";
 export * from "./browserModel";
 export * from "./BrowserModelCard";
 export {
