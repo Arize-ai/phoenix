@@ -63,38 +63,6 @@ def build_agent(**kwargs: Any) -> Any:
     return _build_agent(**kwargs)
 
 
-STATIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
-    {
-        _DEFAULT_PROMPTS.ask_user_tool.render(),
-        _DEFAULT_PROMPTS.set_time_range_tool.render(),
-        _DEFAULT_PROMPTS.get_current_datetime_tool.render(),
-        _DEFAULT_PROMPTS.get_route_info_tool.render(),
-    }
-)
-
-DYNAMIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
-    {
-        _DEFAULT_PROMPTS.set_spans_filter_tool.render(),
-        _DEFAULT_PROMPTS.set_playground_model_tool.render(),
-        _DEFAULT_PROMPTS.list_playground_model_targets_tool.render(),
-        _DEFAULT_PROMPTS.read_prompt_instance_tool.render(),
-        _DEFAULT_PROMPTS.read_playground_output_tool.render(),
-        _DEFAULT_PROMPTS.clone_prompt_instance_tool.render(),
-        _DEFAULT_PROMPTS.add_prompt_instance_tool.render(),
-        _DEFAULT_PROMPTS.remove_prompt_instance_tool.render(),
-        _DEFAULT_PROMPTS.edit_prompt_instance_tool.render(),
-        _DEFAULT_PROMPTS.save_prompt_tool.render(),
-        _DEFAULT_PROMPTS.run_playground_tool.render(),
-        _DEFAULT_PROMPTS.cancel_playground_run_tool.render(),
-        _DEFAULT_PROMPTS.set_variable_values_tool.render(),
-        _DEFAULT_PROMPTS.set_playground_experiment_recording_tool.render(),
-        _DEFAULT_PROMPTS.set_playground_repetitions_tool.render(),
-        _DEFAULT_PROMPTS.set_appended_messages_path_tool.render(),
-        _DEFAULT_PROMPTS.load_dataset_tool.render(),
-    }
-)
-
-
 @dataclass
 class CapturedRequest:
     """Holds the JSON body of every Anthropic request the agent triggers."""
@@ -312,6 +280,20 @@ def _get_tool_names(body: MessageCreateParams) -> set[str]:
     return names
 
 
+def _get_tool_description(body: MessageCreateParams, name: str) -> str:
+    """Return the description advertised for ``name`` on the Anthropic request.
+
+    Tool guidance lives in the tool definition rather than the system prompt, so
+    assertions about what the agent was told about a tool read it from here.
+    """
+    for tool in body.get("tools") or []:
+        if tool.get("name") == name:
+            description = tool.get("description")
+            assert isinstance(description, str), f"{name} has no description"
+            return description
+    raise AssertionError(f"{name} was not advertised on the request")
+
+
 class TestSystemBlockCacheBoundary:
     """Every system block lands on the correct side of the cache breakpoint."""
 
@@ -328,7 +310,7 @@ class TestSystemBlockCacheBoundary:
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         assert _DEFAULT_PROMPTS.base.render() in _get_concatenated_text(cached_blocks)
 
-    async def test_static_tool_instructions_are_inside_cache_boundary(
+    async def test_static_capability_instructions_are_inside_cache_boundary(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
@@ -340,32 +322,8 @@ class TestSystemBlockCacheBoundary:
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_text = _get_concatenated_text(cached_blocks)
-        for static_prompt in STATIC_TOOL_INSTRUCTIONS:
-            assert static_prompt in cached_text
-
-    async def test_dynamic_tool_instructions_are_outside_cache_boundary(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                playground=PlaygroundContext(type="playground"),
-                project=ProjectContext(
-                    type="project",
-                    project_node_id="UHJvamVjdDox",
-                    span_filter="",
-                ),
-            ),
-        )
-
-        await agent.run("hello", deps=deps)
-
-        _, uncached_blocks = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
-        uncached_text = _get_concatenated_text(uncached_blocks)
-        for dynamic_prompt in DYNAMIC_TOOL_INSTRUCTIONS:
-            assert dynamic_prompt in uncached_text
+        assert "<available_skills>" in cached_text
+        assert "<phoenix_app_context>" in cached_text
 
     async def test_cache_breakpoint_separates_static_from_dynamic_content(
         self,
@@ -374,8 +332,8 @@ class TestSystemBlockCacheBoundary:
     ) -> None:
         """Everything before the cache marker must be static; everything
         after must be dynamic. Static content includes the base instructions
-        and every static tool capability's text; dynamic content includes
-        every dynamic tool's text and the GraphQL mutations policy."""
+        and the skills capability's text; dynamic content includes the
+        per-run UI context blocks and the GraphQL mutations policy."""
         agent = build_agent(model=anthropic_model)
         deps = AgentDependencies(
             contexts=ResolvedContexts(
@@ -396,19 +354,32 @@ class TestSystemBlockCacheBoundary:
         cached_text = _get_concatenated_text(cached_blocks)
         uncached_text = _get_concatenated_text(uncached_blocks)
 
-        assert _DEFAULT_PROMPTS.base.render() in cached_text
-        for static_prompt in STATIC_TOOL_INSTRUCTIONS:
-            assert static_prompt in cached_text
-            assert static_prompt not in uncached_text
-        for dynamic_prompt in DYNAMIC_TOOL_INSTRUCTIONS:
-            assert dynamic_prompt in uncached_text
-            assert dynamic_prompt not in cached_text
+        for static_fragment in (
+            _DEFAULT_PROMPTS.base.render(),
+            "<available_skills>",
+            "<phoenix_app_context>",
+        ):
+            assert static_fragment in cached_text
+            assert static_fragment not in uncached_text
+        for dynamic_fragment in (
+            "<phoenix_project_context>",
+            "<phoenix_playground_context>",
+            "<phoenix_gql_mutations_policy>",
+        ):
+            assert dynamic_fragment in uncached_text
+            assert dynamic_fragment not in cached_text
 
-    async def test_no_cache_breakpoint_is_marked_on_dynamic_system_blocks(
+    async def test_tool_guidance_is_not_restated_in_the_system_prompt(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
+        """A tool's guidance belongs to its ``description``, and only there.
+
+        Restating it as capability instructions would duplicate every one of
+        those tokens on every request and let the two copies drift apart, so
+        no advertised tool's description may appear in a system block.
+        """
         agent = build_agent(model=anthropic_model)
         deps = AgentDependencies(
             contexts=ResolvedContexts(
@@ -423,10 +394,18 @@ class TestSystemBlockCacheBoundary:
 
         await agent.run("hello", deps=deps)
 
-        cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
-        cached_text = _get_concatenated_text(cached_blocks)
-        for dynamic_prompt in DYNAMIC_TOOL_INSTRUCTIONS:
-            assert dynamic_prompt not in cached_text
+        system_text = "\n".join(_get_system_texts(captured_request.body))
+        # Provider-native tools (tool search) carry no description of their own.
+        advertised = [
+            tool for tool in captured_request.body.get("tools") or [] if "input_schema" in tool
+        ]
+        assert advertised, "expected the request to advertise tools"
+        for tool in advertised:
+            description = tool.get("description")
+            assert isinstance(description, str) and description, (
+                f"{tool.get('name')} must carry its guidance in its description"
+            )
+            assert description not in system_text
 
 
 class TestUIContextInstructions:
@@ -549,9 +528,8 @@ class TestRouteInfoTool:
         await agent.run("hello", deps=deps)
 
         assert "get_route_info" in _get_tool_names(captured_request.body)
-        joined_system = "\n".join(_get_system_texts(captured_request.body))
-        assert '<tool name="get_route_info">' in joined_system
-        assert "do not render its `path` as a markdown link" in joined_system
+        description = _get_tool_description(captured_request.body, "get_route_info")
+        assert "do not render its `path` as a markdown link" in description
 
 
 class TestAddDatasetExamplesTool:
@@ -570,8 +548,6 @@ class TestAddDatasetExamplesTool:
         await agent.run("hello", deps=deps)
 
         assert "add_dataset_examples" in _get_tool_names(captured_request.body)
-        joined_system = "\n".join(_get_system_texts(captured_request.body))
-        assert '<tool name="add_dataset_examples">' in joined_system
 
     async def test_absent_without_dataset_context(
         self,
@@ -882,10 +858,6 @@ class TestListDatasetsTool:
         assert "list_datasets" in tool_names
         assert "list_labels" in tool_names
         assert "list_splits" in tool_names
-        joined_system = "\n".join(_get_system_texts(captured_request.body))
-        assert '<tool name="list_datasets">' in joined_system
-        assert '<tool name="list_labels">' in joined_system
-        assert '<tool name="list_splits">' in joined_system
 
 
 class TestListDatasetExamplesTool:
@@ -904,8 +876,6 @@ class TestListDatasetExamplesTool:
         await agent.run("hello", deps=deps)
 
         assert "list_dataset_examples" in _get_tool_names(captured_request.body)
-        joined_system = "\n".join(_get_system_texts(captured_request.body))
-        assert '<tool name="list_dataset_examples">' in joined_system
 
     async def test_absent_without_dataset_context(
         self,
@@ -934,8 +904,6 @@ class TestCreateDatasetTool:
         # create_dataset is advertised everywhere (a new dataset has no context
         # to resolve a target from) — except to viewers, who cannot write.
         assert "create_dataset" in _get_tool_names(captured_request.body)
-        joined_system = "\n".join(_get_system_texts(captured_request.body))
-        assert '<tool name="create_dataset">' in joined_system
 
     async def test_hidden_for_viewer(
         self,
@@ -1637,20 +1605,20 @@ class TestCapabilityInstructionsOverride:
         assert "CUSTOM_STATIC_SENTINEL" in cached_text
         assert _DEFAULT_PROMPTS.base.render() not in cached_text
 
-    async def test_overridden_tool_instruction_replaces_default_in_system_blocks(
+    async def test_overridden_skills_instruction_replaces_default_in_system_blocks(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
-        custom = AgentPrompts(ask_user_tool=Template("CUSTOM_ASK_USER_SENTINEL"))
+        custom = AgentPrompts(skills=Template("CUSTOM_SKILLS_SENTINEL"))
         agent = build_agent(model=anthropic_model, prompts=custom)
         deps = AgentDependencies(contexts=ResolvedContexts())
 
         await agent.run("hello", deps=deps)
 
         joined_system = "\n".join(_get_system_texts(captured_request.body))
-        assert "CUSTOM_ASK_USER_SENTINEL" in joined_system
-        assert _DEFAULT_PROMPTS.ask_user_tool.render() not in joined_system
+        assert "CUSTOM_SKILLS_SENTINEL" in joined_system
+        assert "<available_skills>" not in joined_system
 
 
 class TestWebAccessCapabilities:

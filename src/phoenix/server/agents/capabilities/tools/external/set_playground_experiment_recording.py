@@ -3,25 +3,42 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
 from pydantic_ai import RunContext
-from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
+from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "set_playground_experiment_recording"
 
-DESCRIPTION = (
-    "Set whether future dataset-backed playground runs in the currently mounted "
-    "playground are recorded as persistent experiments or created as temporary "
-    "unrecorded runs, and optionally stage a name, description, and metadata for the "
-    "experiments the next run produces. Use this before running when the user asks to "
-    "record, persist, save the run as an experiment, run without recording, or label "
-    "the next experiment with notes such as a hypothesis."
-)
+DESCRIPTION = """\
+Set whether future dataset-backed playground runs in the currently mounted playground are recorded \
+as persistent experiments or created as temporary unrecorded runs, and optionally stage a name, \
+description, and metadata for the experiments the next run produces. Use this before running when \
+the user asks to record, persist, or save the run as an experiment, asks for a temporary or \
+unrecorded run, or asks to name, describe, or attach notes (such as a hypothesis or the variable \
+being changed) to the next experiment.
+Read the current playground context's `recordExperiments` value and `nextExperimentScaffold` \
+first. If the requested recording mode and scaffold fields already match the advertised values, do \
+not call this tool — call `run_playground` directly when the user asked to run. Set \
+`recordExperiments` to true only when the current value is false and the user wants the run \
+recorded; set it to false only when the current value is true and the user explicitly asks for a \
+temporary or unrecorded run.
+`experimentName`, `experimentDescription`, and `experimentMetadata` are optional. Set them only \
+when the user asks to name, describe, or attach notes to the next experiment, and only for fields \
+whose requested value differs from the advertised `nextExperimentScaffold`. Omit a field to leave \
+it at its default. `experimentMetadata` replaces the staged metadata object as a whole; include \
+every key the next experiment should carry, not just the changed ones.
+The staged scaffold applies to every comparison instance of the next dataset-backed run and is \
+consumed once that run starts. It does not carry over to later runs; re-stage it if a subsequent \
+run should reuse the same notes.
+Changing experiment recording after a run starts is not allowed; wait for the run to finish or ask \
+whether to stop it with `cancel_playground_run`.
+This only controls dataset-backed playground run persistence and naming. It does not save prompt \
+versions; use `save_prompt` only when the user asks to save the prompt itself.\
+"""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
@@ -69,19 +86,9 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class SetPlaygroundExperimentRecordingCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: Template
-
+class SetPlaygroundExperimentRecordingCapability(AbstractGatedToolCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
-        instructions = self.instructions
-
-        def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions.render()
-
-        return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
         return ctx.deps.contexts.playground is not None
