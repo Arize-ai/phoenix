@@ -1,9 +1,8 @@
+import { getBrowserBuiltInModel } from "@phoenix/components/generative/browserAI";
 import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-
-import { getBrowserBuiltInModel } from "./browserModel";
 
 /**
  * A model served through the Phoenix server's OpenAI-compatible

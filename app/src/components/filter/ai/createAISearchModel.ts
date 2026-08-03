@@ -1,6 +1,7 @@
 import type { LanguageModel } from "ai";
 
-import { createBrowserModel } from "./browserModel";
+import { createBrowserModel } from "@phoenix/components/generative/browserAI";
+
 import { createServerModel } from "./serverModel";
 import type { AISearchModelConfig } from "./types";
 

@@ -10,16 +10,16 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-
-import type { BrowserModelAvailability } from "./browserModel";
+import type { BrowserModelAvailability } from "@phoenix/components/generative/browserAI";
 import {
   downloadBrowserModel,
   getBrowserBuiltInModel,
+  StatusText,
   useBrowserModelAvailability,
-} from "./browserModel";
+} from "@phoenix/components/generative/browserAI";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+
 import { CardFootnote } from "./CardFootnote";
-import { StatusText } from "./StatusText";
 import { resolveAISearchModelConfig } from "./types";
 import { toErrorMessage } from "./useAISearch";
 

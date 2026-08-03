@@ -1,12 +1,12 @@
 import { useRef, useState } from "react";
 
-import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-
-import type { DSLFilterConditionValidationResult } from "../DSLFilterConditionField";
 import {
   downloadBrowserModel,
   getBrowserModelAvailability,
-} from "./browserModel";
+} from "@phoenix/components/generative/browserAI";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+
+import type { DSLFilterConditionValidationResult } from "../DSLFilterConditionField";
 import { createAISearchModel } from "./createAISearchModel";
 import { generateFilterCondition } from "./generateFilterCondition";
 import type { AISearchDSL } from "./types";

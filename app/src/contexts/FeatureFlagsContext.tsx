@@ -11,10 +11,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 
-export type FeatureFlag =
-  | "agent-experimental-settings"
-  | "ai-search"
-  | "chat";
+export type FeatureFlag = "agent-experimental-settings" | "ai-search" | "chat";
 
 export type FeatureFlagsContextType = {
   featureFlags: Record<FeatureFlag, boolean>;

@@ -1,16 +1,16 @@
 import { css } from "@emotion/react";
 
 import { Flex, Link } from "@phoenix/components";
+import {
+  BROWSER_AI_MENU_ITEM_ID,
+  BrowserModelAvailabilityStatus,
+  getBrowserBuiltInModel,
+  useBrowserAIMenuItem,
+} from "@phoenix/components/generative/browserAI";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
-import {
-  BROWSER_AI_MENU_ITEM_ID,
-  BrowserModelAvailabilityStatus,
-  useBrowserAIMenuItem,
-} from "./browserAIMenuItem";
-import { getBrowserBuiltInModel } from "./browserModel";
 import type { AISearchModelConfig } from "./types";
 
 const pickerCSS = css`
