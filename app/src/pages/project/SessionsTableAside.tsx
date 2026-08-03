@@ -37,9 +37,11 @@ export function SessionsTableAside(props: {
    * with an exact match taking precedence.
    */
   filterIoSubstringOrSessionId?: string | null;
+  filterUserId?: string | null;
 }) {
   const filterIoSubstringOrSessionId =
     props.filterIoSubstringOrSessionId || null;
+  const filterUserId = props.filterUserId || null;
   const projectId = useTracingContext((state) => state.projectId);
   const { timeRangeISOStrings } = useTimeRange();
   const { fetchKey } = useStreamState();
@@ -50,6 +52,7 @@ export function SessionsTableAside(props: {
         $timeRange: TimeRange!
         $filterIoSubstring: String
         $sessionId: String
+        $userId: String
       ) {
         project: node(id: $id) {
           ... on Project {
@@ -59,28 +62,33 @@ export function SessionsTableAside(props: {
               timeRange: $timeRange
               filterIoSubstring: $filterIoSubstring
               sessionId: $sessionId
+              userId: $userId
             )
             averageSessionDurationMs(
               timeRange: $timeRange
               filterIoSubstring: $filterIoSubstring
               sessionId: $sessionId
+              userId: $userId
             )
             averageTracesPerSession(
               timeRange: $timeRange
               filterIoSubstring: $filterIoSubstring
               sessionId: $sessionId
+              userId: $userId
             )
             sessionDurationMsP50: sessionDurationMsQuantile(
               probability: 0.5
               timeRange: $timeRange
               filterIoSubstring: $filterIoSubstring
               sessionId: $sessionId
+              userId: $userId
             )
             sessionDurationMsP99: sessionDurationMsQuantile(
               probability: 0.99
               timeRange: $timeRange
               filterIoSubstring: $filterIoSubstring
               sessionId: $sessionId
+              userId: $userId
             )
             sessionAnnotationNames
           }
@@ -92,6 +100,7 @@ export function SessionsTableAside(props: {
       timeRange: timeRangeISOStrings,
       filterIoSubstring: filterIoSubstringOrSessionId,
       sessionId: filterIoSubstringOrSessionId,
+      userId: filterUserId,
     },
     { fetchKey, fetchPolicy: "store-and-network" }
   );

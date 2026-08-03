@@ -10,6 +10,8 @@ import {
 export type SessionSearchContextType = {
   filterIoSubstringOrSessionId: string;
   setFilterIoSubstringOrSessionId: (condition: string) => void;
+  filterUserId: string;
+  setFilterUserId: (userId: string) => void;
 };
 
 export const SessionSearchContext =
@@ -32,11 +34,19 @@ export function SessionSearchProvider(props: PropsWithChildren) {
       _setSubstring(condition);
     });
   }, []);
+  const [userId, _setUserId] = useState<string>("");
+  const setUserId = useCallback((id: string) => {
+    startTransition(() => {
+      _setUserId(id);
+    });
+  }, []);
   return (
     <SessionSearchContext.Provider
       value={{
         filterIoSubstringOrSessionId: substring,
         setFilterIoSubstringOrSessionId: setSubstring,
+        filterUserId: userId,
+        setFilterUserId: setUserId,
       }}
     >
       {props.children}

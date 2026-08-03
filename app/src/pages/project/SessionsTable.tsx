@@ -149,7 +149,7 @@ export function SessionsTable(props: SessionsTableProps) {
   // we need a reference to the scrolling element for pagination logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const { filterIoSubstringOrSessionId } = useSessionSearchContext();
+  const { filterIoSubstringOrSessionId, filterUserId } = useSessionSearchContext();
   const { fetchKey } = useStreamState();
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the current
@@ -175,6 +175,7 @@ export function SessionsTable(props: SessionsTableProps) {
           }
           filterIoSubstring: { type: "String", defaultValue: null }
           sessionId: { type: "String", defaultValue: null }
+          userId: { type: "String", defaultValue: null }
         ) {
           name
           ...SessionColumnSelector_annotations
@@ -185,6 +186,7 @@ export function SessionsTable(props: SessionsTableProps) {
             filterIoSubstring: $filterIoSubstring
             timeRange: $timeRange
             sessionId: $sessionId
+            userId: $userId
           ) @connection(key: "SessionsTable_sessions") {
             edges {
               session: node {
@@ -496,6 +498,7 @@ export function SessionsTable(props: SessionsTableProps) {
           first: PAGE_SIZE,
           filterIoSubstring: filterIoSubstringOrSessionId,
           sessionId: filterIoSubstringOrSessionId,
+          userId: filterUserId || null,
           timeRange: timeRangeISOStrings,
         },
         { fetchPolicy: "store-and-network" }
@@ -505,6 +508,7 @@ export function SessionsTable(props: SessionsTableProps) {
     sorting,
     refetch,
     filterIoSubstringOrSessionId,
+    filterUserId,
     fetchKey,
     timeRangeISOStrings,
   ]);
@@ -745,6 +749,7 @@ export function SessionsTable(props: SessionsTableProps) {
           <TableAsidePanel>
             <SessionsTableAside
               filterIoSubstringOrSessionId={filterIoSubstringOrSessionId}
+              filterUserId={filterUserId || null}
             />
           </TableAsidePanel>
         </Group>

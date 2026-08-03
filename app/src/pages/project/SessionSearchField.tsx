@@ -11,17 +11,31 @@ type SessionSearchFieldProps = {
 export function SessionSearchField({
   placeholder = "Search messages or session ID",
 }: SessionSearchFieldProps) {
-  const { filterIoSubstringOrSessionId, setFilterIoSubstringOrSessionId } =
-    useSessionSearchContext();
+  const {
+    filterIoSubstringOrSessionId,
+    setFilterIoSubstringOrSessionId,
+    filterUserId,
+    setFilterUserId,
+  } = useSessionSearchContext();
 
   return (
-    <SearchField
-      aria-label="Search sessions"
-      value={filterIoSubstringOrSessionId}
-      onChange={setFilterIoSubstringOrSessionId}
-    >
-      <SearchIcon />
-      <Input placeholder={placeholder} />
-    </SearchField>
+    <>
+      <SearchField
+        aria-label="Search sessions"
+        value={filterIoSubstringOrSessionId}
+        onChange={setFilterIoSubstringOrSessionId}
+      >
+        <SearchIcon />
+        <Input placeholder={placeholder} />
+      </SearchField>
+      <SearchField
+        aria-label="Filter by user ID"
+        value={filterUserId}
+        onChange={setFilterUserId}
+      >
+        <SearchIcon />
+        <Input placeholder="Filter by user ID" />
+      </SearchField>
+    </>
   );
 }
