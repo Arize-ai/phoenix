@@ -604,37 +604,28 @@ export function useAgentChat({
         store.getState().setDraftInput(sessionId, pendingMessage.text);
       }
     };
+    // Shared failure effect for every blocked precondition: hand the user's
+    // queued message back to the composer and surface why.
+    const failCompaction = (message: string) => {
+      restorePendingMessage();
+      setOperationError({
+        title: "Conversation could not be compacted",
+        message,
+      });
+    };
     if (isDraft || !sessionId || !chatInstance) {
-      restorePendingMessage();
-      setOperationError({
-        title: "Conversation could not be compacted",
-        message: "There is no persisted conversation to compact.",
-      });
+      failCompaction("There is no persisted conversation to compact.");
       return;
     }
-    if (isRequestActive(chatInstance.status)) {
-      restorePendingMessage();
-      setOperationError({
-        title: "Conversation could not be compacted",
-        message: "Wait for the current response to finish and try again.",
-      });
-      return;
-    }
-    if (store.getState().isCompactionPendingBySessionId[sessionId]) {
-      restorePendingMessage();
-      setOperationError({
-        title: "Conversation could not be compacted",
-        message: "Conversation compaction is already in progress.",
-      });
-      return;
-    }
-    if (store.getState().isBusyElsewhereBySessionId[sessionId]) {
-      restorePendingMessage();
-      setOperationError({
-        title: "Conversation could not be compacted",
-        message:
-          "Session is being used elsewhere. Try again when the other turn completes.",
-      });
+    const blockedReason = getCompactionBlockedReason({
+      isResponseInProgress: isRequestActive(chatInstance.status),
+      isCompactionPending:
+        store.getState().isCompactionPendingBySessionId[sessionId] ?? false,
+      isBusyElsewhere:
+        store.getState().isBusyElsewhereBySessionId[sessionId] ?? false,
+    });
+    if (blockedReason) {
+      failCompaction(blockedReason);
       return;
     }
 
@@ -695,14 +686,11 @@ export function useAgentChat({
           );
         }
       } catch (error) {
-        restorePendingMessage();
-        setOperationError({
-          title: "Conversation could not be compacted",
-          message:
-            error instanceof Error
-              ? error.message
-              : "An unexpected error occurred.",
-        });
+        failCompaction(
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred."
+        );
       } finally {
         store.getState().setSessionCompactionPending(sessionId, false);
       }
@@ -970,6 +958,34 @@ function removeInterruptedToolInputParts(
 
 function isRequestActive(status: ChatStatus): boolean {
   return status === "submitted" || status === "streaming";
+}
+
+/**
+ * Why compaction cannot start right now for a persisted session, or null when
+ * it may proceed. Preconditions are checked in priority order.
+ */
+export function getCompactionBlockedReason({
+  isResponseInProgress,
+  isCompactionPending,
+  isBusyElsewhere,
+}: {
+  /** This client has a chat request in flight for the session. */
+  isResponseInProgress: boolean;
+  /** A compaction request is already running for the session. */
+  isCompactionPending: boolean;
+  /** Another client's turn holds the session's server lock. */
+  isBusyElsewhere: boolean;
+}): string | null {
+  if (isResponseInProgress) {
+    return "Wait for the current response to finish and try again.";
+  }
+  if (isCompactionPending) {
+    return "Conversation compaction is already in progress.";
+  }
+  if (isBusyElsewhere) {
+    return "Session is being used elsewhere. Try again when the other turn completes.";
+  }
+  return null;
 }
 
 /**
