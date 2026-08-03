@@ -34,12 +34,18 @@ import {
   PromptInputTools,
 } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
+import {
+  BROWSER_AI_MENU_ITEM_ID,
+  getBrowserBuiltInModel,
+  useBrowserAIMenuItem,
+} from "@phoenix/components/generative/browserAI";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
 import { providerRequiresCredentials } from "@phoenix/components/generative/modelProviderUtils";
 import { useModelMenuData } from "@phoenix/components/generative/useModelMenuData";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
+import type { ChatModelSelection } from "./chatModel";
 import { getStoredChatModel, storeChatModel } from "./chatModelStorage";
 import type { DirectChatMessage } from "./useDirectChat";
 import { useDirectChat } from "./useDirectChat";
@@ -313,22 +319,25 @@ function EnabledChatPage() {
  * Preference order reflects how deliberate the configuration is:
  * providers with credentials explicitly set, then stored custom providers,
  * then zero-credential providers that merely report ready (e.g. Ollama,
- * which still needs a base URL on the server), then anything installed.
+ * which still needs a base URL on the server), then Browser AI when this
+ * browser has a built-in model (it works with zero setup), then anything
+ * installed as a last resort.
  */
 function getDefaultModel({
   availableBuiltinModels,
   availableCustomModels,
   visibleProviders,
+  hasBrowserAI,
 }: Pick<
   ReturnType<typeof useModelMenuData>,
   "availableBuiltinModels" | "availableCustomModels" | "visibleProviders"
->): ModelMenuValue | null {
-  const toValue = (model: {
+> & { hasBrowserAI: boolean }): ChatModelSelection | null {
+  const toSelection = (model: {
     provider: ModelMenuValue["provider"];
     modelName: string;
-  }): ModelMenuValue => ({
-    provider: model.provider,
-    modelName: model.modelName,
+  }): ChatModelSelection => ({
+    kind: "server",
+    model: { provider: model.provider, modelName: model.modelName },
   });
 
   // credentialsSet alone can't rank providers: it is vacuously true for
@@ -348,17 +357,20 @@ function getDefaultModel({
     provisionedProviderKeys.has(model.provider)
   );
   if (provisionedBuiltin) {
-    return toValue(provisionedBuiltin);
+    return toSelection(provisionedBuiltin);
   }
 
   const custom = availableCustomModels[0];
   if (custom) {
     return {
-      provider: custom.provider,
-      modelName: custom.modelName,
-      customProvider: {
-        id: custom.customProviderId,
-        name: custom.customProviderName,
+      kind: "server",
+      model: {
+        provider: custom.provider,
+        modelName: custom.modelName,
+        customProvider: {
+          id: custom.customProviderId,
+          name: custom.customProviderName,
+        },
       },
     };
   }
@@ -372,17 +384,24 @@ function getDefaultModel({
     readyProviderKeys.has(model.provider)
   );
   if (readyBuiltin) {
-    return toValue(readyBuiltin);
+    return toSelection(readyBuiltin);
+  }
+
+  // Browser AI answers with zero configuration, unlike the fallback below —
+  // an installed provider with no credentials will only error at send time.
+  if (hasBrowserAI) {
+    return { kind: "browser" };
   }
 
   const builtin = availableBuiltinModels[0];
-  return builtin ? toValue(builtin) : null;
+  return builtin ? toSelection(builtin) : null;
 }
 
 function ChatSurface() {
   const { availableBuiltinModels, availableCustomModels, visibleProviders } =
     useModelMenuData();
-  const [selectedModel, setSelectedModel] = useState<ModelMenuValue | null>(
+  const browserAIItem = useBrowserAIMenuItem();
+  const [selectedModel, setSelectedModel] = useState<ChatModelSelection | null>(
     getStoredChatModel
   );
   const model =
@@ -391,10 +410,20 @@ function ChatSurface() {
       availableBuiltinModels,
       availableCustomModels,
       visibleProviders,
+      hasBrowserAI: browserAIItem !== null,
     });
 
-  const { messages, status, error, usage, sendMessage, retry, stop, clear } =
-    useDirectChat();
+  const {
+    messages,
+    status,
+    error,
+    usage,
+    downloadProgress,
+    sendMessage,
+    retry,
+    stop,
+    clear,
+  } = useDirectChat();
   const [draft, setDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasAutoFocusedRef = useRef(false);
@@ -415,8 +444,12 @@ function ChatSurface() {
 
   const showsEmptyState = messages.length === 0;
   const hasChatSettled = status === "ready" || status === "error";
+  const modelDisplayName =
+    model?.kind === "browser"
+      ? (getBrowserBuiltInModel()?.modelName ?? "Browser AI")
+      : model?.model.modelName;
 
-  const handleModelChange = (nextModel: ModelMenuValue) => {
+  const handleModelChange = (nextModel: ChatModelSelection) => {
     setSelectedModel(nextModel);
     storeChatModel(nextModel);
   };
@@ -488,7 +521,9 @@ function ChatSurface() {
             {status === "submitted" && (
               <div className="chat-page__thinking">
                 <Shimmer size="S" color="text-500" fontStyle="italic">
-                  Thinking...
+                  {downloadProgress != null
+                    ? `Downloading the on-device model… ${Math.round(downloadProgress * 100)}%`
+                    : "Thinking..."}
                 </Shimmer>
               </div>
             )}
@@ -522,7 +557,7 @@ function ChatSurface() {
               ref={handleTextareaRef}
               placeholder={
                 model
-                  ? `Message ${model.modelName}...`
+                  ? `Message ${modelDisplayName}...`
                   : "Configure a model provider to start chatting"
               }
               aria-label="Chat message"
@@ -531,11 +566,22 @@ function ChatSurface() {
           <PromptInputFooter>
             <PromptInputTools>
               <ModelMenu
-                value={model}
-                onChange={handleModelChange}
+                value={model?.kind === "server" ? model.model : null}
+                onChange={(nextModel) =>
+                  handleModelChange({ kind: "server", model: nextModel })
+                }
                 placement="top start"
                 shouldFlip
                 variant="quiet"
+                leadingItems={browserAIItem ? [browserAIItem] : undefined}
+                selectedLeadingItemId={
+                  model?.kind === "browser"
+                    ? BROWSER_AI_MENU_ITEM_ID
+                    : undefined
+                }
+                onLeadingItemSelect={() =>
+                  handleModelChange({ kind: "browser" })
+                }
               />
             </PromptInputTools>
             <PromptInputActions>
@@ -564,9 +610,10 @@ function ChatEmptyHero({
   model,
   onStarterPrompt,
 }: {
-  model: ModelMenuValue | null;
+  model: ChatModelSelection | null;
   onStarterPrompt: (prompt: string) => void;
 }) {
+  const browserName = getBrowserBuiltInModel()?.browserName;
   return (
     <div className="chat-page__empty">
       <div className="chat-page__empty-glyph">
@@ -574,9 +621,11 @@ function ChatEmptyHero({
       </div>
       <h1 className="chat-page__empty-title">Chat with your models</h1>
       <p className="chat-page__empty-subtext">
-        {model
-          ? "Messages go straight to the model through your configured providers. Conversations aren't saved when you leave."
-          : "No models are available yet. Configure a model provider in settings, then come back to start chatting."}
+        {model == null
+          ? "No models are available yet. Configure a model provider in settings, then come back to start chatting."
+          : model.kind === "browser"
+            ? `Messages run on-device with ${browserName ?? "your browser"}'s built-in model and never leave this device. Conversations aren't saved when you leave.`
+            : "Messages go straight to the model through your configured providers. Conversations aren't saved when you leave."}
       </p>
       {model ? (
         <div className="chat-page__starters">

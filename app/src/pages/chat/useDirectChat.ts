@@ -2,8 +2,12 @@ import type { ChatStatus, ModelMessage } from "ai";
 import { streamText } from "ai";
 import { useRef, useState } from "react";
 
-import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import {
+  downloadBrowserModel,
+  getBrowserModelAvailability,
+} from "@phoenix/components/generative/browserAI";
 
+import type { ChatModelSelection } from "./chatModel";
 import { createChatModel } from "./chatModel";
 
 export type DirectChatMessage = {
@@ -77,10 +81,12 @@ function getChatErrorMessage(error: unknown): string {
 }
 
 /**
- * A minimal chat loop over the Phoenix server's OpenAI-compatible
- * `/v1/chat/completions` proxy. The whole conversation lives in memory —
- * nothing is persisted — and each send streams the assistant reply token by
- * token into the last message.
+ * A minimal chat loop over the configured model — Browser AI on-device, or
+ * the Phoenix server's OpenAI-compatible `/v1/chat/completions` proxy. The
+ * whole conversation lives in memory — nothing is persisted — and each send
+ * streams the assistant reply token by token into the last message. The
+ * on-device model downloads on first use, reported through
+ * `downloadProgress` (a 0–1 fraction, null when no download is running).
  *
  * Statuses mirror the AI SDK's `ChatStatus` so the shared prompt-input
  * components read them natively: `submitted` while waiting for the first
@@ -91,9 +97,13 @@ export function useDirectChat() {
   const [status, setStatus] = useState<ChatStatus>("ready");
   const [error, setError] = useState<string | null>(null);
   const [usage, setUsage] = useState<DirectChatUsage | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const run = async (history: DirectChatMessage[], model: ModelMenuValue) => {
+  const run = async (
+    history: DirectChatMessage[],
+    selection: ChatModelSelection
+  ) => {
     abortControllerRef.current?.abort();
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -103,7 +113,42 @@ export function useDirectChat() {
     /** True while this run still owns the chat state — a newer run or a reset supersedes it. */
     const ownsChatState = () => abortControllerRef.current === controller;
     try {
-      const chatModel = await createChatModel(model);
+      if (selection.kind === "browser") {
+        const availability = await getBrowserModelAvailability();
+        if (availability === "unsupported") {
+          throw new Error(
+            "This browser has no built-in AI model. Use Chrome or Edge, or choose a hosted model."
+          );
+        }
+        if (availability === "unavailable") {
+          throw new Error(
+            "The browser's built-in AI model is unavailable on this device. Choose a hosted model instead."
+          );
+        }
+        if (
+          availability === "needs-download" ||
+          availability === "downloading"
+        ) {
+          setDownloadProgress(0);
+          try {
+            await downloadBrowserModel((fraction) => {
+              if (ownsChatState()) {
+                setDownloadProgress(fraction);
+              }
+            });
+          } finally {
+            if (ownsChatState()) {
+              setDownloadProgress(null);
+            }
+          }
+        }
+      }
+      if (controller.signal.aborted) {
+        // Stopped while the model was still downloading — stop() already
+        // settled the status.
+        return;
+      }
+      const chatModel = await createChatModel(selection);
       // streamText delivers request/stream failures to onError and ends the
       // text stream quietly — without this capture a failed request would
       // settle as an empty, error-free turn.
@@ -189,7 +234,7 @@ export function useDirectChat() {
   const isBusy = status === "submitted" || status === "streaming";
 
   /** Sends a user message and streams the assistant reply. */
-  const sendMessage = (text: string, model: ModelMenuValue) => {
+  const sendMessage = (text: string, selection: ChatModelSelection) => {
     const trimmed = text.trim();
     if (!trimmed || isBusy) {
       return;
@@ -199,12 +244,12 @@ export function useDirectChat() {
         ...messages,
         { id: crypto.randomUUID(), role: "user", content: trimmed },
       ],
-      model
+      selection
     );
   };
 
   /** Re-sends the conversation from the latest user message after an error. */
-  const retry = (model: ModelMenuValue) => {
+  const retry = (selection: ChatModelSelection) => {
     if (isBusy) {
       return;
     }
@@ -214,7 +259,7 @@ export function useDirectChat() {
     if (lastUserIndex === -1) {
       return;
     }
-    void run(messages.slice(0, lastUserIndex + 1), model);
+    void run(messages.slice(0, lastUserIndex + 1), selection);
   };
 
   /** Aborts the in-flight completion, keeping any partial response. */
@@ -239,7 +284,18 @@ export function useDirectChat() {
     setStatus("ready");
     setError(null);
     setUsage(null);
+    setDownloadProgress(null);
   };
 
-  return { messages, status, error, usage, sendMessage, retry, stop, clear };
+  return {
+    messages,
+    status,
+    error,
+    usage,
+    downloadProgress,
+    sendMessage,
+    retry,
+    stop,
+    clear,
+  };
 }
