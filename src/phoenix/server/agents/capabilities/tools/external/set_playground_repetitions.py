@@ -3,25 +3,32 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
 from pydantic_ai import RunContext
-from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
+from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "set_playground_repetitions"
 MIN_REPETITIONS = 1
 MAX_REPETITIONS = 30
 
-DESCRIPTION = (
-    "Set the playground-wide repetitions count in the currently mounted playground. "
-    "Use this before running when the user wants more confidence across repeated "
-    "LLM calls, is investigating flaky outputs, or wants to validate structured "
-    "output or tool-call behavior before saving a prompt."
-)
+DESCRIPTION = """\
+Set the playground-wide repetitions count in the currently mounted playground. Use this before \
+running when the user asks to run a prompt multiple times, check for flakiness, build confidence, \
+or validate nondeterministic behavior — including when structured output, tool-call behavior, or \
+pre-save validation needs more confidence than a single run provides.
+Set repetitions before calling `run_playground`; changing repetitions after a run starts is not \
+allowed.
+Use repetitions to build confidence because LLM outputs are nondeterministic. Do not claim a \
+prompt is reliable based on one successful run.
+After a repeated run finishes, inspect every repetition with `read_playground_output` before \
+summarizing confidence or recommending that the user save the prompt.
+Keep the requested value between 1 and 30. If the user asks for more than 30, explain that the \
+playground supports up to 30 repetitions.\
+"""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
@@ -46,19 +53,9 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class SetPlaygroundRepetitionsCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: Template
-
+class SetPlaygroundRepetitionsCapability(AbstractGatedToolCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
-        instructions = self.instructions
-
-        def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions.render()
-
-        return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
         return ctx.deps.contexts.playground is not None

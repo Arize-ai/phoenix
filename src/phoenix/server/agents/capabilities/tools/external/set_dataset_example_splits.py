@@ -3,24 +3,29 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
 from pydantic_ai import RunContext
-from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
+from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "set_dataset_example_splits"
 
-DESCRIPTION = (
-    "Assign rows of the dataset the user is viewing to one or more existing splits, by split name. "
-    "This SETS each row's splits to exactly the named splits — it replaces whatever splits those "
-    "rows were in. The splits must already exist on the dataset; to create a new split use "
-    "create_dataset_split. Get example ids from list_dataset_examples and split names from "
-    "list_dataset_splits."
-)
+DESCRIPTION = """\
+Assign rows of the dataset the user is viewing to one or more existing splits, by split name. This \
+SETS each row's splits to exactly the named splits — it replaces whatever splits those rows were \
+in. If the user wants to keep a row in its current splits too, include those split names as well.
+Get the example ids from list_dataset_examples and valid split names from list_splits (the \
+instance-wide vocabulary — you can assign rows to any existing split, not only ones already on \
+this dataset). Do not guess ids or names. `splitNames` must name splits that already exist; to \
+create a new split, use create_dataset_split first.
+Propose the assignment by calling this tool directly. In manual approval mode the browser renders \
+an inline accept/reject card and applies it only when the user accepts; in bypass mode it is \
+applied immediately. The card is the approval surface — do not ask a separate yes/no question (or \
+call ask_user) to confirm before calling it.\
+"""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
@@ -54,19 +59,9 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class SetDatasetExampleSplitsCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: Template
-
+class SetDatasetExampleSplitsCapability(AbstractGatedToolCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
-        instructions = self.instructions
-
-        def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions.render()
-
-        return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
         # Writes are blocked server-side for viewers; don't advertise to them.

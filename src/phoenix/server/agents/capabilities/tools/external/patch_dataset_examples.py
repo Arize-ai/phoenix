@@ -3,23 +3,28 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
 from pydantic_ai import RunContext
-from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
+from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "patch_dataset_examples"
 
-DESCRIPTION = (
-    "Edit existing rows of the dataset the user is viewing. Each patch targets a row by id and "
-    "updates its input, output, and/or metadata; omitted fields on a patch are left unchanged. "
-    "This creates a new dataset version. Get row ids from list_dataset_examples. To add rows use "
-    "add_dataset_examples; to remove rows use delete_dataset_examples."
-)
+DESCRIPTION = """\
+Edit existing rows of the dataset the user is viewing. Each patch targets a row by id and updates \
+its input, output, and/or metadata; omitted fields on a patch are left unchanged. This creates a \
+new dataset version.
+Get each row's id from list_dataset_examples — do not guess ids — and pass only the fields you \
+intend to change on each row.
+To add new rows use add_dataset_examples; to remove rows use delete_dataset_examples.
+Propose the edit by calling this tool directly. In manual approval mode the browser renders an \
+inline accept/reject card and applies it only when the user accepts; in bypass mode it is applied \
+immediately. The card is the approval surface — do not ask a separate yes/no question (or call \
+ask_user) to confirm before calling it.\
+"""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
@@ -65,19 +70,9 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class PatchDatasetExamplesCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: Template
-
+class PatchDatasetExamplesCapability(AbstractGatedToolCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
-        instructions = self.instructions
-
-        def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions.render()
-
-        return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
         # Writes are blocked server-side for viewers; don't advertise to them.
