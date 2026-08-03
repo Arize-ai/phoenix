@@ -1,6 +1,10 @@
 import { css } from "@emotion/react";
 
 export const tooltipCSS = css`
+  /* Plain tooltips are never interactive: a lingering tooltip must not
+     intercept clicks aimed at the controls beneath it. RichTooltip keeps
+     pointer events for hoverable rich content. */
+  pointer-events: none;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
   border-radius: var(--global-rounding-small);
   background: var(--global-tooltip-background-color);
