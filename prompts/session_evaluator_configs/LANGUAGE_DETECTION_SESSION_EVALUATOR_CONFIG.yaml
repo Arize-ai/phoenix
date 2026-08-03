@@ -1,0 +1,91 @@
+# Out-of-library, session-level evaluator template (structured output).
+#
+# This is NOT a classification evaluator: it emits a structured object
+# (an open-ended set of languages + a primary language), not a single label
+# from a fixed choice list. It is therefore intentionally NOT placed under
+# prompts/classification_evaluator_configs/ and is NOT consumed by
+# `make codegen-prompts`.
+#
+# The `output_schema` below is a plain JSON Schema dict, i.e. exactly the shape
+# the library expects for structured output: it is passed as `schema=` to
+# `LLM.generate_object(prompt, schema)` (see
+# packages/phoenix-evals/.../llm/wrapper.py::generate_object). A `reasoning`
+# field is listed FIRST so the model performs its turn-by-turn analysis before
+# committing to the answer fields (chain-of-thought ordering), mirroring the
+# `explanation` field every classification evaluator emits by convention.
+name: language_detection
+description: >-
+  Detect the natural language(s) present across a conversation session and
+  identify the primary language. This eval is purely descriptive — it does not
+  judge whether the language used was correct, expected, or consistent with
+  anything else.
+labels:
+  - promoted_dataset_evaluator
+  - session_level_evaluator
+messages:
+  - role: user
+    content: |-
+      You are an expert evaluator identifying which natural language(s) appear in a conversation session.
+
+      The session is the complete sequence of turns exchanged between the user and the assistant, in chronological order, including any tool calls, tool results, or retrieved content shown as part of the exchange. Treat the session as a whole: you are identifying which languages appear anywhere across all turns, from either party, not judging any single turn in isolation.
+
+      Your task is descriptive only. Do NOT judge whether the assistant responded in the correct, expected, or appropriate language. Do NOT judge whether the user's and the assistant's languages matched each other. Do NOT judge quality, fluency, or correctness of the language used. Only identify what languages are present.
+
+      <rubric>
+
+      LANGUAGES - Identify every distinct natural language that appears anywhere in the session, from either party. For each one:
+      - Use its full English name (e.g. "Spanish", not "es" or "Español").
+      - Include a language even if it appears only briefly — a greeting, a single sentence, an isolated aside — as long as it is a deliberate use of that language rather than a borrowed term.
+      - Exclude proper nouns, brand names, code identifiers, and single loanwords/acronyms commonly used across languages (e.g. "OK", "AI", "URL") that appear inside an otherwise different-language passage. These do not count as a separate language on their own.
+      - Ignore code snippets, markup, math notation, and structured data (JSON, tables, etc.) when identifying languages. Natural-language prose inside comments or explanations still counts.
+      - Treat messages that are genuinely too short, ambiguous, or entirely non-linguistic (a single emoji, a number, a URL) as uninformative — do not let them drive the language list on their own.
+
+      PRIMARY LANGUAGE - The single language that makes up the majority of substantive content across the session. Weigh depth and length of content, not just turn count or which language appeared first.
+
+      </rubric>
+
+      Apply these rules when deciding:
+
+      1. This is an inventory, not a ranking. Never judge a language as right, wrong, expected, or inconsistent — just record what's present.
+      2. Every distinct language deserves a slot. Sessions can legitimately contain multiple languages (code-switching, translation requests, multilingual users) — list all of them, not just the dominant one.
+      3. Primary language requires majority substance, not majority turns. Nine short turns in one language plus one long, detailed turn in another may still make the latter primary if it carries most of the substantive content.
+      4. When a case is borderline — a possible loanword vs. a genuine second language, a short ambiguous message — default to leaving it out of the language list rather than including it. Only list languages you are confident are genuinely present.
+      5. If the session contains no identifiable natural-language content at all (only code, only structured data), return an empty language list and no primary language rather than guessing.
+
+      <data>
+
+      <session>
+      {{session}}
+      </session>
+
+      </data>
+
+      First, in the "reasoning" field, go through the session turn by turn, noting the language of each substantive piece of content. Then compile your final answer: list every language detected in this session in "languages", and identify the "primary_language".
+output_schema:
+  type: object
+  properties:
+    reasoning:
+      type: string
+      description: >-
+        Turn-by-turn analysis of which natural language each substantive piece
+        of content is in, and the justification for the primary language.
+        Populate this before the answer fields.
+    languages:
+      type: array
+      items:
+        type: string
+      description: >-
+        All distinct natural languages detected anywhere in the session, as full
+        English language names. Empty if no natural-language content was detected.
+    primary_language:
+      type:
+        - string
+        - "null"
+      description: >-
+        The language making up the majority of substantive content in the
+        session, as a full English language name. Null if no natural-language
+        content was detected.
+  required:
+    - reasoning
+    - languages
+    - primary_language
