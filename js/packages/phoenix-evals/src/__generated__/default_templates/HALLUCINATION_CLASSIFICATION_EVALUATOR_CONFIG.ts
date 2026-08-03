@@ -42,7 +42,7 @@ Apply these rules when deciding:
 
 3. A failed tool is not a source. An error, timeout, empty result, or "not found" is evidence that the lookup failed. It is not evidence about the thing being looked up. A response that supplies the missing value anyway is hallucinating.
 
-4. Supported means restated or entailed — with one exception. A claim is supported if it restates the input or follows from it necessarily. It is not supported if deriving it requires adding a situation-specific detail the input does not contain — a typical value, a default, a cause, an external lookup, or a plausible completion. The only exception is ordinary general knowledge (definitions, arithmetic, common units and conventions): treat that as grounded as long as it does not contradict the input. You are not judging whether the response is true about the world — only whether its claims about THIS situation (its entities, values, dates, events, sources, and what was returned or done) are supported by the input.
+4. Apply the absence-of-evidence rule only to situation-specific claims. First distinguish claims about this particular situation — its entities, values, dates, events, sources, and what was returned or done — from ordinary general knowledge. Situation-specific claims must restate the input or follow from it necessarily; they are not supported if deriving them requires adding a typical value, default, cause, external lookup, or plausible completion. Ordinary general knowledge — definitions, arithmetic, common units and conventions, and widely known facts — is outside the grounding check and cannot by itself make a response hallucinated, as long as it does not contradict the input.
 
 5. One unsupported claim is enough. If any claim in the response fails these tests, the response is hallucinated. Quote the specific claim in your explanation.
 
@@ -51,7 +51,7 @@ Out of scope — do not label a response hallucinated for any of these:
 - Being unhelpful, incomplete, poorly written, off-topic, or badly formatted.
 - Failing to do everything the user asked. Whether the assistant covered the full request is separate from whether what it said is supported.
 - Stating an intention to do something in the future. "I'll open a ticket" is a plan, not a claim about what happened. Only claims that an action is already complete are checkable here.
-- Content the input shows was shortened or omitted. If the input contains markers indicating that earlier messages were dropped or text was truncated, judge only the claims you can actually check against what is visible.
+- Content the input shows was shortened or omitted. Do not treat the absence of a claim from an explicitly elided region as evidence that the claim was fabricated. If the omitted region could plausibly contain the missing support, default to grounded. Otherwise, judge the claim against the visible input normally.
 
 When you are genuinely unsure whether a claim is supported, label the response grounded.
 
