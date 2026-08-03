@@ -1,14 +1,14 @@
 import { css, keyframes } from "@emotion/react";
 
 /**
- * The shared "AI is working" visual treatment: a spinning conic-gradient band,
- * a breathing box-shadow glow, and a traveling glow wipe.
+ * The shared "AI is working" glow: a spinning conic-gradient band, a
+ * breathing box-shadow glow, and a traveling glow wipe.
  *
  * These primitives are domain-free — they read only `--ai-*` tokens defined in
- * `GlobalStyles.tsx` (`aiTreatmentCSS`, plus the `@property --ai-conic-angle`
+ * `GlobalStyles.tsx` (`aiTokensCSS`, plus the `@property --ai-conic-angle`
  * rule), so any AI surface can compose them. Callers supply their own
  * geometry (inset, border-radius, stroke width) and may override the tokens
- * locally to retune the treatment for a given surface.
+ * locally to retune the glow for a given surface.
  */
 
 /**
@@ -36,7 +36,7 @@ export const aiGlowBreathe = keyframes`
  * Sweeps a glow mask right-to-left without fading, for the continuous
  * "thinking" state. Pair with {@link aiGlowWipeMaskCSS} and an opacity of 1.
  */
-export const aiThinkingGlowWipe = keyframes`
+export const aiGlowWipeContinuous = keyframes`
   0% {
     -webkit-mask-position: 170% center;
     mask-position: 170% center;
@@ -52,7 +52,7 @@ export const aiThinkingGlowWipe = keyframes`
  * {@link aiGlowBreathe} for glows drawn inside the target bounds, using the
  * inset `contained` box-shadow tokens.
  */
-export const aiContainedGlowBreathe = keyframes`
+export const aiGlowBreatheContained = keyframes`
   0%, 100% {
     box-shadow: var(--ai-glow-box-shadow-contained-rest);
   }
@@ -107,7 +107,7 @@ export const aiGlowFlashOpacity = keyframes`
 
 /**
  * The masked, additively blended layer that {@link aiGlowWipe} and
- * {@link aiThinkingGlowWipe} travel across. Starts hidden and off-surface;
+ * {@link aiGlowWipeContinuous} travel across. Starts hidden and off-surface;
  * the caller owns positioning and border-radius.
  */
 export const aiGlowWipeMaskCSS = css`
@@ -136,23 +136,23 @@ export const aiGlowWipeMaskCSS = css`
 `;
 
 /**
- * The AI treatment's conic gradient as a fill. Animate with
- * {@link aiConicSpin} to make it rotate.
+ * The AI gradient as a conic fill. Animate with {@link aiConicSpin} to make
+ * it rotate.
  */
 export const aiConicGradientCSS = css`
   background: conic-gradient(
     from var(--ai-conic-angle),
-    var(--ai-treatment-color-start),
-    var(--ai-treatment-color-middle),
-    var(--ai-treatment-color-end),
-    var(--ai-treatment-color-start)
+    var(--ai-gradient-color-start),
+    var(--ai-gradient-color-middle),
+    var(--ai-gradient-color-end),
+    var(--ai-gradient-color-start)
   );
 `;
 
 /** A conic-gradient band whose thickness is controlled by the caller. */
 export const aiConicBandCSS = css`
   ${aiConicGradientCSS};
-  padding: var(--ai-treatment-stroke-width);
+  padding: var(--ai-conic-band-stroke-width);
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);

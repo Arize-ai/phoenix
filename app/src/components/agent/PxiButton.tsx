@@ -8,8 +8,8 @@ import {
   aiGlowFlashOpacity,
   aiGlowWipe,
   aiGlowWipeMaskCSS,
-  aiThinkingGlowWipe,
-} from "@phoenix/components/ai/treatment";
+  aiGlowWipeContinuous,
+} from "@phoenix/components/ai/glow";
 import { Button, type ButtonProps } from "@phoenix/components/core/button";
 import { classNames } from "@phoenix/utils/classNames";
 
@@ -30,7 +30,7 @@ export interface PxiButtonProps extends Omit<
   label?: string;
   /** Collapses the button to a square icon button. */
   isIconOnly?: boolean;
-  /** Shows the continuous PXI thinking treatment and working label. */
+  /** Shows the continuous PXI thinking glow and working label. */
   isThinking?: boolean;
   /**
    * Runs the PXI attention glow once when it changes from false to true. The
@@ -46,10 +46,10 @@ export interface PxiButtonProps extends Omit<
 }
 
 const pxiButtonCSS = css`
-  --ai-treatment-stroke-width: var(--global-border-size-thin);
+  --ai-conic-band-stroke-width: var(--global-border-size-thin);
   --pxi-button-background-color-hover: color-mix(
     in srgb,
-    var(--ai-treatment-color-middle) 6%,
+    var(--ai-gradient-color-middle) 6%,
     transparent
   );
   position: relative;
@@ -67,7 +67,7 @@ const pxiButtonCSS = css`
   &::before {
     content: "";
     position: absolute;
-    inset: calc(-1 * var(--ai-treatment-stroke-width));
+    inset: calc(-1 * var(--ai-conic-band-stroke-width));
     border-radius: inherit;
     pointer-events: none;
     ${aiConicBandCSS};
@@ -140,7 +140,8 @@ const pxiButtonCSS = css`
       opacity: 1;
       -webkit-mask-position: center;
       mask-position: center;
-      animation: ${aiThinkingGlowWipe} 3600ms linear infinite both -0.5s;
+      animation: ${aiGlowWipeContinuous} var(--ai-glow-wipe-continuous-duration)
+        linear infinite both var(--ai-glow-wipe-continuous-delay);
     }
 
     .pxi-button__glow::before {
@@ -152,8 +153,8 @@ const pxiButtonCSS = css`
     .pxi-button__thinking-glyph {
       color: color-mix(
         in srgb,
-        var(--ai-treatment-color-middle) 78%,
-        var(--ai-treatment-color-end)
+        var(--ai-gradient-color-middle) 78%,
+        var(--ai-gradient-color-end)
       );
     }
 
@@ -201,7 +202,7 @@ export function PxiButton({
       {...buttonProps}
       onAnimationEnd={(event) => {
         buttonProps.onAnimationEnd?.(event);
-        // animationend events from the button's other treatments (glyph,
+        // animationend events from the button's other animations (glyph,
         // conic band) bubble here too; only the glow wipe ends the flash.
         if (event.animationName === aiGlowWipe.name) {
           onFlashEnd?.();

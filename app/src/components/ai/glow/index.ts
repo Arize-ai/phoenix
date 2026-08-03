@@ -2,10 +2,10 @@ export {
   aiConicBandCSS,
   aiConicGradientCSS,
   aiConicSpin,
-  aiContainedGlowBreathe,
   aiGlowBreathe,
+  aiGlowBreatheContained,
   aiGlowFlashOpacity,
   aiGlowWipe,
+  aiGlowWipeContinuous,
   aiGlowWipeMaskCSS,
-  aiThinkingGlowWipe,
 } from "./styles";

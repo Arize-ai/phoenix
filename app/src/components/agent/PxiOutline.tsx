@@ -4,12 +4,12 @@ import type { ReactNode } from "react";
 import {
   aiConicBandCSS,
   aiConicSpin,
-  aiContainedGlowBreathe,
+  aiGlowBreatheContained,
   aiGlowBreathe,
   aiGlowFlashOpacity,
   aiGlowWipe,
   aiGlowWipeMaskCSS,
-} from "@phoenix/components/ai/treatment";
+} from "@phoenix/components/ai/glow";
 import type { StylableProps } from "@phoenix/components/core/types";
 import { classNames } from "@phoenix/utils/classNames";
 
@@ -31,7 +31,7 @@ export interface PxiOutlineProps extends StylableProps {
 }
 
 const outlineCSS = css`
-  --ai-treatment-stroke-width: 1.5px;
+  --ai-conic-band-stroke-width: 1.5px;
   --pxi-outline-gap: var(--global-dimension-static-size-25);
   --pxi-outline-target-radius: var(--global-rounding-small);
   position: relative;
@@ -61,12 +61,12 @@ const outlineCSS = css`
   .pxi-outline__stroke {
     ${aiConicBandCSS};
     inset: calc(
-      -1 * (var(--pxi-outline-gap) + var(--ai-treatment-stroke-width))
+      -1 * (var(--pxi-outline-gap) + var(--ai-conic-band-stroke-width))
     );
     z-index: 2;
     border-radius: calc(
       var(--pxi-outline-target-radius) + var(--pxi-outline-gap) +
-        var(--ai-treatment-stroke-width)
+        var(--ai-conic-band-stroke-width)
     );
     opacity: 0.3;
     animation: ${aiConicSpin} var(--ai-conic-spin-duration) linear infinite
@@ -77,13 +77,13 @@ const outlineCSS = css`
     ${aiGlowWipeMaskCSS};
     inset: calc(
       -1 *
-        (var(--pxi-outline-gap) + var(--ai-treatment-stroke-width) +
+        (var(--pxi-outline-gap) + var(--ai-conic-band-stroke-width) +
           var(--ai-glow-bleed))
     );
     z-index: 0;
     border-radius: calc(
       var(--pxi-outline-target-radius) + var(--pxi-outline-gap) +
-        var(--ai-treatment-stroke-width)
+        var(--ai-conic-band-stroke-width)
     );
   }
 
@@ -146,12 +146,12 @@ const outlineCSS = css`
     }
 
     &[data-state="active"] .pxi-outline__glow::before {
-      animation-name: ${aiContainedGlowBreathe};
+      animation-name: ${aiGlowBreatheContained};
     }
 
     &[data-state="eligible"][data-should-flash="true"]
       .pxi-outline__glow::before {
-      animation-name: ${aiContainedGlowBreathe}, ${aiGlowFlashOpacity};
+      animation-name: ${aiGlowBreatheContained}, ${aiGlowFlashOpacity};
     }
   }
 

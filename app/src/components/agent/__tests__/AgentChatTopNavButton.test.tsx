@@ -3,7 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
-import { aiGlowWipe } from "@phoenix/components/ai/treatment";
+import { aiGlowWipe } from "@phoenix/components/ai/glow";
 import {
   DRAWER_CLASS_NAME,
   MODAL_OVERLAY_CLASS_NAME,
@@ -191,7 +191,7 @@ describe("AgentChatTopNavButton", () => {
       container.querySelector<HTMLButtonElement>("button.pxi-button");
     expect(button?.getAttribute("data-pxi-should-flash")).toBe("true");
 
-    // animationend events from the button's other treatments bubble through
+    // animationend events from the button's other animations bubble through
     // the same handler and must not cut the flash short.
     act(() => {
       if (button) {

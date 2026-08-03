@@ -987,10 +987,10 @@ const buttonCSS = (theme: Theme) => css`
 `;
 
 /**
- * Tokens for the shared "AI is working" treatment consumed by
- * `components/ai/treatment`. Surface-specific knobs stay on their components.
+ * Tokens for the shared "AI is working" glow consumed by
+ * `components/ai/glow`. Surface-specific knobs stay on their components.
  */
-const aiTreatmentCSS = (theme: Theme) => css`
+const aiTokensCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
     --ai-conic-spin-duration: 3s;
@@ -998,10 +998,14 @@ const aiTreatmentCSS = (theme: Theme) => css`
     --ai-glow-opacity: 0.95;
     --ai-glow-wipe-duration: 3000ms;
     --ai-glow-wipe-easing: cubic-bezier(0.4, 0.4, 0.65, 1);
-    --ai-treatment-color-start: #9a66ff;
-    --ai-treatment-color-middle: #3480ff;
-    --ai-treatment-color-end: #2cd8ff;
-    --ai-glow-box-shadow-fab-rest: ${theme === "dark"
+    --ai-glow-wipe-continuous-duration: 3600ms;
+    /* Negative delay so the continuous wipe starts mid-travel instead of
+       off-surface. */
+    --ai-glow-wipe-continuous-delay: -0.5s;
+    --ai-gradient-color-start: #9a66ff;
+    --ai-gradient-color-middle: #3480ff;
+    --ai-gradient-color-end: #2cd8ff;
+    --ai-glow-box-shadow-large-rest: ${theme === "dark"
       ? `
         0 0 2px 1px rgba(248, 242, 255, 0.78),
         0 0 4px 2px rgba(154, 102, 255, 0.68),
@@ -1016,7 +1020,7 @@ const aiTreatmentCSS = (theme: Theme) => css`
         0 0 14px 5px rgba(200, 150, 236, 0.23),
         0 0 20px 7px rgba(116, 212, 255, 0.17)
       `};
-    --ai-glow-box-shadow-fab-strong: ${theme === "dark"
+    --ai-glow-box-shadow-large-strong: ${theme === "dark"
       ? `
         0 0 3px 2px rgba(250, 244, 255, 0.88),
         0 0 7px 3px rgba(160, 108, 255, 0.82),
@@ -1374,7 +1378,7 @@ export const derivedCSS = (theme: Theme) =>
     inputFieldCSS(theme),
     menuCSS(theme),
     buttonCSS(theme),
-    aiTreatmentCSS(theme),
+    aiTokensCSS(theme),
     checkboxCSS(theme),
     segmentedControlCSS(theme),
     disclosureCSS(theme),

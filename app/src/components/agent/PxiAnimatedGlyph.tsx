@@ -1,9 +1,6 @@
 import { css } from "@emotion/react";
 
-import {
-  aiConicGradientCSS,
-  aiConicSpin,
-} from "@phoenix/components/ai/treatment";
+import { aiConicGradientCSS, aiConicSpin } from "@phoenix/components/ai/glow";
 import { classNames } from "@phoenix/utils/classNames";
 
 import { getPxiGlyphSVGDataUrl, svgSize } from "./PxiGlyph";
@@ -36,8 +33,8 @@ const animatedGlyphMarkCSS = css`
   height: var(--pxi-animated-glyph-mark-size);
   background: color-mix(
     in srgb,
-    var(--ai-treatment-color-middle) 78%,
-    var(--ai-treatment-color-end)
+    var(--ai-gradient-color-middle) 78%,
+    var(--ai-gradient-color-end)
   );
   -webkit-mask-image: ${pxiGlyphMaskImage};
   mask-image: ${pxiGlyphMaskImage};

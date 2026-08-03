@@ -19,8 +19,8 @@ import {
   aiGlowFlashOpacity,
   aiGlowWipe,
   aiGlowWipeMaskCSS,
-  aiThinkingGlowWipe,
-} from "@phoenix/components/ai/treatment";
+  aiGlowWipeContinuous,
+} from "@phoenix/components/ai/glow";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenModal";
@@ -84,8 +84,8 @@ const lightThemeGlyphThemeCSS = css`
 `;
 
 const shapeCSS = css`
-  --ai-glow-box-shadow-rest: var(--ai-glow-box-shadow-fab-rest);
-  --ai-glow-box-shadow-strong: var(--ai-glow-box-shadow-fab-strong);
+  --ai-glow-box-shadow-rest: var(--ai-glow-box-shadow-large-rest);
+  --ai-glow-box-shadow-strong: var(--ai-glow-box-shadow-large-strong);
   position: relative;
   display: flex;
   align-items: center;
@@ -155,7 +155,8 @@ const thinkingBorderCSS = css`
     -webkit-mask-position: center;
     mask-position: center;
     /* Preserve the original 200% / 3000ms velocity across the full 240% path. */
-    animation: ${aiThinkingGlowWipe} 3600ms linear infinite both -0.5s;
+    animation: ${aiGlowWipeContinuous} var(--ai-glow-wipe-continuous-duration)
+      linear infinite both var(--ai-glow-wipe-continuous-delay);
   }
 
   .agent-chat-widget__shimmer::before {
@@ -250,8 +251,7 @@ const entranceHoverWipeCSS = css`
 
 const thinkingGlyphPulseCSS = css`
   .agent-chat-widget__content {
-    animation: ${glyphBreathe} var(--ai-glow-wipe-duration) ease-in-out
-      infinite;
+    animation: ${glyphBreathe} var(--ai-glow-wipe-duration) ease-in-out infinite;
   }
 `;
 
