@@ -31,7 +31,7 @@ export const Default: StoryFn = () => (
 
 /**
  * Seeded with AI search already enabled and pointed at the browser model,
- * so the "used by" fact reads that filter fields use this model instead of
+ * so the usage line reads that filter fields use this model instead of
  * "Not in use".
  */
 export const EnabledForAISearch: StoryFn = () => (

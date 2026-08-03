@@ -1,9 +1,17 @@
+import {
+  DEFAULT_MODEL_NAME,
+  DEFAULT_MODEL_PROVIDER,
+} from "@phoenix/constants/generativeConstants";
+
+import { getBrowserBuiltInModel } from "./browserModel";
+
 /**
  * How AI search resolves the language model that translates natural language
  * into a filter expression.
  *
- * - `browser` runs entirely on-device via the browser's built-in model
- *   (Chrome / Edge Prompt API). No credentials and no network round trip.
+ * - `browser` runs entirely on-device via Browser AI — the browser's
+ *   built-in model (Chrome / Edge Prompt API). No credentials and no
+ *   network round trip.
  * - `provider` calls a configured LLM provider directly from the browser
  *   using the credentials stored locally (the same credentials the
  *   playground uses).
@@ -14,16 +22,29 @@ export type AISearchModelConfig =
 
 const BROWSER_MODEL_CONFIG: AISearchModelConfig = { kind: "browser" };
 
+const DEFAULT_PROVIDER_MODEL_CONFIG: AISearchModelConfig = {
+  kind: "provider",
+  provider: DEFAULT_MODEL_PROVIDER,
+  modelName: DEFAULT_MODEL_NAME,
+};
+
 /**
  * Resolves the persisted (possibly absent) model config to an effective
- * one — no config means the on-device browser model. The single home of
- * that default, shared by every surface that reads the preference. Returns
- * a stable object so resolving on every render stays identity-safe.
+ * one — no config means Browser AI where the browser has a built-in model,
+ * and the default hosted provider everywhere else (the picker doesn't offer
+ * Browser AI there). The single home of that default, shared by every
+ * surface that reads the preference. Returns stable objects so resolving on
+ * every render stays identity-safe.
  */
 export function resolveAISearchModelConfig(
   config: AISearchModelConfig | undefined
 ): AISearchModelConfig {
-  return config ?? BROWSER_MODEL_CONFIG;
+  if (config) {
+    return config;
+  }
+  return getBrowserBuiltInModel() !== null
+    ? BROWSER_MODEL_CONFIG
+    : DEFAULT_PROVIDER_MODEL_CONFIG;
 }
 
 /**

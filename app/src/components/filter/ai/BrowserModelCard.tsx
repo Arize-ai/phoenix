@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import { useEffect, useState } from "react";
 
 import {
@@ -24,34 +23,15 @@ import { StatusText } from "./StatusText";
 import { resolveAISearchModelConfig } from "./types";
 import { toErrorMessage } from "./useAISearch";
 
-const factsCSS = css`
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  column-gap: var(--global-dimension-size-300);
-  row-gap: var(--global-dimension-size-100);
-  margin: 0;
-  dt {
-    font-family: var(--global-font-family-mono);
-    font-size: var(--global-font-size-xs);
-    line-height: var(--global-line-height-s);
-    color: var(--global-text-color-500);
-  }
-  dd {
-    margin: 0;
-    font-size: var(--global-font-size-s);
-    line-height: var(--global-line-height-s);
-    color: var(--global-text-color-900);
-  }
-`;
-
 /**
- * Management surface for the browser's built-in on-device model that powers
- * in-browser AI search: whether it is downloaded, a way to download it ahead
- * of first use (with live progress, joining a download already in flight),
- * and how to remove it. Enabling the model for AI search happens in the AI
- * Search card, not here — this card only reports whether it is in use. The browser owns the download and shares it across
- * every site that uses on-device AI, so removal happens in the browser's own
- * settings — this card explains that rather than pretending to offer it.
+ * Management surface for Browser AI — the browser's built-in on-device
+ * model: whether it is downloaded, a way to download it ahead of first use
+ * (with live progress, joining a download already in flight), and how to
+ * remove it. Selecting Browser AI for AI search happens in the AI Search
+ * card's model picker, not here — this card only reports whether it is in
+ * use. The browser owns the download and shares it across every site that
+ * uses on-device AI, so removal happens in the browser's own settings —
+ * this card explains that rather than pretending to offer it.
  */
 export function BrowserModelCard() {
   const builtInModel = getBrowserBuiltInModel();
@@ -61,8 +41,7 @@ export function BrowserModelCard() {
   const modelConfig = usePreferencesContext(
     (state) => state.aiSearchModelConfig
   );
-  const isEnabledForAISearch =
-    isAISearchEnabled &&
+  const isSelectedForAISearch =
     resolveAISearchModelConfig(modelConfig).kind === "browser";
   const probedAvailability = useBrowserModelAvailability();
   // Local override once this card starts (or joins) a download — the probe
@@ -105,12 +84,12 @@ export function BrowserModelCard() {
 
   if (builtInModel === null) {
     return (
-      <Card title="In-Browser Model">
+      <Card title="Browser AI">
         <View padding="size-200">
           <Text size="S" color="text-700">
-            This browser has no built-in AI model, so in-browser AI search is
-            unavailable here. Use a browser with on-device AI, such as Chrome,
-            or configure a model provider in the AI Search settings above.
+            This browser has no built-in AI model, so Browser AI is unavailable
+            here. Use a browser with on-device AI, such as Chrome, or choose a
+            model provider in the AI Search settings above.
           </Text>
         </View>
       </Card>
@@ -155,8 +134,8 @@ export function BrowserModelCard() {
           <Flex direction="column" gap="size-100" alignItems="start">
             <Text size="XS" color="text-700">
               AI search downloads the model automatically the first time you run
-              a search with in-browser AI selected, or you can download it now.
-              It is a one-time, multi-gigabyte download.
+              a search with Browser AI selected, or you can download it now. It
+              is a one-time, multi-gigabyte download.
             </Text>
             {downloadError !== null ? (
               <Text size="XS" color="danger">
@@ -198,7 +177,7 @@ export function BrowserModelCard() {
   };
 
   return (
-    <Card title="In-Browser Model" extra={renderHeaderStatus()}>
+    <Card title="Browser AI" extra={renderHeaderStatus()}>
       <View padding="size-200">
         <Flex direction="column" gap="size-200">
           <Text size="S">
@@ -207,20 +186,13 @@ export function BrowserModelCard() {
             across every site that uses on-device AI.
           </Text>
           {renderStatusDetail()}
-          <dl css={factsCSS}>
-            <dt>model</dt>
-            <dd>{modelName}</dd>
-            <dt>runs on</dt>
-            <dd>This device</dd>
-            <dt>used by</dt>
-            <dd>
-              {isEnabledForAISearch
-                ? "AI Search — filter fields use this model"
-                : "Not in use"}
-            </dd>
-            <dt>storage</dt>
-            <dd>Managed by {browserName}</dd>
-          </dl>
+          <Text size="XS" color="text-700">
+            {!isAISearchEnabled
+              ? "Not in use — AI Search is turned off."
+              : isSelectedForAISearch
+                ? "In use by AI Search — filter fields translate natural language with this model."
+                : "Not in use — AI Search is set to a different model."}
+          </Text>
           <CardFootnote icon={<Icon svg={<Icons.Info />} />}>
             Phoenix can’t delete the model — {browserName} owns the download.
             {browserName === "Chrome" ? (

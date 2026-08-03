@@ -1,9 +1,15 @@
 import type { LanguageModel } from "ai";
 
 import {
+  hasRequiredLocalCredentials,
+  type LocalProviderCredentials,
+  providerRequiresCredentials,
+} from "@phoenix/components/generative/modelProviderUtils";
+import {
   ModelProviders,
   ProviderToCredentialsConfigMap,
 } from "@phoenix/constants/generativeConstants";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 /**
  * The credentials stored in the browser for one provider, keyed by env var
@@ -61,6 +67,34 @@ export const AI_SEARCH_PROVIDERS: ModelProvider[] = [
   "GOOGLE",
   ...OPENAI_COMPATIBLE_PROVIDERS,
 ];
+
+/**
+ * Whether AI search can call the provider right now: it is reachable from the
+ * browser and every credential it requires is in the browser's credential
+ * store. Credentials held only on the server do not count — AI search calls
+ * providers straight from the browser and never sees them.
+ */
+export function isAISearchProviderAvailable({
+  providerKey,
+  credentials,
+}: {
+  providerKey: string;
+  credentials: LocalProviderCredentials;
+}): boolean {
+  if (!isModelProvider(providerKey)) {
+    return false;
+  }
+  if (!AI_SEARCH_PROVIDERS.includes(providerKey)) {
+    return false;
+  }
+  if (!providerRequiresCredentials({ providerKey })) {
+    return true;
+  }
+  return hasRequiredLocalCredentials({
+    providerKey,
+    localCredentials: credentials,
+  });
+}
 
 /**
  * Reads the provider's (first) required API key from the browser-held
