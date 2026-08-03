@@ -31,7 +31,7 @@ const meta = {
 export default meta;
 
 const pxiMenuGlyphCSS = css`
-  color: var(--pxi-treatment-color-middle);
+  color: var(--ai-treatment-color-middle);
 `;
 
 export const MenuAction = {

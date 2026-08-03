@@ -1,18 +1,17 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
+import {
+  aiConicBandCSS,
+  aiConicSpin,
+  aiContainedGlowBreathe,
+  aiGlowBreathe,
+  aiGlowFlashOpacity,
+  aiGlowWipe,
+  aiGlowWipeMaskCSS,
+} from "@phoenix/components/ai/treatment";
 import type { StylableProps } from "@phoenix/components/core/types";
 import { classNames } from "@phoenix/utils/classNames";
-
-import {
-  pxiConicBandCSS,
-  pxiConicSpin,
-  pxiContainedGlowBreathe,
-  pxiGlowBreathe,
-  pxiGlowFlashOpacity,
-  pxiGlowWipe,
-  pxiGlowWipeMaskCSS,
-} from "./pxiStyles";
 
 export type PxiOutlineState = "idle" | "eligible" | "active";
 export type PxiOutlineRadius = "small" | "medium";
@@ -32,7 +31,7 @@ export interface PxiOutlineProps extends StylableProps {
 }
 
 const outlineCSS = css`
-  --pxi-treatment-stroke-width: 1.5px;
+  --ai-treatment-stroke-width: 1.5px;
   --pxi-outline-gap: var(--global-dimension-static-size-25);
   --pxi-outline-target-radius: var(--global-rounding-small);
   position: relative;
@@ -60,40 +59,40 @@ const outlineCSS = css`
   }
 
   .pxi-outline__stroke {
-    ${pxiConicBandCSS};
+    ${aiConicBandCSS};
     inset: calc(
-      -1 * (var(--pxi-outline-gap) + var(--pxi-treatment-stroke-width))
+      -1 * (var(--pxi-outline-gap) + var(--ai-treatment-stroke-width))
     );
     z-index: 2;
     border-radius: calc(
       var(--pxi-outline-target-radius) + var(--pxi-outline-gap) +
-        var(--pxi-treatment-stroke-width)
+        var(--ai-treatment-stroke-width)
     );
     opacity: 0.3;
-    animation: ${pxiConicSpin} var(--pxi-conic-spin-duration) linear infinite
+    animation: ${aiConicSpin} var(--ai-conic-spin-duration) linear infinite
       paused;
   }
 
   .pxi-outline__glow {
-    ${pxiGlowWipeMaskCSS};
+    ${aiGlowWipeMaskCSS};
     inset: calc(
       -1 *
-        (var(--pxi-outline-gap) + var(--pxi-treatment-stroke-width) +
-          var(--pxi-glow-bleed))
+        (var(--pxi-outline-gap) + var(--ai-treatment-stroke-width) +
+          var(--ai-glow-bleed))
     );
     z-index: 0;
     border-radius: calc(
       var(--pxi-outline-target-radius) + var(--pxi-outline-gap) +
-        var(--pxi-treatment-stroke-width)
+        var(--ai-treatment-stroke-width)
     );
   }
 
   .pxi-outline__glow::before {
     content: "";
     position: absolute;
-    inset: var(--pxi-glow-bleed);
+    inset: var(--ai-glow-bleed);
     border-radius: inherit;
-    box-shadow: var(--pxi-glow-box-shadow-rest);
+    box-shadow: var(--ai-glow-box-shadow-rest);
     opacity: 0;
   }
 
@@ -114,20 +113,20 @@ const outlineCSS = css`
 
   &[data-state="active"] .pxi-outline__glow::before {
     opacity: 0.72;
-    animation: ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out
+    animation: ${aiGlowBreathe} var(--ai-glow-wipe-duration) ease-in-out
       infinite;
   }
 
   &[data-state="eligible"][data-should-flash="true"] .pxi-outline__glow {
-    animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration)
-      var(--pxi-glow-wipe-easing) 1;
+    animation: ${aiGlowWipe} var(--ai-glow-wipe-duration)
+      var(--ai-glow-wipe-easing) 1;
   }
 
   &[data-state="eligible"][data-should-flash="true"]
     .pxi-outline__glow::before {
     animation:
-      ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out 1,
-      ${pxiGlowFlashOpacity} var(--pxi-glow-wipe-duration) linear 1;
+      ${aiGlowBreathe} var(--ai-glow-wipe-duration) ease-in-out 1,
+      ${aiGlowFlashOpacity} var(--ai-glow-wipe-duration) linear 1;
   }
 
   &[data-glow-mode="contained"] {
@@ -143,16 +142,16 @@ const outlineCSS = css`
 
     .pxi-outline__glow::before {
       inset: 0;
-      box-shadow: var(--pxi-glow-box-shadow-contained-rest);
+      box-shadow: var(--ai-glow-box-shadow-contained-rest);
     }
 
     &[data-state="active"] .pxi-outline__glow::before {
-      animation-name: ${pxiContainedGlowBreathe};
+      animation-name: ${aiContainedGlowBreathe};
     }
 
     &[data-state="eligible"][data-should-flash="true"]
       .pxi-outline__glow::before {
-      animation-name: ${pxiContainedGlowBreathe}, ${pxiGlowFlashOpacity};
+      animation-name: ${aiContainedGlowBreathe}, ${aiGlowFlashOpacity};
     }
   }
 

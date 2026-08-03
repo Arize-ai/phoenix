@@ -1,6 +1,15 @@
 import { css } from "@emotion/react";
 import type { Ref } from "react";
 
+import {
+  aiConicBandCSS,
+  aiConicSpin,
+  aiGlowBreathe,
+  aiGlowFlashOpacity,
+  aiGlowWipe,
+  aiGlowWipeMaskCSS,
+  aiThinkingGlowWipe,
+} from "@phoenix/components/ai/treatment";
 import { Button, type ButtonProps } from "@phoenix/components/core/button";
 import { classNames } from "@phoenix/utils/classNames";
 
@@ -9,15 +18,6 @@ import {
   type PxiAnimatedGlyphSize,
 } from "./PxiAnimatedGlyph";
 import { PxiGlyph } from "./PxiGlyph";
-import {
-  pxiConicBandCSS,
-  pxiConicSpin,
-  pxiGlowBreathe,
-  pxiGlowFlashOpacity,
-  pxiGlowWipe,
-  pxiGlowWipeMaskCSS,
-  pxiThinkingGlowWipe,
-} from "./pxiStyles";
 
 export type PxiButtonSize = PxiAnimatedGlyphSize;
 export type PxiButtonVariant = "default" | "quiet";
@@ -46,10 +46,10 @@ export interface PxiButtonProps extends Omit<
 }
 
 const pxiButtonCSS = css`
-  --pxi-treatment-stroke-width: var(--global-border-size-thin);
+  --ai-treatment-stroke-width: var(--global-border-size-thin);
   --pxi-button-background-color-hover: color-mix(
     in srgb,
-    var(--pxi-treatment-color-middle) 6%,
+    var(--ai-treatment-color-middle) 6%,
     transparent
   );
   position: relative;
@@ -67,19 +67,19 @@ const pxiButtonCSS = css`
   &::before {
     content: "";
     position: absolute;
-    inset: calc(-1 * var(--pxi-treatment-stroke-width));
+    inset: calc(-1 * var(--ai-treatment-stroke-width));
     border-radius: inherit;
     pointer-events: none;
-    ${pxiConicBandCSS};
+    ${aiConicBandCSS};
     z-index: 1;
     opacity: 0.82;
-    animation: ${pxiConicSpin} var(--pxi-conic-spin-duration) linear infinite;
+    animation: ${aiConicSpin} var(--ai-conic-spin-duration) linear infinite;
   }
 
   .pxi-button__glow {
-    ${pxiGlowWipeMaskCSS};
+    ${aiGlowWipeMaskCSS};
     position: absolute;
-    inset: calc(-1 * var(--pxi-glow-bleed));
+    inset: calc(-1 * var(--ai-glow-bleed));
     z-index: 0;
     border-radius: inherit;
     pointer-events: none;
@@ -88,9 +88,9 @@ const pxiButtonCSS = css`
   .pxi-button__glow::before {
     content: "";
     position: absolute;
-    inset: var(--pxi-glow-bleed);
+    inset: var(--ai-glow-bleed);
     border-radius: inherit;
-    box-shadow: var(--pxi-glow-box-shadow-rest);
+    box-shadow: var(--ai-glow-box-shadow-rest);
     opacity: 0;
   }
 
@@ -103,14 +103,14 @@ const pxiButtonCSS = css`
   }
 
   &[data-pxi-should-flash="true"] .pxi-button__glow {
-    animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration)
-      var(--pxi-glow-wipe-easing) 1;
+    animation: ${aiGlowWipe} var(--ai-glow-wipe-duration)
+      var(--ai-glow-wipe-easing) 1;
   }
 
   &[data-pxi-should-flash="true"] .pxi-button__glow::before {
     animation:
-      ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out 1,
-      ${pxiGlowFlashOpacity} var(--pxi-glow-wipe-duration) linear 1;
+      ${aiGlowBreathe} var(--ai-glow-wipe-duration) ease-in-out 1,
+      ${aiGlowFlashOpacity} var(--ai-glow-wipe-duration) linear 1;
   }
 
   &[data-variant="quiet"] {
@@ -140,20 +140,20 @@ const pxiButtonCSS = css`
       opacity: 1;
       -webkit-mask-position: center;
       mask-position: center;
-      animation: ${pxiThinkingGlowWipe} 3600ms linear infinite both -0.5s;
+      animation: ${aiThinkingGlowWipe} 3600ms linear infinite both -0.5s;
     }
 
     .pxi-button__glow::before {
       opacity: 1;
-      animation: ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out
+      animation: ${aiGlowBreathe} var(--ai-glow-wipe-duration) ease-in-out
         infinite;
     }
 
     .pxi-button__thinking-glyph {
       color: color-mix(
         in srgb,
-        var(--pxi-treatment-color-middle) 78%,
-        var(--pxi-treatment-color-end)
+        var(--ai-treatment-color-middle) 78%,
+        var(--ai-treatment-color-end)
       );
     }
 
@@ -203,7 +203,7 @@ export function PxiButton({
         buttonProps.onAnimationEnd?.(event);
         // animationend events from the button's other treatments (glyph,
         // conic band) bubble here too; only the glow wipe ends the flash.
-        if (event.animationName === pxiGlowWipe.name) {
+        if (event.animationName === aiGlowWipe.name) {
           onFlashEnd?.();
         }
       }}

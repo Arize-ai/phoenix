@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+import { aiGlowWipe } from "@phoenix/components/ai/treatment";
 import {
   DRAWER_CLASS_NAME,
   MODAL_OVERLAY_CLASS_NAME,
@@ -17,7 +18,6 @@ import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import type { AgentPosition, AgentStore } from "@phoenix/store/agentStore";
 
 import { AgentChatTopNavButton } from "../AgentChatTopNavButton";
-import { pxiGlowWipe } from "../pxiStyles";
 
 installTestStorage();
 
@@ -202,7 +202,7 @@ describe("AgentChatTopNavButton", () => {
 
     act(() => {
       if (button) {
-        dispatchAnimationEnd(button, pxiGlowWipe.name);
+        dispatchAnimationEnd(button, aiGlowWipe.name);
       }
     });
     expect(button?.hasAttribute("data-pxi-should-flash")).toBe(false);

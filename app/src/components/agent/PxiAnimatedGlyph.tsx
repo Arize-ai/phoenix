@@ -1,9 +1,12 @@
 import { css } from "@emotion/react";
 
+import {
+  aiConicGradientCSS,
+  aiConicSpin,
+} from "@phoenix/components/ai/treatment";
 import { classNames } from "@phoenix/utils/classNames";
 
 import { getPxiGlyphSVGDataUrl, svgSize } from "./PxiGlyph";
-import { pxiConicGradientCSS, pxiConicSpin } from "./pxiStyles";
 
 const pxiGlyphMaskImage = `url("${getPxiGlyphSVGDataUrl({ fill: "black" })}")`;
 
@@ -33,8 +36,8 @@ const animatedGlyphMarkCSS = css`
   height: var(--pxi-animated-glyph-mark-size);
   background: color-mix(
     in srgb,
-    var(--pxi-treatment-color-middle) 78%,
-    var(--pxi-treatment-color-end)
+    var(--ai-treatment-color-middle) 78%,
+    var(--ai-treatment-color-end)
   );
   -webkit-mask-image: ${pxiGlyphMaskImage};
   mask-image: ${pxiGlyphMaskImage};
@@ -47,12 +50,12 @@ const animatedGlyphMarkCSS = css`
 
   &::before {
     content: "";
-    ${pxiConicGradientCSS};
+    ${aiConicGradientCSS};
     display: block;
     width: 100%;
     height: 100%;
     opacity: 0.35;
-    animation: ${pxiConicSpin} var(--pxi-conic-spin-duration) linear infinite;
+    animation: ${aiConicSpin} var(--ai-conic-spin-duration) linear infinite;
   }
 
   @media (prefers-reduced-motion: reduce) {
