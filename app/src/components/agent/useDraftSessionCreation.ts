@@ -11,7 +11,7 @@ import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { useDraftSessionCreationCreateAgentSessionMutation } from "./__generated__/useDraftSessionCreationCreateAgentSessionMutation.graphql";
-import type { AgentChatOperationError } from "./agentChatOperationError";
+import type { AgentChatOperationError } from "./types";
 import {
   AGENT_SESSIONS_CONNECTION_KEY,
   SETTINGS_AGENT_SESSIONS_CONNECTION_KEY,

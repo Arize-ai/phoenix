@@ -10,7 +10,7 @@ import {
   buildAgentCompactApiUrl,
 } from "@phoenix/agent/chat/agentChatApi";
 import type { AgentChatRequestBodyPatch } from "@phoenix/agent/chat/buildAgentChatRequestBody";
-import { isRequestActive } from "@phoenix/agent/chat/chatStatus";
+import { isRequestActive } from "@phoenix/agent/chat/chatUtils";
 import {
   createAgentSessionChat,
   getTurnClientState,
@@ -35,7 +35,7 @@ import {
   type PendingAgentMessage,
 } from "@phoenix/store/agentStore";
 
-import type { AgentChatOperationError } from "./agentChatOperationError";
+import type { AgentChatOperationError } from "./types";
 import { refetchAgentSession } from "./agentSessionRelay";
 import { selectAgentModel } from "./useAgentChatPanelState";
 import { useAgentSessionHistory } from "./useAgentSessionHistory";
@@ -45,7 +45,7 @@ import {
 } from "./useAgentSessionSync";
 import { useDraftSessionCreation } from "./useDraftSessionCreation";
 
-export type { AgentChatOperationError } from "./agentChatOperationError";
+export type { AgentChatOperationError } from "./types";
 
 /**
  * Subscribes the current render surface to the persistent AI SDK chat runtime

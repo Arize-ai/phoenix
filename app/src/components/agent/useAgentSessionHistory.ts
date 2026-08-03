@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
 import { buildAgentChatApiUrl } from "@phoenix/agent/chat/agentChatApi";
-import { isRequestActive } from "@phoenix/agent/chat/chatStatus";
+import { isRequestActive } from "@phoenix/agent/chat/chatUtils";
 import {
   REWIND_CLEARED_TOOL_NAMES,
   clearPendingToolState,

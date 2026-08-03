@@ -3,7 +3,7 @@ import type { ChatStatus } from "ai";
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { useRelayEnvironment } from "react-relay";
 
-import { isRequestActive } from "@phoenix/agent/chat/chatStatus";
+import { isRequestActive } from "@phoenix/agent/chat/chatUtils";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
