@@ -21,7 +21,11 @@ import { AISearchRelayEnvironment } from "./utils/aiSearchRelayEnvironment";
 // The field reads the ai-search flag; seed it on so the AI search surfaces
 // (the sparkle toggle and the settings popover) render in the stories
 const FEATURE_FLAGS: FeatureFlagsContextType = {
-  featureFlags: { "agent-experimental-settings": false, "ai-search": true },
+  featureFlags: {
+    "agent-experimental-settings": false,
+    "ai-search": true,
+    chat: false,
+  },
   setFeatureFlags: () => undefined,
 };
 
