@@ -13,7 +13,8 @@ import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
  */
 export type SlashMenuItem = {
   name: string;
-  summary: string;
+  /** Absent for skills that define no summary; commands always have one. */
+  summary: string | null;
   kind: "skill" | "command";
   /** Display string for a command's keyboard shortcut, when it has one. */
   keybind?: string;

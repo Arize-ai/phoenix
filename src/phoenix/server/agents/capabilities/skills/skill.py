@@ -42,9 +42,10 @@ class Skill:
         if not name:
             raise ValueError(f'Skill at {skill_file} is missing the required "name" field')
 
-        description = frontmatter.get("description") or ""
-        summary = frontmatter.get("summary")
-        summary = summary.strip() if isinstance(summary, str) and summary.strip() else None
+        raw_description = frontmatter.get("description")
+        description = raw_description if isinstance(raw_description, str) else ""
+        raw_summary = frontmatter.get("summary")
+        summary = raw_summary.strip() or None if isinstance(raw_summary, str) else None
         metadata = {
             key: value
             for key, value in frontmatter.items()
@@ -54,7 +55,7 @@ class Skill:
         return cls(
             name=name,
             description=description,
-            summary=summary.strip() if summary else None,
+            summary=summary,
             content=instructions,
             path=skill_folder,
             resources=resources or [],

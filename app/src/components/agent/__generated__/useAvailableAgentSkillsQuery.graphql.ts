@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<edfcb8c95bd957d622d45ef38ddc4c78>>
+ * @generated SignedSource<<2e2ff6d21c90c13bfe450ec3819d1a6e>>
  * @lightSyntaxTransform
  */
 
@@ -21,7 +21,7 @@ export type useAvailableAgentSkillsQuery$data = {
   readonly availableAgentSkills: ReadonlyArray<{
     readonly description: string;
     readonly name: string;
-    readonly summary: string;
+    readonly summary: string | null;
   }>;
 };
 export type useAvailableAgentSkillsQuery = {

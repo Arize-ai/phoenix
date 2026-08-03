@@ -1,3 +1,5 @@
+from typing import Optional
+
 import strawberry
 
 
@@ -11,6 +13,10 @@ class AgentSkill:
     description: str = strawberry.field(
         description="The model-facing trigger guidance shown to the assistant.",
     )
-    summary: str = strawberry.field(
-        description="The summary for this skill.",
+    summary: Optional[str] = strawberry.field(
+        description=(
+            "A short human-facing label for this skill, shown in the skill picker. "
+            "Absent when the skill does not define one; `description` is model-facing "
+            "trigger guidance and is not a substitute."
+        ),
     )

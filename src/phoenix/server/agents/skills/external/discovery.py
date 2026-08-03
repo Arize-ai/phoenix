@@ -207,7 +207,7 @@ def _load_into(
 
     try:
         skill = Skill.from_file(skill_file)
-    except (OSError, UnicodeDecodeError, ValueError) as error:
+    except (OSError, UnicodeDecodeError, ValueError, TypeError, AttributeError) as error:
         result.diagnostics.append(
             SkillDiagnostic(
                 code=SkillDiagnosticCode.MALFORMED,

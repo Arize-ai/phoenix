@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from phoenix.server.agents.skills.external import (
     SkillDiagnosticCode,
     discover_skills_in_directory,
@@ -247,3 +249,45 @@ class TestRootAsSkill:
 
         assert result.skills == []
         assert _codes(result) == [SkillDiagnosticCode.NAME_MISMATCH]
+
+
+class TestNonStringFrontmatter:
+    """YAML from an untrusted source can put any type in any field."""
+
+    @pytest.mark.parametrize(
+        ("field", "line"),
+        [
+            ("empty summary", "summary:"),
+            ("numeric summary", "summary: 123"),
+            ("list summary", "summary: [a, b]"),
+        ],
+    )
+    def test_a_non_string_summary_does_not_crash(
+        self, source_root: Path, field: str, line: str
+    ) -> None:
+        skill_dir = source_root / "demo"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text(
+            f"---\nname: demo\ndescription: Use for demos.\n{line}\n---\n\nbody\n",
+            encoding="utf-8",
+        )
+
+        result = discover_skills_in_directory(source_root, source="test")
+
+        assert [skill.name for skill in result.skills] == ["demo"]
+        assert result.skills[0].summary is None
+
+    @pytest.mark.parametrize("line", ["description: 42", "description: [a, b]"])
+    def test_a_non_string_description_is_a_diagnostic_not_a_crash(
+        self, source_root: Path, line: str
+    ) -> None:
+        skill_dir = source_root / "demo"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text(
+            f"---\nname: demo\n{line}\n---\n\nbody\n", encoding="utf-8"
+        )
+
+        result = discover_skills_in_directory(source_root, source="test")
+
+        assert result.skills == []
+        assert _codes(result) == [SkillDiagnosticCode.INVALID_DESCRIPTION]

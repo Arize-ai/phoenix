@@ -227,27 +227,6 @@ hyphenated slug matching its directory. `description` is what the agent matches
 against when deciding whether the skill applies, so make it specific. Supporting
 files are referenced from `SKILL.md` by relative path and read only when it says to.
 
-Things worth knowing before you rely on this:
-
-- **Skills load at startup.** Adding or changing one needs a restart. Remote sources
-  are fetched once, pinned by ref and content digest in a lockfile, and cached under
-  `PHOENIX_WORKING_DIR/skills`. An unreachable network falls back to the cache and
-  never blocks startup.
-- **They are read-only to the agent.** Skills are mounted read-only, so PXI can read
-  them but cannot modify them.
-- **A malformed skill is skipped, not fatal.** Invalid names, oversized bodies, and
-  bad frontmatter are logged as warnings and that skill alone is ignored.
-- **Built-in skills win a name conflict.** A source cannot shadow a skill Phoenix
-  ships.
-- **Your skills are marked third-party to the model,** which is told to treat their
-  contents as reference data rather than as instructions. Skills you configure are
-  still visible to everyone using PXI on this deployment, so only add sources you
-  trust.
-- **`allowed-tools` is ignored.** Phoenix has no per-skill tool gating, so a skill
-  cannot widen or narrow what PXI may do.
-- **Server-side only.** These skills go to the server-side agent; the browser
-  assistant's skill catalog is unchanged.
-
 ## You stay in control
 
 Agent assistance is opt-in. PXI can be turned off completely, runs under an
