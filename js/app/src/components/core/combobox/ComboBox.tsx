@@ -14,12 +14,12 @@ import {
   Label,
   ListBox,
   ListBoxItem,
-  Popover,
   Text,
 } from "react-aria-components";
 
 import { fieldBaseCSS } from "../field/styles";
 import { Icon, Icons, SelectChevronUpDownIcon } from "../icon";
+import { Popover } from "../overlay/Popover";
 import type { SizingProps } from "../types";
 import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
 
