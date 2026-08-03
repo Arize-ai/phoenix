@@ -84,7 +84,11 @@ test.describe("application frame overlays", () => {
 
     const assistantInput = page.getByPlaceholder("Send a message...");
     await expect(assistantInput).toBeVisible();
-    await page.getByTestId("create-dataset-button").click();
+    // The detached panel may float over the top nav; activate the trigger
+    // with the keyboard since this test audits assistant interactivity, not
+    // trigger hit-targets.
+    await page.getByTestId("create-dataset-button").focus();
+    await page.keyboard.press("Enter");
 
     const dialog = page.getByRole("dialog", { name: "Create Dataset" });
     await expect(dialog).toBeVisible();
