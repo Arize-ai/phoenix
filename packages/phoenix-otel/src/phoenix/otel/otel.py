@@ -283,25 +283,16 @@ class TracerProvider(_TracerProvider):
         """
         Registers a new `SpanProcessor` for this `TracerProvider`.
 
-        If this `TracerProvider` has a default processor, it will be removed
-        (and a warning emitted). Pass `replace_default_processor=False` to keep
-        the default processor alongside the newly added one.
+        If this `TracerProvider` has a default processor, it will be removed.
+        Pass `replace_default_processor=False` to keep the default processor
+        alongside the newly added one.
         """
 
         if self._default_processor is not None and replace_default_processor:
-            warnings.warn(
-                "The default span processor (the Phoenix exporter configured at "
-                "construction) is being replaced by the newly added span processor. "
-                "Spans will no longer be exported by the default processor. Pass "
-                "`replace_default_processor=False` to keep it alongside the new one.",
-                stacklevel=2,
-            )
             self._shutdown_default_processor()
         return super().add_span_processor(*args, **kwargs)
 
     def _set_default_processor(self, span_processor: SpanProcessor) -> None:
-        # Internal setup path (e.g. `register`): replacing the default here is the
-        # intended configuration step, so it happens without a warning.
         self._shutdown_default_processor()
         super().add_span_processor(span_processor)
         self._default_processor = span_processor

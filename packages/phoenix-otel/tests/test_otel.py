@@ -1,5 +1,4 @@
 import os
-import warnings
 from pathlib import Path
 from typing import Any, Generator, Optional
 from unittest.mock import MagicMock, Mock, patch
@@ -364,8 +363,7 @@ class TestTracerProvider:
         assert tracer_provider._default_processor
 
         custom_processor = Mock(spec=_SimpleSpanProcessor)
-        with pytest.warns(UserWarning, match="default span processor"):
-            tracer_provider.add_span_processor(custom_processor)
+        tracer_provider.add_span_processor(custom_processor)
 
         assert not tracer_provider._default_processor
         # The default processor should have been removed
@@ -378,9 +376,7 @@ class TestTracerProvider:
         initial_count = len(tracer_provider._active_span_processor._span_processors)
 
         custom_processor = Mock(spec=_SimpleSpanProcessor)
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")  # keeping the default must NOT warn
-            tracer_provider.add_span_processor(custom_processor, replace_default_processor=False)
+        tracer_provider.add_span_processor(custom_processor, replace_default_processor=False)
 
         assert tracer_provider._default_processor
         # Both processors should be present
@@ -393,8 +389,7 @@ class TestTracerProvider:
         tracer_provider.add_span_processor(first_custom_processor, replace_default_processor=False)
 
         second_custom_processor = Mock(spec=_SimpleSpanProcessor)
-        with pytest.warns(UserWarning, match="default span processor"):
-            tracer_provider.add_span_processor(second_custom_processor)
+        tracer_provider.add_span_processor(second_custom_processor)
 
         processors = tracer_provider._active_span_processor._span_processors
         assert default_processor not in processors
@@ -411,16 +406,7 @@ class TestTracerProvider:
             assert tracer_provider._default_processor is None
 
         with patch.object(default_processor, "shutdown", side_effect=assert_default_is_inactive):
-            with pytest.warns(UserWarning, match="default span processor"):
-                tracer_provider.add_span_processor(Mock(spec=_SimpleSpanProcessor))
-
-    def test_register_does_not_warn_on_default_processor_setup(self) -> None:
-        # `register` replaces the provider's construction-time default internally as its
-        # intended configuration step — that path must stay silent.
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", UserWarning)
-            tracer_provider = register(set_global_tracer_provider=False, verbose=False)
-        assert tracer_provider._default_processor
+            tracer_provider.add_span_processor(Mock(spec=_SimpleSpanProcessor))
 
     @patch("builtins.print")
     def test_tracer_provider_verbose(self, mock_print: Any) -> None:
