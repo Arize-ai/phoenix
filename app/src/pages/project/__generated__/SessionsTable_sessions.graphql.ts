@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0b82baf799800f37768bc3937cc2cd08>>
+ * @generated SignedSource<<3f30896a409d0e570cb07f8c16111a06>>
  * @lightSyntaxTransform
  */
 
@@ -164,6 +164,11 @@ return {
     {
       "kind": "RootArgument",
       "name": "timeRange"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "userId"
     }
   ],
   "kind": "Fragment",
@@ -225,6 +230,11 @@ return {
           "kind": "Variable",
           "name": "timeRange",
           "variableName": "timeRange"
+        },
+        {
+          "kind": "Variable",
+          "name": "userId",
+          "variableName": "userId"
         }
       ],
       "concreteType": "ProjectSessionConnection",
@@ -621,6 +631,6 @@ return {
 };
 })();
 
-(node as any).hash = "98b3aa82f458ea6c6dbba4f424f3c15e";
+(node as any).hash = "799d8a8aacbdd043bbb25c5810c9a24a";
 
 export default node;

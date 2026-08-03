@@ -2791,27 +2791,27 @@ type Project implements Node {
   """
   Sessions in the project. The time range filter uses interval-overlap semantics: a session is included iff [startTime, endTime] intersects [timeRange.start, timeRange.end), i.e. the session had activity inside the window. Long-running sessions therefore appear in every window they overlap.
   """
-  sessions(first: Int!, timeRange: TimeRange, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String): ProjectSessionConnection!
+  sessions(first: Int!, timeRange: TimeRange, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String, userId: String): ProjectSessionConnection!
 
   """
   Number of sessions in the project, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
   """
-  sessionCount(timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Int!
+  sessionCount(timeRange: TimeRange, filterIoSubstring: String, sessionId: String, userId: String): Int!
 
   """
   Average session duration in milliseconds, i.e. the mean of end time minus start time across sessions, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
   """
-  averageSessionDurationMs(timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Float
+  averageSessionDurationMs(timeRange: TimeRange, filterIoSubstring: String, sessionId: String, userId: String): Float
 
   """
   Average number of traces (e.g. conversation turns) per session, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
   """
-  averageTracesPerSession(timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Float
+  averageTracesPerSession(timeRange: TimeRange, filterIoSubstring: String, sessionId: String, userId: String): Float
 
   """
   Quantile (e.g. p50, p99) of session duration in milliseconds, i.e. end time minus start time, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
   """
-  sessionDurationMsQuantile(probability: Float!, timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Float
+  sessionDurationMsQuantile(probability: Float!, timeRange: TimeRange, filterIoSubstring: String, sessionId: String, userId: String): Float
 
   """
   Names of all available annotations for traces. (The list contains no duplicates.)

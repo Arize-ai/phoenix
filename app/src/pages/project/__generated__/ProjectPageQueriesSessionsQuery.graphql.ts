@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5c99a62b1db506c5c6c073aa443e6435>>
+ * @generated SignedSource<<489cc3649fc7e299ecea296f3aec64f8>>
  * @lightSyntaxTransform
  */
 
@@ -583,7 +583,8 @@ return {
                   "sort",
                   "filterIoSubstring",
                   "timeRange",
-                  "sessionId"
+                  "sessionId",
+                  "userId"
                 ],
                 "handle": "connection",
                 "key": "SessionsTable_sessions",
