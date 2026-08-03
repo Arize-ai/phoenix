@@ -3,13 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
 from pydantic_ai import RunContext
-from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
+from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "set_spans_filter"
@@ -51,7 +50,10 @@ DESCRIPTION = (
     "`cumulative_token_count.{prompt,completion,total}`, "
     "`llm.token_count.{prompt,completion,total}`. Compare with `<`, "
     "`<=`, `>`, `>=`.\n"
-    "  - Datetime: `start_time`, `end_time`.\n"
+    "  - Datetime: `start_time`, `end_time`. Resolve relative phrases like "
+    "'last week' or 'past 5 days' against the value returned by the "
+    "`get_current_datetime` tool — call it first. Never guess the current "
+    "date from prior knowledge.\n"
     "  - Attribute access: `attributes['key.path']`, `input.value`, "
     "`output.value`, `metadata['key']`.\n"
     "  - Span annotations: `annotations['Name'].label`, "
@@ -115,19 +117,9 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class SetSpansFilterCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: Template
-
+class SetSpansFilterCapability(AbstractGatedToolCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
-        instructions = self.instructions
-
-        def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions.render()
-
-        return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
         project = ctx.deps.contexts.project
