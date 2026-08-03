@@ -6,9 +6,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 from pydantic_ai import RunContext, Tool
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 
-from phoenix.server.agents.capabilities.tools.base import AbstractToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 GET_CURRENT_DATETIME_TOOL_NAME = "get_current_datetime"
@@ -72,7 +72,7 @@ class GetCurrentDatetimeToolset(FunctionToolset[AgentDependencies]):
 
 
 @dataclass
-class GetCurrentDatetimeCapability(AbstractToolCapability[AgentDependencies]):
+class GetCurrentDatetimeCapability(AbstractCapability[AgentDependencies]):
     """Capability that adds the current-datetime reader."""
 
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
