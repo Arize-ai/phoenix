@@ -379,15 +379,6 @@ export interface AgentState extends AgentProps {
     sessionId: string,
     notice: AgentSessionDismissableNotice | null
   ) => void;
-  /** Model selections keyed by session ID. */
-  modelConfigBySessionId: Partial<Record<string, ModelConfig>>;
-  setSessionModelConfig: (sessionId: string, config: ModelConfig) => void;
-  /**
-   * Sessions whose model change has not yet been acknowledged by the server.
-   */
-  isModelWritePendingBySessionId: Partial<Record<string, boolean>>;
-  setSessionModelWritePending: (sessionId: string, isPending: boolean) => void;
-
   /**
    * Current unsent prompt-input draft keyed by session ID. Ephemeral and kept
    * out of local-storage persistence, but survives remounts while the app is
@@ -733,14 +724,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             ...state.sessionNoticeBySessionId,
           };
           delete newSessionNoticeBySessionId[sessionId];
-          const newModelConfigBySessionId = {
-            ...state.modelConfigBySessionId,
-          };
-          delete newModelConfigBySessionId[sessionId];
-          const newIsModelWritePendingBySessionId = {
-            ...state.isModelWritePendingBySessionId,
-          };
-          delete newIsModelWritePendingBySessionId[sessionId];
           const newDraftInputBySessionId = { ...state.draftInputBySessionId };
           delete newDraftInputBySessionId[sessionId];
           const newPendingMessageBySessionId = {
@@ -759,8 +742,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             isCompactionPendingBySessionId: newIsCompactionPendingBySessionId,
             isBusyElsewhereBySessionId: newIsBusyElsewhereBySessionId,
             sessionNoticeBySessionId: newSessionNoticeBySessionId,
-            modelConfigBySessionId: newModelConfigBySessionId,
-            isModelWritePendingBySessionId: newIsModelWritePendingBySessionId,
             draftInputBySessionId: newDraftInputBySessionId,
             pendingMessageBySessionId: newPendingMessageBySessionId,
             pendingPatchExperimentsByToolCallId:
@@ -975,35 +956,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setSessionNotice" }
-      );
-    },
-    modelConfigBySessionId: {},
-    setSessionModelConfig: (sessionId, config) => {
-      set(
-        (state) => ({
-          modelConfigBySessionId: {
-            ...state.modelConfigBySessionId,
-            [sessionId]: config,
-          },
-        }),
-        false,
-        { type: "setSessionModelConfig" }
-      );
-    },
-    isModelWritePendingBySessionId: {},
-    setSessionModelWritePending: (sessionId, isPending) => {
-      set(
-        (state) => {
-          const next = { ...state.isModelWritePendingBySessionId };
-          if (isPending) {
-            next[sessionId] = true;
-          } else {
-            delete next[sessionId];
-          }
-          return { isModelWritePendingBySessionId: next };
-        },
-        false,
-        { type: "setSessionModelWritePending" }
       );
     },
     // -- Page and mounted contexts (ephemeral) --

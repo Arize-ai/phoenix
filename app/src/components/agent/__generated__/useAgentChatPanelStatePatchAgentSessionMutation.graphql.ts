@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<51dd93f882aa8cedf6fab11baf4db959>>
+ * @generated SignedSource<<57f24761f758e8710d93f63defaffadc>>
  * @lightSyntaxTransform
  */
 
@@ -43,7 +43,27 @@ export type useAgentChatPanelStatePatchAgentSessionMutation$data = {
     };
   };
 };
+export type useAgentChatPanelStatePatchAgentSessionMutation$rawResponse = {
+  readonly patchAgentSession: {
+    readonly agentSession: {
+      readonly id: string;
+      readonly model: {
+        readonly __typename: "AgentBuiltinProviderModelSelection";
+        readonly modelName: string;
+        readonly openaiApiType: OpenAIApiType;
+        readonly provider: ModelProvider;
+      } | {
+        readonly __typename: "AgentCustomProviderModelSelection";
+        readonly modelName: string;
+        readonly providerId: string;
+      } | {
+        readonly __typename: string;
+      };
+    };
+  };
+};
 export type useAgentChatPanelStatePatchAgentSessionMutation = {
+  rawResponse: useAgentChatPanelStatePatchAgentSessionMutation$rawResponse;
   response: useAgentChatPanelStatePatchAgentSessionMutation$data;
   variables: useAgentChatPanelStatePatchAgentSessionMutation$variables;
 };
@@ -218,6 +238,6 @@ return {
 };
 })();
 
-(node as any).hash = "70ca42a01456f3d551a2735da9803d60";
+(node as any).hash = "5678ddb8baaaae2f58c2368cdc2c08b4";
 
 export default node;

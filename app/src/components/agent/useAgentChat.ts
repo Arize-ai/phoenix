@@ -1,7 +1,7 @@
 import { type Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
 import { isToolUIPart } from "ai";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useRelayEnvironment } from "react-relay";
 
 import {
@@ -37,11 +37,14 @@ import {
 } from "@phoenix/store/agentStore";
 import { isRecord } from "@phoenix/utils/typeUtils";
 
-import { useModelMenuData } from "../generative/useModelMenuData";
-import { applyPersistedAgentSessionModel } from "./agentSessionModel";
+import {
+  readAgentSessionModelSelection,
+  readAgentSessionModelSelectionFromFragment,
+  shouldNotifyModelChangedElsewhere,
+  toAgentModelSelection,
+} from "./agentSessionModel";
 import { refetchAgentSession } from "./agentSessionRelay";
 import type { AgentChatOperationError } from "./types";
-import { selectAgentModel } from "./useAgentChatPanelState";
 import { useAgentSessionHistory } from "./useAgentSessionHistory";
 import {
   useAgentSessionSync,
@@ -97,13 +100,6 @@ export function useAgentChat({
   shouldSyncOnMount?: boolean;
 }) {
   const store = useAgentStore();
-  const { customProviders } = useModelMenuData({
-    fetchPolicy: "store-or-network",
-  });
-  const customProvidersRef = useRef(customProviders);
-  useEffect(() => {
-    customProvidersRef.current = customProviders;
-  }, [customProviders]);
   const runtime = useAgentChatRuntime();
   const relayEnvironment = useRelayEnvironment();
   const [operationError, setOperationError] =
@@ -117,15 +113,13 @@ export function useAgentChat({
   const [compactionStatus, setCompactionStatus] = useState<string | null>(null);
   const isDraft = sessionId == null || sessionId === DRAFT_SESSION_ID;
   const isCompacting = useAgentContext((state) =>
-    sessionId
-      ? (state.isCompactionPendingBySessionId[sessionId] ?? false)
-      : false
+    sessionId ? state.isCompactionPendingBySessionId[sessionId] ?? false : false
   );
   const pendingElicitation = useAgentContext((state) =>
-    sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
+    sessionId ? state.pendingElicitationBySessionId[sessionId] ?? null : null
   );
   const isBusyElsewhere = useAgentContext((state) =>
-    sessionId ? (state.isBusyElsewhereBySessionId[sessionId] ?? false) : false
+    sessionId ? state.isBusyElsewhereBySessionId[sessionId] ?? false : false
   );
 
   /**
@@ -143,7 +137,6 @@ export function useAgentChat({
         seedMessages,
         store,
         relayEnvironment,
-        getCustomProviders: () => customProvidersRef.current,
         onTranscriptSynced: (tail) => {
           // Record the refetched tail so the next poll's sync probe can
           // recognize this client's own turn and skip the full fetch.
@@ -336,13 +329,20 @@ export function useAgentChat({
 
     store.getState().setSessionCompactionPending(sessionId, true);
     void (async () => {
+      // Compaction asserts the session's model as a precondition, read from
+      // the same Relay record the picker renders. The default-config
+      // fallback only covers a missing record, where the server's 409 guard
+      // corrects a mismatch.
+      const assertedModel =
+        readAgentSessionModelSelection({
+          environment: relayEnvironment,
+          sessionId,
+        }) ?? toAgentModelSelection(store.getState().defaultModelConfig);
       try {
         const response = await authFetch(buildAgentCompactApiUrl(sessionId), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: selectAgentModel(store.getState(), sessionId),
-          }),
+          body: JSON.stringify({ model: assertedModel }),
         });
         if (!response.ok) {
           const errorBody = await response.text().catch(() => "");
@@ -358,27 +358,17 @@ export function useAgentChat({
             response.status === 409 &&
             isSessionModelStaleConflict(errorBody)
           ) {
-            // Another client moved the session to a different model, so no
-            // summary was generated. Refetch so the picker matches the server
-            // and tell the user what changed rather than raising a red error.
-            // A 409 racing this client's own in-flight model change is not
-            // another window's doing: skip the notice and let the guarded
-            // store write ignore the refetched pre-change model.
+            // The session is on a different model than this client asserted,
+            // so no summary was generated. Refetching normalizes the
+            // server's model into Relay, which the picker and the next
+            // send's assert derive from directly. The notice is raised only
+            // when the rejection was another client's change, not this
+            // client racing its own in-flight change.
             restorePendingMessage();
-            if (
-              store.getState().isModelWritePendingBySessionId[sessionId] !==
-              true
-            ) {
-              store
-                .getState()
-                .setSessionNotice(sessionId, "modelChangedElsewhere");
-            }
             void refetchAgentSession({
               environment: relayEnvironment,
               sessionId,
             }).then((data) => {
-              // Resync the store the picker and the next send read; the Relay
-              // record alone leaves this client asserting the stale model.
               const agentSession =
                 data?.agentSession.__typename === "AgentSession"
                   ? data.agentSession
@@ -386,12 +376,20 @@ export function useAgentChat({
               if (!agentSession) {
                 return;
               }
-              applyPersistedAgentSessionModel({
-                session: agentSession,
-                sessionId,
-                customProviders: customProvidersRef.current,
-                state: store.getState(),
+              const shouldNotify = shouldNotifyModelChangedElsewhere({
+                assertedModel,
+                refetchedModel:
+                  readAgentSessionModelSelectionFromFragment(agentSession),
+                currentModel: readAgentSessionModelSelection({
+                  environment: relayEnvironment,
+                  sessionId,
+                }),
               });
+              if (shouldNotify) {
+                store
+                  .getState()
+                  .setSessionNotice(sessionId, "modelChangedElsewhere");
+              }
             });
             return;
           }

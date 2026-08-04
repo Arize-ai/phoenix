@@ -16,10 +16,8 @@ import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import { useModelMenuData } from "../generative/useModelMenuData";
 import type { useAgentSessionHistoryBranchAgentSessionMutation } from "./__generated__/useAgentSessionHistoryBranchAgentSessionMutation.graphql";
 import type { useAgentSessionHistoryTruncateAgentSessionMutation } from "./__generated__/useAgentSessionHistoryTruncateAgentSessionMutation.graphql";
-import { applyPersistedAgentSessionModel } from "./agentSessionModel";
 import { AGENT_SESSIONS_CONNECTION_KEY } from "./agentSessionRelay";
 
 const truncateAgentSessionMutation = graphql`
@@ -104,9 +102,6 @@ export function useAgentSessionHistory({
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
-  const { customProviders } = useModelMenuData({
-    fetchPolicy: "store-or-network",
-  });
   const [commitTruncateAgentSession] =
     useMutation<useAgentSessionHistoryTruncateAgentSessionMutation>(
       truncateAgentSessionMutation
@@ -260,12 +255,6 @@ export function useAgentSessionHistory({
                 ),
             });
             const state = store.getState();
-            applyPersistedAgentSessionModel({
-              session: payload.agentSession,
-              sessionId: branchSessionId,
-              customProviders,
-              state,
-            });
             if (restoredInput) {
               state.setDraftInput(branchSessionId, restoredInput);
             }
@@ -285,7 +274,6 @@ export function useAgentSessionHistory({
       clearError,
       commitBranchAgentSession,
       createChatForSession,
-      customProviders,
       isBusyElsewhere,
       isDraft,
       runtime,

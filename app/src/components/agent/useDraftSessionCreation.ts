@@ -12,14 +12,14 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 import type { useDraftSessionCreationCreateAgentSessionMutation } from "./__generated__/useDraftSessionCreationCreateAgentSessionMutation.graphql";
 import {
+  toAgentModelSelection,
+  toAgentModelSelectionInput,
+} from "./agentSessionModel";
+import {
   AGENT_SESSIONS_CONNECTION_KEY,
   SETTINGS_AGENT_SESSIONS_CONNECTION_KEY,
 } from "./agentSessionRelay";
 import type { AgentChatOperationError } from "./types";
-import {
-  selectAgentModel,
-  toAgentModelSelectionInput,
-} from "./useAgentChatPanelState";
 
 const createAgentSessionMutation = graphql`
   mutation useDraftSessionCreationCreateAgentSessionMutation(
@@ -116,7 +116,9 @@ export function useDraftSessionCreation({
     store.getState().setSessionResponsePending(DRAFT_SESSION_ID, true);
     const draftState = store.getState();
     const isTemporary = draftState.isDraftSessionTemporary;
-    const modelSelection = selectAgentModel(draftState, DRAFT_SESSION_ID);
+    // A draft has no server record; it renders and persists the default
+    // model config, which travels with the create mutation.
+    const modelSelection = toAgentModelSelection(draftState.defaultModelConfig);
     commitCreateAgentSession({
       variables: {
         input: {
@@ -143,10 +145,6 @@ export function useDraftSessionCreation({
         );
         setPendingDraftUserMessage(null);
         const state = store.getState();
-        state.setSessionModelConfig(
-          newSessionId,
-          draftState.defaultModelConfig
-        );
         state.clearSessionEphemeralState(DRAFT_SESSION_ID);
         state.setIsDraftSessionTemporary(state.defaultTemporaryChat);
         state.setActiveSession(newSessionId);

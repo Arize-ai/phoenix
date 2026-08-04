@@ -1,11 +1,4 @@
-import {
-  Suspense,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useState,
-} from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import {
   ConnectionHandler,
@@ -26,15 +19,19 @@ import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import type { AgentPosition } from "@phoenix/store/agentStore";
 import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
+import type { ModelConfig } from "@phoenix/store/playground/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import { useModelMenuData } from "../generative/useModelMenuData";
+import type { agentSessionModelSessionQuery } from "./__generated__/agentSessionModelSessionQuery.graphql";
 import type { agentSessionRelaySessionQuery } from "./__generated__/agentSessionRelaySessionQuery.graphql";
 import type { AgentSessionsResource_sessions$key } from "./__generated__/AgentSessionsResource_sessions.graphql";
 import type { AgentSessionsResourceDeleteMutation } from "./__generated__/AgentSessionsResourceDeleteMutation.graphql";
 import type { AgentSessionsResourceQuery } from "./__generated__/AgentSessionsResourceQuery.graphql";
 import { AgentChatHeader } from "./AgentChatPanelView";
-import { applyPersistedAgentSessionModel } from "./agentSessionModel";
+import {
+  sessionModelQuery,
+  useAgentSessionModelConfig,
+} from "./agentSessionModel";
 import {
   AGENT_SESSIONS_CONNECTION_KEY,
   SESSION_PAGE_SIZE,
@@ -318,15 +315,14 @@ function AgentSessionsContent({
   // Decide once per session activation whether the surface must first seed
   // from the server transcript. The decision is deliberately frozen for the
   // activation's duration: the transcript view creates the runtime chat when
-  // it mounts, and flipping to the direct branch on a later render would
+  // it mounts, and flipping to the resident branch on a later render would
   // remount the chat surface mid-conversation.
   const needsTranscriptSeed = useMemo(
     () =>
       activeSessionId != null &&
       activeSessionId !== DRAFT_SESSION_ID &&
-      (runtime.getChat(activeSessionId) == null ||
-        store.getState().modelConfigBySessionId[activeSessionId] == null),
-    [activeSessionId, runtime, store]
+      runtime.getChat(activeSessionId) == null,
+    [activeSessionId, runtime]
   );
 
   return (
@@ -370,21 +366,28 @@ function AgentSessionsContent({
       ) : null}
       {activeSessionId == null ? (
         <Loading />
-      ) : needsTranscriptSeed ? (
-        <Suspense fallback={<Loading />}>
-          <AgentSessionTranscript
-            key={activeSessionId}
-            sessionId={activeSessionId}
-            onMissing={handleMissingSession}
-          />
-        </Suspense>
       ) : (
-        <AgentChatController
-          key={activeSessionId}
-          sessionId={activeSessionId}
-          initialMessages={[]}
-          shouldSyncOnMount
-        />
+        <Suspense fallback={<Loading />}>
+          {needsTranscriptSeed ? (
+            <AgentSessionTranscript
+              key={activeSessionId}
+              sessionId={activeSessionId}
+              onMissing={handleMissingSession}
+            />
+          ) : activeSessionId === DRAFT_SESSION_ID ? (
+            <AgentChatController
+              key={activeSessionId}
+              sessionId={activeSessionId}
+              initialMessages={[]}
+              shouldSyncOnMount
+            />
+          ) : (
+            <ResidentAgentSessionSurface
+              key={activeSessionId}
+              sessionId={activeSessionId}
+            />
+          )}
+        </Suspense>
       )}
     </>
   );
@@ -417,29 +420,7 @@ function AgentSessionTranscript({
         : [],
     [agentSession?.messages]
   );
-  const store = useAgentStore();
-  // The picker on this surface already fetches the catalog with a network
-  // policy; read the cached copy instead of duplicating the request.
-  const { customProviders } = useModelMenuData({
-    fetchPolicy: "store-or-network",
-  });
-  useLayoutEffect(() => {
-    if (!agentSession) {
-      return;
-    }
-    // The one mount-time seed of the session's persisted model into the
-    // store: the picker and the next send read the store, not Relay, and the
-    // session poll's cheap probe skips unchanged sessions, so without this
-    // an opened session would show the default model instead of its own.
-    // Applied through the guarded server-read path so seeding cannot
-    // overwrite a model change the user made while this query was in flight.
-    applyPersistedAgentSessionModel({
-      session: agentSession,
-      sessionId,
-      customProviders,
-      state: store.getState(),
-    });
-  }, [agentSession, customProviders, sessionId, store]);
+  const sessionModelConfig = useAgentSessionModelConfig(agentSession);
   useEffect(() => {
     if (!agentSession) {
       onMissing(sessionId);
@@ -455,6 +436,34 @@ function AgentSessionTranscript({
       initialMessages={messages}
       isActive={agentSession.isActive}
       shouldSyncOnMount={false}
+      sessionModelConfig={sessionModelConfig}
+    />
+  );
+}
+
+/**
+ * Surface for a persisted session whose runtime chat is already resident. The
+ * chat owns the in-memory transcript, so no transcript fetch happens; the
+ * tiny model query keeps the session's persisted model selection present in
+ * the Relay store — and retained against garbage collection — for the picker
+ * and for the model assert on the next send. It is a store hit except when
+ * the record was collected while the panel was closed.
+ */
+function ResidentAgentSessionSurface({ sessionId }: { sessionId: string }) {
+  const data = useLazyLoadQuery<agentSessionModelSessionQuery>(
+    sessionModelQuery,
+    { id: sessionId },
+    { fetchPolicy: "store-or-network" }
+  );
+  const sessionModelKey =
+    data.agentSession.__typename === "AgentSession" ? data.agentSession : null;
+  const sessionModelConfig = useAgentSessionModelConfig(sessionModelKey);
+  return (
+    <AgentChatController
+      sessionId={sessionId}
+      initialMessages={[]}
+      shouldSyncOnMount
+      sessionModelConfig={sessionModelConfig}
     />
   );
 }
@@ -464,6 +473,7 @@ function AgentChatController({
   initialMessages,
   isActive,
   shouldSyncOnMount,
+  sessionModelConfig,
 }: {
   sessionId: string;
   initialMessages: AgentUIMessage[];
@@ -471,13 +481,18 @@ function AgentChatController({
   isActive?: boolean;
   /** Whether this runtime skipped a fresh transcript query when it mounted. */
   shouldSyncOnMount: boolean;
+  /**
+   * The session's persisted model resolved from its Relay record; absent for
+   * draft surfaces, which render the default model config instead.
+   */
+  sessionModelConfig?: ModelConfig;
 }) {
   const {
     menuValue,
     handleModelChange,
     modelChangeError,
     clearModelChangeError,
-  } = useAgentChatPanelState(sessionId);
+  } = useAgentChatPanelState({ sessionId, sessionModelConfig });
   const {
     messages,
     sendMessage,

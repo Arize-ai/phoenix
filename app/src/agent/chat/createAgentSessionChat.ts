@@ -2,7 +2,10 @@ import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, isToolUIPart } from "ai";
 import { commitLocalUpdate } from "react-relay";
 
-import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatRequestBody";
+import {
+  buildAgentChatRequestBody,
+  type AgentModelSelection,
+} from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
@@ -14,14 +17,17 @@ import {
 } from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import { authFetch } from "@phoenix/authFetch";
-import { applyPersistedAgentSessionModel } from "@phoenix/components/agent/agentSessionModel";
+import {
+  readAgentSessionModelSelection,
+  readAgentSessionModelSelectionFromFragment,
+  shouldNotifyModelChangedElsewhere,
+  toAgentModelSelection,
+} from "@phoenix/components/agent/agentSessionModel";
 import {
   refetchAgentSession,
   type AgentSessionSyncState,
   type RelayEnvironment,
 } from "@phoenix/components/agent/agentSessionRelay";
-import { selectAgentModel } from "@phoenix/components/agent/useAgentChatPanelState";
-import type { CustomProviderInfo } from "@phoenix/components/generative/useModelMenuData";
 import type { AgentStore } from "@phoenix/store/agentStore";
 import { isRecord } from "@phoenix/utils/typeUtils";
 
@@ -58,17 +64,16 @@ export function getTurnClientState(
  *
  * The closures capture the session's canonical Relay ID, so a draft surface
  * only builds a chat after the create-session mutation returns one. All
- * per-send state (model selection, capabilities, contexts) is read from the
- * store at request time — never captured — because the chat is cached
- * per-session in the runtime registry and may outlive the surface that
- * created it.
+ * per-send state is read at request time — never captured — because the chat
+ * is cached per-session in the runtime registry and may outlive the surface
+ * that created it: capabilities and contexts come from the store, and the
+ * model selection comes from the session's Relay record.
  */
 export function createAgentSessionChat({
   sessionId,
   seedMessages,
   store,
   relayEnvironment,
-  getCustomProviders,
   onTranscriptSynced,
 }: {
   /** The session's canonical Relay node ID. */
@@ -77,7 +82,6 @@ export function createAgentSessionChat({
   seedMessages: AgentUIMessage[];
   store: AgentStore;
   relayEnvironment: RelayEnvironment;
-  getCustomProviders: () => readonly CustomProviderInfo[];
   /**
    * Called with the persisted transcript's tail after the turn-completion
    * refetch lands, so the caller's poll can recognize this client's own turn
@@ -88,6 +92,10 @@ export function createAgentSessionChat({
   const chatApiUrl = buildAgentChatApiUrl(sessionId);
   const turnTraceContext = createTurnTraceContextManager();
   const toolTimings = createClientToolTimingRecorder();
+  // The selection the most recent send asserted, kept so a model-stale
+  // rejection can distinguish another client's change from this client
+  // racing its own in-flight change.
+  let lastAssertedModelSelection: AgentModelSelection | null = null;
   const transcriptPersistence = createTranscriptPersistenceCoordinator();
   const turnCompletionGate = createTurnCompletionGate({
     endTurn: async () => {
@@ -137,6 +145,16 @@ export function createAgentSessionChat({
         turnCompletionGate.beginTurn();
         store.getState().setSessionResponsePending(sessionId, true);
         store.getState().setSessionNotice(sessionId, null);
+        // Read from the Relay store at request time — never captured (see
+        // the factory doc comment). The mounted surface retains the
+        // session's model record; the default-config fallback only covers a
+        // missing record, where the server's 409 guard corrects a mismatch.
+        const modelSelection =
+          readAgentSessionModelSelection({
+            environment: relayEnvironment,
+            sessionId,
+          }) ?? toAgentModelSelection(store.getState().defaultModelConfig);
+        lastAssertedModelSelection = modelSelection;
         return {
           body: buildAgentChatRequestBody({
             body,
@@ -147,9 +165,7 @@ export function createAgentSessionChat({
             agentsConfig: store.getState().agentsConfig,
             permissions: store.getState().permissions,
             contexts: selectActiveContexts(store.getState()),
-            // Read from the store at request time — never captured (see the
-            // factory doc comment).
-            modelSelection: selectAgentModel(store.getState(), sessionId),
+            modelSelection,
             turnTraceContext: turnTraceContext.getActive(),
             toolTimings,
           }),
@@ -254,11 +270,11 @@ export function createAgentSessionChat({
         store.getState().setSessionNotice(sessionId, "messagesAddedElsewhere");
       }
       if (isModelStaleRejection) {
-        if (
-          store.getState().isModelWritePendingBySessionId[sessionId] !== true
-        ) {
-          store.getState().setSessionNotice(sessionId, "modelChangedElsewhere");
-        }
+        // Refetching normalizes the server's model into Relay, which every
+        // reader (picker, next send's assert) derives from directly. The
+        // notice is raised only when the rejection was another client's
+        // change, not this client racing its own in-flight change.
+        const assertedModel = lastAssertedModelSelection;
         void refetchAgentSession({
           environment: relayEnvironment,
           sessionId,
@@ -270,12 +286,20 @@ export function createAgentSessionChat({
           if (!agentSession) {
             return;
           }
-          applyPersistedAgentSessionModel({
-            session: agentSession,
-            sessionId,
-            customProviders: getCustomProviders(),
-            state: store.getState(),
+          const shouldNotify = shouldNotifyModelChangedElsewhere({
+            assertedModel,
+            refetchedModel:
+              readAgentSessionModelSelectionFromFragment(agentSession),
+            currentModel: readAgentSessionModelSelection({
+              environment: relayEnvironment,
+              sessionId,
+            }),
           });
+          if (shouldNotify) {
+            store
+              .getState()
+              .setSessionNotice(sessionId, "modelChangedElsewhere");
+          }
         });
         return;
       }

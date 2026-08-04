@@ -1,73 +1,23 @@
 import { useCallback, useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import type { AgentModelSelection } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import type { AgentState } from "@phoenix/store/agentStore";
 import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
 import type { ModelConfig } from "@phoenix/store/playground/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { ModelMenuValue } from "../generative/ModelMenu";
 import type { useAgentChatPanelStatePatchAgentSessionMutation } from "./__generated__/useAgentChatPanelStatePatchAgentSessionMutation.graphql";
+import {
+  toAgentModelSelection,
+  toAgentModelSelectionInput,
+} from "./agentSessionModel";
 import type { AgentChatOperationError } from "./useAgentChat";
-
-/**
- * Canonical {@link ModelConfig} → wire model selection converter. Every path
- * that asserts or persists a session's model (sends, compaction, session
- * creation, model changes) derives its selection here so the asserted model
- * can never drift from the config the store holds.
- */
-export function toAgentModelSelection(
-  config: ModelConfig
-): AgentModelSelection {
-  if (config.customProvider) {
-    return {
-      providerType: "custom",
-      providerId: config.customProvider.id,
-      modelName: config.modelName ?? "",
-    };
-  }
-  return {
-    providerType: "builtin",
-    provider: config.provider,
-    modelName: config.modelName ?? "",
-    ...((config.provider === "OPENAI" ||
-      config.provider === "AZURE_OPENAI") && {
-      openaiApiType:
-        config.openaiApiType === "CHAT_COMPLETIONS"
-          ? "chat_completions"
-          : "responses",
-    }),
-  };
-}
-
-/** Convert a resolved selection into the GraphQL `AgentModelSelectionInput`. */
-export function toAgentModelSelectionInput(model: AgentModelSelection) {
-  if (model.providerType === "custom") {
-    return {
-      custom: {
-        providerId: model.providerId,
-        modelName: model.modelName,
-      },
-    };
-  }
-  return {
-    builtin: {
-      provider: model.provider,
-      modelName: model.modelName,
-      openaiApiType:
-        model.openaiApiType === "chat_completions"
-          ? ("CHAT_COMPLETIONS" as const)
-          : ("RESPONSES" as const),
-    },
-  };
-}
 
 const patchAgentSessionMutation = graphql`
   mutation useAgentChatPanelStatePatchAgentSessionMutation(
     $input: PatchAgentSessionInput!
-  ) {
+  ) @raw_response_type {
     patchAgentSession(input: $input) {
       agentSession {
         id
@@ -78,32 +28,26 @@ const patchAgentSessionMutation = graphql`
 `;
 
 /**
- * Derives the chat request's model selection from the store's current default
- * model config. The chat transport reads this at request time so a model
- * change always applies to the next send, even when the runtime chat was
- * created by a since-unmounted surface (e.g. the draft that started the
- * session).
- */
-export function selectAgentModel(
-  state: Pick<AgentState, "defaultModelConfig"> &
-    Partial<Pick<AgentState, "modelConfigBySessionId">>,
-  sessionId?: string | null
-): AgentModelSelection {
-  const modelConfig =
-    sessionId && sessionId !== DRAFT_SESSION_ID
-      ? (state.modelConfigBySessionId?.[sessionId] ?? state.defaultModelConfig)
-      : state.defaultModelConfig;
-  return toAgentModelSelection(modelConfig);
-}
-
-/**
  * Encapsulates the non-visual state and side effects that drive
  * {@link AgentChatPanel}.
  *
  * Responsibilities:
- * - Derives the model menu value from the store
+ * - Derives the model menu value from the session's model config
+ *
+ * @param params - panel state inputs
+ * @param params.sessionId - the active session's Relay node ID, or the draft
+ *   sentinel (or nothing) for a not-yet-persisted new-chat surface
+ * @param params.sessionModelConfig - the session's persisted model resolved
+ *   from Relay (see {@link useAgentSessionModelConfig}); absent for drafts,
+ *   which render and persist the default model config instead
  */
-export function useAgentChatPanelState(sessionId?: string | null) {
+export function useAgentChatPanelState({
+  sessionId,
+  sessionModelConfig,
+}: {
+  sessionId?: string | null;
+  sessionModelConfig?: ModelConfig;
+} = {}) {
   const isOpen = useAgentContext((state) => state.isOpen);
   const setIsOpen = useAgentContext((state) => state.setIsOpen);
   const position = useAgentContext((state) => state.position);
@@ -113,17 +57,6 @@ export function useAgentChatPanelState(sessionId?: string | null) {
   );
   const setDefaultModelConfig = useAgentContext(
     (state) => state.setDefaultModelConfig
-  );
-  const sessionModelConfig = useAgentContext((state) =>
-    sessionId && sessionId !== DRAFT_SESSION_ID
-      ? state.modelConfigBySessionId[sessionId]
-      : undefined
-  );
-  const setSessionModelConfig = useAgentContext(
-    (state) => state.setSessionModelConfig
-  );
-  const setSessionModelWritePending = useAgentContext(
-    (state) => state.setSessionModelWritePending
   );
   const activeModelConfig = sessionModelConfig ?? defaultModelConfig;
   const [modelChangeError, setModelChangeError] =
@@ -158,31 +91,47 @@ export function useAgentChatPanelState(sessionId?: string | null) {
         setDefaultModelConfig(nextConfig);
         return;
       }
-      // Render the pick immediately, then persist it. The write is marked
-      // pending so a session poll already in flight — which would return the
-      // pre-change model — cannot revert the selection before it lands.
-      const previousConfig = activeModelConfig;
       setModelChangeError(null);
-      setSessionModelConfig(sessionId, nextConfig);
-      setSessionModelWritePending(sessionId, true);
+      // Derived from the next config — not the raw menu pick — so the
+      // persisted selection keeps the session's existing OpenAI API type and
+      // matches what the next send will assert.
+      const selection = toAgentModelSelection(nextConfig);
+      const optimisticModel =
+        selection.providerType === "custom"
+          ? {
+              __typename: "AgentCustomProviderModelSelection" as const,
+              providerId: selection.providerId,
+              modelName: selection.modelName,
+            }
+          : {
+              __typename: "AgentBuiltinProviderModelSelection" as const,
+              provider: selection.provider,
+              modelName: selection.modelName,
+              openaiApiType:
+                selection.openaiApiType === "chat_completions"
+                  ? ("CHAT_COMPLETIONS" as const)
+                  : ("RESPONSES" as const),
+            };
       commitModelChange({
         variables: {
           input: {
             id: sessionId,
-            // Derived from the next config — not the raw menu pick — so the
-            // persisted selection keeps the session's existing OpenAI API
-            // type and matches what the next send will assert.
-            model: toAgentModelSelectionInput(
-              toAgentModelSelection(nextConfig)
-            ),
+            model: toAgentModelSelectionInput(selection),
           },
         },
-        onCompleted: () => {
-          setSessionModelWritePending(sessionId, false);
+        // Relay renders the pick immediately and rolls it back on error. The
+        // overlay also outlives racing server reads (polls, turn refetches),
+        // which update the base record underneath it, so an in-flight read
+        // returning the pre-change model cannot revert the selection.
+        optimisticResponse: {
+          patchAgentSession: {
+            agentSession: {
+              id: sessionId,
+              model: optimisticModel,
+            },
+          },
         },
         onError: (error) => {
-          setSessionModelConfig(sessionId, previousConfig);
-          setSessionModelWritePending(sessionId, false);
           const messages = getErrorMessagesFromRelayMutationError(error);
           setModelChangeError({
             title: "Model could not be changed",
@@ -191,14 +140,7 @@ export function useAgentChatPanelState(sessionId?: string | null) {
         },
       });
     },
-    [
-      activeModelConfig,
-      commitModelChange,
-      sessionId,
-      setDefaultModelConfig,
-      setSessionModelConfig,
-      setSessionModelWritePending,
-    ]
+    [activeModelConfig, commitModelChange, sessionId, setDefaultModelConfig]
   );
 
   const closePanel = useCallback(() => {

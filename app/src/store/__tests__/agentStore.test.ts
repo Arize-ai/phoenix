@@ -503,19 +503,6 @@ describe("agentStore", () => {
     });
   });
 
-  describe("session model write pending", () => {
-    it("clears the pending guard with the rest of a session's state", () => {
-      const store = createAgentStore();
-      store.getState().setSessionModelWritePending("s1", true);
-
-      store.getState().clearSessionEphemeralState("s1");
-
-      expect(store.getState().isModelWritePendingBySessionId["s1"]).toBe(
-        undefined
-      );
-    });
-  });
-
   describe("session conflict notices", () => {
     it("stores at most one dismissable notice per session", () => {
       const store = createAgentStore();

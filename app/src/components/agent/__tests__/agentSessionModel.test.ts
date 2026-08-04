@@ -1,11 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+
+import type { AgentModelSelection } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
-import type { ModelConfig } from "@phoenix/store/playground/types";
 
 import {
-  applyServerSessionModelConfig,
   resolvePersistedAgentModel,
+  shouldNotifyModelChangedElsewhere,
+  toAgentModelSelection,
 } from "../agentSessionModel";
 
 describe("resolvePersistedAgentModel", () => {
@@ -116,88 +118,122 @@ describe("resolvePersistedAgentModel", () => {
   });
 });
 
-describe("applyServerSessionModelConfig", () => {
-  const sessionModel = (modelName: string): ModelConfig => ({
+describe("toAgentModelSelection", () => {
+  it.each(["OPENAI", "AZURE_OPENAI"] as const)(
+    "defaults built-in %s models to the Responses API",
+    (provider) => {
+      expect(
+        toAgentModelSelection({
+          provider,
+          modelName: "gpt-5.4",
+          invocationParameters: getDefaultInvocationConfig(provider),
+        })
+      ).toEqual({
+        providerType: "builtin",
+        provider,
+        modelName: "gpt-5.4",
+        openaiApiType: "responses",
+      });
+    }
+  );
+
+  it("preserves a configured Chat Completions API type", () => {
+    expect(
+      toAgentModelSelection({
+        provider: "OPENAI",
+        modelName: "gpt-5.4",
+        openaiApiType: "CHAT_COMPLETIONS",
+        invocationParameters: getDefaultInvocationConfig("OPENAI"),
+      })
+    ).toEqual({
+      providerType: "builtin",
+      provider: "OPENAI",
+      modelName: "gpt-5.4",
+      openaiApiType: "chat_completions",
+    });
+  });
+
+  it("does not set an OpenAI API type for other built-in providers", () => {
+    expect(
+      toAgentModelSelection({
+        provider: "ANTHROPIC",
+        modelName: "claude-opus-4-6",
+        invocationParameters: getDefaultInvocationConfig("ANTHROPIC"),
+      })
+    ).toEqual({
+      providerType: "builtin",
+      provider: "ANTHROPIC",
+      modelName: "claude-opus-4-6",
+    });
+  });
+
+  it("omits the API type for custom provider selections", () => {
+    expect(
+      toAgentModelSelection({
+        provider: "OPENAI",
+        modelName: "custom-model",
+        customProvider: { id: "provider-id", name: "Custom OpenAI" },
+        invocationParameters: getDefaultInvocationConfig("OPENAI"),
+      })
+    ).toEqual({
+      providerType: "custom",
+      providerId: "provider-id",
+      modelName: "custom-model",
+    });
+  });
+});
+
+describe("shouldNotifyModelChangedElsewhere", () => {
+  const selection = (modelName: string): AgentModelSelection => ({
+    providerType: "builtin",
     provider: "OPENAI",
     modelName,
-    invocationParameters: getDefaultInvocationConfig("OPENAI"),
+    openaiApiType: "responses",
   });
 
-  const createState = () => {
-    const state = {
-      isModelWritePendingBySessionId: {} as Partial<Record<string, boolean>>,
-      modelConfigBySessionId: {} as Partial<Record<string, ModelConfig>>,
-      setSessionModelConfig: vi.fn((sessionId: string, config: ModelConfig) => {
-        state.modelConfigBySessionId = {
-          ...state.modelConfigBySessionId,
-          [sessionId]: config,
-        };
-      }),
-    };
-    return state;
-  };
-
-  it("applies a server-read model when no local write is pending", () => {
-    const state = createState();
-
-    applyServerSessionModelConfig({
-      state,
-      sessionId: "s1",
-      config: sessionModel("a"),
-    });
-
-    expect(state.modelConfigBySessionId["s1"]).toEqual(sessionModel("a"));
+  it("notifies when another client moved the session's model", () => {
+    // This client asserted the model it was rendering; the server holds a
+    // different one and no local change is in flight.
+    expect(
+      shouldNotifyModelChangedElsewhere({
+        assertedModel: selection("mine"),
+        refetchedModel: selection("theirs"),
+        currentModel: selection("theirs"),
+      })
+    ).toBe(true);
   });
 
-  it("ignores a server read that races an unacknowledged model change", () => {
-    const state = createState();
-    // The user picks a model; the write has not landed yet.
-    state.modelConfigBySessionId = { s1: sessionModel("picked") };
-    state.isModelWritePendingBySessionId = { s1: true };
-
-    // A poll returns the pre-change model.
-    applyServerSessionModelConfig({
-      state,
-      sessionId: "s1",
-      config: sessionModel("old"),
-    });
-    expect(state.modelConfigBySessionId["s1"]).toEqual(sessionModel("picked"));
-
-    // Once acknowledged, server reads take effect again.
-    state.isModelWritePendingBySessionId = { s1: false };
-    applyServerSessionModelConfig({
-      state,
-      sessionId: "s1",
-      config: sessionModel("remote"),
-    });
-    expect(state.modelConfigBySessionId["s1"]).toEqual(sessionModel("remote"));
+  it("skips the notice when this client's own change already landed", () => {
+    // A send raced the client's own model change; by the time the refetch
+    // returned, the change had landed, so the server now matches the assert.
+    expect(
+      shouldNotifyModelChangedElsewhere({
+        assertedModel: selection("picked"),
+        refetchedModel: selection("picked"),
+        currentModel: selection("picked"),
+      })
+    ).toBe(false);
   });
 
-  it("scopes the pending guard to one session", () => {
-    const state = createState();
-    state.isModelWritePendingBySessionId = { s1: true };
-
-    applyServerSessionModelConfig({
-      state,
-      sessionId: "s2",
-      config: sessionModel("b"),
-    });
-
-    expect(state.modelConfigBySessionId["s2"]).toEqual(sessionModel("b"));
+  it("skips the notice while this client's own change is still in flight", () => {
+    // The optimistic overlay makes the current read differ from the
+    // refetched base record — the signature of an own change in flight.
+    expect(
+      shouldNotifyModelChangedElsewhere({
+        assertedModel: selection("picked"),
+        refetchedModel: selection("old"),
+        currentModel: selection("picked"),
+      })
+    ).toBe(false);
   });
 
-  it("skips the store write when the server model is structurally equal", () => {
-    const state = createState();
-    state.modelConfigBySessionId = { s1: sessionModel("a") };
-
-    // Poll ticks re-apply the same model; an equal config must not replace
-    // the map and re-render every session surface.
-    applyServerSessionModelConfig({
-      state,
-      sessionId: "s1",
-      config: sessionModel("a"),
-    });
-
-    expect(state.setSessionModelConfig).not.toHaveBeenCalled();
+  it("skips the notice when the refetch returned no model", () => {
+    expect(
+      shouldNotifyModelChangedElsewhere({
+        assertedModel: selection("mine"),
+        refetchedModel: null,
+        currentModel: selection("mine"),
+      })
+    ).toBe(false);
   });
 });

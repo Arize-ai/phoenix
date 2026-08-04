@@ -8,8 +8,6 @@ import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
 
-import { useModelMenuData } from "../generative/useModelMenuData";
-import { applyPersistedAgentSessionModel } from "./agentSessionModel";
 import {
   fetchAgentSessionSyncState,
   refetchAgentSession,
@@ -77,9 +75,6 @@ export function useAgentSessionSync({
 }): void {
   const store = useAgentStore();
   const relayEnvironment = useRelayEnvironment();
-  const { customProviders } = useModelMenuData({
-    fetchPolicy: "store-or-network",
-  });
   const shouldSyncOnNextPollSetupRef = useRef(shouldSyncOnMount);
   /** Prevents overlapping poll requests on slow networks. */
   const isPollInFlightRef = useRef(false);
@@ -179,16 +174,7 @@ export function useAgentSessionSync({
         updatedAt: agentSession.updatedAt,
         lastMessageId: agentSession.lastMessageId,
       };
-      const state = store.getState();
-      // Applied through the server-read path so a poll that raced an
-      // unacknowledged model change cannot revert the user's pick.
-      applyPersistedAgentSessionModel({
-        session: agentSession,
-        sessionId: persistedSessionId,
-        customProviders,
-        state,
-      });
-      state.setSessionBusyElsewhere(persistedSessionId, false);
+      store.getState().setSessionBusyElsewhere(persistedSessionId, false);
     } catch {
       // Transient failure: wait for the next poll tick.
     } finally {
@@ -197,7 +183,6 @@ export function useAgentSessionSync({
   }, [
     persistedSessionId,
     chatInstance,
-    customProviders,
     lastSyncedSessionStateRef,
     relayEnvironment,
     store,
@@ -211,8 +196,8 @@ export function useAgentSessionSync({
     !persistedSessionId || !chatInstance || isSessionPollingPaused
       ? null
       : isBusyElsewhere
-        ? SESSION_BUSY_POLL_INTERVAL_MS
-        : SESSION_POLL_INTERVAL_MS;
+      ? SESSION_BUSY_POLL_INTERVAL_MS
+      : SESSION_POLL_INTERVAL_MS;
   useInterval(() => void pollSession(), sessionPollDelay);
 
   useEffect(() => {
