@@ -145,10 +145,6 @@ export function createAgentSessionChat({
         turnCompletionGate.beginTurn();
         store.getState().setSessionResponsePending(sessionId, true);
         store.getState().setSessionNotice(sessionId, null);
-        // Read from the Relay store at request time — never captured (see
-        // the factory doc comment). The mounted surface retains the
-        // session's model record; the default-config fallback only covers a
-        // missing record, where the server's 409 guard corrects a mismatch.
         const modelSelection =
           readAgentSessionModelSelection({
             environment: relayEnvironment,
@@ -236,12 +232,12 @@ export function createAgentSessionChat({
       const isModelStaleRejection = error.message.includes(
         SESSION_MODEL_STALE_ERROR_CODE
       );
-      const areMessagesStaleRejection =
+      const isMessagesStaleRejection =
         !isModelStaleRejection &&
         error.message.includes(SESSION_MESSAGES_STALE_ERROR_CODE);
       if (
         !isBusyRejection &&
-        !areMessagesStaleRejection &&
+        !isMessagesStaleRejection &&
         !isModelStaleRejection
       ) {
         return;
@@ -263,17 +259,13 @@ export function createAgentSessionChat({
       queueMicrotask(() => {
         chat.clearError();
       });
-      if (areMessagesStaleRejection) {
+      if (isMessagesStaleRejection) {
         // Raise the refreshed-from-stale notice now; it renders once the
         // poll exits busy mode with the fresh transcript in place, and
         // clears on the next send.
         store.getState().setSessionNotice(sessionId, "messagesAddedElsewhere");
       }
       if (isModelStaleRejection) {
-        // Refetching normalizes the server's model into Relay, which every
-        // reader (picker, next send's assert) derives from directly. The
-        // notice is raised only when the rejection was another client's
-        // change, not this client racing its own in-flight change.
         const assertedModel = lastAssertedModelSelection;
         void refetchAgentSession({
           environment: relayEnvironment,

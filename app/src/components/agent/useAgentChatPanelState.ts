@@ -85,16 +85,11 @@ export function useAgentChatPanelState({
         modelName: model.modelName,
         customProvider: model.customProvider ?? null,
       };
-      // A draft has no server record yet; its selection travels with the
-      // createAgentSession mutation that starts the session.
       if (!sessionId || sessionId === DRAFT_SESSION_ID) {
         setDefaultModelConfig(nextConfig);
         return;
       }
       setModelChangeError(null);
-      // Derived from the next config — not the raw menu pick — so the
-      // persisted selection keeps the session's existing OpenAI API type and
-      // matches what the next send will assert.
       const selection = toAgentModelSelection(nextConfig);
       const optimisticModel =
         selection.providerType === "custom"
@@ -119,10 +114,6 @@ export function useAgentChatPanelState({
             model: toAgentModelSelectionInput(selection),
           },
         },
-        // Relay renders the pick immediately and rolls it back on error. The
-        // overlay also outlives racing server reads (polls, turn refetches),
-        // which update the base record underneath it, so an in-flight read
-        // returning the pre-change model cannot revert the selection.
         optimisticResponse: {
           patchAgentSession: {
             agentSession: {

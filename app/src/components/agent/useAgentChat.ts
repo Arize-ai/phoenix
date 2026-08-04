@@ -331,10 +331,6 @@ export function useAgentChat({
 
     store.getState().setSessionCompactionPending(sessionId, true);
     void (async () => {
-      // Compaction asserts the session's model as a precondition, read from
-      // the same Relay record the picker renders. The default-config
-      // fallback only covers a missing record, where the server's 409 guard
-      // corrects a mismatch.
       const assertedModel =
         readAgentSessionModelSelection({
           environment: relayEnvironment,
@@ -360,12 +356,6 @@ export function useAgentChat({
             response.status === 409 &&
             isSessionModelStaleConflict(errorBody)
           ) {
-            // The session is on a different model than this client asserted,
-            // so no summary was generated. Refetching normalizes the
-            // server's model into Relay, which the picker and the next
-            // send's assert derive from directly. The notice is raised only
-            // when the rejection was another client's change, not this
-            // client racing its own in-flight change.
             restorePendingMessage();
             void refetchAgentSession({
               environment: relayEnvironment,

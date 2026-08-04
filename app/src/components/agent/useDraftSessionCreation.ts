@@ -116,8 +116,6 @@ export function useDraftSessionCreation({
     store.getState().setSessionResponsePending(DRAFT_SESSION_ID, true);
     const draftState = store.getState();
     const isTemporary = draftState.isDraftSessionTemporary;
-    // A draft has no server record; it renders and persists the default
-    // model config, which travels with the create mutation.
     const modelSelection = toAgentModelSelection(draftState.defaultModelConfig);
     commitCreateAgentSession({
       variables: {

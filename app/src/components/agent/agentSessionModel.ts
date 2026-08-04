@@ -178,11 +178,6 @@ export function readAgentSessionModelSelectionFromFragment(
  * optimistic mutation overlay) from the Relay store, or null when the store
  * has no record for the session.
  *
- * Read at request time by the chat transport and compaction: sends assert the
- * session's model as a precondition, and the mounted surface retains the
- * selection via {@link sessionModelQuery}, so the selection the picker renders
- * is the same one the request asserts.
- *
  * @param params - read inputs
  * @param params.environment - Relay environment whose store to read
  * @param params.sessionId - the session's Relay node ID

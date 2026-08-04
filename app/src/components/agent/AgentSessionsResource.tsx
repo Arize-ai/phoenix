@@ -382,7 +382,7 @@ function AgentSessionsContent({
               shouldSyncOnMount
             />
           ) : (
-            <ResidentAgentSessionSurface
+            <AgentSessionModelLoader
               key={activeSessionId}
               sessionId={activeSessionId}
             />
@@ -441,15 +441,8 @@ function AgentSessionTranscript({
   );
 }
 
-/**
- * Surface for a persisted session whose runtime chat is already resident. The
- * chat owns the in-memory transcript, so no transcript fetch happens; the
- * tiny model query keeps the session's persisted model selection present in
- * the Relay store — and retained against garbage collection — for the picker
- * and for the model assert on the next send. It is a store hit except when
- * the record was collected while the panel was closed.
- */
-function ResidentAgentSessionSurface({ sessionId }: { sessionId: string }) {
+/** Binds a session with an in-memory chat, loading only its model selection. */
+function AgentSessionModelLoader({ sessionId }: { sessionId: string }) {
   const data = useLazyLoadQuery<agentSessionModelSessionQuery>(
     sessionModelQuery,
     { id: sessionId },
