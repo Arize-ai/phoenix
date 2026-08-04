@@ -1572,14 +1572,11 @@ async def _patch_agent_session(
         .returning(models.AgentSession.id)
     )
     if updated_agent_session_rowid is not None and title:
-        # Auto-generated titles must never clobber a manual rename that landed
-        # while the turn was streaming; the empty-title guard makes this a
-        # compare-and-set.
         await session.execute(
             update(models.AgentSession)
             .where(
                 models.AgentSession.id == agent_session_rowid,
-                models.AgentSession.title == "",
+                models.AgentSession.title == "",  # do not clobber manually input titles
             )
             .values(title=title)
         )
@@ -1674,8 +1671,6 @@ async def _persist_agent_session_turn(
     if not new_messages:
         return
     async with db() as session:
-        # `title` only ever carries the auto-generated summary here; a manual
-        # rename made mid-turn must win over it.
         patched_agent_session_rowid = await _patch_agent_session(
             session,
             agent_session_rowid=agent_session_rowid,
