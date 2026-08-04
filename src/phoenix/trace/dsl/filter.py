@@ -2778,17 +2778,41 @@ class _SemanticPolicy:
         haystack_node: typing.Union[ast.List, ast.Tuple],
         scopes: tuple[_ElementScope, ...],
     ) -> None:
+        if isinstance(needle_node, ast.Constant):
+            comparison = f"{ast.unparse(needle_node)} in {ast.unparse(haystack_node)}"
+            raise SyntaxError(
+                f"`{comparison}` compares two literals, expected a span field on the left"
+            )
         needle = self._kind(needle_node, scopes)
         if needle not in _LOOKUP_KINDS:
             raise SyntaxError(
                 f"`{ast.unparse(needle_node)}` is {_KIND_NOUNS[needle]} "
                 "and cannot be looked up in a list"
             )
+        element_kinds: set[_Kind] = set()
         for element in haystack_node.elts:
             if not isinstance(element, ast.Constant):
                 raise SyntaxError(
                     f"a list holds literal values only: `{ast.unparse(element)}` is not one"
                 )
+            kind = self._constant(element)
+            if kind != "none":
+                element_kinds.add(kind)
+        if len(element_kinds) > 1:
+            ordered_kinds: tuple[_Kind, ...] = ("boolean", "datetime", "float", "string")
+            kind_names: typing.Mapping[_Kind, str] = {
+                "boolean": "boolean",
+                "datetime": "datetime",
+                "float": "number",
+                "string": "string",
+            }
+            present_kinds = [kind for kind in ordered_kinds if kind in element_kinds]
+            first_kind, second_kind = present_kinds[0], present_kinds[1]
+            raise SyntaxError(
+                f"cannot compare {kind_names[first_kind]} and {kind_names[second_kind]}"
+            )
+        for element in haystack_node.elts:
+            assert isinstance(element, ast.Constant)
             kind = self._constant(element)
             if kind == "none" or not self._comparable(needle, kind, needle_node, element):
                 raise SyntaxError(

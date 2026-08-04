@@ -42,10 +42,14 @@ REJECTED: tuple[tuple[str, str], ...] = (
     ("any(d.is_prompt > False for d in span_cost_details)", "does not order a condition"),
     ("num_traces > 'five'", "cannot compare"),
     # Membership acceptance may not depend on element order: both spellings are one rule.
-    ("num_traces in (1, '2')", "a list is all text or all numbers"),
-    ("num_traces in ('2', 1)", "a list is all text or all numbers"),
+    ("num_traces in (1, '2')", "cannot compare number and string"),
+    ("num_traces in ('2', 1)", "cannot compare number and string"),
     ("session_id in (1, 2)", "a list is all text or all numbers"),
-    ("session_id in ('a', 1)", "a list is all text or all numbers"),
+    ("session_id in ('a', 1)", "cannot compare number and string"),
+    ("attributes['k'] in [1, 'a']", "cannot compare number and string"),
+    ("metadata['k'] in ['a', 1]", "cannot compare number and string"),
+    ("1 in [1, 2]", "compares two literals"),
+    ("'a' in ['a', 'b']", "compares two literals"),
     ("start_time in ['2026-07-01']", "cannot be looked up in a list"),
     # A naive datetime literal has no portable reading; the offset is required.
     ("start_time > '2026-07-01'", "has no timezone"),
