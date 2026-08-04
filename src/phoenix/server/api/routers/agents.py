@@ -66,7 +66,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolOutputAvailableChunk,
 )
 from pydantic_ai.usage import RequestUsage
-from sqlalchemy import Insert, case, exists, func, or_, select, tuple_, update
+from sqlalchemy import Insert, exists, func, or_, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1556,34 +1556,34 @@ async def _patch_agent_session(
     agent_session_rowid: int,
     user_id: int | None,
     title: str,
-    only_if_untitled: bool = False,
 ) -> int | None:
-    values: dict[str, Any] = {"updated_at": func.now()}
-    if title:
-        if only_if_untitled:
-            # Auto-generated titles must never clobber a manual rename that
-            # landed while the turn was streaming, so compare-and-set against
-            # a still-empty stored title.
-            values["title"] = case(
-                (models.AgentSession.title == "", title),
-                else_=models.AgentSession.title,
-            )
-        else:
-            values["title"] = title
     session_owner_filter = (
         models.AgentSession.user_id.is_(None)
         if user_id is None
         else models.AgentSession.user_id == user_id
     )
-    return await session.scalar(
+    updated_agent_session_rowid = await session.scalar(
         update(models.AgentSession)
         .where(
             models.AgentSession.id == agent_session_rowid,
             session_owner_filter,
         )
-        .values(**values)
+        .values(updated_at=func.now())
         .returning(models.AgentSession.id)
     )
+    if updated_agent_session_rowid is not None and title:
+        # Auto-generated titles must never clobber a manual rename that landed
+        # while the turn was streaming; the empty-title guard makes this a
+        # compare-and-set.
+        await session.execute(
+            update(models.AgentSession)
+            .where(
+                models.AgentSession.id == agent_session_rowid,
+                models.AgentSession.title == "",
+            )
+            .values(title=title)
+        )
+    return updated_agent_session_rowid
 
 
 async def _persist_agent_session_title(
@@ -1601,7 +1601,6 @@ async def _persist_agent_session_title(
                 agent_session_rowid=agent_session_rowid,
                 user_id=user_id,
                 title=truncate_agent_session_title(title),
-                only_if_untitled=True,
             )
     except Exception:
         logger.exception(
@@ -1682,7 +1681,6 @@ async def _persist_agent_session_turn(
             agent_session_rowid=agent_session_rowid,
             user_id=user_id,
             title=title or "",
-            only_if_untitled=True,
         )
         if patched_agent_session_rowid is None:
             raise RuntimeError(
