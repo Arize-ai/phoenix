@@ -14,27 +14,27 @@ import {
 import type { StylableProps } from "@phoenix/components/core/types";
 import { classNames } from "@phoenix/utils/classNames";
 
-export type PxiOutlineState = "idle" | "eligible" | "active";
-export type PxiOutlineRadius = "small" | "medium";
-export type PxiOutlineGlowMode = "outer" | "contained";
+export type AIOutlineState = "idle" | "eligible" | "active";
+export type AIOutlineRadius = "small" | "medium";
+export type AIOutlineGlowMode = "outer" | "contained";
 
-export interface PxiOutlineProps extends StylableProps {
+export interface AIOutlineProps extends StylableProps {
   children: ReactNode;
   className?: string;
   /** Expands to the available width instead of shrink-wrapping its child. */
   isFullWidth?: boolean;
   /** Keeps the glow within the target bounds for clipped or tightly packed rows. */
-  glowMode?: PxiOutlineGlowMode;
-  radius?: PxiOutlineRadius;
+  glowMode?: AIOutlineGlowMode;
+  radius?: AIOutlineRadius;
   /** Runs one attention flash when an eligible outline changes to true. */
   shouldFlash?: boolean;
-  state?: PxiOutlineState;
+  state?: AIOutlineState;
 }
 
 const outlineCSS = css`
   --ai-conic-band-stroke-width: 1.5px;
-  --pxi-outline-gap: var(--global-dimension-static-size-25);
-  --pxi-outline-target-radius: var(--global-rounding-small);
+  --ai-outline-gap: var(--global-dimension-static-size-25);
+  --ai-outline-target-radius: var(--global-rounding-small);
   position: relative;
   display: inline-grid;
   width: fit-content;
@@ -42,7 +42,7 @@ const outlineCSS = css`
   min-width: 0;
   vertical-align: middle;
   isolation: isolate;
-  border-radius: var(--pxi-outline-target-radius);
+  border-radius: var(--ai-outline-target-radius);
 
   &[data-full-width="true"] {
     display: grid;
@@ -50,23 +50,23 @@ const outlineCSS = css`
   }
 
   &[data-radius="medium"] {
-    --pxi-outline-target-radius: var(--global-rounding-medium);
+    --ai-outline-target-radius: var(--global-rounding-medium);
   }
 
-  .pxi-outline__stroke,
-  .pxi-outline__glow {
+  .ai-outline__stroke,
+  .ai-outline__glow {
     position: absolute;
     pointer-events: none;
   }
 
-  .pxi-outline__stroke {
+  .ai-outline__stroke {
     ${aiConicBandCSS};
     inset: calc(
-      -1 * (var(--pxi-outline-gap) + var(--ai-conic-band-stroke-width))
+      -1 * (var(--ai-outline-gap) + var(--ai-conic-band-stroke-width))
     );
     z-index: 2;
     border-radius: calc(
-      var(--pxi-outline-target-radius) + var(--pxi-outline-gap) +
+      var(--ai-outline-target-radius) + var(--ai-outline-gap) +
         var(--ai-conic-band-stroke-width)
     );
     opacity: 0.3;
@@ -74,21 +74,21 @@ const outlineCSS = css`
       paused;
   }
 
-  .pxi-outline__glow {
+  .ai-outline__glow {
     ${aiGlowWipeMaskCSS};
     inset: calc(
       -1 *
-        (var(--pxi-outline-gap) + var(--ai-conic-band-stroke-width) +
+        (var(--ai-outline-gap) + var(--ai-conic-band-stroke-width) +
           var(--ai-glow-bleed))
     );
     z-index: 0;
     border-radius: calc(
-      var(--pxi-outline-target-radius) + var(--pxi-outline-gap) +
+      var(--ai-outline-target-radius) + var(--ai-outline-gap) +
         var(--ai-conic-band-stroke-width)
     );
   }
 
-  .pxi-outline__glow::before {
+  .ai-outline__glow::before {
     content: "";
     position: absolute;
     inset: var(--ai-glow-bleed);
@@ -99,80 +99,79 @@ const outlineCSS = css`
 
   /* Eligible keeps the band's subtle rotation running at resting opacity
      so an engaged-but-idle target still reads as alive */
-  &[data-state="eligible"] .pxi-outline__stroke {
+  &[data-state="eligible"] .ai-outline__stroke {
     opacity: 0.64;
     animation-play-state: running;
   }
 
-  &[data-state="active"] .pxi-outline__stroke {
+  &[data-state="active"] .ai-outline__stroke {
     opacity: 1;
     animation-play-state: running;
   }
 
-  /* Active gets the PXI thinking glow: the breathing glow clipped by the
+  /* Active gets the thinking glow: the breathing glow clipped by the
      traveling wipe, matching PxiButton's working state */
-  &[data-state="active"] .pxi-outline__glow {
+  &[data-state="active"] .ai-outline__glow {
     opacity: 1;
     ${aiGlowWipeContinuousCSS};
   }
 
-  &[data-state="active"] .pxi-outline__glow::before {
+  &[data-state="active"] .ai-outline__glow::before {
     opacity: 0.72;
     animation: ${aiGlowBreathe} var(--ai-glow-wipe-duration) ease-in-out
       infinite;
   }
 
-  &[data-state="eligible"][data-should-flash="true"] .pxi-outline__glow {
+  &[data-state="eligible"][data-should-flash="true"] .ai-outline__glow {
     animation: ${aiGlowWipe} var(--ai-glow-wipe-duration)
       var(--ai-glow-wipe-easing) 1;
   }
 
-  &[data-state="eligible"][data-should-flash="true"]
-    .pxi-outline__glow::before {
+  &[data-state="eligible"][data-should-flash="true"] .ai-outline__glow::before {
     animation:
       ${aiGlowBreathe} var(--ai-glow-wipe-duration) ease-in-out 1,
       ${aiGlowFlashOpacity} var(--ai-glow-wipe-duration) linear 1;
   }
 
   &[data-glow-mode="contained"] {
-    .pxi-outline__stroke {
+    .ai-outline__stroke {
       inset: 0;
-      border-radius: var(--pxi-outline-target-radius);
+      border-radius: var(--ai-outline-target-radius);
     }
 
-    .pxi-outline__glow {
+    .ai-outline__glow {
       inset: 0;
-      border-radius: var(--pxi-outline-target-radius);
+      border-radius: var(--ai-outline-target-radius);
     }
 
-    .pxi-outline__glow::before {
+    .ai-outline__glow::before {
       inset: 0;
       box-shadow: var(--ai-glow-box-shadow-contained-rest);
     }
 
-    &[data-state="active"] .pxi-outline__glow::before {
+    &[data-state="active"] .ai-outline__glow::before {
       animation-name: ${aiGlowBreatheContained};
     }
 
     &[data-state="eligible"][data-should-flash="true"]
-      .pxi-outline__glow::before {
+      .ai-outline__glow::before {
       animation-name: ${aiGlowBreatheContained}, ${aiGlowFlashOpacity};
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .pxi-outline__stroke {
+    .ai-outline__stroke {
       animation-play-state: paused;
     }
 
-    .pxi-outline__glow,
-    .pxi-outline__glow::before {
+    .ai-outline__glow,
+    .ai-outline__glow::before {
       animation: none !important;
     }
   }
 `;
 
-export function PxiOutline({
+export function AIOutline({
   children,
   className,
   css: propCSS,
@@ -181,11 +180,11 @@ export function PxiOutline({
   radius = "small",
   shouldFlash = false,
   state = "idle",
-}: PxiOutlineProps) {
+}: AIOutlineProps) {
   const canFlash = state === "eligible" && shouldFlash;
   return (
     <div
-      className={classNames("pxi-outline", className)}
+      className={classNames("ai-outline", className)}
       css={css(outlineCSS, propCSS)}
       data-full-width={isFullWidth ? "true" : undefined}
       data-glow-mode={glowMode}
@@ -193,8 +192,8 @@ export function PxiOutline({
       data-should-flash={canFlash ? "true" : undefined}
       data-state={state}
     >
-      <span className="pxi-outline__glow" aria-hidden="true" />
-      <span className="pxi-outline__stroke" aria-hidden="true" />
+      <span className="ai-outline__glow" aria-hidden="true" />
+      <span className="ai-outline__stroke" aria-hidden="true" />
       {children}
     </div>
   );

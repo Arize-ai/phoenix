@@ -22,9 +22,9 @@ import {
 import { PxiAnimatedGlyph } from "@phoenix/components/agent/PxiAnimatedGlyph";
 import { PxiGlyph } from "@phoenix/components/agent/PxiGlyph";
 import {
-  PxiOutline,
-  type PxiOutlineState,
-} from "@phoenix/components/agent/PxiOutline";
+  AIOutline,
+  type AIOutlineState,
+} from "@phoenix/components/ai/AIOutline";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 
@@ -280,8 +280,8 @@ export function AIQueryDSLFilterField<
   });
 
   // Tells the value round-tripping back from this composition's own
-  // emissions apart from a caller setting it from outside — PXI's filter
-  // action, a recent-search apply, a URL-driven update. Every internal
+  // emissions apart from a caller setting it from outside — the agent's
+  // filter action, a recent-search apply, a URL-driven update. Every internal
   // path is covered by `emitChange`: the base field surfaces typing and
   // its clear through `onChange`, and the AI flows emit directly.
   useEffect(() => {
@@ -412,17 +412,17 @@ export function AIQueryDSLFilterField<
   // conversion lands the field back in DSL mode.
   const isProse = isAIModeOn || isConverting;
 
-  // The PXI treatment reflects how engaged AI query is: a resting stroke
+  // The AI treatment reflects how engaged AI query is: a resting stroke
   // while the field is in plain-English mode, the full animated glow while
   // a conversion is in flight.
-  const aiOutlineState: PxiOutlineState = isConverting
+  const aiOutlineState: AIOutlineState = isConverting
     ? "active"
     : isAIModeOn
       ? "eligible"
       : "idle";
 
   return (
-    <PxiOutline
+    <AIOutline
       isFullWidth
       state={aiOutlineState}
       shouldFlash
@@ -455,7 +455,7 @@ export function AIQueryDSLFilterField<
         leadingVisual={
           isConverting ? (
             // While converting, the glyph thinks — the same wave animation
-            // the Ask PXI nav button shows while it works
+            // the assistant's nav button shows while it works
             <span className="filter-icon ai-query-filter-field__thinking-glyph">
               <PxiGlyph animation="wave-reveal" size={13} />
             </span>
@@ -547,6 +547,6 @@ export function AIQueryDSLFilterField<
                 : ""}
         </span>
       </VisuallyHidden>
-    </PxiOutline>
+    </AIOutline>
   );
 }

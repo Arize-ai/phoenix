@@ -1,3 +1,4 @@
+export * from "./AIOutline";
 export * from "./attachment";
 export * from "./elicitation";
 export * from "./glow";

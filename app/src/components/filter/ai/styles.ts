@@ -1,13 +1,13 @@
 import { css } from "@emotion/react";
 
-import { svgSize as pxiGlyphSize } from "@phoenix/components/agent/PxiGlyph";
+import { svgSize as glyphSize } from "@phoenix/components/agent/PxiGlyph";
 import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 
 import { dslFilterBadgeGrowIn } from "../styles";
 
 /**
  * The AI-query treatment layered over the base filter field, applied to the
- * PxiOutline wrapper: sizes the outline like the bare field sizes itself,
+ * AIOutline wrapper: sizes the outline like the bare field sizes itself,
  * silences its resting stroke (the field should look untouched until AI
  * query actually engages), and styles the AI controls composed into the
  * field's control cluster.
@@ -17,15 +17,15 @@ export const aiQueryFilterFieldCSS = css`
   min-width: 0;
   /* The gradient hugs the field's border — the outline's default standoff
      gap reads as a detached double border on an input */
-  --pxi-outline-gap: 0px;
-  &[data-state="idle"] .pxi-outline__stroke {
+  --ai-outline-gap: 0px;
+  &[data-state="idle"] .ai-outline__stroke {
     opacity: 0;
   }
   /* While the generative border is showing it is the focus affordance —
      focus brings the band to full strength (the field's own theme focus
      ring is suppressed below, since it would clash with the gradient) */
   &:not([data-state="idle"]):has(.cm-content:focus-visible)
-    .pxi-outline__stroke {
+    .ai-outline__stroke {
     opacity: 1;
   }
   /* The outline isolates its stacking (for the glow layers), which traps
@@ -46,17 +46,17 @@ export const aiQueryFilterFieldCSS = css`
     }
   }
   /* The converting glyph keeps the resting glyph's footprint (no layout
-     shift) and wears the same thinking tint as the Ask PXI nav button */
+     shift) and wears the assistant's thinking tint */
   .ai-query-filter-field__thinking-glyph {
     display: grid;
     place-items: center;
     flex: none;
-    width: ${pxiGlyphSize}px;
-    height: ${pxiGlyphSize}px;
+    width: ${glyphSize}px;
+    height: ${glyphSize}px;
     color: color-mix(
       in srgb,
-      var(--pxi-treatment-color-middle) 78%,
-      var(--pxi-treatment-color-end)
+      var(--ai-gradient-color-middle) 78%,
+      var(--ai-gradient-color-end)
     );
   }
   /* One treatment spec for the engaged AI controls — the badge and the
@@ -64,15 +64,15 @@ export const aiQueryFilterFieldCSS = css`
      (gear, clear) stay gray */
   .ai-badge,
   .ai-mode-toggle[aria-pressed="true"] {
-    color: var(--pxi-treatment-color-middle);
+    color: var(--ai-gradient-color-middle);
     border-color: color-mix(
       in srgb,
-      var(--pxi-treatment-color-middle) 35%,
+      var(--ai-gradient-color-middle) 35%,
       transparent
     );
     background-color: color-mix(
       in srgb,
-      var(--pxi-treatment-color-middle) 12%,
+      var(--ai-gradient-color-middle) 12%,
       transparent
     );
   }
@@ -106,7 +106,7 @@ export const aiQueryFilterFieldCSS = css`
     &:hover {
       background-color: color-mix(
         in srgb,
-        var(--pxi-treatment-color-middle) 18%,
+        var(--ai-gradient-color-middle) 18%,
         transparent
       );
     }
@@ -118,7 +118,7 @@ export const aiQueryFilterFieldCSS = css`
   .ai-mode-toggle[aria-pressed="true"]:hover {
     background-color: color-mix(
       in srgb,
-      var(--pxi-treatment-color-middle) 20%,
+      var(--ai-gradient-color-middle) 20%,
       transparent
     );
   }

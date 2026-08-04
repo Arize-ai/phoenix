@@ -10,13 +10,6 @@ export { AgentChatPanel, FloatingAgentChatPanel } from "./AgentChatPanel";
 export { AgentChatTopNavButton } from "./AgentChatTopNavButton";
 export { AgentChatWidget } from "./AgentChatWidget";
 export { PxiGlyphOutline } from "./PxiGlyph";
-export { PxiOutline } from "./PxiOutline";
-export type {
-  PxiOutlineGlowMode,
-  PxiOutlineProps,
-  PxiOutlineRadius,
-  PxiOutlineState,
-} from "./PxiOutline";
 export { PxiButton } from "./PxiButton";
 export type {
   PxiButtonProps,
