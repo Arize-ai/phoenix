@@ -814,18 +814,15 @@ async def patch_prompt(
     else:
         assert_never(identifier)
 
-    patch: dict[str, Any] = {}
-    if (description := request_body.description) is not UNDEFINED:
-        patch["description"] = description.strip() if description is not None else None
-    if (metadata := request_body.metadata) is not UNDEFINED:
-        patch["metadata_"] = metadata
-
     async with request.app.state.db() as session:
         prompt = await session.scalar(select(models.Prompt).where(where_clause))
         if prompt is None:
             raise HTTPException(status_code=404, detail="Prompt not found")
-        for key, value in patch.items():
-            setattr(prompt, key, value)
+        if (description := request_body.description) is not UNDEFINED:
+            prompt.description = description.strip() if description is not None else None
+        if (metadata := request_body.metadata) is not UNDEFINED:
+            assert metadata is not None
+            prompt.metadata_ = metadata
         data = _prompt_from_orm_prompt(prompt)
 
     return PatchPromptResponseBody(data=data)
