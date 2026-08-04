@@ -1227,6 +1227,64 @@ describe("PXI app", () => {
     unmount();
   });
 
+  it("navigates beyond the first 20 persisted sessions", async () => {
+    const sessions: PxiSessionSummary[] = Array.from(
+      { length: 21 },
+      (_, index) => ({
+        id: `session-${index + 1}`,
+        title: `Session ${index + 1}`,
+        updatedAt: "2026-07-24T12:00:00Z",
+        isTemporary: false,
+      })
+    );
+    const getSession = vi.fn(async ({ sessionId }: { sessionId: string }) => ({
+      id: sessionId,
+      title: "Session 21",
+      updatedAt: "2026-07-24T12:00:00Z",
+      isTemporary: false,
+      messages: [
+        {
+          id: "restored-user",
+          role: "user" as const,
+          parts: [{ type: "text" as const, text: "oldest conversation" }],
+        },
+      ],
+    }));
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => {
+        throw new Error("not used");
+      },
+      listSessions: async () => sessions,
+      getSession,
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={sessionClient}
+      />
+    );
+
+    await writeInput({ stdin, input: "/sessions" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    for (let sessionIndex = 1; sessionIndex < sessions.length; sessionIndex++) {
+      await writeInput({ stdin, input: DOWN_ARROW });
+    }
+    expect(stripAnsi(lastFrame() ?? "")).toContain("Session 21");
+
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+
+    expect(getSession).toHaveBeenCalledWith({ sessionId: "session-21" });
+    expect(stripAnsi(lastFrame() ?? "")).toContain("oldest conversation");
+    unmount();
+  });
+
   it("polls idle sessions for remote updates and pauses during local generation", async () => {
     vi.useFakeTimers();
     const originalMessage: PxiMessage = {

@@ -29,6 +29,7 @@ import type {
 const AGENT_SESSION_CHAT_PATH =
   "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof pathsV1;
 const SERVER_AGENT_ID = "server";
+const AGENT_SESSION_PAGE_LIMIT = 100;
 /**
  * Error code the chat endpoint returns (HTTP 409) while another client's turn
  * holds the session lock.
@@ -170,28 +171,36 @@ export function createPxiSessionClient({
       createAgentSession({ config, temporary, fetchImpl }),
     async listSessions() {
       const client = createPhoenixClient({ config, fetch: fetchImpl });
-      const { data: payload } = await client.GET(
-        "/agents/{agent_id}/sessions",
-        {
-          params: {
-            path: { agent_id: SERVER_AGENT_ID },
-            query: { limit: 20 },
-          },
-        }
-      );
-      if (!payload) {
-        throw new Error(
-          "Could not load PXI sessions because Phoenix returned no data."
+      const sessions: PxiSessionSummary[] = [];
+      let cursor: string | undefined;
+      do {
+        const { data: payload } = await client.GET(
+          "/agents/{agent_id}/sessions",
+          {
+            params: {
+              path: { agent_id: SERVER_AGENT_ID },
+              query: { cursor, limit: AGENT_SESSION_PAGE_LIMIT },
+            },
+          }
         );
-      }
-      return payload.data.map(
-        ({ id, title, updated_at, is_ephemeral }): PxiSessionSummary => ({
-          id,
-          title,
-          updatedAt: updated_at,
-          isTemporary: is_ephemeral,
-        })
-      );
+        if (!payload) {
+          throw new Error(
+            "Could not load PXI sessions because Phoenix returned no data."
+          );
+        }
+        sessions.push(
+          ...payload.data.map(
+            ({ id, title, updated_at, is_ephemeral }): PxiSessionSummary => ({
+              id,
+              title,
+              updatedAt: updated_at,
+              isTemporary: is_ephemeral,
+            })
+          )
+        );
+        cursor = payload.next_cursor ?? undefined;
+      } while (cursor);
+      return sessions;
     },
     async getSession({ sessionId }) {
       const client = createPhoenixClient({ config, fetch: fetchImpl });
