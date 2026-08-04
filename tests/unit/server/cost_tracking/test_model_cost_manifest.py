@@ -8,6 +8,7 @@ manifest as ``threshold_based`` customizations. See Arize-ai/phoenix#14314.
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -22,13 +23,14 @@ MANIFEST_PATH = (
 
 
 @pytest.fixture(scope="module")
-def manifest() -> dict:
+def manifest() -> dict[str, Any]:
     with MANIFEST_PATH.open() as source:
-        return json.load(source)
+        data: dict[str, Any] = json.load(source)
+        return data
 
 
 @pytest.fixture(scope="module")
-def models_by_name(manifest: dict) -> dict[str, dict]:
+def models_by_name(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {model["name"]: model for model in manifest["models"]}
 
 
@@ -48,7 +50,7 @@ def models_by_name(manifest: dict) -> dict[str, dict]:
     ],
 )
 def test_flagship_models_carry_threshold_based_tier_rates(
-    models_by_name: dict[str, dict],
+    models_by_name: dict[str, dict[str, Any]],
     model_name: str,
     token_type: str,
     threshold: float,
