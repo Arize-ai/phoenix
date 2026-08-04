@@ -862,6 +862,10 @@ async def test_session_filter_agrees_with_reference_evaluator(
     equals the Python reference evaluator's selection, under both lowerings on both dialects."""
     async with db() as session:
         project = await _add_project(session)
+        sessionless_trace = await _add_trace(session, project)
+        counterexample_span = await _add_span(session, sessionless_trace)
+        counterexample_span.status_code = "ERROR"
+        await session.flush()
         rowids = {
             fixture.session_id: (await _seed_reference_session(session, project, fixture)).id
             for fixture in FIXTURE_SESSIONS

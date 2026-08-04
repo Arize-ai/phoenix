@@ -10,7 +10,7 @@ from phoenix.server.api.dataloaders.annotation_summaries import AnnotationSummar
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.types import DbSessionFactory
 
-from ...._helpers import _add_project, _add_project_session, _add_trace
+from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace
 
 
 async def test_evaluation_summaries(
@@ -134,6 +134,45 @@ async def test_session_filter_scopes_fraction_numerator_and_denominator_alike(
     # sessions in the denominator would report 0.25 apiece instead.
     assert label_fractions["good"] == pytest.approx(0.5, rel=1e-4)
     assert label_fractions["bad"] == pytest.approx(0.5, rel=1e-4)
+
+
+async def test_span_filter_scopes_fraction_numerator_and_denominator_alike(
+    db: DbSessionFactory,
+) -> None:
+    base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project, start_time=base_time)
+        for span_kind, label in (("LLM", "good"), ("CHAIN", "bad")):
+            span = await _add_span(session, trace, span_kind=span_kind, start_time=base_time)
+            session.add(
+                models.SpanAnnotation(
+                    span_rowid=span.id,
+                    name="quality",
+                    label=label,
+                    score=1.0,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="APP",
+                )
+            )
+        await session.flush()
+
+    result = await AnnotationSummaryDataLoader(db).load(
+        (
+            "span",
+            project.id,
+            TimeRange(start=base_time, end=base_time + timedelta(hours=1)),
+            "span_kind == 'LLM'",
+            None,
+            "quality",
+        )
+    )
+    assert result is not None
+    label_fractions = {lf.label: lf.fraction for lf in result.label_fractions()}  # type: ignore[call-arg, attr-defined]
+    assert label_fractions["good"] == pytest.approx(1.0, rel=1e-4)
+    assert sum(label_fractions.values()) == pytest.approx(1.0, rel=1e-4)
 
 
 async def test_multiple_annotations_score_weighting(
