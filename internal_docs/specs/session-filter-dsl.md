@@ -270,7 +270,7 @@ compiled into something other than what its Python spelling says.
   value and PostgreSQL by the database's collation, so a text ordering means different things on
   the two backends. The same reasoning rejects `max`/`min` over text, and a declared collation
   would lift both together.
-- **Arithmetic is `+ - * / // %` over numbers.** `**`, `<<`, `>>`, `&`, `|`, `^`, `@`, and `~`
+- **Arithmetic is `+ - * / %` over numbers.** `//`, `**`, `<<`, `>>`, `&`, `|`, `^`, `@`, and `~`
   are rejected before lowering rather than failing later inside SQLAlchemy, and unary `+` is the
   identity Python defines it to be. Arithmetic on an attribute value asks for `float(...)`
   explicitly, since its stored type is not known.

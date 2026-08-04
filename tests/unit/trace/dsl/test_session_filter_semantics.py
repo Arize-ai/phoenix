@@ -60,6 +60,7 @@ REJECTED: tuple[tuple[str, str], ...] = (
     ("num_traces is not 5", "compare against None only"),
     ("first_input < None", "cannot compare against None"),
     # -- Operator allowlist -----------------------------------------------------------------
+    ("num_traces_with_error // num_traces > 0", "not a supported operator"),
     ("num_traces ** 2 > 1", "not a supported operator"),
     ("num_traces << 1 > 2", "not a supported operator"),
     ("num_traces >> 1 > 2", "not a supported operator"),

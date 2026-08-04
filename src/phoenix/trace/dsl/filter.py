@@ -1333,7 +1333,7 @@ def _get_filter_value_type(node: ast.AST) -> typing.Optional[FilterValueType]:
             return "number"
     if isinstance(node, ast.BinOp):
         if not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Mod)):
-            raise SyntaxError(f"invalid arithmetic operator: {ast.unparse(node.op)}")
+            raise SyntaxError(f"invalid arithmetic operator: {_symbol(node.op)}")
         left_type = _get_filter_value_type(node.left)
         right_type = _get_filter_value_type(node.right)
         if isinstance(node.op, ast.Add):
@@ -2447,7 +2447,6 @@ _ARITHMETIC_OPERATORS: tuple[type, ...] = (
     ast.Sub,
     ast.Mult,
     ast.Div,
-    ast.FloorDiv,
     ast.Mod,
 )
 _ORDERING_OPERATORS: tuple[type, ...] = (ast.Lt, ast.LtE, ast.Gt, ast.GtE)
@@ -2677,7 +2676,7 @@ class _SemanticPolicy:
         if not isinstance(node.op, _ARITHMETIC_OPERATORS):
             raise SyntaxError(
                 f"`{_symbol(node.op)}` is not a supported operator; "
-                "arithmetic is limited to + - * / // %"
+                "arithmetic is limited to + - * / %"
             )
         self._expect(node.left, scopes, "float")
         self._expect(node.right, scopes, "float")
