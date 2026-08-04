@@ -1,5 +1,18 @@
 # Changelog
 
+## [19.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.16.0...arize-phoenix-v19.17.0) (2026-08-04)
+
+
+### Features
+
+* **ui:** AI Query for filter fields ([#15047](https://github.com/Arize-ai/phoenix/issues/15047)) ([920d062](https://github.com/Arize-ai/phoenix/commit/920d06252c8239f51a36cda7e12f5f2ed4bf3682))
+
+
+### Bug Fixes
+
+* **cli:** make px setup's trace verdict the run's result ([#14904](https://github.com/Arize-ai/phoenix/issues/14904)) ([253cfcf](https://github.com/Arize-ai/phoenix/commit/253cfcf891991b2379c9f77557421c2b46de25bf)), closes [#14876](https://github.com/Arize-ai/phoenix/issues/14876)
+* move span and trace link formatting into the PXI system prompt ([#14854](https://github.com/Arize-ai/phoenix/issues/14854)) ([8a749ba](https://github.com/Arize-ai/phoenix/commit/8a749ba5e12b16d2fdf52b78429aac2c4dba705e))
+
 ## [19.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.15.0...arize-phoenix-v19.16.0) (2026-08-04)
 
 
