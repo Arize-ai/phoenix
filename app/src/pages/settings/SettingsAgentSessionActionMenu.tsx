@@ -64,10 +64,12 @@ export function SettingsAgentSessionActionMenu({
   sessionId,
   sessionTitle,
   session,
+  isActive,
 }: {
   sessionId: string;
   sessionTitle: string;
   session: EditAgentSessionTitleDialog_session$key;
+  isActive: boolean;
 }) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -78,12 +80,18 @@ export function SettingsAgentSessionActionMenu({
   const chatStatus = useAgentContext(
     (state) => state.chatStatusBySessionId[sessionId]
   );
+  const isBusyElsewhere = useAgentContext(
+    (state) => state.isBusyElsewhereBySessionId[sessionId] ?? false
+  );
   const setActiveSession = useAgentContext((state) => state.setActiveSession);
   const clearSessionEphemeralState = useAgentContext(
     (state) => state.clearSessionEphemeralState
   );
   const isDeleteDisabled =
-    chatStatus === "submitted" || chatStatus === "streaming";
+    isActive ||
+    isBusyElsewhere ||
+    chatStatus === "submitted" ||
+    chatStatus === "streaming";
   const connectionIds = [
     ConnectionHandler.getConnectionID(
       "client:root",

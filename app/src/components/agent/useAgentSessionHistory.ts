@@ -80,6 +80,7 @@ export function useAgentSessionHistory({
   sessionId,
   isDraft,
   chatInstance,
+  isBusyElsewhere,
   pendingElicitation,
   createChatForSession,
   setMessages,
@@ -88,6 +89,7 @@ export function useAgentSessionHistory({
   sessionId: string | null;
   isDraft: boolean;
   chatInstance: Chat<AgentUIMessage> | null;
+  isBusyElsewhere: boolean;
   pendingElicitation: PendingElicitation | null;
   /** Builds the runtime chat for a branch's new session Relay ID. */
   createChatForSession: (
@@ -160,6 +162,7 @@ export function useAgentSessionHistory({
         isDraft ||
         !sessionId ||
         !chatInstance ||
+        isBusyElsewhere ||
         isRequestActive(chatInstance.status)
       ) {
         return Promise.resolve(null);
@@ -199,6 +202,7 @@ export function useAgentSessionHistory({
       clearDroppedToolState,
       clearError,
       commitTruncateAgentSession,
+      isBusyElsewhere,
       isDraft,
       sessionId,
       setMessages,
@@ -211,7 +215,13 @@ export function useAgentSessionHistory({
   // runtime chat from the returned transcript and activates it.
   const forkFromMessage = useCallback(
     (messageId: string): Promise<void> => {
-      if (isDraft || !sessionId || !chatInstance) {
+      if (
+        isDraft ||
+        !sessionId ||
+        !chatInstance ||
+        isBusyElsewhere ||
+        isRequestActive(chatInstance.status)
+      ) {
         return Promise.resolve();
       }
       clearError();
@@ -263,6 +273,7 @@ export function useAgentSessionHistory({
       clearError,
       commitBranchAgentSession,
       createChatForSession,
+      isBusyElsewhere,
       isDraft,
       runtime,
       sessionId,

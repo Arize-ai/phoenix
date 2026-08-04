@@ -14,7 +14,7 @@ from phoenix.db.types.data_stream_protocol import (
     TextUIPart,
 )
 from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
-from phoenix.server.api.helpers.agent_sessions import get_otel_session_id
+from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS, get_otel_session_id
 from phoenix.server.api.routers.agents import (
     _build_compaction_message,
     _load_agent_session_history,
@@ -151,6 +151,7 @@ async def _seed_session_with_transcript(
     title: str = "",
     is_ephemeral: bool = False,
     updated_at: datetime | None = None,
+    heartbeat_at: datetime | None = None,
 ) -> str:
     async with db() as session:
         agent_session = models.AgentSession(
@@ -158,6 +159,7 @@ async def _seed_session_with_transcript(
             title=title,
             project_name="assistant_agent",
             is_ephemeral=is_ephemeral,
+            heartbeat_at=heartbeat_at,
         )
         if updated_at is not None:
             agent_session.created_at = agent_session.updated_at = updated_at
@@ -171,6 +173,71 @@ async def _seed_session_with_transcript(
             for message in _transcript_messages()
         )
         return str(GlobalID("AgentSession", str(agent_session.id)))
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message_id"),
+    [
+        (_TRUNCATE_MUTATION, _message_uuid("user-2")),
+        (_BRANCH_MUTATION, _message_uuid("assistant-1")),
+        (_DELETE_MUTATION, None),
+    ],
+    ids=("truncate", "branch", "delete"),
+)
+async def test_session_history_mutations_reject_an_active_turn(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    mutation: str,
+    message_id: str | None,
+) -> None:
+    agent_session_id = await _seed_session_with_transcript(
+        db,
+        heartbeat_at=datetime.now(timezone.utc),
+    )
+    variables = {"id": agent_session_id}
+    if message_id is not None:
+        variables["messageId"] = message_id
+
+    response = await gql_client.execute(query=mutation, variables=variables)
+
+    assert response.errors
+    assert response.errors[0].message == (
+        "This session is busy. "
+        "Wait for the current operation to finish before modifying the conversation."
+    )
+    async with db() as session:
+        assert await session.scalar(select(func.count()).select_from(models.AgentSession)) == 1
+        assert await session.scalar(
+            select(func.count()).select_from(models.AgentSessionMessage)
+        ) == len(_transcript_messages())
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message_id"),
+    [
+        (_TRUNCATE_MUTATION, _message_uuid("user-2")),
+        (_BRANCH_MUTATION, _message_uuid("assistant-1")),
+        (_DELETE_MUTATION, None),
+    ],
+    ids=("truncate", "branch", "delete"),
+)
+async def test_session_history_mutations_accept_a_stale_turn_lock(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    mutation: str,
+    message_id: str | None,
+) -> None:
+    agent_session_id = await _seed_session_with_transcript(
+        db,
+        heartbeat_at=datetime.now(timezone.utc) - TURN_LOCK_STALENESS - timedelta(seconds=1),
+    )
+    variables = {"id": agent_session_id}
+    if message_id is not None:
+        variables["messageId"] = message_id
+
+    response = await gql_client.execute(query=mutation, variables=variables)
+
+    assert not response.errors
 
 
 async def test_truncate_agent_session_at_a_user_message_removes_it_and_later_turns(

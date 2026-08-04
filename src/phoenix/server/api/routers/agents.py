@@ -1585,12 +1585,10 @@ async def _persist_agent_session_turn(
             title=title or "",
         )
         if updated_agent_session_rowid is None:
-            logger.error(
-                "Agent session %r no longer exists; discarding %d generated message(s). ",
-                str(GlobalID("AgentSession", str(agent_session_rowid))),
-                len(new_messages),
+            raise RuntimeError(
+                f"Agent session {GlobalID('AgentSession', str(agent_session_rowid))!s} "
+                "no longer exists"
             )
-            return
         if new_messages[0].role == "assistant":
             # Client-tool continuations replace the persisted assistant message.
             await _update_trailing_assistant_message(

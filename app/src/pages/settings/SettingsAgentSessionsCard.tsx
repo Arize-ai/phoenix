@@ -91,6 +91,7 @@ export function SettingsAgentSessionsCard({
                 profilePictureUrl
               }
               firstInput
+              isActive
               createdAt
               updatedAt
             }
@@ -160,6 +161,7 @@ export function SettingsAgentSessionsCard({
                           sessionId={node.id}
                           sessionTitle={node.title}
                           session={node}
+                          isActive={node.isActive}
                         />
                       </Flex>
                     ) : null}
