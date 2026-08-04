@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5d5c25bd7fc69b84d8c73ac730a24306>>
+ * @generated SignedSource<<c0a8905a654c6d02fdc7b75abef50dc6>>
  * @lightSyntaxTransform
  */
 
@@ -9,21 +9,18 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type BranchAgentSessionInput = {
+export type TruncateAgentSessionInput = {
   id: string;
   messageId: string;
 };
-export type useAgentChatBranchAgentSessionMutation$variables = {
-  connections: ReadonlyArray<string>;
-  input: BranchAgentSessionInput;
+export type useAgentSessionHistoryTruncateAgentSessionMutation$variables = {
+  input: TruncateAgentSessionInput;
 };
-export type useAgentChatBranchAgentSessionMutation$data = {
-  readonly branchAgentSession: {
+export type useAgentSessionHistoryTruncateAgentSessionMutation$data = {
+  readonly truncateAgentSession: {
     readonly agentSession: {
-      readonly createdAt: string;
       readonly firstInput: string | null;
       readonly id: string;
-      readonly isTemporary: boolean;
       readonly latestOutput: string | null;
       readonly messages: any;
       readonly title: string;
@@ -36,93 +33,76 @@ export type useAgentChatBranchAgentSessionMutation$data = {
     };
   };
 };
-export type useAgentChatBranchAgentSessionMutation = {
-  response: useAgentChatBranchAgentSessionMutation$data;
-  variables: useAgentChatBranchAgentSessionMutation$variables;
+export type useAgentSessionHistoryTruncateAgentSessionMutation = {
+  response: useAgentSessionHistoryTruncateAgentSessionMutation$data;
+  variables: useAgentSessionHistoryTruncateAgentSessionMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "connections"
-},
-v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "input"
-},
-v2 = [
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "input"
+  }
+],
+v1 = [
   {
     "kind": "Variable",
     "name": "input",
     "variableName": "input"
   }
 ],
-v3 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "title",
   "storageKey": null
 },
-v5 = {
-  "alias": "isTemporary",
-  "args": null,
-  "kind": "ScalarField",
-  "name": "isEphemeral",
-  "storageKey": null
-},
-v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "createdAt",
-  "storageKey": null
-},
-v7 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
 },
-v8 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "firstInput",
   "storageKey": null
 },
-v9 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "latestOutput",
   "storageKey": null
 },
-v10 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "username",
   "storageKey": null
 },
-v11 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "profilePictureUrl",
   "storageKey": null
 },
-v12 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -131,20 +111,17 @@ v12 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": [
-      (v0/*:: as any*/),
-      (v1/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "useAgentChatBranchAgentSessionMutation",
+    "name": "useAgentSessionHistoryTruncateAgentSessionMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*:: as any*/),
-        "concreteType": "BranchAgentSessionMutationPayload",
+        "args": (v1/*:: as any*/),
+        "concreteType": "TruncateAgentSessionMutationPayload",
         "kind": "LinkedField",
-        "name": "branchAgentSession",
+        "name": "truncateAgentSession",
         "plural": false,
         "selections": [
           {
@@ -155,18 +132,16 @@ return {
             "name": "agentSession",
             "plural": false,
             "selections": [
+              (v2/*:: as any*/),
               (v3/*:: as any*/),
-              (v4/*:: as any*/),
               {
                 "args": null,
                 "kind": "FragmentSpread",
                 "name": "EditAgentSessionTitleDialog_session"
               },
+              (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
-              (v7/*:: as any*/),
-              (v8/*:: as any*/),
-              (v9/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -175,12 +150,12 @@ return {
                 "name": "user",
                 "plural": false,
                 "selections": [
-                  (v10/*:: as any*/),
-                  (v11/*:: as any*/)
+                  (v7/*:: as any*/),
+                  (v8/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v12/*:: as any*/)
+              (v9/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -193,19 +168,16 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v1/*:: as any*/),
-      (v0/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "useAgentChatBranchAgentSessionMutation",
+    "name": "useAgentSessionHistoryTruncateAgentSessionMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*:: as any*/),
-        "concreteType": "BranchAgentSessionMutationPayload",
+        "args": (v1/*:: as any*/),
+        "concreteType": "TruncateAgentSessionMutationPayload",
         "kind": "LinkedField",
-        "name": "branchAgentSession",
+        "name": "truncateAgentSession",
         "plural": false,
         "selections": [
           {
@@ -216,13 +188,11 @@ return {
             "name": "agentSession",
             "plural": false,
             "selections": [
+              (v2/*:: as any*/),
               (v3/*:: as any*/),
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
-              (v7/*:: as any*/),
-              (v8/*:: as any*/),
-              (v9/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -231,36 +201,15 @@ return {
                 "name": "user",
                 "plural": false,
                 "selections": [
-                  (v10/*:: as any*/),
-                  (v11/*:: as any*/),
-                  (v3/*:: as any*/)
+                  (v7/*:: as any*/),
+                  (v8/*:: as any*/),
+                  (v2/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v12/*:: as any*/)
+              (v9/*:: as any*/)
             ],
             "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "filters": null,
-            "handle": "prependNode",
-            "key": "",
-            "kind": "LinkedHandle",
-            "name": "agentSession",
-            "handleArgs": [
-              {
-                "kind": "Variable",
-                "name": "connections",
-                "variableName": "connections"
-              },
-              {
-                "kind": "Literal",
-                "name": "edgeTypeName",
-                "value": "AgentSessionEdge"
-              }
-            ]
           }
         ],
         "storageKey": null
@@ -268,16 +217,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f89b7b8b0f97a65da3e3761790631b80",
+    "cacheID": "94867f207f3807d7a0947181280cad4f",
     "id": null,
     "metadata": {},
-    "name": "useAgentChatBranchAgentSessionMutation",
+    "name": "useAgentSessionHistoryTruncateAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useAgentChatBranchAgentSessionMutation(\n  $input: BranchAgentSessionInput!\n) {\n  branchAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary: isEphemeral\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
+    "text": "mutation useAgentSessionHistoryTruncateAgentSessionMutation(\n  $input: TruncateAgentSessionInput!\n) {\n  truncateAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6354f2496c291bef8b6b164863a43f4d";
+(node as any).hash = "c904e4a29b8ceacfb722f5eb10990cf5";
 
 export default node;
