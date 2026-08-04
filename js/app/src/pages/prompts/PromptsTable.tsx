@@ -454,6 +454,12 @@ export function PromptsTable(props: PromptsTableProps) {
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    // Key rows by prompt ID rather than by index. Row cells host overlays
+    // (the action menu and its label submenu) that are bound to
+    // `row.original.id`; with index-based keys a refetch that re-orders the
+    // list hands the still-open overlay a different prompt's ID, so the next
+    // click writes to the wrong prompt.
+    getRowId: (row) => row.id,
   });
 
   const { columnSizingInfo, columnSizing: columnSizingState } =
