@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
+import { isValidElement } from "react";
 
 import { Text } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -48,7 +49,7 @@ type ChartTooltipItemProps = {
    */
   color?: string;
   name: string;
-  value: string;
+  value: ReactNode;
 };
 
 /**
@@ -81,7 +82,7 @@ export function ChartTooltipItem(props: ChartTooltipItemProps) {
           <Truncate maxWidth="100%">{props.name}</Truncate>
         </Text>
       </div>
-      <Text>{props.value}</Text>
+      {isValidElement(props.value) ? props.value : <Text>{props.value}</Text>}
     </div>
   );
 }

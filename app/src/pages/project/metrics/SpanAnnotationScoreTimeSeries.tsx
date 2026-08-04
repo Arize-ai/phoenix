@@ -7,6 +7,7 @@ import type { SpanAnnotationScoreTimeSeriesQuery } from "./__generated__/SpanAnn
 import { AnnotationScoreTimeSeriesChart } from "./AnnotationScoreTimeSeriesChart";
 import type { ProjectMetricViewProps } from "./types";
 import { useMetricQueryFetchOptions } from "./types";
+import { useProjectAnnotationConfigsByName } from "./useProjectAnnotationConfigsByName";
 
 export function SpanAnnotationScoreTimeSeries({
   projectId,
@@ -25,6 +26,7 @@ export function SpanAnnotationScoreTimeSeries({
       ) {
         project: node(id: $projectId) {
           ... on Project {
+            ...ProjectAnnotationMetricsConfigFragment
             spanAnnotationScoreTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
@@ -55,6 +57,9 @@ export function SpanAnnotationScoreTimeSeries({
     },
     useMetricQueryFetchOptions()
   );
+  const annotationConfigsByName = useProjectAnnotationConfigsByName(
+    data.project
+  );
 
   return (
     <AnnotationScoreTimeSeriesChart
@@ -63,6 +68,7 @@ export function SpanAnnotationScoreTimeSeries({
       scale={scale}
       timeRange={timeRange}
       onTimeRangeSelected={onTimeRangeSelected}
+      annotationConfigsByName={annotationConfigsByName}
     />
   );
 }
