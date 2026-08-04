@@ -38,7 +38,7 @@ export const coreSpanFilterCompletions: Completion[] = [
     label: "status_message",
     type: "variable",
     detail: "status details",
-    info: "The status message of a span, e.x. an error message",
+    info: "The status message of a span, e.g. an error message",
   },
   {
     label: "input.value",
@@ -56,7 +56,7 @@ export const coreSpanFilterCompletions: Completion[] = [
     label: "name",
     type: "variable",
     detail: "operation name",
-    info: "The name given to a span - e.x. OpenAI",
+    info: "The name given to a span - e.g. OpenAI",
   },
   {
     label: "span_id",
@@ -92,25 +92,25 @@ export const coreSpanFilterCompletions: Completion[] = [
     label: "metadata",
     type: "variable",
     detail: "metadata by key",
-    info: "The metadata of a span, accessed by key - e.x. metadata['topic']",
+    info: "The metadata of a span, accessed by key - e.g. metadata['topic']",
   },
   {
     label: "attributes",
     type: "variable",
     detail: "attributes by key",
-    info: "Span attributes, accessed by key - e.x. attributes['llm']['provider']",
+    info: "Span attributes, accessed by key - e.g. attributes['llm']['provider']",
   },
   {
     label: "annotations",
     type: "variable",
     detail: "annotations by name",
-    info: "Span annotations, accessed by name - e.x. annotations['quality'].score",
+    info: "Span annotations, accessed by name - e.g. annotations['quality'].score",
   },
   {
     label: "evals",
     type: "variable",
     detail: "evaluations by name",
-    info: "Span evaluations, accessed by name - e.x. evals['Hallucination'].label",
+    info: "Span evaluations, accessed by name - e.g. evals['Hallucination'].label",
   },
   {
     // Referenced by the "filter by model name" snippet and by the AI query
@@ -118,7 +118,7 @@ export const coreSpanFilterCompletions: Completion[] = [
     label: "llm.model_name",
     type: "variable",
     detail: "model of an LLM span",
-    info: "The model an LLM span called, e.x. gpt-4o. Shorthand for attributes['llm']['model_name'].",
+    info: "The model an LLM span called, e.g. gpt-4o. Shorthand for attributes['llm']['model_name'].",
   },
   {
     label: "llm.token_count.prompt",

@@ -20,22 +20,22 @@ export const experimentRunFilterCompletions: Completion[] = [
   {
     label: "input",
     type: "variable",
-    info: "The input of the dataset example",
+    info: "The input of the dataset example, read by key - e.g. input['question']",
   },
   {
     label: "reference_output",
     type: "variable",
-    info: "The reference output of the dataset example",
+    info: "The reference output of the dataset example, read by key - e.g. reference_output['answer']",
   },
   {
     label: "metadata",
     type: "variable",
-    info: "The metadata of the dataset example",
+    info: "The metadata of the dataset example, read by key - e.g. metadata['topic']",
   },
   {
     label: "output",
     type: "variable",
-    info: "The output of the experiment run",
+    info: "The output of the experiment run, searchable directly - e.g. 'text' in output",
   },
   {
     label: "error",
@@ -55,7 +55,7 @@ export const experimentRunFilterCompletions: Completion[] = [
   {
     label: "experiments",
     type: "variable",
-    info: "The experiments being compared, accessed by position - e.x. experiments[0]",
+    info: "The experiments being compared, accessed by position - e.g. experiments[0]",
   },
 ];
 
@@ -70,12 +70,15 @@ export const experimentRunFilterSnippets: DSLFilterSnippet[] = [
     snippet: "'${search text}' in output",
   },
   {
+    // The dataset example's JSON documents can only be read through a key —
+    // the server rejects a bare `input` operand with "Select a key from
+    // `input` with [<key>]" — so the snippet carries the subscript.
     label: "search input for substring",
-    snippet: "'${search text}' in input",
+    snippet: "'${search text}' in input['${key}']",
   },
   {
     label: "search reference output for substring",
-    snippet: "'${search text}' in reference_output",
+    snippet: "'${search text}' in reference_output['${key}']",
   },
   {
     label: "filter on errors",
@@ -134,16 +137,24 @@ const experimentRunFilterAIExamples = [
     expression: "evals['tone'].label == 'formal'",
   },
   {
+    description: "runs the coverage eval never scored",
+    expression: "evals['coverage'].score is None",
+  },
+  {
+    description: "examples tagged with the legal topic",
+    expression: "metadata['topic'] == 'legal'",
+  },
+  {
     description: "outputs that mention a discount",
     expression: "'discount' in output",
   },
   {
-    description: "inputs asking about shipping",
-    expression: "'shipping' in input",
+    description: "inputs whose prompt mentions shipping",
+    expression: "'shipping' in input['prompt']",
   },
   {
-    description: "expected answers that mention Berlin",
-    expression: "'Berlin' in reference_output",
+    description: "runs where the reference translation mentions Berlin",
+    expression: "'Berlin' in reference_output['translation']",
   },
   {
     description: "errors mentioning quota",
@@ -154,9 +165,31 @@ const experimentRunFilterAIExamples = [
     expression: "latency_ms > 20000",
   },
   {
+    description: "runs that took between one and two seconds",
+    expression: "latency_ms > 1000 and latency_ms < 2000",
+  },
+  {
+    description: "runs the speed eval labeled fast or medium",
+    expression:
+      "evals['speed'].label == 'fast' or evals['speed'].label == 'medium'",
+  },
+  {
     description: "the first experiment beat the second on helpfulness",
     expression:
       "experiments[0].evals['helpfulness'].score > experiments[1].evals['helpfulness'].score",
+  },
+  {
+    // Teaches the no-arithmetic approximation by demonstration: the "by at
+    // least 0.1" delta cannot be expressed (no subtraction), so it drops.
+    description:
+      "runs where fluency fell by at least 0.1 in the second experiment",
+    expression:
+      "experiments[1].evals['fluency'].score < experiments[0].evals['fluency'].score",
+  },
+  {
+    description: "runs where the two experiments agree on the verdict label",
+    expression:
+      "experiments[0].evals['verdict'].label == experiments[1].evals['verdict'].label",
   },
 ];
 
@@ -175,6 +208,11 @@ export const experimentRunFilterAIQueryDSL = createAIQueryDSL({
     "Evaluations are accessed by name, e.g. evals['Hallucination'], and expose .label, .score, and .explanation.",
     "Any name the request scores, labels, or compares is an evaluation reached through evals['<name>'] — including names not listed above. Never restate such a name as latency_ms or another field.",
     "Durations are in milliseconds: five seconds is latency_ms > 5000.",
-    "When experiments are compared side by side, experiments[i] scopes an expression to the i-th experiment, e.g. experiments[0].evals['name'].score.",
+    "input, reference_output, and metadata belong to the dataset example and are always read through a key — input['question'], metadata['topic'] — never bare. The run's output and error are searched directly: 'text' in output.",
+    "When experiments are compared side by side, experiments[i] scopes a field to the i-th experiment: experiments[0].evals['name'].score, experiments[1].latency_ms.",
+    "Two experiments are compared by putting one scoped field on each side of a comparison — never by subtracting or dividing them. There is no arithmetic.",
+    "An unscoped field matches each run against its own experiment, so 'either experiment' is the unscoped field alone, and 'both experiments' is one experiments[i] clause per experiment joined with and.",
+    "Comparisons are binary only: a range is two clauses joined with and, never 1000 < latency_ms < 5000.",
+    "There is no list membership: 'a or b' is two equality clauses joined with or, never in ['a', 'b'].",
   ],
 });

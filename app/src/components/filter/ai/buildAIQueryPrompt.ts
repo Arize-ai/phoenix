@@ -43,8 +43,8 @@ ${exampleLines}
 Your answer:
 - The expression alone — one line, no explanation, no code fences, no surrounding quotes.
 - Use the values the request gives you verbatim. A key, name, or label the user typed is what the data holds; do not correct its spelling or casing.
-- Verbatim applies to identifiers, not phrasing. A substring search over free text like a status message matches on the term's root form: a request about calls that timed out searches for 'timeout'.
-- Translate every part of the request. A request that names a kind, a threshold, and a status is three clauses joined with \`and\`.
+- Verbatim applies to identifiers, not phrasing. A substring search over free text like an error or status message matches on the term's root form: a request about calls that timed out searches for 'timeout'.
+- Translate every part of the request. A request that states three facts is three clauses joined with \`and\`.
 - Write the narrowest expression that answers the request. Never add an \`or\` over a field the request did not name, an equality a substring test already covers, or an \`is not None\` guard on a field another clause already compares or searches.
 - When the request implies a threshold without giving one, choose a sensible default — "slow" is latency over 10 seconds.
 - A filter cannot sort, rank, or limit. "the slowest", with or without a count, is the default slow threshold; drop the count.

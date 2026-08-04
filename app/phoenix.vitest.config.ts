@@ -24,7 +24,10 @@ export default defineConfig({
     include: ["evals/**/*.eval.ts"],
     environment: "node",
     reporters: ["default", "@arizeai/phoenix-client/vitest/reporter"],
-    // Small models are slow, and a miss costs a judge round on top.
-    testTimeout: 120_000,
+    // Small models are slow, and a miss costs a judge round on top. The
+    // on-device proxy (Gemma) averages ~20s a case and has crossed 120s on
+    // long cross-experiment expressions, failing the run on a timeout the
+    // acceptance criteria had already survived.
+    testTimeout: 300_000,
   },
 });

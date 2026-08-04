@@ -34,6 +34,13 @@ export function createFilterEquivalenceJudge({
         : `- ${field.name}`
     )
     .join("\n");
+  // The dialect's notes go into the rubric so the judge can reject a
+  // candidate that is logically equivalent but written in syntax this
+  // dialect rejects (list membership, chained ranges, arithmetic) — the
+  // server would refuse it, so the eval must not count it correct.
+  const notes = dsl.notes?.length
+    ? `\nNotes on this dialect:\n${dsl.notes.map((note) => `- ${note}`).join("\n")}\n`
+    : "";
   return createClassificationEvaluator<FilterEquivalenceRecord>({
     name: "filter_equivalence",
     model,
@@ -41,11 +48,11 @@ export function createFilterEquivalenceJudge({
     // sees the global integration already carries it and appends nothing.
     telemetry: { tracer: evalTracer },
     choices: { equivalent: 1, not_equivalent: 0 },
-    promptTemplate: `You judge translations of natural-language requests into a span filter DSL: a Python-like boolean expression evaluated against each span. String literals use single quotes; clauses combine with \`and\`, \`or\`, and \`not\`; substring search is written \`'text' in field\`.
+    promptTemplate: `You judge translations of natural-language requests into a filter DSL for ${dsl.noun}: a Python-like boolean expression evaluated against each of the ${dsl.noun}. String literals use single quotes; clauses combine with \`and\`, \`or\`, and \`not\`; substring search is written \`'text' in field\`.
 
 An expression may reference only these fields:
 ${fieldLines}
-
+${notes}
 The request: {{query}}
 
 The candidate expression: {{expression}}
@@ -53,6 +60,6 @@ The candidate expression: {{expression}}
 Known-correct reference expressions:
 {{references}}
 
-Label the candidate "equivalent" when it would keep the same spans as one of the references — differences in clause order, quoting, or logically interchangeable operators are fine. Label it "not_equivalent" if it references fields outside the list, changes a compared value or threshold, or filters different behavior than the request asks for.`,
+Label the candidate "equivalent" when it would keep the same ${dsl.noun} as one of the references — differences in clause order, quoting, or logically interchangeable operators are fine. Label it "not_equivalent" if it references fields outside the list, uses a construct the notes say this dialect does not support (even when the logic matches), changes a compared value or threshold, or filters different behavior than the request asks for.`,
   });
 }
