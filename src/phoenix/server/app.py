@@ -1204,6 +1204,7 @@ def create_app(
         mcp_http_app, mcp_code_mode_sandbox = create_phoenix_mcp_app(
             app,
             monty_runtime=sandbox_runtime.monty,
+            db=db,
         )
         # The guard reads scope["user"], so it is installed exactly when the
         # AuthenticationMiddleware that populates it is (token_store above).

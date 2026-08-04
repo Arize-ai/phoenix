@@ -66,6 +66,7 @@ if TYPE_CHECKING:
     from starlette.types import ASGIApp, Receive, Scope, Send
 
     from phoenix.server.monty_runtime import MontyRuntime
+    from phoenix.server.types import DbSessionFactory
 
 #: Path the MCP ASGI app is mounted at on the Phoenix FastAPI app.
 MCP_MOUNT_PATH = "/mcp"
@@ -436,6 +437,7 @@ def create_phoenix_mcp_app(
     app: "FastAPI",
     *,
     monty_runtime: Optional["MontyRuntime"] = None,
+    db: "DbSessionFactory",
 ) -> tuple["StarletteWithLifespan", Optional[MontyPoolSandboxProvider]]:
     """Build the MCP server from ``app``'s REST API and return its ASGI app.
 
@@ -445,6 +447,7 @@ def create_phoenix_mcp_app(
     Args:
         app: Phoenix application whose REST API becomes the MCP tool surface.
         monty_runtime: Shared runtime required only when code mode is enabled.
+        db: Session factory for the analytics SQL tools.
 
     Returns:
         The ASGI app to mount, and — when code mode is enabled — the sandbox
@@ -490,6 +493,9 @@ def create_phoenix_mcp_app(
         mcp.add_transform(code_mode)
     else:
         _install_progressive_disclosure(mcp, openapi_spec)
+    from phoenix.server.mcp_analytics_sql.tools import register_analytics_sql_tools
+
+    register_analytics_sql_tools(mcp, db=db)
     # path="/" because the app is mounted at MCP_MOUNT_PATH; the endpoint then
     # resolves to MCP_MOUNT_PATH itself rather than MCP_MOUNT_PATH + "/mcp".
     return mcp.http_app(path="/"), sandbox_provider
