@@ -112,10 +112,6 @@ export const PanZoomOnly = {
   },
 };
 
-/**
- * The medium size derives its button squares from the taller shell the same
- * way the small size does, so the toggle and its siblings stay aligned.
- */
 export const Medium = {
   render: Template,
   args: {
