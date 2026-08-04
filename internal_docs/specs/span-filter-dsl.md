@@ -315,8 +315,8 @@ the same rows — while enum *equality* still uppercases its literal, so
 `span_kind == 'llm'` keeps matching (see [Field names](#field-names)).
 
 > Compatibility note: containment was case-sensitive (`strpos` /
-> `text_contains`) until the session filter DSL shipped; the flip is additive —
-> a saved filter can match more rows than before, never fewer.
+> `text_contains`) until the session filter DSL shipped. A saved filter using `in` returns the
+> same rows or more, never fewer; one using `not in` returns the same rows or fewer, never more.
 
 ### Casts
 

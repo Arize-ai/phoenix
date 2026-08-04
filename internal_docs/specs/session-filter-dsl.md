@@ -241,8 +241,9 @@ non-ASCII and wildcard-literal behavior carries over unchanged.
 **The span grain was flipped to match, and that is a behavior change to a shipped
 language.** Span-grain `in` and `not in` were exact; they now ignore case too, so a saved
 span filter reading `'timeout' in output.value` starts matching spans that spell it
-`Timeout`. Existing filters therefore return more rows than they did, never fewer. That was
-accepted rather than avoided: a user moving between the sessions and spans views was getting
+`Timeout`. A saved span filter using `in` returns the same rows or more, never fewer; one using
+`not in` returns the same rows or fewer, never more. That was accepted rather than avoided: a
+user moving between the sessions and spans views was getting
 two different answers to the same-looking query, and of the two answers the case-insensitive
 one is what people mean by searching text. The polarity is a flag on the shared compiler's
 bindings, set the same way at every grain, so it stays one decision rather than a per-grain
@@ -508,8 +509,9 @@ same sessions, and the aside's session count doubles as the page's match count.
 
 - **Span filters now match text case-insensitively.** `in` and `not in` against a string —
   `'timeout' in output.value`, `'search' in name`, any attribute or annotation-label read —
-  ignore case, matching how the session filter behaves. Saved span filters keep working and
-  return more rows than before, never fewer; `==` and `!=` still match exactly.
+  ignore case, matching how the session filter behaves. A saved span filter using `in` returns
+  the same rows or more, never fewer; one using `not in` returns the same rows or fewer, never
+  more. `==` and `!=` still match exactly.
 - **`sessionFilterCondition` is an expression, not a substring.** On the seven span- and
   trace-grain fields that carried it before this change, the argument meant a substring of
   the session's input/output. Plain-text inputs no longer match anything by substring —
