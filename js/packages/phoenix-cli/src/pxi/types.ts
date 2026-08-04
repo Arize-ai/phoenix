@@ -115,6 +115,23 @@ export type PxiSession = PxiSessionSummary & {
    * Absent means no lock is held.
    */
   isActive?: boolean;
+  /**
+   * The message ID of the most recently persisted transcript message, or
+   * null for an empty transcript.
+   */
+  lastMessageId?: string | null;
+};
+
+/**
+ * Cheap synchronization probe for a session: whether another client's turn
+ * holds the lock and where the persisted transcript's tail currently is.
+ * Polling fetches this instead of the full transcript and only downloads
+ * messages when the tail has moved.
+ */
+export type PxiSessionSyncState = {
+  isActive: boolean;
+  updatedAt: string;
+  lastMessageId: string | null;
 };
 
 /**
@@ -132,6 +149,9 @@ export type PxiSessionClient = {
   createSession: (options: { temporary: boolean }) => Promise<PxiSession>;
   listSessions: () => Promise<PxiSessionSummary[]>;
   getSession: (options: { sessionId: string }) => Promise<PxiSession>;
+  getSessionSyncState: (options: {
+    sessionId: string;
+  }) => Promise<PxiSessionSyncState>;
   compactSession: (options: {
     sessionId: string;
     model: ModelSelection;

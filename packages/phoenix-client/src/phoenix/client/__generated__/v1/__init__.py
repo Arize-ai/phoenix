@@ -1926,7 +1926,8 @@ class AgentSessionData(TypedDict):
     updated_at: str
     is_ephemeral: bool
     is_active: bool
-    messages: Sequence[PhoenixUIMessage]
+    last_message_id: NotRequired[str]
+    messages: NotRequired[Sequence[PhoenixUIMessage]]
 
 
 class ChatRequest(TypedDict):

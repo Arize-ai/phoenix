@@ -65,6 +65,7 @@ _DETAIL_QUERY = """
         user { username profilePictureUrl }
         firstInput
         latestOutput
+        lastMessageId
         messages
       }
     }
@@ -246,9 +247,35 @@ async def test_agent_session_loads_transcript_by_id(
             },
             "firstInput": "First question",
             "latestOutput": "Latest\nanswer",
+            "lastMessageId": _message_uuid("message-3"),
             "messages": messages,
         }
     }
+
+
+async def test_agent_session_last_message_id_is_null_for_empty_transcript(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    agent_session_id = await _seed_agent_session(
+        db,
+        title="Empty session",
+        updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+
+    response = await gql_client.execute(
+        query="""
+          query ($id: ID!) {
+            agentSession: node(id: $id) {
+              ... on AgentSession { lastMessageId }
+            }
+          }
+        """,
+        variables={"id": agent_session_id},
+    )
+
+    assert not response.errors
+    assert response.data == {"agentSession": {"lastMessageId": None}}
 
 
 async def test_agent_session_node_returns_not_found_when_missing(

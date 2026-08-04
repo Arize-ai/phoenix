@@ -157,6 +157,64 @@ class TestGetAgentSession:
         ]
         assert data["messages"][0]["parts"] == [{"type": "text", "text": "Hello"}]
         assert data["messages"][1]["parts"] == [{"type": "text", "text": "Hi"}]
+        assert data["last_message_id"] == _message_uuid("assistant-message")
+
+    async def test_sync_probe_omits_messages_but_reports_transcript_tail(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        messages = [
+            PhoenixUIMessage(
+                id=_message_uuid("user-message"),
+                role="user",
+                parts=[TextUIPart(type="text", text="Hello")],
+            ),
+            PhoenixUIMessage(
+                id=_message_uuid("assistant-message"),
+                role="assistant",
+                parts=[TextUIPart(type="text", text="Hi")],
+            ),
+        ]
+        agent_session = await _insert_agent_session(
+            db,
+            title="Conversation",
+            updated_at=now,
+            messages=messages,
+        )
+        session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+        response = await httpx_client.get(
+            f"/agents/assistant/sessions/{session_id}",
+            params={"include_messages": False},
+        )
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["id"] == session_id
+        assert data["is_active"] is False
+        assert data["last_message_id"] == _message_uuid("assistant-message")
+        assert "messages" not in data
+
+    async def test_sync_probe_reports_null_tail_for_empty_transcript(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        agent_session = await _insert_agent_session(db, title="Empty", updated_at=now)
+        session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+        response = await httpx_client.get(
+            f"/agents/assistant/sessions/{session_id}",
+            params={"include_messages": False},
+        )
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["last_message_id"] is None
+        assert "messages" not in data
 
     async def test_gets_temporary_session(
         self,

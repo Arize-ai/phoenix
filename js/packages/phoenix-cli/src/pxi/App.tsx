@@ -41,6 +41,7 @@ import type {
   PxiMessage,
   PxiRuntimeOptions,
   PxiSessionClient,
+  PxiSession,
   PxiSessionSummary,
 } from "./types";
 
@@ -924,16 +925,37 @@ export function PxiApp({
    * the terminal equivalent of the web menu's store-and-network refetch.
    */
   const cachedSessionListRef = useRef<PxiSessionSummary[] | null>(null);
+  /**
+   * The persisted transcript's tail as of the last applied full fetch.
+   * Polling probes the cheap sync state first and skips the full transcript
+   * fetch while the tail hasn't moved, so idle sessions cost a tiny metadata
+   * read instead of re-downloading every message.
+   */
+  const lastSyncedSessionStateRef = useRef<{
+    sessionId: string;
+    updatedAt: string;
+    lastMessageId: string | null;
+  } | null>(null);
+  /** Records the applied transcript's tail after a full session fetch. */
+  const recordSyncedSessionState = (session: PxiSession) => {
+    lastSyncedSessionStateRef.current = {
+      sessionId: session.id,
+      updatedAt: session.updatedAt,
+      lastMessageId: session.lastMessageId ?? null,
+    };
+  };
   const serverSessionClient = useMemo(
     () => sessionClient ?? createPxiSessionClient({ config: options.config }),
     [options.config, sessionClient]
   );
 
   // Keep the active session synchronized with turns completed by other
-  // clients. Poll slowly during normal use and switch to the existing faster
-  // cadence while another client holds the turn lock. This client's own
-  // generation disables polling so its in-flight messages cannot be replaced
-  // by an older persisted transcript.
+  // clients. Each tick fetches the cheap sync probe (isActive + transcript
+  // tail) and only downloads the full transcript when the tail has moved
+  // since the last applied fetch. Poll slowly during normal use and switch
+  // to the existing faster cadence while another client holds the turn lock.
+  // This client's own generation disables polling so its in-flight messages
+  // cannot be replaced by an older persisted transcript.
   const activeSessionId = activeSession?.id ?? null;
   const isSessionPollingPaused = status === "streaming" || isCompacting;
   useEffect(() => {
@@ -943,15 +965,37 @@ export function PxiApp({
     let isStale = false;
     const pollSession = () => {
       void serverSessionClient
-        .getSession({ sessionId: activeSessionId })
-        .then((session) => {
+        .getSessionSyncState({ sessionId: activeSessionId })
+        .then(async (syncState) => {
+          if (isStale) {
+            return;
+          }
+          if (syncState.isActive) {
+            setIsSessionBusy(true);
+            return;
+          }
+          const lastSynced = lastSyncedSessionStateRef.current;
+          const isTranscriptUnchanged =
+            lastSynced != null &&
+            lastSynced.sessionId === activeSessionId &&
+            lastSynced.updatedAt === syncState.updatedAt &&
+            lastSynced.lastMessageId === syncState.lastMessageId;
+          if (isTranscriptUnchanged && !isSessionBusy) {
+            return;
+          }
+          const session = await serverSessionClient.getSession({
+            sessionId: activeSessionId,
+          });
           if (isStale) {
             return;
           }
           if (session.isActive) {
+            // Another client claimed the turn lock between the probe and the
+            // full fetch; treat this tick as busy and resync on the next one.
             setIsSessionBusy(true);
             return;
           }
+          recordSyncedSessionState(session);
           setActiveSession(session);
           setMessages(session.messages);
           setIsSessionBusy(false);
@@ -1006,6 +1050,7 @@ export function PxiApp({
     modelRequestIdRef.current += 1;
     sessionRequestIdRef.current += 1;
     setActiveSession(null);
+    lastSyncedSessionStateRef.current = null;
     setIsDraftTemporary(temporary);
     setIsSessionBusy(false);
     setShowStaleRefreshNotice(false);
@@ -1172,6 +1217,7 @@ export function PxiApp({
       .getSession({ sessionId: selectedSession.id })
       .then((session) => {
         if (sessionRequestIdRef.current !== requestId) return;
+        recordSyncedSessionState(session);
         setActiveSession(session);
         setIsDraftTemporary(session.isTemporary);
         // Another client's turn may already hold the restored session's lock;
@@ -1444,6 +1490,7 @@ export function PxiApp({
             .then((session) => {
               // A session switch or /new superseded this refresh.
               if (sessionRequestIdRef.current !== requestId) return;
+              recordSyncedSessionState(session);
               setActiveSession(session);
               setMessages(session.messages);
               setShowStaleRefreshNotice(true);

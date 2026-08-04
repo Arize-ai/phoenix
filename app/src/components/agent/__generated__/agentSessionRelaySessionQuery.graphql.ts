@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b0711c282d7d41a0bef57d1a35a79a50>>
+ * @generated SignedSource<<76ecc2dd63a5a93ed11b40183dfcf50f>>
  * @lightSyntaxTransform
  */
 
@@ -19,6 +19,7 @@ export type agentSessionRelaySessionQuery$data = {
     readonly id: string;
     readonly isActive: boolean;
     readonly isTemporary: boolean;
+    readonly lastMessageId: string | null;
     readonly latestOutput: string | null;
     readonly messages: any;
     readonly title: string;
@@ -134,6 +135,13 @@ v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "lastMessageId",
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "messages",
   "storageKey": null
 };
@@ -177,7 +185,8 @@ return {
                 ],
                 "storageKey": null
               },
-              (v13/*:: as any*/)
+              (v13/*:: as any*/),
+              (v14/*:: as any*/)
             ],
             "type": "AgentSession",
             "abstractKey": null
@@ -229,7 +238,8 @@ return {
                 ],
                 "storageKey": null
               },
-              (v13/*:: as any*/)
+              (v13/*:: as any*/),
+              (v14/*:: as any*/)
             ],
             "type": "AgentSession",
             "abstractKey": null
@@ -240,16 +250,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4836634597c05ab5b6a082d4fa40a454",
+    "cacheID": "39dfa76985b3d61bd873a6c0e40c8da9",
     "id": null,
     "metadata": {},
     "name": "agentSessionRelaySessionQuery",
     "operationKind": "query",
-    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      isTemporary: isEphemeral\n      isActive\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n    }\n    id\n  }\n}\n"
+    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      isTemporary: isEphemeral\n      isActive\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      lastMessageId\n      messages\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "898522d8afdc3e0dbb3ef55c2877b2bd";
+(node as any).hash = "0a93a9f87571952d003f5b8acf2d154f";
 
 export default node;

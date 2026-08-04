@@ -1598,7 +1598,7 @@ export interface paths {
         };
         /**
          * Get Session
-         * @description Retrieve an owned session and its persisted transcript.
+         * @description Retrieve an owned session and, optionally, its persisted transcript.
          */
         get: operations["getAgentSession"];
         put?: never;
@@ -1734,8 +1734,16 @@ export interface components {
              * @description Whether a response is currently streaming on this session, i.e. its lock has a live (non-stale) heartbeat.
              */
             is_active: boolean;
-            /** Messages */
-            messages: components["schemas"]["PhoenixUIMessage"][];
+            /**
+             * Last Message Id
+             * @description The message ID of the most recently persisted transcript message, or null for an empty transcript.
+             */
+            last_message_id?: string | null;
+            /**
+             * Messages
+             * @description The persisted transcript. Omitted when the session is fetched with include_messages=false.
+             */
+            messages?: components["schemas"]["PhoenixUIMessage"][] | null;
         };
         /** AgentSessionSummary */
         AgentSessionSummary: {
@@ -11431,7 +11439,10 @@ export interface operations {
     };
     getAgentSession: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Whether to include the persisted transcript in the response. */
+                include_messages?: boolean;
+            };
             header?: never;
             path: {
                 agent_id: string;

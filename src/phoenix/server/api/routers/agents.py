@@ -386,7 +386,20 @@ class AgentSessionData(AgentSessionSummary):
             "lock has a live (non-stale) heartbeat."
         ),
     )
-    messages: list[PhoenixUIMessage]
+    last_message_id: str | None = Field(
+        default=None,
+        description=(
+            "The message ID of the most recently persisted transcript message, or "
+            "null for an empty transcript."
+        ),
+    )
+    messages: list[PhoenixUIMessage] | None = Field(
+        default=None,
+        description=(
+            "The persisted transcript. Omitted when the session is fetched with "
+            "include_messages=false."
+        ),
+    )
 
 
 class ListAgentSessionsResponseBody(PaginatedResponseBody[AgentSessionSummary]):
@@ -1812,8 +1825,12 @@ def create_agents_router(
         agent_id: str,
         session_id: str,
         request: Request,
+        include_messages: bool = Query(
+            True,
+            description=("Whether to include the persisted transcript in the response."),
+        ),
     ) -> GetAgentSessionResponseBody:
-        """Retrieve an owned session and its persisted transcript."""
+        """Retrieve an owned session and, optionally, its persisted transcript."""
         if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
         if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
@@ -1825,29 +1842,47 @@ def create_agents_router(
         except ValueError as error:
             raise HTTPException(status_code=422, detail="Invalid agent session ID") from error
 
-        statement = (
-            select(models.AgentSession)
-            .where(models.AgentSession.id == session_rowid)
-            .options(selectinload(models.AgentSession.messages))
-        )
+        statement = select(models.AgentSession).where(models.AgentSession.id == session_rowid)
+        if include_messages:
+            statement = statement.options(selectinload(models.AgentSession.messages))
         if (user_id := _get_request_user_id(request)) is not None:
             statement = statement.where(models.AgentSession.user_id == user_id)
         async with request.app.state.db() as session:
             agent_session = await session.scalar(statement)
-        if agent_session is None:
-            raise HTTPException(status_code=404, detail="Agent session not found")
+            if agent_session is None:
+                raise HTTPException(status_code=404, detail="Agent session not found")
+            if include_messages:
+                message_rows = agent_session.messages
+                last_message_id = message_rows[-1].message_id if message_rows else None
+            else:
+                last_message_id = await session.scalar(
+                    select(models.AgentSessionMessage.message_id)
+                    .where(models.AgentSessionMessage.agent_session_id == session_rowid)
+                    .order_by(models.AgentSessionMessage.id.desc())
+                    .limit(1)
+                )
 
         summary = _to_agent_session_summary(agent_session)
-        return GetAgentSessionResponseBody(
-            data=AgentSessionData(
+        is_active = is_turn_active(
+            agent_session.heartbeat_at,
+            now=datetime.now(timezone.utc),
+        )
+        if include_messages:
+            data = AgentSessionData(
                 **summary.model_dump(),
-                is_active=is_turn_active(
-                    agent_session.heartbeat_at,
-                    now=datetime.now(timezone.utc),
-                ),
+                is_active=is_active,
+                last_message_id=last_message_id,
                 messages=[message.message for message in agent_session.messages],
             )
-        )
+        else:
+            # `messages` is deliberately left unset so response_model_exclude_unset
+            # drops it from the probe payload.
+            data = AgentSessionData(
+                **summary.model_dump(),
+                is_active=is_active,
+                last_message_id=last_message_id,
+            )
+        return GetAgentSessionResponseBody(data=data)
 
     @router.post(
         "/agents/{agent_id}/sessions/{session_id}/compact",

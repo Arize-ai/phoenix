@@ -22,6 +22,7 @@ import type {
   PxiSession,
   PxiSessionClient,
   PxiSessionSummary,
+  PxiSessionSyncState,
   PxiTransport,
 } from "./types";
 
@@ -213,11 +214,35 @@ export function createPxiSessionClient({
         title: session.title,
         updatedAt: session.updated_at,
         isTemporary: session.is_ephemeral,
-        // Read defensively: the CLI consumes phoenix-client's built types,
-        // which may not carry `is_active` until that package rebuilds.
-        // An absent field means no lock is held.
-        isActive: (session as { is_active?: unknown }).is_active === true,
-        messages: session.messages as PxiMessage[],
+        isActive: session.is_active === true,
+        lastMessageId: session.last_message_id ?? null,
+        messages: (session.messages ?? []) as PxiMessage[],
+      };
+    },
+    async getSessionSyncState({ sessionId }): Promise<PxiSessionSyncState> {
+      const client = createPhoenixClient({ config, fetch: fetchImpl });
+      const { data: payload } = await client.GET(
+        "/agents/{agent_id}/sessions/{session_id}",
+        {
+          params: {
+            path: { agent_id: SERVER_AGENT_ID, session_id: sessionId },
+            // Cheap synchronization probe: session metadata only, so idle
+            // polling doesn't re-download the whole transcript.
+            query: { include_messages: false },
+          },
+        }
+      );
+      if (!payload) {
+        throw new Error(
+          "Could not check the PXI session for updates because Phoenix " +
+            "returned no data."
+        );
+      }
+      const session = payload.data;
+      return {
+        isActive: session.is_active === true,
+        updatedAt: session.updated_at,
+        lastMessageId: session.last_message_id ?? null,
       };
     },
     async compactSession({ sessionId, model }) {
