@@ -51,10 +51,14 @@ async def test_displayed_session_io_and_the_filter_term_select_the_same_root_spa
     displayed = await SessionIODataLoader(db, "first_input").load(project_session_id)
     async with db() as session:
         filtered = (
-            await session.execute(
-                root_span_io_value_by_session("first_input", keys=[project_session_id])
+            (
+                await session.execute(
+                    root_span_io_value_by_session("first_input", keys=[project_session_id])
+                )
             )
-        ).all()
+            .tuples()
+            .all()
+        )
 
     assert displayed is not None
     assert displayed.span_rowid == first_root_span_id
