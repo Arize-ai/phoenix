@@ -212,3 +212,21 @@ def test_annotation_never_carries_the_raw_payload() -> None:
     assert score.metadata == {"tool_name": "edit_prompt_instance"}
     assert secret not in json.dumps({"e": score.explanation, "m": score.metadata})
     assert "prompt-abc123" not in json.dumps({"e": score.explanation, "m": score.metadata})
+
+
+def test_attribute_names_match_the_server_that_writes_them() -> None:
+    """The eval reads attributes the Phoenix server writes.
+
+    A drifted name would not raise — discovery would simply return nothing,
+    forever, and look like a quiet window. Pin the two constants together.
+    """
+    from phoenix.server.agents import approval as server_approval
+
+    assert APPROVAL_DECISION_ATTRIBUTE == server_approval.APPROVAL_DECISION_ATTRIBUTE
+    assert APPROVAL_SOURCE_ATTRIBUTE == server_approval.APPROVAL_SOURCE_ATTRIBUTE
+
+
+@pytest.mark.parametrize("decision", ["accepted", "rejected"])
+def test_every_decision_the_server_emits_is_classified(decision: str) -> None:
+    """The server only ever writes these two; neither may fall through as None."""
+    assert _evaluate(_tool_span(decision=decision, source="user")) is not None

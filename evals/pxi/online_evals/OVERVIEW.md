@@ -119,7 +119,11 @@ flowchart TD
 vocabulary — `accepted`, `saved`, `loaded`, `applied`, `removed` — and the
 marker is uniform across all of them, so a newly approval-gated tool is measured
 the day it ships with no change here. The frontend has a drift guard asserting
-every approval payload carries the marker.
+that payloads using the known accept/reject vocabulary carry the marker; tools
+built on the shared `bindPendingApproval` core are covered by construction.
+
+Spans ingested before the marker shipped carry no `pxi.approval.*` attributes,
+so they are never discovered and cannot be backfilled.
 
 Discovery filters on `source = user` rather than on the decision: it is a single
 server-side query, and it yields exactly the annotated set, since rejections are

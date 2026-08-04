@@ -58,8 +58,12 @@ class SpanSelector:
     ) -> None:
         if any(not isinstance(name, str) or not name for name in names):
             raise ValueError("names must contain only non-empty span names")
-        if any(not key for key in attributes):
+        if any(not key or not isinstance(key, str) for key in attributes):
             raise ValueError("attributes must contain only non-empty keys")
+        if any(not isinstance(value, str) for value in attributes.values()):
+            # A non-string would serialize into the query and then never match
+            # locally, silently discovering nothing.
+            raise ValueError("attributes must contain only string values")
         if not names and not attributes:
             # Without one of these, discovery would sweep every span in the
             # window and blow through the runner's candidate safety limit.

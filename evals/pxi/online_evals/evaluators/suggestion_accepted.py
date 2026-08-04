@@ -33,6 +33,8 @@ from phoenix.evals.evaluators import Score
 
 ANNOTATION_NAME = "suggestion_accepted"
 
+# The server writes these attributes in its agents router. This evaluator reads
+# them through the public span-attribute contract, not a server-internal module.
 APPROVAL_DECISION_ATTRIBUTE = "pxi.approval.decision"
 APPROVAL_SOURCE_ATTRIBUTE = "pxi.approval.source"
 USER_APPROVAL_SOURCE = "user"
