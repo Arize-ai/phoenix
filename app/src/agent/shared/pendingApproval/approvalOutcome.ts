@@ -36,7 +36,8 @@ export type ApprovalOutcome = {
  * user's real decision happens later in a dialog whose outcome is never written
  * back as tool output. Those decisions are invisible in traces whether or not
  * they are marked — closing that gap means emitting a terminal tool output from
- * the dialog's resolve/close paths, which is out of scope here.
+ * the dialog's resolve/close paths. Tracked in
+ * https://github.com/Arize-ai/phoenix/issues/15033.
  *
  * The server promotes this marker onto the emitted TOOL span as the
  * `pxi.approval.decision` / `pxi.approval.source` attributes — see
