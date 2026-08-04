@@ -139,7 +139,8 @@ arguments, raw output, user content, instance ids, or proposal diffs.
 
 `submit_{code,llm}_evaluator_draft` remain unmeasured: they resolve as
 `awaiting_user` and the dialog's real decision is never written back as tool
-output, so no marker exists to read. Closing that gap needs a frontend change.
+output, so no marker exists to read. Closing that gap needs a frontend change —
+tracked in [#15033](https://github.com/Arize-ai/phoenix/issues/15033).
 
 ## How `user_friction` finds its target
 
