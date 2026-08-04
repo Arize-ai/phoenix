@@ -21,7 +21,7 @@ from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer
-from tests.unit._helpers import _message_uuid
+from tests.unit._helpers import _agent_session_model_kwargs, _message_uuid
 
 _LEGACY_BUILD_MODEL_PATCH_TARGET = "phoenix.server.api.routers.legacy_agents.build_model"
 _BUILD_MODEL_PATCH_TARGET = "phoenix.server.api.routers.agents.build_model"
@@ -211,6 +211,7 @@ async def test_new_chat_route_is_unaffected_by_the_legacy_registration(
     session_id = "99999999-9999-4999-8999-999999999999"
     async with db() as session:
         agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
             user_id=None,
             title="Already titled",
             project_name=get_env_phoenix_agents_assistant_project_name(),
@@ -253,6 +254,7 @@ async def test_new_contract_body_on_the_server_agent_url_delegates_to_the_sessio
     session_id = "13131313-1313-4313-8313-131313131313"
     async with db() as session:
         agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
             user_id=None,
             title="Already titled",
             project_name=get_env_phoenix_agents_assistant_project_name(),

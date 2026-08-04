@@ -12,10 +12,8 @@ from pydantic import ValidationError
 from pydantic_ai.models import Model as PydanticAIModel
 from pydantic_ai.settings import ModelSettings
 from sqlalchemy.ext.asyncio import AsyncSession
-from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
-from phoenix.db import models
 from phoenix.db.types.model_provider import (
     GenerativeModelCustomerProviderConfig,
     ModelProvider,
@@ -24,7 +22,6 @@ from phoenix.server.agents.exceptions import (
     ProviderConfigError,
     ProviderCredentialsError,
     ProviderDependencyError,
-    ProviderNotFoundError,
     ProviderUnsupportedError,
 )
 from phoenix.server.agents.model_selection import (
@@ -34,8 +31,8 @@ from phoenix.server.agents.model_selection import (
 )
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.agent_sessions import get_custom_provider
 from phoenix.server.api.helpers.playground_clients import _resolve_secrets
-from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
 from phoenix.utilities.env_vars import without_env_vars
 
@@ -172,17 +169,8 @@ async def build_model(
 ) -> OpenInferenceModelWrapper:
     """Build a ``pydantic_ai`` model."""
     if isinstance(model, CustomProviderModelSelection):
-        provider_id = from_global_id_with_expected_type(
-            GlobalID.from_id(model.provider_id),
-            "GenerativeModelCustomProvider",
-        )
         async with db() as session:
-            provider = await session.get(
-                models.GenerativeModelCustomProvider,
-                provider_id,
-            )
-        if provider is None:
-            raise ProviderNotFoundError("Custom provider not found.")
+            provider = await get_custom_provider(session, model.provider_id)
         pydantic_ai_model = await _get_pydantic_ai_model_from_generative_model_custom_provider(
             provider_record=provider,
             model_name=model.model_name,

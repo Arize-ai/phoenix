@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bc0a3273346c51ead2b39d9b7a7e89df>>
+ * @generated SignedSource<<bd99f7c92aae7e453fb7bcd9d257c754>>
  * @lightSyntaxTransform
  */
 
@@ -9,9 +9,28 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type CreateAgentSessionInput = {
   isEphemeral?: boolean;
+  model: AgentModelSelectionInput;
   title?: string;
+};
+export type AgentModelSelectionInput = {
+  builtin?: never;
+  custom: AgentCustomProviderModelSelectionInput;
+} | {
+  builtin: AgentBuiltinProviderModelSelectionInput;
+  custom?: never;
+};
+export type AgentCustomProviderModelSelectionInput = {
+  modelName: string;
+  providerId: string;
+};
+export type AgentBuiltinProviderModelSelectionInput = {
+  modelName: string;
+  openaiApiType?: OpenAIApiType;
+  provider: ModelProvider;
 };
 export type useDraftSessionCreationCreateAgentSessionMutation$variables = {
   connections: ReadonlyArray<string>;
@@ -31,7 +50,7 @@ export type useDraftSessionCreationCreateAgentSessionMutation$data = {
         readonly profilePictureUrl: string | null;
         readonly username: string;
       } | null;
-      readonly " $fragmentSpreads": FragmentRefs<"EditAgentSessionTitleDialog_session">;
+      readonly " $fragmentSpreads": FragmentRefs<"EditAgentSessionTitleDialog_session" | "agentSessionModel_session">;
     };
   };
 };
@@ -120,6 +139,68 @@ v11 = {
   "kind": "ScalarField",
   "name": "profilePictureUrl",
   "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelName",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "concreteType": null,
+  "kind": "LinkedField",
+  "name": "model",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "__typename",
+      "storageKey": null
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "provider",
+          "storageKey": null
+        },
+        (v12/*:: as any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "openaiApiType",
+          "storageKey": null
+        }
+      ],
+      "type": "AgentBuiltinProviderModelSelection",
+      "abstractKey": null
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "providerId",
+          "storageKey": null
+        },
+        (v12/*:: as any*/)
+      ],
+      "type": "AgentCustomProviderModelSelection",
+      "abstractKey": null
+    }
+  ],
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -171,6 +252,15 @@ return {
                   (v11/*:: as any*/)
                 ],
                 "storageKey": null
+              },
+              {
+                "kind": "InlineDataFragmentSpread",
+                "name": "agentSessionModel_session",
+                "selections": [
+                  (v13/*:: as any*/)
+                ],
+                "args": null,
+                "argumentDefinitions": []
               }
             ],
             "storageKey": null
@@ -227,7 +317,8 @@ return {
                   (v3/*:: as any*/)
                 ],
                 "storageKey": null
-              }
+              },
+              (v13/*:: as any*/)
             ],
             "storageKey": null
           },
@@ -258,16 +349,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "277e3b33fdbd752dbc6d6a6c5b8e691a",
+    "cacheID": "d58def5ecf154d0f05986d9a9881201a",
     "id": null,
     "metadata": {},
     "name": "useDraftSessionCreationCreateAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useDraftSessionCreationCreateAgentSessionMutation(\n  $input: CreateAgentSessionInput!\n) {\n  createAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary: isEphemeral\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
+    "text": "mutation useDraftSessionCreationCreateAgentSessionMutation(\n  $input: CreateAgentSessionInput!\n) {\n  createAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary: isEphemeral\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      ...agentSessionModel_session\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n      openaiApiType\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7543ec801d58fcd658e341b9f865f89f";
+(node as any).hash = "571552f68e240f8d90b958ecff1bf4b1";
 
 export default node;

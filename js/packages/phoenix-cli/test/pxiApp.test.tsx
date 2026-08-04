@@ -40,14 +40,20 @@ function stripAnsi(text: string): string {
 
 function createOptions({
   endpoint = "http://localhost:6006",
+  explicitModel = true,
 }: {
   endpoint?: string;
+  /**
+   * Whether `--provider`/`--model` were passed. Explicit flags make restoring
+   * a session *write* that model, so tests covering the adopt-the-persisted-
+   * model path must opt out.
+   */
+  explicitModel?: boolean;
 } = {}) {
   return resolvePxiRuntimeOptions({
     cliOptions: {
       endpoint,
-      provider: "OPENAI",
-      model: "gpt-5.4",
+      ...(explicitModel ? { provider: "OPENAI", model: "gpt-5.4" } : {}),
     },
     sessionId: "session-1",
   });
@@ -1095,6 +1101,7 @@ describe("PXI app", () => {
       getSessionSyncState: async () => {
         throw new Error("not used");
       },
+      updateSessionModel: async ({ model }) => model,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1116,7 +1123,14 @@ describe("PXI app", () => {
     await writeInput({ stdin, input: "hello" });
     await writeInput({ stdin, input: "\r" });
 
-    expect(createSession).toHaveBeenCalledWith({ temporary: true });
+    expect(createSession).toHaveBeenCalledWith({
+      temporary: true,
+      model: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-5.4",
+      },
+    });
     unmount();
   });
 
@@ -1136,6 +1150,7 @@ describe("PXI app", () => {
       getSessionSyncState: async () => {
         throw new Error("not used");
       },
+      updateSessionModel: async ({ model }) => model,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1175,6 +1190,13 @@ describe("PXI app", () => {
       updatedAt: "2026-07-24T12:00:00Z",
       isTemporary: false,
       messages: [restoredMessage],
+      // Differs from the --provider/--model flags so restoring writes the
+      // flag model instead of resolving against the server catalog.
+      model: {
+        providerType: "builtin",
+        provider: "GOOGLE",
+        modelName: "gemini-3.5-flash",
+      } satisfies ModelSelection,
     }));
     const sessionClient: PxiSessionClient = {
       createSession: async () => {
@@ -1198,6 +1220,7 @@ describe("PXI app", () => {
       getSessionSyncState: async () => {
         throw new Error("not used");
       },
+      updateSessionModel: async ({ model }) => model,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1249,6 +1272,13 @@ describe("PXI app", () => {
           parts: [{ type: "text" as const, text: "oldest conversation" }],
         },
       ],
+      // Differs from the --provider/--model flags so restoring writes the
+      // flag model instead of resolving against the server catalog.
+      model: {
+        providerType: "builtin",
+        provider: "GOOGLE",
+        modelName: "gemini-3.5-flash",
+      } satisfies ModelSelection,
     }));
     const sessionClient: PxiSessionClient = {
       createSession: async () => {
@@ -1256,6 +1286,10 @@ describe("PXI app", () => {
       },
       listSessions: async () => sessions,
       getSession,
+      getSessionSyncState: async () => {
+        throw new Error("not used");
+      },
+      updateSessionModel: async ({ model }) => model,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1313,6 +1347,11 @@ describe("PXI app", () => {
           ? synchronizedMessage.id
           : originalMessage.id,
         messages: isSynchronized ? [synchronizedMessage] : [originalMessage],
+        model: {
+          providerType: "builtin",
+          provider: "OPENAI",
+          modelName: "gpt-5.4",
+        } satisfies ModelSelection,
       };
     });
     let syncStateCallCount = 0;
@@ -1345,6 +1384,7 @@ describe("PXI app", () => {
       ],
       getSession,
       getSessionSyncState,
+      updateSessionModel: async ({ model }) => model,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1357,6 +1397,9 @@ describe("PXI app", () => {
         options={createOptions()}
         client={client}
         sessionClient={sessionClient}
+        // The persisted model equals the flags, so restoring skips the write
+        // and resolves the persisted model instead.
+        sessionModelResolver={async (model: ModelSelection) => model}
       />
     );
 
@@ -1421,6 +1464,470 @@ describe("PXI app", () => {
     }
   });
 
+  it("adopts the persisted model when restoring a session", async () => {
+    const persistedModel: ModelSelection = {
+      providerType: "builtin",
+      provider: "GOOGLE",
+      modelName: "gemini-3.5-flash",
+    };
+    const sessionModelResolver = vi.fn(async (model: ModelSelection) => model);
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => {
+        throw new Error("not used");
+      },
+      listSessions: async () => [
+        {
+          id: "session-1",
+          title: "Persisted session",
+          updatedAt: "2026-07-24T13:00:00Z",
+          isTemporary: false,
+        },
+      ],
+      getSession: async ({ sessionId }) => ({
+        id: sessionId,
+        title: "Persisted session",
+        updatedAt: "2026-07-24T13:00:00Z",
+        isTemporary: false,
+        isActive: false,
+        messages: [],
+        model: persistedModel,
+      }),
+      updateSessionModel: async ({ model }) => model,
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions({ explicitModel: false })}
+        client={{ sendMessage: async () => null }}
+        sessionClient={sessionClient}
+        sessionModelResolver={sessionModelResolver}
+      />
+    );
+
+    await writeInput({ stdin, input: "/sessions" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+
+    expect(sessionModelResolver).toHaveBeenCalledWith(persistedModel);
+    expect(stripAnsi(lastFrame() ?? "")).toContain(
+      "model: GOOGLE/gemini-3.5-flash"
+    );
+    unmount();
+  });
+
+  it("moves a restored session onto the model named by --provider/--model", async () => {
+    const persistedModel: ModelSelection = {
+      providerType: "builtin",
+      provider: "GOOGLE",
+      modelName: "gemini-3.5-flash",
+    };
+    const sessionModelResolver = vi.fn(async (model: ModelSelection) => model);
+    const updateSessionModel = vi.fn(
+      async ({ model }: { sessionId: string; model: ModelSelection }) => model
+    );
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => {
+        throw new Error("not used");
+      },
+      listSessions: async () => [
+        {
+          id: "session-1",
+          title: "Persisted session",
+          updatedAt: "2026-07-24T13:00:00Z",
+          isTemporary: false,
+        },
+      ],
+      getSession: async ({ sessionId }) => ({
+        id: sessionId,
+        title: "Persisted session",
+        updatedAt: "2026-07-24T13:00:00Z",
+        isTemporary: false,
+        isActive: false,
+        messages: [],
+        model: persistedModel,
+      }),
+      updateSessionModel,
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={{ sendMessage: async () => null }}
+        sessionClient={sessionClient}
+        sessionModelResolver={sessionModelResolver}
+      />
+    );
+
+    await writeInput({ stdin, input: "/sessions" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+
+    // The flag is applied as a write, not shadowed locally, so the session
+    // itself moves and every other client sees the change.
+    expect(updateSessionModel).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      model: { providerType: "builtin", provider: "OPENAI", modelName: "gpt-5.4" },
+    });
+    expect(sessionModelResolver).not.toHaveBeenCalled();
+    expect(stripAnsi(lastFrame() ?? "")).toContain("model: OPENAI/gpt-5.4");
+    unmount();
+  });
+
+  it("skips the model write when the restored session already matches the flags", async () => {
+    // The write is a server round trip that bumps the session's updated_at
+    // and reorders the session list; when the persisted model already equals
+    // --provider/--model it is a no-op and must not be sent.
+    const persistedModel: ModelSelection = {
+      providerType: "builtin",
+      provider: "OPENAI",
+      modelName: "gpt-5.4",
+    };
+    const sessionModelResolver = vi.fn(async (model: ModelSelection) => model);
+    const updateSessionModel = vi.fn(
+      async ({ model }: { sessionId: string; model: ModelSelection }) => model
+    );
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => {
+        throw new Error("not used");
+      },
+      listSessions: async () => [
+        {
+          id: "session-1",
+          title: "Persisted session",
+          updatedAt: "2026-07-24T13:00:00Z",
+          isTemporary: false,
+        },
+      ],
+      getSession: async ({ sessionId }) => ({
+        id: sessionId,
+        title: "Persisted session",
+        updatedAt: "2026-07-24T13:00:00Z",
+        isTemporary: false,
+        isActive: false,
+        messages: [],
+        model: persistedModel,
+      }),
+      updateSessionModel,
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={{ sendMessage: async () => null }}
+        sessionClient={sessionClient}
+        sessionModelResolver={sessionModelResolver}
+      />
+    );
+
+    await writeInput({ stdin, input: "/sessions" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+
+    expect(updateSessionModel).not.toHaveBeenCalled();
+    expect(sessionModelResolver).toHaveBeenCalledWith(persistedModel);
+    expect(stripAnsi(lastFrame() ?? "")).toContain("model: OPENAI/gpt-5.4");
+    unmount();
+  });
+
+  it("keeps an in-flight /model pick when a send is rejected as model-stale", async () => {
+    // The 409 refetch reads server state that predates the user's own write;
+    // applying it would flip the header back and announce the reverse of
+    // what the user did. The write guard must silence both.
+    const persistedModel: ModelSelection = {
+      providerType: "builtin",
+      provider: "OPENAI",
+      modelName: "gpt-5.4",
+    };
+    const pickedModel: ModelSelection = {
+      providerType: "builtin",
+      provider: "ANTHROPIC",
+      modelName: "claude-opus-4-6",
+    };
+    let resolveWrite: () => void = () => {};
+    const updateSessionModel = vi.fn(
+      ({ model }: { sessionId: string; model: ModelSelection }) =>
+        new Promise<ModelSelection>((resolve) => {
+          resolveWrite = () => resolve(model);
+        })
+    );
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => {
+        throw new Error("not used");
+      },
+      listSessions: async () => [
+        {
+          id: "session-1",
+          title: "Persisted session",
+          updatedAt: "2026-07-24T13:00:00Z",
+          isTemporary: false,
+        },
+      ],
+      // Always reports the pre-write model, standing in for the stale-send
+      // refetch racing the write.
+      getSession: async ({ sessionId }) => ({
+        id: sessionId,
+        title: "Persisted session",
+        updatedAt: "2026-07-24T13:00:00Z",
+        isTemporary: false,
+        isActive: false,
+        messages: [],
+        model: persistedModel,
+      }),
+      updateSessionModel,
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const client: PxiChatClient = {
+      sendMessage: async () => {
+        throw new Error("agent_session_model_stale");
+      },
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions({ explicitModel: false })}
+        client={client}
+        sessionClient={sessionClient}
+        sessionModelResolver={async (model: ModelSelection) => model}
+        modelLoader={async () => [persistedModel, pickedModel]}
+      />
+    );
+
+    await writeInput({ stdin, input: "/sessions" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+
+    await writeInput({ stdin, input: "/model" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    await writeInput({ stdin, input: DOWN_ARROW });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    expect(stripAnsi(lastFrame() ?? "")).toContain(
+      "model: ANTHROPIC/claude-opus-4-6"
+    );
+
+    // The send 409s while the model write is still in flight.
+    await writeInput({ stdin, input: "hello" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    await act(async () => Promise.resolve());
+
+    let frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain("model: ANTHROPIC/claude-opus-4-6");
+    expect(frame).not.toContain("Model was changed elsewhere");
+
+    await act(async () => {
+      resolveWrite();
+      await Promise.resolve();
+    });
+    frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain("model: ANTHROPIC/claude-opus-4-6");
+    expect(frame).not.toContain("Model was changed elsewhere");
+    unmount();
+  });
+
+  it("names the new model when a send is rejected because it changed elsewhere", async () => {
+    const originalModel: ModelSelection = {
+      providerType: "builtin",
+      provider: "OPENAI",
+      modelName: "gpt-5.4",
+    };
+    const remoteModel: ModelSelection = {
+      providerType: "builtin",
+      provider: "ANTHROPIC",
+      modelName: "claude-opus-4-6",
+    };
+    let getSessionCallCount = 0;
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => {
+        throw new Error("not used");
+      },
+      listSessions: async () => [
+        {
+          id: "session-1",
+          title: "Shared session",
+          updatedAt: "2026-07-24T13:00:00Z",
+          isTemporary: false,
+        },
+      ],
+      getSession: async ({ sessionId }) => {
+        getSessionCallCount += 1;
+        return {
+          id: sessionId,
+          title: "Shared session",
+          updatedAt: "2026-07-24T13:00:00Z",
+          isTemporary: false,
+          isActive: false,
+          messages: [],
+          // The first read restores the session; by the second another client
+          // has moved it to a different model.
+          model: getSessionCallCount === 1 ? originalModel : remoteModel,
+        };
+      },
+      updateSessionModel: async ({ model }) => model,
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const client: PxiChatClient = {
+      sendMessage: async () => {
+        throw new Error("agent_session_model_stale");
+      },
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions({ explicitModel: false })}
+        client={client}
+        sessionClient={sessionClient}
+        sessionModelResolver={async (model: ModelSelection) => model}
+      />
+    );
+
+    await writeInput({ stdin, input: "/sessions" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+
+    await writeInput({ stdin, input: "hello" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    await act(async () => Promise.resolve());
+
+    const frame = stripAnsi(lastFrame() ?? "");
+    // The transcript is untouched, so the notice must say the model moved
+    // rather than that messages were refreshed.
+    expect(frame).toContain(
+      "Model was changed elsewhere, this session is now on ANTHROPIC/claude-opus-4-6"
+    );
+    expect(frame).not.toContain("the chat has been refreshed");
+    // The unsent message is preserved for the user to resend.
+    expect(frame).toContain("hello");
+    unmount();
+  });
+
+  it("persists a /model pick and keeps it when a poll lands mid-write", async () => {
+    vi.useFakeTimers();
+    const persistedModel: ModelSelection = {
+      providerType: "builtin",
+      provider: "OPENAI",
+      modelName: "gpt-5.4",
+    };
+    let resolveWrite: (model: ModelSelection) => void = () => {};
+    const updateSessionModel = vi.fn(
+      ({ model }: { sessionId: string; model: ModelSelection }) =>
+        new Promise<ModelSelection>((resolve) => {
+          resolveWrite = () => resolve(model);
+        })
+    );
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => {
+        throw new Error("not used");
+      },
+      listSessions: async () => [
+        {
+          id: "session-1",
+          title: "Persisted session",
+          updatedAt: "2026-07-24T13:00:00Z",
+          isTemporary: false,
+        },
+      ],
+      // Always reports the pre-change model, standing in for a poll whose
+      // read raced the write.
+      getSession: async ({ sessionId }) => ({
+        id: sessionId,
+        title: "Persisted session",
+        updatedAt: "2026-07-24T13:00:00Z",
+        isTemporary: false,
+        isActive: false,
+        messages: [],
+        model: persistedModel,
+      }),
+      // The probe reports a moved tail so the poll performs the full fetch
+      // whose stale model the optimistic pick must survive.
+      getSessionSyncState: async () => ({
+        isActive: false,
+        updatedAt: "2026-07-24T13:05:00Z",
+        lastMessageId: null,
+      }),
+      updateSessionModel,
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions({ explicitModel: false })}
+        client={{ sendMessage: async () => null }}
+        sessionClient={sessionClient}
+        sessionModelResolver={async (model: ModelSelection) => model}
+        modelLoader={async () => [
+          persistedModel,
+          {
+            providerType: "builtin",
+            provider: "ANTHROPIC",
+            modelName: "claude-opus-4-6",
+          },
+        ]}
+      />
+    );
+
+    try {
+      await writeInput({ stdin, input: "/sessions" });
+      await writeInput({ stdin, input: "\r" });
+      await act(async () => Promise.resolve());
+      await writeInput({ stdin, input: "\r" });
+      await act(async () => Promise.resolve());
+
+      await writeInput({ stdin, input: "/model" });
+      await writeInput({ stdin, input: "\r" });
+      await act(async () => Promise.resolve());
+      await writeInput({ stdin, input: DOWN_ARROW });
+      await writeInput({ stdin, input: "\r" });
+      await act(async () => Promise.resolve());
+
+      expect(updateSessionModel).toHaveBeenCalledTimes(1);
+      expect(stripAnsi(lastFrame() ?? "")).toContain(
+        "model: ANTHROPIC/claude-opus-4-6"
+      );
+
+      // A poll tick lands while the write is still in flight and reports the
+      // old model; the optimistic pick must survive it.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      expect(stripAnsi(lastFrame() ?? "")).toContain(
+        "model: ANTHROPIC/claude-opus-4-6"
+      );
+
+      await act(async () => {
+        resolveWrite(persistedModel);
+        await Promise.resolve();
+      });
+      expect(stripAnsi(lastFrame() ?? "")).toContain(
+        "model: ANTHROPIC/claude-opus-4-6"
+      );
+    } finally {
+      unmount();
+      vi.useRealTimers();
+    }
+  });
+
   it("reopens the session picker with the cached list while refreshing in the background", async () => {
     const initialSessions: PxiSessionSummary[] = [
       {
@@ -1451,6 +1958,7 @@ describe("PXI app", () => {
       getSessionSyncState: async () => {
         throw new Error("not used");
       },
+      updateSessionModel: async ({ model }) => model,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1521,6 +2029,7 @@ describe("PXI app", () => {
       getSessionSyncState: async () => {
         throw new Error("not used");
       },
+      updateSessionModel: async ({ model }) => model,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1748,7 +2257,15 @@ describe("PXI /compact command", () => {
         isTemporary: false,
         isActive,
         messages: persistedTranscript,
+        // Differs from the --provider/--model flags so restoring writes the
+        // flag model instead of resolving against the server catalog.
+        model: {
+          providerType: "builtin",
+          provider: "GOOGLE",
+          modelName: "gemini-3.5-flash",
+        } satisfies ModelSelection,
       }),
+      updateSessionModel: async ({ model }) => model,
       compactSession,
     };
   }

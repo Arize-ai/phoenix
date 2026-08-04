@@ -2,15 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 
-import { buildAgentModel, selectAgentModel } from "../useAgentChatPanelState";
+import {
+  selectAgentModel,
+  toAgentModelSelection,
+} from "../useAgentChatPanelState";
 
-describe("buildAgentModel", () => {
+describe("toAgentModelSelection", () => {
   it.each(["OPENAI", "AZURE_OPENAI"] as const)(
-    "uses the Responses API for built-in %s models",
+    "defaults built-in %s models to the Responses API",
     (provider) => {
       expect(
-        buildAgentModel({
-          model: { provider, modelName: "gpt-5.4" },
+        toAgentModelSelection({
+          provider,
+          modelName: "gpt-5.4",
+          invocationParameters: getDefaultInvocationConfig(provider),
         })
       ).toEqual({
         providerType: "builtin",
@@ -21,10 +26,28 @@ describe("buildAgentModel", () => {
     }
   );
 
+  it("preserves a configured Chat Completions API type", () => {
+    expect(
+      toAgentModelSelection({
+        provider: "OPENAI",
+        modelName: "gpt-5.4",
+        openaiApiType: "CHAT_COMPLETIONS",
+        invocationParameters: getDefaultInvocationConfig("OPENAI"),
+      })
+    ).toEqual({
+      providerType: "builtin",
+      provider: "OPENAI",
+      modelName: "gpt-5.4",
+      openaiApiType: "chat_completions",
+    });
+  });
+
   it("does not set an OpenAI API type for other built-in providers", () => {
     expect(
-      buildAgentModel({
-        model: { provider: "ANTHROPIC", modelName: "claude-opus-4-6" },
+      toAgentModelSelection({
+        provider: "ANTHROPIC",
+        modelName: "claude-opus-4-6",
+        invocationParameters: getDefaultInvocationConfig("ANTHROPIC"),
       })
     ).toEqual({
       providerType: "builtin",
@@ -35,12 +58,11 @@ describe("buildAgentModel", () => {
 
   it("omits the API type for custom provider selections", () => {
     expect(
-      buildAgentModel({
-        model: {
-          provider: "OPENAI",
-          modelName: "custom-model",
-          customProvider: { id: "provider-id", name: "Custom OpenAI" },
-        },
+      toAgentModelSelection({
+        provider: "OPENAI",
+        modelName: "custom-model",
+        customProvider: { id: "provider-id", name: "Custom OpenAI" },
+        invocationParameters: getDefaultInvocationConfig("OPENAI"),
       })
     ).toEqual({
       providerType: "custom",
@@ -82,6 +104,34 @@ describe("selectAgentModel", () => {
       providerType: "custom",
       providerId: "provider-id",
       modelName: "custom-model",
+    });
+  });
+
+  it("prefers a persisted session model over the new-session default", () => {
+    expect(
+      selectAgentModel(
+        {
+          defaultModelConfig: {
+            provider: "ANTHROPIC",
+            modelName: "claude-opus-4-6",
+            invocationParameters: getDefaultInvocationConfig("ANTHROPIC"),
+          },
+          modelConfigBySessionId: {
+            "session-1": {
+              provider: "OPENAI",
+              modelName: "gpt-5.5",
+              openaiApiType: "CHAT_COMPLETIONS",
+              invocationParameters: getDefaultInvocationConfig("OPENAI"),
+            },
+          },
+        },
+        "session-1"
+      )
+    ).toEqual({
+      providerType: "builtin",
+      provider: "OPENAI",
+      modelName: "gpt-5.5",
+      openaiApiType: "chat_completions",
     });
   });
 });

@@ -1589,6 +1589,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agents/{agent_id}/sessions/{session_id}/model": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Update Session Model
+         * @description Change the model a persisted session runs on.
+         */
+        post: operations["updateAgentSessionModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/agents/{agent_id}/sessions/{session_id}": {
         parameters: {
             query?: never;
@@ -1729,6 +1749,7 @@ export interface components {
             updated_at: string;
             /** Is Ephemeral */
             is_ephemeral: boolean;
+            model: components["schemas"]["AgentModelSelection"];
             /**
              * Is Active
              * @description Whether a response is currently streaming on this session, i.e. its lock has a live (non-stale) heartbeat.
@@ -1744,6 +1765,13 @@ export interface components {
              * @description The persisted transcript. Omitted when the session is fetched with include_messages=false.
              */
             messages?: components["schemas"]["PhoenixUIMessage"][] | null;
+        };
+        /**
+         * AgentSessionModel
+         * @description The model selection in effect for a session.
+         */
+        AgentSessionModel: {
+            model: components["schemas"]["AgentModelSelection"];
         };
         /** AgentSessionSummary */
         AgentSessionSummary: {
@@ -2066,6 +2094,7 @@ export interface components {
              * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
              */
             requestedSkills?: string[];
+            /** @description The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on — or switching to — an unexpected model. Change the session's model with ``POST .../sessions/{session_id}/model``. */
             model: components["schemas"]["AgentModelSelection"];
             turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             /**
@@ -2102,6 +2131,7 @@ export interface components {
          * @description Request a model-generated checkpoint for a persisted conversation.
          */
         CompactAgentSessionRequest: {
+            /** @description The model the client believes the session is set to. As on the chat route this is a precondition: the summary is generated with the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale``. */
             model: components["schemas"]["AgentModelSelection"];
         };
         /** CompactAgentSessionResponse */
@@ -2158,6 +2188,7 @@ export interface components {
          * @description Request body for creating a persisted agent session.
          */
         CreateAgentSessionRequestBody: {
+            model: components["schemas"]["AgentModelSelection"];
             /**
              * Title
              * @description Optional initial title.
@@ -5744,6 +5775,17 @@ export interface components {
              * Format: date-time
              */
             startedAt: string;
+        };
+        /**
+         * UpdateAgentSessionModelRequestBody
+         * @description Request body for changing a persisted session's model selection.
+         */
+        UpdateAgentSessionModelRequestBody: {
+            model: components["schemas"]["AgentModelSelection"];
+        };
+        /** UpdateAgentSessionModelResponseBody */
+        UpdateAgentSessionModelResponseBody: {
+            data: components["schemas"]["AgentSessionModel"];
         };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {
@@ -11424,6 +11466,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreateAgentSessionResponseBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updateAgentSessionModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAgentSessionModelRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateAgentSessionModelResponseBody"];
                 };
             };
             /** @description Validation Error */

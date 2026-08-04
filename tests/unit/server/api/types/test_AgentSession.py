@@ -7,8 +7,10 @@ from strawberry.relay import GlobalID
 from phoenix.config import EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.encryption import EncryptionService
 from phoenix.server.types import DbSessionFactory
-from tests.unit._helpers import _message_uuid
+from tests.unit._helpers import _agent_session_model_kwargs, _message_uuid
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -24,6 +26,7 @@ async def _seed_agent_session(
 ) -> str:
     async with db() as session:
         agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
             user_id=user_id,
             title=title,
             project_name="assistant_agent",
@@ -135,6 +138,74 @@ async def test_agent_session_is_active_reflects_heartbeat_liveness(
         assert not response.errors
         assert response.data is not None
         assert response.data["agentSession"]["isActive"] is expected, title
+
+
+async def test_agent_session_serializes_deleted_custom_provider_as_builtin_fallback(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        provider = models.GenerativeModelCustomProvider(
+            name="Deleted custom provider",
+            provider="openai",
+            sdk="openai",
+            config=EncryptionService().encrypt(b"{}"),
+        )
+        session.add(provider)
+        await session.flush()
+        agent_session = models.AgentSession(
+            user_id=None,
+            title="Orphaned provider",
+            project_name="assistant_agent",
+            model_provider=ModelProvider.OPENAI,
+            model_name="custom-model",
+            custom_provider_id=provider.id,
+            builtin_provider=None,
+        )
+        session.add(agent_session)
+        await session.flush()
+        agent_session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+    async with db() as session:
+        deleted_provider = await session.scalar(
+            select(models.GenerativeModelCustomProvider).where(
+                models.GenerativeModelCustomProvider.name == "Deleted custom provider"
+            )
+        )
+        assert deleted_provider is not None
+        await session.delete(deleted_provider)
+
+    response = await gql_client.execute(
+        query="""
+          query ($id: ID!) {
+            agentSession: node(id: $id) {
+              ... on AgentSession {
+                model {
+                  __typename
+                  ... on AgentBuiltinProviderModelSelection {
+                    provider
+                    modelName
+                    openaiApiType
+                  }
+                }
+              }
+            }
+          }
+        """,
+        variables={"id": agent_session_id},
+    )
+
+    assert not response.errors
+    assert response.data == {
+        "agentSession": {
+            "model": {
+                "__typename": "AgentBuiltinProviderModelSelection",
+                "provider": "OPENAI",
+                "modelName": "custom-model",
+                "openaiApiType": "RESPONSES",
+            },
+        }
+    }
 
 
 async def test_agent_sessions_excludes_temporary_sessions(

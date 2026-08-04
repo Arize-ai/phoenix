@@ -1,4 +1,5 @@
 import type { ChatStatus } from "ai";
+import isEqual from "lodash/isEqual";
 import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
@@ -119,6 +120,48 @@ export type PendingAgentMessage = {
   text: string;
   requestedSkills: string[];
 };
+
+/**
+ * Dismissable per-session conflict notices raised by a rejected send or
+ * compaction (HTTP 409):
+ * - "refreshedFromStale": the transcript was replaced because another client
+ *   appended to the session; drives the "chat has been refreshed" notice.
+ * - "modelChangedElsewhere": another client moved the session to a different
+ *   model; the transcript is untouched, so the notice names the model change.
+ */
+export type AgentSessionConflictNotice =
+  | "refreshedFromStale"
+  | "modelChangedElsewhere";
+
+/**
+ * The single notice a session surface should render, resolved with the
+ * precedence defined in {@link selectSessionNotice}.
+ */
+export type AgentSessionNotice = "busyElsewhere" | AgentSessionConflictNotice;
+
+/**
+ * Resolves which notice a session surface should render right now.
+ *
+ * Precedence is defined here, once: busy-elsewhere is a live mode (another
+ * client's turn holds the server lock) and always wins; a stored conflict
+ * notice shows only after the lock clears, and reappears if the session goes
+ * busy and idle again without being dismissed.
+ */
+export function selectSessionNotice(
+  state: Pick<
+    AgentState,
+    "isBusyElsewhereBySessionId" | "sessionNoticeBySessionId"
+  >,
+  sessionId: string | null | undefined
+): AgentSessionNotice | null {
+  if (!sessionId) {
+    return null;
+  }
+  if (state.isBusyElsewhereBySessionId[sessionId]) {
+    return "busyElsewhere";
+  }
+  return state.sessionNoticeBySessionId[sessionId] ?? null;
+}
 
 /**
  * Sentinel session key for the not-yet-persisted "new chat" draft surface.
@@ -329,14 +372,35 @@ export interface AgentState extends AgentProps {
   isBusyElsewhereBySessionId: Partial<Record<string, boolean>>;
   setSessionBusyElsewhere: (sessionId: string, isBusy: boolean) => void;
   /**
-   * Whether the session's transcript was just replaced because a send was
-   * rejected as stale (another client had appended to the session). Drives
-   * the inline "chat has been refreshed" notice until the next send.
+   * The dismissable conflict notice raised by a session's last rejected send
+   * or compaction, if any. A session shows at most one notice at a time:
+   * setting one replaces the other, and the next send clears it. Read through
+   * {@link selectSessionNotice}, which folds in busy-elsewhere precedence.
    */
-  wasRefreshedFromStaleBySessionId: Partial<Record<string, boolean>>;
-  setSessionRefreshedFromStale: (
+  sessionNoticeBySessionId: Partial<Record<string, AgentSessionConflictNotice>>;
+  setSessionNotice: (
     sessionId: string,
-    wasRefreshed: boolean
+    notice: AgentSessionConflictNotice | null
+  ) => void;
+  /** Model selections keyed by session ID. */
+  modelConfigBySessionId: Partial<Record<string, ModelConfig>>;
+  setSessionModelConfig: (sessionId: string, config: ModelConfig) => void;
+  /**
+   * Sessions whose model change has not yet been acknowledged by the server.
+   * The session poll and the transcript seed refetch server state that may
+   * predate an optimistic selection, so applying it blindly would revert the
+   * user's pick mid-flight.
+   */
+  isModelWritePendingBySessionId: Partial<Record<string, boolean>>;
+  setSessionModelWritePending: (sessionId: string, isPending: boolean) => void;
+  /**
+   * Apply a model selection read back from the server, unless a local model
+   * write for that session is still in flight. Server reads use this rather
+   * than {@link setSessionModelConfig}, which is reserved for user intent.
+   */
+  applyServerSessionModelConfig: (
+    sessionId: string,
+    config: ModelConfig
   ) => void;
 
   /**
@@ -680,10 +744,18 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             ...state.isBusyElsewhereBySessionId,
           };
           delete newIsBusyElsewhereBySessionId[sessionId];
-          const newWasRefreshedFromStaleBySessionId = {
-            ...state.wasRefreshedFromStaleBySessionId,
+          const newSessionNoticeBySessionId = {
+            ...state.sessionNoticeBySessionId,
           };
-          delete newWasRefreshedFromStaleBySessionId[sessionId];
+          delete newSessionNoticeBySessionId[sessionId];
+          const newModelConfigBySessionId = {
+            ...state.modelConfigBySessionId,
+          };
+          delete newModelConfigBySessionId[sessionId];
+          const newIsModelWritePendingBySessionId = {
+            ...state.isModelWritePendingBySessionId,
+          };
+          delete newIsModelWritePendingBySessionId[sessionId];
           const newDraftInputBySessionId = { ...state.draftInputBySessionId };
           delete newDraftInputBySessionId[sessionId];
           const newPendingMessageBySessionId = {
@@ -701,8 +773,9 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             isResponsePendingBySessionId: newIsResponsePendingBySessionId,
             isCompactionPendingBySessionId: newIsCompactionPendingBySessionId,
             isBusyElsewhereBySessionId: newIsBusyElsewhereBySessionId,
-            wasRefreshedFromStaleBySessionId:
-              newWasRefreshedFromStaleBySessionId,
+            sessionNoticeBySessionId: newSessionNoticeBySessionId,
+            modelConfigBySessionId: newModelConfigBySessionId,
+            isModelWritePendingBySessionId: newIsModelWritePendingBySessionId,
             draftInputBySessionId: newDraftInputBySessionId,
             pendingMessageBySessionId: newPendingMessageBySessionId,
             pendingPatchExperimentsByToolCallId:
@@ -900,20 +973,74 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         { type: "setSessionBusyElsewhere" }
       );
     },
-    wasRefreshedFromStaleBySessionId: {},
-    setSessionRefreshedFromStale: (sessionId, wasRefreshed) => {
+    sessionNoticeBySessionId: {},
+    setSessionNotice: (sessionId, notice) => {
       set(
         (state) => {
-          const next = { ...state.wasRefreshedFromStaleBySessionId };
-          if (wasRefreshed) {
+          if ((state.sessionNoticeBySessionId[sessionId] ?? null) === notice) {
+            return state;
+          }
+          const next = { ...state.sessionNoticeBySessionId };
+          if (notice) {
+            next[sessionId] = notice;
+          } else {
+            delete next[sessionId];
+          }
+          return { sessionNoticeBySessionId: next };
+        },
+        false,
+        { type: "setSessionNotice" }
+      );
+    },
+    modelConfigBySessionId: {},
+    setSessionModelConfig: (sessionId, config) => {
+      set(
+        (state) => ({
+          modelConfigBySessionId: {
+            ...state.modelConfigBySessionId,
+            [sessionId]: config,
+          },
+        }),
+        false,
+        { type: "setSessionModelConfig" }
+      );
+    },
+    isModelWritePendingBySessionId: {},
+    setSessionModelWritePending: (sessionId, isPending) => {
+      set(
+        (state) => {
+          const next = { ...state.isModelWritePendingBySessionId };
+          if (isPending) {
             next[sessionId] = true;
           } else {
             delete next[sessionId];
           }
-          return { wasRefreshedFromStaleBySessionId: next };
+          return { isModelWritePendingBySessionId: next };
         },
         false,
-        { type: "setSessionRefreshedFromStale" }
+        { type: "setSessionModelWritePending" }
+      );
+    },
+    applyServerSessionModelConfig: (sessionId, config) => {
+      set(
+        (state) => {
+          if (state.isModelWritePendingBySessionId[sessionId]) {
+            return state;
+          }
+          // Server reads arrive on every poll tick; bail out structurally so
+          // an unchanged model does not re-render every session surface.
+          if (isEqual(state.modelConfigBySessionId[sessionId], config)) {
+            return state;
+          }
+          return {
+            modelConfigBySessionId: {
+              ...state.modelConfigBySessionId,
+              [sessionId]: config,
+            },
+          };
+        },
+        false,
+        { type: "applyServerSessionModelConfig" }
       );
     },
     // -- Page and mounted contexts (ephemeral) --

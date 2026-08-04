@@ -7,7 +7,7 @@ from phoenix.config import EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, TextUIPart
 from phoenix.server.types import DbSessionFactory
-from tests.unit._helpers import _message_uuid
+from tests.unit._helpers import _agent_session_model_kwargs, _message_uuid
 
 
 async def _insert_agent_session(
@@ -20,6 +20,7 @@ async def _insert_agent_session(
 ) -> models.AgentSession:
     async with db() as session:
         agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
             project_name="pxi-test",
             title=title,
             is_ephemeral=is_ephemeral,
@@ -151,6 +152,12 @@ class TestGetAgentSession:
         assert data["id"] == session_id
         assert data["title"] == "Conversation"
         assert data["is_ephemeral"] is False
+        assert data["model"] == {
+            "providerType": "builtin",
+            "provider": "OPENAI",
+            "modelName": "gpt-test",
+            "openaiApiType": "responses",
+        }
         assert [message["id"] for message in data["messages"]] == [
             _message_uuid("user-message"),
             _message_uuid("assistant-message"),

@@ -81,6 +81,35 @@ type AgentAssistantEnabled {
   enabled: Boolean!
 }
 
+type AgentBuiltinProviderModelSelection {
+  provider: ModelProvider!
+  modelName: String!
+  openaiApiType: OpenAIApiType!
+}
+
+input AgentBuiltinProviderModelSelectionInput {
+  provider: ModelProvider!
+  modelName: String!
+  openaiApiType: OpenAIApiType! = RESPONSES
+}
+
+type AgentCustomProviderModelSelection {
+  providerId: ID!
+  modelName: String!
+}
+
+input AgentCustomProviderModelSelectionInput {
+  providerId: ID!
+  modelName: String!
+}
+
+union AgentModelSelection = AgentCustomProviderModelSelection | AgentBuiltinProviderModelSelection
+
+input AgentModelSelectionInput @oneOf {
+  custom: AgentCustomProviderModelSelectionInput
+  builtin: AgentBuiltinProviderModelSelectionInput
+}
+
 type AgentSession implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -106,6 +135,7 @@ type AgentSession implements Node {
   Whether a response is currently streaming on this session, i.e. its lock has a live (non-stale) heartbeat.
   """
   isActive: Boolean!
+  model: AgentModelSelection!
 
   """
   The message ID of the most recently persisted transcript message, or null for an empty transcript.
@@ -773,6 +803,8 @@ type CostBreakdown {
 }
 
 input CreateAgentSessionInput {
+  model: AgentModelSelectionInput!
+
   """Optional initial title."""
   title: String! = ""
 
@@ -2521,6 +2553,7 @@ type Mutation {
   truncateAgentSession(input: TruncateAgentSessionInput!): TruncateAgentSessionMutationPayload!
   branchAgentSession(input: BranchAgentSessionInput!): BranchAgentSessionMutationPayload!
   updateAgentSessionTitle(input: UpdateAgentSessionTitleInput!): UpdateAgentSessionTitleMutationPayload!
+  updateAgentSessionModel(input: UpdateAgentSessionModelInput!): UpdateAgentSessionModelMutationPayload!
   deleteAgentSession(input: DeleteAgentSessionInput!): DeleteAgentSessionMutationPayload!
   createAnnotationConfig(input: CreateAnnotationConfigInput!): CreateAnnotationConfigPayload!
   updateAnnotationConfig(input: UpdateAnnotationConfigInput!): UpdateAnnotationConfigPayload!
@@ -4762,6 +4795,16 @@ type UnparsableSecret {
 input UnsetPromptLabelsInput {
   promptId: ID!
   promptLabelIds: [ID!]!
+}
+
+input UpdateAgentSessionModelInput {
+  id: ID!
+  model: AgentModelSelectionInput!
+}
+
+type UpdateAgentSessionModelMutationPayload {
+  agentSession: AgentSession!
+  query: Query!
 }
 
 input UpdateAgentSessionTitleInput {

@@ -14,6 +14,7 @@ import { createPhoenixClient } from "../client";
 import type { PhoenixConfig } from "../config";
 import { formatPxiRuntimeError } from "./preflight";
 import type {
+  ModelSelection,
   PxiChatClient,
   PxiChatRequest,
   PxiContext,
@@ -54,6 +55,27 @@ const SESSION_STALE_ERROR_CODE = "agent_session_stale";
 export function isSessionStaleError({ error }: { error: unknown }): boolean {
   return (
     error instanceof Error && error.message.includes(SESSION_STALE_ERROR_CODE)
+  );
+}
+
+/**
+ * Error code the chat and compact endpoints return (HTTP 409) when the request
+ * asserts a model the session is no longer on — another client moved it. The
+ * transcript is unaffected, so this is distinct from
+ * {@link SESSION_STALE_ERROR_CODE}: the user needs to be told their model
+ * changed, not that messages were refreshed.
+ */
+const SESSION_MODEL_STALE_ERROR_CODE = "agent_session_model_stale";
+
+/** Whether an error is the stale-model (HTTP 409) rejection. */
+export function isSessionModelStaleError({
+  error,
+}: {
+  error: unknown;
+}): boolean {
+  return (
+    error instanceof Error &&
+    error.message.includes(SESSION_MODEL_STALE_ERROR_CODE)
   );
 }
 
@@ -116,10 +138,12 @@ async function readErrorDetail({
 export async function createAgentSession({
   config,
   temporary,
+  model,
   fetchImpl,
 }: {
   config: PhoenixConfig;
   temporary: boolean;
+  model: ModelSelection;
   fetchImpl?: typeof globalThis.fetch;
 }): Promise<PxiSession> {
   const client = createPhoenixClient({ config, fetch: fetchImpl });
@@ -127,7 +151,7 @@ export async function createAgentSession({
   try {
     const { data: payload } = await client.POST("/agents/{agent_id}/sessions", {
       params: { path: { agent_id: SERVER_AGENT_ID } },
-      body: { title: "", is_ephemeral: temporary },
+      body: { title: "", is_ephemeral: temporary, model },
     });
     agentSessionId = payload?.data.id;
   } catch (error) {
@@ -150,6 +174,7 @@ export async function createAgentSession({
     updatedAt: new Date().toISOString(),
     isTemporary: temporary,
     messages: [],
+    model,
   };
 }
 
@@ -167,8 +192,8 @@ export function createPxiSessionClient({
       ? createOAuthFetch({ config })
       : globalThis.fetch);
   return {
-    createSession: ({ temporary }) =>
-      createAgentSession({ config, temporary, fetchImpl }),
+    createSession: ({ temporary, model }) =>
+      createAgentSession({ config, temporary, model, fetchImpl }),
     async listSessions() {
       const client = createPhoenixClient({ config, fetch: fetchImpl });
       const sessions: PxiSessionSummary[] = [];
@@ -226,6 +251,7 @@ export function createPxiSessionClient({
         isActive: session.is_active === true,
         lastMessageId: session.last_message_id ?? null,
         messages: (session.messages ?? []) as PxiMessage[],
+        model: session.model,
       };
     },
     async getSessionSyncState({ sessionId }): Promise<PxiSessionSyncState> {
@@ -253,6 +279,34 @@ export function createPxiSessionClient({
         updatedAt: session.updated_at,
         lastMessageId: session.last_message_id ?? null,
       };
+    },
+    async updateSessionModel({ sessionId, model }) {
+      const client = createPhoenixClient({ config, fetch: fetchImpl });
+      try {
+        const { data: payload } = await client.POST(
+          "/agents/{agent_id}/sessions/{session_id}/model",
+          {
+            params: {
+              path: { agent_id: SERVER_AGENT_ID, session_id: sessionId },
+            },
+            body: { model },
+          }
+        );
+        if (!payload) {
+          throw new Error(
+            "Could not change the session's model because Phoenix returned no data."
+          );
+        }
+        return payload.data.model;
+      } catch (error) {
+        if (error instanceof HttpError) {
+          const detail = await readErrorDetail({ response: error.response });
+          throw new Error(
+            `Could not change the session's model: HTTP ${error.status} ${error.statusText}.${detail ? ` ${detail}` : ""}`
+          );
+        }
+        throw error;
+      }
     },
     async compactSession({ sessionId, model }) {
       const client = createPhoenixClient({ config, fetch: fetchImpl });
@@ -288,8 +342,9 @@ export function createPxiSessionClient({
 
 /**
  * Translate a compaction HTTP failure into a printable error. A 409 whose body
- * carries the session-busy code is rethrown with that code in the message so
- * {@link isSessionBusyError} recognizes it and the UI can enter its busy state.
+ * carries the session-busy or session-stale code is rethrown with that code in
+ * the message so {@link isSessionBusyError} / {@link isSessionStaleError}
+ * recognize it and the UI can enter its busy state or refresh the session.
  */
 async function buildCompactionHttpError({
   error,
@@ -312,6 +367,12 @@ async function buildCompactionHttpError({
   }
   if (code === SESSION_BUSY_ERROR_CODE) {
     return new Error(SESSION_BUSY_ERROR_CODE);
+  }
+  if (code === SESSION_STALE_ERROR_CODE) {
+    return new Error(SESSION_STALE_ERROR_CODE);
+  }
+  if (code === SESSION_MODEL_STALE_ERROR_CODE) {
+    return new Error(SESSION_MODEL_STALE_ERROR_CODE);
   }
   return new Error(
     `Could not compact the conversation: HTTP ${error.status} ${error.statusText}.${detail ? ` ${detail}` : ""}`
@@ -453,6 +514,7 @@ export function createServerAgentTransport({
     agentSessionIdPromise ??= createAgentSession({
       config: options.config,
       temporary: false,
+      model: options.modelSelection,
       fetchImpl: transportFetch,
     })
       .then((session) => session.id)

@@ -89,6 +89,12 @@ export type PxiRuntimeOptions = {
   sessionId: string;
   config: PhoenixConfig;
   modelSelection: ModelSelection;
+  /**
+   * Whether `--provider`/`--model`/`--custom-provider-id` were passed. Those
+   * flags express an intent to move a restored session onto that model, so
+   * restoring writes it rather than shadowing the persisted value locally.
+   */
+  hasExplicitModelSelection: boolean;
   skipModelPreflight: boolean;
   enableWebAccess: boolean;
   enableSubagents: boolean;
@@ -110,6 +116,7 @@ export type PxiSessionSummary = {
 /** A session and its canonical persisted transcript. */
 export type PxiSession = PxiSessionSummary & {
   messages: PxiMessage[];
+  model: ModelSelection;
   /**
    * Whether another client currently holds the session's server-side lock.
    * Absent means no lock is held.
@@ -146,12 +153,24 @@ export type PxiCompactionResult = {
 
 /** Server-side session operations used by the chat UI. */
 export type PxiSessionClient = {
-  createSession: (options: { temporary: boolean }) => Promise<PxiSession>;
+  createSession: (options: {
+    temporary: boolean;
+    model: ModelSelection;
+  }) => Promise<PxiSession>;
   listSessions: () => Promise<PxiSessionSummary[]>;
   getSession: (options: { sessionId: string }) => Promise<PxiSession>;
   getSessionSyncState: (options: {
     sessionId: string;
   }) => Promise<PxiSessionSyncState>;
+  /**
+   * Change the model a persisted session runs on, returning the selection in
+   * effect. Turns assert the model they expect rather than setting it, so this
+   * is the only way to move an existing session to a different model.
+   */
+  updateSessionModel: (options: {
+    sessionId: string;
+    model: ModelSelection;
+  }) => Promise<ModelSelection>;
   compactSession: (options: {
     sessionId: string;
     model: ModelSelection;

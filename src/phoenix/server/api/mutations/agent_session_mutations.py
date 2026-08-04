@@ -7,12 +7,21 @@ import strawberry
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
+from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
+from phoenix.server.agents.exceptions import ProviderNotFoundError
+from phoenix.server.agents.model_selection import (
+    AgentModelSelection as AgentModelSelectionModel,
+)
+from phoenix.server.agents.model_selection import (
+    BuiltInProviderModelSelection,
+    CustomProviderModelSelection,
+)
 from phoenix.server.agents.session_titles import (
     truncate_agent_session_title,
     validate_agent_session_title,
@@ -26,7 +35,12 @@ from phoenix.server.api.auth import (
 )
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
-from phoenix.server.api.helpers.agent_sessions import is_turn_active
+from phoenix.server.api.helpers.agent_sessions import (
+    is_turn_active,
+    resolve_model_routing,
+    set_session_model,
+)
+from phoenix.server.api.input_types.AgentModelSelectionInput import AgentModelSelectionInput
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.AgentSession import AgentSession, to_gql_agent_session
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -34,6 +48,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 @strawberry.input
 class CreateAgentSessionInput:
+    model: AgentModelSelectionInput
     title: str = strawberry.field(
         default="",
         description=("Optional initial title."),
@@ -106,6 +121,18 @@ class UpdateAgentSessionTitleMutationPayload:
     query: Query
 
 
+@strawberry.input
+class UpdateAgentSessionModelInput:
+    id: GlobalID
+    model: AgentModelSelectionInput
+
+
+@strawberry.type
+class UpdateAgentSessionModelMutationPayload:
+    agent_session: AgentSession
+    query: Query
+
+
 @strawberry.type
 class DeleteAgentSessionMutationPayload:
     deleted_agent_session_id: GlobalID
@@ -128,11 +155,19 @@ class AgentSessionMutationMixin:
         except ValueError as exc:
             raise BadRequest(str(exc)) from exc
         async with info.context.db() as session:
+            try:
+                routing = await resolve_model_routing(session, _to_model_selection(input.model))
+            except ProviderNotFoundError as exc:
+                raise NotFound(str(exc)) from exc
             agent_session = models.AgentSession(
                 user_id=info.context.user_id,
                 title=title,
                 project_name=get_env_phoenix_agents_assistant_project_name(),
                 is_ephemeral=input.is_ephemeral,
+                model_provider=routing.model_provider,
+                model_name=routing.model_name,
+                custom_provider_id=routing.custom_provider_id,
+                builtin_provider=routing.builtin_provider,
             )
             session.add(agent_session)
             await session.flush()
@@ -236,6 +271,10 @@ class AgentSessionMutationMixin:
                 title=truncate_agent_session_title(source_session.title),
                 project_name=get_env_phoenix_agents_assistant_project_name(),
                 is_ephemeral=source_session.is_ephemeral,
+                model_provider=source_session.model_provider,
+                model_name=source_session.model_name,
+                custom_provider_id=source_session.custom_provider_id,
+                builtin_provider=source_session.builtin_provider,
             )
             session.add(branch_session)
             await session.flush()
@@ -286,6 +325,49 @@ class AgentSessionMutationMixin:
             query=Query(),
         )
 
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsAgentAssistantEnabled, IsLocked]
+    )  # type: ignore
+    async def update_agent_session_model(
+        self,
+        info: Info[Context, None],
+        input: UpdateAgentSessionModelInput,
+    ) -> UpdateAgentSessionModelMutationPayload:
+        """Change the model a persisted session runs on."""
+        try:
+            agent_session_rowid = from_global_id_with_expected_type(
+                input.id,
+                models.AgentSession.__name__,
+            )
+        except ValueError as exc:
+            raise BadRequest(str(exc)) from exc
+        lookup_stmt = select(models.AgentSession).where(
+            models.AgentSession.id == agent_session_rowid
+        )
+        if (owner_filter := get_agent_session_owner_filter(info.context)) is not None:
+            lookup_stmt = lookup_stmt.where(owner_filter)
+        async with info.context.db() as session:
+            agent_session = await session.scalar(lookup_stmt)
+            if agent_session is None:
+                raise NotFound(f"No agent session found for ID '{input.id}'")
+            if is_turn_active(agent_session.heartbeat_at, now=datetime.now(timezone.utc)):
+                # A streaming turn runs on the model it read under the turn
+                # lock, so the model must not flip out from under it.
+                raise Conflict("Cannot change the session's model while a turn is streaming.")
+            try:
+                await set_session_model(
+                    session,
+                    agent_session=agent_session,
+                    model=_to_model_selection(input.model),
+                )
+            except ProviderNotFoundError as exc:
+                raise NotFound(str(exc)) from exc
+            await session.flush()
+        return UpdateAgentSessionModelMutationPayload(
+            agent_session=to_gql_agent_session(agent_session),
+            query=Query(),
+        )
+
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_agent_session(
         self,
@@ -324,6 +406,23 @@ def _ensure_agent_session_is_idle(agent_session: models.AgentSession) -> None:
             "This session is busy. "
             "Wait for the current operation to finish before modifying the conversation."
         )
+
+
+def _to_model_selection(input: AgentModelSelectionInput) -> AgentModelSelectionModel:
+    if input.custom is not UNSET and input.custom is not None:
+        return CustomProviderModelSelection(
+            provider_type="custom",
+            provider_id=str(input.custom.provider_id),
+            model_name=input.custom.model_name,
+        )
+    if input.builtin is not UNSET and input.builtin is not None:
+        return BuiltInProviderModelSelection(
+            provider_type="builtin",
+            provider=input.builtin.provider,
+            model_name=input.builtin.model_name,
+            openai_api_type=input.builtin.openai_api_type.value,
+        )
+    raise ValueError("Exactly one model selection must be provided.")
 
 
 async def _load_owned_agent_session(

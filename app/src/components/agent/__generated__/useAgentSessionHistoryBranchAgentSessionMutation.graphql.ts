@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<974d09bbc8121a87c5c7abfe2405da61>>
+ * @generated SignedSource<<66fb77f0fae1e4be7f4fce9c251865a1>>
  * @lightSyntaxTransform
  */
 
@@ -32,7 +32,7 @@ export type useAgentSessionHistoryBranchAgentSessionMutation$data = {
         readonly profilePictureUrl: string | null;
         readonly username: string;
       } | null;
-      readonly " $fragmentSpreads": FragmentRefs<"EditAgentSessionTitleDialog_session">;
+      readonly " $fragmentSpreads": FragmentRefs<"EditAgentSessionTitleDialog_session" | "agentSessionModel_session">;
     };
   };
 };
@@ -128,6 +128,68 @@ v12 = {
   "kind": "ScalarField",
   "name": "messages",
   "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelName",
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "concreteType": null,
+  "kind": "LinkedField",
+  "name": "model",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "__typename",
+      "storageKey": null
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "provider",
+          "storageKey": null
+        },
+        (v13/*:: as any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "openaiApiType",
+          "storageKey": null
+        }
+      ],
+      "type": "AgentBuiltinProviderModelSelection",
+      "abstractKey": null
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "providerId",
+          "storageKey": null
+        },
+        (v13/*:: as any*/)
+      ],
+      "type": "AgentCustomProviderModelSelection",
+      "abstractKey": null
+    }
+  ],
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -180,7 +242,16 @@ return {
                 ],
                 "storageKey": null
               },
-              (v12/*:: as any*/)
+              (v12/*:: as any*/),
+              {
+                "kind": "InlineDataFragmentSpread",
+                "name": "agentSessionModel_session",
+                "selections": [
+                  (v14/*:: as any*/)
+                ],
+                "args": null,
+                "argumentDefinitions": []
+              }
             ],
             "storageKey": null
           }
@@ -237,7 +308,8 @@ return {
                 ],
                 "storageKey": null
               },
-              (v12/*:: as any*/)
+              (v12/*:: as any*/),
+              (v14/*:: as any*/)
             ],
             "storageKey": null
           },
@@ -268,16 +340,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3de85af91363a8af91fcfe86832b23e0",
+    "cacheID": "40223b541f3b4b108079610d8825cd1b",
     "id": null,
     "metadata": {},
     "name": "useAgentSessionHistoryBranchAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useAgentSessionHistoryBranchAgentSessionMutation(\n  $input: BranchAgentSessionInput!\n) {\n  branchAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary: isEphemeral\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
+    "text": "mutation useAgentSessionHistoryBranchAgentSessionMutation(\n  $input: BranchAgentSessionInput!\n) {\n  branchAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary: isEphemeral\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n      ...agentSessionModel_session\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n      openaiApiType\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ff8c1ba1c20b98cc71cdf64e5ccbe3fe";
+(node as any).hash = "7ecf36c4977aa4a9c092dbec80226fbc";
 
 export default node;

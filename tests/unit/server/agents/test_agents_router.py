@@ -49,6 +49,8 @@ from phoenix.db.types.data_stream_protocol import (
     TurnTraceContext,
     UIMessage,
 )
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.agents.model_selection import BuiltInProviderModelSelection
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
 from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
@@ -72,7 +74,7 @@ from phoenix.server.settings.registry import (
 )
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer, extract_otel_context
-from tests.unit._helpers import _message_uuid
+from tests.unit._helpers import _agent_session_model_kwargs, _message_uuid
 
 _BUILD_MODEL_PATCH_TARGET = "phoenix.server.api.routers.agents.build_model"
 
@@ -104,6 +106,10 @@ def _server_agent_compact_url(agent_session_id: str) -> str:
     return f"/agents/server/sessions/{agent_session_id}/compact"
 
 
+def _model_url(agent_session_id: str) -> str:
+    return f"/agents/assistant/sessions/{agent_session_id}/model"
+
+
 def _compact_body() -> dict[str, Any]:
     return {
         "model": {
@@ -111,6 +117,17 @@ def _compact_body() -> dict[str, Any]:
             "provider": "OPENAI",
             "modelName": "gpt-test",
         }
+    }
+
+
+def _create_session_body(**overrides: Any) -> dict[str, Any]:
+    return {
+        "model": {
+            "providerType": "builtin",
+            "provider": "OPENAI",
+            "modelName": "gpt-test",
+        },
+        **overrides,
     }
 
 
@@ -153,6 +170,7 @@ async def _create_agent_session_row(
     does before its first chat request, optionally seeded with a transcript."""
     async with db() as session:
         agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
             user_id=None,
             title=title,
             project_name=get_env_phoenix_agents_assistant_project_name(),
@@ -2117,7 +2135,7 @@ async def test_create_session_route_creates_a_temporary_session(
 ) -> None:
     response = await httpx_client.post(
         "/agents/server/sessions",
-        json={"title": " CLI session ", "is_ephemeral": True},
+        json=_create_session_body(title=" CLI session ", is_ephemeral=True),
     )
     assert response.status_code == 201
 
@@ -2130,13 +2148,20 @@ async def test_create_session_route_creates_a_temporary_session(
         assert agent_session.user_id is None
         assert agent_session.project_name == get_env_phoenix_agents_assistant_project_name()
         assert agent_session.is_ephemeral is True
+        assert agent_session.model_provider.value == "OPENAI"
+        assert agent_session.model_name == "gpt-test"
+        assert agent_session.custom_provider_id is None
+        assert agent_session.builtin_provider is not None
 
 
 async def test_create_session_route_defaults_to_a_persistent_untitled_session(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
 ) -> None:
-    response = await httpx_client.post("/agents/assistant/sessions", json={})
+    response = await httpx_client.post(
+        "/agents/assistant/sessions",
+        json=_create_session_body(),
+    )
     assert response.status_code == 201
 
     global_id = GlobalID.from_id(response.json()["data"]["id"])
@@ -2147,12 +2172,20 @@ async def test_create_session_route_defaults_to_a_persistent_untitled_session(
         assert agent_session.is_ephemeral is False
 
 
+async def test_create_session_route_requires_a_model(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.post("/agents/assistant/sessions", json={})
+
+    assert response.status_code == 422
+
+
 async def test_create_session_route_rejects_long_title(
     httpx_client: httpx.AsyncClient,
 ) -> None:
     response = await httpx_client.post(
         "/agents/assistant/sessions",
-        json={"title": "x" * (MAX_AGENT_SESSION_TITLE_LENGTH + 1)},
+        json=_create_session_body(title="x" * (MAX_AGENT_SESSION_TITLE_LENGTH + 1)),
     )
 
     assert response.status_code == 422
@@ -2171,7 +2204,7 @@ async def test_create_session_route_yields_a_chattable_session(
 
     created = await httpx_client.post(
         "/agents/server/sessions",
-        json={"is_ephemeral": True},
+        json=_create_session_body(is_ephemeral=True),
     )
     assert created.status_code == 201
 
@@ -2182,10 +2215,293 @@ async def test_create_session_route_yields_a_chattable_session(
     assert response.status_code == 200
 
 
+async def test_chat_runs_on_the_sessions_persisted_model_without_rewriting_it(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A turn whose asserted model matches the session runs on the persisted
+    selection and leaves the session's model columns untouched — sending is
+    never a model write."""
+    built_selections = []
+
+    async def _fake_build_model(selection: object, **kwargs: object) -> TestModel:
+        built_selections.append(selection)
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    agent_session_id = await _create_agent_session_row(db)
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            "11111111-1111-4111-8111-111111111111",
+            _user_message("hello"),
+        ),
+    )
+
+    assert response.status_code == 200
+    assert built_selections == [
+        BuiltInProviderModelSelection(
+            provider_type="builtin",
+            provider=ModelProvider.OPENAI,
+            model_name="gpt-test",
+        )
+    ]
+    global_id = GlobalID.from_id(agent_session_id)
+    async with db() as session:
+        agent_session = await session.get(models.AgentSession, int(global_id.node_id))
+        assert agent_session is not None
+        assert agent_session.model_provider.value == "OPENAI"
+        assert agent_session.model_name == "gpt-test"
+        assert agent_session.custom_provider_id is None
+        assert agent_session.builtin_provider is not None
+
+
+async def test_update_session_model_route_moves_the_session_to_the_new_model(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The model route is the only way to change an existing session's model,
+    and a turn asserting the new model is accepted once it has."""
+
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    agent_session_id = await _create_agent_session_row(db)
+    next_model = {
+        "providerType": "builtin",
+        "provider": "ANTHROPIC",
+        "modelName": "claude-opus-4-6",
+    }
+
+    response = await httpx_client.post(_model_url(agent_session_id), json={"model": next_model})
+
+    assert response.status_code == 200
+    assert response.json()["data"]["model"]["provider"] == "ANTHROPIC"
+    assert response.json()["data"]["model"]["modelName"] == "claude-opus-4-6"
+    global_id = GlobalID.from_id(agent_session_id)
+    async with db() as session:
+        agent_session = await session.get(models.AgentSession, int(global_id.node_id))
+        assert agent_session is not None
+        assert agent_session.model_provider.value == "ANTHROPIC"
+        assert agent_session.model_name == "claude-opus-4-6"
+
+    # The session now answers to the new assertion, and no longer to the old.
+    accepted = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            "11111111-1111-4111-8111-111111111111",
+            _user_message("hello"),
+            model=next_model,
+        ),
+    )
+    assert accepted.status_code == 200
+
+
+async def test_update_session_model_route_rejects_a_deleted_custom_provider(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    agent_session_id = await _create_agent_session_row(db)
+    deleted_provider_gid = str(GlobalID(models.GenerativeModelCustomProvider.__name__, "999"))
+
+    response = await httpx_client.post(
+        _model_url(agent_session_id),
+        json={
+            "model": {
+                "providerType": "custom",
+                "providerId": deleted_provider_gid,
+                "modelName": "custom-model",
+            }
+        },
+    )
+
+    assert response.status_code == 404
+    global_id = GlobalID.from_id(agent_session_id)
+    async with db() as session:
+        agent_session = await session.get(models.AgentSession, int(global_id.node_id))
+        assert agent_session is not None
+        assert agent_session.model_provider.value == "OPENAI"
+        assert agent_session.model_name == "gpt-test"
+
+
+async def test_update_session_model_route_is_rejected_while_a_turn_holds_the_session_lock(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """A streaming turn runs on the model it read under the turn lock, so the
+    model route must not flip the session's model out from under it — and must
+    not release the running turn's lock."""
+    agent_session_id = await _create_agent_session_row(db)
+    live_heartbeat = datetime.now(timezone.utc)
+    async with db() as session:
+        await session.execute(update(models.AgentSession).values(heartbeat_at=live_heartbeat))
+
+    response = await httpx_client.post(
+        _model_url(agent_session_id),
+        json={
+            "model": {
+                "providerType": "builtin",
+                "provider": "ANTHROPIC",
+                "modelName": "claude-opus-4-6",
+            }
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {"code": "agent_session_busy"}
+    async with db() as session:
+        stored = await session.scalar(select(models.AgentSession))
+        assert stored is not None
+        assert stored.model_provider.value == "OPENAI"
+        assert stored.model_name == "gpt-test"
+        assert stored.heartbeat_at is not None
+
+
+async def test_update_session_model_route_ignores_a_stale_session_lock(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """A heartbeat older than the staleness window belongs to an abandoned
+    turn, so it must not wedge the session on its old model."""
+    agent_session_id = await _create_agent_session_row(db)
+    stale_heartbeat = datetime.now(timezone.utc) - TURN_LOCK_STALENESS * 2
+    async with db() as session:
+        await session.execute(update(models.AgentSession).values(heartbeat_at=stale_heartbeat))
+
+    response = await httpx_client.post(
+        _model_url(agent_session_id),
+        json={
+            "model": {
+                "providerType": "builtin",
+                "provider": "ANTHROPIC",
+                "modelName": "claude-opus-4-6",
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    async with db() as session:
+        stored = await session.scalar(select(models.AgentSession))
+        assert stored is not None
+        assert stored.model_provider.value == "ANTHROPIC"
+        assert stored.model_name == "claude-opus-4-6"
+
+
+async def test_update_session_model_route_rejects_unknown_agents(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    agent_session_id = await _create_agent_session_row(db)
+    response = await httpx_client.post(
+        f"/agents/unknown/sessions/{agent_session_id}/model",
+        json={
+            "model": {
+                "providerType": "builtin",
+                "provider": "OPENAI",
+                "modelName": "gpt-test",
+            }
+        },
+    )
+    assert response.status_code == 404
+
+
+async def test_compact_rejects_a_request_asserting_a_model_the_session_is_not_on(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Compaction asserts the session's model the same way a turn does, so a
+    stale client cannot have the summary generated by an unexpected model."""
+    built_selections = []
+
+    async def _fake_build_model(selection: object, **kwargs: object) -> TestModel:
+        built_selections.append(selection)
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    agent_session_id = await _create_agent_session_row(db)
+
+    response = await httpx_client.post(
+        _compact_url(agent_session_id),
+        json={
+            "model": {
+                "providerType": "builtin",
+                "provider": "ANTHROPIC",
+                "modelName": "claude-opus-4-6",
+            }
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {"code": "agent_session_model_stale"}
+    assert built_selections == []
+    # The rejected request must not leave the session's turn lock held.
+    global_id = GlobalID.from_id(agent_session_id)
+    async with db() as session:
+        agent_session = await session.get(models.AgentSession, int(global_id.node_id))
+        assert agent_session is not None
+        assert agent_session.heartbeat_at is None
+
+
+async def test_chat_rejects_a_turn_asserting_a_model_the_session_is_not_on(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A turn states the model it expects rather than setting one. When that
+    assertion does not match the session's persisted selection the client is
+    working from a stale view, so the send is refused instead of silently
+    running on — or switching the session to — an unexpected model."""
+    built_selections = []
+
+    async def _fake_build_model(selection: object, **kwargs: object) -> TestModel:
+        built_selections.append(selection)
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    agent_session_id = await _create_agent_session_row(db)
+    deleted_provider_gid = str(GlobalID(models.GenerativeModelCustomProvider.__name__, "999"))
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            "11111111-1111-4111-8111-111111111111",
+            _user_message("hello"),
+            model={
+                "providerType": "custom",
+                "providerId": deleted_provider_gid,
+                "modelName": "custom-model",
+            },
+        ),
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {"code": "agent_session_model_stale"}
+    # The turn never started, and the session keeps its own model.
+    assert built_selections == []
+    global_id = GlobalID.from_id(agent_session_id)
+    async with db() as session:
+        agent_session = await session.get(models.AgentSession, int(global_id.node_id))
+        assert agent_session is not None
+        assert agent_session.model_provider.value == "OPENAI"
+        assert agent_session.model_name == "gpt-test"
+        assert agent_session.custom_provider_id is None
+        assert agent_session.builtin_provider is not None
+        # The rejected send claimed the turn lock to read the model under it,
+        # so it must hand the lock back rather than block the session until
+        # the heartbeat goes stale.
+        assert agent_session.heartbeat_at is None
+
+
 async def test_create_session_route_rejects_unknown_agents(
     httpx_client: httpx.AsyncClient,
 ) -> None:
-    response = await httpx_client.post("/agents/unknown/sessions", json={})
+    response = await httpx_client.post(
+        "/agents/unknown/sessions",
+        json=_create_session_body(),
+    )
     assert response.status_code == 404
 
 
@@ -2197,7 +2513,10 @@ async def test_create_session_route_is_forbidden_when_agents_are_disabled(
         AgentAssistantEnabledSetting(enabled=False)
     )
 
-    response = await httpx_client.post("/agents/server/sessions", json={})
+    response = await httpx_client.post(
+        "/agents/server/sessions",
+        json=_create_session_body(),
+    )
     assert response.status_code == 403
     assert "Agents are disabled" in response.text
 
@@ -2208,11 +2527,17 @@ async def test_create_session_route_forbids_the_server_agent_when_bash_is_disabl
 ) -> None:
     monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_BASH", "true")
 
-    server_response = await httpx_client.post("/agents/server/sessions", json={})
+    server_response = await httpx_client.post(
+        "/agents/server/sessions",
+        json=_create_session_body(),
+    )
     assert server_response.status_code == 403
     assert "Server agent is disabled" in server_response.text
 
-    assistant_response = await httpx_client.post("/agents/assistant/sessions", json={})
+    assistant_response = await httpx_client.post(
+        "/agents/assistant/sessions",
+        json=_create_session_body(),
+    )
     assert assistant_response.status_code == 201
 
 
@@ -2226,7 +2551,10 @@ async def test_agents_router_is_forbidden_in_read_only_mode(
     agent_session_id = await _create_agent_session_row(db)
     app.state.read_only = True
 
-    create_response = await httpx_client.post("/agents/server/sessions", json={})
+    create_response = await httpx_client.post(
+        "/agents/server/sessions",
+        json=_create_session_body(),
+    )
     assert create_response.status_code == 403
 
     chat_response = await httpx_client.post(

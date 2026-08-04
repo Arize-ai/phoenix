@@ -1,11 +1,12 @@
 import { type Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
 import { isToolUIPart } from "ai";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRelayEnvironment } from "react-relay";
 
 import {
   SESSION_BUSY_ERROR_CODE,
+  SESSION_MODEL_STALE_ERROR_CODE,
   buildAgentChatApiUrl,
   buildAgentCompactApiUrl,
 } from "@phoenix/agent/chat/agentChatApi";
@@ -36,6 +37,8 @@ import {
 } from "@phoenix/store/agentStore";
 import { isRecord } from "@phoenix/utils/typeUtils";
 
+import { useModelMenuData } from "../generative/useModelMenuData";
+import { applyPersistedAgentSessionModel } from "./agentSessionModel";
 import { refetchAgentSession } from "./agentSessionRelay";
 import type { AgentChatOperationError } from "./types";
 import { selectAgentModel } from "./useAgentChatPanelState";
@@ -94,6 +97,13 @@ export function useAgentChat({
   shouldSyncOnMount?: boolean;
 }) {
   const store = useAgentStore();
+  const { customProviders } = useModelMenuData({
+    fetchPolicy: "store-or-network",
+  });
+  const customProvidersRef = useRef(customProviders);
+  useEffect(() => {
+    customProvidersRef.current = customProviders;
+  }, [customProviders]);
   const runtime = useAgentChatRuntime();
   const relayEnvironment = useRelayEnvironment();
   const [operationError, setOperationError] =
@@ -133,6 +143,7 @@ export function useAgentChat({
         seedMessages,
         store,
         relayEnvironment,
+        getCustomProviders: () => customProvidersRef.current,
         onTranscriptSynced: (tail) => {
           // Record the refetched tail so the next poll's sync probe can
           // recognize this client's own turn and skip the full fetch.
@@ -330,7 +341,7 @@ export function useAgentChat({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: selectAgentModel(store.getState()),
+            model: selectAgentModel(store.getState(), sessionId),
           }),
         });
         if (!response.ok) {
@@ -341,6 +352,47 @@ export function useAgentChat({
             // when the turn completes) instead of raising a red error.
             restorePendingMessage();
             store.getState().setSessionBusyElsewhere(sessionId, true);
+            return;
+          }
+          if (
+            response.status === 409 &&
+            isSessionModelStaleConflict(errorBody)
+          ) {
+            // Another client moved the session to a different model, so no
+            // summary was generated. Refetch so the picker matches the server
+            // and tell the user what changed rather than raising a red error.
+            // A 409 racing this client's own in-flight model change is not
+            // another window's doing: skip the notice and let the guarded
+            // store write ignore the refetched pre-change model.
+            restorePendingMessage();
+            if (
+              store.getState().isModelWritePendingBySessionId[sessionId] !==
+              true
+            ) {
+              store
+                .getState()
+                .setSessionNotice(sessionId, "modelChangedElsewhere");
+            }
+            void refetchAgentSession({
+              environment: relayEnvironment,
+              sessionId,
+            }).then((data) => {
+              // Resync the store the picker and the next send read; the Relay
+              // record alone leaves this client asserting the stale model.
+              const agentSession =
+                data?.agentSession.__typename === "AgentSession"
+                  ? data.agentSession
+                  : null;
+              if (!agentSession) {
+                return;
+              }
+              applyPersistedAgentSessionModel({
+                session: agentSession,
+                sessionId,
+                customProviders: customProvidersRef.current,
+                state: store.getState(),
+              });
+            });
             return;
           }
           throw new Error(
@@ -527,6 +579,16 @@ function isSessionBusyConflict(body: string): boolean {
   try {
     const parsed: unknown = JSON.parse(body);
     return isRecord(parsed) && parsed.code === SESSION_BUSY_ERROR_CODE;
+  } catch {
+    return false;
+  }
+}
+
+/** The compact route's other JSON conflict: the asserted model is out of date. */
+function isSessionModelStaleConflict(body: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    return isRecord(parsed) && parsed.code === SESSION_MODEL_STALE_ERROR_CODE;
   } catch {
     return false;
   }

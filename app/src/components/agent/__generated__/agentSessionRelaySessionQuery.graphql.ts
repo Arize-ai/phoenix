@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<76ecc2dd63a5a93ed11b40183dfcf50f>>
+ * @generated SignedSource<<84a9c1b25c0d41d4fd060de9fcabf0aa>>
  * @lightSyntaxTransform
  */
 
@@ -8,6 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+import { FragmentRefs } from "relay-runtime";
 export type agentSessionRelaySessionQuery$variables = {
   id: string;
 };
@@ -28,6 +29,7 @@ export type agentSessionRelaySessionQuery$data = {
       readonly profilePictureUrl: string | null;
       readonly username: string;
     } | null;
+    readonly " $fragmentSpreads": FragmentRefs<"agentSessionModel_session">;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -142,6 +144,62 @@ v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "modelName",
+  "storageKey": null
+},
+v15 = {
+  "alias": null,
+  "args": null,
+  "concreteType": null,
+  "kind": "LinkedField",
+  "name": "model",
+  "plural": false,
+  "selections": [
+    (v2/*:: as any*/),
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "provider",
+          "storageKey": null
+        },
+        (v14/*:: as any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "openaiApiType",
+          "storageKey": null
+        }
+      ],
+      "type": "AgentBuiltinProviderModelSelection",
+      "abstractKey": null
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "providerId",
+          "storageKey": null
+        },
+        (v14/*:: as any*/)
+      ],
+      "type": "AgentCustomProviderModelSelection",
+      "abstractKey": null
+    }
+  ],
+  "storageKey": null
+},
+v16 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "messages",
   "storageKey": null
 };
@@ -186,7 +244,16 @@ return {
                 "storageKey": null
               },
               (v13/*:: as any*/),
-              (v14/*:: as any*/)
+              {
+                "kind": "InlineDataFragmentSpread",
+                "name": "agentSessionModel_session",
+                "selections": [
+                  (v15/*:: as any*/)
+                ],
+                "args": null,
+                "argumentDefinitions": []
+              },
+              (v16/*:: as any*/)
             ],
             "type": "AgentSession",
             "abstractKey": null
@@ -239,7 +306,8 @@ return {
                 "storageKey": null
               },
               (v13/*:: as any*/),
-              (v14/*:: as any*/)
+              (v15/*:: as any*/),
+              (v16/*:: as any*/)
             ],
             "type": "AgentSession",
             "abstractKey": null
@@ -250,16 +318,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "39dfa76985b3d61bd873a6c0e40c8da9",
+    "cacheID": "0f5020e9f66d7d354fdcd72bb47a0cb7",
     "id": null,
     "metadata": {},
     "name": "agentSessionRelaySessionQuery",
     "operationKind": "query",
-    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      isTemporary: isEphemeral\n      isActive\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      lastMessageId\n      messages\n    }\n    id\n  }\n}\n"
+    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      isTemporary: isEphemeral\n      isActive\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      lastMessageId\n      ...agentSessionModel_session\n      messages\n    }\n    id\n  }\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n      openaiApiType\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0a93a9f87571952d003f5b8acf2d154f";
+(node as any).hash = "ffda1282df89da5c6a0795fa0d10288e";
 
 export default node;

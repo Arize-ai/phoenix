@@ -89,11 +89,6 @@ class CodeEvaluatorContext(TypedDict):
     evaluatorNodeId: NotRequired[str]
 
 
-class CreateAgentSessionRequestBody(TypedDict):
-    title: NotRequired[str]
-    is_ephemeral: NotRequired[bool]
-
-
 class CreateAgentSessionResponseBody(TypedDict):
     data: AgentSession
 
@@ -1723,6 +1718,10 @@ class TranscriptPersistedChunk(TypedDict):
     transient: NotRequired[bool]
 
 
+class AgentSessionModel(TypedDict):
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+
+
 class AssignAnnotationConfigToProjectResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
@@ -1737,6 +1736,12 @@ class AssistantMessageMetadata(TypedDict):
 
 class CompactAgentSessionRequest(TypedDict):
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+
+
+class CreateAgentSessionRequestBody(TypedDict):
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    title: NotRequired[str]
+    is_ephemeral: NotRequired[bool]
 
 
 class CreateAnnotationConfigResponseBody(TypedDict):
@@ -1919,12 +1924,21 @@ class PromptMessage(TypedDict):
     ]
 
 
+class UpdateAgentSessionModelRequestBody(TypedDict):
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+
+
+class UpdateAgentSessionModelResponseBody(TypedDict):
+    data: AgentSessionModel
+
+
 class AgentSessionData(TypedDict):
     id: str
     title: str
     created_at: str
     updated_at: str
     is_ephemeral: bool
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     is_active: bool
     last_message_id: NotRequired[str]
     messages: NotRequired[Sequence[PhoenixUIMessage]]

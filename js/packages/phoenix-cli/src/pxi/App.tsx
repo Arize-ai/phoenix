@@ -7,6 +7,7 @@ import {
   createPxiSessionClient,
   createUserMessage,
   isSessionBusyError,
+  isSessionModelStaleError,
   isSessionStaleError,
 } from "./client";
 import {
@@ -28,7 +29,11 @@ import {
   type DraftEditorState,
 } from "./draftEditor";
 import { Markdown } from "./inkMarkdown";
-import { fetchRecommendedPxiModels } from "./preflight";
+import {
+  fetchRecommendedPxiModels,
+  isSameModelSelection,
+  resolveRestoredPxiModelSelection,
+} from "./preflight";
 import { formatTokenUsageLine, getLatestAssistantUsage } from "./tokenUsage";
 import {
   getToolProgressFromPart,
@@ -121,6 +126,20 @@ const SESSION_BUSY_STATUS_TEXT =
   "Session is being used elsewhere, the chat will refresh when complete";
 const SESSION_STALE_STATUS_TEXT =
   "Session was updated elsewhere, the chat has been refreshed";
+/** Names the model so the switch is visible, not just that something changed. */
+const getSessionModelStaleStatusText = ({
+  modelSelection,
+}: {
+  modelSelection: ModelSelection;
+}) =>
+  `Model was changed elsewhere, this session is now on ${getModelLabel({ modelSelection })}`;
+/**
+ * Warns that a restored session's persisted model failed catalog validation.
+ * The session stays on that model — swapping in a fallback locally would make
+ * every send assert a model the server rejects as stale.
+ */
+const getPersistedModelWarningText = ({ message }: { message: string }) =>
+  `Session model may be unavailable: ${message} Use /model to choose a different model.`;
 const COMPACTING_STATUS_TEXT = "Compacting conversation";
 const ALREADY_COMPACT_STATUS_TEXT =
   "Conversation is already compact. There are no older complete turns to compact.";
@@ -139,6 +158,7 @@ export type PxiAppProps = {
   }) => PxiChatClient;
   modelLoader?: () => Promise<ModelSelection[]>;
   sessionClient?: PxiSessionClient;
+  sessionModelResolver?: (model: ModelSelection) => Promise<ModelSelection>;
   initialMessages?: PxiMessage[];
 };
 
@@ -879,6 +899,7 @@ export function PxiApp({
   clientFactory,
   modelLoader,
   sessionClient,
+  sessionModelResolver,
   initialMessages = [],
 }: PxiAppProps) {
   const { exit } = useApp();
@@ -901,6 +922,17 @@ export function PxiApp({
   // A send was rejected as stale (another client appended to the session) and
   // the transcript was refreshed in place; shown until the next send.
   const [showStaleRefreshNotice, setShowStaleRefreshNotice] = useState(false);
+  // A send or compaction was rejected because another client moved the session
+  // to a different model. Tracked separately from the transcript notice so the
+  // user is told what actually changed; shown until the next send.
+  const [showModelStaleNotice, setShowModelStaleNotice] = useState(false);
+  // A restored session's persisted model failed catalog validation (e.g. its
+  // provider lost credentials). The model is kept anyway — the server record
+  // is the source of truth — so this warning is what tells the user; shown
+  // until the next send or model pick.
+  const [modelValidationWarning, setModelValidationWarning] = useState<
+    string | null
+  >(null);
   // A compaction request is in flight; plain sends are blocked while set.
   const [isCompacting, setIsCompacting] = useState(false);
   // One-shot notice after a no-op compaction; shown until the next send.
@@ -919,6 +951,19 @@ export function PxiApp({
   const streamingAssistantMessageRef = useRef<PxiMessage | null>(null);
   const modelRequestIdRef = useRef(0);
   const sessionRequestIdRef = useRef(0);
+  /**
+   * Number of model writes awaiting acknowledgement. While non-zero the poll
+   * leaves the model alone: it refetches server state that may predate the
+   * user's pick, and applying it would revert the selection mid-flight.
+   */
+  const modelWriteCountRef = useRef(0);
+  /**
+   * Latest displayed selection, read by the poll so it can detect a remote
+   * model change without taking `activeModelSelection` as an effect
+   * dependency — that would restart the poll interval on every switch.
+   */
+  const activeModelSelectionRef = useRef(activeModelSelection);
+  activeModelSelectionRef.current = activeModelSelection;
   /**
    * Last successfully fetched session list. Lets the picker open instantly
    * with the previous list while a background refresh fetches the latest —
@@ -947,6 +992,26 @@ export function PxiApp({
   const serverSessionClient = useMemo(
     () => sessionClient ?? createPxiSessionClient({ config: options.config }),
     [options.config, sessionClient]
+  );
+  const resolveSessionModel = useMemo(
+    () =>
+      sessionModelResolver ??
+      ((model: ModelSelection) =>
+        resolveRestoredPxiModelSelection({
+          options,
+          persistedModelSelection: model,
+          onInvalidModel: ({ error }) => {
+            // A /model pick in flight supersedes the model this resolve read;
+            // its warning would describe a model the user already left.
+            if (modelWriteCountRef.current > 0) {
+              return;
+            }
+            setModelValidationWarning(
+              getPersistedModelWarningText({ message: error.message })
+            );
+          },
+        })),
+    [options, sessionModelResolver]
   );
 
   // Keep the active session synchronized with turns completed by other
@@ -996,7 +1061,24 @@ export function PxiApp({
             return;
           }
           recordSyncedSessionState(session);
+          // Only re-resolve when the session actually moved to a different
+          // model: resolving validates against the server's model catalog,
+          // and doing that on every tick would put a network round trip on
+          // the poll's steady state.
+          const hasModelChanged = !isSameModelSelection(
+            session.model,
+            activeModelSelectionRef.current
+          );
+          const restoredModel = hasModelChanged
+            ? await resolveSessionModel(session.model)
+            : activeModelSelectionRef.current;
+          if (isStale) {
+            return;
+          }
           setActiveSession(session);
+          if (hasModelChanged && modelWriteCountRef.current === 0) {
+            setActiveModelSelection(restoredModel);
+          }
           setMessages(session.messages);
           setIsSessionBusy(false);
         })
@@ -1016,6 +1098,7 @@ export function PxiApp({
     activeSessionId,
     isSessionPollingPaused,
     isSessionBusy,
+    resolveSessionModel,
     serverSessionClient,
   ]);
 
@@ -1051,10 +1134,13 @@ export function PxiApp({
     sessionRequestIdRef.current += 1;
     setActiveSession(null);
     lastSyncedSessionStateRef.current = null;
+    setActiveModelSelection(options.modelSelection);
     setIsDraftTemporary(temporary);
     setIsSessionBusy(false);
     setShowStaleRefreshNotice(false);
+    setShowModelStaleNotice(false);
     setCompactionNotice(null);
+    setModelValidationWarning(null);
     setModelPicker(null);
     setSessionPicker(null);
     setMessages([]);
@@ -1195,9 +1281,37 @@ export function PxiApp({
     });
     const selectedModel = filteredModels[modelPicker.selectedIndex];
     if (!selectedModel) return;
+    const previousModel = activeModelSelection;
     setActiveModelSelection(selectedModel);
     setModelPicker(null);
     setError(null);
+    // The pick replaces whatever model the warning was about.
+    setModelValidationWarning(null);
+    // A draft has no server record yet; its selection travels with the
+    // createSession call that starts the session.
+    const persistedSessionId = activeSession?.id;
+    if (!persistedSessionId) return;
+    // Held across the write so the poll cannot apply a server read that
+    // predates it and revert the pick.
+    modelWriteCountRef.current += 1;
+    const requestId = sessionRequestIdRef.current;
+    void serverSessionClient
+      .updateSessionModel({
+        sessionId: persistedSessionId,
+        model: selectedModel,
+      })
+      .then((model) => {
+        if (sessionRequestIdRef.current !== requestId) return;
+        setActiveModelSelection(model);
+      })
+      .catch((err) => {
+        if (sessionRequestIdRef.current !== requestId) return;
+        setActiveModelSelection(previousModel);
+        setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        modelWriteCountRef.current -= 1;
+      });
   };
 
   const restoreSelectedSession = () => {
@@ -1215,16 +1329,38 @@ export function PxiApp({
     );
     void serverSessionClient
       .getSession({ sessionId: selectedSession.id })
-      .then((session) => {
+      .then(async (session) => {
+        if (sessionRequestIdRef.current !== requestId) return;
+        // Cleared before the resolve so a warning it raises about this
+        // session's model survives, while one from a previous session does
+        // not.
+        setModelValidationWarning(null);
+        // Explicit --provider/--model express an intent to move the session
+        // onto that model, so restoring writes it rather than shadowing the
+        // persisted value locally. Applied once here, not on every poll —
+        // and skipped when the session is already on that model, which would
+        // make the write a no-op round trip that still bumps the session's
+        // updated_at and reorders the session list.
+        const shouldWriteExplicitModel =
+          options.hasExplicitModelSelection &&
+          !isSameModelSelection(session.model, options.modelSelection);
+        const restoredModel = shouldWriteExplicitModel
+          ? await serverSessionClient.updateSessionModel({
+              sessionId: session.id,
+              model: options.modelSelection,
+            })
+          : await resolveSessionModel(session.model);
         if (sessionRequestIdRef.current !== requestId) return;
         recordSyncedSessionState(session);
         setActiveSession(session);
+        setActiveModelSelection(restoredModel);
         setIsDraftTemporary(session.isTemporary);
         // Another client's turn may already hold the restored session's lock;
         // enter the busy state so the poll refreshes the transcript when it
         // completes.
         setIsSessionBusy(session.isActive === true);
         setShowStaleRefreshNotice(false);
+        setShowModelStaleNotice(false);
         setCompactionNotice(null);
         setMessages(session.messages);
         setError(null);
@@ -1316,6 +1452,33 @@ export function PxiApp({
           setIsSessionBusy(true);
           return;
         }
+        if (isSessionModelStaleError({ error: compactError })) {
+          // Another client moved the session to a different model (HTTP 409).
+          // No summary was generated; refresh so the header and the next
+          // request agree with the server, and say what changed.
+          const staleSessionId = activeSession?.id;
+          if (!staleSessionId) {
+            return;
+          }
+          void serverSessionClient
+            .getSession({ sessionId: staleSessionId })
+            .then(async (session) => {
+              if (sessionRequestIdRef.current !== requestId) return;
+              const restoredModel = await resolveSessionModel(session.model);
+              if (sessionRequestIdRef.current !== requestId) return;
+              // A 409 racing the user's own /model write must not flip the
+              // header back to the old model or announce the reverse of what
+              // the user did: the in-flight write re-applies their pick and
+              // the poll reconciles any residue.
+              if (modelWriteCountRef.current > 0) return;
+              setActiveModelSelection(restoredModel);
+              setShowModelStaleNotice(true);
+            })
+            .catch(() => {
+              // Refresh failed; the next compaction hits the same rejection.
+            });
+          return;
+        }
         setError(
           compactError instanceof Error
             ? compactError.message
@@ -1394,7 +1557,9 @@ export function PxiApp({
     streamingAssistantMessageRef.current = null;
     setError(null);
     setShowStaleRefreshNotice(false);
+    setShowModelStaleNotice(false);
     setCompactionNotice(null);
+    setModelValidationWarning(null);
     setStatus("streaming");
     setMessages(nextMessages);
     void (async () => {
@@ -1407,6 +1572,7 @@ export function PxiApp({
       if (!activeSession && (sessionClient || !resolvedClient)) {
         const session = await serverSessionClient.createSession({
           temporary: isDraftTemporary,
+          model: activeModelSelection,
         });
         setActiveSession(session);
         if (!resolvedClient) {
@@ -1466,12 +1632,14 @@ export function PxiApp({
           setIsSessionBusy(true);
           return;
         }
-        if (isSessionStaleError({ error: err })) {
-          // The send was rejected because this client's transcript is out of
-          // date (HTTP 409: another client appended to the session). Withdraw
-          // the optimistic user message back into the composer and refetch
-          // the fresh transcript; if a turn is already running elsewhere,
-          // hand off to the busy poll instead of the one-shot notice.
+        const isModelStale = isSessionModelStaleError({ error: err });
+        if (isModelStale || isSessionStaleError({ error: err })) {
+          // The send was rejected because this client's view of the session is
+          // out of date (HTTP 409): either another client appended to the
+          // transcript, or moved the session to a different model. Withdraw
+          // the optimistic user message back into the composer and refetch the
+          // session; if a turn is already running elsewhere, hand off to the
+          // busy poll instead of the one-shot notice.
           setMessages((currentMessages) =>
             currentMessages.filter((message) => message.id !== userMessage.id)
           );
@@ -1487,13 +1655,29 @@ export function PxiApp({
           const requestId = sessionRequestIdRef.current;
           void serverSessionClient
             .getSession({ sessionId: staleSessionId })
-            .then((session) => {
+            .then(async (session) => {
               // A session switch or /new superseded this refresh.
               if (sessionRequestIdRef.current !== requestId) return;
               recordSyncedSessionState(session);
+              const restoredModel = await resolveSessionModel(session.model);
+              if (sessionRequestIdRef.current !== requestId) return;
+              // A 409 racing the user's own /model write must not flip the
+              // header back to the old model or announce the reverse of what
+              // the user did: the in-flight write re-applies their pick and
+              // the poll reconciles any residue.
+              const hasModelWriteInFlight = modelWriteCountRef.current > 0;
               setActiveSession(session);
+              if (!hasModelWriteInFlight) {
+                setActiveModelSelection(restoredModel);
+              }
               setMessages(session.messages);
-              setShowStaleRefreshNotice(true);
+              if (isModelStale) {
+                if (!hasModelWriteInFlight) {
+                  setShowModelStaleNotice(true);
+                }
+              } else {
+                setShowStaleRefreshNotice(true);
+              }
               if (session.isActive === true) {
                 setIsSessionBusy(true);
               }
@@ -1800,6 +1984,19 @@ export function PxiApp({
     }
   });
 
+  // The one-shot yellow notices share a single line; precedence mirrors the
+  // web app's: compaction result, then model moved elsewhere, then transcript
+  // refreshed, then the persisted-model validation warning.
+  const noticeText =
+    compactionNotice ??
+    (showModelStaleNotice
+      ? getSessionModelStaleStatusText({
+          modelSelection: activeModelSelection,
+        })
+      : showStaleRefreshNotice
+        ? SESSION_STALE_STATUS_TEXT
+        : modelValidationWarning);
+
   return (
     <Box flexDirection="column" paddingX={1}>
       <PxiBanner />
@@ -1829,10 +2026,8 @@ export function PxiApp({
         <StatusSpinnerLine text={COMPACTING_STATUS_TEXT} />
       ) : isSessionBusy ? (
         <StatusSpinnerLine text={SESSION_BUSY_STATUS_TEXT} />
-      ) : compactionNotice ? (
-        <Text color="yellow">{compactionNotice}</Text>
-      ) : showStaleRefreshNotice ? (
-        <Text color="yellow">{SESSION_STALE_STATUS_TEXT}</Text>
+      ) : noticeText ? (
+        <Text color="yellow">{noticeText}</Text>
       ) : null}
       {modelPicker ? (
         <ModelPicker state={modelPicker} />

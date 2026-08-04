@@ -37,6 +37,7 @@ export const agentSessionQuery = graphql`
           profilePictureUrl
         }
         lastMessageId
+        ...agentSessionModel_session
         messages
       }
     }

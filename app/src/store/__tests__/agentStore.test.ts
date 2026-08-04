@@ -11,6 +11,7 @@ import {
   getEffectiveTraceRecordingSettings,
   hasAcknowledgedCurrentTraceConsent,
   resolveAssistantStorageKey,
+  selectSessionNotice,
 } from "../agentStore";
 
 installTestStorage();
@@ -499,6 +500,128 @@ describe("agentStore", () => {
         attachUserId: false,
         acknowledgedTraceConsent: null,
       });
+    });
+  });
+
+  describe("applyServerSessionModelConfig", () => {
+    const sessionModel = (modelName: string) =>
+      ({
+        provider: "OPENAI",
+        modelName,
+        invocationParameters: [],
+      }) as never;
+
+    it("applies a server-read model when no local write is pending", () => {
+      const store = createAgentStore();
+
+      store.getState().applyServerSessionModelConfig("s1", sessionModel("a"));
+
+      expect(store.getState().modelConfigBySessionId["s1"]).toEqual(
+        sessionModel("a")
+      );
+    });
+
+    it("ignores a server read that races an unacknowledged model change", () => {
+      const store = createAgentStore();
+      // The user picks a model; the write has not landed yet.
+      store.getState().setSessionModelConfig("s1", sessionModel("picked"));
+      store.getState().setSessionModelWritePending("s1", true);
+
+      // A poll returns the pre-change model.
+      store.getState().applyServerSessionModelConfig("s1", sessionModel("old"));
+
+      expect(store.getState().modelConfigBySessionId["s1"]).toEqual(
+        sessionModel("picked")
+      );
+
+      // Once acknowledged, server reads take effect again.
+      store.getState().setSessionModelWritePending("s1", false);
+      store
+        .getState()
+        .applyServerSessionModelConfig("s1", sessionModel("remote"));
+      expect(store.getState().modelConfigBySessionId["s1"]).toEqual(
+        sessionModel("remote")
+      );
+    });
+
+    it("scopes the pending guard to one session", () => {
+      const store = createAgentStore();
+      store.getState().setSessionModelWritePending("s1", true);
+
+      store.getState().applyServerSessionModelConfig("s2", sessionModel("b"));
+
+      expect(store.getState().modelConfigBySessionId["s2"]).toEqual(
+        sessionModel("b")
+      );
+    });
+
+    it("clears the pending guard with the rest of a session's state", () => {
+      const store = createAgentStore();
+      store.getState().setSessionModelWritePending("s1", true);
+
+      store.getState().clearSessionEphemeralState("s1");
+
+      expect(store.getState().isModelWritePendingBySessionId["s1"]).toBe(
+        undefined
+      );
+    });
+
+    it("returns the state unchanged when the server model is structurally equal", () => {
+      const store = createAgentStore();
+      store.getState().applyServerSessionModelConfig("s1", sessionModel("a"));
+      const before = store.getState().modelConfigBySessionId;
+
+      // Poll ticks re-apply the same model; an equal config must not replace
+      // the map and re-render every session surface.
+      store.getState().applyServerSessionModelConfig("s1", sessionModel("a"));
+
+      expect(store.getState().modelConfigBySessionId).toBe(before);
+    });
+  });
+
+  describe("session conflict notices", () => {
+    it("stores at most one dismissable notice per session", () => {
+      const store = createAgentStore();
+
+      store.getState().setSessionNotice("s1", "refreshedFromStale");
+      expect(selectSessionNotice(store.getState(), "s1")).toBe(
+        "refreshedFromStale"
+      );
+
+      store.getState().setSessionNotice("s1", "modelChangedElsewhere");
+      expect(selectSessionNotice(store.getState(), "s1")).toBe(
+        "modelChangedElsewhere"
+      );
+
+      store.getState().setSessionNotice("s1", null);
+      expect(selectSessionNotice(store.getState(), "s1")).toBeNull();
+    });
+
+    it("gives busy-elsewhere precedence and restores the notice after the lock clears", () => {
+      const store = createAgentStore();
+      store.getState().setSessionNotice("s1", "refreshedFromStale");
+
+      store.getState().setSessionBusyElsewhere("s1", true);
+      expect(selectSessionNotice(store.getState(), "s1")).toBe("busyElsewhere");
+
+      store.getState().setSessionBusyElsewhere("s1", false);
+      expect(selectSessionNotice(store.getState(), "s1")).toBe(
+        "refreshedFromStale"
+      );
+    });
+
+    it("resolves no notice without a session id", () => {
+      const store = createAgentStore();
+      expect(selectSessionNotice(store.getState(), null)).toBeNull();
+    });
+
+    it("clears the notice with the rest of a session's state", () => {
+      const store = createAgentStore();
+      store.getState().setSessionNotice("s1", "modelChangedElsewhere");
+
+      store.getState().clearSessionEphemeralState("s1");
+
+      expect(selectSessionNotice(store.getState(), "s1")).toBeNull();
     });
   });
 

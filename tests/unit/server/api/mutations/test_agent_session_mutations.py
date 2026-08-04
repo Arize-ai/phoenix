@@ -22,16 +22,29 @@ from phoenix.server.api.routers.agents import (
 from phoenix.server.authorization import insufficient_storage_message
 from phoenix.server.settings.registry import AgentAssistantEnabledSetting
 from phoenix.server.types import DbSessionFactory
-from tests.unit._helpers import _message_uuid
+from tests.unit._helpers import _agent_session_model_kwargs, _message_uuid
 from tests.unit.graphql import AsyncGraphQLClient
 
 _CREATE_MUTATION = """
   mutation ($title: String!) {
-    createAgentSession(input: { title: $title }) {
+    createAgentSession(
+      input: {
+        title: $title
+        model: { builtin: { provider: OPENAI, modelName: "gpt-test" } }
+      }
+    ) {
       agentSession {
         id
         title
         isEphemeral
+        model {
+          __typename
+          ... on AgentBuiltinProviderModelSelection {
+            provider
+            modelName
+            openaiApiType
+          }
+        }
         messages
       }
     }
@@ -56,6 +69,14 @@ _BRANCH_MUTATION = """
         id
         title
         isEphemeral
+        model {
+          __typename
+          ... on AgentBuiltinProviderModelSelection {
+            provider
+            modelName
+            openaiApiType
+          }
+        }
         messages
       }
     }
@@ -76,6 +97,27 @@ _UPDATE_TITLE_MUTATION = """
       agentSession {
         id
         title
+      }
+    }
+  }
+"""
+
+_UPDATE_MODEL_MUTATION = """
+  mutation ($id: ID!, $model: AgentModelSelectionInput!) {
+    updateAgentSessionModel(input: { id: $id, model: $model }) {
+      agentSession {
+        id
+        model {
+          __typename
+          ... on AgentBuiltinProviderModelSelection {
+            provider
+            modelName
+          }
+          ... on AgentCustomProviderModelSelection {
+            providerId
+            modelName
+          }
+        }
       }
     }
   }
@@ -155,6 +197,7 @@ async def _seed_session_with_transcript(
 ) -> str:
     async with db() as session:
         agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
             user_id=None,
             title=title,
             project_name="assistant_agent",
@@ -441,6 +484,12 @@ async def test_branch_agent_session_copies_the_truncated_transcript(
     branch = payload["agentSession"]
     assert branch["id"] != source_agent_session_id
     assert branch["title"] == ""
+    assert branch["model"] == {
+        "__typename": "AgentBuiltinProviderModelSelection",
+        "provider": "OPENAI",
+        "modelName": "gpt-test",
+        "openaiApiType": "RESPONSES",
+    }
     branch_message_ids = [message["id"] for message in branch["messages"]]
     assert len(branch_message_ids) == 2
     assert all(UUID(message_id).version == 4 for message_id in branch_message_ids)
@@ -645,6 +694,12 @@ async def test_create_agent_session_creates_empty_owned_session(
     payload = response.data["createAgentSession"]["agentSession"]
     assert payload["title"] == ""
     assert payload["isEphemeral"] is False
+    assert payload["model"] == {
+        "__typename": "AgentBuiltinProviderModelSelection",
+        "provider": "OPENAI",
+        "modelName": "gpt-test",
+        "openaiApiType": "RESPONSES",
+    }
     assert payload["messages"] == []
     async with db() as session:
         agent_sessions = (await session.scalars(select(models.AgentSession))).all()
@@ -654,7 +709,27 @@ async def test_create_agent_session_creates_empty_owned_session(
         assert agent_session.user_id is None
         assert agent_session.title == ""
         assert agent_session.is_ephemeral is False
+        assert agent_session.model_provider.value == "OPENAI"
+        assert agent_session.model_name == "gpt-test"
+        assert agent_session.builtin_provider is not None
         assert (await session.scalars(select(models.AgentSessionMessage))).all() == []
+
+
+async def test_create_agent_session_requires_a_model(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(
+        query="""
+          mutation {
+            createAgentSession(input: {}) {
+              agentSession { id }
+            }
+          }
+        """
+    )
+
+    assert response.errors
+    assert "model" in response.errors[0].message
 
 
 async def test_create_agent_session_can_create_temporary_session(
@@ -664,7 +739,12 @@ async def test_create_agent_session_can_create_temporary_session(
     response = await gql_client.execute(
         query="""
           mutation {
-            createAgentSession(input: { isEphemeral: true }) {
+            createAgentSession(
+              input: {
+                isEphemeral: true
+                model: { builtin: { provider: OPENAI, modelName: "gpt-test" } }
+              }
+            ) {
               agentSession {
                 isEphemeral
               }
@@ -738,6 +818,7 @@ async def test_update_agent_session_title(
 ) -> None:
     async with db() as session:
         agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
             user_id=None,
             title="Old title",
             project_name="assistant_agent",
@@ -759,12 +840,178 @@ async def test_update_agent_session_title(
         assert await session.scalar(select(models.AgentSession.title)) == "New title"
 
 
+async def test_update_agent_session_model_moves_the_session(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """The mutation is the web client's counterpart to the model REST route:
+    the only way to move an existing session to a different model."""
+    async with db() as session:
+        agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
+            user_id=None,
+            title="Session",
+            project_name="assistant_agent",
+        )
+        session.add(agent_session)
+        await session.flush()
+        agent_session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+    response = await gql_client.execute(
+        query=_UPDATE_MODEL_MUTATION,
+        variables={
+            "id": agent_session_id,
+            "model": {
+                "builtin": {
+                    "provider": "ANTHROPIC",
+                    "modelName": "claude-opus-4-6",
+                }
+            },
+        },
+    )
+
+    assert not response.errors
+    assert response.data == {
+        "updateAgentSessionModel": {
+            "agentSession": {
+                "id": agent_session_id,
+                "model": {
+                    "__typename": "AgentBuiltinProviderModelSelection",
+                    "provider": "ANTHROPIC",
+                    "modelName": "claude-opus-4-6",
+                },
+            }
+        }
+    }
+    async with db() as session:
+        refreshed = await session.scalar(select(models.AgentSession))
+        assert refreshed is not None
+        assert refreshed.model_provider.value == "ANTHROPIC"
+        assert refreshed.model_name == "claude-opus-4-6"
+
+
+async def test_update_agent_session_model_rejects_a_missing_custom_provider(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
+            user_id=None,
+            title="Session",
+            project_name="assistant_agent",
+        )
+        session.add(agent_session)
+        await session.flush()
+        agent_session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+        original_model_name = agent_session.model_name
+
+    response = await gql_client.execute(
+        query=_UPDATE_MODEL_MUTATION,
+        variables={
+            "id": agent_session_id,
+            "model": {
+                "custom": {
+                    "providerId": str(GlobalID("GenerativeModelCustomProvider", "999")),
+                    "modelName": "custom-model",
+                }
+            },
+        },
+    )
+
+    assert response.errors
+    async with db() as session:
+        refreshed = await session.scalar(select(models.AgentSession))
+        assert refreshed is not None
+        assert refreshed.model_name == original_model_name
+
+
+async def test_update_agent_session_model_is_rejected_while_a_turn_is_streaming(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """A streaming turn runs on the model it read under the turn lock, so the
+    mutation must not flip the session's model out from under it."""
+    async with db() as session:
+        agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
+            user_id=None,
+            title="Session",
+            project_name="assistant_agent",
+            heartbeat_at=datetime.now(timezone.utc),
+        )
+        session.add(agent_session)
+        await session.flush()
+        agent_session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+        original_model_name = agent_session.model_name
+
+    response = await gql_client.execute(
+        query=_UPDATE_MODEL_MUTATION,
+        variables={
+            "id": agent_session_id,
+            "model": {
+                "builtin": {
+                    "provider": "ANTHROPIC",
+                    "modelName": "claude-opus-4-6",
+                }
+            },
+        },
+    )
+
+    assert response.errors
+    assert "while a turn is streaming" in response.errors[0].message
+    async with db() as session:
+        refreshed = await session.scalar(select(models.AgentSession))
+        assert refreshed is not None
+        assert refreshed.model_name == original_model_name
+        assert refreshed.heartbeat_at is not None
+
+
+async def test_update_agent_session_model_ignores_a_stale_session_lock(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """A heartbeat older than the staleness window belongs to an abandoned
+    turn, so it must not wedge the session on its old model."""
+    async with db() as session:
+        agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
+            user_id=None,
+            title="Session",
+            project_name="assistant_agent",
+            heartbeat_at=datetime.now(timezone.utc) - TURN_LOCK_STALENESS * 2,
+        )
+        session.add(agent_session)
+        await session.flush()
+        agent_session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+    response = await gql_client.execute(
+        query=_UPDATE_MODEL_MUTATION,
+        variables={
+            "id": agent_session_id,
+            "model": {
+                "builtin": {
+                    "provider": "ANTHROPIC",
+                    "modelName": "claude-opus-4-6",
+                }
+            },
+        },
+    )
+
+    assert not response.errors
+    async with db() as session:
+        refreshed = await session.scalar(select(models.AgentSession))
+        assert refreshed is not None
+        assert refreshed.model_name == "claude-opus-4-6"
+
+
 async def test_update_agent_session_title_rejects_empty_title(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
     async with db() as session:
         agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
             user_id=None,
             title="Old title",
             project_name="assistant_agent",
@@ -790,6 +1037,7 @@ async def test_update_agent_session_title_rejects_long_title(
 ) -> None:
     async with db() as session:
         agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
             user_id=None,
             title="Old title",
             project_name="assistant_agent",
@@ -821,6 +1069,7 @@ async def test_delete_agent_session_cascades_snapshot(
     now = datetime(2026, 1, 1, tzinfo=timezone.utc)
     async with db() as session:
         agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
             user_id=None,
             title="doomed session",
             project_name="assistant_agent",

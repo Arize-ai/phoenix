@@ -1990,13 +1990,29 @@ class TestApiAccessViaCookiesOrApiKeys:
         admin_client = _httpx_client(_app, admin.tokens)
         member_session_response = member_client.post(
             "agents/assistant/sessions",
-            json={"title": "Member session", "is_ephemeral": False},
+            json={
+                "title": "Member session",
+                "is_ephemeral": False,
+                "model": {
+                    "provider_type": "builtin",
+                    "provider": "OPENAI",
+                    "model_name": "gpt-test",
+                },
+            },
         )
         member_session_response.raise_for_status()
         member_session_id = member_session_response.json()["data"]["id"]
         admin_session_response = admin_client.post(
             "agents/assistant/sessions",
-            json={"title": "Admin session", "is_ephemeral": False},
+            json={
+                "title": "Admin session",
+                "is_ephemeral": False,
+                "model": {
+                    "provider_type": "builtin",
+                    "provider": "OPENAI",
+                    "model_name": "gpt-test",
+                },
+            },
         )
         admin_session_response.raise_for_status()
         admin_session_id = admin_session_response.json()["data"]["id"]
@@ -2028,13 +2044,29 @@ class TestApiAccessViaCookiesOrApiKeys:
         admin_client = _httpx_client(_app, admin.tokens)
         member_session_response = member_client.post(
             "agents/assistant/sessions",
-            json={"title": "Member session", "temporary": False},
+            json={
+                "title": "Member session",
+                "is_ephemeral": False,
+                "model": {
+                    "provider_type": "builtin",
+                    "provider": "OPENAI",
+                    "model_name": "gpt-test",
+                },
+            },
         )
         member_session_response.raise_for_status()
         member_session_id = member_session_response.json()["data"]["id"]
         admin_session_response = admin_client.post(
             "agents/assistant/sessions",
-            json={"title": "Admin session", "temporary": False},
+            json={
+                "title": "Admin session",
+                "is_ephemeral": False,
+                "model": {
+                    "provider_type": "builtin",
+                    "provider": "OPENAI",
+                    "model_name": "gpt-test",
+                },
+            },
         )
         admin_session_response.raise_for_status()
         admin_session_id = admin_session_response.json()["data"]["id"]

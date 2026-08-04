@@ -1,4 +1,11 @@
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import {
   ConnectionHandler,
@@ -21,11 +28,13 @@ import type { AgentPosition } from "@phoenix/store/agentStore";
 import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
+import { useModelMenuData } from "../generative/useModelMenuData";
 import type { agentSessionRelaySessionQuery } from "./__generated__/agentSessionRelaySessionQuery.graphql";
 import type { AgentSessionsResource_sessions$key } from "./__generated__/AgentSessionsResource_sessions.graphql";
 import type { AgentSessionsResourceDeleteMutation } from "./__generated__/AgentSessionsResourceDeleteMutation.graphql";
 import type { AgentSessionsResourceQuery } from "./__generated__/AgentSessionsResourceQuery.graphql";
 import { AgentChatHeader } from "./AgentChatPanelView";
+import { applyPersistedAgentSessionModel } from "./agentSessionModel";
 import {
   AGENT_SESSIONS_CONNECTION_KEY,
   SESSION_PAGE_SIZE,
@@ -315,8 +324,9 @@ function AgentSessionsContent({
     () =>
       activeSessionId != null &&
       activeSessionId !== DRAFT_SESSION_ID &&
-      runtime.getChat(activeSessionId) == null,
-    [activeSessionId, runtime]
+      (runtime.getChat(activeSessionId) == null ||
+        store.getState().modelConfigBySessionId[activeSessionId] == null),
+    [activeSessionId, runtime, store]
   );
 
   return (
@@ -407,6 +417,25 @@ function AgentSessionTranscript({
         : [],
     [agentSession?.messages]
   );
+  const store = useAgentStore();
+  // The picker on this surface already fetches the catalog with a network
+  // policy; read the cached copy instead of duplicating the request.
+  const { customProviders } = useModelMenuData({
+    fetchPolicy: "store-or-network",
+  });
+  useLayoutEffect(() => {
+    if (!agentSession) {
+      return;
+    }
+    // Applied through the server-read path so seeding cannot overwrite a
+    // model change the user made while this query was in flight.
+    applyPersistedAgentSessionModel({
+      session: agentSession,
+      sessionId,
+      customProviders,
+      state: store.getState(),
+    });
+  }, [agentSession, customProviders, sessionId, store]);
   useEffect(() => {
     if (!agentSession) {
       onMissing(sessionId);
@@ -439,7 +468,12 @@ function AgentChatController({
   /** Whether this runtime skipped a fresh transcript query when it mounted. */
   shouldSyncOnMount: boolean;
 }) {
-  const { menuValue, handleModelChange } = useAgentChatPanelState();
+  const {
+    menuValue,
+    handleModelChange,
+    modelChangeError,
+    clearModelChangeError,
+  } = useAgentChatPanelState(sessionId);
   const {
     messages,
     sendMessage,
@@ -463,6 +497,11 @@ function AgentChatController({
     shouldSyncOnMount,
   });
 
+  const clearBothOperationErrors = useCallback(() => {
+    clearOperationError();
+    clearModelChangeError();
+  }, [clearModelChangeError, clearOperationError]);
+
   return (
     <ChatView
       key={sessionId}
@@ -478,8 +517,8 @@ function AgentChatController({
       compactSession={compactSession}
       isCompacting={isCompacting}
       compactionStatus={compactionStatus}
-      operationError={operationError}
-      clearOperationError={clearOperationError}
+      operationError={operationError ?? modelChangeError}
+      clearOperationError={clearBothOperationErrors}
       rewindToMessage={rewindToMessage}
       forkFromMessage={forkFromMessage}
       modelMenuValue={menuValue}

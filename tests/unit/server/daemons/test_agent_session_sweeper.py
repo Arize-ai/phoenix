@@ -13,7 +13,7 @@ from phoenix.server.settings.registry import (
     AgentSessionRetentionSetting,
 )
 from phoenix.server.types import DbSessionFactory
-from tests.unit._helpers import _message_uuid
+from tests.unit._helpers import _agent_session_model_kwargs, _message_uuid
 
 
 async def _make_settings(
@@ -37,6 +37,7 @@ async def _add_agent_session(
 ) -> int:
     async with db() as session:
         agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
             project_name="assistant_agent",
             user_id=user_id,
             title=title,
@@ -85,6 +86,7 @@ async def test_agent_session_sweeper_deletes_only_expired_sessions_and_cascades(
     ttl = timedelta(hours=EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS)
     async with db() as session:
         expired = models.AgentSession(
+            **_agent_session_model_kwargs(),
             project_name="assistant_agent",
             user_id=None,
             title="expired",
@@ -92,6 +94,7 @@ async def test_agent_session_sweeper_deletes_only_expired_sessions_and_cascades(
         )
         expired.created_at = expired.updated_at = now - ttl - timedelta(hours=1)
         active = models.AgentSession(
+            **_agent_session_model_kwargs(),
             project_name="assistant_agent",
             user_id=None,
             title="active",
@@ -99,6 +102,7 @@ async def test_agent_session_sweeper_deletes_only_expired_sessions_and_cascades(
         )
         active.created_at = active.updated_at = now - timedelta(hours=1)
         persistent = models.AgentSession(
+            **_agent_session_model_kwargs(),
             project_name="assistant_agent",
             user_id=None,
             title="persistent",

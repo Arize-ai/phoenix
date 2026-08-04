@@ -39,6 +39,7 @@ import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import {
   DRAFT_SESSION_ID,
   hasAcknowledgedCurrentTraceConsent,
+  selectSessionNotice,
 } from "@phoenix/store/agentStore";
 
 import { AgentChatInput } from "./AgentChatInput";
@@ -520,18 +521,14 @@ export function ChatView({
   const draftInput = useAgentContext((state) =>
     sessionId ? (state.draftInputBySessionId[sessionId] ?? "") : ""
   );
-  const isBusyElsewhere = useAgentContext((state) =>
-    sessionId ? (state.isBusyElsewhereBySessionId[sessionId] ?? false) : false
+  // Which conflict notice (if any) to render; precedence between the busy
+  // banner and the dismissable notices is defined once in the store.
+  const sessionNotice = useAgentContext((state) =>
+    selectSessionNotice(state, sessionId)
   );
-  const wasRefreshedFromStale = useAgentContext((state) =>
-    sessionId
-      ? (state.wasRefreshedFromStaleBySessionId[sessionId] ?? false)
-      : false
-  );
+  const isBusyElsewhere = sessionNotice === "busyElsewhere";
   const setDraftInput = useAgentContext((state) => state.setDraftInput);
-  const setSessionRefreshedFromStale = useAgentContext(
-    (state) => state.setSessionRefreshedFromStale
-  );
+  const setSessionNotice = useAgentContext((state) => state.setSessionNotice);
   const [elicitationDraft, setElicitationDraft] =
     useState<PendingElicitationDraft | null>(null);
   const hasAcknowledgedConsent = useAgentContext((state) =>
@@ -852,9 +849,10 @@ export function ChatView({
                   />
                 ) : null}
                 {/* A session-conflict rejection is not a failed response:
-                    busy-elsewhere mode owns the UI until the lock clears, and
-                    a stale send resolves into the refreshed-transcript notice. */}
-                {error && !isBusyElsewhere && !wasRefreshedFromStale && (
+                    busy-elsewhere mode owns the UI until the lock clears, and a
+                    stale send resolves into the refreshed-transcript notice or
+                    the model-changed notice. */}
+                {error && sessionNotice == null && (
                   <ChatErrorMessage
                     error={error}
                     latestUserMessageId={getLatestMessageId({
@@ -873,7 +871,7 @@ export function ChatView({
           </div>
         </ChatScrollContext.Provider>
         <div className="chat__input">
-          {isBusyElsewhere ? (
+          {sessionNotice === "busyElsewhere" ? (
             <div
               className="chat__session-notice"
               role="status"
@@ -885,7 +883,26 @@ export function ChatView({
               </Alert>
             </div>
           ) : null}
-          {wasRefreshedFromStale && !isBusyElsewhere && sessionId ? (
+          {sessionNotice === "modelChangedElsewhere" && sessionId ? (
+            <div
+              className="chat__session-notice"
+              role="status"
+              aria-live="polite"
+            >
+              <Alert
+                variant="info"
+                title="Model changed elsewhere"
+                dismissable
+                onDismissClick={() => {
+                  setSessionNotice(sessionId, null);
+                }}
+              >
+                This session was switched to {modelMenuValue.modelName} in
+                another window. Your unsent message is still in the input below.
+              </Alert>
+            </div>
+          ) : null}
+          {sessionNotice === "refreshedFromStale" && sessionId ? (
             <div
               className="chat__session-notice"
               role="status"
@@ -896,7 +913,7 @@ export function ChatView({
                 title="Session updated elsewhere"
                 dismissable
                 onDismissClick={() => {
-                  setSessionRefreshedFromStale(sessionId, false);
+                  setSessionNotice(sessionId, null);
                 }}
               >
                 The chat has been refreshed with the latest messages. Your

@@ -149,8 +149,11 @@ from phoenix.server.agents.vercel_ui_message_stream import (
 )
 from phoenix.server.api.helpers.agent_sessions import (
     TURN_LOCK_STALENESS,
+    get_agent_session_model,
     get_otel_session_id,
     is_turn_active,
+    resolve_model_routing,
+    set_session_model,
 )
 from phoenix.server.api.helpers.playground_registry import (
     PLAYGROUND_CLIENT_REGISTRY,
@@ -314,7 +317,17 @@ class _ChatRequestMixin(_ObservabilityMixin):
             "Unknown or context-unavailable names are ignored."
         ),
     )
-    model: AgentModelSelection
+    model: AgentModelSelection = Field(
+        description=(
+            "The model the client believes the session is set to. This is a "
+            "precondition, not an instruction: the turn always runs on the "
+            "session's persisted selection, and a mismatch is rejected with "
+            "HTTP 409 and code ``agent_session_model_stale`` rather than "
+            "silently running on — or switching to — an unexpected model. "
+            "Change the session's model with "
+            "``POST .../sessions/{session_id}/model``."
+        ),
+    )
     turn_trace_context: TurnTraceContext | None = None
 
 
@@ -350,6 +363,7 @@ class ChatRequest(ChatSubmitMessage):
 class CreateAgentSessionRequestBody(V1RoutesBaseModel):
     """Request body for creating a persisted agent session."""
 
+    model: AgentModelSelection
     title: str = Field(
         default="",
         max_length=MAX_AGENT_SESSION_TITLE_LENGTH,
@@ -371,6 +385,22 @@ class CreateAgentSessionResponseBody(ResponseBody[AgentSession]):
     pass
 
 
+class UpdateAgentSessionModelRequestBody(V1RoutesBaseModel):
+    """Request body for changing a persisted session's model selection."""
+
+    model: AgentModelSelection
+
+
+class AgentSessionModel(V1RoutesBaseModel):
+    """The model selection in effect for a session."""
+
+    model: AgentModelSelection
+
+
+class UpdateAgentSessionModelResponseBody(ResponseBody[AgentSessionModel]):
+    pass
+
+
 class AgentSessionSummary(V1RoutesBaseModel):
     id: str
     title: str
@@ -380,6 +410,7 @@ class AgentSessionSummary(V1RoutesBaseModel):
 
 
 class AgentSessionData(AgentSessionSummary):
+    model: AgentModelSelection
     is_active: bool = Field(
         description=(
             "Whether a response is currently streaming on this session, i.e. its "
@@ -413,7 +444,14 @@ class GetAgentSessionResponseBody(ResponseBody[AgentSessionData]):
 class CompactAgentSessionRequest(V1RoutesBaseModel):
     """Request a model-generated checkpoint for a persisted conversation."""
 
-    model: AgentModelSelection
+    model: AgentModelSelection = Field(
+        description=(
+            "The model the client believes the session is set to. As on the "
+            "chat route this is a precondition: the summary is generated with "
+            "the session's persisted selection, and a mismatch is rejected "
+            "with HTTP 409 and code ``agent_session_model_stale``."
+        ),
+    )
 
 
 class CompactAgentSessionResponseData(V1RoutesBaseModel):
@@ -1416,6 +1454,50 @@ async def _claim_agent_session_turn_lock(
     return claimed_rowid is not None
 
 
+async def _clear_agent_session_turn_lock(
+    session: AsyncSession,
+    *,
+    agent_session_rowid: int,
+) -> None:
+    """Release the session's turn lock inside the caller's transaction."""
+    await session.execute(
+        update(models.AgentSession)
+        .where(models.AgentSession.id == agent_session_rowid)
+        .values(heartbeat_at=None)
+    )
+
+
+async def _claim_agent_session_turn_lock_for_model(
+    session: AsyncSession,
+    *,
+    agent_session_rowid: int,
+    session_model: AgentModelSelection,
+    requested_model: AgentModelSelection,
+) -> JSONResponse | None:
+    """Claim the session's turn lock while enforcing the request's model
+    precondition.
+
+    Returns ``None`` when the lock is claimed and the request's asserted model
+    matches the session's persisted selection. Returns a 409 response when
+    another turn holds the lock (``agent_session_busy``) or when the assertion
+    does not match (``agent_session_model_stale``); a stale rejection releases
+    the just-claimed lock in the same transaction so the session is not left
+    locked.
+    """
+    if not await _claim_agent_session_turn_lock(
+        session,
+        agent_session_rowid=agent_session_rowid,
+    ):
+        return JSONResponse({"code": "agent_session_busy"}, status_code=409)
+    if requested_model != session_model:
+        await _clear_agent_session_turn_lock(
+            session,
+            agent_session_rowid=agent_session_rowid,
+        )
+        return JSONResponse({"code": "agent_session_model_stale"}, status_code=409)
+    return None
+
+
 async def _release_agent_session_turn_lock(
     db: DbSessionFactory,
     *,
@@ -1428,11 +1510,7 @@ async def _release_agent_session_turn_lock(
     """
     try:
         async with db() as session:
-            await session.execute(
-                update(models.AgentSession)
-                .where(models.AgentSession.id == agent_session_rowid)
-                .values(heartbeat_at=None)
-            )
+            await _clear_agent_session_turn_lock(session, agent_session_rowid=agent_session_rowid)
     except Exception:
         logger.exception(
             "Failed to release turn lock for agent session %r",
@@ -1741,21 +1819,69 @@ def create_agents_router(
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
-        async with request.app.state.db() as session:
-            agent_session = models.AgentSession(
-                user_id=int(phoenix_user.identity) if phoenix_user is not None else None,
-                title=title,
-                project_name=get_env_phoenix_agents_assistant_project_name(),
-                is_ephemeral=request_body.is_ephemeral,
-            )
-            session.add(agent_session)
-            await session.flush()
-            agent_session_rowid = agent_session.id
+        try:
+            async with request.app.state.db() as session:
+                routing = await resolve_model_routing(session, request_body.model)
+                agent_session = models.AgentSession(
+                    user_id=int(phoenix_user.identity) if phoenix_user is not None else None,
+                    title=title,
+                    project_name=get_env_phoenix_agents_assistant_project_name(),
+                    is_ephemeral=request_body.is_ephemeral,
+                    model_provider=routing.model_provider,
+                    model_name=routing.model_name,
+                    custom_provider_id=routing.custom_provider_id,
+                    builtin_provider=routing.builtin_provider,
+                )
+                session.add(agent_session)
+                await session.flush()
+                agent_session_rowid = agent_session.id
+        except AgentError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
         return CreateAgentSessionResponseBody(
             data=AgentSession(
                 id=str(GlobalID(models.AgentSession.__name__, str(agent_session_rowid)))
             )
         )
+
+    @router.post(
+        "/agents/{agent_id}/sessions/{session_id}/model",
+        operation_id="updateAgentSessionModel",
+        response_model=UpdateAgentSessionModelResponseBody,
+    )
+    async def update_session_model(
+        agent_id: str,
+        session_id: str,
+        request: Request,
+        request_body: UpdateAgentSessionModelRequestBody,
+    ) -> UpdateAgentSessionModelResponseBody | JSONResponse:
+        """Change the model a persisted session runs on."""
+        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
+            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
+        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
+            raise HTTPException(status_code=403, detail="Server agent is disabled")
+        try:
+            async with request.app.state.db() as session:
+                agent_session = await _refresh_and_load_agent_session(
+                    session,
+                    agent_session_id=session_id,
+                    user_id=_get_request_user_id(request),
+                    for_update=True,
+                )
+                if is_turn_active(
+                    agent_session.heartbeat_at,
+                    now=datetime.now(timezone.utc),
+                ):
+                    # A streaming turn runs on the model it read under the turn
+                    # lock, so the model must not flip out from under it.
+                    return JSONResponse({"code": "agent_session_busy"}, status_code=409)
+                session_model = await set_session_model(
+                    session,
+                    agent_session=agent_session,
+                    model=request_body.model,
+                )
+        except AgentError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+        return UpdateAgentSessionModelResponseBody(data=AgentSessionModel(model=session_model))
 
     @router.get(
         "/agents/{agent_id}/sessions",
@@ -1868,6 +1994,7 @@ def create_agents_router(
         if include_messages:
             data = AgentSessionData(
                 **summary.model_dump(),
+                model=get_agent_session_model(agent_session),
                 is_active=is_active,
                 last_message_id=last_message_id,
                 messages=[message.message for message in agent_session.messages],
@@ -1877,6 +2004,7 @@ def create_agents_router(
             # drops it from the probe payload.
             data = AgentSessionData(
                 **summary.model_dump(),
+                model=get_agent_session_model(agent_session),
                 is_active=is_active,
                 last_message_id=last_message_id,
             )
@@ -1909,11 +2037,16 @@ def create_agents_router(
                 user_id=request_user_id,
             )
             agent_session_rowid = agent_session.id
-            if not await _claim_agent_session_turn_lock(
-                session,
-                agent_session_rowid=agent_session_rowid,
-            ):
-                return JSONResponse({"code": "agent_session_busy"}, status_code=409)
+            session_model = get_agent_session_model(agent_session)
+            if (
+                conflict := await _claim_agent_session_turn_lock_for_model(
+                    session,
+                    agent_session_rowid=agent_session_rowid,
+                    session_model=session_model,
+                    requested_model=request_body.model,
+                )
+            ) is not None:
+                return conflict
 
         heartbeat_task = asyncio.create_task(
             _heartbeat_agent_session_turn_lock(
@@ -1943,7 +2076,7 @@ def create_agents_router(
                 messages_to_summarize = [row.message for row in message_rows]
 
             model = await build_model(
-                request_body.model,
+                session_model,
                 db=db_session_factory,
                 decrypt=request.app.state.decrypt,
             )
@@ -2066,11 +2199,16 @@ def create_agents_router(
                     old_messages=[row.message for row in session_history],
                     new_message=body.message,
                 )
-                if not await _claim_agent_session_turn_lock(
-                    session,
-                    agent_session_rowid=agent_session.id,
-                ):
-                    return JSONResponse({"code": "agent_session_busy"}, status_code=409)
+                session_model = get_agent_session_model(agent_session)
+                if (
+                    conflict := await _claim_agent_session_turn_lock_for_model(
+                        session,
+                        agent_session_rowid=agent_session.id,
+                        session_model=session_model,
+                        requested_model=body.model,
+                    )
+                ) is not None:
+                    return conflict
                 project_name = agent_session.project_name
                 session_needs_title = not agent_session.title
                 agent_session_rowid = agent_session.id
@@ -2123,7 +2261,7 @@ def create_agents_router(
                         agent_session_rowid=agent_session_rowid,
                     )
                 model = await build_model(
-                    body.model,
+                    session_model,
                     db=db_session_factory,
                     decrypt=request.app.state.decrypt,
                     tracer_provider=tracer_provider,

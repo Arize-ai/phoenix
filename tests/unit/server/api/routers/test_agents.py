@@ -42,6 +42,7 @@ from phoenix.server.api.routers.agents import (
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import DbSessionFactory, UserId
+from tests.unit._helpers import _agent_session_model_kwargs
 
 
 def _ephemeral_sweep_cutoff() -> datetime:
@@ -64,6 +65,7 @@ class TestAgentSessionPersistence:
     ) -> None:
         async with db() as session:
             created = models.AgentSession(
+                **_agent_session_model_kwargs(),
                 user_id=None,
                 title="",
                 project_name="assistant_agent",
@@ -97,6 +99,7 @@ class TestAgentSessionPersistence:
     async def test_deleted_rowid_is_not_reused(self, db: DbSessionFactory) -> None:
         async with db() as session:
             first = models.AgentSession(
+                **_agent_session_model_kwargs(),
                 user_id=None,
                 title="first",
                 project_name="assistant_agent",
@@ -108,6 +111,7 @@ class TestAgentSessionPersistence:
 
         async with db() as session:
             second = models.AgentSession(
+                **_agent_session_model_kwargs(),
                 user_id=None,
                 title="second",
                 project_name="assistant_agent",
@@ -124,6 +128,7 @@ class TestAgentSessionPersistence:
         stale = _ephemeral_sweep_cutoff() - timedelta(hours=1)
         async with db() as session:
             ephemeral = models.AgentSession(
+                **_agent_session_model_kwargs(),
                 user_id=None,
                 title="",
                 project_name="assistant_agent",
@@ -162,6 +167,7 @@ class TestAgentSessionPersistence:
         stale = datetime.now(timezone.utc) - timedelta(days=30)
         async with db() as session:
             persistent = models.AgentSession(
+                **_agent_session_model_kwargs(),
                 user_id=None,
                 title="",
                 project_name="assistant_agent",
@@ -208,6 +214,7 @@ class TestAgentSessionPersistence:
         stale = _ephemeral_sweep_cutoff() - timedelta(hours=1)
         async with db() as session:
             ephemeral = models.AgentSession(
+                **_agent_session_model_kwargs(),
                 user_id=None,
                 title="",
                 project_name="assistant_agent",

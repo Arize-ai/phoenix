@@ -8179,6 +8179,68 @@
         }
       }
     },
+    "/agents/{agent_id}/sessions/{session_id}/model": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Update Session Model",
+        "description": "Change the model a persisted session runs on.",
+        "operationId": "updateAgentSessionModel",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAgentSessionModelRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateAgentSessionModelResponseBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agents/{agent_id}/sessions/{session_id}": {
       "get": {
         "tags": [
@@ -8481,6 +8543,9 @@
             "type": "boolean",
             "title": "Is Ephemeral"
           },
+          "model": {
+            "$ref": "#/components/schemas/AgentModelSelection"
+          },
           "is_active": {
             "type": "boolean",
             "title": "Is Active",
@@ -8521,9 +8586,23 @@
           "created_at",
           "updated_at",
           "is_ephemeral",
+          "model",
           "is_active"
         ],
         "title": "AgentSessionData"
+      },
+      "AgentSessionModel": {
+        "properties": {
+          "model": {
+            "$ref": "#/components/schemas/AgentModelSelection"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model"
+        ],
+        "title": "AgentSessionModel",
+        "description": "The model selection in effect for a session."
       },
       "AgentSessionSummary": {
         "properties": {
@@ -9357,7 +9436,8 @@
             "description": "Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored."
           },
           "model": {
-            "$ref": "#/components/schemas/AgentModelSelection"
+            "$ref": "#/components/schemas/AgentModelSelection",
+            "description": "The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on \u2014 or switching to \u2014 an unexpected model. Change the session's model with ``POST .../sessions/{session_id}/model``."
           },
           "turnTraceContext": {
             "anyOf": [
@@ -9434,7 +9514,8 @@
       "CompactAgentSessionRequest": {
         "properties": {
           "model": {
-            "$ref": "#/components/schemas/AgentModelSelection"
+            "$ref": "#/components/schemas/AgentModelSelection",
+            "description": "The model the client believes the session is set to. As on the chat route this is a precondition: the summary is generated with the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale``."
           }
         },
         "type": "object",
@@ -9599,6 +9680,9 @@
       },
       "CreateAgentSessionRequestBody": {
         "properties": {
+          "model": {
+            "$ref": "#/components/schemas/AgentModelSelection"
+          },
           "title": {
             "type": "string",
             "maxLength": 100,
@@ -9614,6 +9698,9 @@
           }
         },
         "type": "object",
+        "required": [
+          "model"
+        ],
         "title": "CreateAgentSessionRequestBody",
         "description": "Request body for creating a persisted agent session."
       },
@@ -18171,6 +18258,31 @@
           "startedAt"
         ],
         "title": "TurnTraceContext"
+      },
+      "UpdateAgentSessionModelRequestBody": {
+        "properties": {
+          "model": {
+            "$ref": "#/components/schemas/AgentModelSelection"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model"
+        ],
+        "title": "UpdateAgentSessionModelRequestBody",
+        "description": "Request body for changing a persisted session's model selection."
+      },
+      "UpdateAgentSessionModelResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AgentSessionModel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "UpdateAgentSessionModelResponseBody"
       },
       "UpdateAnnotationConfigResponseBody": {
         "properties": {

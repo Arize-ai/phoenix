@@ -14,17 +14,20 @@ import {
 } from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import { authFetch } from "@phoenix/authFetch";
+import { applyPersistedAgentSessionModel } from "@phoenix/components/agent/agentSessionModel";
 import {
   refetchAgentSession,
   type AgentSessionSyncState,
   type RelayEnvironment,
 } from "@phoenix/components/agent/agentSessionRelay";
+import type { CustomProviderInfo } from "@phoenix/components/generative/useModelMenuData";
 import { selectAgentModel } from "@phoenix/components/agent/useAgentChatPanelState";
 import type { AgentStore } from "@phoenix/store/agentStore";
 import { isRecord } from "@phoenix/utils/typeUtils";
 
 import {
   SESSION_BUSY_ERROR_CODE,
+  SESSION_MODEL_STALE_ERROR_CODE,
   SESSION_STALE_ERROR_CODE,
   buildAgentChatApiUrl,
 } from "./agentChatApi";
@@ -65,6 +68,7 @@ export function createAgentSessionChat({
   seedMessages,
   store,
   relayEnvironment,
+  getCustomProviders,
   onTranscriptSynced,
 }: {
   /** The session's canonical Relay node ID. */
@@ -73,6 +77,11 @@ export function createAgentSessionChat({
   seedMessages: AgentUIMessage[];
   store: AgentStore;
   relayEnvironment: RelayEnvironment;
+  /**
+   * Reads the live custom provider catalog at call time; the chat's closures
+   * outlive the render that created them, so the catalog is never captured.
+   */
+  getCustomProviders: () => readonly CustomProviderInfo[];
   /**
    * Called with the persisted transcript's tail after the turn-completion
    * refetch lands, so the caller's poll can recognize this client's own turn
@@ -131,8 +140,8 @@ export function createAgentSessionChat({
         // this request reads the active turn trace context.
         turnCompletionGate.beginTurn();
         store.getState().setSessionResponsePending(sessionId, true);
-        // A fresh send supersedes any lingering stale-refresh notice.
-        store.getState().setSessionRefreshedFromStale(sessionId, false);
+        // A fresh send supersedes any lingering conflict notice.
+        store.getState().setSessionNotice(sessionId, null);
         return {
           body: buildAgentChatRequestBody({
             body,
@@ -145,7 +154,7 @@ export function createAgentSessionChat({
             contexts: selectActiveContexts(store.getState()),
             // Read from the store at request time — never captured (see the
             // factory doc comment).
-            modelSelection: selectAgentModel(store.getState()),
+            modelSelection: selectAgentModel(store.getState(), sessionId),
             turnTraceContext: turnTraceContext.getActive(),
             toolTimings,
           }),
@@ -213,17 +222,25 @@ export function createAgentSessionChat({
       transcriptPersistence.cancelPendingWaiters();
       turnCompletionGate.fail(error);
       const isBusyRejection = error.message.includes(SESSION_BUSY_ERROR_CODE);
-      const isStaleRejection = error.message.includes(SESSION_STALE_ERROR_CODE);
-      if (!isBusyRejection && !isStaleRejection) {
+      const isModelStaleRejection = error.message.includes(
+        SESSION_MODEL_STALE_ERROR_CODE
+      );
+      // Matched exclusively so one rejection never raises both notices.
+      const isStaleRejection =
+        !isModelStaleRejection &&
+        error.message.includes(SESSION_STALE_ERROR_CODE);
+      if (!isBusyRejection && !isStaleRejection && !isModelStaleRejection) {
         return;
       }
-      // A session-conflict rejection (HTTP 409): either another client's
-      // turn holds the session lock, or this client's transcript went
-      // stale because another client appended to the session. Withdraw
-      // the optimistic user message into the composer draft and enter
-      // busy-elsewhere mode; the session poll fetches the fresh transcript
-      // and swaps it in (immediately for a stale send with no live turn,
-      // or once the other client's turn completes).
+      // A session-conflict rejection (HTTP 409): another client's turn
+      // holds the session lock, or this client's transcript went stale
+      // because another client appended, or another client moved the
+      // session to a different model. In every case, withdraw the
+      // optimistic user message into the composer draft; the lock and
+      // stale cases then enter busy-elsewhere mode so the session poll
+      // fetches the fresh transcript and swaps it in (immediately for a
+      // stale send with no live turn, or once the other client's turn
+      // completes).
       const lastMessage = chat.messages.at(-1);
       if (lastMessage?.role === "user") {
         const restoredInput = getRemovedUserMessageText(
@@ -245,7 +262,46 @@ export function createAgentSessionChat({
         // Raise the refreshed-from-stale notice now; it renders once the
         // poll exits busy mode with the fresh transcript in place, and
         // clears on the next send.
-        store.getState().setSessionRefreshedFromStale(sessionId, true);
+        store.getState().setSessionNotice(sessionId, "refreshedFromStale");
+      }
+      if (isModelStaleRejection) {
+        // No other turn is running and the transcript is untouched — only
+        // the session's model moved. Refetch so the picker matches the
+        // server and show the notice straight away; entering busy-elsewhere
+        // mode here would instead hold the "session in use elsewhere"
+        // banner until the next poll tick cleared it.
+        //
+        // When this client's own model change is still in flight the 409
+        // is self-inflicted (the send raced the write), not another
+        // window's doing: skip the notice, and let the guarded store
+        // write below ignore the refetched pre-change model.
+        if (
+          store.getState().isModelWritePendingBySessionId[sessionId] !== true
+        ) {
+          store.getState().setSessionNotice(sessionId, "modelChangedElsewhere");
+        }
+        void refetchAgentSession({
+          environment: relayEnvironment,
+          sessionId,
+        }).then((data) => {
+          // Resync the store the picker and the next send read — the
+          // Relay record alone leaves this client asserting the stale
+          // model until the next poll tick.
+          const agentSession =
+            data?.agentSession.__typename === "AgentSession"
+              ? data.agentSession
+              : null;
+          if (!agentSession) {
+            return;
+          }
+          applyPersistedAgentSessionModel({
+            session: agentSession,
+            sessionId,
+            customProviders: getCustomProviders(),
+            state: store.getState(),
+          });
+        });
+        return;
       }
       store.getState().setSessionBusyElsewhere(sessionId, true);
     },

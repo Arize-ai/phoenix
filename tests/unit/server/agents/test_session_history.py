@@ -9,7 +9,7 @@ from phoenix.server.api.routers.agents import (
     _load_agent_session_history,
 )
 from phoenix.server.types import DbSessionFactory
-from tests.unit._helpers import _message_uuid
+from tests.unit._helpers import _agent_session_model_kwargs, _message_uuid
 
 
 def _message(*, message_id: str, role: str, text: str) -> PhoenixUIMessage:
@@ -45,6 +45,7 @@ async def test_load_agent_session_history_returns_the_full_uncompacted_transcrip
     ]
     async with db() as session:
         agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
             user_id=None,
             title="Session",
             project_name="assistant_agent",
@@ -89,6 +90,7 @@ async def test_load_agent_session_history_starts_at_the_latest_compaction_point(
     ]
     async with db() as session:
         agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
             user_id=None,
             title="Session",
             project_name="assistant_agent",
@@ -125,6 +127,7 @@ async def test_uppercase_and_lowercase_uuids_are_both_accepted(
 ) -> None:
     async with db() as session:
         agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
             user_id=None,
             title="Session",
             project_name="assistant_agent",

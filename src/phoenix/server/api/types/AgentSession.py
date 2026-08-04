@@ -8,9 +8,20 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.types.agent_session_config import AgentBuiltinProviderConfig
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.agent_helpers import CanAccessAgentSession
 from phoenix.server.api.context import Context
-from phoenix.server.api.helpers.agent_sessions import is_turn_active
+from phoenix.server.api.helpers.agent_sessions import (
+    AgentModelRouting,
+    get_agent_session_model,
+    is_turn_active,
+    model_selection_from_routing,
+)
+from phoenix.server.api.types.AgentModelSelection import (
+    AgentModelSelection,
+    to_gql_agent_model_selection,
+)
 
 if TYPE_CHECKING:
     from .User import User
@@ -120,6 +131,35 @@ class AgentSession(Node):
             )
         assert heartbeat_at is None or isinstance(heartbeat_at, datetime)
         return is_turn_active(heartbeat_at, now=datetime.now(timezone.utc))
+
+    @strawberry.field(permission_classes=[CanAccessAgentSession])  # type: ignore
+    async def model(self, info: Info[Context, None]) -> AgentModelSelection:
+        if self.db_record:
+            return to_gql_agent_model_selection(get_agent_session_model(self.db_record))
+        (
+            model_provider,
+            model_name,
+            custom_provider_id,
+            builtin_provider,
+        ) = await info.context.data_loaders.agent_session_fields.load_many(
+            [
+                (self.id, models.AgentSession.model_provider),
+                (self.id, models.AgentSession.model_name),
+                (self.id, models.AgentSession.custom_provider_id),
+                (self.id, models.AgentSession.builtin_provider),
+            ]
+        )
+        assert isinstance(model_provider, ModelProvider)
+        assert isinstance(model_name, str)
+        assert custom_provider_id is None or isinstance(custom_provider_id, int)
+        assert builtin_provider is None or isinstance(builtin_provider, AgentBuiltinProviderConfig)
+        routing = AgentModelRouting(
+            model_provider=model_provider,
+            model_name=model_name,
+            custom_provider_id=custom_provider_id,
+            builtin_provider=builtin_provider,
+        )
+        return to_gql_agent_model_selection(model_selection_from_routing(routing))
 
     @strawberry.field(
         description=(

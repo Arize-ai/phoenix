@@ -16,6 +16,10 @@ import {
   SETTINGS_AGENT_SESSIONS_CONNECTION_KEY,
 } from "./agentSessionRelay";
 import type { AgentChatOperationError } from "./types";
+import {
+  selectAgentModel,
+  toAgentModelSelectionInput,
+} from "./useAgentChatPanelState";
 
 const createAgentSessionMutation = graphql`
   mutation useDraftSessionCreationCreateAgentSessionMutation(
@@ -40,6 +44,7 @@ const createAgentSessionMutation = graphql`
           username
           profilePictureUrl
         }
+        ...agentSessionModel_session
       }
     }
   }
@@ -109,10 +114,15 @@ export function useDraftSessionCreation({
     // Pulse the collapsed-surface glyphs (widget, top nav) for the creation
     // wait too; clearSessionEphemeralState removes the flag on success.
     store.getState().setSessionResponsePending(DRAFT_SESSION_ID, true);
-    const isTemporary = store.getState().isDraftSessionTemporary;
+    const draftState = store.getState();
+    const isTemporary = draftState.isDraftSessionTemporary;
+    const modelSelection = selectAgentModel(draftState, DRAFT_SESSION_ID);
     commitCreateAgentSession({
       variables: {
-        input: { isEphemeral: isTemporary },
+        input: {
+          isEphemeral: isTemporary,
+          model: toAgentModelSelectionInput(modelSelection),
+        },
         connections: isTemporary
           ? [sessionsConnectionId]
           : [sessionsConnectionId, settingsSessionsConnectionId],
@@ -133,6 +143,7 @@ export function useDraftSessionCreation({
         );
         setPendingDraftUserMessage(null);
         const state = store.getState();
+        state.setSessionModelConfig(newSessionId, draftState.defaultModelConfig);
         state.clearSessionEphemeralState(DRAFT_SESSION_ID);
         state.setIsDraftSessionTemporary(state.defaultTemporaryChat);
         state.setActiveSession(newSessionId);

@@ -89,6 +89,18 @@ def upgrade() -> None:
             nullable=True,  # sessions may be created while auth is disabled
         ),
         sa.Column("title", sa.String, nullable=False),
+        sa.Column("model_provider", sa.String, nullable=False),
+        sa.Column("model_name", sa.String, nullable=False),
+        sa.Column(
+            "custom_provider_id",
+            _Integer,
+            sa.ForeignKey(
+                "generative_model_custom_providers.id",
+                ondelete="SET NULL",
+            ),
+            nullable=True,
+        ),
+        sa.Column("builtin_provider", JSON_, nullable=False),
         sa.Column("is_ephemeral", sa.Boolean, nullable=False),
         sa.Column("heartbeat_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column(
@@ -103,6 +115,10 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
+        ),
+        sa.CheckConstraint(
+            "custom_provider_id IS NULL OR builtin_provider = '{}'",
+            name="at_most_one_provider_set",
         ),
         sqlite_autoincrement=True,
     )

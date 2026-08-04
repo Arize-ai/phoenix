@@ -15,6 +15,13 @@ export const SESSION_BUSY_ERROR_CODE = "agent_session_busy";
  * session and this client is rendering a stale transcript.
  */
 export const SESSION_STALE_ERROR_CODE = "agent_session_stale";
+/**
+ * Error code (HTTP 409) returned when a send or compaction asserts a model
+ * the session is no longer on — another client moved it. Distinct from
+ * {@link SESSION_STALE_ERROR_CODE} because the transcript is unaffected: the
+ * user is told their model changed, not that messages were refreshed.
+ */
+export const SESSION_MODEL_STALE_ERROR_CODE = "agent_session_model_stale";
 
 export function buildAgentChatApiUrl(sessionId: string): string {
   return prependBasename(

@@ -186,11 +186,20 @@ describe("PXI client", () => {
   });
 
   it("creates persisted and temporary sessions with the requested lifetime", async () => {
+    const model = {
+      providerType: "builtin",
+      provider: "OPENAI",
+      modelName: "gpt-5.4",
+    } as const;
     const fetchImpl = vi.fn(
       async (_input: string | URL | Request, init?: RequestInit) => {
         const request =
           _input instanceof Request ? _input : new Request(_input, init);
-        const body = (await request.json()) as { is_ephemeral: boolean };
+        const body = (await request.json()) as {
+          is_ephemeral: boolean;
+          model: unknown;
+        };
+        expect(body.model).toEqual(model);
         return new Response(
           JSON.stringify({
             data: {
@@ -206,8 +215,14 @@ describe("PXI client", () => {
       fetch: fetchImpl,
     });
 
-    const persisted = await sessionClient.createSession({ temporary: false });
-    const temporary = await sessionClient.createSession({ temporary: true });
+    const persisted = await sessionClient.createSession({
+      temporary: false,
+      model,
+    });
+    const temporary = await sessionClient.createSession({
+      temporary: true,
+      model,
+    });
 
     expect(persisted).toMatchObject({
       id: "persisted-session",
@@ -248,6 +263,12 @@ describe("PXI client", () => {
               created_at: "2026-07-24T11:00:00Z",
               updated_at: "2026-07-24T12:00:00Z",
               is_ephemeral: false,
+              model: {
+                providerType: "builtin",
+                provider: "OPENAI",
+                modelName: "gpt-5.4",
+              },
+              is_active: false,
               messages: [
                 {
                   id: "user-1",
@@ -283,6 +304,11 @@ describe("PXI client", () => {
         parts: [{ type: "text", text: "What failed?" }],
       },
     ]);
+    expect(session.model).toEqual({
+      providerType: "builtin",
+      provider: "OPENAI",
+      modelName: "gpt-5.4",
+    });
   });
 
   it("follows pagination when listing persisted sessions", async () => {
