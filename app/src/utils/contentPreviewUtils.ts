@@ -18,7 +18,22 @@ function toSingleLine(content: unknown): string {
   if (content == null) {
     return "";
   }
-  const text = formatContentAsString(content, { unquotePlainString: true });
+  // A JSON-encoded string previews as what it encodes: the quotes and escapes
+  // are how the value travelled, not part of the message. Tool results and
+  // playground tool-role messages both arrive this way, and an encoded empty
+  // string has to read as empty rather than as a pair of quote marks.
+  let subject = content;
+  if (
+    typeof content === "string" &&
+    content.startsWith('"') &&
+    content.endsWith('"')
+  ) {
+    const parsed = safelyParseJSON(content);
+    if (typeof parsed.json === "string") {
+      subject = parsed.json;
+    }
+  }
+  const text = formatContentAsString(subject, { unquotePlainString: true });
   return text.replace(/\s+/g, " ").trim();
 }
 
@@ -26,7 +41,13 @@ function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) {
     return text;
   }
-  return `${text.slice(0, maxLength).trimEnd()}…`;
+  let cut = text.slice(0, maxLength);
+  // Never end on the leading half of a surrogate pair — an emoji split down the
+  // middle renders as a replacement glyph rather than as nothing
+  if (/[\uD800-\uDBFF]$/.test(cut)) {
+    cut = cut.slice(0, -1);
+  }
+  return `${cut.trimEnd()}…`;
 }
 
 /**

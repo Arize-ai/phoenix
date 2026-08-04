@@ -35,6 +35,24 @@ describe("toContentPreview", () => {
     expect(toContentPreview({ city: "SF" })).toBe('{ "city": "SF" }');
   });
 
+  it("previews a JSON-encoded string as what it encodes", () => {
+    expect(toContentPreview('"just some text"')).toBe("just some text");
+    expect(toContentPreview('"{\\"temp\\": 75}"')).toBe('{"temp": 75}');
+  });
+
+  it("treats a JSON-encoded empty string as nothing to show", () => {
+    expect(toContentPreview('""')).toBeUndefined();
+  });
+
+  it("leaves a plain string that merely starts with a quote alone", () => {
+    expect(toContentPreview('"unterminated')).toBe('"unterminated');
+  });
+
+  it("does not cut an emoji in half at the truncation point", () => {
+    // the rocket is a surrogate pair straddling the limit
+    expect(toContentPreview("abc🚀def", { maxLength: 4 })).toBe("abc…");
+  });
+
   it("returns undefined for nothing worth showing", () => {
     expect(toContentPreview(undefined)).toBeUndefined();
     expect(toContentPreview(null)).toBeUndefined();

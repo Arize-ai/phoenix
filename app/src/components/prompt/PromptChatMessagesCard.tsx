@@ -164,13 +164,17 @@ function getMessagePreview(message: ChatTemplateMessage): string | undefined {
   const toolCalls = message.content
     .map((part) => asToolCallPart(part)?.toolCall.toolCall)
     .filter((toolCall) => toolCall != null);
+  // Every result, not just the first: a message whose first result part is
+  // blank still has something worth previewing in the ones after it
   const toolResults = message.content
     .map((part) => asToolResultPart(part)?.toolResult.result)
+    .filter((result) => result != null)
+    .map((result) => toContentPreview(result))
     .filter((result) => result != null);
   return (
     toContentPreview(text) ??
     toToolCallsPreview(toolCalls) ??
-    toContentPreview(toolResults[0])
+    toContentPreview(toolResults.join(" "))
   );
 }
 

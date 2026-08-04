@@ -58,9 +58,17 @@ function Card({
           {subTitle}
         </Heading>
       )}
-      {collapsible && isCollapsed && collapsedPreview && (
-        <span className="card__collapsed-preview">{collapsedPreview}</span>
-      )}
+      {collapsible &&
+        isCollapsed &&
+        collapsedPreview && (
+          // Hidden from assistive tech: the preview renders inside the collapse
+          // button, so it would otherwise become that button's accessible name —
+          // a couple of hundred characters of body text that changes on every
+          // toggle and buries the title. The body it excerpts is one expand away.
+          <span className="card__collapsed-preview" aria-hidden="true">
+            {collapsedPreview}
+          </span>
+        )}
       {headerContent && (
         <div className="card__header-content">{headerContent}</div>
       )}
