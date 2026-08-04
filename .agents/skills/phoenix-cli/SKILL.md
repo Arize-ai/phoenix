@@ -104,6 +104,17 @@ falls back to the download. `--no-docs-mcp` suppresses the interactive offer.
 — check `tracesVerified`, which is set only when the API confirmed a trace
 arriving, not when the agent claims it finished.
 
+A run whose wait ran out with no trace exits `6`, not `0`: the configuration and
+edits are real, but tracing is not confirmed working. Treat that as a failure to
+report, not a success — and do not substitute the hand-off agent's own exit code
+or summary for the verdict. Registering without `--instrument`, and a human
+answering "verify later" at the timeout prompt, both exit `0`.
+
+`tracesVerified` is `false` for a registration-only run too, so it alone can't
+tell "nothing to verify" from "no trace arrived". Read `verification`
+(`verified` / `notVerified` / `deferred`, absent when there was nothing to
+verify) when you need the difference.
+
 Re-runnable slices, so an already-registered repo skips the questions:
 
 ```bash

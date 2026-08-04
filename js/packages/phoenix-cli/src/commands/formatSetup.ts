@@ -8,7 +8,7 @@
 
 import * as COPY from "../setup/copy";
 import type { McpSetupReport } from "../setup/mcp/runSetupMcp";
-import type { SetupReport } from "../setup/runSetup";
+import { tracesConfirmed, type SetupReport } from "../setup/runSetup";
 import type { ToolingResult } from "../setup/steps/installTooling";
 
 export type OutputFormat = "pretty" | "json" | "raw";
@@ -42,11 +42,17 @@ export interface SetupOutput {
   };
   /** True when the API confirmed a trace arrived after this run started. */
   tracesVerified: boolean;
+  /**
+   * How the wait ended, when there was one. Absent on a registration-only run,
+   * which is what distinguishes "nothing to verify" — a success, exit 0 — from
+   * `notVerified`. `tracesVerified` alone reads `false` for both.
+   */
+  verification?: "verified" | "notVerified" | "deferred";
   tooling?: ToolingResult;
 }
 
 export function toSetupOutput(report: SetupReport): SetupOutput {
-  const { docs, docsMcp, instrumentation } = report;
+  const { docs, docsMcp, instrumentation, verification } = report;
   return {
     endpoint: report.connection.endpoint,
     project: report.connection.projectName,
@@ -79,7 +85,8 @@ export function toSetupOutput(report: SetupReport): SetupOutput {
             exitCode: instrumentation.exitCode,
           }
         : { lane: instrumentation.kind }),
-    tracesVerified: report.tracesVerified === true,
+    tracesVerified: tracesConfirmed(report),
+    verification,
     tooling: report.tooling,
   };
 }
@@ -95,14 +102,34 @@ function renderJson(value: unknown, format: OutputFormat): string | undefined {
   return undefined;
 }
 
-/** The pretty rendering — what a headless run prints on stdout. */
+/**
+ * The pretty rendering — what a headless run prints on stdout.
+ *
+ * All of setup's narration goes to stderr, so for anything reading stdout this
+ * summary is the whole report. It therefore has to carry the verification
+ * verdict: without it, a run where no trace ever landed prints byte-identical
+ * output to one where tracing works, and reads as success.
+ *
+ * A run that never instrumented has nothing to verify, so it gets no verdict
+ * line rather than a misleading "not verified".
+ */
 export function headlessSummary(report: SetupReport): string {
-  return [
+  const lines = [
     `endpoint: ${report.connection.endpoint}`,
     `project: ${report.connection.projectName}`,
     `files: ${report.files.join(", ")}`,
+  ];
+  if (!report.verification) {
+    return [...lines, "", COPY.HEADLESS.nextSteps(report.tracesUrl)].join("\n");
+  }
+  const verified = tracesConfirmed(report);
+  return [
+    ...lines,
+    `traces: ${verified ? "verified" : "NOT VERIFIED"}`,
     "",
-    COPY.HEADLESS.nextSteps(report.tracesUrl),
+    verified
+      ? COPY.HEADLESS.verifiedNextSteps(report.tracesUrl)
+      : COPY.HEADLESS.notVerifiedNextSteps(report.tracesUrl),
   ].join("\n");
 }
 

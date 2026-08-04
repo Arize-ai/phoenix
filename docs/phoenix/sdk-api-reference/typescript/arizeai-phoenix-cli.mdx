@@ -192,6 +192,22 @@ px setup --no-input --endpoint http://localhost:6006 --project my-app
 px setup --no-input --instrument --agent claude --yolo --language python --format raw
 ```
 
+Setup's definition of done is a trace the API confirmed arriving, not a completed
+hand-off, and the exit code says which happened:
+
+| Exit | Meaning |
+|------|---------|
+| `0` | Verified, registered only, or you chose "verify later" at the prompt |
+| `6` | The wait ran out with no trace — tracing is not confirmed working |
+
+Other codes follow the CLI-wide contract: `2` cancelled, `3` invalid flags, `4`
+auth, `5` unreachable endpoint. In `--format json|raw`, `verification` is
+`verified`, `notVerified`, or `deferred` and is absent when there was nothing to
+verify; `tracesVerified` is the boolean shorthand for `verification ==
+"verified"`. Don't score a run on the hand-off agent's own exit code — it may
+edit the app correctly and then exit badly, or exit cleanly having delivered
+nothing.
+
 Re-run individual steps later with the subcommands:
 
 ```bash
