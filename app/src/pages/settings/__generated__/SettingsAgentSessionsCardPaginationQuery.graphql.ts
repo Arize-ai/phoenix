@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dfcd972ad2148fb895d3ed19c8d09ce7>>
+ * @generated SignedSource<<6bdabc1bdfcde76dbc58f31d4f94917e>>
  * @lightSyntaxTransform
  */
 
@@ -154,6 +154,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "isActive",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "createdAt",
                     "storageKey": null
                   },
@@ -224,16 +231,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fe0158fc790fda0cfba9cf7d113029e0",
+    "cacheID": "c6a9b41183c04089af8ba071a948c800",
     "id": null,
     "metadata": {},
     "name": "SettingsAgentSessionsCardPaginationQuery",
     "operationKind": "query",
-    "text": "query SettingsAgentSessionsCardPaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...SettingsAgentSessionsCard_sessions_2HEEH6\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after, viewerOnly: false) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SettingsAgentSessionsCardPaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...SettingsAgentSessionsCard_sessions_2HEEH6\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after, viewerOnly: false) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        isActive\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "70dfcc80abc2e6a267ffbfe41bc13c37";
+(node as any).hash = "f5c49fb2bf880303f39692c618e18c1b";
 
 export default node;

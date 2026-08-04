@@ -658,14 +658,14 @@ export function ChatView({
   const hasChatSettled = status === "ready" || status === "error";
 
   const onRewindRequest = useMemo<MessageRewindRequest | undefined>(() => {
-    if (!hasChatSettled || !rewindToMessage) {
+    if (!hasChatSettled || isBusyElsewhere || !rewindToMessage) {
       return undefined;
     }
     return (request) => {
       setHistoryActionError(null);
       setRewindRequest(request);
     };
-  }, [hasChatSettled, rewindToMessage]);
+  }, [hasChatSettled, isBusyElsewhere, rewindToMessage]);
 
   const handleConfirmRewind = async () => {
     if (!rewindRequest) {

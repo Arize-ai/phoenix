@@ -1,5 +1,6 @@
 """Mutations for persisted assistant chat sessions."""
 
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import strawberry
@@ -24,7 +25,8 @@ from phoenix.server.api.auth import (
     IsNotViewer,
 )
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.helpers.agent_sessions import is_turn_active
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.AgentSession import AgentSession, to_gql_agent_session
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -160,6 +162,7 @@ class AgentSessionMutationMixin:
                 agent_session_rowid=agent_session_rowid,
                 for_update=True,
             )
+            _ensure_agent_session_is_idle(agent_session)
             target = (
                 await session.execute(
                     select(
@@ -213,7 +216,9 @@ class AgentSessionMutationMixin:
                 session,
                 info=info,
                 agent_session_rowid=agent_session_rowid,
+                for_update=True,
             )
+            _ensure_agent_session_is_idle(source_session)
             message_prefix = await _load_session_message_prefix(
                 session,
                 agent_session_rowid=source_session.id,
@@ -295,22 +300,29 @@ class AgentSessionMutationMixin:
             )
         except ValueError as exc:
             raise BadRequest(str(exc)) from exc
-        lookup_stmt = select(models.AgentSession.id).where(
-            models.AgentSession.id == agent_session_rowid
-        )
-        if (owner_filter := get_agent_session_owner_filter(info.context)) is not None:
-            lookup_stmt = lookup_stmt.where(owner_filter)
         async with info.context.db() as session:
-            agent_session_id = await session.scalar(lookup_stmt)
-            if agent_session_id is not None:
-                await session.execute(
-                    delete(models.AgentSession).where(models.AgentSession.id == agent_session_id)
-                )
-        if agent_session_id is None:
-            raise NotFound(f"No agent session found for ID '{input.id}'")
+            agent_session = await _load_owned_agent_session(
+                session,
+                info=info,
+                agent_session_rowid=agent_session_rowid,
+                for_update=True,
+            )
+            _ensure_agent_session_is_idle(agent_session)
+            agent_session_id = agent_session.id
+            await session.execute(
+                delete(models.AgentSession).where(models.AgentSession.id == agent_session_id)
+            )
         return DeleteAgentSessionMutationPayload(
             deleted_agent_session_id=GlobalID(AgentSession.__name__, str(agent_session_id)),
             query=Query(),
+        )
+
+
+def _ensure_agent_session_is_idle(agent_session: models.AgentSession) -> None:
+    if is_turn_active(agent_session.heartbeat_at, now=datetime.now(timezone.utc)):
+        raise Conflict(
+            "This session is busy. "
+            "Wait for the current operation to finish before modifying the conversation."
         )
 
 

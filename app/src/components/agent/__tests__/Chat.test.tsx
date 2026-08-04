@@ -1,10 +1,10 @@
-import { act, type ReactNode } from "react";
+import { act, type ReactNode, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
-import { AgentProvider } from "@phoenix/contexts/AgentContext";
+import { AgentProvider, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 import { ChatView } from "../Chat";
@@ -79,6 +79,14 @@ const messages = [
 
 const unansweredUserMessages = [messages[0]!] as AgentUIMessage[];
 
+function SessionBusyElsewhere({ sessionId }: { sessionId: string }) {
+  const store = useAgentStore();
+  useEffect(() => {
+    store.getState().setSessionBusyElsewhere(sessionId, true);
+  }, [sessionId, store]);
+  return null;
+}
+
 function renderChatView(
   root: Root,
   {
@@ -98,6 +106,7 @@ function renderChatView(
     clearOperationError,
     rewindToMessage,
     forkFromMessage,
+    isBusyElsewhere = false,
   }: {
     sessionId?: string;
     autoFocusInput?: boolean;
@@ -115,6 +124,7 @@ function renderChatView(
     clearOperationError?: () => void;
     rewindToMessage?: (messageId: string) => Promise<string | null>;
     forkFromMessage?: (messageId: string) => Promise<void>;
+    isBusyElsewhere?: boolean;
   } = {}
 ) {
   act(() => {
@@ -154,6 +164,9 @@ function renderChatView(
               ? { isDraftSessionTemporary }
               : {})}
           >
+            {isBusyElsewhere ? (
+              <SessionBusyElsewhere sessionId={sessionId} />
+            ) : null}
             <ChatView
               key={chatKey ?? sessionId ?? "no-session"}
               sessionId={sessionId}
@@ -689,6 +702,21 @@ describe("ChatView", () => {
     expect(container.textContent).toContain("Retry");
     expect(container.textContent).toContain("Edit message");
     expect(container.textContent).toContain("Branch before message");
+  });
+
+  it("hides rewind and branch actions while the session is busy elsewhere", () => {
+    renderChatView(root, {
+      chatMessages: unansweredUserMessages,
+      status: "ready",
+      rewindToMessage: vi.fn(),
+      forkFromMessage: vi.fn(),
+      isBusyElsewhere: true,
+    });
+
+    expect(container.textContent).toContain("Session in use elsewhere");
+    expect(container.textContent).not.toContain("Retry");
+    expect(container.textContent).not.toContain("Edit message");
+    expect(container.textContent).not.toContain("Branch before message");
   });
 
   it("retries an interrupted user message without duplicating it", async () => {

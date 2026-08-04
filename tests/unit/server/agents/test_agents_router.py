@@ -59,6 +59,7 @@ from phoenix.server.api.routers.agents import (
     _emit_turn_root_span,
     _get_span_context,
     _merge_messages,
+    _persist_agent_session_turn,
     _persist_db_traces,
     _resolve_turn_trace_ids,
     _synthesize_client_tool_spans,
@@ -2523,6 +2524,26 @@ async def test_chat_is_rejected_with_storage_guidance_when_writes_are_already_lo
 
     assert response.status_code == 507
     assert insufficient_storage_message() in response.text
+
+
+async def test_persisting_a_turn_for_a_deleted_session_fails(
+    db: DbSessionFactory,
+) -> None:
+    agent_session_id = await _create_agent_session_row(db, title="Already titled")
+    agent_session_rowid = int(GlobalID.from_id(agent_session_id).node_id)
+    async with db() as session:
+        agent_session = await session.get(models.AgentSession, agent_session_rowid)
+        assert agent_session is not None
+        await session.delete(agent_session)
+
+    with pytest.raises(RuntimeError, match="no longer exists"):
+        await _persist_agent_session_turn(
+            db,
+            agent_session_rowid=agent_session_rowid,
+            user_id=None,
+            new_messages=[PhoenixUIMessage.model_validate(_user_message("discarded"))],
+            bashkit_snapshot=None,
+        )
 
 
 async def test_transcript_write_failure_is_reported_as_an_unsaved_turn(

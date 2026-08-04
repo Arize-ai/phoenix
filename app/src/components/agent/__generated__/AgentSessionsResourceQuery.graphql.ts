@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9f152b21fde87ba5fdcf244ff1f1ddab>>
+ * @generated SignedSource<<db27a07453bd83c8c0d55c82abe20a8b>>
  * @lightSyntaxTransform
  */
 
@@ -114,6 +114,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "isActive",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "createdAt",
                     "storageKey": null
                   },
@@ -184,12 +191,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "347819b47fc2e5e986e683ee91fb07fe",
+    "cacheID": "23ed66a5cc93ad300e5ba670db20cf77",
     "id": null,
     "metadata": {},
     "name": "AgentSessionsResourceQuery",
     "operationKind": "query",
-    "text": "query AgentSessionsResourceQuery(\n  $first: Int!\n) {\n  ...AgentSessionsResource_sessions_3ASum4\n}\n\nfragment AgentSessionsResource_sessions_3ASum4 on Query {\n  agentSessions(first: $first, viewerOnly: true) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        isTemporary: isEphemeral\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
+    "text": "query AgentSessionsResourceQuery(\n  $first: Int!\n) {\n  ...AgentSessionsResource_sessions_3ASum4\n}\n\nfragment AgentSessionsResource_sessions_3ASum4 on Query {\n  agentSessions(first: $first, viewerOnly: true) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        isTemporary: isEphemeral\n        isActive\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
   }
 };
 })();

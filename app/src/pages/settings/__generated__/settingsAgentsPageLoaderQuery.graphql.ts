@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b8e5218c9ea809ee428339fed96ec09a>>
+ * @generated SignedSource<<f61860bc51ce64ca83d574a562c78e15>>
  * @lightSyntaxTransform
  */
 
@@ -141,6 +141,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "isActive",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "createdAt",
                     "storageKey": null
                   },
@@ -211,12 +218,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5767a3de2d7583dfccbcf81d7395002d",
+    "cacheID": "33f25376ee037543e1658674734291ff",
     "id": null,
     "metadata": {},
     "name": "settingsAgentsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsAgentsPageLoaderQuery(\n  $first: Int!\n) {\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first, viewerOnly: false) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query settingsAgentsPageLoaderQuery(\n  $first: Int!\n) {\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first, viewerOnly: false) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        isActive\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

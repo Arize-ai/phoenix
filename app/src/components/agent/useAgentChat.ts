@@ -203,6 +203,7 @@ export function useAgentChat({
     sessionId,
     isDraft,
     chatInstance,
+    isBusyElsewhere,
     pendingElicitation,
     createChatForSession,
     setMessages,

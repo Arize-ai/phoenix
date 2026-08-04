@@ -117,6 +117,7 @@ function AgentSessionsContent({
               title
               ...EditAgentSessionTitleDialog_session
               isTemporary: isEphemeral
+              isActive
               createdAt
               updatedAt
             }
@@ -132,6 +133,9 @@ function AgentSessionsContent({
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
   const chatStatusBySessionId = useAgentContext(
     (state) => state.chatStatusBySessionId
+  );
+  const isBusyElsewhereBySessionId = useAgentContext(
+    (state) => state.isBusyElsewhereBySessionId
   );
   const setActiveSession = useAgentContext((state) => state.setActiveSession);
   const clearSessionEphemeralState = useAgentContext(
@@ -167,10 +171,16 @@ function AgentSessionsContent({
         isTemporary: node.isTemporary,
         createdAt: Date.parse(node.createdAt as string),
         isDeleteDisabled:
+          node.isActive ||
+          isBusyElsewhereBySessionId[node.id] === true ||
           chatStatusBySessionId[node.id] === "submitted" ||
           chatStatusBySessionId[node.id] === "streaming",
       })),
-    [chatStatusBySessionId, data.agentSessions.edges]
+    [
+      chatStatusBySessionId,
+      data.agentSessions.edges,
+      isBusyElsewhereBySessionId,
+    ]
   );
 
   // On first open with no selection, resume the most recent conversation, or
