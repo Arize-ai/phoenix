@@ -15,7 +15,7 @@ from contextlib import AbstractContextManager, aclosing, nullcontext
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal, NamedTuple, TypeVar
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -1550,13 +1550,20 @@ async def _heartbeat_agent_session_turn_lock(
             )
 
 
+class _AgentSessionPatch(NamedTuple):
+    agent_session_rowid: int | None
+    """The session's rowid, or ``None`` if the session no longer exists."""
+    title_was_applied: bool
+    """Whether the generated title won the compare-and-set against a manual rename."""
+
+
 async def _patch_agent_session(
     session: AsyncSession,
     *,
     agent_session_rowid: int,
     user_id: int | None,
     title: str,
-) -> int | None:
+) -> _AgentSessionPatch:
     session_owner_filter = (
         models.AgentSession.user_id.is_(None)
         if user_id is None
@@ -1571,16 +1578,21 @@ async def _patch_agent_session(
         .values(updated_at=func.now())
         .returning(models.AgentSession.id)
     )
+    title_was_applied = False
     if updated_agent_session_rowid is not None and title:
-        await session.execute(
-            update(models.AgentSession)
-            .where(
-                models.AgentSession.id == agent_session_rowid,
-                models.AgentSession.title == "",  # do not clobber manually input titles
+        title_was_applied = (
+            await session.scalar(
+                update(models.AgentSession)
+                .where(
+                    models.AgentSession.id == agent_session_rowid,
+                    models.AgentSession.title == "",  # do not clobber manually input titles
+                )
+                .values(title=title)
+                .returning(models.AgentSession.id)
             )
-            .values(title=title)
+            is not None
         )
-    return updated_agent_session_rowid
+    return _AgentSessionPatch(updated_agent_session_rowid, title_was_applied)
 
 
 async def _persist_agent_session_title(
@@ -1589,11 +1601,16 @@ async def _persist_agent_session_title(
     agent_session_rowid: int,
     user_id: int | None,
     title: str,
-) -> None:
-    """Persist an auto-generated session title unless the user already set one."""
+) -> bool:
+    """Persist an auto-generated session title unless the user already set one.
+
+    Returns ``False`` when the generated title lost to a manual rename (or the
+    session is gone) and should be discarded. Persistence errors return ``True``
+    so the end-of-turn persist can retry the write.
+    """
     try:
         async with db() as session:
-            await _patch_agent_session(
+            patch = await _patch_agent_session(
                 session,
                 agent_session_rowid=agent_session_rowid,
                 user_id=user_id,
@@ -1604,6 +1621,8 @@ async def _persist_agent_session_title(
             "Failed to persist title for agent session %r",
             str(GlobalID("AgentSession", str(agent_session_rowid))),
         )
+        return True
+    return patch.title_was_applied
 
 
 async def _upsert_agent_session_snapshot(
@@ -1671,13 +1690,13 @@ async def _persist_agent_session_turn(
     if not new_messages:
         return
     async with db() as session:
-        patched_agent_session_rowid = await _patch_agent_session(
+        patch = await _patch_agent_session(
             session,
             agent_session_rowid=agent_session_rowid,
             user_id=user_id,
             title=title or "",
         )
-        if patched_agent_session_rowid is None:
+        if patch.agent_session_rowid is None:
             raise RuntimeError(
                 f"Agent session {GlobalID('AgentSession', str(agent_session_rowid))!s} "
                 "no longer exists"
@@ -2533,12 +2552,17 @@ def create_agents_router(
                     )
                     return None
                 if summary is not None:
-                    await _persist_agent_session_title(
+                    title_was_applied = await _persist_agent_session_title(
                         request.app.state.db,
                         agent_session_rowid=agent_session_rowid,
                         user_id=request_user_id,
                         title=summary,
                     )
+                    if not title_was_applied:
+                        # A manual rename landed while the summary was being
+                        # generated; discard it so it is neither streamed to
+                        # the client nor re-attempted at end of turn.
+                        return None
                 return summary
 
             turn_final_output_text: str | None = None
