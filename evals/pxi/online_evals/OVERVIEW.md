@@ -16,16 +16,11 @@ identical selector and issues **one discovery query per group**:
 | Turn root | `pxi.turn` | `AGENT` | `"null"` | — | `tool_count_per_turn`, `user_friction` |
 | Approval decision | — | `TOOL` | *(unset)* | `pxi.approval.source = user` | `suggestion_accepted` |
 
-Root evaluators score a whole turn. `suggestion_accepted` scores an individual
-action, because **one turn can contain several suggestions the user decided
-differently** — a rejected annotation-config change and its accepted revision
-routinely appear in the same turn. Annotating the root would collapse both into
-one label, so the annotation goes on the TOOL span itself.
+Root evaluators score a whole turn. `suggestion_accepted` scores each action so
+multiple decisions in one turn remain distinct.
 
-Everything downstream is target-agnostic: the settle delay applies to each
-target's own `end_time`, the checkpoint key is `(span_id, name, identifier)` on
-the target, and sampling stays keyed on `trace_id` so all targets in one turn
-are sampled together.
+The settle delay uses the target's `end_time`; checkpoints use
+`(span_id, name, identifier)`; sampling uses `trace_id`.
 
 ## The pipeline
 
@@ -44,10 +39,8 @@ flowchart TD
     F -- "exception" --> F3["errors++ · run continues ·<br/>process exits non-zero"]
 ```
 
-Every box feeds a counter in the run summary, so a scheduled run's log tells
-you exactly where each discovered target went (`discovered` counts matching
-**target spans**, so the tool evaluator's number is per-suggestion, not
-per-turn):
+`discovered` counts target spans, so `suggestion_accepted` reports suggestions,
+not turns:
 
 ```
 tool_count_per_turn: discovered=11 already_annotated=0 sampled_out=0 not_applicable=0 evaluated=11 errors=0 written=11
@@ -93,11 +86,8 @@ the user's click is stamped into the tool's output as a reserved marker:
 {"approval": {"decision": "accepted", "source": "user"}}
 ```
 
-The server promotes that marker onto the span as `pxi.approval.decision` and
-`pxi.approval.source` (see `src/phoenix/server/agents/approval.py`, written by
-`app/src/agent/shared/pendingApproval/approvalOutcome.ts`). The evaluator reads
-only those two attributes — it never parses `output.value` and never scans
-message text for the words "accepted" or "rejected".
+The server promotes that marker to `pxi.approval.decision` and
+`pxi.approval.source`. The evaluator reads only those attributes.
 
 ```mermaid
 flowchart TD
@@ -109,21 +99,16 @@ flowchart TD
     C -- other/absent --> N
 ```
 
-**There is no tool-name allowlist, by design.** Each tool keeps its own success
-vocabulary — `accepted`, `saved`, `loaded`, `applied`, `removed` — and the
-marker is uniform across all of them, so a newly approval-gated tool is measured
-the day it ships with no change here. The frontend has a drift guard asserting
-that payloads using the known accept/reject vocabulary carry the marker; tools
-built on the shared `bindPendingApproval` core are covered by construction.
+Discovery does not use a tool-name allowlist. New approval-gated tools are
+included when they emit the marker.
 
 Spans ingested before the marker shipped carry no `pxi.approval.*` attributes,
 so they are never discovered and cannot be backfilled.
 
-Discovery filters on `source = user` rather than on the decision: it is a single
-server-side query, and it yields exactly the annotated set, since rejections are
-always a user action and automatic accepts are never annotated.
+Discovery filters on `source = user`, covering both accepted and rejected
+manual decisions in one query.
 
-Everything else is left unannotated rather than guessed:
+Other outcomes remain unannotated:
 
 | Case | Recorded as | Why not annotated |
 |---|---|---|
@@ -134,13 +119,11 @@ Everything else is left unannotated rather than guessed:
 | Unknown or malformed decision | — | not a terminal user decision |
 | Non-approval tool | no marker | no approval gate exists |
 
-Annotations carry only `{"tool_name": ...}` — never prompt text, tool
-arguments, raw output, user content, instance ids, or proposal diffs.
+Annotations carry only `{"tool_name": ...}`.
 
-`submit_{code,llm}_evaluator_draft` remain unmeasured: they resolve as
-`awaiting_user` and the dialog's real decision is never written back as tool
-output, so no marker exists to read. Closing that gap needs a frontend change —
-tracked in [#15033](https://github.com/Arize-ai/phoenix/issues/15033).
+`submit_{code,llm}_evaluator_draft` remain unmeasured because their dialog
+decisions are not written to tool output. See
+[#15033](https://github.com/Arize-ai/phoenix/issues/15033).
 
 ## How `user_friction` finds its target
 
@@ -195,9 +178,8 @@ skips them:
 | `user_friction` | `pxi.turn` root | `pxi-online-evals:user-friction:v1:openai:gpt-5.5` |
 | `suggestion_accepted` | approval TOOL span | `pxi-online-evals:suggestion-accepted:v1` |
 
-The key is per target, so a checkpoint on one suggestion never suppresses
-another suggestion in the same turn, and the next overlapping run checkpoints
-prior terminal decisions instead of duplicating them.
+The key is per target, so one suggestion's checkpoint does not suppress another
+suggestion in the same turn.
 
 - The 48h lookback **overlaps** the 12h schedule ~4×, so missed or crashed
   runs self-heal without double-evaluating.
@@ -234,7 +216,7 @@ rate 0.25  █████                 subset of the 0.50 selection
 | Runaway judge input | 50k-char cap on rendered input | skip + warning |
 | Silent truncation when hydrating many traces | batch split-and-retry at the span limit; a single over-limit trace is an error | correctness over convenience |
 | Unbounded discovery | hard cap (5,000 spans) per selector query fails the run loudly, naming the selector | operator shrinks the window |
-| One bad turn poisoning the run | per-turn exception isolation | logged + counted; run continues; process exits non-zero so schedules go red |
+| One bad target poisoning the run | per-target exception isolation | logged + counted; run continues; process exits non-zero so schedules go red |
 | Bad judge config | provider/API-key validated at startup | fail fast, before any trace work |
 | Malformed topology (orphan tool span, missing ancestor, cycle) | **deliberately loud** — counts as an error | post-settle traces should be complete; an anomaly means dropped spans or a tracing regression. Downgrade to skip-with-warning if noisy in practice. |
 

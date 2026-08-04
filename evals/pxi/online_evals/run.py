@@ -10,14 +10,13 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from datetime import datetime, timedelta, timezone
 
-from phoenix.client import Client
-from phoenix.client.__generated__ import v1
-from phoenix.evals.evaluators import Score
-
 from evals.pxi.online_evals import judge
 from evals.pxi.online_evals.evaluators import EVALUATORS
 from evals.pxi.online_evals.models import EvaluatorSpec, RunSummary, SpanSelector
 from evals.pxi.online_evals.topology import span_id, trace_id
+from phoenix.client import Client
+from phoenix.client.__generated__ import v1
+from phoenix.evals.evaluators import Score
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +39,7 @@ class OversizedTraceError(RuntimeError):
 
 
 class CandidateLimitError(RuntimeError):
-    """Discovery hit its safety limit, so its candidate set is silently truncated.
-
-    Deliberately fatal rather than isolated to one selector: unlike a failed
-    query, this means the run's results would be quietly incomplete, and the
-    fix is to narrow the window rather than to continue.
-    """
+    """Raised when discovery may have truncated the candidate set."""
 
 
 def _sampled(spec: EvaluatorSpec, artifact_id: str) -> bool:
@@ -75,11 +69,7 @@ def _resolve_identifier(spec: EvaluatorSpec) -> str:
 
 
 def _ended_before(span: v1.Span, cutoff: datetime) -> bool:
-    """Whether a candidate target span is settled enough to evaluate.
-
-    Applied to each target's own ``end_time``, not the turn root's, so an
-    inner span is only scored once it has itself finished.
-    """
+    """Whether a target span ended before the settle cutoff."""
     value = span.get("end_time")
     if not isinstance(value, str):
         logger.warning("skipping span %s without an end time", span_id(span))
@@ -102,7 +92,6 @@ def _discover_candidates(
     start_time: datetime,
     end_time: datetime,
 ) -> list[v1.Span]:
-    """Run one discovery query for a selector shared by one or more evaluators."""
     filters: dict[str, object] = {}
     if selector.names:
         filters["name"] = sorted(selector.names)
@@ -230,8 +219,6 @@ async def run_evaluators(
     current = now or datetime.now(timezone.utc)
     settled_cutoff = current - settle_delay
 
-    # One discovery query per distinct selector: evaluators that target the
-    # same spans (both turn-root evaluators, say) share a single round trip.
     by_selector: dict[SpanSelector, list[EvaluatorSpec]] = defaultdict(list)
     for spec in specs:
         by_selector[spec.selector].append(spec)
@@ -250,10 +237,6 @@ async def run_evaluators(
         except CandidateLimitError:
             raise
         except Exception:
-            # Selectors use different server features (attribute filtering needs
-            # a newer Phoenix than name filtering), so one selector's discovery
-            # failing must not take the other evaluators' results down with it.
-            # Counted as an error so the run still exits non-zero.
             logger.exception("discovery failed for selector %s; skipping its evaluators", selector)
             for spec in by_selector[selector]:
                 summaries[spec.name].errors += 1
@@ -277,8 +260,6 @@ async def run_evaluators(
                 if key in existing:
                     summary.already_annotated += 1
                 elif not _sampled(spec, trace_id(target)):
-                    # Keyed on the trace, so every target within one turn is
-                    # sampled in or out together.
                     summary.sampled_out += 1
                 else:
                     pending.append((spec, target))
