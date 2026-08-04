@@ -59,7 +59,7 @@ The prototype uses existing Phoenix dataset, experiment, evaluation, trace-inges
 | Harbor concept                | Phoenix concept             | Mapping                                                           |
 | ----------------------------- | --------------------------- | ----------------------------------------------------------------- |
 | Dataset                       | Dataset                     | Name inferred from Harbor; optional override                      |
-| Task                          | Dataset example             | Instruction in input; task identity and configuration in metadata |
+| Task                          | Dataset example             | Task ID, name, and instruction in input; other fields in metadata  |
 | Task digest                   | Dataset version             | Full Harbor task digest                                           |
 | Job × agent × model           | Experiment                  | One experiment for each agent and model                           |
 | Trial                         | Experiment run              | One run for each task attempt                                     |
@@ -77,6 +77,25 @@ Use one Phoenix dataset for one Harbor dataset. Infer its name from Harbor's res
 - use the selected dataset name for `--repo`.
 
 The optional `dataset` plugin setting overrides this value. If Harbor does not provide an unambiguous name, the plugin raises a clear error and stops the Harbor job before trials begin.
+
+Each task becomes a Phoenix dataset example with this shape:
+
+```json
+{
+  "input": {
+    "task_id": "<Harbor task ID>",
+    "task_name": "<Harbor task name>",
+    "instruction": "<task instruction>"
+  },
+  "expected_output": null,
+  "metadata": {
+    "task_digest": "<full Harbor task digest>",
+    "...": "<other task fields and configuration>"
+  }
+}
+```
+
+Keep the fields an agent needs to identify and perform the task in `input`. Store the remaining JSON-safe Harbor task fields and configuration in example `metadata`, including the full task digest. Do not duplicate those fields in `input`. `expected_output` remains blank because Harbor verifies the resulting environment state instead of comparing the agent's response with a reference output.
 
 Use Harbor's full task digest as the example version key. The digest covers the complete task package, including the solution, environment, tests, and steps. Any task-package change therefore creates a new dataset version and preserves exact provenance.
 
