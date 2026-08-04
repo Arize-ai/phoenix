@@ -1,5 +1,24 @@
 # Changelog
 
+## [19.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.15.0...arize-phoenix-v19.16.0) (2026-08-04)
+
+
+### Features
+
+* **server:** OpenAI-compatible v1/chat/completions proxy with server-side credentials ([#14980](https://github.com/Arize-ai/phoenix/issues/14980)) ([6ab57db](https://github.com/Arize-ai/phoenix/commit/6ab57dbfe042fc4cc82e291cbbb7ced9940d4400))
+* **ui:** preview card contents while collapsed ([#15027](https://github.com/Arize-ai/phoenix/issues/15027)) ([98b82ba](https://github.com/Arize-ai/phoenix/commit/98b82ba6afe4d912adf121f36028da3ff33e51df))
+
+
+### Bug Fixes
+
+* render exception stack traces in events ([#15028](https://github.com/Arize-ai/phoenix/issues/15028)) ([5ca716e](https://github.com/Arize-ai/phoenix/commit/5ca716eabb30b642775342c2571181d915cd4489))
+* **ui:** carry the time range forward from the project list into project details ([#15041](https://github.com/Arize-ai/phoenix/issues/15041)) ([d9421a4](https://github.com/Arize-ai/phoenix/commit/d9421a48e01c884feb828e49b803b28265b6ce97))
+
+
+### Performance Improvements
+
+* **ui:** parallelize span export fetches and stream downloads to disk ([#14993](https://github.com/Arize-ai/phoenix/issues/14993)) ([b9f2fa3](https://github.com/Arize-ai/phoenix/commit/b9f2fa3febcd95c9dba3671374ad0673166f56fb))
+
 ## [19.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.14.0...arize-phoenix-v19.15.0) (2026-08-03)
 
 
