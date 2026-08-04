@@ -3905,7 +3905,7 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 2e-6
+            "new_rate": 4e-7
           }
         },
         {
@@ -3916,7 +3916,7 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 9e-6
+            "new_rate": 1.8e-6
           }
         },
         {
@@ -3927,7 +3927,7 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 2e-7
+            "new_rate": 4e-8
           }
         },
         {
@@ -3938,7 +3938,7 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 2.5e-6
+            "new_rate": 5e-7
           }
         }
       ]
@@ -4007,7 +4007,7 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 5e-6
+            "new_rate": 4e-6
           }
         },
         {
@@ -4018,7 +4018,7 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 0.0000225
+            "new_rate": 0.000018
           }
         },
         {
@@ -4029,7 +4029,7 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 5e-7
+            "new_rate": 4e-7
           }
         },
         {
@@ -4040,7 +4040,7 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 6.25e-6
+            "new_rate": 5e-6
           }
         }
       ]
