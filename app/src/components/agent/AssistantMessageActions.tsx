@@ -8,13 +8,12 @@ import {
 import { authApiFetch } from "@phoenix/api/authApiFetch";
 import { MessageAction } from "@phoenix/components/ai/message/MessageAction";
 import { MessageActions } from "@phoenix/components/ai/message/MessageActions";
+import { MessageCopyAction } from "@phoenix/components/ai/message/MessageCopyAction";
 import { MessageToolbar } from "@phoenix/components/ai/message/MessageToolbar";
 import { Icon, Icons } from "@phoenix/components/core/icon";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
-
-import { MessageCopyAction } from "./MessageCopyAction";
 
 /**
  * Annotation name used for both span- and trace-level user feedback on

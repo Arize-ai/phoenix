@@ -2,6 +2,7 @@ import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 
 import { Flex } from "@phoenix/components";
+import { AISearchSettingsCard } from "@phoenix/components/filter";
 import { AIProviderSettingsCard } from "@phoenix/pages/settings/AIProviderSettingsCard";
 import { CustomProvidersCard } from "@phoenix/pages/settings/CustomProvidersCard";
 import { GenerativeProvidersCard } from "@phoenix/pages/settings/GenerativeProvidersCard";
@@ -23,6 +24,7 @@ export function SettingsAIProvidersPage() {
       <GenerativeProvidersCard query={data} />
       <CustomProvidersCard query={data} />
       <AIProviderSettingsCard />
+      <AISearchSettingsCard />
     </Flex>
   );
 }

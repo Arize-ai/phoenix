@@ -21,10 +21,11 @@ const getIconButtonColor = (color: TextColorValue): string => {
 
 export interface IconButtonProps extends Omit<ButtonProps, "children"> {
   /**
-   * The size of the button
+   * The size of the button. `XS` is the inline size — a 20px square for
+   * icon buttons nestled inside inputs and other compact rows.
    * @default 'M'
    */
-  size?: Exclude<ComponentSize, "L">;
+  size?: "XS" | Exclude<ComponentSize, "L">;
   /**
    * The icon to display
    */
@@ -41,6 +42,7 @@ export interface IconButtonProps extends Omit<ButtonProps, "children"> {
 }
 
 const iconButtonCSS = (color: TextColorValue) => css`
+  --icon-button-font-size-xs: var(--global-font-size-m);
   --icon-button-font-size-s: var(--global-font-size-l);
   --icon-button-font-size-m: var(--global-font-size-xl);
   --icon-button-font-size-l: var(--global-font-size-2xl);
@@ -59,6 +61,18 @@ const iconButtonCSS = (color: TextColorValue) => css`
     opacity 0.2s ease;
   position: relative;
   padding: 0;
+
+  /* No button-height token exists this small — XS is the inline size for
+     icon buttons living inside inputs */
+  &[data-size="XS"] {
+    width: var(--global-dimension-size-250);
+    min-width: var(--global-dimension-size-250);
+    min-height: var(--global-dimension-size-250);
+    height: var(--global-dimension-size-250);
+    .icon-wrap {
+      font-size: var(--icon-button-font-size-xs);
+    }
+  }
 
   &[data-size="S"] {
     width: var(--global-button-height-s);

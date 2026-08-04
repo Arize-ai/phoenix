@@ -2,10 +2,9 @@ import {
   getAssistantMessageMetadata,
   type AgentUIMessage,
 } from "@phoenix/agent/chat/types";
+import { ChatTokenUsage } from "@phoenix/components/ai/token-usage";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import type { AgentSessionUsage } from "@phoenix/store";
-
-import { ChatTokenUsage } from "./ChatTokenUsage";
 
 type ChatSessionUsage = {
   sessionId: string;

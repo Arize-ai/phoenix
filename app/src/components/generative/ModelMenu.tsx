@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useCallback, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useMemo, useState } from "react";
 import {
   MenuSection,
   type PopoverProps,
@@ -61,6 +61,35 @@ export type ModelMenuValue = {
    * Reference to custom provider if using one
    */
   customProvider?: CustomProviderRef;
+};
+
+/**
+ * A standalone selectable entry listed above the providers — a model source
+ * that is not a provider, so it has no submenu and selecting it reports its
+ * id rather than a provider/model pair. The menu attaches no meaning to the
+ * id; callers interpret it on selection.
+ */
+export type ModelMenuLeadingItem = {
+  id: string;
+  /** Shown in the menu row and on the trigger when selected */
+  label: string;
+  /** Icon shown beside the label, in place of a provider icon */
+  icon?: ReactNode;
+  /** Trailing annotation in the menu row, e.g. an availability status */
+  trailing?: ReactNode;
+  isDisabled?: boolean;
+};
+
+type LeadingItemsProps = {
+  /**
+   * Standalone entries listed above the providers. See
+   * {@link ModelMenuLeadingItem}.
+   */
+  leadingItems?: readonly ModelMenuLeadingItem[];
+  /**
+   * Called with the item's id when a leading item is selected.
+   */
+  onLeadingItemSelect?: (id: string) => void;
 };
 
 /**
@@ -142,18 +171,41 @@ function decodeMenuKey(key: string): ModelInfo | null {
  * Prepends an AWS Bedrock cross-region inference prefix to a model name.
  * Idempotent: returns the name unchanged if it already starts with "{prefix}.".
  */
-export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> & {
-  value?: ModelMenuValue | null;
-  onChange?: (model: ModelMenuValue) => void;
-  isDisabled?: boolean;
-  /**
-   * Visual variant of the trigger button.
-   * - `"default"` — standard bordered button.
-   * - `"quiet"` — borderless button.
-   * @default "default"
-   */
-  variant?: "default" | "quiet";
-};
+export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> &
+  LeadingItemsProps & {
+    value?: ModelMenuValue | null;
+    onChange?: (model: ModelMenuValue) => void;
+    isDisabled?: boolean;
+    /**
+     * Id of the leading item the current selection refers to. When it names
+     * an offered leading item, the trigger shows that item instead of
+     * `value`.
+     */
+    selectedLeadingItemId?: string;
+    /**
+     * Visual variant of the trigger button.
+     * - `"default"` — standard bordered button.
+     * - `"quiet"` — borderless button.
+     * @default "default"
+     */
+    variant?: "default" | "quiet";
+    /**
+     * Narrows the built-in providers the menu offers. Called for every
+     * provider the menu would otherwise list; return false to leave it out
+     * entirely. Callers that can only reach a subset of providers use this so
+     * the picker never offers a model they cannot run.
+     */
+    providerFilter?: (provider: ModelProviderInfo) => boolean;
+    /**
+     * Whether custom providers are offered. Custom providers are configured
+     * on the server, so callers that don't go through the server exclude
+     * them.
+     * @default true
+     */
+    includeCustomProviders?: boolean;
+  };
+
+const NO_CUSTOM_PROVIDERS: CustomProviderInfo[] = [];
 
 export function ModelMenu({
   value,
@@ -162,6 +214,11 @@ export function ModelMenu({
   placement,
   shouldFlip,
   variant = "default",
+  providerFilter,
+  includeCustomProviders = true,
+  leadingItems,
+  selectedLeadingItemId,
+  onLeadingItemSelect,
 }: ModelMenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
@@ -186,11 +243,22 @@ export function ModelMenu({
     [onChange, awsBedrockModelPrefix]
   );
   const {
-    customProviders,
+    customProviders: allCustomProviders,
     modelsByProvider,
     providerInfoMap,
-    visibleProviders,
+    visibleProviders: allVisibleProviders,
   } = useModelMenuData();
+
+  const visibleProviders = useMemo(
+    () =>
+      providerFilter
+        ? allVisibleProviders.filter(providerFilter)
+        : allVisibleProviders,
+    [allVisibleProviders, providerFilter]
+  );
+  const customProviders = includeCustomProviders
+    ? allCustomProviders
+    : NO_CUSTOM_PROVIDERS;
 
   // Providers whose models are searchable: visible in the menu and with
   // server dependencies installed, so search never surfaces a model that
@@ -254,9 +322,16 @@ export function ModelMenu({
   const isValidSelectedProvider =
     selectedProvider && isModelProvider(selectedProvider);
 
-  const triggerAriaLabel = value
-    ? `Select model: ${value.modelName}`
-    : "Select model";
+  const selectedLeadingItem =
+    selectedLeadingItemId != null
+      ? leadingItems?.find((item) => item.id === selectedLeadingItemId)
+      : undefined;
+
+  const triggerAriaLabel = selectedLeadingItem
+    ? `Select model: ${selectedLeadingItem.label}`
+    : value
+      ? `Select model: ${value.modelName}`
+      : "Select model";
 
   return (
     <MenuTrigger>
@@ -266,7 +341,12 @@ export function ModelMenu({
         isDisabled={isDisabled}
         aria-label={triggerAriaLabel}
       >
-        {value ? (
+        {selectedLeadingItem ? (
+          <Flex direction="row" gap="size-100" alignItems="center">
+            {selectedLeadingItem.icon}
+            <Text>{selectedLeadingItem.label}</Text>
+          </Flex>
+        ) : value ? (
           <Flex direction="row" gap="size-100" alignItems="center">
             {isValidSelectedProvider && (
               <GenerativeProviderIcon provider={selectedProvider} height={16} />
@@ -298,6 +378,8 @@ export function ModelMenu({
               providerInfoMap={providerInfoMap}
               customProviders={filteredCustomProviders}
               onChange={handleModelChange}
+              leadingItems={leadingItems}
+              onLeadingItemSelect={onLeadingItemSelect}
             />
           ) : (
             <ProviderMenu
@@ -305,6 +387,8 @@ export function ModelMenu({
               modelsByProvider={modelsByProvider}
               customProviders={customProviders}
               onChange={handleModelChange}
+              leadingItems={leadingItems}
+              onLeadingItemSelect={onLeadingItemSelect}
             />
           )}
         </Autocomplete>
@@ -323,7 +407,7 @@ export function ModelMenu({
   );
 }
 
-type ModelsByProviderMenuProps = {
+type ModelsByProviderMenuProps = LeadingItemsProps & {
   modelsByProvider: Map<string, string[]>;
   providerInfoMap: Map<
     string,
@@ -334,6 +418,46 @@ type ModelsByProviderMenuProps = {
 };
 
 /**
+ * The leading items as directly selectable menu rows, rendered at the top of
+ * both the browse and search views. Their keys use the same reserved
+ * delimiter as model keys so they can never collide with provider ids, and
+ * selection is reported through each item's own `onAction` rather than the
+ * menu-level key decoding.
+ */
+function LeadingItemMenuItems({
+  leadingItems,
+  onLeadingItemSelect,
+}: LeadingItemsProps) {
+  return (
+    <>
+      {leadingItems?.map((item) => (
+        <MenuItem
+          key={item.id}
+          id={`leading${KEY_DELIMITER}${item.id}`}
+          textValue={item.label}
+          isDisabled={item.isDisabled}
+          onAction={() => onLeadingItemSelect?.(item.id)}
+        >
+          <Flex
+            direction="row"
+            gap="size-100"
+            alignItems="center"
+            justifyContent="space-between"
+            width="100%"
+          >
+            <Flex direction="row" gap="size-100" alignItems="center">
+              {item.icon}
+              <Text>{item.label}</Text>
+            </Flex>
+            {item.trailing}
+          </Flex>
+        </MenuItem>
+      ))}
+    </>
+  );
+}
+
+/**
  * Menu showing models grouped by provider sections.
  * Used when searching to display filtered results.
  */
@@ -342,6 +466,8 @@ export function ModelsByProviderMenu({
   providerInfoMap,
   customProviders,
   onChange,
+  leadingItems,
+  onLeadingItemSelect,
 }: ModelsByProviderMenuProps) {
   const awsBedrockModelPrefix = usePreferencesContext(
     (state) => state.awsBedrockModelPrefix
@@ -403,6 +529,10 @@ export function ModelsByProviderMenu({
         }
       }}
     >
+      <LeadingItemMenuItems
+        leadingItems={leadingItems}
+        onLeadingItemSelect={onLeadingItemSelect}
+      />
       {/* Custom providers */}
       {customProviders.map((customProvider) => {
         const providerKey = getProviderKeyForGenerativeModelSDK(
@@ -490,9 +620,15 @@ export function ProviderMenu({
   modelsByProvider,
   customProviders,
   onChange,
-}: ProviderMenuProps) {
+  leadingItems,
+  onLeadingItemSelect,
+}: ProviderMenuProps & LeadingItemsProps) {
   return (
     <Menu css={menuWidthCSS} renderEmptyState={() => <ModelMenuEmptyState />}>
+      <LeadingItemMenuItems
+        leadingItems={leadingItems}
+        onLeadingItemSelect={onLeadingItemSelect}
+      />
       <ProviderModelMenuItems
         providers={providers}
         modelsByProvider={modelsByProvider}

@@ -7,7 +7,7 @@ import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAge
 import {
   createAnnotationMemberCompletions,
   DSLFilterConditionField,
-  type DSLFilterSnippet,
+  type DSLFilterAISearchProps,
   type DSLFilterValidationFailureReason,
   type DSLFilterValidConditionArgs,
   useDSLFilterConditionHistory,
@@ -18,9 +18,10 @@ import environment from "@phoenix/RelayEnvironment";
 import type { SpanFilterConditionFieldCompletionsQuery } from "./__generated__/SpanFilterConditionFieldCompletionsQuery.graphql";
 import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
 import {
-  ORPHAN_AWARE_ROOT_SPANS_CONDITION,
-  STRICT_ROOT_SPANS_CONDITION,
-} from "./spanFilterRootScopeConstants";
+  coreSpanFilterCompletions,
+  spanFilterAISearchDSL,
+  spanFilterSnippets,
+} from "./spanFilterDSL";
 import { useSpanFilters } from "./SpanFiltersContext";
 import {
   openInferenceAttributeCompletions,
@@ -31,136 +32,8 @@ import {
   validateSpanFilterCondition,
 } from "./spanFilterValidation";
 
-/**
- * The fields of the span filter DSL that an expression can reference
- */
 const spanFilterCompletions: Completion[] = [
-  {
-    label: "span_kind",
-    type: "variable",
-    detail: "span category",
-    info: "The span variant: CHAIN, LLM, RETRIEVER, TOOL, etc.",
-  },
-  {
-    label: "status_code",
-    type: "variable",
-    detail: "OK, UNSET, or ERROR",
-    info: "The span status: OK, UNSET, or ERROR",
-  },
-  {
-    label: "status_message",
-    type: "variable",
-    detail: "status details",
-    info: "The status message of a span, e.x. an error message",
-  },
-  {
-    label: "input.value",
-    type: "variable",
-    detail: "span input",
-    info: "The input value of a span, typically a query",
-  },
-  {
-    label: "output.value",
-    type: "variable",
-    detail: "span output",
-    info: "The output value of a span, typically a response",
-  },
-  {
-    label: "name",
-    type: "variable",
-    detail: "operation name",
-    info: "The name given to a span - e.x. OpenAI",
-  },
-  {
-    label: "span_id",
-    type: "variable",
-    detail: "unique span ID",
-    info: "The ID of a span",
-  },
-  {
-    label: "trace_id",
-    type: "variable",
-    detail: "containing trace ID",
-    info: "The ID of the trace a span belongs to",
-  },
-  {
-    label: "parent_id",
-    type: "variable",
-    detail: "stored parent ID",
-    info: "The stored ID of this span's parent. `parent_id is None` matches only spans with no parent ID; it excludes orphan spans whose parent ID points to a missing span.",
-  },
-  {
-    label: "parent_span",
-    type: "variable",
-    detail: "resolved parent existence",
-    info: "Whether this span's parent exists in Phoenix. `parent_span is None` matches spans with no parent ID and orphan spans whose parent is missing. Only comparisons with None are supported.",
-  },
-  {
-    label: "latency_ms",
-    type: "variable",
-    detail: "duration in milliseconds",
-    info: "Latency (i.e. duration) in milliseconds",
-  },
-  {
-    label: "metadata",
-    type: "variable",
-    detail: "metadata by key",
-    info: "The metadata of a span, accessed by key - e.x. metadata['topic']",
-  },
-  {
-    label: "attributes",
-    type: "variable",
-    detail: "attributes by key",
-    info: "Span attributes, accessed by key - e.x. attributes['llm']['provider']",
-  },
-  {
-    label: "annotations",
-    type: "variable",
-    detail: "annotations by name",
-    info: "Span annotations, accessed by name - e.x. annotations['quality'].score",
-  },
-  {
-    label: "evals",
-    type: "variable",
-    detail: "evaluations by name",
-    info: "Span evaluations, accessed by name - e.x. evals['Hallucination'].label",
-  },
-  {
-    label: "llm.token_count.prompt",
-    type: "variable",
-    detail: "prompt tokens",
-    info: "Token count for the prompt of an LLM span",
-  },
-  {
-    label: "llm.token_count.completion",
-    type: "variable",
-    detail: "completion tokens",
-    info: "Token count for the completion of an LLM span",
-  },
-  {
-    label: "llm.token_count.total",
-    type: "variable",
-    detail: "total LLM tokens",
-    info: "Total token count (prompt + completion) of an LLM span",
-  },
-  {
-    label: "cumulative_token_count.prompt",
-    type: "variable",
-    detail: "prompt tokens incl. descendants",
-    info: "Sum of token count for prompt from self and all child spans",
-  },
-  {
-    label: "cumulative_token_count.completion",
-    type: "variable",
-    detail: "completion tokens incl. descendants",
-    info: "Sum of token count for completion from self and all child spans",
-  },
-  {
-    label: "cumulative_token_count.total",
-    type: "variable",
-    detail: "total tokens incl. descendants",
-    info: "Sum of token count total (prompt + completion) from self and all child spans",
-  },
+  ...coreSpanFilterCompletions,
   ...openInferenceAttributeCompletions,
 ];
 
@@ -168,86 +41,10 @@ const spanFilterCompletionSources = [
   openInferenceAttributeValueCompletionSource,
 ];
 
-/**
- * Example conditions shown as suggestions in the typeahead — notably when
- * the empty field is focused. `${placeholder}` segments become tab-through
- * fields on insert. Ordered most-useful-first: only the first few are shown
- * while browsing; the rest surface via fuzzy matching as the user types.
- * Evaluation (`evals`) snippets are deliberately omitted — they're a legacy
- * alias for annotations and only crowd the list.
- */
-const spanFilterSnippets: DSLFilterSnippet[] = [
-  {
-    label: "filter by errors",
-    snippet: "status_code == 'ERROR'",
-  },
-  {
-    label: "filter by span kind",
-    snippet: "span_kind == '${LLM}'",
-  },
-  {
-    label: "filter by LLM provider",
-    snippet: "attributes['llm']['provider'] == '${openai}'",
-  },
-  {
-    label: "filter by latency",
-    snippet: "latency_ms >= ${10_000}",
-  },
-  {
-    label: "search input for substring",
-    snippet: "'${search text}' in input.value",
-  },
-  {
-    label: "filter by annotation score",
-    snippet: "annotations['${name}'].score >= ${0.5}",
-  },
-  {
-    label: "search output for substring",
-    snippet: "'${search text}' in output.value",
-  },
-  {
-    label: "filter by span name",
-    snippet: "name == '${name}'",
-  },
-  {
-    label: "filter for spans with no parent ID",
-    snippet: STRICT_ROOT_SPANS_CONDITION,
-    info: "Matches only spans whose stored parent_id is None. Orphan spans with a parent ID are excluded.",
-  },
-  {
-    label: "filter for spans with no parent span",
-    snippet: ORPHAN_AWARE_ROOT_SPANS_CONDITION,
-    info: "Matches spans with no parent ID and orphan spans whose parent ID points to a missing span.",
-  },
-  {
-    label: "filter by trace id",
-    snippet: "trace_id == '${trace id}'",
-  },
-  {
-    label: "filter by token count",
-    snippet: "cumulative_token_count.total > ${1_000}",
-  },
-  {
-    label: "filter by model name",
-    snippet: "llm.model_name == '${model}'",
-  },
-  {
-    label: "filter by annotation label",
-    snippet: "annotations['${name}'].label == '${label}'",
-  },
-  {
-    label: "search annotation explanation",
-    snippet: "'${search text}' in annotations['${name}'].explanation",
-  },
-  {
-    label: "filter by metadata",
-    snippet: "metadata['${key}'] == '${value}'",
-  },
-  {
-    label: "filter by attribute",
-    snippet: "attributes['${key}'] == '${value}'",
-  },
-];
+const spanFilterAISearch: DSLFilterAISearchProps = {
+  dsl: spanFilterAISearchDSL,
+  placeholder: "describe a span filter — Enter converts it to DSL",
+};
 
 /**
  * Fetches the annotation names that actually exist on the project's spans so
@@ -418,6 +215,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       onValidationFailed={onValidationFailed}
       validationRetryKey={validationRetryKey}
       onValidationStateChange={setIsConditionValid}
+      aiSearch={spanFilterAISearch}
     />
   );
 }
