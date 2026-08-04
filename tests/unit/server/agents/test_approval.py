@@ -10,13 +10,6 @@ from phoenix.server.agents.approval import (
 
 
 class TestApprovalAttributes:
-    """Promotion of the client-side ``approval`` marker onto TOOL spans.
-
-    The marker is written by ``approvalOutcome`` in
-    ``app/src/agent/shared/pendingApproval/approvalOutcome.ts``; the shapes below
-    mirror what approval-gated tools actually emit.
-    """
-
     @pytest.mark.parametrize("source", ["user", "auto"])
     def test_extracts_marker_from_mapping_result(self, source: str) -> None:
         result = {
@@ -43,7 +36,6 @@ class TestApprovalAttributes:
         }
 
     def test_ignores_output_without_a_marker(self) -> None:
-        """Non-gated tools and cancellations must stay unattributed."""
         assert approval_attributes({"status": "loaded", "datasetId": "abc"}) == {}
         assert approval_attributes(json.dumps({"rows": [1, 2, 3]})) == {}
 
@@ -58,8 +50,6 @@ class TestApprovalAttributes:
             "accepted",
             None,
             [],
-            # Unhashable values: the marker is browser-supplied JSON, so a
-            # membership test against a frozenset must not be reached with one.
             {"decision": {}, "source": "user"},
             {"decision": ["accepted"], "source": "user"},
             {"decision": "accepted", "source": {"a": 1}},
@@ -74,5 +64,4 @@ class TestApprovalAttributes:
         ["Prompt saved.", "", "not json {", 42, None, [1, 2], object()],
     )
     def test_ignores_unparseable_or_non_mapping_results(self, result: object) -> None:
-        """Telemetry extraction must never raise — it would fail a real tool call."""
         assert approval_attributes(result) == {}

@@ -26,8 +26,6 @@ function buildAcceptedOutput({
   approvalSource: "user" | "auto";
 }) {
   const parsedOutput = parseActionOutput(output);
-  // The marker is spread last in both branches: `parsedOutput` is the save
-  // action's own payload and must not be able to clobber it.
   if (isPlainObject(parsedOutput)) {
     return {
       ...parsedOutput,
