@@ -1,3 +1,9 @@
+// Imported from the leaf module rather than the `pendingApproval` barrel:
+// `pendingApproval/types` takes a type-only import of `ApprovalSource` from this
+// file, and going through the barrel would widen that erased type cycle into a
+// runtime one.
+import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval/approvalOutcome";
+import type { ApprovalOutcome } from "@phoenix/agent/shared/pendingApproval/approvalOutcome";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 export type ApprovalSource = "user" | "auto";
@@ -41,12 +47,12 @@ type EvaluatorSubmitHost = {
 };
 
 export type EvaluatorSubmitToolOutput =
-  | {
+  | ({
       status: "saved";
       persisted: true;
       acceptedBy: ApprovalSource;
       evaluator: { id: string; name: string };
-    }
+    } & ApprovalOutcome)
   | {
       status: "awaiting_user";
       persisted: false;
@@ -98,6 +104,7 @@ export function createEvaluatorSubmitClientAction<
       persisted: true,
       acceptedBy: result.acceptedBy,
       evaluator: result.evaluator,
+      ...approvalOutcome({ decision: "accepted", source: result.acceptedBy }),
     };
     return { ok: true, output: JSON.stringify(output) };
   };

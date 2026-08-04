@@ -1,3 +1,5 @@
+import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval";
+
 import {
   WRITE_PROMPT_TOOLS_NAVIGATION_CANCEL_ERROR,
   WRITE_PROMPT_TOOLS_TOOL_NAME,
@@ -67,6 +69,7 @@ export function bindPendingPromptToolWriteActions({
             approvalSource === "auto"
               ? "Prompt tool changes auto-approved."
               : "Prompt tool changes applied.",
+          ...approvalOutcome({ decision: "accepted", source: approvalSource }),
         },
       });
     },
@@ -80,6 +83,7 @@ export function bindPendingPromptToolWriteActions({
           status: "rejected",
           instanceId: pendingWrite.instanceId,
           message: "User rejected the proposed prompt tool changes.",
+          ...approvalOutcome({ decision: "rejected", source: "user" }),
         },
       });
     },

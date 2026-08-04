@@ -1,3 +1,5 @@
+import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval";
+
 import {
   EDIT_LLM_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
   EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
@@ -38,6 +40,7 @@ export function bindPendingLlmEvaluatorEditActions({
             approvalSource === "auto"
               ? "LLM-evaluator draft edit auto-approved."
               : "LLM-evaluator draft edit applied.",
+          ...approvalOutcome({ decision: "accepted", source: approvalSource }),
         },
       });
     },
@@ -50,6 +53,7 @@ export function bindPendingLlmEvaluatorEditActions({
         output: {
           status: "rejected",
           message: "User rejected the proposed LLM-evaluator draft edit.",
+          ...approvalOutcome({ decision: "rejected", source: "user" }),
         },
       });
     },

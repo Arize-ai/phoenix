@@ -1,3 +1,5 @@
+import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval";
+
 import {
   REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR,
   REMOVE_PROMPT_INSTANCE_TOOL_NAME,
@@ -42,6 +44,7 @@ export function bindPendingPromptInstanceRemovalActions({
             approvalSource === "auto"
               ? "Prompt instance removal auto-approved."
               : "Prompt instance removed.",
+          ...approvalOutcome({ decision: "accepted", source: approvalSource }),
         },
       });
     },
@@ -56,6 +59,7 @@ export function bindPendingPromptInstanceRemovalActions({
           instanceId: pendingRemoval.instanceId,
           label: pendingRemoval.label,
           message: "User rejected the prompt instance removal.",
+          ...approvalOutcome({ decision: "rejected", source: "user" }),
         },
       });
     },

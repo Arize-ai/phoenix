@@ -13,6 +13,8 @@ from openinference.semconv.trace import OpenInferenceMimeTypeValues, ToolCallAtt
 from opentelemetry.trace import Status, StatusCode, Tracer
 from pydantic_ai.tools import ToolDefinition
 
+from phoenix.server.agents.pydantic_ai.tool_spans._approval import approval_attributes
+
 
 class ToolSpanMixin:
     """Shared OpenInference ``TOOL``-span emission for tool-invocation wrappers.
@@ -52,6 +54,7 @@ class ToolSpanMixin:
 
             def set_output(result: Any) -> None:
                 span.set_attributes(get_output_attributes(result))
+                span.set_attributes(approval_attributes(result))
 
             yield set_output
             span.set_status(Status(StatusCode.OK))

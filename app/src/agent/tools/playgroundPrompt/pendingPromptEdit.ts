@@ -1,3 +1,5 @@
+import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval";
+
 import {
   EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
   EDIT_PROMPT_TOOL_NAME,
@@ -72,6 +74,7 @@ export function bindPendingPromptEditActions({
             approvalSource === "auto"
               ? "Prompt edit auto-approved."
               : "Prompt edit applied.",
+          ...approvalOutcome({ decision: "accepted", source: approvalSource }),
         },
       });
     },
@@ -85,6 +88,7 @@ export function bindPendingPromptEditActions({
           status: "rejected",
           instanceId: pendingEdit.instanceId,
           message: "User rejected the proposed prompt edit.",
+          ...approvalOutcome({ decision: "rejected", source: "user" }),
         },
       });
     },
