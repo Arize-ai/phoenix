@@ -31,10 +31,6 @@ import { validateMustacheSections } from "@phoenix/components/templateEditor/lan
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import {
-  findToolCallArguments,
-  findToolCallName,
-} from "@phoenix/schemas/toolCallSchemas";
 import type { ChatMessage, PlaygroundState } from "@phoenix/store";
 import { convertMessageToolCallsToProvider } from "@phoenix/store/playground/playgroundStoreUtils";
 import {
@@ -42,15 +38,12 @@ import {
   selectPlaygroundInstanceMessage,
 } from "@phoenix/store/playground/selectors";
 import { assertUnreachable } from "@phoenix/typeUtils";
-import {
-  toContentPreview,
-  toToolCallsPreview,
-} from "@phoenix/utils/contentPreviewUtils";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
 import type { AIMessageMode, MessageMode } from "./MessageContentRadioGroup";
 import { AIMessageContentRadioGroup } from "./MessageContentRadioGroup";
+import { getMessagePreview } from "./messagePreview";
 import { MessageRoleSelect } from "./MessageRoleSelect";
 import { PlaygroundChatTemplateFooter } from "./PlaygroundChatTemplateFooter";
 import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
@@ -65,25 +58,6 @@ import type { PlaygroundInstanceProps } from "./types";
  * that would clip autocomplete dropdowns.
  */
 const DRAGGING_MESSAGE_Z_INDEX = 10;
-
-/**
- * A one-line excerpt of a message for its card's collapsed header, so a
- * collapsed template still reads as the conversation it is.
- *
- * Tool calls win over content, matching how the card opens: `aiMessageMode`
- * starts on tool calls whenever the message has any, so a message carrying both
- * would otherwise preview text that the expanded card never puts on screen.
- */
-function getMessagePreview(message: ChatMessage): string | undefined {
-  return (
-    toToolCallsPreview(
-      (message.toolCalls ?? []).map((toolCall) => ({
-        name: findToolCallName(toolCall),
-        arguments: findToolCallArguments(toolCall),
-      }))
-    ) ?? toContentPreview(message.content)
-  );
-}
 
 interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {
   appendedMessagesPath?: string | null;
