@@ -101,7 +101,9 @@ until marked traces accumulate.
 
 `submit_code_evaluator_draft` and `submit_llm_evaluator_draft` remain
 unmeasured: they resolve as `awaiting_user` and the dialog's real decision is
-never written back as tool output, so there is no marker to read.
+never written back as tool output, so there is no marker to read. Tracked in
+[#15033](https://github.com/Arize-ai/phoenix/issues/15033) — until it is fixed,
+accept/reject rates exclude these two tools entirely.
 
 Preview it without writing anything:
 
