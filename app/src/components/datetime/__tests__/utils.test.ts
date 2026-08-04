@@ -5,6 +5,7 @@ import {
   getMillisecondsUntilNextLastNTimeRangeRefresh,
   getTimeRangeFromSearchParams,
   getTimeRangeFromLastNTimeRangeKey,
+  getTimeRangeSearch,
   getTimeRangeSearchSuggestions,
   isLastNTimeRangeKey,
   panTimeRangeLeft,
@@ -172,6 +173,39 @@ describe("datetime utils", () => {
     expect(presetParams.get("timeRangeStart")).toBeNull();
     expect(presetParams.get("timeRangeEnd")).toBeNull();
     expect(presetParams.get("selectedSpanNodeId")).toBe("span-1");
+  });
+
+  it("serializes the active time range into a search string for links", () => {
+    // A live range carries only its key so it stays live at the destination.
+    expect(
+      getTimeRangeSearch({
+        timeRangeKey: "1h",
+        ...getTimeRangeFromLastNTimeRangeKey(
+          "1h",
+          new Date("2026-06-09T10:20:30.000Z").getTime()
+        ),
+      })
+    ).toBe("?timeRangeKey=1h");
+
+    // A custom range carries its bounds verbatim.
+    expect(
+      getTimeRangeSearch({
+        timeRangeKey: "custom",
+        start: new Date("2026-06-09T09:00:00.000Z"),
+        end: new Date("2026-06-09T10:00:00.000Z"),
+      })
+    ).toBe(
+      "?timeRangeStart=2026-06-09T09%3A00%3A00.000Z&timeRangeEnd=2026-06-09T10%3A00%3A00.000Z"
+    );
+
+    // An open-sided custom range carries only its present bound.
+    expect(
+      getTimeRangeSearch({
+        timeRangeKey: "custom",
+        start: new Date("2026-06-09T09:00:00.000Z"),
+        end: null,
+      })
+    ).toBe("?timeRangeStart=2026-06-09T09%3A00%3A00.000Z");
   });
 });
 
