@@ -2000,11 +2000,7 @@ def create_agents_router(
         session_id: str,
         request: Request,
     ) -> GetAgentSessionResponseBody:
-        """Retrieve an owned session's metadata.
-
-        The transcript lives on the ``/messages`` subresource; this route is the
-        cheap synchronization probe clients poll while a session is idle.
-        """
+        """Retrieve an owned session's metadata."""
         if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
         if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():

@@ -185,9 +185,6 @@ export async function createAgentSession({
 
 /**
  * Fetch one page of a session's persisted transcript, oldest message first.
- *
- * The transcript is a paginated subresource of the session, so restoring a
- * session walks these pages until the server stops handing back a cursor.
  */
 async function fetchAgentSessionMessagesPage({
   client,
@@ -310,8 +307,6 @@ export function createPxiSessionClient({
     },
     async getSessionSyncState({ sessionId }): Promise<PxiSessionSyncState> {
       const client = createPhoenixClient({ config, fetch: fetchImpl });
-      // Cheap synchronization probe: session metadata only, so idle polling
-      // doesn't re-download the whole transcript.
       const { data: payload } = await client.GET(
         "/agents/{agent_id}/sessions/{session_id}",
         {
