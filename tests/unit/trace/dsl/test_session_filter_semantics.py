@@ -90,6 +90,9 @@ REJECTED: tuple[tuple[str, str], ...] = (
     ("session_id == str(1)", "casts a term, not a literal"),
     ("float('abc') > 1", "casts a term, not a literal"),
     ("float(any(s.name == 'x' for s in spans)) > 0", "cannot cast a condition"),
+    ("str(num_traces) == '1'", "cannot cast a number"),
+    ("float(session_id) > 1", "cannot cast text"),
+    ("str(start_time) == 'x'", "cannot cast a timestamp"),
     # -- Containment operands -----------------------------------------------------------------
     ("'x' in duration_ms", "`in` searches text or a list"),
     ("'x' in start_time", "`in` searches text or a list"),
@@ -170,7 +173,6 @@ ACCEPTED: tuple[str, ...] = (
     "start_time > '2026-07-01T00:00:00+00:00'",
     "end_time < '2027-01-01T00:00:00+00:00'",
     "start_time <= end_time",
-    "str(num_traces) == '1'",
     # Containment, including the empty-collection forms, whose Python meaning (always false /
     # always true) SQLAlchemy's empty-set rewrites carry to both dialects.
     "'corp' in session_id",

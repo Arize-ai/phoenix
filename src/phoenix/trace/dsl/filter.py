@@ -2813,7 +2813,14 @@ class _SemanticPolicy:
         argument = node.args[0]
         if isinstance(argument, ast.Constant):
             raise SyntaxError(f"`{func.id}(...)` casts a term, not a literal")
-        if (kind := self._kind(argument, scopes)) in ("boolean", "none", "text"):
+        if (kind := self._kind(argument, scopes)) in (
+            "boolean",
+            "none",
+            "text",
+            "string",
+            "float",
+            "datetime",
+        ):
             raise SyntaxError(
                 f"`{func.id}(...)` cannot cast {_KIND_NOUNS[kind]}: {ast.unparse(argument)}"
             )

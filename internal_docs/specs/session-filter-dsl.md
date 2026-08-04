@@ -288,9 +288,13 @@ compiled into something other than what its Python spelling says.
 - **Set literals are not accepted yet.** `x in {'a', 'b'}` is the idiomatic Python spelling and
   its absence is a real rough edge, deferred rather than resolved: admitting a rejected spelling
   later is purely additive, where withdrawing an accepted one is not.
-- **`float(...)` and `str(...)` cast a term; `int(...)` does not exist.** Both casts share one
-  numeric lowering, so `int(1.9)` would compare as `1.9` — the opposite of what the spelling
-  promises. Truncation can be implemented deliberately later.
+- **`float(...)` and `str(...)` cast an attribute value; `int(...)` does not exist.** A cast is
+  admitted only where its result agrees on SQLite and PostgreSQL. Already typed text, numbers,
+  timestamps, and conditions are rejected: for example, an integral float renders as `1.0` on
+  SQLite and `1` on PostgreSQL, so converting that number to text would silently select different
+  sessions. Root-span attributes remain castable because their stored type is not known until the
+  row is read. Both numeric casts share one lowering, so `int(1.9)` would compare as `1.9` — the
+  opposite of what the spelling promises. Truncation can be implemented deliberately later.
 - **Names are resolved strictly, including dotted ones.** `user.id` is the one accepted dotted
   shorthand; `usr.id` is a typo, not a request for an arbitrary attribute. The open dotted
   fallback would have quietly undone the did-you-mean protection every other name advertises,
