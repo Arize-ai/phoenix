@@ -522,11 +522,29 @@ function DSLFilterConditionFieldImpl<
     });
   };
 
+  // `selectAll` puts the whole draft under the caret so the next keystroke
+  // replaces it. Selection is dispatched separately from focus because
+  // `focus()` alone restores whatever selection the editor last had.
+  const focusEditor = ({ selectAll = false }: { selectAll?: boolean } = {}) => {
+    const editorView = editorViewRef.current;
+    if (editorView == null) {
+      return;
+    }
+    editorView.focus();
+    if (selectAll) {
+      editorView.dispatch({
+        selection: { anchor: 0, head: editorView.state.doc.length },
+      });
+    }
+  };
+
   const undoAIConversion = (query: string) => {
     onChange(query);
     setAIPhase(AI_SEARCH_IDLE);
     setIsAIMode(true);
-    editorViewRef.current?.focus();
+    // The point of undo is to get the query back for editing, so the caret
+    // stays put rather than selecting what the user just asked to restore
+    focusEditor();
   };
 
   const toggleAIMode = () => {
@@ -537,8 +555,12 @@ function DSLFilterConditionFieldImpl<
     } else if (aiPhase.name === "failed") {
       setAIPhase(AI_SEARCH_IDLE);
     }
-    setIsAIMode(!isAIMode);
-    editorViewRef.current?.focus();
+    const isTurningAIModeOn = !isAIMode;
+    setIsAIMode(isTurningAIModeOn);
+    // Turning the mode on selects the draft: whatever is in the field is DSL,
+    // and the user is switching modes to ask a question instead. Turning it
+    // off leaves the caret alone — that text is the expression being edited.
+    focusEditor({ selectAll: isTurningAIModeOn });
   };
 
   // The CodeMirror keymap must stay referentially stable (see the
