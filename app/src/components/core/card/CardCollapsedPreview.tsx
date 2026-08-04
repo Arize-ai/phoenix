@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { useCardIsCollapsed } from "./CardCollapsedContext";
+import { useCard } from "./CardContext";
 
 const cardCollapsedPreviewCSS = css`
   /* The card wraps header content in a block, and an inline box ignores
@@ -37,10 +37,10 @@ const cardCollapsedPreviewCSS = css`
  * a card without `interactiveTitle`, so it must not carry controls of its own.
  */
 export function CardCollapsedPreview({ children }: { children?: string }) {
-  const isCollapsed = useCardIsCollapsed();
+  const card = useCard();
   // An open card shows the real thing, so the excerpt only earns its place
-  // while the card is closed
-  if (!isCollapsed || !children) {
+  // while the card is closed — and outside a card there is no state to answer to
+  if (!card?.isCollapsed || !children) {
     return null;
   }
   return (

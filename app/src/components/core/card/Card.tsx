@@ -4,7 +4,7 @@ import { useEffect, useEffectEvent, useId, useState } from "react";
 import { Heading } from "../content";
 import { DisclosureArrow } from "../icon";
 import { useStyleProps, viewStyleProps } from "../utils";
-import { CardCollapsedProvider } from "./CardCollapsedContext";
+import { CardProvider } from "./CardContext";
 import { cardCSS } from "./styles";
 import type { CardProps } from "./types";
 
@@ -110,7 +110,7 @@ function Card({
   );
 
   return (
-    <CardCollapsedProvider isCollapsed={isCollapsed}>
+    <CardProvider isCollapsed={isCollapsed}>
       <section
         ref={ref}
         css={cardCSS(styleProps.style)}
@@ -149,7 +149,7 @@ function Card({
           {children}
         </div>
       </section>
-    </CardCollapsedProvider>
+    </CardProvider>
   );
 }
 
