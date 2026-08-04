@@ -5,6 +5,8 @@ from typing import Any, AsyncIterator, Union
 
 import httpx
 import pytest
+from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionChunk as OpenAIChatCompletionChunk
 from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.messages import (
     ModelMessage,
@@ -61,6 +63,16 @@ def build_model_spy(monkeypatch: pytest.MonkeyPatch) -> _BuildModelSpy:
     return spy
 
 
+@pytest.fixture
+def openai_client(httpx_client: httpx.AsyncClient) -> AsyncOpenAI:
+    return AsyncOpenAI(
+        base_url="http://test/v1",
+        api_key="sk-unused",  # the app under test runs with authentication disabled
+        http_client=httpx_client,
+        max_retries=0,  # surface the first response instead of retrying 5xx
+    )
+
+
 def _request_body(**overrides: Any) -> dict[str, Any]:
     body: dict[str, Any] = {
         "model": "anthropic:claude-sonnet-4-5",
@@ -77,24 +89,38 @@ def _data_events(sse_text: str) -> list[str]:
     return [line[len("data: ") :] for line in sse_text.splitlines() if line.startswith("data: ")]
 
 
+def _validated_chunks(sse_text: str) -> list[dict[str, Any]]:
+    events = _data_events(sse_text)
+    assert events[-1] == "[DONE]", events[-1]
+    payloads = [json.loads(event) for event in events[:-1]]
+    for payload in payloads:
+        OpenAIChatCompletionChunk.model_validate(payload)
+    return payloads
+
+
 class TestCreateChatCompletion:
     async def test_returns_openai_response_shape(
         self,
-        httpx_client: httpx.AsyncClient,
+        openai_client: AsyncOpenAI,
         build_model_spy: _BuildModelSpy,
     ) -> None:
-        response = await httpx_client.post("v1/chat/completions", json=_request_body())
-        assert response.status_code == 200, response.text
-        completion = response.json()
-        assert completion["id"].startswith("chatcmpl-")
-        assert completion["object"] == "chat.completion"
-        assert completion["model"] == "anthropic:claude-sonnet-4-5"
-        (choice,) = completion["choices"]
-        assert choice["index"] == 0
-        assert choice["message"] == {"role": "assistant", "content": _ANSWER}
-        assert choice["finish_reason"] == "stop"
-        usage = completion["usage"]
-        assert usage["total_tokens"] == usage["prompt_tokens"] + usage["completion_tokens"]
+        completion = await openai_client.chat.completions.create(
+            model="anthropic:claude-sonnet-4-5",
+            messages=[
+                {"role": "system", "content": "Translate the request into a filter expression."},
+                {"role": "user", "content": "llm spans"},
+            ],
+        )
+        assert completion.id.startswith("chatcmpl-")
+        assert completion.object == "chat.completion"
+        assert completion.model == "anthropic:claude-sonnet-4-5"
+        (choice,) = completion.choices
+        assert choice.index == 0
+        assert choice.message.role == "assistant"
+        assert choice.message.content == _ANSWER
+        assert choice.finish_reason == "stop"
+        assert (usage := completion.usage) is not None
+        assert usage.total_tokens == usage.prompt_tokens + usage.completion_tokens
 
     async def test_resolves_builtin_model_selection_and_messages(
         self,
@@ -172,9 +198,7 @@ class TestCreateChatCompletion:
         assert response.status_code == 200, response.text
         assert response.headers["content-type"].startswith("text/event-stream")
 
-        events = _data_events(response.text)
-        assert events[-1] == "[DONE]"
-        chunks = [json.loads(event) for event in events[:-1]]
+        chunks = _validated_chunks(response.text)
         assert all(chunk["object"] == "chat.completion.chunk" for chunk in chunks)
         assert all(chunk["model"] == "anthropic:claude-sonnet-4-5" for chunk in chunks)
         assert len({chunk["id"] for chunk in chunks}) == 1
@@ -200,10 +224,7 @@ class TestCreateChatCompletion:
         )
         assert response.status_code == 200, response.text
 
-        events = _data_events(response.text)
-        assert events[-1] == "[DONE]"
-        chunks = [json.loads(event) for event in events[:-1]]
-        *deltas, usage_chunk = chunks
+        *deltas, usage_chunk = _validated_chunks(response.text)
         assert all(chunk["usage"] is None for chunk in deltas)
         assert deltas[-1]["choices"][0]["finish_reason"] == "stop"
         assert usage_chunk["choices"] == []
@@ -226,10 +247,10 @@ class TestCreateChatCompletion:
     @pytest.mark.parametrize(
         "model",
         [
-            "gpt-4o",  # no provider prefix
-            "not-a-provider:gpt-4o",
-            "custom:only-an-id",
-            "openai:",
+            pytest.param("gpt-4o", id="no_provider_prefix"),
+            pytest.param("not-a-provider:gpt-4o", id="unrecognized_provider"),
+            pytest.param("custom:only-an-id", id="custom_without_model_name"),
+            pytest.param("openai:", id="empty_model_name"),
         ],
     )
     async def test_unknown_model_returns_openai_error(

@@ -2308,8 +2308,7 @@ _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS = (
 
 
 # POST endpoints that write nothing and are intentionally available to every
-# authenticated role, viewers included — e.g. the OpenAI-compatible LLM proxy,
-# which powers read features like AI search.
+# authenticated role, viewers included
 _VIEWER_ALLOWED_WRITE_OPERATIONS = ((422, "POST", "v1/chat/completions"),)
 
 
