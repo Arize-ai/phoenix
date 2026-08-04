@@ -88,9 +88,10 @@ describe("Card", () => {
     });
   });
 
-  // CardCollapsedPreview hides itself off this attribute rather than off a prop,
-  // so the card has to keep publishing its state to the DOM
-  it("publishes whether it is collapsed for its header content to style off", () => {
+  // CardCollapsedPreview hides itself off this attribute rather than off a
+  // prop, so it is a contract with header content and not an implementation
+  // detail — a card that stopped emitting it would break the preview silently
+  it("keeps data-collapsed on its root for header content to style off", () => {
     render(
       <Card title="user" collapsible headerContent={<span>preview</span>}>
         body

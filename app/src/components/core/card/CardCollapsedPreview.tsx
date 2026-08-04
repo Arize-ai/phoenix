@@ -1,8 +1,10 @@
 import { css } from "@emotion/react";
 
 const cardCollapsedPreviewCSS = css`
-  flex: 1 1 auto;
-  min-width: 0;
+  /* The card wraps header content in a block, and an inline box ignores
+     overflow — without this the excerpt lays itself out at full width and gets
+     hard-clipped by the header instead of ending in an ellipsis */
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
