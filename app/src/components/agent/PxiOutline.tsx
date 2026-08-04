@@ -8,6 +8,7 @@ import {
   aiGlowBreathe,
   aiGlowFlashOpacity,
   aiGlowWipe,
+  aiGlowWipeContinuousCSS,
   aiGlowWipeMaskCSS,
 } from "@phoenix/components/ai/glow";
 import type { StylableProps } from "@phoenix/components/core/types";
@@ -96,8 +97,11 @@ const outlineCSS = css`
     opacity: 0;
   }
 
+  /* Eligible keeps the band's subtle rotation running at resting opacity
+     so an engaged-but-idle target still reads as alive */
   &[data-state="eligible"] .pxi-outline__stroke {
     opacity: 0.64;
+    animation-play-state: running;
   }
 
   &[data-state="active"] .pxi-outline__stroke {
@@ -105,10 +109,11 @@ const outlineCSS = css`
     animation-play-state: running;
   }
 
+  /* Active gets the PXI thinking glow: the breathing glow clipped by the
+     traveling wipe, matching PxiButton's working state */
   &[data-state="active"] .pxi-outline__glow {
     opacity: 1;
-    -webkit-mask-image: none;
-    mask-image: none;
+    ${aiGlowWipeContinuousCSS};
   }
 
   &[data-state="active"] .pxi-outline__glow::before {

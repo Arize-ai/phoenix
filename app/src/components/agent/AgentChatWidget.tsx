@@ -18,8 +18,8 @@ import {
   aiGlowBreathe,
   aiGlowFlashOpacity,
   aiGlowWipe,
+  aiGlowWipeContinuousCSS,
   aiGlowWipeMaskCSS,
-  aiGlowWipeContinuous,
 } from "@phoenix/components/ai/glow";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
@@ -152,11 +152,7 @@ const thinkingBorderCSS = css`
     mix-blend-mode: plus-lighter;
     pointer-events: none;
     opacity: 1;
-    -webkit-mask-position: center;
-    mask-position: center;
-    /* Preserve the original 200% / 3000ms velocity across the full 240% path. */
-    animation: ${aiGlowWipeContinuous} var(--ai-glow-wipe-continuous-duration)
-      linear infinite both var(--ai-glow-wipe-continuous-delay);
+    ${aiGlowWipeContinuousCSS};
   }
 
   .agent-chat-widget__shimmer::before {
