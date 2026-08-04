@@ -25,7 +25,7 @@ const cardFootnoteCSS = css`
 `;
 
 /**
- * The fine print at the bottom of an AI search settings card — a rule, an
+ * The fine print at the bottom of an AI query settings card — a rule, an
  * icon that names the kind of note (privacy, informational), and the note
  * itself. Both cards on the generative AI page use it so their footers
  * align.

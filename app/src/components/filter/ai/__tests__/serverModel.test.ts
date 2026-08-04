@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { toServerModelId } from "../serverModel";
 
 // The model id format is the wire contract with the Phoenix server's
-// /v1/chat/completions endpoint — a drift here silently breaks AI search.
+// /v1/chat/completions endpoint — a drift here silently breaks AI query.
 describe("toServerModelId", () => {
   it("encodes built-in providers as lowercase provider:model", () => {
     expect(

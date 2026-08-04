@@ -1,6 +1,6 @@
 import type { Completion } from "@codemirror/autocomplete";
 
-import { createAISearchDSL } from "@phoenix/components/filter/ai/createAISearchDSL";
+import { createAIQueryDSL } from "@phoenix/components/filter/ai/createAIQueryDSL";
 import type { DSLFilterSnippet } from "@phoenix/components/filter/DSLFilterConditionField";
 
 import {
@@ -10,14 +10,14 @@ import {
 
 /**
  * The span filter DSL vocabulary: the fields the typeahead completes, the
- * example snippets it suggests, and the AI search DSL derived from both.
- * Kept free of React and CodeMirror runtime imports so the AI search eval
+ * example snippets it suggests, and the AI query DSL derived from both.
+ * Kept free of React and CodeMirror runtime imports so the AI query eval
  * suite can exercise the exact production DSL from Node.
  */
 
 /**
  * The core fields of the span filter DSL that an expression can reference.
- * These double as the vocabulary taught to the AI search model, so each
+ * These double as the vocabulary taught to the AI query model, so each
  * `info` string should describe the field well enough to translate plain
  * language into it.
  */
@@ -111,6 +111,14 @@ export const coreSpanFilterCompletions: Completion[] = [
     type: "variable",
     detail: "evaluations by name",
     info: "Span evaluations, accessed by name - e.x. evals['Hallucination'].label",
+  },
+  {
+    // Referenced by the "filter by model name" snippet and by the AI query
+    // examples, so it belongs in the vocabulary both read from.
+    label: "llm.model_name",
+    type: "variable",
+    detail: "model of an LLM span",
+    info: "The model an LLM span called, e.x. gpt-4o. Shorthand for attributes['llm']['model_name'].",
   },
   {
     label: "llm.token_count.prompt",
@@ -232,20 +240,101 @@ export const spanFilterSnippets: DSLFilterSnippet[] = [
 ];
 
 /**
- * Everything the AI search model needs to translate plain language into the
- * span filter DSL — the same vocabulary and examples that power the
- * typeahead, so the two can never drift apart. The OpenInference attribute
- * expansion is deliberately summarized as a note instead of enumerated:
- * hundreds of attribute paths would blow past the on-device model's small
- * context window without teaching it anything the subscript idiom doesn't.
+ * Requests phrased the way someone troubleshooting an agent phrases them,
+ * paired with the expression each should produce. These teach idiom
+ * selection — which of two near-synonymous fields to reach for, when a
+ * substring beats an equality, how a missing value is tested — which the
+ * field list alone cannot convey. The snippet labels these replace read as
+ * menu entries ("filter by errors") rather than as anything a user types.
+ *
+ * Deliberately disjoint in surface content from `spanFilterCases` in the
+ * eval suite: an example that reuses a case's literals turns that case into
+ * a recall test and stops measuring translation.
  */
-export const spanFilterAISearchDSL = createAISearchDSL({
+const spanFilterAIExamples = [
+  { description: "errors", expression: "status_code == 'ERROR'" },
+  {
+    description: "LLM calls slower than 5 seconds",
+    expression: "span_kind == 'LLM' and latency_ms > 5000",
+  },
+  {
+    description: "spans that ran on openai",
+    expression: "attributes['llm']['provider'] == 'openai'",
+  },
+  {
+    description: "gpt-4o calls that failed",
+    expression: "llm.model_name == 'gpt-4o' and status_code == 'ERROR'",
+  },
+  {
+    description: "inputs that mention a refund",
+    expression: "'refund' in input.value",
+  },
+  { description: "root spans", expression: STRICT_ROOT_SPANS_CONDITION },
+  {
+    description: "spans whose parent never made it into Phoenix",
+    expression: ORPHAN_AWARE_ROOT_SPANS_CONDITION,
+  },
+  {
+    description: "chain or agent spans",
+    expression: "span_kind in ['CHAIN', 'AGENT']",
+  },
+  {
+    description: "prompts between 1000 and 4000 tokens",
+    expression: "1000 < llm.token_count.prompt < 4000",
+  },
+  {
+    description: "traces that burned more than 10k tokens overall",
+    expression: "cumulative_token_count.total > 10_000",
+  },
+  {
+    description: "answers the Hallucination eval flagged",
+    expression: "annotations['Hallucination'].label == 'hallucinated'",
+  },
+  {
+    description: "a quality score of at least 0.5",
+    expression: "annotations['quality'].score >= 0.5",
+  },
+  {
+    description: "spans nobody scored for quality",
+    expression: "not annotations['quality']",
+  },
+  {
+    description: "spans tagged with the billing topic",
+    expression: "metadata['topic'] == 'billing'",
+  },
+  {
+    description: "spans with no user id recorded",
+    expression: "metadata['user_id'] is None",
+  },
+  {
+    description: "retriever or tool spans, but not timeouts",
+    expression:
+      "(span_kind == 'RETRIEVER' or span_kind == 'TOOL') and not ('timeout' in status_message)",
+  },
+];
+
+/**
+ * Everything the AI query model needs to translate plain language into the
+ * span filter DSL. The field vocabulary is the typeahead's, so the two can
+ * never drift apart; the examples are written for translation rather than
+ * borrowed from the snippet menu. The OpenInference attribute expansion is
+ * deliberately summarized as a note instead of enumerated: hundreds of
+ * attribute paths would blow past the on-device model's small context window
+ * without teaching it anything the subscript idiom doesn't.
+ */
+export const spanFilterAIQueryDSL = createAIQueryDSL({
   noun: "spans",
   completions: coreSpanFilterCompletions,
   snippets: spanFilterSnippets,
+  examples: spanFilterAIExamples,
   notes: [
+    "span_kind and status_code hold uppercase values: 'LLM', 'CHAIN', 'RETRIEVER', 'TOOL', 'EMBEDDING', 'AGENT'; 'OK', 'UNSET', 'ERROR'.",
+    "Durations are in milliseconds: 5 seconds is latency_ms > 5000, two minutes is latency_ms > 120000.",
+    "attributes and metadata are read by subscript and nest by chaining, e.g. attributes['llm']['provider'] == 'openai'. Span attributes follow OpenInference semantic conventions (llm.model_name, llm.provider, tool.name, retrieval.documents, embedding.model_name, session.id, ...), each also writable in dotted form, e.g. llm.model_name.",
+    "A dotted path never goes inside one subscript: attributes['llm.provider'] matches nothing. Chain the keys — attributes['llm']['provider'] — or write the bare dotted form.",
+    "annotations['name'] and evals['name'] are the same accessor and expose .score, .label, and .explanation. Written bare, annotations['name'] tests whether that annotation exists on the span at all.",
+    "llm.token_count.* counts a single LLM span; cumulative_token_count.* sums the span and every descendant, which is what a whole trace costs.",
+    "A field may be tested against a list — span_kind in ['LLM', 'TOOL'] — and a range may be chained — 1000 < latency_ms < 5000.",
     `Root spans are selected with \`${STRICT_ROOT_SPANS_CONDITION}\`.`,
-    "attributes and metadata are accessed by subscript, e.g. attributes['llm']['provider'] == 'openai'. Span attributes follow OpenInference semantic conventions (llm.model_name, llm.provider, retrieval.documents, embedding.model_name, tool.name, ...).",
-    "Durations are in milliseconds, e.g. 5 seconds is latency_ms > 5000.",
   ],
 });

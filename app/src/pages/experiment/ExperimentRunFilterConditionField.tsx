@@ -4,10 +4,10 @@ import { useSearchParams } from "react-router";
 import { fetchQuery, graphql } from "relay-runtime";
 
 import {
-  createAISearchDSL,
+  createAIQueryDSL,
   createAnnotationMemberCompletions,
   DSLFilterConditionField,
-  type DSLFilterAISearchProps,
+  type DSLFilterAIQueryProps,
   type DSLFilterSnippet,
 } from "@phoenix/components/filter";
 import environment from "@phoenix/RelayEnvironment";
@@ -116,12 +116,12 @@ const experimentRunFilterSnippets: DSLFilterSnippet[] = [
 ];
 
 /**
- * Everything the AI search model needs to translate plain language into the
+ * Everything the AI query model needs to translate plain language into the
  * experiment run filter DSL — derived from the same vocabulary and examples
  * that power the typeahead, so the two can never drift apart.
  */
-const experimentRunFilterAISearch: DSLFilterAISearchProps = {
-  dsl: createAISearchDSL({
+const experimentRunFilterAIQuery: DSLFilterAIQueryProps = {
+  dsl: createAIQueryDSL({
     noun: "experiment runs",
     completions: experimentRunFilterCompletions,
     snippets: experimentRunFilterSnippets,
@@ -130,7 +130,6 @@ const experimentRunFilterAISearch: DSLFilterAISearchProps = {
       "When experiments are compared side by side, experiments[i] scopes an expression to the i-th experiment, e.g. experiments[0].evals['name'].score.",
     ],
   }),
-  placeholder: "describe a run filter — Enter converts it to DSL",
 };
 
 /**
@@ -259,7 +258,7 @@ export function ExperimentRunFilterConditionField(
       loadCompletions={loadEvaluationCompletions}
       validateCondition={validateCondition}
       onValidCondition={onValidCondition}
-      aiSearch={experimentRunFilterAISearch}
+      aiQuery={experimentRunFilterAIQuery}
     />
   );
 }

@@ -120,7 +120,7 @@ describe("search destinations", () => {
       {
         path: "/profile/generative-ai",
         label: "Generative AI",
-        description: "AI search and model configuration",
+        description: "AI query and model configuration",
         icon: "Sparkles",
         requiresViewer: false,
       },

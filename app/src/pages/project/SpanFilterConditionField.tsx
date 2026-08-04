@@ -7,7 +7,7 @@ import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAge
 import {
   createAnnotationMemberCompletions,
   DSLFilterConditionField,
-  type DSLFilterAISearchProps,
+  type DSLFilterAIQueryProps,
   type DSLFilterValidationFailureReason,
   type DSLFilterValidConditionArgs,
   useDSLFilterConditionHistory,
@@ -19,7 +19,7 @@ import type { SpanFilterConditionFieldCompletionsQuery } from "./__generated__/S
 import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
 import {
   coreSpanFilterCompletions,
-  spanFilterAISearchDSL,
+  spanFilterAIQueryDSL,
   spanFilterSnippets,
 } from "./spanFilterDSL";
 import { useSpanFilters } from "./SpanFiltersContext";
@@ -41,9 +41,8 @@ const spanFilterCompletionSources = [
   openInferenceAttributeValueCompletionSource,
 ];
 
-const spanFilterAISearch: DSLFilterAISearchProps = {
-  dsl: spanFilterAISearchDSL,
-  placeholder: "describe a span filter — Enter converts it to DSL",
+const spanFilterAIQuery: DSLFilterAIQueryProps = {
+  dsl: spanFilterAIQueryDSL,
 };
 
 /**
@@ -215,7 +214,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       onValidationFailed={onValidationFailed}
       validationRetryKey={validationRetryKey}
       onValidationStateChange={setIsConditionValid}
-      aiSearch={spanFilterAISearch}
+      aiQuery={spanFilterAIQuery}
     />
   );
 }

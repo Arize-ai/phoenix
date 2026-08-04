@@ -6,7 +6,7 @@ import { fn } from "storybook/test";
 import { Flex, Text, View } from "@phoenix/components";
 import type { DSLFilterSnippet } from "@phoenix/components/filter";
 import {
-  createAISearchDSL,
+  createAIQueryDSL,
   createAnnotationMemberCompletions,
   DSLFilterConditionField,
   type DSLFilterConditionFieldProps,
@@ -14,7 +14,7 @@ import {
 import { PreferencesProvider } from "@phoenix/contexts";
 import { CredentialsProvider } from "@phoenix/contexts/CredentialsContext";
 
-import { AISearchRelayEnvironment } from "./utils/aiSearchRelayEnvironment";
+import { AIQueryRelayEnvironment } from "./utils/aiQueryRelayEnvironment";
 
 /**
  * An example DSL vocabulary: the fields an expression can reference
@@ -104,12 +104,12 @@ const meta: Meta<typeof DSLFilterConditionField> = {
   title: "Filter/DSLFilterConditionField",
   component: DSLFilterConditionField,
   decorators: [
-    // The AI search settings popover's model picker loads providers over
+    // The AI query settings popover's model picker loads providers over
     // Relay; the stories answer it with a canned catalog
     (Story) => (
-      <AISearchRelayEnvironment>
+      <AIQueryRelayEnvironment>
         <Story />
-      </AISearchRelayEnvironment>
+      </AIQueryRelayEnvironment>
     ),
   ],
   parameters: {
@@ -162,7 +162,7 @@ export const Default = {
   render: Template,
 };
 
-function AISearchTemplate(args: DSLFilterConditionFieldProps) {
+function AIQueryTemplate(args: DSLFilterConditionFieldProps) {
   const [value, setValue] = useState<string>("");
   const [validCondition, setValidCondition] = useState<string>("");
   return (
@@ -177,8 +177,8 @@ function AISearchTemplate(args: DSLFilterConditionFieldProps) {
             snippets={snippets}
             validateCondition={validateCondition}
             onValidCondition={(args) => setValidCondition(args.condition)}
-            aiSearch={{
-              dsl: createAISearchDSL({
+            aiQuery={{
+              dsl: createAIQueryDSL({
                 noun: "records",
                 completions,
                 snippets,
@@ -199,16 +199,16 @@ function AISearchTemplate(args: DSLFilterConditionFieldProps) {
 }
 
 /**
- * The field with AI search available but not yet enabled: only the gear
+ * The field with AI query available but not yet enabled: only the gear
  * shows, whose settings dropdown reports the feature is off and links to
  * the Generative AI page where it can be enabled. The next story seeds the
  * feature on to demonstrate the sparkle mode toggle.
  */
-export const WithAISearch: StoryFn<DSLFilterConditionFieldProps> =
-  AISearchTemplate;
+export const WithAIQuery: StoryFn<DSLFilterConditionFieldProps> =
+  AIQueryTemplate;
 
 /**
- * The field with AI search enabled, showing the sparkle mode toggle beside
+ * The field with AI query enabled, showing the sparkle mode toggle beside
  * the gear. The sparkle switches the field into plain-English mode: prose
  * input with no DSL affordances (no typeahead, syntax highlighting, or
  * validation), the PXI treatment on the border, and a sparkle leading icon
@@ -217,11 +217,11 @@ export const WithAISearch: StoryFn<DSLFilterConditionFieldProps> =
  * lands the field back in DSL mode showing the generated expression; undo
  * (or Escape) restores your words and returns to plain-English mode.
  */
-export const WithAISearchEnabled: StoryFn<DSLFilterConditionFieldProps> = (
+export const WithAIQueryEnabled: StoryFn<DSLFilterConditionFieldProps> = (
   args
 ) => (
-  <PreferencesProvider isAISearchEnabled>
-    <AISearchTemplate {...args} />
+  <PreferencesProvider isAIQueryEnabled>
+    <AIQueryTemplate {...args} />
   </PreferencesProvider>
 );
 

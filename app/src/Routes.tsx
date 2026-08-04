@@ -281,12 +281,12 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Profile Generative AI",
                 description:
-                  "Configure generative AI features: enable AI search for filter fields, choose the model — your browser's built-in on-device AI or a model provider with an API key — and manage the on-device model (download status, download it ahead of time, how to remove it).",
+                  "Configure generative AI features: enable AI query for filter fields, choose the model — your browser's built-in on-device AI or a model provider with an API key — and manage the on-device model (download status, download it ahead of time, how to remove it).",
               },
               navigation: {
                 section: "Profile",
                 label: "Generative AI",
-                description: "AI search and model configuration",
+                description: "AI query and model configuration",
                 icon: "Sparkles",
               },
             }}
@@ -976,7 +976,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "AI Providers",
                 description:
-                  "Configure AI providers, custom providers, provider credentials, base URLs, default model, provider headers, and AI search (natural-language filter conditions using Browser AI or a model provider).",
+                  "Configure AI providers, custom providers, provider credentials, base URLs, default model, provider headers, and AI query (natural-language filter conditions using Browser AI or a model provider).",
               },
             }}
           />

@@ -2,7 +2,7 @@ import * as px from "@arizeai/phoenix-client/vitest";
 import { describe, expect, it } from "vitest";
 
 import { generateFilterCondition } from "@phoenix/components/filter/ai/generateFilterCondition";
-import { spanFilterAISearchDSL } from "@phoenix/pages/project/spanFilterDSL";
+import { spanFilterAIQueryDSL } from "@phoenix/pages/project/spanFilterDSL";
 
 import { createFilterEquivalenceJudge } from "./equivalenceJudge";
 import {
@@ -18,7 +18,7 @@ import { spanFilterCases } from "./spanFilterCases";
 import "./telemetry";
 
 /**
- * Hill-climbing harness for the AI search prompt (`buildAISearchPrompt`):
+ * Hill-climbing harness for the AI query prompt (`buildAIQueryPrompt`):
  * every model in the matrix translates the same natural-language requests
  * into the production span filter DSL, and each suite passes only when its
  * `filter_correct` rate clears the model's bar. Correctness is code-first —
@@ -28,14 +28,14 @@ import "./telemetry";
  */
 
 if (!googleApiKey) {
-  describe("AI search span filter prompt", () => {
+  describe("AI query span filter prompt", () => {
     it.skip("needs GOOGLE_GENERATIVE_AI_API_KEY (or GEMINI_API_KEY) to run", () => {});
   });
 }
 
 const judge = createFilterEquivalenceJudge({
   model: createGoogleEvalModel(JUDGE_MODEL_ID),
-  dsl: spanFilterAISearchDSL,
+  dsl: spanFilterAIQueryDSL,
 });
 
 const rows = spanFilterCases.map((evalCase) => ({
@@ -46,14 +46,14 @@ const rows = spanFilterCases.map((evalCase) => ({
 
 for (const evalModel of googleApiKey ? GOOGLE_EVAL_MODELS : []) {
   px.describe(
-    `AI search span filter prompt · ${evalModel.modelId}`,
+    `AI query span filter prompt · ${evalModel.modelId}`,
     () => {
       px.test.each(rows)(
         (row) => row.id ?? row.input.query,
         async ({ input, expected }) => {
           const expression = await generateFilterCondition({
             model: createGoogleEvalModel(evalModel.modelId),
-            dsl: spanFilterAISearchDSL,
+            dsl: spanFilterAIQueryDSL,
             query: input.query,
           });
           px.logOutput({ expression });
@@ -95,9 +95,9 @@ for (const evalModel of googleApiKey ? GOOGLE_EVAL_MODELS : []) {
       );
     },
     {
-      datasetName: "ai-search-span-filter-prompt",
+      datasetName: "ai-query-span-filter-prompt",
       description:
-        "Natural-language requests translated into the span filter DSL by the AI search prompt",
+        "Natural-language requests translated into the span filter DSL by the AI query prompt",
       metadata: {
         model: evalModel.modelId,
         simulates: evalModel.simulates,

@@ -274,7 +274,7 @@ export const Empty: Story = {
 /**
  * Leading items — standalone model sources that are not providers — are
  * listed above the provider list and selected directly, with an optional
- * trailing annotation. AI search uses this to offer Browser AI — the
+ * trailing annotation. AI query uses this to offer Browser AI — the
  * browser's built-in on-device model, named for the model it actually runs
  * ("Gemini Nano" in Chrome, "Phi" in Edge) — alongside the hosted providers.
  */

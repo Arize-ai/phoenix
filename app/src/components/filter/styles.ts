@@ -154,7 +154,7 @@ const errorBadgeIn = keyframes`
 /**
  * Sizes the PxiOutline wrapper like the bare field used to size itself and
  * silences the outline's resting stroke — the field should look untouched
- * until AI search actually engages (a natural-language draft or an
+ * until AI query actually engages (a natural-language draft or an
  * in-flight conversion).
  */
 export const dslFilterAIOutlineCSS = css`

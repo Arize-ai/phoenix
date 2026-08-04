@@ -20,14 +20,14 @@ import {
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import { CardFootnote } from "./CardFootnote";
-import { resolveAISearchModelConfig } from "./types";
-import { toErrorMessage } from "./useAISearch";
+import { resolveAIQueryModelConfig } from "./types";
+import { toErrorMessage } from "./useAIQuery";
 
 /**
  * Management surface for Browser AI — the browser's built-in on-device
  * model: whether it is downloaded, a way to download it ahead of first use
  * (with live progress, joining a download already in flight), and how to
- * remove it. Selecting Browser AI for AI search happens in the AI Search
+ * remove it. Selecting Browser AI for AI query happens in the AI Query
  * card's model picker, not here — this card only reports whether it is in
  * use. The browser owns the download and shares it across every site that
  * uses on-device AI, so removal happens in the browser's own settings —
@@ -35,14 +35,14 @@ import { toErrorMessage } from "./useAISearch";
  */
 export function BrowserModelCard() {
   const builtInModel = getBrowserBuiltInModel();
-  const isAISearchEnabled = usePreferencesContext(
-    (state) => state.isAISearchEnabled
+  const isAIQueryEnabled = usePreferencesContext(
+    (state) => state.isAIQueryEnabled
   );
   const modelConfig = usePreferencesContext(
-    (state) => state.aiSearchModelConfig
+    (state) => state.aiQueryModelConfig
   );
-  const isSelectedForAISearch =
-    resolveAISearchModelConfig(modelConfig).kind === "browser";
+  const isSelectedForAIQuery =
+    resolveAIQueryModelConfig(modelConfig).kind === "browser";
   const probedAvailability = useBrowserModelAvailability();
   // Local override once this card starts (or joins) a download — the probe
   // stays a pure read of the Prompt API
@@ -53,7 +53,7 @@ export function BrowserModelCard() {
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
   // Downloading is driven off the availability state so that a download
-  // already in flight (e.g. kicked off by a first search, or by another
+  // already in flight (e.g. kicked off by a first query, or by another
   // tab) is joined on mount and reports progress here too
   useEffect(() => {
     if (availability !== "downloading") {
@@ -89,7 +89,7 @@ export function BrowserModelCard() {
           <Text size="S" color="text-700">
             This browser has no built-in AI model, so Browser AI is unavailable
             here. Use a browser with on-device AI, such as Chrome, or choose a
-            model provider in the AI Search settings above.
+            model provider in the AI Query settings above.
           </Text>
         </View>
       </Card>
@@ -133,7 +133,7 @@ export function BrowserModelCard() {
         return (
           <Flex direction="column" gap="size-100" alignItems="start">
             <Text size="XS" color="text-700">
-              AI search downloads the model automatically the first time you run
+              AI query downloads the model automatically the first time you run
               a search with Browser AI selected, or you can download it now. It
               is a one-time, multi-gigabyte download.
             </Text>
@@ -187,11 +187,11 @@ export function BrowserModelCard() {
           </Text>
           {renderStatusDetail()}
           <Text size="XS" color="text-700">
-            {!isAISearchEnabled
-              ? "Not in use — AI Search is turned off."
-              : isSelectedForAISearch
-                ? "In use by AI Search — filter fields translate natural language with this model."
-                : "Not in use — AI Search is set to a different model."}
+            {!isAIQueryEnabled
+              ? "Not in use — AI Query is turned off."
+              : isSelectedForAIQuery
+                ? "In use by AI Query — filter fields translate natural language with this model."
+                : "Not in use — AI Query is set to a different model."}
           </Text>
           <CardFootnote icon={<Icon svg={<Icons.Info />} />}>
             Phoenix can’t delete the model — {browserName} owns the download.

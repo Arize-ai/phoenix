@@ -1,13 +1,13 @@
 import { Flex } from "@phoenix/components";
 import {
-  AISearchSettingsCard,
+  AIQuerySettingsCard,
   BrowserModelCard,
 } from "@phoenix/components/filter";
 
 export function ProfileGenerativeAIPage() {
   return (
     <Flex direction="column" gap="size-200">
-      <AISearchSettingsCard />
+      <AIQuerySettingsCard />
       <BrowserModelCard />
     </Flex>
   );

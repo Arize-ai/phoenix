@@ -1,27 +1,27 @@
 import type { Meta, StoryFn } from "@storybook/react";
 
 import { View } from "@phoenix/components";
-import { AISearchSettingsCard } from "@phoenix/components/filter";
+import { AIQuerySettingsCard } from "@phoenix/components/filter";
 import { PreferencesProvider } from "@phoenix/contexts";
 import { CredentialsProvider } from "@phoenix/contexts/CredentialsContext";
 
-import { AISearchRelayEnvironment } from "./utils/aiSearchRelayEnvironment";
+import { AIQueryRelayEnvironment } from "./utils/aiQueryRelayEnvironment";
 
 /**
- * The AI search configuration as a settings card — the same form the filter
+ * The AI query configuration as a settings card — the same form the filter
  * field's gear popover shows, as it appears on the profile's Generative AI
  * page. Every surface reads and writes the same persisted preference.
  */
-const meta: Meta<typeof AISearchSettingsCard> = {
-  title: "Filter/AISearchSettingsCard",
-  component: AISearchSettingsCard,
+const meta: Meta<typeof AIQuerySettingsCard> = {
+  title: "Filter/AIQuerySettingsCard",
+  component: AIQuerySettingsCard,
   decorators: [
     // The model picker loads providers over Relay; the stories answer it
     // with a canned catalog
     (Story) => (
-      <AISearchRelayEnvironment>
+      <AIQueryRelayEnvironment>
         <Story />
-      </AISearchRelayEnvironment>
+      </AIQueryRelayEnvironment>
     ),
   ],
 };
@@ -37,20 +37,20 @@ export default meta;
 export const Default: StoryFn = () => (
   <CredentialsProvider>
     <View width="600px">
-      <AISearchSettingsCard />
+      <AIQuerySettingsCard />
     </View>
   </CredentialsProvider>
 );
 
 /**
- * Seeded with AI search enabled so the model choice renders without
+ * Seeded with AI query enabled so the model choice renders without
  * flipping the switch first.
  */
 export const Enabled: StoryFn = () => (
-  <PreferencesProvider isAISearchEnabled>
+  <PreferencesProvider isAIQueryEnabled>
     <CredentialsProvider>
       <View width="600px">
-        <AISearchSettingsCard />
+        <AIQuerySettingsCard />
       </View>
     </CredentialsProvider>
   </PreferencesProvider>

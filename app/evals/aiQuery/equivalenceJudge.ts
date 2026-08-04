@@ -1,7 +1,7 @@
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import type { LanguageModel } from "ai";
 
-import type { AISearchDSL } from "@phoenix/components/filter/ai/types";
+import type { AIQueryDSL } from "@phoenix/components/filter/ai/types";
 
 import { evalTracer } from "./telemetry";
 
@@ -25,7 +25,7 @@ export function createFilterEquivalenceJudge({
   dsl,
 }: {
   model: LanguageModel;
-  dsl: AISearchDSL;
+  dsl: AIQueryDSL;
 }) {
   const fieldLines = dsl.fields
     .map((field) =>

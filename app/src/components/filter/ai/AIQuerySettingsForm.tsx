@@ -4,12 +4,12 @@ import { Flex, Icon, Icons, Label, Loading, Text } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
-import { AISearchModelPicker } from "./AISearchModelPicker";
+import { AIQueryModelPicker } from "./AIQueryModelPicker";
 import { CardFootnote } from "./CardFootnote";
-import { resolveAISearchModelConfig } from "./types";
+import { resolveAIQueryModelConfig } from "./types";
 
 /**
- * The AI search configuration for the settings and profile cards: the
+ * The AI query configuration for the settings and profile cards: the
  * feature description and, when the feature is enabled, the model choice —
  * one picker offering Browser AI (the on-device built-in model, the default
  * where available) alongside providers called through the Phoenix server
@@ -18,13 +18,13 @@ import { resolveAISearchModelConfig } from "./types";
  * compact dropdown instead. All surfaces read and write the same persisted
  * preference.
  */
-export function AISearchSettingsForm() {
-  const isEnabled = usePreferencesContext((state) => state.isAISearchEnabled);
-  const modelConfig = resolveAISearchModelConfig(
-    usePreferencesContext((state) => state.aiSearchModelConfig)
+export function AIQuerySettingsForm() {
+  const isEnabled = usePreferencesContext((state) => state.isAIQueryEnabled);
+  const modelConfig = resolveAIQueryModelConfig(
+    usePreferencesContext((state) => state.aiQueryModelConfig)
   );
   const setModelConfig = usePreferencesContext(
-    (state) => state.setAISearchModelConfig
+    (state) => state.setAIQueryModelConfig
   );
   return (
     <Flex direction="column" gap="size-150">
@@ -37,7 +37,7 @@ export function AISearchSettingsForm() {
           <div css={fieldBaseCSS}>
             <Label>Model</Label>
             <Suspense fallback={<Loading size="S" />}>
-              <AISearchModelPicker
+              <AIQueryModelPicker
                 config={modelConfig}
                 onConfigChange={setModelConfig}
               />

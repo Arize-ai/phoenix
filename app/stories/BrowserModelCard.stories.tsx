@@ -30,14 +30,14 @@ export const Default: StoryFn = () => (
 );
 
 /**
- * Seeded with AI search already enabled and pointed at the browser model,
+ * Seeded with AI query already enabled and pointed at the browser model,
  * so the usage line reads that filter fields use this model instead of
  * "Not in use".
  */
-export const EnabledForAISearch: StoryFn = () => (
+export const EnabledForAIQuery: StoryFn = () => (
   <PreferencesProvider
-    isAISearchEnabled
-    aiSearchModelConfig={{ kind: "browser" }}
+    isAIQueryEnabled
+    aiQueryModelConfig={{ kind: "browser" }}
   >
     <View width="600px">
       <BrowserModelCard />

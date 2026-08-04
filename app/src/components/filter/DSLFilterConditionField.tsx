@@ -49,10 +49,10 @@ import { useTheme } from "@phoenix/contexts";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { classNames } from "@phoenix/utils/classNames";
 
-import { AISearchSettingsButton } from "./ai/AISearchSettingsButton";
-import type { AISearchDSL } from "./ai/types";
-import type { AISearchGenerateResult, AISearchStatus } from "./ai/useAISearch";
-import { useAISearch } from "./ai/useAISearch";
+import { AIQuerySettingsButton } from "./ai/AIQuerySettingsButton";
+import type { AIQueryDSL } from "./ai/types";
+import type { AIQueryGenerateResult, AIQueryStatus } from "./ai/useAIQuery";
+import { useAIQuery } from "./ai/useAIQuery";
 import { createDSLFilterCompletionSource } from "./dslFilterConditionFieldUtils";
 import {
   dslFilterAIOutlineCSS,
@@ -168,22 +168,22 @@ export type DSLFilterValidConditionArgs<
 export type DSLFilterValidationFailureReason = "invalid" | "transport";
 
 /**
- * Opts a filter field into AI search. The field then shows the AI search
+ * Opts a filter field into AI query. The field then shows the AI query
  * settings entry point and — once the user enables the feature — a sparkle
  * toggle that switches the field into plain-English mode: prose input with
  * no DSL affordances, where Enter converts the query to DSL with the
  * configured model (on-device browser AI by default) and offers an undo.
  */
-export type DSLFilterAISearchProps = {
+export type DSLFilterAIQueryProps = {
   /**
    * The DSL description handed to the model — typically derived from the
-   * field's own completions and snippets via `createAISearchDSL` so the
+   * field's own completions and snippets via `createAIQueryDSL` so the
    * model's vocabulary can never drift from the typeahead's.
    */
-  dsl: AISearchDSL;
+  dsl: AIQueryDSL;
   /**
    * Placeholder shown while the field is in plain-English mode, e.g.
-   * "search spans in plain English". Falls back to a generic prompt.
+   * "describe spans in plain English". Falls back to a generic prompt.
    */
   placeholder?: string;
 };
@@ -193,33 +193,33 @@ export type DSLFilterAISearchProps = {
  * user's original phrasing, kept so a finished (or failed) conversion can
  * always be undone back to it.
  */
-type AISearchPhase =
+type AIQueryPhase =
   | { name: "idle" }
   | { name: "converting"; query: string }
   | { name: "generated"; query: string }
   | { name: "failed"; query: string; message: string };
 
-const AI_SEARCH_IDLE: AISearchPhase = { name: "idle" };
+const AI_QUERY_IDLE: AIQueryPhase = { name: "idle" };
 
 /**
- * The resolved AI-search capability handed to the inner field. Assembled by
+ * The resolved AI-query capability handed to the inner field. Assembled by
  * a wrapper component so the field itself never touches the preferences or
- * credentials contexts — a field without `aiSearch` renders with no
+ * credentials contexts — a field without `aiQuery` renders with no
  * provider requirements at all.
  */
-type AISearchRuntime = {
+type AIQueryRuntime = {
   /**
-   * The user's AI-search preference. The settings entry point renders
+   * The user's AI-query preference. The settings entry point renders
    * regardless (it is how the feature gets enabled); the conversion
    * behaviors only engage when this is true.
    */
   isEnabled: boolean;
-  status: AISearchStatus;
+  status: AIQueryStatus;
   downloadProgress: number;
   generate: (
     query: string,
     options?: { onDelta?: (partialExpression: string) => void }
-  ) => Promise<AISearchGenerateResult>;
+  ) => Promise<AIQueryGenerateResult>;
   cancel: () => void;
   placeholder?: string;
 };
@@ -303,12 +303,12 @@ export type DSLFilterConditionFieldProps<
   onValidationStateChange?: (isValid: boolean) => void;
   placeholder?: string;
   /**
-   * Opts the field into AI search — natural-language drafts convert to DSL
-   * on Enter using the model configured in the AI search settings. The
+   * Opts the field into AI query — natural-language drafts convert to DSL
+   * on Enter using the model configured in the AI query settings. The
    * feature stays invisible (beyond its settings entry point) until the
    * user enables it there.
    */
-  aiSearch?: DSLFilterAISearchProps;
+  aiQuery?: DSLFilterAIQueryProps;
   /**
    * Accessible name for the condition input
    */
@@ -379,30 +379,28 @@ function ErrorBadge({
 export function DSLFilterConditionField<
   TValidationResult extends DSLFilterConditionValidationResult,
 >(props: DSLFilterConditionFieldProps<TValidationResult>) {
-  const { aiSearch, ...rest } = props;
-  if (aiSearch != null) {
-    return (
-      <DSLFilterConditionFieldWithAISearch {...rest} aiSearch={aiSearch} />
-    );
+  const { aiQuery, ...rest } = props;
+  if (aiQuery != null) {
+    return <DSLFilterConditionFieldWithAIQuery {...rest} aiQuery={aiQuery} />;
   }
   return <DSLFilterConditionFieldImpl {...rest} />;
 }
 
 /**
- * Resolves the AI-search capability from the preferences and credentials
+ * Resolves the AI-query capability from the preferences and credentials
  * contexts, keeping those provider requirements out of the base field.
  */
-function DSLFilterConditionFieldWithAISearch<
+function DSLFilterConditionFieldWithAIQuery<
   TValidationResult extends DSLFilterConditionValidationResult,
 >(
-  props: Omit<DSLFilterConditionFieldProps<TValidationResult>, "aiSearch"> & {
-    aiSearch: DSLFilterAISearchProps;
+  props: Omit<DSLFilterConditionFieldProps<TValidationResult>, "aiQuery"> & {
+    aiQuery: DSLFilterAIQueryProps;
   }
 ) {
-  const { aiSearch, ...rest } = props;
-  const isEnabled = usePreferencesContext((state) => state.isAISearchEnabled);
-  const { status, downloadProgress, generate, cancel } = useAISearch({
-    dsl: aiSearch.dsl,
+  const { aiQuery, ...rest } = props;
+  const isEnabled = usePreferencesContext((state) => state.isAIQueryEnabled);
+  const { status, downloadProgress, generate, cancel } = useAIQuery({
+    dsl: aiQuery.dsl,
     validate: props.validateCondition,
   });
   return (
@@ -414,7 +412,7 @@ function DSLFilterConditionFieldWithAISearch<
         downloadProgress,
         generate,
         cancel,
-        placeholder: aiSearch.placeholder,
+        placeholder: aiQuery.placeholder,
       }}
     />
   );
@@ -423,8 +421,8 @@ function DSLFilterConditionFieldWithAISearch<
 function DSLFilterConditionFieldImpl<
   TValidationResult extends DSLFilterConditionValidationResult,
 >(
-  props: Omit<DSLFilterConditionFieldProps<TValidationResult>, "aiSearch"> & {
-    ai?: AISearchRuntime;
+  props: Omit<DSLFilterConditionFieldProps<TValidationResult>, "aiQuery"> & {
+    ai?: AIQueryRuntime;
   }
 ) {
   const {
@@ -445,7 +443,7 @@ function DSLFilterConditionFieldImpl<
     className,
   } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
-  const [aiPhase, setAIPhase] = useState<AISearchPhase>(AI_SEARCH_IDLE);
+  const [aiPhase, setAIPhase] = useState<AIQueryPhase>(AI_QUERY_IDLE);
   // The sparkle toggle's state: whether the field is in plain-English mode.
   // Deliberately per-field and session-local — the mode describes what the
   // user is typing right now, not a durable preference.
@@ -484,7 +482,7 @@ function DSLFilterConditionFieldImpl<
     // user's again. Streamed updates echo back from the editor with the
     // value they were set to, so an identity check tells the two apart.
     if (aiPhase.name !== "idle" && !isConverting && nextValue !== value) {
-      setAIPhase(AI_SEARCH_IDLE);
+      setAIPhase(AI_QUERY_IDLE);
     }
     onChange(nextValue);
   };
@@ -517,7 +515,7 @@ function DSLFilterConditionFieldImpl<
         setAIPhase({ name: "failed", query, message: result.message });
       } else {
         onChange(query);
-        setAIPhase(AI_SEARCH_IDLE);
+        setAIPhase(AI_QUERY_IDLE);
       }
     });
   };
@@ -540,7 +538,7 @@ function DSLFilterConditionFieldImpl<
 
   const undoAIConversion = (query: string) => {
     onChange(query);
-    setAIPhase(AI_SEARCH_IDLE);
+    setAIPhase(AI_QUERY_IDLE);
     setIsAIMode(true);
     // The point of undo is to get the query back for editing, so the caret
     // stays put rather than selecting what the user just asked to restore
@@ -553,7 +551,7 @@ function DSLFilterConditionFieldImpl<
       // restores the query
       ai?.cancel();
     } else if (aiPhase.name === "failed") {
-      setAIPhase(AI_SEARCH_IDLE);
+      setAIPhase(AI_QUERY_IDLE);
     }
     const isTurningAIModeOn = !isAIMode;
     setIsAIMode(isTurningAIModeOn);
@@ -597,7 +595,7 @@ function DSLFilterConditionFieldImpl<
             undoAIConversion(aiPhase.query);
             return true;
           case "failed":
-            setAIPhase(AI_SEARCH_IDLE);
+            setAIPhase(AI_QUERY_IDLE);
             return true;
           default:
             return false;
@@ -613,7 +611,7 @@ function DSLFilterConditionFieldImpl<
 
   // The conversion keys work identically in both modes: with no completion
   // open, Enter hands the draft to `maybeConvert` (which only engages in
-  // plain-English mode) and Escape walks back whatever AI search last did
+  // plain-English mode) and Escape walks back whatever AI query last did
   const conversionKeymap = useMemo(
     () =>
       keymap.of([
@@ -621,7 +619,7 @@ function DSLFilterConditionFieldImpl<
           key: "Enter",
           run: (editorView: EditorView) => {
             // Insert the highlighted completion if the dropdown is open;
-            // otherwise a plain-English draft converts via AI search.
+            // otherwise a plain-English draft converts via AI query.
             // Always swallow the key so no newline is inserted.
             if (!acceptCompletion(editorView)) {
               aiRuntimeRef.current?.maybeConvert(
@@ -635,7 +633,7 @@ function DSLFilterConditionFieldImpl<
           key: "Escape",
           run: (editorView: EditorView) => {
             // With the typeahead open, Escape belongs to it; otherwise it
-            // walks back whatever AI search last did — cancels an in-flight
+            // walks back whatever AI query last did — cancels an in-flight
             // conversion, undoes a finished one, dismisses a failure
             if (completionStatus(editorView.state) !== null) {
               return false;
@@ -867,9 +865,9 @@ function DSLFilterConditionFieldImpl<
     };
   }, [value, validateCondition, validationRetryKey, isAIModeOn, aiPhaseName]);
 
-  // The PXI treatment reflects how engaged AI search is: a resting stroke
+  // The PXI treatment reflects how engaged AI query is: a resting stroke
   // while the field is in plain-English mode, the full animated glow while
-  // a conversion is in flight. Fields without AI search stay permanently
+  // a conversion is in flight. Fields without AI query stay permanently
   // idle, where the outline is invisible.
   const aiOutlineState: PxiOutlineState = isConverting
     ? "active"
@@ -926,8 +924,7 @@ function DSLFilterConditionFieldImpl<
             theme={codeMirrorTheme}
             placeholder={
               isAIModeOn
-                ? (ai?.placeholder ??
-                  "Ask in plain English — Enter converts to a filter")
+                ? (ai?.placeholder ?? "describe what you are looking for")
                 : placeholder
             }
             extensions={extensions}
@@ -994,7 +991,7 @@ function DSLFilterConditionFieldImpl<
             ) : null}
             {aiPhase.name === "failed" ? (
               <ErrorBadge
-                ariaLabel="AI search error"
+                ariaLabel="AI query error"
                 badgeMessage="Couldn’t convert to a filter"
                 title="Couldn’t convert to a filter"
               >
@@ -1010,7 +1007,7 @@ function DSLFilterConditionFieldImpl<
               <TooltipTrigger delay={500}>
                 <IconButton
                   size="XS"
-                  aria-label="Plain-English search"
+                  aria-label="Plain-English query"
                   aria-pressed={isAIModeOn}
                   className="ai-mode-toggle"
                   onPress={toggleAIMode}
@@ -1020,11 +1017,11 @@ function DSLFilterConditionFieldImpl<
                 <Tooltip placement="bottom end">
                   {isAIModeOn
                     ? "Switch back to the filter DSL"
-                    : "Search in plain English"}
+                    : "Query in plain English"}
                 </Tooltip>
               </TooltipTrigger>
             ) : null}
-            {ai != null ? <AISearchSettingsButton /> : null}
+            {ai != null ? <AIQuerySettingsButton /> : null}
             <IconButton
               size="XS"
               className="clear-button"
@@ -1036,7 +1033,7 @@ function DSLFilterConditionFieldImpl<
                 if (isConverting) {
                   ai?.cancel();
                 }
-                setAIPhase(AI_SEARCH_IDLE);
+                setAIPhase(AI_QUERY_IDLE);
                 onChange("");
                 editorViewRef.current?.focus();
               }}
@@ -1055,7 +1052,7 @@ function DSLFilterConditionFieldImpl<
               : aiPhase.name === "generated"
                 ? "Filter expression generated. Press Escape to undo."
                 : aiPhase.name === "failed"
-                  ? `AI search failed. ${aiPhase.message}`
+                  ? `AI query failed. ${aiPhase.message}`
                   : ""}
           </span>
         </VisuallyHidden>

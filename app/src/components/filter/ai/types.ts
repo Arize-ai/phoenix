@@ -10,7 +10,7 @@ import {
  * server (secret store first, environment second) — no keys in the browser.
  * Either a built-in provider or a stored custom provider record.
  */
-export type AISearchServerModelConfig =
+export type AIQueryServerModelConfig =
   | {
       kind: "server";
       source: "builtin";
@@ -26,7 +26,7 @@ export type AISearchServerModelConfig =
     };
 
 /**
- * How AI search resolves the language model that translates natural language
+ * How AI query resolves the language model that translates natural language
  * into a filter expression.
  *
  * - `browser` runs entirely on-device via Browser AI — the browser's
@@ -35,9 +35,7 @@ export type AISearchServerModelConfig =
  * - `server` calls the chosen provider through the Phoenix server's
  *   OpenAI-compatible proxy using credentials configured on the server.
  */
-export type AISearchModelConfig =
-  | { kind: "browser" }
-  | AISearchServerModelConfig;
+export type AIQueryModelConfig = { kind: "browser" } | AIQueryServerModelConfig;
 
 /**
  * The retired persisted shape that called providers directly from the
@@ -51,9 +49,9 @@ type LegacyProviderModelConfig = {
   modelName: string;
 };
 
-const BROWSER_MODEL_CONFIG: AISearchModelConfig = { kind: "browser" };
+const BROWSER_MODEL_CONFIG: AIQueryModelConfig = { kind: "browser" };
 
-const DEFAULT_SERVER_MODEL_CONFIG: AISearchModelConfig = {
+const DEFAULT_SERVER_MODEL_CONFIG: AIQueryModelConfig = {
   kind: "server",
   source: "builtin",
   provider: DEFAULT_MODEL_PROVIDER,
@@ -64,7 +62,7 @@ const DEFAULT_SERVER_MODEL_CONFIG: AISearchModelConfig = {
 // config instance, preserving the identity-stability guarantee below.
 const legacyConversions = new WeakMap<
   LegacyProviderModelConfig,
-  AISearchModelConfig
+  AIQueryModelConfig
 >();
 
 /**
@@ -76,9 +74,9 @@ const legacyConversions = new WeakMap<
  * defaults, shared by every surface that reads the preference. Returns
  * stable objects so resolving on every render stays identity-safe.
  */
-export function resolveAISearchModelConfig(
-  config: AISearchModelConfig | LegacyProviderModelConfig | undefined
-): AISearchModelConfig {
+export function resolveAIQueryModelConfig(
+  config: AIQueryModelConfig | LegacyProviderModelConfig | undefined
+): AIQueryModelConfig {
   if (config == null) {
     return getBrowserBuiltInModel() !== null
       ? BROWSER_MODEL_CONFIG
@@ -105,7 +103,7 @@ export function resolveAISearchModelConfig(
  * shown to the model. Mirrors the shape of the typeahead completions so an
  * entity layer can derive one from the other.
  */
-export type AISearchField = {
+export type AIQueryField = {
   name: string;
   description?: string;
 };
@@ -114,7 +112,7 @@ export type AISearchField = {
  * An example translation pair the model can generalize from — typically
  * derived from the same snippets that power the typeahead suggestions.
  */
-export type AISearchExample = {
+export type AIQueryExample = {
   description: string;
   expression: string;
 };
@@ -125,7 +123,7 @@ export type AISearchExample = {
  * experiment runs, ...) — the AI layer itself knows nothing about any
  * specific DSL.
  */
-export type AISearchDSL = {
+export type AIQueryDSL = {
   /**
    * The plural noun for the filtered entity, e.g. "spans". Used in prose:
    * "translate the request into a filter expression for spans".
@@ -134,11 +132,11 @@ export type AISearchDSL = {
   /**
    * The fields an expression can reference.
    */
-  fields: AISearchField[];
+  fields: AIQueryField[];
   /**
    * Example request → expression pairs.
    */
-  examples: AISearchExample[];
+  examples: AIQueryExample[];
   /**
    * Additional dialect notes appended verbatim to the system prompt, e.g.
    * entity-specific idioms the fields and examples don't convey.

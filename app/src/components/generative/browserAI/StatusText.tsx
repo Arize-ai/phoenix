@@ -32,7 +32,7 @@ export type StatusTone = "neutral" | "success" | "warning" | "danger";
 
 /**
  * A short status label with a leading dot in the tone's color — the shared
- * treatment for model readiness across the AI search settings surfaces, so
+ * treatment for model readiness across the AI query settings surfaces, so
  * "Ready" beside a radio option and "Downloaded and ready" in a card header
  * read as the same signal.
  */

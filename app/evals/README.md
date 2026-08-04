@@ -3,14 +3,13 @@
 Vitest suites that measure prompt quality with [Phoenix experiments](https://arize.com/docs/phoenix), kept apart from the unit tests because they call real LLMs. Run them with:
 
 ```bash
-pnpm eval        # dry run unless PHOENIX_HOST is set
-pnpm eval:local  # record experiments to a local Phoenix (localhost:6006)
+pnpm eval  # records experiments to PHOENIX_HOST (default http://localhost:6006)
 ```
 
-## AI search (`evals/aiSearch`)
+## AI query (`evals/aiQuery`)
 
 Hill-climbing harness for the filter-DSL prompt in
-`src/components/filter/ai/buildAISearchPrompt.ts`, exercised against the
+`src/components/filter/ai/buildAIQueryPrompt.ts`, exercised against the
 production span DSL exported by `src/pages/project/spanFilterDSL.ts`.
 
 Each model in `googleModels.ts` translates the requests in
@@ -30,9 +29,9 @@ the LLM spans under the test's task span.
 
 ### Environment
 
-| Variable                                             | Purpose                                                          |
-| ---------------------------------------------------- | ---------------------------------------------------------------- |
-| `GOOGLE_GENERATIVE_AI_API_KEY` (or `GEMINI_API_KEY`) | Required — the suites skip without it                            |
-| `PHOENIX_HOST` / `PHOENIX_API_KEY`                   | Optional — record runs as experiments; otherwise a local dry run |
+| Variable                                             | Purpose                                                                                                               |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `GOOGLE_GENERATIVE_AI_API_KEY` (or `GEMINI_API_KEY`) | Required — the suites skip without it                                                                                 |
+| `PHOENIX_HOST` / `PHOENIX_API_KEY`                   | Where runs record as experiments — defaults to http://localhost:6006; set `PHOENIX_TEST_TRACKING=false` for a dry run |
 
 Variables are read from `app/.env` (shell variables win).

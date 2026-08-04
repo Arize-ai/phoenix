@@ -2,7 +2,7 @@ import type { LanguageModel } from "ai";
 
 import { createServerLanguageModel } from "@phoenix/components/generative/serverLanguageModel";
 
-import type { AISearchServerModelConfig } from "./types";
+import type { AIQueryServerModelConfig } from "./types";
 
 /**
  * Encodes a server model config as the model string the Phoenix server's
@@ -12,7 +12,7 @@ import type { AISearchServerModelConfig } from "./types";
  * The server splits on the first colon(s), so model names containing colons
  * (e.g. `llama3:8b`) survive intact.
  */
-export function toServerModelId(config: AISearchServerModelConfig): string {
+export function toServerModelId(config: AIQueryServerModelConfig): string {
   if (config.source === "custom") {
     return `custom:${config.providerId}:${config.modelName}`;
   }
@@ -20,14 +20,14 @@ export function toServerModelId(config: AISearchServerModelConfig): string {
 }
 
 /**
- * Creates the AI SDK model that AI search runs through the Phoenix server's
+ * Creates the AI SDK model that AI query runs through the Phoenix server's
  * chat completions proxy.
  */
 export async function createServerModel(
-  config: AISearchServerModelConfig
+  config: AIQueryServerModelConfig
 ): Promise<LanguageModel> {
   if (config.modelName.trim() === "") {
-    throw new Error("Choose a model name in the AI search settings.");
+    throw new Error("Choose a model name in the AI query settings.");
   }
   return createServerLanguageModel(toServerModelId(config));
 }

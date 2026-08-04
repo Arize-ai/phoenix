@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
-import type { AISearchModelConfig } from "@phoenix/components/filter/ai/types";
+import type { AIQueryModelConfig } from "@phoenix/components/filter/ai/types";
 import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
 import {
   pythonPackageManagers,
@@ -175,15 +175,15 @@ export interface PreferencesProps {
    */
   defaultModelName?: string;
   /**
-   * Whether AI search is enabled on filter condition fields
+   * Whether AI query is enabled on filter condition fields
    * @default false
    */
-  isAISearchEnabled: boolean;
+  isAIQueryEnabled: boolean;
   /**
-   * How AI search on filter fields resolves its language model. When
+   * How AI query on filter fields resolves its language model. When
    * undefined, the on-device browser model is used.
    */
-  aiSearchModelConfig?: AISearchModelConfig;
+  aiQueryModelConfig?: AIQueryModelConfig;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -289,15 +289,15 @@ export interface PreferencesState extends PreferencesProps {
    */
   setDefaultModelName: (defaultModelName: string | undefined) => void;
   /**
-   * Setter for enabling/disabling AI search on filter condition fields
+   * Setter for enabling/disabling AI query on filter condition fields
    */
-  setIsAISearchEnabled: (isAISearchEnabled: boolean) => void;
+  setIsAIQueryEnabled: (isAIQueryEnabled: boolean) => void;
   /**
-   * Setter for how AI search resolves its language model. Pass `undefined`
+   * Setter for how AI query resolves its language model. Pass `undefined`
    * to fall back to the on-device browser model.
    */
-  setAISearchModelConfig: (
-    aiSearchModelConfig: AISearchModelConfig | undefined
+  setAIQueryModelConfig: (
+    aiQueryModelConfig: AIQueryModelConfig | undefined
   ) => void;
 }
 
@@ -441,13 +441,13 @@ export const createPreferencesStore = (
         type: "setDefaultModelName",
       });
     },
-    isAISearchEnabled: false,
-    setIsAISearchEnabled: (isAISearchEnabled) => {
-      set({ isAISearchEnabled }, false, { type: "setIsAISearchEnabled" });
+    isAIQueryEnabled: false,
+    setIsAIQueryEnabled: (isAIQueryEnabled) => {
+      set({ isAIQueryEnabled }, false, { type: "setIsAIQueryEnabled" });
     },
-    aiSearchModelConfig: undefined,
-    setAISearchModelConfig: (aiSearchModelConfig) => {
-      set({ aiSearchModelConfig }, false, { type: "setAISearchModelConfig" });
+    aiQueryModelConfig: undefined,
+    setAIQueryModelConfig: (aiQueryModelConfig) => {
+      set({ aiQueryModelConfig }, false, { type: "setAIQueryModelConfig" });
     },
     ...initialProps,
   });

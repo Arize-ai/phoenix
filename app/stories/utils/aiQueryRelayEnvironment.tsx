@@ -36,11 +36,7 @@ const environment = new Environment({
   store: new Store(new RecordSource()),
 });
 
-export function AISearchRelayEnvironment({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function AIQueryRelayEnvironment({ children }: { children: ReactNode }) {
   return (
     <RelayEnvironmentProvider environment={environment}>
       {children}

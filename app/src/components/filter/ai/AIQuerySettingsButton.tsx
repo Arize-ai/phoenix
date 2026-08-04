@@ -16,23 +16,23 @@ import {
 } from "@phoenix/components";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
-import { AISearchModelPicker } from "./AISearchModelPicker";
-import { resolveAISearchModelConfig } from "./types";
+import { AIQueryModelPicker } from "./AIQueryModelPicker";
+import { resolveAIQueryModelConfig } from "./types";
 
 /**
- * The AI search row of the settings dropdown — setting name on the left,
+ * The AI query row of the settings dropdown — setting name on the left,
  * the model picker (or "Off") on the right. Warnings from the picker (a
  * missing credential, an unusable browser model) are the only thing that
  * adds a second line. Enabling and disabling the feature lives on the
  * Generative AI page (linked in the dropdown's footer), not here.
  */
-function AISearchRow() {
-  const isEnabled = usePreferencesContext((state) => state.isAISearchEnabled);
-  const modelConfig = resolveAISearchModelConfig(
-    usePreferencesContext((state) => state.aiSearchModelConfig)
+function AIQueryRow() {
+  const isEnabled = usePreferencesContext((state) => state.isAIQueryEnabled);
+  const modelConfig = resolveAIQueryModelConfig(
+    usePreferencesContext((state) => state.aiQueryModelConfig)
   );
   const setModelConfig = usePreferencesContext(
-    (state) => state.setAISearchModelConfig
+    (state) => state.setAIQueryModelConfig
   );
   return (
     <Flex
@@ -42,11 +42,11 @@ function AISearchRow() {
       gap="size-200"
     >
       <Text weight="heavy" size="S">
-        AI Search
+        AI Query
       </Text>
       {isEnabled ? (
         <Suspense fallback={<Loading size="S" />}>
-          <AISearchModelPicker
+          <AIQueryModelPicker
             config={modelConfig}
             onConfigChange={setModelConfig}
             isCompact
@@ -63,15 +63,15 @@ function AISearchRow() {
 
 /**
  * The settings entry point on a filter field: a gear button whose dropdown
- * holds the field's settings — today the AI search row, with the
+ * holds the field's settings — today the AI query row, with the
  * Generative AI page linked in the footer for everything else (including
  * turning the feature on and off). The settings are global, so the same
  * configuration appears on the settings and profile pages.
  */
-export function AISearchSettingsButton() {
+export function AIQuerySettingsButton() {
   return (
     <DialogTrigger>
-      <IconButton size="XS" aria-label="Search settings">
+      <IconButton size="XS" aria-label="AI query settings">
         <Icon svg={<Icons.Settings />} />
       </IconButton>
       <Popover
@@ -82,7 +82,7 @@ export function AISearchSettingsButton() {
         `}
       >
         <View paddingX="size-200" paddingY="size-150" minWidth="280px">
-          <AISearchRow />
+          <AIQueryRow />
         </View>
         <MenuFooter>
           <LinkButton

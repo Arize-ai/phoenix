@@ -1,13 +1,13 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
 /**
- * A small Google model standing in for a tier AI search actually runs on,
+ * A small Google model standing in for a tier AI query actually runs on,
  * with the bar its experiment must clear.
  */
 export type SpanFilterEvalModel = {
   /** Gemini API model id */
   modelId: string;
-  /** The tier of the AI search feature this model simulates. */
+  /** The tier of the AI query feature this model simulates. */
   simulates: string;
   /** The `filter_correct` pass rate the suite must reach to pass. */
   minPassRate: number;

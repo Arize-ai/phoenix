@@ -7,28 +7,28 @@ import {
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import type { DSLFilterConditionValidationResult } from "../DSLFilterConditionField";
-import { createAISearchModel } from "./createAISearchModel";
+import { createAIQueryModel } from "./createAIQueryModel";
 import { generateFilterCondition } from "./generateFilterCondition";
-import type { AISearchDSL } from "./types";
-import { resolveAISearchModelConfig } from "./types";
+import type { AIQueryDSL } from "./types";
+import { resolveAIQueryModelConfig } from "./types";
 
-export type AISearchStatus = "idle" | "downloading" | "generating";
+export type AIQueryStatus = "idle" | "downloading" | "generating";
 
 /**
  * How one translation run ended. `cancelled` covers both an explicit cancel
  * and being superseded by a newer run — either way the caller should treat
  * the run as if it never happened.
  */
-export type AISearchGenerateResult =
+export type AIQueryGenerateResult =
   | { outcome: "success"; condition: string }
   | { outcome: "error"; message: string }
   | { outcome: "cancelled" };
 
-export type UseAISearchArgs = {
+export type UseAIQueryArgs = {
   /**
    * The DSL to translate into, described by the entity layer.
    */
-  dsl: AISearchDSL;
+  dsl: AIQueryDSL;
   /**
    * When provided, generated expressions are validated and the model gets
    * one round to correct a rejected one. Typically the same validator the
@@ -39,7 +39,7 @@ export type UseAISearchArgs = {
   ) => Promise<DSLFilterConditionValidationResult | null | undefined>;
 };
 
-export function toErrorMessage(error: unknown, fallback = "AI search failed") {
+export function toErrorMessage(error: unknown, fallback = "AI query failed") {
   if (error instanceof Error && error.message) {
     return error.message;
   }
@@ -51,21 +51,21 @@ export function toErrorMessage(error: unknown, fallback = "AI search failed") {
  * time: resolves the configured model (on-device browser model by default,
  * a provider called through the Phoenix server otherwise), downloads the
  * browser model on first use, streams the forming expression through
- * `onDelta`, and resolves with a {@link AISearchGenerateResult} describing
+ * `onDelta`, and resolves with a {@link AIQueryGenerateResult} describing
  * how the run ended.
  */
-export function useAISearch({ dsl, validate }: UseAISearchArgs) {
-  const modelConfig = resolveAISearchModelConfig(
-    usePreferencesContext((state) => state.aiSearchModelConfig)
+export function useAIQuery({ dsl, validate }: UseAIQueryArgs) {
+  const modelConfig = resolveAIQueryModelConfig(
+    usePreferencesContext((state) => state.aiQueryModelConfig)
   );
-  const [status, setStatus] = useState<AISearchStatus>("idle");
+  const [status, setStatus] = useState<AIQueryStatus>("idle");
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const generate = async (
     query: string,
     { onDelta }: { onDelta?: (partialExpression: string) => void } = {}
-  ): Promise<AISearchGenerateResult> => {
+  ): Promise<AIQueryGenerateResult> => {
     // One translation at a time: a new request supersedes the previous one
     abortControllerRef.current?.abort();
     const abortController = new AbortController();
@@ -96,7 +96,7 @@ export function useAISearch({ dsl, validate }: UseAISearchArgs) {
         return { outcome: "cancelled" };
       }
       setStatus("generating");
-      const model = await createAISearchModel({ config: modelConfig });
+      const model = await createAIQueryModel({ config: modelConfig });
       const condition = await generateFilterCondition({
         model,
         dsl,

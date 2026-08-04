@@ -11,12 +11,12 @@ import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
-import type { AISearchModelConfig } from "./types";
+import type { AIQueryModelConfig } from "./types";
 
 const pickerCSS = css`
   /* Matches the description under a standard form field (fieldBaseCSS
      styles [slot="description"]) */
-  .ai-search-model-picker__hint {
+  .ai-query-model-picker__hint {
     font-size: var(--global-font-size-xs);
     line-height: var(--global-line-height-xs);
     color: var(--field-description-text-color);
@@ -44,20 +44,20 @@ function BrowserBuiltInModelText() {
 }
 
 /**
- * The unified model picker for AI search: one menu offering Browser AI
+ * The unified model picker for AI query: one menu offering Browser AI
  * (when this browser has a built-in model) alongside the providers served
  * through the Phoenix server's OpenAI-compatible proxy. Every model the
  * platform-wide picker offers works here — the server holds the connection
  * details and credentials, so custom providers, Azure, and Bedrock are all
  * callable.
  */
-export function AISearchModelPicker({
+export function AIQueryModelPicker({
   config,
   onConfigChange,
   isCompact = false,
 }: {
-  config: AISearchModelConfig;
-  onConfigChange: (config: AISearchModelConfig) => void;
+  config: AIQueryModelConfig;
+  onConfigChange: (config: AIQueryModelConfig) => void;
   /**
    * Drops the descriptive hints and healthy-state status under the picker,
    * leaving only warnings (an unusable browser model) — for the settings
@@ -121,11 +121,11 @@ export function AISearchModelPicker({
           ) : null}
         </Flex>
         {isCompact ? null : config.kind === "browser" ? (
-          <span className="ai-search-model-picker__hint">
+          <span className="ai-query-model-picker__hint">
             <BrowserBuiltInModelText />
           </span>
         ) : (
-          <span className="ai-search-model-picker__hint">
+          <span className="ai-query-model-picker__hint">
             Provider credentials are managed on the server in{" "}
             <Link to="/settings/providers">Settings → AI Providers</Link>
           </span>

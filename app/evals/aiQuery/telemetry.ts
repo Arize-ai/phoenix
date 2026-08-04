@@ -4,7 +4,7 @@ import { trace } from "@opentelemetry/api";
 import type { Telemetry } from "ai";
 import { registerTelemetry } from "ai";
 
-const TRACER_NAME = "ai-search-evals";
+const TRACER_NAME = "ai-query-evals";
 
 /**
  * The tracer behind the AI SDK telemetry integration, resolved from
@@ -32,11 +32,11 @@ export const evalTracer: Tracer = {
 declare global {
   // `var` is what ambient globalThis augmentation requires.
   // eslint-disable-next-line no-var
-  var __aiSearchEvalsTelemetryRegistered: boolean | undefined;
+  var __aiQueryEvalsTelemetryRegistered: boolean | undefined;
 }
 
-if (!globalThis.__aiSearchEvalsTelemetryRegistered) {
-  globalThis.__aiSearchEvalsTelemetryRegistered = true;
+if (!globalThis.__aiQueryEvalsTelemetryRegistered) {
+  globalThis.__aiQueryEvalsTelemetryRegistered = true;
   // Makes every AI SDK call in the eval suites (generation and judge alike)
   // emit spans; the runner's span processor converts them to OpenInference
   // and parents them under each test's task span.

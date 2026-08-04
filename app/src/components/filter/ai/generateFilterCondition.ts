@@ -3,11 +3,11 @@ import { streamText } from "ai";
 
 import type { DSLFilterConditionValidationResult } from "../DSLFilterConditionField";
 import {
-  buildAISearchRepairPrompt,
-  buildAISearchSystemPrompt,
-} from "./buildAISearchPrompt";
+  buildAIQueryRepairPrompt,
+  buildAIQuerySystemPrompt,
+} from "./buildAIQueryPrompt";
 import { extractFilterExpression } from "./extractFilterExpression";
-import type { AISearchDSL } from "./types";
+import type { AIQueryDSL } from "./types";
 
 export type GenerateFilterConditionArgs = {
   /**
@@ -18,7 +18,7 @@ export type GenerateFilterConditionArgs = {
   /**
    * The DSL to translate into, described by the entity layer.
    */
-  dsl: AISearchDSL;
+  dsl: AIQueryDSL;
   /**
    * The user's natural-language request, e.g. "llm spans that errored".
    */
@@ -79,7 +79,7 @@ export async function generateFilterCondition({
   validate,
   abortSignal,
 }: GenerateFilterConditionArgs): Promise<string> {
-  const system = buildAISearchSystemPrompt(dsl);
+  const system = buildAIQuerySystemPrompt(dsl);
   const messages: ModelMessage[] = [{ role: "user", content: query }];
   const expression = await streamExpression({
     model,
@@ -109,7 +109,7 @@ export async function generateFilterCondition({
       { role: "assistant", content: expression },
       {
         role: "user",
-        content: buildAISearchRepairPrompt(validation.errorMessage ?? ""),
+        content: buildAIQueryRepairPrompt(validation.errorMessage ?? ""),
       },
     ],
     onDelta,

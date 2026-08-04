@@ -1,23 +1,23 @@
 import { Card, Switch, View } from "@phoenix/components";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
-import { AISearchSettingsForm } from "./AISearchSettingsForm";
+import { AIQuerySettingsForm } from "./AIQuerySettingsForm";
 
 /**
- * The AI search configuration presented as a settings card — the same form
+ * The AI query configuration presented as a settings card — the same form
  * the filter field's gear popover shows, for the settings and profile
  * pages. The enable switch lives in the card header so the body is purely
  * the model choice. All surfaces read and write the same persisted
  * preference.
  */
-export function AISearchSettingsCard() {
-  const isEnabled = usePreferencesContext((state) => state.isAISearchEnabled);
+export function AIQuerySettingsCard() {
+  const isEnabled = usePreferencesContext((state) => state.isAIQueryEnabled);
   const setIsEnabled = usePreferencesContext(
-    (state) => state.setIsAISearchEnabled
+    (state) => state.setIsAIQueryEnabled
   );
   return (
     <Card
-      title="AI Search"
+      title="AI Query"
       extra={
         <Switch
           size="S"
@@ -30,7 +30,7 @@ export function AISearchSettingsCard() {
       }
     >
       <View padding="size-200">
-        <AISearchSettingsForm />
+        <AIQuerySettingsForm />
       </View>
     </Card>
   );
