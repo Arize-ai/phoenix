@@ -17,6 +17,12 @@ production identifier is replaced; span/trace ids are synthetic; timestamps
 are rebased while keeping their order. `input.value` and non-approval
 `output.value` payloads are collapsed to placeholders — this evaluator never
 reads them, and keeping them ballooned the fixture to megabytes.
+
+These traces predate the approval marker, so each gated span additionally
+carries the `approval` payload key and the `pxi.approval.*` attributes the
+server now promotes, derived from the decision the original payload recorded.
+Each tool's original status vocabulary is left intact, which is what makes
+these fixtures worth keeping: they prove classification no longer depends on it.
 """
 
 from __future__ import annotations
@@ -28,11 +34,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from phoenix.client.__generated__ import v1
 
 from evals.pxi.online_evals.evaluators.suggestion_accepted import SUGGESTION_ACCEPTED
 from evals.pxi.online_evals.run import run_evaluators
 from evals.pxi.online_evals.topology import span_id
+from phoenix.client.__generated__ import v1
 
 FIXTURE = Path(__file__).parent / "fixtures" / "pxi_suggestion_traces.json"
 # After the last fixture span (12:00:21) plus the runner's settle delay.
@@ -54,11 +60,15 @@ class _FixtureSpans:
         if kwargs.get("trace_ids"):
             return self.spans
         names, kinds = kwargs.get("name"), kwargs.get("span_kind")
+        attributes: dict[str, str] = kwargs.get("attributes") or {}
         return [
             span
             for span in self.spans
             if (names is None or span["name"] in names)
             and (kinds is None or span["span_kind"] in kinds)
+            and all(
+                span.get("attributes", {}).get(key) == value for key, value in attributes.items()
+            )
         ]
 
     def get_span_annotations(self, **_: Any) -> list[v1.SpanAnnotation]:
@@ -115,8 +125,9 @@ def test_rejected_prompt_edit_classifies_as_rejected() -> None:
 
 
 def test_real_save_prompt_dual_status_shape_is_accepted() -> None:
-    """`save_prompt` records `status: "saved"` alongside `approvalStatus`;
-    `acceptedBy` is what makes it a user decision."""
+    """`save_prompt` still records its own `status: "saved"` / `approvalStatus`
+    vocabulary; the promoted approval attributes are what classify it, so the
+    tool's payload shape no longer matters."""
     target = _tool_span("accepted_prompt_edit", "save_prompt")
     assert _annotate("accepted_prompt_edit")[span_id(target)] == ("accepted", 1.0)
 

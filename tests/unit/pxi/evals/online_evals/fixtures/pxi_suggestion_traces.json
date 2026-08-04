@@ -96,7 +96,9 @@
         "input.mime_type": "application/json",
         "input.value": "redacted input",
         "output.mime_type": "application/json",
-        "output.value": "{\"status\": \"accepted\", \"acceptedBy\": \"user\", \"instanceId\": 5, \"revision\": \"redacted revision\", \"summary\": {\"instanceIndex\": 0, \"instanceLabel\": \"redacted instanceLabel\", \"additions\": 16, \"deletions\": 2}, \"message\": \"redacted message\"}"
+        "output.value": "{\"status\": \"accepted\", \"acceptedBy\": \"user\", \"instanceId\": 5, \"revision\": \"redacted revision\", \"summary\": {\"instanceIndex\": 0, \"instanceLabel\": \"redacted instanceLabel\", \"additions\": 16, \"deletions\": 2}, \"message\": \"redacted message\", \"approval\": {\"decision\": \"accepted\", \"source\": \"user\"}}",
+        "pxi.approval.decision": "accepted",
+        "pxi.approval.source": "user"
       }
     },
     {
@@ -136,7 +138,9 @@
         "input.mime_type": "application/json",
         "input.value": "redacted input",
         "output.mime_type": "application/json",
-        "output.value": "{\"status\": \"saved\", \"mode\": \"redacted mode\", \"instanceId\": 5, \"label\": \"redacted label\", \"promptId\": \"redacted promptId\", \"promptName\": \"redacted promptName\", \"promptVersionId\": \"redacted promptVersionId\", \"tag\": null, \"dirtyBeforeSave\": true, \"message\": \"redacted message\", \"approvalStatus\": \"accepted\", \"acceptedBy\": \"user\"}"
+        "output.value": "{\"status\": \"saved\", \"mode\": \"redacted mode\", \"instanceId\": 5, \"label\": \"redacted label\", \"promptId\": \"redacted promptId\", \"promptName\": \"redacted promptName\", \"promptVersionId\": \"redacted promptVersionId\", \"tag\": null, \"dirtyBeforeSave\": true, \"message\": \"redacted message\", \"approvalStatus\": \"accepted\", \"acceptedBy\": \"user\", \"approval\": {\"decision\": \"accepted\", \"source\": \"user\"}}",
+        "pxi.approval.decision": "accepted",
+        "pxi.approval.source": "user"
       }
     },
     {
@@ -333,7 +337,9 @@
         "input.mime_type": "application/json",
         "input.value": "redacted input",
         "output.mime_type": "application/json",
-        "output.value": "{\"status\": \"rejected\", \"instanceId\": 5, \"message\": \"redacted message\"}"
+        "output.value": "{\"status\": \"rejected\", \"instanceId\": 5, \"message\": \"redacted message\", \"approval\": {\"decision\": \"rejected\", \"source\": \"user\"}}",
+        "pxi.approval.decision": "rejected",
+        "pxi.approval.source": "user"
       }
     },
     {
@@ -470,7 +476,9 @@
         "input.mime_type": "application/json",
         "input.value": "redacted input",
         "output.mime_type": "application/json",
-        "output.value": "{\"status\": \"rejected\", \"message\": \"redacted message\"}"
+        "output.value": "{\"status\": \"rejected\", \"message\": \"redacted message\", \"approval\": {\"decision\": \"rejected\", \"source\": \"user\"}}",
+        "pxi.approval.decision": "rejected",
+        "pxi.approval.source": "user"
       }
     },
     {
@@ -550,7 +558,9 @@
         "input.mime_type": "application/json",
         "input.value": "redacted input",
         "output.mime_type": "application/json",
-        "output.value": "{\"status\": \"accepted\", \"acceptedBy\": \"user\", \"message\": \"redacted message\"}"
+        "output.value": "{\"status\": \"accepted\", \"acceptedBy\": \"user\", \"message\": \"redacted message\", \"approval\": {\"decision\": \"accepted\", \"source\": \"user\"}}",
+        "pxi.approval.decision": "accepted",
+        "pxi.approval.source": "user"
       }
     },
     {
@@ -590,7 +600,9 @@
         "input.mime_type": "application/json",
         "input.value": "redacted input",
         "output.mime_type": "application/json",
-        "output.value": "{\"status\": \"accepted\", \"acceptedBy\": \"user\", \"count\": 5, \"annotations\": [{\"spanId\": \"redacted spanId\", \"spanNodeId\": null, \"name\": \"redacted name\", \"label\": \"redacted label\", \"score\": 1, \"explanation\": \"redacted explanation\"}, {\"spanId\": \"redacted spanId\", \"spanNodeId\": null, \"name\": \"redacted name\", \"label\": \"redacted label\", \"score\": 1, \"explanation\": \"redacted explanation\"}, {\"spanId\": \"redacted spanId\", \"spanNodeId\": null, \"name\": \"redacted name\", \"label\": \"redacted label\", \"score\": 1, \"explanation\": \"redacted explanation\"}, {\"spanId\": \"redacted spanId\", \"spanNodeId\": null, \"name\": \"redacted name\", \"label\": \"redacted label\", \"score\": 1, \"explanation\": \"redacted explanation\"}, {\"spanId\": \"redacted spanId\", \"spanNodeId\": null, \"name\": \"redacted name\", \"label\": \"redacted label\", \"score\": 1, \"explanation\": \"redacted explanation\"}], \"message\": \"redacted message\"}"
+        "output.value": "{\"status\": \"accepted\", \"acceptedBy\": \"user\", \"count\": 5, \"annotations\": [{\"spanId\": \"redacted spanId\", \"spanNodeId\": null, \"name\": \"redacted name\", \"label\": \"redacted label\", \"score\": 1, \"explanation\": \"redacted explanation\"}, {\"spanId\": \"redacted spanId\", \"spanNodeId\": null, \"name\": \"redacted name\", \"label\": \"redacted label\", \"score\": 1, \"explanation\": \"redacted explanation\"}, {\"spanId\": \"redacted spanId\", \"spanNodeId\": null, \"name\": \"redacted name\", \"label\": \"redacted label\", \"score\": 1, \"explanation\": \"redacted explanation\"}, {\"spanId\": \"redacted spanId\", \"spanNodeId\": null, \"name\": \"redacted name\", \"label\": \"redacted label\", \"score\": 1, \"explanation\": \"redacted explanation\"}, {\"spanId\": \"redacted spanId\", \"spanNodeId\": null, \"name\": \"redacted name\", \"label\": \"redacted label\", \"score\": 1, \"explanation\": \"redacted explanation\"}], \"message\": \"redacted message\", \"approval\": {\"decision\": \"accepted\", \"source\": \"user\"}}",
+        "pxi.approval.decision": "accepted",
+        "pxi.approval.source": "user"
       }
     },
     {
