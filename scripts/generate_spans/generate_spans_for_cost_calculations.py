@@ -58,7 +58,7 @@ def load_models(path: Path) -> list[PricedModel]:
         models.append(
             PricedModel(
                 name=entry["name"],
-                provider=_provider_for_model(entry["name"]),
+                provider=entry.get("provider") or _provider_for_model(entry["name"]),
                 supports_cache=bool({"cache_read", "cache_write"} & token_types),
             )
         )

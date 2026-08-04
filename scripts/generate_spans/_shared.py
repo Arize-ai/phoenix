@@ -261,7 +261,8 @@ class Generator:
             if root:
                 self.trace_count += 1
             yield span
-            span.set_status(Status(status))
+            if span.status.is_unset:
+                span.set_status(Status(status))
             if end_time is not None:
                 span.end(end_time=end_time)
 

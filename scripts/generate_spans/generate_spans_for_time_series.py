@@ -128,14 +128,14 @@ def generate_timestamps(
 ) -> Iterator[datetime]:
     local_timezone = ZoneInfo(args.timezone)
     start_time = end_time - timedelta(days=args.days)
-    current = start_time.astimezone(local_timezone).replace(minute=0, second=0, microsecond=0)
+    current = start_time.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0)
     generated = 0
-    while current.astimezone(timezone.utc) < end_time:
-        count = poisson(generator.rng, _traffic_rate(current, args))
+    while current < end_time:
+        local_time = current.astimezone(local_timezone)
+        count = poisson(generator.rng, _traffic_rate(local_time, args))
         offsets = sorted(generator.rng.uniform(0, 3_600) for _ in range(count))
         for offset in offsets:
-            timestamp = current + timedelta(seconds=offset)
-            timestamp_utc = timestamp.astimezone(timezone.utc)
+            timestamp_utc = current + timedelta(seconds=offset)
             if start_time <= timestamp_utc < end_time:
                 generated += 1
                 if generated > args.max_traces:

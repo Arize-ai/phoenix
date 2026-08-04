@@ -210,6 +210,7 @@ def generate(args: argparse.Namespace) -> Generator:
                 },
                 root=True,
             ) as root:
+                span_count_at_root_start = generator.span_count
                 root.add_event(
                     "trace.started",
                     {
@@ -227,7 +228,7 @@ def generate(args: argparse.Namespace) -> Generator:
                 root.add_event(
                     "trace.completed",
                     {
-                        "child_spans": generator.span_count,
+                        "child_spans": generator.span_count - span_count_at_root_start,
                         "status": "completed_with_test_errors"
                         if args.exceptions_per_trace
                         else "success",
