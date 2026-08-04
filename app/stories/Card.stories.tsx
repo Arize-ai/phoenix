@@ -120,31 +120,6 @@ export const CollapsedPreview = {
   },
 };
 
-export const CollapsedToolCallPreview = {
-  render: PreviewTemplate,
-
-  args: {
-    title: "assistant",
-    collapsible: true,
-    defaultOpen: false,
-    preview:
-      'get_weather({"city":"San Francisco","units":"celsius"}), get_time({"tz":"America/Los_Angeles"})',
-    width: "400px",
-  },
-};
-
-export const CollapsedRecordPreview = {
-  render: PreviewTemplate,
-
-  args: {
-    title: "Invocation Params",
-    collapsible: true,
-    defaultOpen: false,
-    preview: "temperature: 0.7, max_tokens: 1000, model: gpt-4, top_p: 1",
-    width: "400px",
-  },
-};
-
 /**
  * The shape span details actually renders: collapsed message cards inside an
  * open card. Each preview answers to its own card — the open outer card must
