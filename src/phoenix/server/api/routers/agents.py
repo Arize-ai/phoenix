@@ -15,7 +15,7 @@ from contextlib import AbstractContextManager, aclosing, nullcontext
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Literal, NamedTuple, TypeVar
+from typing import Any, Literal, TypeVar
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -66,7 +66,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolOutputAvailableChunk,
 )
 from pydantic_ai.usage import RequestUsage
-from sqlalchemy import Insert, exists, func, or_, select, tuple_, update
+from sqlalchemy import ColumnElement, Insert, exists, func, or_, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1550,49 +1550,53 @@ async def _heartbeat_agent_session_turn_lock(
             )
 
 
-class _AgentSessionPatch(NamedTuple):
-    agent_session_rowid: int | None
-    """The session's rowid, or ``None`` if the session no longer exists."""
-    title_was_applied: bool
-    """Whether the generated title won the compare-and-set against a manual rename."""
+def _session_owner_filter(user_id: int | None) -> ColumnElement[bool]:
+    return (
+        models.AgentSession.user_id.is_(None)
+        if user_id is None
+        else models.AgentSession.user_id == user_id
+    )
 
 
-async def _patch_agent_session(
+async def _refresh_agent_session(
+    session: AsyncSession,
+    *,
+    agent_session_rowid: int,
+    user_id: int | None,
+) -> int | None:
+    """Bump ``updated_at``; returns ``None`` if the session is gone or not owned."""
+    return await session.scalar(
+        update(models.AgentSession)
+        .where(
+            models.AgentSession.id == agent_session_rowid,
+            _session_owner_filter(user_id),
+        )
+        .values(updated_at=func.now())
+        .returning(models.AgentSession.id)
+    )
+
+
+async def _set_session_title_if_untitled(
     session: AsyncSession,
     *,
     agent_session_rowid: int,
     user_id: int | None,
     title: str,
-) -> _AgentSessionPatch:
-    session_owner_filter = (
-        models.AgentSession.user_id.is_(None)
-        if user_id is None
-        else models.AgentSession.user_id == user_id
-    )
-    updated_agent_session_rowid = await session.scalar(
-        update(models.AgentSession)
-        .where(
-            models.AgentSession.id == agent_session_rowid,
-            session_owner_filter,
-        )
-        .values(updated_at=func.now())
-        .returning(models.AgentSession.id)
-    )
-    title_was_applied = False
-    if updated_agent_session_rowid is not None and title:
-        title_was_applied = (
-            await session.scalar(
-                update(models.AgentSession)
-                .where(
-                    models.AgentSession.id == agent_session_rowid,
-                    models.AgentSession.title == "",  # do not clobber manually input titles
-                )
-                .values(title=title)
-                .returning(models.AgentSession.id)
+) -> bool:
+    title_was_applied = (
+        await session.scalar(
+            update(models.AgentSession)
+            .where(
+                models.AgentSession.id == agent_session_rowid,
+                _session_owner_filter(user_id),
+                models.AgentSession.title == "",  # do not clobber existing titles
             )
-            is not None
+            .values(title=title)
+            .returning(models.AgentSession.id)
         )
-    return _AgentSessionPatch(updated_agent_session_rowid, title_was_applied)
+        is not None
+    )
+    return title_was_applied
 
 
 async def _persist_agent_session_title(
@@ -1602,15 +1606,9 @@ async def _persist_agent_session_title(
     user_id: int | None,
     title: str,
 ) -> bool:
-    """Persist an auto-generated session title unless the user already set one.
-
-    Returns ``False`` when the generated title lost to a manual rename (or the
-    session is gone) and should be discarded. Persistence errors return ``True``
-    so the end-of-turn persist can retry the write.
-    """
     try:
         async with db() as session:
-            patch = await _patch_agent_session(
+            title_was_applied = await _set_session_title_if_untitled(
                 session,
                 agent_session_rowid=agent_session_rowid,
                 user_id=user_id,
@@ -1621,8 +1619,8 @@ async def _persist_agent_session_title(
             "Failed to persist title for agent session %r",
             str(GlobalID("AgentSession", str(agent_session_rowid))),
         )
-        return True
-    return patch.title_was_applied
+        return False
+    return title_was_applied
 
 
 async def _upsert_agent_session_snapshot(
@@ -1685,18 +1683,16 @@ async def _persist_agent_session_turn(
     user_id: int | None,
     new_messages: list[PhoenixUIMessage],
     bashkit_snapshot: bytes | None,
-    title: str | None = None,
 ) -> None:
     if not new_messages:
         return
     async with db() as session:
-        patch = await _patch_agent_session(
+        refreshed_agent_session_rowid = await _refresh_agent_session(
             session,
             agent_session_rowid=agent_session_rowid,
             user_id=user_id,
-            title=title or "",
         )
-        if patch.agent_session_rowid is None:
+        if refreshed_agent_session_rowid is None:
             raise RuntimeError(
                 f"Agent session {GlobalID('AgentSession', str(agent_session_rowid))!s} "
                 "no longer exists"
@@ -2559,9 +2555,8 @@ def create_agents_router(
                         title=summary,
                     )
                     if not title_was_applied:
-                        # A manual rename landed while the summary was being
-                        # generated; discard it so it is neither streamed to
-                        # the client nor re-attempted at end of turn.
+                        # The title was not persisted due to a race condition.
+                        # Discard it so the client never shows a title the database does not have.
                         return None
                 return summary
 
@@ -2607,13 +2602,6 @@ def create_agents_router(
                 )
 
                 async def _persist_turn() -> TranscriptPersistedChunk:
-                    session_title = (
-                        summary_task.result()
-                        if summary_task is not None
-                        and summary_task.done()
-                        and not summary_task.cancelled()
-                        else None
-                    )
                     generated_assistant_message = PhoenixUIMessage.model_validate(
                         message_state.message.model_dump(
                             mode="json",
@@ -2634,7 +2622,6 @@ def create_agents_router(
                             user_id=request_user_id,
                             new_messages=turn_messages,
                             bashkit_snapshot=bash_snapshot_to_persist,
-                            title=session_title,
                         )
                     except Exception as exc:
                         logger.exception(
