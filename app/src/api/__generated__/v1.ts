@@ -1599,9 +1599,6 @@ export interface paths {
         /**
          * Get Session
          * @description Retrieve an owned session's metadata.
-         *
-         *     The transcript lives on the ``/messages`` subresource; this route is the
-         *     cheap synchronization probe clients poll while a session is idle.
          */
         get: operations["getAgentSession"];
         put?: never;

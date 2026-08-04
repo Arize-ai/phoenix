@@ -8245,7 +8245,7 @@
           "chat"
         ],
         "summary": "Get Session",
-        "description": "Retrieve an owned session's metadata.\n\nThe transcript lives on the ``/messages`` subresource; this route is the\ncheap synchronization probe clients poll while a session is idle.",
+        "description": "Retrieve an owned session's metadata.",
         "operationId": "getAgentSession",
         "parameters": [
           {
