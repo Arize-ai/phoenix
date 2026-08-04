@@ -8,6 +8,7 @@ vi.mock("@uiw/react-codemirror", () => ({
   default: () => null,
   EditorView: {
     contentAttributes: { of: vi.fn(() => ({})) },
+    decorations: { from: vi.fn(() => ({})) },
     updateListener: { of: vi.fn(() => ({})) },
   },
   keymap: { of: vi.fn(() => ({})) },
