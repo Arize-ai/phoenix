@@ -59,11 +59,24 @@ const timeRangeControlsCSS = css`
     var(--global-input-field-border-color);
   border-radius: var(--global-rounding-small);
 
+  /* Each button is an explicit square sized to the room left inside the
+     shell (height minus border and padding). Deriving the square from the
+     shell instead of stretch + aspect-ratio keeps Button and ToggleButton
+     identical in Safari, which resolves stretched aspect-ratio boxes
+     inconsistently between the two. */
   &[data-size="S"] {
     height: var(--global-input-height-s);
+    --time-range-controls-button-size: calc(
+      var(--global-input-height-s) - 2 *
+        (var(--global-dimension-size-50) + var(--global-border-size-thin))
+    );
   }
   &[data-size="M"] {
     height: var(--global-input-height-m);
+    --time-range-controls-button-size: calc(
+      var(--global-input-height-m) - 2 *
+        (var(--global-dimension-size-50) + var(--global-border-size-thin))
+    );
   }
 
   /* Fade the whole shell as one unit, not each button twice over. */
@@ -90,13 +103,22 @@ const controlButtonCSS = css`
     background-color 0.2s ease-in-out,
     color 0.2s ease-in-out;
 
-  &[data-size] {
-    align-self: stretch;
-    height: auto;
-    aspect-ratio: 1 / 1;
-  }
+  /* The double attribute selector outranks the base button's per-size
+     height and childless min-width so the explicit square wins for both
+     Button and ToggleButton. */
   &[data-size][data-childless] {
+    flex: none;
+    width: var(--time-range-controls-button-size);
+    min-width: var(--time-range-controls-button-size);
+    height: var(--time-range-controls-button-size);
     padding: 0;
+  }
+
+  /* The buttons sit only a few pixels inside the shell border, so an
+     outset focus ring would spill past it. Draw the ring inward instead. */
+  &[data-focus-visible],
+  &:focus-visible {
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
 
   /* One optical size for glyphs from both icon families. */

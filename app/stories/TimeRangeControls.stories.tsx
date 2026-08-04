@@ -112,6 +112,21 @@ export const PanZoomOnly = {
   },
 };
 
+/**
+ * The medium size derives its button squares from the taller shell the same
+ * way the small size does, so the toggle and its siblings stay aligned.
+ */
+export const Medium = {
+  render: Template,
+  args: {
+    size: "M",
+    initialValue: {
+      timeRangeKey: "1h",
+      start: new Date(Date.now() - 60 * 60 * 1000),
+    },
+  },
+};
+
 export const Disabled = {
   render: Template,
   args: {
