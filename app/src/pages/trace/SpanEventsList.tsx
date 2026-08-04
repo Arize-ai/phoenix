@@ -2,10 +2,13 @@ import { css } from "@emotion/react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
+  Card,
+  CopyToClipboardButton,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
   DisclosureTrigger,
+  ExpandableContent,
   Flex,
   Icon,
   Icons,
@@ -13,15 +16,21 @@ import {
   View,
 } from "@phoenix/components";
 import {
+  JSONViewBody,
+  JSONViewProvider,
+  JSONViewToolbar,
+  PreBlock,
+} from "@phoenix/components/code";
+import {
   EmptyState,
   EmptyStateArea,
   EmptyStateGraphic,
 } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeFormatters } from "@phoenix/hooks";
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 import type { SpanEventsListQuery } from "./__generated__/SpanEventsListQuery.graphql";
-import { ReadonlyJSONBlock } from "./ReadonlyJSONBlock";
 
 type SpanEventsListProps = {
   spanId: string;
@@ -62,6 +71,64 @@ type SpanEvent = {
   attributes: unknown;
 };
 
+const EXCEPTION_STACKTRACE = "exception.stacktrace";
+
+function EventAttributesJSONView({ attributes }: { attributes: unknown }) {
+  return (
+    <JSONViewProvider
+      value={attributes}
+      defaultMode="table"
+      indexNotation="dot"
+    >
+      <Card
+        title="Attributes"
+        extra={<JSONViewToolbar searchPlaceholder="Search event attributes" />}
+      >
+        <JSONViewBody />
+      </Card>
+    </JSONViewProvider>
+  );
+}
+
+export function SpanEventAttributes({ event }: { event: SpanEvent }) {
+  const exceptionAttributes =
+    event.name === "exception" && isPlainObject(event.attributes)
+      ? event.attributes
+      : {};
+  const { [EXCEPTION_STACKTRACE]: stacktrace, ...remainingAttributes } =
+    exceptionAttributes;
+  if (typeof stacktrace !== "string" || stacktrace.length === 0) {
+    return (
+      <View padding="size-200">
+        <EventAttributesJSONView attributes={event.attributes} />
+      </View>
+    );
+  }
+  return (
+    <View padding="size-200">
+      <Flex direction="column" gap="size-200">
+        <Card
+          title="Stack trace"
+          extra={
+            <CopyToClipboardButton
+              aria-label="Copy stack trace"
+              text={stacktrace}
+              tooltipText="Copy stack trace"
+            />
+          }
+        >
+          <ExpandableContent height={320} expandedBehavior="grow">
+            <PreBlock>{stacktrace}</PreBlock>
+          </ExpandableContent>
+        </Card>
+        {Object.keys(remainingAttributes).length > 0 ? (
+          <EventAttributesJSONView attributes={remainingAttributes} />
+        ) : null}
+      </Flex>
+    </View>
+  );
+}
+
 function SpanEventsListContent({ events }: { events: readonly SpanEvent[] }) {
   const { fullTimeFormatter } = useTimeFormatters();
 
@@ -89,7 +156,7 @@ function SpanEventsListContent({ events }: { events: readonly SpanEvent[] }) {
         const hasAttributes =
           event.attributes &&
           typeof event.attributes === "object" &&
-          Object.keys(event.attributes as object).length > 0;
+          Object.keys(event.attributes).length > 0;
 
         const eventHeader = (
           <Flex direction="row" gap="size-100" alignItems="center">
@@ -119,11 +186,7 @@ function SpanEventsListContent({ events }: { events: readonly SpanEvent[] }) {
             </DisclosureTrigger>
             {hasAttributes ? (
               <DisclosurePanel>
-                <ReadonlyJSONBlock
-                  basicSetup={{ lineNumbers: false, foldGutter: false }}
-                >
-                  {JSON.stringify(event.attributes, null, 2)}
-                </ReadonlyJSONBlock>
+                <SpanEventAttributes event={event} />
               </DisclosurePanel>
             ) : null}
           </Disclosure>
