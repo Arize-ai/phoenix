@@ -1,6 +1,7 @@
 """Mutations for persisted assistant chat sessions."""
 
 from datetime import datetime, timezone
+from typing import Optional
 from uuid import uuid4
 
 import strawberry
@@ -110,25 +111,20 @@ class DeleteAgentSessionInput:
 
 
 @strawberry.input
-class UpdateAgentSessionTitleInput:
+class UpdateAgentSessionInput:
     id: GlobalID
-    title: str
+    title: Optional[str] = strawberry.field(
+        default=UNSET,
+        description="New title. Omitted leaves the title unchanged.",
+    )
+    model: Optional[AgentModelSelectionInput] = strawberry.field(
+        default=UNSET,
+        description="New model selection. Omitted leaves the model unchanged.",
+    )
 
 
 @strawberry.type
-class UpdateAgentSessionTitleMutationPayload:
-    agent_session: AgentSession
-    query: Query
-
-
-@strawberry.input
-class UpdateAgentSessionModelInput:
-    id: GlobalID
-    model: AgentModelSelectionInput
-
-
-@strawberry.type
-class UpdateAgentSessionModelMutationPayload:
+class UpdateAgentSessionMutationPayload:
     agent_session: AgentSession
     query: Query
 
@@ -292,78 +288,55 @@ class AgentSessionMutationMixin:
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def update_agent_session_title(
+    async def update_agent_session(
         self,
         info: Info[Context, None],
-        input: UpdateAgentSessionTitleInput,
-    ) -> UpdateAgentSessionTitleMutationPayload:
-        """Update a persisted session's title."""
-        try:
-            title = validate_agent_session_title(input.title, allow_empty=False)
-        except ValueError as exc:
-            raise BadRequest(str(exc)) from exc
-        try:
-            agent_session_rowid = from_global_id_with_expected_type(
-                input.id,
-                models.AgentSession.__name__,
-            )
-        except ValueError as exc:
-            raise BadRequest(str(exc)) from exc
-        lookup_stmt = select(models.AgentSession).where(
-            models.AgentSession.id == agent_session_rowid
-        )
-        if (owner_filter := get_agent_session_owner_filter(info.context)) is not None:
-            lookup_stmt = lookup_stmt.where(owner_filter)
-        async with info.context.db() as session:
-            agent_session = await session.scalar(lookup_stmt)
-            if agent_session is None:
-                raise NotFound(f"No agent session found for ID '{input.id}'")
-            agent_session.title = title
-            await session.flush()
-        return UpdateAgentSessionTitleMutationPayload(
-            agent_session=to_gql_agent_session(agent_session),
-            query=Query(),
-        )
-
-    @strawberry.mutation(
-        permission_classes=[IsNotReadOnly, IsNotViewer, IsAgentAssistantEnabled, IsLocked]
-    )  # type: ignore
-    async def update_agent_session_model(
-        self,
-        info: Info[Context, None],
-        input: UpdateAgentSessionModelInput,
-    ) -> UpdateAgentSessionModelMutationPayload:
-        """Change the model a persisted session runs on."""
-        try:
-            agent_session_rowid = from_global_id_with_expected_type(
-                input.id,
-                models.AgentSession.__name__,
-            )
-        except ValueError as exc:
-            raise BadRequest(str(exc)) from exc
-        lookup_stmt = select(models.AgentSession).where(
-            models.AgentSession.id == agent_session_rowid
-        )
-        if (owner_filter := get_agent_session_owner_filter(info.context)) is not None:
-            lookup_stmt = lookup_stmt.where(owner_filter)
-        async with info.context.db() as session:
-            agent_session = await session.scalar(lookup_stmt)
-            if agent_session is None:
-                raise NotFound(f"No agent session found for ID '{input.id}'")
-            if is_turn_active(agent_session.heartbeat_at, now=datetime.now(timezone.utc)):
-                # A streaming turn runs on the model it read under the turn
-                # lock, so the model must not flip out from under it.
-                raise Conflict("Cannot change the session's model while a turn is streaming.")
+        input: UpdateAgentSessionInput,
+    ) -> UpdateAgentSessionMutationPayload:
+        """Update a persisted session's mutable fields."""
+        has_title = input.title is not UNSET and input.title is not None
+        has_model = input.model is not UNSET and input.model is not None
+        if not has_title and not has_model:
+            raise BadRequest("At least one field to update must be provided.")
+        title: Optional[str] = None
+        if has_title:
             try:
-                await set_session_model(
-                    session,
-                    agent_session=agent_session,
-                    model=_to_model_selection(input.model),
-                )
-            except ProviderNotFoundError as exc:
-                raise NotFound(str(exc)) from exc
+                title = validate_agent_session_title(str(input.title), allow_empty=False)
+            except ValueError as exc:
+                raise BadRequest(str(exc)) from exc
+        try:
+            agent_session_rowid = from_global_id_with_expected_type(
+                input.id,
+                models.AgentSession.__name__,
+            )
+        except ValueError as exc:
+            raise BadRequest(str(exc)) from exc
+        lookup_stmt = select(models.AgentSession).where(
+            models.AgentSession.id == agent_session_rowid
+        )
+        if (owner_filter := get_agent_session_owner_filter(info.context)) is not None:
+            lookup_stmt = lookup_stmt.where(owner_filter)
+        async with info.context.db() as session:
+            agent_session = await session.scalar(lookup_stmt)
+            if agent_session is None:
+                raise NotFound(f"No agent session found for ID '{input.id}'")
+            if title is not None:
+                agent_session.title = title
+            if has_model and input.model is not None:
+                if is_turn_active(agent_session.heartbeat_at, now=datetime.now(timezone.utc)):
+                    # A streaming turn runs on the model it read under the turn
+                    # lock, so the model must not flip out from under it.
+                    raise Conflict("Cannot change the session's model while a turn is streaming.")
+                try:
+                    await set_session_model(
+                        session,
+                        agent_session=agent_session,
+                        model=_to_model_selection(input.model),
+                    )
+                except ProviderNotFoundError as exc:
+                    raise NotFound(str(exc)) from exc
             await session.flush()
-        return UpdateAgentSessionModelMutationPayload(
+        return UpdateAgentSessionMutationPayload(
             agent_session=to_gql_agent_session(agent_session),
             query=Query(),
         )

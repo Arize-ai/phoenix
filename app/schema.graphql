@@ -2552,8 +2552,7 @@ type Mutation {
   createAgentSession(input: CreateAgentSessionInput!): CreateAgentSessionMutationPayload!
   truncateAgentSession(input: TruncateAgentSessionInput!): TruncateAgentSessionMutationPayload!
   branchAgentSession(input: BranchAgentSessionInput!): BranchAgentSessionMutationPayload!
-  updateAgentSessionTitle(input: UpdateAgentSessionTitleInput!): UpdateAgentSessionTitleMutationPayload!
-  updateAgentSessionModel(input: UpdateAgentSessionModelInput!): UpdateAgentSessionModelMutationPayload!
+  updateAgentSession(input: UpdateAgentSessionInput!): UpdateAgentSessionMutationPayload!
   deleteAgentSession(input: DeleteAgentSessionInput!): DeleteAgentSessionMutationPayload!
   createAnnotationConfig(input: CreateAnnotationConfigInput!): CreateAnnotationConfigPayload!
   updateAnnotationConfig(input: UpdateAnnotationConfigInput!): UpdateAnnotationConfigPayload!
@@ -4797,22 +4796,17 @@ input UnsetPromptLabelsInput {
   promptLabelIds: [ID!]!
 }
 
-input UpdateAgentSessionModelInput {
+input UpdateAgentSessionInput {
   id: ID!
-  model: AgentModelSelectionInput!
+
+  """New title. Omitted leaves the title unchanged."""
+  title: String
+
+  """New model selection. Omitted leaves the model unchanged."""
+  model: AgentModelSelectionInput
 }
 
-type UpdateAgentSessionModelMutationPayload {
-  agentSession: AgentSession!
-  query: Query!
-}
-
-input UpdateAgentSessionTitleInput {
-  id: ID!
-  title: String!
-}
-
-type UpdateAgentSessionTitleMutationPayload {
+type UpdateAgentSessionMutationPayload {
   agentSession: AgentSession!
   query: Query!
 }

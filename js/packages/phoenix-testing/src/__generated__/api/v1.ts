@@ -1589,26 +1589,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/agents/{agent_id}/sessions/{session_id}/model": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Update Session Model
-         * @description Change the model a persisted session runs on.
-         */
-        post: operations["updateAgentSessionModel"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/agents/{agent_id}/sessions/{session_id}": {
         parameters: {
             query?: never;
@@ -1626,7 +1606,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update Session
+         * @description Update a persisted session's mutable fields.
+         */
+        patch: operations["updateAgentSession"];
         trace?: never;
     };
     "/agents/{agent_id}/sessions/{session_id}/compact": {
@@ -1765,13 +1749,6 @@ export interface components {
              * @description The persisted transcript. Omitted when the session is fetched with include_messages=false.
              */
             messages?: components["schemas"]["PhoenixUIMessage"][] | null;
-        };
-        /**
-         * AgentSessionModel
-         * @description The model selection in effect for a session.
-         */
-        AgentSessionModel: {
-            model: components["schemas"]["AgentModelSelection"];
         };
         /** AgentSessionSummary */
         AgentSessionSummary: {
@@ -2094,7 +2071,7 @@ export interface components {
              * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
              */
             requestedSkills?: string[];
-            /** @description The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on — or switching to — an unexpected model. Change the session's model with ``POST .../sessions/{session_id}/model``. */
+            /** @description The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on — or switching to — an unexpected model. Change the session's model with ``PATCH .../sessions/{session_id}``. */
             model: components["schemas"]["AgentModelSelection"];
             turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             /**
@@ -5777,15 +5754,24 @@ export interface components {
             startedAt: string;
         };
         /**
-         * UpdateAgentSessionModelRequestBody
-         * @description Request body for changing a persisted session's model selection.
+         * UpdateAgentSessionRequestBody
+         * @description Request body for updating a persisted session's mutable fields.
+         *
+         *     At least one field must be provided; omitted (or null) fields are left
+         *     unchanged.
          */
-        UpdateAgentSessionModelRequestBody: {
-            model: components["schemas"]["AgentModelSelection"];
+        UpdateAgentSessionRequestBody: {
+            /**
+             * Title
+             * @description New title. Omitted or null leaves the title unchanged.
+             */
+            title?: string | null;
+            /** @description New model selection. Omitted or null leaves the model unchanged. */
+            model?: components["schemas"]["AgentModelSelection"] | null;
         };
-        /** UpdateAgentSessionModelResponseBody */
-        UpdateAgentSessionModelResponseBody: {
-            data: components["schemas"]["AgentSessionModel"];
+        /** UpdateAgentSessionResponseBody */
+        UpdateAgentSessionResponseBody: {
+            data: components["schemas"]["AgentSessionData"];
         };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {
@@ -11479,42 +11465,6 @@ export interface operations {
             };
         };
     };
-    updateAgentSessionModel: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                agent_id: string;
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateAgentSessionModelRequestBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UpdateAgentSessionModelResponseBody"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     getAgentSession: {
         parameters: {
             query?: {
@@ -11537,6 +11487,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetAgentSessionResponseBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updateAgentSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAgentSessionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateAgentSessionResponseBody"];
                 };
             };
             /** @description Validation Error */

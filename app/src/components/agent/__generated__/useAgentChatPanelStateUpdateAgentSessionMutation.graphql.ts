@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<51addb04e925f71719ab1b1b7bb37f60>>
+ * @generated SignedSource<<66b8c43e6b37a055831b8881d870435b>>
  * @lightSyntaxTransform
  */
 
@@ -11,9 +11,10 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
-export type UpdateAgentSessionModelInput = {
+export type UpdateAgentSessionInput = {
   id: string;
-  model: AgentModelSelectionInput;
+  model?: AgentModelSelectionInput | null;
+  title?: string | null;
 };
 export type AgentModelSelectionInput = {
   builtin?: never;
@@ -31,20 +32,20 @@ export type AgentBuiltinProviderModelSelectionInput = {
   openaiApiType?: OpenAIApiType;
   provider: ModelProvider;
 };
-export type useAgentChatPanelStateUpdateAgentSessionModelMutation$variables = {
-  input: UpdateAgentSessionModelInput;
+export type useAgentChatPanelStateUpdateAgentSessionMutation$variables = {
+  input: UpdateAgentSessionInput;
 };
-export type useAgentChatPanelStateUpdateAgentSessionModelMutation$data = {
-  readonly updateAgentSessionModel: {
+export type useAgentChatPanelStateUpdateAgentSessionMutation$data = {
+  readonly updateAgentSession: {
     readonly agentSession: {
       readonly id: string;
       readonly " $fragmentSpreads": FragmentRefs<"agentSessionModel_session">;
     };
   };
 };
-export type useAgentChatPanelStateUpdateAgentSessionModelMutation = {
-  response: useAgentChatPanelStateUpdateAgentSessionModelMutation$data;
-  variables: useAgentChatPanelStateUpdateAgentSessionModelMutation$variables;
+export type useAgentChatPanelStateUpdateAgentSessionMutation = {
+  response: useAgentChatPanelStateUpdateAgentSessionMutation$data;
+  variables: useAgentChatPanelStateUpdateAgentSessionMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -136,14 +137,14 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "useAgentChatPanelStateUpdateAgentSessionModelMutation",
+    "name": "useAgentChatPanelStateUpdateAgentSessionMutation",
     "selections": [
       {
         "alias": null,
         "args": (v1/*:: as any*/),
-        "concreteType": "UpdateAgentSessionModelMutationPayload",
+        "concreteType": "UpdateAgentSessionMutationPayload",
         "kind": "LinkedField",
-        "name": "updateAgentSessionModel",
+        "name": "updateAgentSession",
         "plural": false,
         "selections": [
           {
@@ -178,14 +179,14 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "useAgentChatPanelStateUpdateAgentSessionModelMutation",
+    "name": "useAgentChatPanelStateUpdateAgentSessionMutation",
     "selections": [
       {
         "alias": null,
         "args": (v1/*:: as any*/),
-        "concreteType": "UpdateAgentSessionModelMutationPayload",
+        "concreteType": "UpdateAgentSessionMutationPayload",
         "kind": "LinkedField",
-        "name": "updateAgentSessionModel",
+        "name": "updateAgentSession",
         "plural": false,
         "selections": [
           {
@@ -207,16 +208,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "44a04c64447e27be245749d9b8768c8b",
+    "cacheID": "6f680a6f560ac7228823d45dc9397920",
     "id": null,
     "metadata": {},
-    "name": "useAgentChatPanelStateUpdateAgentSessionModelMutation",
+    "name": "useAgentChatPanelStateUpdateAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useAgentChatPanelStateUpdateAgentSessionModelMutation(\n  $input: UpdateAgentSessionModelInput!\n) {\n  updateAgentSessionModel(input: $input) {\n    agentSession {\n      id\n      ...agentSessionModel_session\n    }\n  }\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n      openaiApiType\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
+    "text": "mutation useAgentChatPanelStateUpdateAgentSessionMutation(\n  $input: UpdateAgentSessionInput!\n) {\n  updateAgentSession(input: $input) {\n    agentSession {\n      id\n      ...agentSessionModel_session\n    }\n  }\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n      openaiApiType\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c2182307dca6494f070185e4e92c65ab";
+(node as any).hash = "3e1f10a6d8a489dee25e4fd4d481c9aa";
 
 export default node;

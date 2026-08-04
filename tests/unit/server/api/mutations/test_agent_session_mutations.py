@@ -93,7 +93,7 @@ _DELETE_MUTATION = """
 
 _UPDATE_TITLE_MUTATION = """
   mutation ($id: ID!, $title: String!) {
-    updateAgentSessionTitle(input: { id: $id, title: $title }) {
+    updateAgentSession(input: { id: $id, title: $title }) {
       agentSession {
         id
         title
@@ -104,7 +104,7 @@ _UPDATE_TITLE_MUTATION = """
 
 _UPDATE_MODEL_MUTATION = """
   mutation ($id: ID!, $model: AgentModelSelectionInput!) {
-    updateAgentSessionModel(input: { id: $id, model: $model }) {
+    updateAgentSession(input: { id: $id, model: $model }) {
       agentSession {
         id
         model {
@@ -834,10 +834,42 @@ async def test_update_agent_session_title(
 
     assert not response.errors
     assert response.data == {
-        "updateAgentSessionTitle": {"agentSession": {"id": agent_session_id, "title": "New title"}}
+        "updateAgentSession": {"agentSession": {"id": agent_session_id, "title": "New title"}}
     }
     async with db() as session:
         assert await session.scalar(select(models.AgentSession.title)) == "New title"
+
+
+async def test_update_agent_session_rejects_an_empty_update(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
+            user_id=None,
+            title="Old title",
+            project_name="assistant_agent",
+        )
+        session.add(agent_session)
+        await session.flush()
+        agent_session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+    response = await gql_client.execute(
+        query="""
+          mutation ($id: ID!) {
+            updateAgentSession(input: { id: $id }) {
+              agentSession {
+                id
+              }
+            }
+          }
+        """,
+        variables={"id": agent_session_id},
+    )
+
+    assert response.errors
+    assert "At least one field" in response.errors[0].message
 
 
 async def test_update_agent_session_model_moves_the_session(
@@ -872,7 +904,7 @@ async def test_update_agent_session_model_moves_the_session(
 
     assert not response.errors
     assert response.data == {
-        "updateAgentSessionModel": {
+        "updateAgentSession": {
             "agentSession": {
                 "id": agent_session_id,
                 "model": {

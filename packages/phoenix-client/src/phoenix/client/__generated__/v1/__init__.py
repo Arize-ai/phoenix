@@ -1718,10 +1718,6 @@ class TranscriptPersistedChunk(TypedDict):
     transient: NotRequired[bool]
 
 
-class AgentSessionModel(TypedDict):
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-
-
 class AssignAnnotationConfigToProjectResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
@@ -1924,12 +1920,9 @@ class PromptMessage(TypedDict):
     ]
 
 
-class UpdateAgentSessionModelRequestBody(TypedDict):
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-
-
-class UpdateAgentSessionModelResponseBody(TypedDict):
-    data: AgentSessionModel
+class UpdateAgentSessionRequestBody(TypedDict):
+    title: NotRequired[str]
+    model: NotRequired[Union[CustomProviderModelSelection, BuiltInProviderModelSelection]]
 
 
 class AgentSessionData(TypedDict):
@@ -2036,6 +2029,10 @@ class PromptVersionData(TypedDict):
 
 class PromptVersion(PromptVersionData):
     id: str
+
+
+class UpdateAgentSessionResponseBody(TypedDict):
+    data: AgentSessionData
 
 
 class CompactAgentSessionResponse(TypedDict):

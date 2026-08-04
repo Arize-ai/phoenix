@@ -8179,14 +8179,14 @@
         }
       }
     },
-    "/agents/{agent_id}/sessions/{session_id}/model": {
-      "post": {
+    "/agents/{agent_id}/sessions/{session_id}": {
+      "patch": {
         "tags": [
           "chat"
         ],
-        "summary": "Update Session Model",
-        "description": "Change the model a persisted session runs on.",
-        "operationId": "updateAgentSessionModel",
+        "summary": "Update Session",
+        "description": "Update a persisted session's mutable fields.",
+        "operationId": "updateAgentSession",
         "parameters": [
           {
             "name": "agent_id",
@@ -8212,7 +8212,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateAgentSessionModelRequestBody"
+                "$ref": "#/components/schemas/UpdateAgentSessionRequestBody"
               }
             }
           }
@@ -8223,7 +8223,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UpdateAgentSessionModelResponseBody"
+                  "$ref": "#/components/schemas/UpdateAgentSessionResponseBody"
                 }
               }
             }
@@ -8239,9 +8239,7 @@
             }
           }
         }
-      }
-    },
-    "/agents/{agent_id}/sessions/{session_id}": {
+      },
       "get": {
         "tags": [
           "chat"
@@ -8590,19 +8588,6 @@
           "is_active"
         ],
         "title": "AgentSessionData"
-      },
-      "AgentSessionModel": {
-        "properties": {
-          "model": {
-            "$ref": "#/components/schemas/AgentModelSelection"
-          }
-        },
-        "type": "object",
-        "required": [
-          "model"
-        ],
-        "title": "AgentSessionModel",
-        "description": "The model selection in effect for a session."
       },
       "AgentSessionSummary": {
         "properties": {
@@ -9437,7 +9422,7 @@
           },
           "model": {
             "$ref": "#/components/schemas/AgentModelSelection",
-            "description": "The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on \u2014 or switching to \u2014 an unexpected model. Change the session's model with ``POST .../sessions/{session_id}/model``."
+            "description": "The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on \u2014 or switching to \u2014 an unexpected model. Change the session's model with ``PATCH .../sessions/{session_id}``."
           },
           "turnTraceContext": {
             "anyOf": [
@@ -18259,30 +18244,48 @@
         ],
         "title": "TurnTraceContext"
       },
-      "UpdateAgentSessionModelRequestBody": {
+      "UpdateAgentSessionRequestBody": {
         "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "New title. Omitted or null leaves the title unchanged."
+          },
           "model": {
-            "$ref": "#/components/schemas/AgentModelSelection"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentModelSelection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New model selection. Omitted or null leaves the model unchanged."
           }
         },
         "type": "object",
-        "required": [
-          "model"
-        ],
-        "title": "UpdateAgentSessionModelRequestBody",
-        "description": "Request body for changing a persisted session's model selection."
+        "title": "UpdateAgentSessionRequestBody",
+        "description": "Request body for updating a persisted session's mutable fields.\n\nAt least one field must be provided; omitted (or null) fields are left\nunchanged."
       },
-      "UpdateAgentSessionModelResponseBody": {
+      "UpdateAgentSessionResponseBody": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/AgentSessionModel"
+            "$ref": "#/components/schemas/AgentSessionData"
           }
         },
         "type": "object",
         "required": [
           "data"
         ],
-        "title": "UpdateAgentSessionModelResponseBody"
+        "title": "UpdateAgentSessionResponseBody"
       },
       "UpdateAnnotationConfigResponseBody": {
         "properties": {

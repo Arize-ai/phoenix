@@ -9,7 +9,7 @@ import type { ModelConfig } from "@phoenix/store/playground/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { ModelMenuValue } from "../generative/ModelMenu";
-import type { useAgentChatPanelStateUpdateAgentSessionModelMutation } from "./__generated__/useAgentChatPanelStateUpdateAgentSessionModelMutation.graphql";
+import type { useAgentChatPanelStateUpdateAgentSessionMutation } from "./__generated__/useAgentChatPanelStateUpdateAgentSessionMutation.graphql";
 import type { AgentChatOperationError } from "./useAgentChat";
 
 /**
@@ -64,11 +64,11 @@ export function toAgentModelSelectionInput(model: AgentModelSelection) {
   };
 }
 
-const updateAgentSessionModelMutation = graphql`
-  mutation useAgentChatPanelStateUpdateAgentSessionModelMutation(
-    $input: UpdateAgentSessionModelInput!
+const updateAgentSessionMutation = graphql`
+  mutation useAgentChatPanelStateUpdateAgentSessionMutation(
+    $input: UpdateAgentSessionInput!
   ) {
-    updateAgentSessionModel(input: $input) {
+    updateAgentSession(input: $input) {
       agentSession {
         id
         ...agentSessionModel_session
@@ -129,8 +129,8 @@ export function useAgentChatPanelState(sessionId?: string | null) {
   const [modelChangeError, setModelChangeError] =
     useState<AgentChatOperationError | null>(null);
   const [commitModelChange] =
-    useMutation<useAgentChatPanelStateUpdateAgentSessionModelMutation>(
-      updateAgentSessionModelMutation
+    useMutation<useAgentChatPanelStateUpdateAgentSessionMutation>(
+      updateAgentSessionMutation
     );
 
   const menuValue: ModelMenuValue = useMemo(

@@ -325,7 +325,7 @@ class _ChatRequestMixin(_ObservabilityMixin):
             "HTTP 409 and code ``agent_session_model_stale`` rather than "
             "silently running on — or switching to — an unexpected model. "
             "Change the session's model with "
-            "``POST .../sessions/{session_id}/model``."
+            "``PATCH .../sessions/{session_id}``."
         ),
     )
     turn_trace_context: TurnTraceContext | None = None
@@ -385,20 +385,22 @@ class CreateAgentSessionResponseBody(ResponseBody[AgentSession]):
     pass
 
 
-class UpdateAgentSessionModelRequestBody(V1RoutesBaseModel):
-    """Request body for changing a persisted session's model selection."""
+class UpdateAgentSessionRequestBody(V1RoutesBaseModel):
+    """Request body for updating a persisted session's mutable fields.
 
-    model: AgentModelSelection
+    At least one field must be provided; omitted (or null) fields are left
+    unchanged.
+    """
 
-
-class AgentSessionModel(V1RoutesBaseModel):
-    """The model selection in effect for a session."""
-
-    model: AgentModelSelection
-
-
-class UpdateAgentSessionModelResponseBody(ResponseBody[AgentSessionModel]):
-    pass
+    title: str | None = Field(
+        default=None,
+        max_length=MAX_AGENT_SESSION_TITLE_LENGTH,
+        description="New title. Omitted or null leaves the title unchanged.",
+    )
+    model: AgentModelSelection | None = Field(
+        default=None,
+        description="New model selection. Omitted or null leaves the model unchanged.",
+    )
 
 
 class AgentSessionSummary(V1RoutesBaseModel):
@@ -438,6 +440,10 @@ class ListAgentSessionsResponseBody(PaginatedResponseBody[AgentSessionSummary]):
 
 
 class GetAgentSessionResponseBody(ResponseBody[AgentSessionData]):
+    pass
+
+
+class UpdateAgentSessionResponseBody(ResponseBody[AgentSessionData]):
     pass
 
 
@@ -1843,22 +1849,34 @@ def create_agents_router(
             )
         )
 
-    @router.post(
-        "/agents/{agent_id}/sessions/{session_id}/model",
-        operation_id="updateAgentSessionModel",
-        response_model=UpdateAgentSessionModelResponseBody,
+    @router.patch(
+        "/agents/{agent_id}/sessions/{session_id}",
+        operation_id="updateAgentSession",
+        response_model=UpdateAgentSessionResponseBody,
+        response_model_exclude_unset=True,
     )
-    async def update_session_model(
+    async def update_session(
         agent_id: str,
         session_id: str,
         request: Request,
-        request_body: UpdateAgentSessionModelRequestBody,
-    ) -> UpdateAgentSessionModelResponseBody | JSONResponse:
-        """Change the model a persisted session runs on."""
+        request_body: UpdateAgentSessionRequestBody,
+    ) -> UpdateAgentSessionResponseBody | JSONResponse:
+        """Update a persisted session's mutable fields."""
         if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
         if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
             raise HTTPException(status_code=403, detail="Server agent is disabled")
+        if request_body.title is None and request_body.model is None:
+            raise HTTPException(
+                status_code=422,
+                detail="At least one field to update must be provided.",
+            )
+        title: str | None = None
+        if request_body.title is not None:
+            try:
+                title = validate_agent_session_title(request_body.title, allow_empty=False)
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
         try:
             async with request.app.state.db() as session:
                 agent_session = await _refresh_and_load_agent_session(
@@ -1867,21 +1885,37 @@ def create_agents_router(
                     user_id=_get_request_user_id(request),
                     for_update=True,
                 )
-                if is_turn_active(
-                    agent_session.heartbeat_at,
-                    now=datetime.now(timezone.utc),
-                ):
-                    # A streaming turn runs on the model it read under the turn
-                    # lock, so the model must not flip out from under it.
-                    return JSONResponse({"code": "agent_session_busy"}, status_code=409)
-                session_model = await set_session_model(
-                    session,
-                    agent_session=agent_session,
-                    model=request_body.model,
+                if title is not None:
+                    agent_session.title = title
+                if request_body.model is not None:
+                    if is_turn_active(
+                        agent_session.heartbeat_at,
+                        now=datetime.now(timezone.utc),
+                    ):
+                        # A streaming turn runs on the model it read under the
+                        # turn lock, so the model must not flip out from under
+                        # it.
+                        return JSONResponse({"code": "agent_session_busy"}, status_code=409)
+                    await set_session_model(
+                        session,
+                        agent_session=agent_session,
+                        model=request_body.model,
+                    )
+                # The flush fires the row's server-side `onupdate` timestamp,
+                # so re-read the row before serializing it.
+                await session.flush()
+                await session.refresh(agent_session)
+                summary = _to_agent_session_summary(agent_session)
+                # `last_message_id` and `messages` are deliberately left unset
+                # so response_model_exclude_unset drops them from the payload.
+                data = AgentSessionData(
+                    **summary.model_dump(),
+                    model=get_agent_session_model(agent_session),
+                    is_active=False,
                 )
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
-        return UpdateAgentSessionModelResponseBody(data=AgentSessionModel(model=session_model))
+        return UpdateAgentSessionResponseBody(data=data)
 
     @router.get(
         "/agents/{agent_id}/sessions",

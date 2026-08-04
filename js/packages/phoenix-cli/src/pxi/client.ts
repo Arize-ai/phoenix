@@ -283,8 +283,8 @@ export function createPxiSessionClient({
     async updateSessionModel({ sessionId, model }) {
       const client = createPhoenixClient({ config, fetch: fetchImpl });
       try {
-        const { data: payload } = await client.POST(
-          "/agents/{agent_id}/sessions/{session_id}/model",
+        const { data: payload } = await client.PATCH(
+          "/agents/{agent_id}/sessions/{session_id}",
           {
             params: {
               path: { agent_id: SERVER_AGENT_ID, session_id: sessionId },

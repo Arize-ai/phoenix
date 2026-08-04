@@ -106,8 +106,8 @@ def _server_agent_compact_url(agent_session_id: str) -> str:
     return f"/agents/server/sessions/{agent_session_id}/compact"
 
 
-def _model_url(agent_session_id: str) -> str:
-    return f"/agents/assistant/sessions/{agent_session_id}/model"
+def _update_session_url(agent_session_id: str) -> str:
+    return f"/agents/assistant/sessions/{agent_session_id}"
 
 
 def _compact_body() -> dict[str, Any]:
@@ -2257,12 +2257,12 @@ async def test_chat_runs_on_the_sessions_persisted_model_without_rewriting_it(
         assert agent_session.builtin_provider is not None
 
 
-async def test_update_session_model_route_moves_the_session_to_the_new_model(
+async def test_update_session_route_moves_the_session_to_the_new_model(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The model route is the only way to change an existing session's model,
+    """The update route is the only way to change an existing session's model,
     and a turn asserting the new model is accepted once it has."""
 
     async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
@@ -2276,7 +2276,9 @@ async def test_update_session_model_route_moves_the_session_to_the_new_model(
         "modelName": "claude-opus-4-6",
     }
 
-    response = await httpx_client.post(_model_url(agent_session_id), json={"model": next_model})
+    response = await httpx_client.patch(
+        _update_session_url(agent_session_id), json={"model": next_model}
+    )
 
     assert response.status_code == 200
     assert response.json()["data"]["model"]["provider"] == "ANTHROPIC"
@@ -2300,15 +2302,15 @@ async def test_update_session_model_route_moves_the_session_to_the_new_model(
     assert accepted.status_code == 200
 
 
-async def test_update_session_model_route_rejects_a_deleted_custom_provider(
+async def test_update_session_route_rejects_a_deleted_custom_provider(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(db)
     deleted_provider_gid = str(GlobalID(models.GenerativeModelCustomProvider.__name__, "999"))
 
-    response = await httpx_client.post(
-        _model_url(agent_session_id),
+    response = await httpx_client.patch(
+        _update_session_url(agent_session_id),
         json={
             "model": {
                 "providerType": "custom",
@@ -2327,20 +2329,20 @@ async def test_update_session_model_route_rejects_a_deleted_custom_provider(
         assert agent_session.model_name == "gpt-test"
 
 
-async def test_update_session_model_route_is_rejected_while_a_turn_holds_the_session_lock(
+async def test_update_session_route_model_change_is_rejected_while_a_turn_holds_the_session_lock(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
 ) -> None:
     """A streaming turn runs on the model it read under the turn lock, so the
-    model route must not flip the session's model out from under it — and must
+    update route must not flip the session's model out from under it — and must
     not release the running turn's lock."""
     agent_session_id = await _create_agent_session_row(db)
     live_heartbeat = datetime.now(timezone.utc)
     async with db() as session:
         await session.execute(update(models.AgentSession).values(heartbeat_at=live_heartbeat))
 
-    response = await httpx_client.post(
-        _model_url(agent_session_id),
+    response = await httpx_client.patch(
+        _update_session_url(agent_session_id),
         json={
             "model": {
                 "providerType": "builtin",
@@ -2360,7 +2362,7 @@ async def test_update_session_model_route_is_rejected_while_a_turn_holds_the_ses
         assert stored.heartbeat_at is not None
 
 
-async def test_update_session_model_route_ignores_a_stale_session_lock(
+async def test_update_session_route_ignores_a_stale_session_lock(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
 ) -> None:
@@ -2371,8 +2373,8 @@ async def test_update_session_model_route_ignores_a_stale_session_lock(
     async with db() as session:
         await session.execute(update(models.AgentSession).values(heartbeat_at=stale_heartbeat))
 
-    response = await httpx_client.post(
-        _model_url(agent_session_id),
+    response = await httpx_client.patch(
+        _update_session_url(agent_session_id),
         json={
             "model": {
                 "providerType": "builtin",
@@ -2390,13 +2392,13 @@ async def test_update_session_model_route_ignores_a_stale_session_lock(
         assert stored.model_name == "claude-opus-4-6"
 
 
-async def test_update_session_model_route_rejects_unknown_agents(
+async def test_update_session_route_rejects_unknown_agents(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(db)
-    response = await httpx_client.post(
-        f"/agents/unknown/sessions/{agent_session_id}/model",
+    response = await httpx_client.patch(
+        f"/agents/unknown/sessions/{agent_session_id}",
         json={
             "model": {
                 "providerType": "builtin",
@@ -2406,6 +2408,39 @@ async def test_update_session_model_route_rejects_unknown_agents(
         },
     )
     assert response.status_code == 404
+
+
+async def test_update_session_route_updates_the_title(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    agent_session_id = await _create_agent_session_row(db)
+
+    response = await httpx_client.patch(
+        _update_session_url(agent_session_id),
+        json={"title": "Renamed session"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["title"] == "Renamed session"
+    # The transcript is not part of the update payload.
+    assert "messages" not in response.json()["data"]
+    async with db() as session:
+        stored = await session.scalar(select(models.AgentSession))
+        assert stored is not None
+        assert stored.title == "Renamed session"
+        # An update that does not name the model leaves it unchanged.
+        assert stored.model_provider.value == "OPENAI"
+        assert stored.model_name == "gpt-test"
+
+
+async def test_update_session_route_rejects_an_empty_update(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    agent_session_id = await _create_agent_session_row(db)
+    response = await httpx_client.patch(_update_session_url(agent_session_id), json={})
+    assert response.status_code == 422
 
 
 async def test_compact_rejects_a_request_asserting_a_model_the_session_is_not_on(
