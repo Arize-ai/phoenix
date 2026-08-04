@@ -3,6 +3,7 @@ import { css } from "@emotion/react";
 
 import {
   Card,
+  CardCollapsedPreview,
   CopyToClipboardButton,
   Disclosure,
   DisclosureGroup,
@@ -60,7 +61,11 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
             ? `: ${message[MessageAttributePostfixes.name]}`
             : "")
         }
-        collapsedPreview={getMessagePreview(message)}
+        headerContent={
+          <CardCollapsedPreview>
+            {getMessagePreview(message)}
+          </CardCollapsedPreview>
+        }
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             <ConnectedMarkdownModeSelect />

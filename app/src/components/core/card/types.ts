@@ -36,16 +36,6 @@ export interface CardProps extends PropsWithChildren<ViewStyleProps> {
    */
   collapsible?: boolean;
   /**
-   * A short excerpt of the body, shown in the header while the card is
-   * collapsed so a collapsed card still says something about what it holds.
-   * Rendered on one line and truncated to whatever the header leaves it, which
-   * keeps a list of collapsed cards the same height as it was without previews.
-   * Plain text only — the header of a collapsed card is a click target, so a
-   * preview must not carry controls of its own. Only applicable if
-   * `collapsible` is `true`.
-   */
-  collapsedPreview?: string;
-  /**
    * Whether the card body is open by default. Only applicable if `collapsible` is `true`.
    * @default true
    */

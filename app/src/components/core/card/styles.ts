@@ -55,27 +55,8 @@ export const cardCSS = (style?: CSSProperties) => css`
     }
 
     /* The heading has room to give only if it grows itself */
-    & .card__heading:has(.card__header-content),
-    & .card__heading:has(.card__collapsed-preview) {
+    & .card__heading:has(.card__header-content) {
       flex: 1 1 auto;
-    }
-
-    /* A collapsed card's excerpt of its body. It takes whatever the title
-       leaves and truncates rather than wrapping, so previewing a card costs
-       nothing in height */
-    & .card__collapsed-preview {
-      flex: 1 1 auto;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      color: var(--global-text-color-700);
-      font-size: var(--global-font-size-s);
-      line-height: var(--global-line-height-s);
-      /* The preview is the last thing in the header's growing side, so its
-         ellipsis would otherwise butt up against the extra slot's controls, or
-         against the card's edge on a card that has none */
-      padding-right: var(--global-dimension-size-200);
     }
 
     /* The subtitle truncates rather than wrapping the fixed-height header */
@@ -109,8 +90,8 @@ export const cardCSS = (style?: CSSProperties) => css`
     & .card__collapsible-button {
       display: flex;
       flex: 1;
-      /* Without this the button floors at the width of the title and preview it
-         wraps, and pushes the extra slot's controls past the card's edge. The
+      /* Without this the button floors at the width of the heading it wraps,
+         and pushes the extra slot's controls past the card's edge. The
          title does not shrink, so the button also has to clip: squeezed hard
          enough it would otherwise paint the title over those same controls */
       min-width: 0;

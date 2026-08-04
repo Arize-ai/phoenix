@@ -3,6 +3,7 @@ import type { Meta, StoryFn } from "@storybook/react";
 import {
   Button,
   Card,
+  CardCollapsedPreview,
   Counter,
   OverflowRow,
   Text,
@@ -34,10 +35,10 @@ const meta: Meta = {
       control: "boolean",
       description: "Whether the card can be collapsed/expanded",
     },
-    collapsedPreview: {
+    preview: {
       control: "text",
       description:
-        "A one-line excerpt of the body shown in the header while the card is collapsed",
+        "Story-only: rendered as a <CardCollapsedPreview> in the card's headerContent, which shows itself only while the card is collapsed",
     },
     width: {
       control: "text",
@@ -50,6 +51,23 @@ export default meta;
 
 const Template: StoryFn = (args) => (
   <Card {...args} title={args.title}>
+    <Text>
+      This is the card content. You can put any content here including text,
+      buttons, forms, or other components.
+    </Text>
+  </Card>
+);
+
+/**
+ * A collapsed card excerpts its body by composing a `CardCollapsedPreview` into
+ * the header content — the card itself has no preview prop.
+ */
+const PreviewTemplate: StoryFn = ({ preview, ...args }) => (
+  <Card
+    {...args}
+    title={args.title}
+    headerContent={<CardCollapsedPreview>{preview}</CardCollapsedPreview>}
+  >
     <Text>
       This is the card content. You can put any content here including text,
       buttons, forms, or other components.
@@ -88,40 +106,39 @@ export const Collapsible = {
 };
 
 export const CollapsedPreview = {
-  render: Template,
+  render: PreviewTemplate,
 
   args: {
     title: "assistant",
     collapsible: true,
     defaultOpen: false,
-    collapsedPreview:
+    preview:
       "Hi, I am your friendly assistant. I can look up the weather, search your documents, and answer questions about them.",
     width: "400px",
   },
 };
 
 export const CollapsedToolCallPreview = {
-  render: Template,
+  render: PreviewTemplate,
 
   args: {
     title: "assistant",
     collapsible: true,
     defaultOpen: false,
-    collapsedPreview:
+    preview:
       'get_weather({"city":"San Francisco","units":"celsius"}), get_time({"tz":"America/Los_Angeles"})',
     width: "400px",
   },
 };
 
 export const CollapsedRecordPreview = {
-  render: Template,
+  render: PreviewTemplate,
 
   args: {
     title: "Invocation Params",
     collapsible: true,
     defaultOpen: false,
-    collapsedPreview:
-      "temperature: 0.7, max_tokens: 1000, model: gpt-4, top_p: 1",
+    preview: "temperature: 0.7, max_tokens: 1000, model: gpt-4, top_p: 1",
     width: "400px",
   },
 };

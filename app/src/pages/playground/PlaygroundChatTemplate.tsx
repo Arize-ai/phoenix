@@ -8,6 +8,7 @@ import {
   Alert,
   Button,
   Card,
+  CardCollapsedPreview,
   CopyToClipboardButton,
   Flex,
   Form,
@@ -371,7 +372,11 @@ function SortableMessageItem({
         collapsible
         interactiveTitle
         collapseButtonLabel={`${message.role} message`}
-        collapsedPreview={getMessagePreview(message)}
+        headerContent={
+          <CardCollapsedPreview>
+            {getMessagePreview(message)}
+          </CardCollapsedPreview>
+        }
         {...messageCardStyles}
         title={
           <MessageRoleSelect
