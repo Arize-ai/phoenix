@@ -4,132 +4,27 @@ import { useSearchParams } from "react-router";
 import { fetchQuery, graphql } from "relay-runtime";
 
 import {
-  createAIQueryDSL,
   createAnnotationMemberCompletions,
   DSLFilterConditionField,
   type DSLFilterAIQueryProps,
-  type DSLFilterSnippet,
 } from "@phoenix/components/filter";
 import environment from "@phoenix/RelayEnvironment";
 
 import type { ExperimentRunFilterConditionFieldCompletionsQuery } from "./__generated__/ExperimentRunFilterConditionFieldCompletionsQuery.graphql";
 import type { ExperimentRunFilterConditionFieldValidationQuery } from "./__generated__/ExperimentRunFilterConditionFieldValidationQuery.graphql";
 import { useExperimentRunFilterCondition } from "./ExperimentRunFilterConditionContext";
+import {
+  experimentRunFilterAIQueryDSL,
+  experimentRunFilterCompletions,
+  experimentRunFilterSnippets,
+} from "./experimentRunFilterDSL";
 
 /**
- * The fields of the experiment run filter DSL that an expression can
- * reference
- */
-const experimentRunFilterCompletions: Completion[] = [
-  {
-    label: "input",
-    type: "variable",
-    info: "The input of the dataset example",
-  },
-  {
-    label: "reference_output",
-    type: "variable",
-    info: "The reference output of the dataset example",
-  },
-  {
-    label: "metadata",
-    type: "variable",
-    info: "The metadata of the dataset example",
-  },
-  {
-    label: "output",
-    type: "variable",
-    info: "The output of the experiment run",
-  },
-  {
-    label: "error",
-    type: "variable",
-    info: "The error message of the experiment run (if exists)",
-  },
-  {
-    label: "latency_ms",
-    type: "variable",
-    info: "The duration of the experiment run in milliseconds",
-  },
-  {
-    label: "evals",
-    type: "variable",
-    info: "The evaluations of the experiment run, accessed by name",
-  },
-  {
-    label: "experiments",
-    type: "variable",
-    info: "The experiments being compared, accessed by position - e.x. experiments[0]",
-  },
-];
-
-/**
- * Example conditions shown as suggestions in the typeahead — notably when
- * the empty field is focused. `${placeholder}` segments become tab-through
- * fields on insert.
- */
-const experimentRunFilterSnippets: DSLFilterSnippet[] = [
-  {
-    label: "search output for substring",
-    snippet: "'${search text}' in output",
-  },
-  {
-    label: "search input for substring",
-    snippet: "'${search text}' in input",
-  },
-  {
-    label: "search reference output for substring",
-    snippet: "'${search text}' in reference_output",
-  },
-  {
-    label: "filter on errors",
-    snippet: "error is not None",
-  },
-  {
-    label: "filter out errors",
-    snippet: "error is None",
-  },
-  {
-    label: "filter by evaluation label",
-    snippet: "evals['${name}'].label == '${label}'",
-  },
-  {
-    label: "filter by evaluation score",
-    snippet: "evals['${name}'].score >= ${0.5}",
-  },
-  {
-    label: "search evaluation explanation",
-    snippet: "'${search text}' in evals['${name}'].explanation",
-  },
-  {
-    label: "filter for lower scores than first experiment",
-    snippet: "evals['${name}'].score < experiments[0].evals['${name}'].score",
-  },
-  {
-    label: "filter by metadata",
-    snippet: "metadata['${key}'] == '${value}'",
-  },
-  {
-    label: "filter by latency",
-    snippet: "latency_ms >= ${10_000}",
-  },
-];
-
-/**
- * Everything the AI query model needs to translate plain language into the
- * experiment run filter DSL — derived from the same vocabulary and examples
- * that power the typeahead, so the two can never drift apart.
+ * Opts the field into AI query with the DSL description derived in
+ * `experimentRunFilterDSL.ts` from the same vocabulary the typeahead uses.
  */
 const experimentRunFilterAIQuery: DSLFilterAIQueryProps = {
-  dsl: createAIQueryDSL({
-    noun: "experiment runs",
-    completions: experimentRunFilterCompletions,
-    snippets: experimentRunFilterSnippets,
-    notes: [
-      "Evaluations are accessed by name, e.g. evals['Hallucination'], and expose .label, .score, and .explanation.",
-      "When experiments are compared side by side, experiments[i] scopes an expression to the i-th experiment, e.g. experiments[0].evals['name'].score.",
-    ],
-  }),
+  dsl: experimentRunFilterAIQueryDSL,
 };
 
 /**

@@ -8,15 +8,20 @@ pnpm eval  # records experiments to PHOENIX_HOST (default http://localhost:6006)
 
 ## AI query (`evals/aiQuery`)
 
-Hill-climbing harness for the filter-DSL prompt in
+Hill-climbing harnesses for the filter-DSL prompt in
 `src/components/filter/ai/buildAIQueryPrompt.ts`, exercised against the
-production span DSL exported by `src/pages/project/spanFilterDSL.ts`.
+production DSLs the filter fields actually ship:
 
-Each model in `googleModels.ts` translates the requests in
-`spanFilterCases.ts`; a case counts as correct on a normalized exact match,
-or when the judge model rules the expression equivalent. A suite passes
-only when its `filter_correct` rate clears the model's `minPassRate` —
-raise those bars as the prompt improves.
+- `spanFilterPrompt.eval.ts` — the span DSL from
+  `src/pages/project/spanFilterDSL.ts`
+- `experimentRunFilterPrompt.eval.ts` — the experiment run DSL from
+  `src/pages/experiment/experimentRunFilterDSL.ts`
+
+Each model in `googleModels.ts` translates the requests in the suite's
+case file; a case counts as correct on a normalized exact match, or when
+the judge model rules the expression equivalent. A suite passes only when
+its `filter_correct` rate clears the model's `minPassRate` — raise those
+bars as the prompt improves.
 
 The Gemma model proxies the default on-device browser model (Gemma is
 Gemini Nano's open-model family, and it takes the system prompt folded
