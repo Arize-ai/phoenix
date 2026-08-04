@@ -115,7 +115,7 @@ export const sessionFilterSnippets: DSLFilterSnippet[] = [
     boost: 1,
   },
   {
-    label: "filter by number of turns",
+    label: "filter by number of traces",
     snippet: "num_traces >= ${5}",
   },
   {
@@ -127,7 +127,7 @@ export const sessionFilterSnippets: DSLFilterSnippet[] = [
     snippet: "max(span.latency_ms for span in spans) > ${5_000}",
   },
   {
-    label: "any turn used a tool",
+    label: "any trace used a tool",
     snippet:
       'any(any(span.span_kind == "TOOL" for span in trace.spans) for trace in traces)',
   },
@@ -202,7 +202,7 @@ export const sessionFilterSnippets: DSLFilterSnippet[] = [
       'len([span for span in spans if span.span_kind == "${TOOL}"]) >= ${2}',
   },
   {
-    label: "any turn matches a condition",
+    label: "any trace matches a condition",
     snippet: "any(${trace.latency_ms > 10_000} for trace in ${traces})",
   },
 ];

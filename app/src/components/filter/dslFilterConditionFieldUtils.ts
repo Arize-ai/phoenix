@@ -303,7 +303,7 @@ export function detectDSLFilterComprehensionScope({
     if (!loopVariable || !iterableExpression) {
       return null;
     }
-    // `t.spans` inside a turn comprehension names the same `spans` collection
+    // `t.spans` inside a trace comprehension names the same `spans` collection
     // as a top-level `for s in spans` does.
     const iterableName = iterableExpression.slice(
       iterableExpression.lastIndexOf(".") + 1
