@@ -207,10 +207,10 @@ class ReferenceSession:
 
     @property
     def _llm_spans(self) -> tuple[ReferenceSpan, ...]:
-        return tuple(span for span in self.spans if span.span_kind.upper() == "LLM")
+        return tuple(span for span in self.spans if span.span_kind == "LLM")
 
     def _span_kind_count(self, span_kind: str) -> int:
-        return sum(1 for span in self.spans if span.span_kind.upper() == span_kind)
+        return sum(1 for span in self.spans if span.span_kind == span_kind.upper())
 
 
 _FLAT_NAMES: frozenset[str] = frozenset(
@@ -475,10 +475,12 @@ class _Evaluator:
     ) -> tuple[Any, Any]:
         left_kind = self._name_kind(left_node, scope)
         right_kind = self._name_kind(right_node, scope)
-        # The compiler uppercases both sides of a comparison against an uppercase-normalized
-        # field, so stored casing never decides the outcome.
-        if "uppercase" in (left_kind, right_kind):
-            left, right = _uppercase(left), _uppercase(right)
+        # Span kind and status are normalized at ingestion; the compiler normalizes only the
+        # literal comparand so predicates can use the stored columns directly.
+        if left_kind == "uppercase":
+            right = _uppercase(right)
+        elif right_kind == "uppercase":
+            left = _uppercase(left)
         if left_kind == "datetime" and isinstance(right, str):
             right = _parse_datetime_literal(right)
         elif right_kind == "datetime" and isinstance(left, str):

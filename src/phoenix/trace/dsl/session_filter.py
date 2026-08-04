@@ -244,14 +244,8 @@ _ITERABLE_SPECS: typing.Mapping[str, _IterableSpec] = MappingProxyType(
 
 
 def _element_column(source: typing.Any, name: str, spec: _IterableSpec) -> typing.Any:
-    """What a loop variable's field compiles to on ``source`` — the element model or an alias.
-
-    An uppercased field is normalized on the column, not only on the comparand. Uppercasing
-    one side alone would let `s.span_kind == "TOOL"` disagree with the `tool_span_count`
-    aggregate, which uppercases the column, on any row stored in another casing.
-    """
-    column = getattr(source, spec.fields[name].attribute)
-    return func.upper(column) if name in spec.uppercase_fields else column
+    """What a loop variable's field compiles to on ``source`` — the element model or an alias."""
+    return getattr(source, spec.fields[name].attribute)
 
 
 def _element_bindings(spec: _IterableSpec) -> _FilterBindings:

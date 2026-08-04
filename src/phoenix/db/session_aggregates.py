@@ -136,7 +136,7 @@ def token_counts_by_session() -> SessionAggregate:
         ),
         source=models.Span,
         joins=(models.Trace,),
-        where=(func.upper(models.Span.span_kind) == "LLM",),
+        where=(models.Span.span_kind == "LLM",),
     )
 
 
@@ -165,7 +165,7 @@ def span_kind_count_by_session(span_kind: str) -> SessionAggregate:
         values=(func.count(models.Span.id).label("span_kind_count"),),
         source=models.Span,
         joins=(models.Trace,),
-        where=(func.upper(models.Span.span_kind) == span_kind.upper(),),
+        where=(models.Span.span_kind == span_kind.upper(),),
     )
 
 
