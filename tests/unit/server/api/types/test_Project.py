@@ -4619,10 +4619,11 @@ class TestProject:
         db: DbSessionFactory,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """The root-span attribute scan is capped to the most recent N sessions (recency-biased)."""
+        """Byte truncation preserves the newest session's root-span attribute names."""
         from phoenix.server.api.types import Project as project_module
 
-        monkeypatch.setattr(project_module, "_VOCABULARY_ATTRIBUTE_SCAN_LIMIT", 1)
+        monkeypatch.setattr(project_module, "_VOCABULARY_ATTRIBUTE_SCAN_LIMIT", 2)
+        monkeypatch.setattr(project_module, "_VOCABULARY_ATTRIBUTE_SCAN_BYTE_LIMIT", 64)
         base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
         async with db() as session:
             project = await _add_project(session)
@@ -4637,7 +4638,7 @@ class TestProject:
             await _add_span(
                 session,
                 older_trace,
-                attributes={"old_only": "x"},
+                attributes={"old_only": "x" * 128},
                 start_time=base_time,
                 end_time=base_time + timedelta(seconds=10),
             )
@@ -4654,7 +4655,7 @@ class TestProject:
             await _add_span(
                 session,
                 newer_trace,
-                attributes={"new_only": "y"},
+                attributes={"new_only": "y" * 128},
                 start_time=base_time + timedelta(minutes=5),
                 end_time=base_time + timedelta(minutes=5, seconds=10),
             )
@@ -4673,7 +4674,6 @@ class TestProject:
         assert not response.errors
         assert (data := response.data) is not None
         term_names = {t["name"] for t in data["node"]["sessionFilterVocabulary"]}
-        # Only the most recent session's attribute is discovered under the cap of 1.
         assert 'attributes["new_only"]' in term_names
         assert 'attributes["old_only"]' not in term_names
 

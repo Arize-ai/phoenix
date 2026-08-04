@@ -1342,10 +1342,11 @@ class Project(Node):
         "project, for autocomplete, agent discovery, and docs. Static terms derive from the "
         "filter compiler's own bindings so they cannot drift from what compiles; observed "
         "per-project names (session annotations, root-span attribute paths) are folded in. "
-        "Observed names come from the project's 1000 most recently started sessions, so this "
-        "is a discovery aid rather than a complete list: a name that only older sessions "
-        "carry drops out of the suggestions once 1000 newer sessions exist, and still "
-        "filters correctly when typed by hand."
+        "Observed names come from the project's 1000 most recently started sessions; root-span "
+        "attributes are sampled newest-first within that window up to a 2 MiB scan budget. "
+        "This is a discovery aid rather than a complete list: a name that only older sessions "
+        "carry drops out of the suggestions once 1000 newer sessions exist, and still filters "
+        "correctly when typed by hand."
     )  # type: ignore
     async def session_filter_vocabulary(
         self,
@@ -1367,30 +1368,41 @@ class Project(Node):
                     .limit(_VOCABULARY_ANNOTATION_SCAN_LIMIT)
                 )
             )
-            root_spans = earliest_root_span_by_session(
-                keys=recent_session_rowids,
-                project_rowids=[self.id],
-            ).subquery()
-            root_span_attributes_stmt = (
-                select(models.Span.attributes)
-                .select_from(models.Span)
-                .join(root_spans, models.Span.id == root_spans.c[SPAN_ROWID])
-                .join(
-                    models.ProjectSession,
-                    models.ProjectSession.id == root_spans.c[SESSION_ROWID],
-                )
-                .where(models.ProjectSession.project_id == self.id)
-            )
-            # Stream so the row bound is also a byte bound: unusually large blobs stop the
-            # scan before it has read every one of the recent sessions' roots.
             scanned_bytes = 0
-            async for attributes in await session.stream_scalars(root_span_attributes_stmt):
-                if not isinstance(attributes, Mapping):
-                    continue
-                root_span_attribute_paths.extend(_attribute_leaf_paths(attributes))
-                scanned_bytes += _attributes_size(attributes)
-                if scanned_bytes >= _VOCABULARY_ATTRIBUTE_SCAN_BYTE_LIMIT:
-                    break
+            chunk_start = 0
+            chunk_size = 10
+            while (
+                chunk_start < len(recent_session_rowids)
+                and scanned_bytes < _VOCABULARY_ATTRIBUTE_SCAN_BYTE_LIMIT
+            ):
+                session_rowids = recent_session_rowids[chunk_start : chunk_start + chunk_size]
+                root_spans = earliest_root_span_by_session(
+                    keys=session_rowids,
+                    project_rowids=[self.id],
+                ).subquery()
+                root_span_attributes_stmt = (
+                    select(models.Span.attributes)
+                    .select_from(models.Span)
+                    .join(root_spans, models.Span.id == root_spans.c[SPAN_ROWID])
+                    .join(
+                        models.ProjectSession,
+                        models.ProjectSession.id == root_spans.c[SESSION_ROWID],
+                    )
+                    .where(models.ProjectSession.project_id == self.id)
+                    .order_by(
+                        models.ProjectSession.start_time.desc(),
+                        models.ProjectSession.id.desc(),
+                    )
+                )
+                async for attributes in await session.stream_scalars(root_span_attributes_stmt):
+                    if not isinstance(attributes, Mapping):
+                        continue
+                    root_span_attribute_paths.extend(_attribute_leaf_paths(attributes))
+                    scanned_bytes += _attributes_size(attributes)
+                    if scanned_bytes >= _VOCABULARY_ATTRIBUTE_SCAN_BYTE_LIMIT:
+                        break
+                chunk_start += chunk_size
+                chunk_size *= 2
         return session_filter_vocabulary_terms(
             annotation_names,
             root_span_attribute_paths,
