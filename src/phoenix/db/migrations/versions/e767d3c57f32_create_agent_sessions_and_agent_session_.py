@@ -99,6 +99,7 @@ def upgrade() -> None:
                 ondelete="SET NULL",
             ),
             nullable=True,
+            index=True,
         ),
         sa.Column("builtin_provider", JSON_, nullable=False),
         sa.Column("is_ephemeral", sa.Boolean, nullable=False),

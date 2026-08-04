@@ -1183,6 +1183,8 @@ CREATE TABLE public.agent_sessions (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_agent_sessions_custom_provider_id ON public.agent_sessions
+    USING btree (custom_provider_id);
 CREATE INDEX ix_agent_sessions_ephemeral_updated_at ON public.agent_sessions
     USING btree (updated_at) WHERE (is_ephemeral IS TRUE);
 CREATE INDEX ix_agent_sessions_user_id_updated_at ON public.agent_sessions

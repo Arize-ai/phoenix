@@ -3415,6 +3415,7 @@ class AgentSession(HasId):
     custom_provider_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("generative_model_custom_providers.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     builtin_provider: Mapped[Optional[AgentBuiltinProviderConfig]] = mapped_column(
         _AgentBuiltinProviderConfig,
