@@ -113,13 +113,15 @@ export function useAgentChat({
   const [compactionStatus, setCompactionStatus] = useState<string | null>(null);
   const isDraft = sessionId == null || sessionId === DRAFT_SESSION_ID;
   const isCompacting = useAgentContext((state) =>
-    sessionId ? state.isCompactionPendingBySessionId[sessionId] ?? false : false
+    sessionId
+      ? (state.isCompactionPendingBySessionId[sessionId] ?? false)
+      : false
   );
   const pendingElicitation = useAgentContext((state) =>
-    sessionId ? state.pendingElicitationBySessionId[sessionId] ?? null : null
+    sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
   const isBusyElsewhere = useAgentContext((state) =>
-    sessionId ? state.isBusyElsewhereBySessionId[sessionId] ?? false : false
+    sessionId ? (state.isBusyElsewhereBySessionId[sessionId] ?? false) : false
   );
 
   /**

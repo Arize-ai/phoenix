@@ -196,8 +196,8 @@ export function useAgentSessionSync({
     !persistedSessionId || !chatInstance || isSessionPollingPaused
       ? null
       : isBusyElsewhere
-      ? SESSION_BUSY_POLL_INTERVAL_MS
-      : SESSION_POLL_INTERVAL_MS;
+        ? SESSION_BUSY_POLL_INTERVAL_MS
+        : SESSION_POLL_INTERVAL_MS;
   useInterval(() => void pollSession(), sessionPollDelay);
 
   useEffect(() => {

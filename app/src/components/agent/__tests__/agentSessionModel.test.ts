@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import type { AgentModelSelection } from "@phoenix/agent/chat/buildAgentChatRequestBody";
-
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 
 import {
