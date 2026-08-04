@@ -34,6 +34,7 @@ import {
   getToolChoiceFromAttributes,
   getToolName,
   getVariablesMapFromInstances,
+  findUnresolvedToolCallIds,
   inferOpenAIApiTypeFromRawToolDefinitions,
   inferOpenAIApiTypeFromTools,
   isOpenAIResponsesSpan,
@@ -2424,5 +2425,103 @@ describe("extractRootVariables", () => {
     ];
     const result = extractRootVariables(paths);
     expect(result).toEqual(["user", "reference"]);
+  });
+});
+
+describe("findUnresolvedToolCallIds", () => {
+  const userMessage = { id: 1, role: "user" as const, content: "ping" };
+  const assistantToolUse = {
+    id: 2,
+    role: "ai" as const,
+    content: undefined,
+    toolCalls: [
+      {
+        id: "toolu_abc",
+        type: "tool_use" as const,
+        name: "memory",
+        input: { command: "view", path: "/memories" },
+      },
+    ],
+  };
+  const matchingToolResult = {
+    id: 3,
+    role: "tool" as const,
+    content: "ok",
+    toolCallId: "toolu_abc",
+  };
+  const unrelatedToolResult = {
+    id: 4,
+    role: "tool" as const,
+    content: "ok",
+    toolCallId: "toolu_other",
+  };
+  const assistantText = {
+    id: 5,
+    role: "ai" as const,
+    content: "Hello",
+  };
+
+  it("returns an empty array when no tool calls are present", () => {
+    expect(findUnresolvedToolCallIds([userMessage, assistantText])).toEqual([]);
+  });
+
+  it("returns the dangling tool_use id when there is no matching tool result", () => {
+    expect(
+      findUnresolvedToolCallIds([userMessage, assistantToolUse])
+    ).toEqual(["toolu_abc"]);
+  });
+
+  it("treats a tool message whose toolCallId matches as a resolution", () => {
+    expect(
+      findUnresolvedToolCallIds([
+        userMessage,
+        assistantToolUse,
+        matchingToolResult,
+      ])
+    ).toEqual([]);
+  });
+
+  it("ignores tool results that reference a different tool_use id", () => {
+    expect(
+      findUnresolvedToolCallIds([
+        userMessage,
+        assistantToolUse,
+        unrelatedToolResult,
+      ])
+    ).toEqual(["toolu_abc"]);
+  });
+
+  it("does not flag tool calls with an empty or missing id", () => {
+    const blankIdToolCall = {
+      id: 6,
+      role: "ai" as const,
+      content: undefined,
+      toolCalls: [
+        {
+          id: "",
+          type: "tool_use" as const,
+          name: "memory",
+          input: {},
+        },
+      ],
+    };
+    expect(findUnresolvedToolCallIds([blankIdToolCall])).toEqual([]);
+  });
+
+  it("only inspects assistant messages, not user messages that happen to have toolCalls", () => {
+    const userWithToolCalls = {
+      id: 7,
+      role: "user" as const,
+      content: undefined,
+      toolCalls: [
+        {
+          id: "toolu_user",
+          type: "tool_use" as const,
+          name: "memory",
+          input: {},
+        },
+      ],
+    };
+    expect(findUnresolvedToolCallIds([userWithToolCalls])).toEqual([]);
   });
 });
