@@ -17,10 +17,8 @@ import {
   StatusText,
   useBrowserModelAvailability,
 } from "@phoenix/components/generative/browserAI";
-import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import { CardFootnote } from "./CardFootnote";
-import { resolveAIQueryModelConfig } from "./types";
 import { toErrorMessage } from "./useAIQuery";
 
 /**
@@ -28,21 +26,13 @@ import { toErrorMessage } from "./useAIQuery";
  * model: whether it is downloaded, a way to download it ahead of first use
  * (with live progress, joining a download already in flight), and how to
  * remove it. Selecting Browser AI for AI query happens in the AI Query
- * card's model picker, not here — this card only reports whether it is in
- * use. The browser owns the download and shares it across every site that
- * uses on-device AI, so removal happens in the browser's own settings —
- * this card explains that rather than pretending to offer it.
+ * card's model picker, not here. The browser owns the download and shares
+ * it across every site that uses on-device AI, so removal happens in the
+ * browser's own settings — this card explains that rather than pretending
+ * to offer it.
  */
 export function BrowserModelCard() {
   const builtInModel = getBrowserBuiltInModel();
-  const isAIQueryEnabled = usePreferencesContext(
-    (state) => state.isAIQueryEnabled
-  );
-  const modelConfig = usePreferencesContext(
-    (state) => state.aiQueryModelConfig
-  );
-  const isSelectedForAIQuery =
-    resolveAIQueryModelConfig(modelConfig).kind === "browser";
   const probedAvailability = useBrowserModelAvailability();
   // Local override once this card starts (or joins) a download — the probe
   // stays a pure read of the Prompt API
@@ -191,13 +181,6 @@ export function BrowserModelCard() {
             across every site that uses on-device AI.
           </Text>
           {renderStatusDetail()}
-          <Text size="XS" color="text-700">
-            {!isAIQueryEnabled
-              ? "Not in use — AI Query is turned off."
-              : isSelectedForAIQuery
-                ? "In use by AI Query — filter fields translate natural language with this model."
-                : "Not in use — AI Query is set to a different model."}
-          </Text>
           <CardFootnote icon={<Icon svg={<Icons.Info />} />}>
             Phoenix can’t delete the model — {browserName} owns the download.
             {browserName === "Chrome" ? (

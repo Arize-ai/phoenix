@@ -176,7 +176,7 @@ export interface PreferencesProps {
   defaultModelName?: string;
   /**
    * Whether AI query is enabled on filter condition fields
-   * @default false
+   * @default true
    */
   isAIQueryEnabled: boolean;
   /**
@@ -441,7 +441,7 @@ export const createPreferencesStore = (
         type: "setDefaultModelName",
       });
     },
-    isAIQueryEnabled: false,
+    isAIQueryEnabled: true,
     setIsAIQueryEnabled: (isAIQueryEnabled) => {
       set({ isAIQueryEnabled }, false, { type: "setIsAIQueryEnabled" });
     },
