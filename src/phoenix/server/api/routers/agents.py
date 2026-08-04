@@ -1490,13 +1490,6 @@ async def _claim_agent_session_turn_lock_for_model(
 ) -> JSONResponse | None:
     """Claim the session's turn lock while enforcing the request's model
     precondition.
-
-    Returns ``None`` when the lock is claimed and the request's asserted model
-    matches the session's persisted selection. Returns a 409 response when
-    another turn holds the lock (``agent_session_busy``) or when the assertion
-    does not match (``agent_session_model_stale``); a stale rejection releases
-    the just-claimed lock in the same transaction so the session is not left
-    locked.
     """
     if not await _claim_agent_session_turn_lock(
         session,
@@ -1897,22 +1890,15 @@ def create_agents_router(
                         agent_session.heartbeat_at,
                         now=datetime.now(timezone.utc),
                     ):
-                        # A streaming turn runs on the model it read under the
-                        # turn lock, so the model must not flip out from under
-                        # it.
                         return JSONResponse({"code": "agent_session_busy"}, status_code=409)
                     await set_session_model(
                         session,
                         agent_session=agent_session,
                         model=request_body.model,
                     )
-                # The flush fires the row's server-side `onupdate` timestamp,
-                # so re-read the row before serializing it.
                 await session.flush()
                 await session.refresh(agent_session)
                 summary = _to_agent_session_summary(agent_session)
-                # `last_message_id` and `messages` are deliberately left unset
-                # so response_model_exclude_unset drops them from the payload.
                 data = AgentSessionData(
                     **summary.model_dump(),
                     model=get_agent_session_model(agent_session),
