@@ -16,12 +16,21 @@ production DSLs the filter fields actually ship:
   `src/pages/project/spanFilterDSL.ts`
 - `experimentRunFilterPrompt.eval.ts` — the experiment run DSL from
   `src/pages/experiment/experimentRunFilterDSL.ts`
+- `spanFilterIntent.eval.ts` — semantic fidelity over the span DSL:
+  requests about phenomena ("there is an apology in the response") must
+  translate into searches for the text the phenomenon leaves in the data
+  (`'sorry' in output.value`), not literal echoes of the request
+  (`'apology' in input.value`)
 
-Each model in `googleModels.ts` translates the requests in the suite's
-case file; a case counts as correct on a normalized exact match, or when
-the judge model rules the expression equivalent. A suite passes only when
-its `filter_correct` rate clears the model's `minPassRate` — raise those
-bars as the prompt improves.
+The two prompt suites grade correctness: each model in `googleModels.ts`
+translates the requests in the suite's case file, and a case counts as
+correct on a normalized exact match, or when the judge model rules the
+expression equivalent. The intent suite has no accepted-expression list —
+query expansion has no single right answer — so its judge grades against a
+described phenomenon, expected fields, and illustrative surface forms
+instead. A suite passes only when its gated rate (`filter_correct`, or
+`intent_captured` for the intent suite) clears the model's bar — raise
+those bars as the prompt improves.
 
 The Gemma model proxies the default on-device browser model (Gemma is
 Gemini Nano's open-model family, and it takes the system prompt folded
