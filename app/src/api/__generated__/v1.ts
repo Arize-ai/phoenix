@@ -3769,11 +3769,20 @@ export interface components {
              */
             message?: string | null;
         };
-        /** PatchPromptRequestBody */
+        /**
+         * PatchPromptRequestBody
+         * @description Fields to update on a prompt. Omit a field to leave it unchanged.
+         */
         PatchPromptRequestBody: {
-            /** Description */
+            /**
+             * Description
+             * @description New description for the prompt (null clears the description)
+             */
             description?: string | null;
-            /** Metadata */
+            /**
+             * Metadata
+             * @description New metadata object for the prompt (replaces the existing metadata as a whole; null is rejected)
+             */
             metadata?: {
                 [key: string]: unknown;
             } | null;
@@ -9671,7 +9680,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
                 "application/json": components["schemas"]["PatchPromptRequestBody"];
             };

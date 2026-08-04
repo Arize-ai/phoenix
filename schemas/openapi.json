@@ -6025,6 +6025,7 @@
           }
         ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -13710,7 +13711,8 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Description",
+            "description": "New description for the prompt (null clears the description)"
           },
           "metadata": {
             "anyOf": [
@@ -13722,11 +13724,13 @@
                 "type": "null"
               }
             ],
-            "title": "Metadata"
+            "title": "Metadata",
+            "description": "New metadata object for the prompt (replaces the existing metadata as a whole; null is rejected)"
           }
         },
         "type": "object",
-        "title": "PatchPromptRequestBody"
+        "title": "PatchPromptRequestBody",
+        "description": "Fields to update on a prompt. Omit a field to leave it unchanged."
       },
       "PatchPromptResponseBody": {
         "properties": {

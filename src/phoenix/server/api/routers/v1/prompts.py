@@ -1,8 +1,8 @@
 import logging
 from typing import Any, Optional, Union
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
-from pydantic import ValidationError, field_validator, model_validator
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from pydantic import Field, ValidationError, field_validator, model_validator
 from sqlalchemy import delete, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import Select
@@ -13,6 +13,7 @@ from typing_extensions import Self, TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
@@ -108,8 +109,29 @@ class CreatePromptResponseBody(ResponseBody[PromptVersion]):
 
 
 class PatchPromptRequestBody(V1RoutesBaseModel):
-    description: Optional[str] = None
-    metadata: Optional[dict[str, Any]] = None
+    """
+    Fields to update on a prompt. Omit a field to leave it unchanged.
+    """
+
+    description: Optional[str] = Field(
+        default=UNDEFINED,
+        description="New description for the prompt (null clears the description)",
+    )
+    metadata: Optional[dict[str, Any]] = Field(
+        default=UNDEFINED,
+        description=(
+            "New metadata object for the prompt (replaces the existing metadata as a "
+            "whole; null is rejected)"
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _validate_patch(self) -> Self:
+        if self.metadata is None:
+            raise ValueError("metadata cannot be null")
+        if self.description is UNDEFINED and self.metadata is UNDEFINED:
+            raise ValueError("at least one field must be provided")
+        return self
 
 
 class PatchPromptResponseBody(ResponseBody[Prompt]):
@@ -781,8 +803,8 @@ async def delete_prompt_version_tag(
 )
 async def patch_prompt(
     request: Request,
+    request_body: PatchPromptRequestBody,
     prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
-    request_body: PatchPromptRequestBody = Body(default_factory=PatchPromptRequestBody),
 ) -> PatchPromptResponseBody:
     identifier = _parse_prompt_identifier(prompt_identifier)
     if isinstance(identifier, _PromptId):
@@ -792,21 +814,17 @@ async def patch_prompt(
     else:
         assert_never(identifier)
 
+    patch: dict[str, Any] = {}
+    if (description := request_body.description) is not UNDEFINED:
+        patch["description"] = description.strip() if description is not None else None
+    if (metadata := request_body.metadata) is not UNDEFINED:
+        patch["metadata_"] = metadata
+
     async with request.app.state.db() as session:
         prompt = await session.scalar(select(models.Prompt).where(where_clause))
         if prompt is None:
             raise HTTPException(status_code=404, detail="Prompt not found")
-        values: dict[str, Any] = {}
-        if "description" in request_body.model_fields_set:
-            values["description"] = (
-                request_body.description.strip() if request_body.description is not None else None
-            )
-        if "metadata" in request_body.model_fields_set:
-            values["metadata_"] = request_body.metadata or {}
-
-        if not values:
-            raise HTTPException(status_code=422, detail="No fields provided to update")
-        for key, value in values.items():
+        for key, value in patch.items():
             setattr(prompt, key, value)
         data = _prompt_from_orm_prompt(prompt)
 
