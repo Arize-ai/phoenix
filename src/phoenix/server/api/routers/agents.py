@@ -404,9 +404,6 @@ class PatchAgentSessionRequestBody(V1RoutesBaseModel):
 
     @model_validator(mode="after")
     def _reject_explicit_nulls(self) -> "PatchAgentSessionRequestBody":
-        # Both fields are non-nullable: an omitted field stays UNDEFINED, but an
-        # explicit JSON `null` arrives as None and must be rejected (422) rather
-        # than silently dropped.
         if self.title is None:
             raise ValueError("title cannot be null")
         if self.model is None:
