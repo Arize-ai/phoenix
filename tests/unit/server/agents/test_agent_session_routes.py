@@ -289,7 +289,7 @@ class TestListAgentSessionMessages:
         fetched: list[str] = []
         cursor: str | None = None
         for _ in range(len(message_ids)):
-            params: dict[str, object] = {"limit": 1}
+            params: dict[str, str | int] = {"limit": 1}
             if cursor is not None:
                 params["cursor"] = cursor
             response = await httpx_client.get(
