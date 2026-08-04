@@ -846,10 +846,6 @@ export function ChatView({
                     onRewind={onRewindRequest}
                   />
                 ) : null}
-                {/* A session-conflict rejection is not a failed response:
-                    busy-elsewhere mode owns the UI until the lock clears, and a
-                    stale send resolves into the refreshed-transcript notice or
-                    the model-changed notice. */}
                 {error && sessionNotice == null && (
                   <ChatErrorMessage
                     error={error}
