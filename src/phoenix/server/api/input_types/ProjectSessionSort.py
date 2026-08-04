@@ -5,7 +5,7 @@ from types import MappingProxyType
 from typing import Any, NamedTuple, Optional
 
 import strawberry
-from sqlalchemy import and_, desc, nulls_last
+from sqlalchemy import and_, desc, func, nulls_last
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import Select
 from strawberry import UNSET
@@ -52,13 +52,13 @@ class ProjectSessionColumn(Enum):
             expr = models.ProjectSession.end_time
         elif self is ProjectSessionColumn.tokenCountTotal:
             assert joined_table is not None
-            expr = joined_table.c.total
+            expr = func.coalesce(joined_table.c.total, 0)
         elif self is ProjectSessionColumn.numTraces:
             assert joined_table is not None
             expr = joined_table.c.num_traces
         elif self is ProjectSessionColumn.costTotal:
             assert joined_table is not None
-            expr = joined_table.c.total_cost
+            expr = func.coalesce(joined_table.c.total_cost, 0)
         else:
             assert_never(self)
         return expr.label(self.column_name)
@@ -100,7 +100,11 @@ class ProjectSessionColumn(Enum):
             )
             .subquery()
         )
-        stmt = stmt.join(sort_subq, models.ProjectSession.id == sort_subq.c[SESSION_ROWID])
+        onclause = models.ProjectSession.id == sort_subq.c[SESSION_ROWID]
+        if self in (ProjectSessionColumn.tokenCountTotal, ProjectSessionColumn.costTotal):
+            stmt = stmt.outerjoin(sort_subq, onclause)
+        else:
+            stmt = stmt.join(sort_subq, onclause)
         return stmt, sort_subq
 
 

@@ -2525,10 +2525,7 @@ class TestProject:
         db: DbSessionFactory,
         httpx_client: httpx.AsyncClient,
     ) -> None:
-        """Test sorting project sessions by total cost.
-
-        Note: Sessions without cost data are filtered out (inner join behavior).
-        """
+        """Test sorting project sessions by total cost."""
         async with db() as session:
             project = await _add_project(session, name="cost-sort-test")
             model = await _add_generative_model(session, name="gpt-4", provider="openai")
@@ -2560,12 +2557,13 @@ class TestProject:
                     )
 
         column = "costTotal"
-        # Expected order desc: 200, 100, 75, 50 (session without cost is filtered out)
+        # Expected order desc: 200, 100, 75, 50, 0
         result_desc = [
             _gid(sessions[2]),  # 200.0
             _gid(sessions[0]),  # 100.0
             _gid(sessions[3]),  # 75.0
             _gid(sessions[1]),  # 50.0
+            _gid(sessions[4]),  # 0.0 (no cost data)
         ]
 
         # Test descending order
@@ -2573,7 +2571,7 @@ class TestProject:
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == result_desc
 
-        # Test ascending order: 50, 75, 100, 200
+        # Test ascending order: 0, 50, 75, 100, 200
         field = f"sessions(first:50,sort:{{col:{column},dir:asc}}){{edges{{node{{id}}}}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == result_desc[::-1]
@@ -4495,10 +4493,12 @@ class TestProject:
         )
         assert [e["node"]["id"] for e in page["edges"]] == [_gid(project_session)]
 
-    async def test_sessions_page_and_count_agree_over_comprehension_condition(
+    @pytest.mark.parametrize("sort_column", ("tokenCountTotal", "costTotal"))
+    async def test_sessions_sorted_page_and_count_agree_over_comprehension_condition(
         self,
         db: DbSessionFactory,
         httpx_client: httpx.AsyncClient,
+        sort_column: str,
     ) -> None:
         """The page and the count select the same sessions, though they compile differently."""
         async with db() as session:
@@ -4508,13 +4508,14 @@ class TestProject:
                 project_session = await _add_project_session(session, project)
                 trace = await _add_trace(session, project, project_session)
                 for _ in range(span_count):
-                    await _add_span(session, trace, span_kind="LLM")
+                    await _add_span(session, trace, span_kind="CHAIN")
                 if span_count > 2:
                     expected.append(_gid(project_session))
 
         condition = "len([s for s in spans]) > 2"
         page = await self._node(
-            f"sessions(first:50,sessionFilterCondition:{json.dumps(condition)}){{edges{{node{{id}}}}}}",
+            f"sessions(first:50,sort:{{col:{sort_column},dir:desc}},"
+            f"sessionFilterCondition:{json.dumps(condition)}){{edges{{node{{id}}}}}}",
             project,
             httpx_client,
         )
