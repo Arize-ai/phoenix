@@ -149,6 +149,10 @@ export const CollapsedRecordPreview = {
  * The shape span details actually renders: collapsed message cards inside an
  * open card. Each preview answers to its own card — the open outer card must
  * not hide the previews nested under it.
+ *
+ * No excerpt here is pre-ellipsised. An ellipsis in this story is one the
+ * browser drew, so a preview that stopped truncating and started hard-clipping
+ * shows up rather than blending in.
  */
 export const NestedCollapsedPreviews = {
   render: () => (
@@ -156,7 +160,10 @@ export const NestedCollapsedPreviews = {
       <View padding="size-200">
         <Flex direction="column" gap="size-100">
           {[
-            ["system", "You are a friendly assistant that helps users…"],
+            [
+              "system",
+              "You are a friendly assistant that helps users answer questions about their observability data.",
+            ],
             ["user", "What's the weather in SF today?"],
             ["assistant", 'get_weather({"city":"San Francisco"})'],
           ].map(([role, preview]) => (

@@ -63,6 +63,13 @@ describe("toContentPreview", () => {
     expect(toContentPreview('"unterminated')).toBe('"unterminated');
   });
 
+  // the quotes make it look encoded, so the unwrap is attempted and has to
+  // leave the content untouched when it turns out not to parse
+  it("leaves quoted content that is not valid JSON untouched", () => {
+    expect(toContentPreview('"hello" she said"')).toBe('"hello" she said"');
+    expect(toContentPreview('"')).toBe('"');
+  });
+
   it("does not cut an emoji in half at the truncation point", () => {
     // the rocket is a surrogate pair straddling the limit
     expect(toContentPreview("abc🚀def", { maxLength: 4 })).toBe("abc…");
