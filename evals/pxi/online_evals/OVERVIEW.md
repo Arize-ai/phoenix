@@ -11,10 +11,10 @@ path.
 Each evaluator declares a `SpanSelector`. The runner groups evaluators by
 identical selector and issues **one discovery query per group**:
 
-| Selector | `names` | `span_kinds` | `parent_id` | Evaluators |
-|---|---|---|---|---|
-| Turn root | `pxi.turn` | `AGENT` | `"null"` | `tool_count_per_turn`, `user_friction` |
-| Approval tool | the allowlist | `TOOL` | *(unset)* | `suggestion_accepted` |
+| Selector | `names` | `span_kinds` | `parent_id` | `attributes` | Evaluators |
+|---|---|---|---|---|---|
+| Turn root | `pxi.turn` | `AGENT` | `"null"` | — | `tool_count_per_turn`, `user_friction` |
+| Approval decision | — | `TOOL` | *(unset)* | `pxi.approval.source = user` | `suggestion_accepted` |
 
 Root evaluators score a whole turn. `suggestion_accepted` scores an individual
 action, because **one turn can contain several suggestions the user decided
@@ -87,54 +87,55 @@ chronological total into top-level and nested tool names.
 ## How `suggestion_accepted` reads a decision
 
 Approval-gated tools stage a change, the UI renders an accept/reject card, and
-the user's click lands in that TOOL span's `output.value`. The evaluator reads
-that structured field — it never scans message text for the words "accepted"
-or "rejected".
+the user's click is stamped into the tool's output as a reserved marker:
+
+```json
+{"approval": {"decision": "accepted", "source": "user"}}
+```
+
+The server promotes that marker onto the span as `pxi.approval.decision` and
+`pxi.approval.source` (see `src/phoenix/server/agents/approval.py`, written by
+`app/src/agent/shared/pendingApproval/approvalOutcome.ts`). The evaluator reads
+only those two attributes — it never parses `output.value` and never scans
+message text for the words "accepted" or "rejected".
 
 ```mermaid
 flowchart TD
-    A["TOOL span"] --> B{"tool.name on<br/>the allowlist?"}
+    A["TOOL span"] --> B{"pxi.approval.source<br/>== 'user'?"}
     B -- no --> N["not applicable"]
-    B -- yes --> C{"output.value decodes<br/>to an object?<br/>(≤ 1 extra JSON layer)"}
-    C -- no --> N
-    C -- yes --> D{"status == 'rejected'?"}
-    D -- yes --> R["rejected / 0.0"]
-    D -- no --> E{"acceptedBy == 'user'?"}
-    E -- yes --> S["accepted / 1.0"]
-    E -- no --> N
+    B -- yes --> C{"pxi.approval.decision"}
+    C -- "'accepted'" --> S["accepted / 1.0"]
+    C -- "'rejected'" --> R["rejected / 0.0"]
+    C -- other/absent --> N
 ```
 
-Two ordering choices carry the semantics:
+**There is no tool-name allowlist, by design.** Each tool keeps its own success
+vocabulary — `accepted`, `saved`, `loaded`, `applied`, `removed` — and the
+marker is uniform across all of them, so a newly approval-gated tool is measured
+the day it ships with no change here. The frontend has a drift guard asserting
+every approval payload carries the marker.
 
-- **Rejection first.** The reject path writes `status: "rejected"` and never
-  sets `acceptedBy`, so a payload carrying both is contradictory; the explicit
-  terminal rejection is the safer reading.
-- **`acceptedBy`, not `status`, proves acceptance.** The success vocabulary is
-  tool-specific — `accepted`, `saved`, `loaded`, `applied`, `removed` — while
-  `acceptedBy` is the one field distinguishing a human click (`"user"`) from an
-  automatic bypass (`"auto"`).
+Discovery filters on `source = user` rather than on the decision: it is a single
+server-side query, and it yields exactly the annotated set, since rejections are
+always a user action and automatic accepts are never annotated.
 
 Everything else is left unannotated rather than guessed:
 
 | Case | Recorded as | Why not annotated |
 |---|---|---|
-| Automatic accept | `acceptedBy: "auto"` | bypass permission, not a user decision |
-| Pending approval | `status: "awaiting_user"` | the user hasn't decided yet |
-| Cancelled by navigation | `state: "output-error"` | the card was dismissed, not decided |
-| Tool error | `state: "output-error"` | nothing was proposed to decide on |
-| Missing/malformed/non-object output | — | no decision is recorded |
-| Unknown status | e.g. `no_change` | not a terminal user decision |
-| Non-allowlisted tool | — | no approval gate exists |
+| Automatic accept | `source: "auto"` | bypass permission, not a user decision |
+| Pending approval | no marker | the user hasn't decided yet |
+| Cancelled by navigation | no marker (`output-error`) | the card was dismissed, not decided |
+| Tool error | no marker (`output-error`) | nothing was proposed to decide on |
+| Unknown or malformed decision | — | not a terminal user decision |
+| Non-approval tool | no marker | no approval gate exists |
 
 Annotations carry only `{"tool_name": ...}` — never prompt text, tool
 arguments, raw output, user content, instance ids, or proposal diffs.
 
-The allowlist is a **cross-language maintenance contract** with
-`app/src/agent/tools/*/pending*.ts` (and the shared
-`app/src/agent/shared/pendingApproval/bindPendingApproval.ts`). A new
-approval-gated frontend tool must be added on both sides or its decisions go
-unmeasured. `submit_{code,llm}_evaluator_draft` are excluded: they record only
-`awaiting_user`, and the dialog's real decision never reaches the tool span.
+`submit_{code,llm}_evaluator_draft` remain unmeasured: they resolve as
+`awaiting_user` and the dialog's real decision is never written back as tool
+output, so no marker exists to read. Closing that gap needs a frontend change.
 
 ## How `user_friction` finds its target
 
@@ -221,7 +222,7 @@ rate 0.25  █████                 subset of the 0.50 selection
 |---|---|---|
 | Judging a still-running turn or in-flight action | 5-min settle delay on the **target's own end** time | wait for next run |
 | Guessing an outcome that was never a user decision (auto-accept, pending, cancelled, errored, malformed) | structured-field decision rules with an explicit not-applicable branch | no annotation written |
-| Frontend adds an approval tool without an eval | explicit allowlist, documented as a cross-language contract | new tool goes unmeasured until added — deliberately visible, never silently mislabeled |
+| Frontend adds an approval tool without an eval | tools stamp a uniform approval marker; discovery keys off it, not tool names | new tool is measured automatically; a frontend drift guard fails if it ships unmarked |
 | Misattributed judgment: transcript's final turn isn't this trace's own message | target must be the final user-role message, be human-authored, **and equal the root's `input.value`** (independently recorded at ingestion) | skip + warning — never checkpoint a judgment on the wrong root (idempotency would make it permanent) |
 | Non-human "user" messages (legacy UI-context blocks, agent-loop continuations, tool-error payloads) | `is_human_message` classifier — same one used to build the gold labels | skip as not-applicable; **no fallback** to an earlier human turn |
 | Subagent's internal LLM span hijacking the transcript (it can start *after* the main agent's final call) | prefer LLM spans that are direct children of the root | main transcript wins |

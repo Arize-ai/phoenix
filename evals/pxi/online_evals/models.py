@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Literal, Optional
 
 from phoenix.client.__generated__ import v1
@@ -29,8 +30,8 @@ class SpanSelector:
     want identical candidates and issue one discovery query per group.
     """
 
-    names: tuple[str, ...]
-    """Span names to discover; at least one is required so discovery is bounded."""
+    names: tuple[str, ...] = ()
+    """Span names to discover; empty omits the filter."""
 
     span_kinds: tuple[str, ...] = ()
     """Optional span kinds (``AGENT``, ``TOOL``, ...); empty omits the filter."""
@@ -38,20 +39,35 @@ class SpanSelector:
     parent_id: Optional[str] = None
     """``"null"`` selects root spans only; ``None`` omits the filter entirely."""
 
+    attributes: tuple[tuple[str, str], ...] = ()
+    """Exact attribute matches, AND-ed together; empty omits the filter.
+
+    Stored as pairs rather than a mapping to keep the selector hashable. This
+    lets an evaluator target spans by what they *record* rather than by which
+    tool produced them — for example every span carrying an approval decision,
+    without naming the approval-gated tools.
+    """
+
     def __init__(
         self,
         *,
-        names: Sequence[str],
+        names: Sequence[str] = (),
         span_kinds: Sequence[str] = (),
         parent_id: Optional[str] = None,
+        attributes: Mapping[str, str] = MappingProxyType({}),
     ) -> None:
-        if not names:
-            raise ValueError("names must contain at least one span name")
         if any(not isinstance(name, str) or not name for name in names):
             raise ValueError("names must contain only non-empty span names")
+        if any(not key for key in attributes):
+            raise ValueError("attributes must contain only non-empty keys")
+        if not names and not attributes:
+            # Without one of these, discovery would sweep every span in the
+            # window and blow through the runner's candidate safety limit.
+            raise ValueError("a selector needs at least one name or attribute filter")
         object.__setattr__(self, "names", tuple(names))
         object.__setattr__(self, "span_kinds", tuple(span_kinds))
         object.__setattr__(self, "parent_id", parent_id)
+        object.__setattr__(self, "attributes", tuple(sorted(attributes.items())))
 
     def matches(self, span: v1.Span) -> bool:
         """Whether a discovered span belongs to this selector.
@@ -60,10 +76,14 @@ class SpanSelector:
         out per evaluator; the server already applied these filters, but the
         runner re-checks locally rather than trusting positional bookkeeping.
         """
-        if span["name"] not in self.names:
+        if self.names and span["name"] not in self.names:
             return False
         if self.span_kinds and span.get("span_kind") not in self.span_kinds:
             return False
+        if self.attributes:
+            span_attributes = span.get("attributes", {})
+            if any(span_attributes.get(key) != value for key, value in self.attributes):
+                return False
         if self.parent_id is not None:
             expected_parent_id = None if self.parent_id == "null" else self.parent_id
             if span.get("parent_id") != expected_parent_id:

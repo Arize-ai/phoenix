@@ -34,9 +34,10 @@ the runner issues one discovery query per distinct selector:
 - **Root targets** — `tool_count_per_turn` and `user_friction` select
   `names=("pxi.turn",)`, `span_kinds=("AGENT",)`, `parent_id="null"`, so they
   score and annotate one turn root per trace. They share a single query.
-- **TOOL targets** — `suggestion_accepted` selects the approval-gated tool
-  names with `span_kinds=("TOOL",)` and no parent restriction, so it annotates
-  individual tool spans anywhere inside a turn.
+- **TOOL targets** — `suggestion_accepted` selects on the approval attribute
+  `pxi.approval.source="user"` with `span_kinds=("TOOL",)` and no parent
+  restriction, so it annotates individual tool spans anywhere inside a turn.
+  It names no tools at all.
 
 Targeting inner spans matters because one turn can contain several suggestions
 that the user decided differently; a turn-level annotation would collapse them
@@ -63,38 +64,36 @@ suggestion. It annotates the TOOL span itself:
 
 | Recorded outcome | Annotation |
 |---|---|
-| `status: "rejected"` | `rejected` / `0.0` |
-| `acceptedBy: "user"` | `accepted` / `1.0` |
+| `pxi.approval.decision = "rejected"` | `rejected` / `0.0` |
+| `pxi.approval.decision = "accepted"` | `accepted` / `1.0` |
 | anything else | *no annotation* |
 
-Rejection is evaluated first: the reject path writes `status: "rejected"` and
-never sets `acceptedBy`, so a payload carrying both is contradictory and the
-explicit terminal rejection wins. Acceptance keys off `acceptedBy` rather than
-the status string because the success vocabulary is tool-specific (`accepted`,
-`saved`, `loaded`, `applied`, `removed`) while `acceptedBy` is the only field
-that separates a human click from an automatic bypass.
+Approval-gated tools stamp a uniform `approval: {decision, source}` marker into
+their output, which the server promotes onto the span as `pxi.approval.decision`
+and `pxi.approval.source`. Classification reads only those attributes, so each
+tool's own success vocabulary (`accepted`, `saved`, `loaded`, `applied`,
+`removed`) is irrelevant.
 
 Deliberately **not** annotated, because none is a user decision:
 
-- automatic/system accepts (`acceptedBy: "auto"`, i.e. bypass edit permission);
-- still-pending approvals (`awaiting_user`);
-- approvals cancelled by navigation, and errored tools (`output-error`);
-- missing, malformed, non-object, or unrecognized `output.value`;
-- any tool not on the allowlist.
+- automatic accepts (`pxi.approval.source: "auto"`, i.e. bypass edit permission);
+- still-pending approvals, cancellations, and errored tools — all unmarked;
+- unknown or malformed decisions.
 
 Classification is purely structural — the evaluator never searches message
 text for words like "accepted" or "rejected". Annotations carry only
 `{"tool_name": ...}`: never prompt text, tool arguments, raw output, user
 content, instance ids, or proposal diffs.
 
-The allowlist in `evaluators/suggestion_accepted.py` is an intentional
-**cross-language maintenance contract**: it lists exactly the frontend tools
-whose pending-action implementation records both outcomes. When a new
-approval-gated tool lands under `app/src/agent/tools/*/pending*.ts`, add it
-here too or its decisions go unmeasured. `submit_code_evaluator_draft` and
-`submit_llm_evaluator_draft` are excluded on purpose: they record only
-`awaiting_user`, and the dialog's real decision is never written back to the
-tool span.
+There is deliberately **no list of approval-gated tool names**. An earlier
+revision carried one and it went stale before shipping — every dataset-write
+tool is approval-gated and was missing from it. Discovery now keys off what a
+span *records*, so a newly gated tool is measured the day it ships, and a
+frontend drift guard fails the build if an approval payload ships unmarked.
+
+`submit_code_evaluator_draft` and `submit_llm_evaluator_draft` remain
+unmeasured: they resolve as `awaiting_user` and the dialog's real decision is
+never written back as tool output, so there is no marker to read.
 
 Preview it without writing anything:
 

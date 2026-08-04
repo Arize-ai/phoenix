@@ -12,7 +12,8 @@ from phoenix.evals.evaluators import Score
 
 from evals.pxi.online_evals import run as run_module
 from evals.pxi.online_evals.evaluators.suggestion_accepted import (
-    APPROVAL_GATED_TOOLS,
+    APPROVAL_DECISION_ATTRIBUTE,
+    APPROVAL_SOURCE_ATTRIBUTE,
     SUGGESTION_ACCEPTED,
 )
 from evals.pxi.online_evals.evaluators.tool_count_per_turn import TOOL_COUNT_PER_TURN
@@ -234,10 +235,29 @@ def test_evaluator_spec_requires_explicit_annotator_kind() -> None:
         )
 
 
-@pytest.mark.parametrize("names", [(), ("",), ("pxi.turn", "")])
-def test_span_selector_requires_non_empty_names(names: tuple[str, ...]) -> None:
-    with pytest.raises(ValueError, match="non-empty span names|at least one span name"):
+@pytest.mark.parametrize("names", [("",), ("pxi.turn", "")])
+def test_span_selector_rejects_empty_span_names(names: tuple[str, ...]) -> None:
+    with pytest.raises(ValueError, match="non-empty span names"):
         SpanSelector(names=names)
+
+
+def test_span_selector_requires_a_bounding_filter() -> None:
+    """Without a name or attribute filter, discovery would sweep the whole window."""
+    with pytest.raises(ValueError, match="at least one name or attribute"):
+        SpanSelector(span_kinds=("TOOL",))
+
+
+def test_span_selector_matches_on_attributes() -> None:
+    selector = SpanSelector(attributes={APPROVAL_SOURCE_ATTRIBUTE: "user"})
+    matching = _accepted("matching", trace_id="trace", parent_id="root")
+    auto = _approval_tool(
+        "auto", trace_id="trace", parent_id="root", decision="accepted", source="auto"
+    )
+    unmarked = _span("plain", trace_id="trace", name="read_prompt", kind="TOOL", parent_id="root")
+
+    assert selector.matches(matching)
+    assert not selector.matches(auto)
+    assert not selector.matches(unmarked)
 
 
 def test_span_selector_matches_a_concrete_parent_id() -> None:
@@ -668,27 +688,25 @@ def _approval_tool(
     *,
     trace_id: str,
     parent_id: str,
-    output: dict[str, Any],
+    decision: str,
+    source: str = "user",
     name: str = "edit_prompt_instance",
 ) -> v1.Span:
     span = _span(span_id, trace_id=trace_id, name=name, kind="TOOL", parent_id=parent_id)
-    span["attributes"] = {"tool.name": name, "output.value": output}
+    span["attributes"] = {
+        "tool.name": name,
+        APPROVAL_DECISION_ATTRIBUTE: decision,
+        APPROVAL_SOURCE_ATTRIBUTE: source,
+    }
     return span
 
 
 def _accepted(span_id: str, *, trace_id: str, parent_id: str) -> v1.Span:
-    return _approval_tool(
-        span_id,
-        trace_id=trace_id,
-        parent_id=parent_id,
-        output={"status": "accepted", "acceptedBy": "user"},
-    )
+    return _approval_tool(span_id, trace_id=trace_id, parent_id=parent_id, decision="accepted")
 
 
 def _rejected(span_id: str, *, trace_id: str, parent_id: str) -> v1.Span:
-    return _approval_tool(
-        span_id, trace_id=trace_id, parent_id=parent_id, output={"status": "rejected"}
-    )
+    return _approval_tool(span_id, trace_id=trace_id, parent_id=parent_id, decision="rejected")
 
 
 def _discovery_requests(spans: _FakeSpans) -> list[dict[str, Any]]:
@@ -734,7 +752,9 @@ def test_tool_selector_issues_its_own_unparented_query() -> None:
     (request,) = _discovery_requests(spans)
     assert "parent_id" not in request
     assert request["span_kind"] == ["TOOL"]
-    assert request["name"] == sorted(APPROVAL_GATED_TOOLS)
+    # Discovery is by recorded decision, not by a hand-maintained tool list.
+    assert "name" not in request
+    assert request["attributes"] == {APPROVAL_SOURCE_ATTRIBUTE: "user"}
 
 
 def test_mixed_selectors_each_receive_only_their_own_candidates() -> None:

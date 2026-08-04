@@ -94,11 +94,15 @@ def _discover_candidates(
     end_time: datetime,
 ) -> list[v1.Span]:
     """Run one discovery query for a selector shared by one or more evaluators."""
-    filters: dict[str, object] = {"name": sorted(selector.names)}
+    filters: dict[str, object] = {}
+    if selector.names:
+        filters["name"] = sorted(selector.names)
     if selector.span_kinds:
         filters["span_kind"] = sorted(selector.span_kinds)
     if selector.parent_id is not None:
         filters["parent_id"] = selector.parent_id
+    if selector.attributes:
+        filters["attributes"] = dict(selector.attributes)
     candidates = client.spans.get_spans(
         project_identifier=project,
         start_time=start_time,
