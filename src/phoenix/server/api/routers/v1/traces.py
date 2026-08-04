@@ -155,6 +155,25 @@ async def list_project_traces(
             "to the specified sessions will be returned."
         ),
     ),
+    error: Optional[bool] = Query(
+        default=None,
+        description=(
+            "Filter by trace error status. If true, only return traces that contain "
+            "at least one span with `status_code == ERROR`. If false, only return "
+            "traces with no errored spans. If omitted, traces are not filtered by "
+            "error status. Matches the error indicator shown in the UI."
+        ),
+    ),
+    min_latency_ms: Optional[float] = Query(
+        default=None,
+        ge=0,
+        description="Inclusive lower bound on trace latency in milliseconds.",
+    ),
+    max_latency_ms: Optional[float] = Query(
+        default=None,
+        ge=0,
+        description="Inclusive upper bound on trace latency in milliseconds.",
+    ),
 ) -> GetTracesResponseBody:
     async with request.app.state.db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
@@ -205,6 +224,22 @@ async def list_project_traces(
             )
         if end_time:
             stmt = stmt.where(models.Trace.start_time < normalize_datetime(end_time, timezone.utc))
+
+        if error is not None:
+            # A trace "has an error" if any of its spans has status_code == ERROR,
+            # matching the error indicator shown in the UI (see Trace.error_count).
+            errored_traces = select(models.Span.trace_rowid).where(
+                models.Span.status_code == "ERROR"
+            )
+            if error:
+                stmt = stmt.where(models.Trace.id.in_(errored_traces))
+            else:
+                stmt = stmt.where(models.Trace.id.notin_(errored_traces))
+
+        if min_latency_ms is not None:
+            stmt = stmt.where(models.Trace.latency_ms >= min_latency_ms)
+        if max_latency_ms is not None:
+            stmt = stmt.where(models.Trace.latency_ms <= max_latency_ms)
 
         if cursor:
             try:
