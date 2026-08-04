@@ -5,9 +5,11 @@ import {
   Card,
   CardCollapsedPreview,
   Counter,
+  Flex,
   OverflowRow,
   Text,
   Token,
+  View,
 } from "@phoenix/components";
 
 const meta: Meta = {
@@ -141,6 +143,39 @@ export const CollapsedRecordPreview = {
     preview: "temperature: 0.7, max_tokens: 1000, model: gpt-4, top_p: 1",
     width: "400px",
   },
+};
+
+/**
+ * The shape span details actually renders: collapsed message cards inside an
+ * open card. Each preview answers to its own card — the open outer card must
+ * not hide the previews nested under it.
+ */
+export const NestedCollapsedPreviews = {
+  render: () => (
+    <Card title="Input" collapsible width="480px">
+      <View padding="size-200">
+        <Flex direction="column" gap="size-100">
+          {[
+            ["system", "You are a friendly assistant that helps users…"],
+            ["user", "What's the weather in SF today?"],
+            ["assistant", 'get_weather({"city":"San Francisco"})'],
+          ].map(([role, preview]) => (
+            <Card
+              key={role}
+              title={role}
+              collapsible
+              defaultOpen={false}
+              headerContent={
+                <CardCollapsedPreview>{preview}</CardCollapsedPreview>
+              }
+            >
+              <Text>The message body.</Text>
+            </Card>
+          ))}
+        </Flex>
+      </View>
+    </Card>
+  ),
 };
 
 export const WithExtra = {

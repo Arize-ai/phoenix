@@ -90,15 +90,15 @@ export const cardCSS = (style?: CSSProperties) => css`
     & .card__collapsible-button {
       display: flex;
       flex: 1;
-      /* Without this the button floors at the width of the heading it wraps,
-         and pushes the extra slot's controls past the card's edge. The
-         title does not shrink, so the button also has to clip: squeezed hard
-         enough it would otherwise paint the title over those same controls */
-      min-width: 0;
-      overflow: hidden;
       flex-direction: row;
       align-items: center;
       text-align: left;
+      /* Without this the button floors at the width of the heading it wraps and
+         pushes the extra slot's controls past the card's edge. The title does
+         not shrink, so the button also has to clip: squeezed hard enough it
+         would otherwise paint the title over those same controls */
+      min-width: 0;
+      overflow: hidden;
       width: 100%;
       height: 100%;
       appearance: none;

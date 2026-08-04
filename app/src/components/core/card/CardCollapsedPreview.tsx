@@ -15,8 +15,13 @@ const cardCollapsedPreviewCSS = css`
   padding-right: var(--global-dimension-size-200);
 
   /* An open card shows the real thing, so the excerpt only earns its place
-     while the card is closed */
-  .card[data-collapsed="false"] & {
+     while the card is closed.
+
+     Anchored through the header so it is the card this preview belongs to that
+     decides, not any card further up. Message cards render inside the input
+     card's body, and matching on ancestry alone would let that outer card —
+     open, as it usually is — hide every preview nested under it. */
+  .card[data-collapsed="false"] > header & {
     display: none;
   }
 `;
