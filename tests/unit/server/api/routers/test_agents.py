@@ -34,10 +34,10 @@ from phoenix.server.api.routers.agents import (
     _load_phoenix_user_email,
     _load_sandbox_availability,
     _maybe_using_user,
+    _patch_agent_session,
     _persist_db_traces_and_emit_event,
     _refresh_and_load_agent_session,
     _SubagentMessageChunksClosed,
-    _update_agent_session,
 )
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
@@ -87,13 +87,13 @@ class TestAgentSessionPersistence:
             )
 
         async with db() as session:
-            updated_rowid = await _update_agent_session(
+            patched_rowid = await _patch_agent_session(
                 session,
                 agent_session_rowid=created_rowid,
                 user_id=None,
                 title="title",
             )
-            assert updated_rowid is None
+            assert patched_rowid is None
             assert await session.scalar(select(models.AgentSession.id)) is None
 
     async def test_deleted_rowid_is_not_reused(self, db: DbSessionFactory) -> None:

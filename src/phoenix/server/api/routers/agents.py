@@ -1550,7 +1550,7 @@ async def _heartbeat_agent_session_turn_lock(
             )
 
 
-async def _update_agent_session(
+async def _patch_agent_session(
     session: AsyncSession,
     *,
     agent_session_rowid: int,
@@ -1585,7 +1585,7 @@ async def _persist_agent_session_title(
 ) -> None:
     try:
         async with db() as session:
-            await _update_agent_session(
+            await _patch_agent_session(
                 session,
                 agent_session_rowid=agent_session_rowid,
                 user_id=user_id,
@@ -1663,13 +1663,13 @@ async def _persist_agent_session_turn(
     if not new_messages:
         return
     async with db() as session:
-        updated_agent_session_rowid = await _update_agent_session(
+        patched_agent_session_rowid = await _patch_agent_session(
             session,
             agent_session_rowid=agent_session_rowid,
             user_id=user_id,
             title=title or "",
         )
-        if updated_agent_session_rowid is None:
+        if patched_agent_session_rowid is None:
             raise RuntimeError(
                 f"Agent session {GlobalID('AgentSession', str(agent_session_rowid))!s} "
                 "no longer exists"
