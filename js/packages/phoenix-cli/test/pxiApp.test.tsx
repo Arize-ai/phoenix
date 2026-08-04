@@ -1574,7 +1574,11 @@ describe("PXI app", () => {
     // itself moves and every other client sees the change.
     expect(updateSessionModel).toHaveBeenCalledWith({
       sessionId: "session-1",
-      model: { providerType: "builtin", provider: "OPENAI", modelName: "gpt-5.4" },
+      model: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-5.4",
+      },
     });
     expect(sessionModelResolver).not.toHaveBeenCalled();
     expect(stripAnsi(lastFrame() ?? "")).toContain("model: OPENAI/gpt-5.4");

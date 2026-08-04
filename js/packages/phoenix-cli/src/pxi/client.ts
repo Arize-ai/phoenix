@@ -52,9 +52,14 @@ export function isSessionBusyError({ error }: { error: unknown }): boolean {
 const SESSION_MESSAGES_STALE_ERROR_CODE = "agent_session_messages_stale";
 
 /** Whether an error is the chat endpoint's stale-transcript (HTTP 409) rejection. */
-export function isSessionMessagesStaleError({ error }: { error: unknown }): boolean {
+export function isSessionMessagesStaleError({
+  error,
+}: {
+  error: unknown;
+}): boolean {
   return (
-    error instanceof Error && error.message.includes(SESSION_MESSAGES_STALE_ERROR_CODE)
+    error instanceof Error &&
+    error.message.includes(SESSION_MESSAGES_STALE_ERROR_CODE)
   );
 }
 
@@ -623,7 +628,10 @@ export function createPxiChatClient({
         // the lock, or this client's transcript went stale) are not
         // model/provider failures: rethrow them unwrapped so the UI can enter
         // its busy state or refresh the transcript.
-        if (isSessionBusyError({ error }) || isSessionMessagesStaleError({ error })) {
+        if (
+          isSessionBusyError({ error }) ||
+          isSessionMessagesStaleError({ error })
+        ) {
           throw error;
         }
         throw formatPxiRuntimeError({
