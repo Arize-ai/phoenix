@@ -1,6 +1,11 @@
 import type { ReactNode } from "react";
 
-import { Card, CopyToClipboardButton, Flex } from "@phoenix/components";
+import {
+  Card,
+  CardCollapsedPreview,
+  CopyToClipboardButton,
+  Flex,
+} from "@phoenix/components";
 import { inlineDividerCSS } from "@phoenix/components/core/styles";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
@@ -29,6 +34,7 @@ import {
   formatJSONForCopy,
   formatJSONStringsForCopy,
   formatTextListForCopy,
+  getPromptTemplatePreview,
 } from "./utils";
 
 /**
@@ -105,6 +111,11 @@ export function LLMInput({
         {...defaultCardProps}
         defaultOpen={false}
         title="Prompt Template"
+        headerContent={
+          <CardCollapsedPreview>
+            {getPromptTemplatePreview(promptTemplate)}
+          </CardCollapsedPreview>
+        }
         extra={
           <CopyToClipboardButton text={formatJSONForCopy(promptTemplate)} />
         }

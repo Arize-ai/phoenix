@@ -109,6 +109,13 @@ describe("toRecordPreview", () => {
     expect(toRecordPreview("{}")).toBeUndefined();
     expect(toRecordPreview(undefined)).toBeUndefined();
   });
+
+  // a prompt template's variables arrive as a record rather than a JSON string
+  it("reads a record that did not arrive as a string", () => {
+    expect(toRecordPreview({ question: "why?", tone: "friendly" })).toBe(
+      "question: why?, tone: friendly"
+    );
+  });
 });
 
 describe("toToolCallsPreview", () => {

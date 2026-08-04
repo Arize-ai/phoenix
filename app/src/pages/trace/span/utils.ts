@@ -20,6 +20,7 @@ import { isAttributeMessages } from "@phoenix/openInference/tracing/types";
 import { isStringArray } from "@phoenix/typeUtils";
 import {
   toContentPreview,
+  toRecordPreview,
   toToolCallsPreview,
 } from "@phoenix/utils/contentPreviewUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
@@ -129,6 +130,20 @@ export function getMessagePreview(
       }))
     ) ??
     toToolCallsPreview(functionCall)
+  );
+}
+
+/**
+ * A one-line excerpt of a prompt template for its card's collapsed header. The
+ * template itself first, since that is the disclosure the card opens on, and
+ * the variables it interpolates when there is no template to show.
+ */
+export function getPromptTemplatePreview(
+  promptTemplate: AttributePromptTemplate
+): string | undefined {
+  return (
+    toContentPreview(promptTemplate.template) ??
+    toRecordPreview(promptTemplate.variables)
   );
 }
 
