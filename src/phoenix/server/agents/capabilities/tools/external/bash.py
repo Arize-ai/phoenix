@@ -3,12 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "bash"
@@ -29,7 +28,9 @@ The user has no access to the filesystem. You can use the filesystem for your ow
 purposes, but if you want to share something with the user, you must display the \
 content in the rich markdown rendered chat.
 phoenix-gql is available for GraphQL operations against the Phoenix GraphQL API. \
-If CLI usage is unclear, run `phoenix-gql --help` directly.\
+If CLI usage is unclear, run `phoenix-gql --help` directly. Before composing \
+non-trivial GraphQL, load the `phoenix-graphql` skill for schema entrypoints and \
+query patterns.\
 """
 
 PARAMETERS: dict[str, Any] = {
@@ -67,11 +68,6 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class BashCapability(AbstractStaticCapability[AgentDependencies]):
-    instructions: Template
-
+class BashCapability(AbstractCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_static_instructions(self) -> str:
-        return self.instructions.render()

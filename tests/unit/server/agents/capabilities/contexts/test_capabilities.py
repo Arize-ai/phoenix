@@ -738,9 +738,7 @@ class TestCodeEvaluatorContextCapabilityGate:
 
 class TestPatchExperimentCapabilityGate:
     def _capability(self) -> PatchExperimentCapability:
-        return PatchExperimentCapability(
-            instructions=_DEFAULT_PROMPTS.patch_experiment_tool,
-        )
+        return PatchExperimentCapability()
 
     def _dataset_context(self) -> DatasetContext:
         return DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox")

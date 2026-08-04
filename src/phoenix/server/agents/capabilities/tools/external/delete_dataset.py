@@ -3,22 +3,25 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
 from pydantic_ai import RunContext
-from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
+from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "delete_dataset"
 
-DESCRIPTION = (
-    "Permanently delete the dataset the user is viewing, including all of its rows, split "
-    "associations, experiments, and history. This is destructive and cannot be undone. Only call "
-    "it when the user has clearly asked to delete this dataset."
-)
+DESCRIPTION = """\
+Permanently delete the dataset the user is viewing, including all of its rows, split \
+associations, experiments, and history. This is destructive and cannot be undone. Only call it \
+when the user has clearly asked to delete this dataset.
+Propose the deletion by calling this tool directly. In manual approval mode the browser renders an \
+inline accept/reject card and deletes only when the user accepts; in bypass mode it deletes \
+immediately. The card is the approval surface — do not ask a separate yes/no question (or call \
+ask_user) to confirm before calling it.\
+"""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
@@ -35,19 +38,9 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class DeleteDatasetCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: Template
-
+class DeleteDatasetCapability(AbstractGatedToolCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
-        instructions = self.instructions
-
-        def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions.render()
-
-        return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
         # Writes are blocked server-side for viewers; don't advertise to them.

@@ -3,23 +3,28 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "list_splits"
 
-DESCRIPTION = (
-    "List the dataset splits that exist across this Phoenix instance, returning each split's id, "
-    "name, description, and color. Read-only. A split is a named slice of dataset examples (e.g. "
-    "train/validation/test, or by facet); splits are global, so the same split can hold examples "
-    "from more than one dataset. Paginate with limit/after. For just the splits the dataset in "
-    "view is using, use list_dataset_splits."
-)
+DESCRIPTION = """\
+List the dataset splits that exist across this Phoenix instance, returning each split's id, name, \
+description, and color. Read-only. A split is a named slice of dataset examples (e.g. \
+train/validation/test, or by facet); splits are global, so the same split can hold examples from \
+more than one dataset. Use this to discover what splits exist before assigning examples with \
+set_dataset_example_splits, editing one with patch_dataset_split, or deleting one with \
+delete_dataset_splits; for just the splits the dataset in view is using, use list_dataset_splits. \
+Prefer this over hand-writing GraphQL.
+The list is paginated: if the result reports more pages (`hasNextPage`), call again with the \
+returned cursor in `after` before concluding a split does not exist. The set/patch/delete split \
+tools already resolve names against the full split set.
+If a split the user wants does not exist yet, create it with create_dataset_split.\
+"""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
@@ -50,11 +55,6 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class ListSplitsCapability(AbstractStaticCapability[AgentDependencies]):
-    instructions: Template
-
+class ListSplitsCapability(AbstractCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_static_instructions(self) -> str:
-        return self.instructions.render()
