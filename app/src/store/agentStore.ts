@@ -122,12 +122,7 @@ export type PendingAgentMessage = {
 
 /**
  * Dismissable per-session notices raised by a rejected send or compaction
- * (HTTP 409). Unlike "busyElsewhere" — a live mode derived from server state —
- * these are sticky records of a past rejection that clear on the next send:
- * - "messagesAddedElsewhere": the transcript was replaced because another client
- *   appended to the session; drives the "chat has been refreshed" notice.
- * - "modelChangedElsewhere": another client moved the session to a different
- *   model; the transcript is untouched, so the notice names the model change.
+ * (HTTP 409).
  */
 export type AgentSessionDismissableNotice =
   | "messagesAddedElsewhere"
@@ -375,9 +370,7 @@ export interface AgentState extends AgentProps {
   setSessionBusyElsewhere: (sessionId: string, isBusy: boolean) => void;
   /**
    * The dismissable conflict notice raised by a session's last rejected send
-   * or compaction, if any. A session shows at most one notice at a time:
-   * setting one replaces the other, and the next send clears it. Read through
-   * {@link selectSessionNotice}, which folds in busy-elsewhere precedence.
+   * or compaction, if any.
    */
   sessionNoticeBySessionId: Partial<
     Record<string, AgentSessionDismissableNotice>
@@ -391,9 +384,6 @@ export interface AgentState extends AgentProps {
   setSessionModelConfig: (sessionId: string, config: ModelConfig) => void;
   /**
    * Sessions whose model change has not yet been acknowledged by the server.
-   * The session poll and the transcript seed refetch server state that may
-   * predate an optimistic selection, so applying it blindly would revert the
-   * user's pick mid-flight.
    */
   isModelWritePendingBySessionId: Partial<Record<string, boolean>>;
   setSessionModelWritePending: (sessionId: string, isPending: boolean) => void;
