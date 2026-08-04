@@ -18257,7 +18257,7 @@
               }
             ],
             "title": "Title",
-            "description": "New title. Omitted or null leaves the title unchanged."
+            "description": "New title for the session (null is rejected; title is required)"
           },
           "model": {
             "anyOf": [
@@ -18268,12 +18268,12 @@
                 "type": "null"
               }
             ],
-            "description": "New model selection. Omitted or null leaves the model unchanged."
+            "description": "New model selection for the session (null is rejected)"
           }
         },
         "type": "object",
         "title": "UpdateAgentSessionRequestBody",
-        "description": "Request body for updating a persisted session's mutable fields.\n\nAt least one field must be provided; omitted (or null) fields are left\nunchanged."
+        "description": "Fields to update on a persisted session. Omit a field to leave it unchanged."
       },
       "UpdateAgentSessionResponseBody": {
         "properties": {

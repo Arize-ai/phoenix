@@ -324,8 +324,6 @@ class AgentSessionMutationMixin:
                 agent_session.title = title
             if has_model and input.model is not None:
                 if is_turn_active(agent_session.heartbeat_at, now=datetime.now(timezone.utc)):
-                    # A streaming turn runs on the model it read under the turn
-                    # lock, so the model must not flip out from under it.
                     raise Conflict("Cannot change the session's model while a turn is streaming.")
                 try:
                     await set_session_model(

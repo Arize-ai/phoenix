@@ -43,6 +43,7 @@ from pydantic import (
     ConfigDict,
     Field,
     TypeAdapter,
+    model_validator,
 )
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult
@@ -104,6 +105,7 @@ from phoenix.db.types.data_stream_protocol import (
     UIMessage,
     UserMessageMetadata,
 )
+from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.capabilities.skills import Skill
@@ -386,21 +388,30 @@ class CreateAgentSessionResponseBody(ResponseBody[AgentSession]):
 
 
 class UpdateAgentSessionRequestBody(V1RoutesBaseModel):
-    """Request body for updating a persisted session's mutable fields.
-
-    At least one field must be provided; omitted (or null) fields are left
-    unchanged.
+    """
+    Fields to update on a persisted session. Omit a field to leave it unchanged.
     """
 
     title: str | None = Field(
-        default=None,
+        default=UNDEFINED,
         max_length=MAX_AGENT_SESSION_TITLE_LENGTH,
-        description="New title. Omitted or null leaves the title unchanged.",
+        description="New title for the session (null is rejected; title is required)",
     )
     model: AgentModelSelection | None = Field(
-        default=None,
-        description="New model selection. Omitted or null leaves the model unchanged.",
+        default=UNDEFINED,
+        description="New model selection for the session (null is rejected)",
     )
+
+    @model_validator(mode="after")
+    def _reject_explicit_nulls(self) -> "UpdateAgentSessionRequestBody":
+        # Both fields are non-nullable: an omitted field stays UNDEFINED, but an
+        # explicit JSON `null` arrives as None and must be rejected (422) rather
+        # than silently dropped.
+        if self.title is None:
+            raise ValueError("title cannot be null")
+        if self.model is None:
+            raise ValueError("model cannot be null")
+        return self
 
 
 class AgentSessionSummary(V1RoutesBaseModel):
@@ -1866,13 +1877,10 @@ def create_agents_router(
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
         if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
             raise HTTPException(status_code=403, detail="Server agent is disabled")
-        if request_body.title is None and request_body.model is None:
-            raise HTTPException(
-                status_code=422,
-                detail="At least one field to update must be provided.",
-            )
+        if request_body.title is UNDEFINED and request_body.model is UNDEFINED:
+            raise HTTPException(status_code=422, detail="No fields to update")
         title: str | None = None
-        if request_body.title is not None:
+        if request_body.title is not UNDEFINED and request_body.title is not None:
             try:
                 title = validate_agent_session_title(request_body.title, allow_empty=False)
             except ValueError as exc:
@@ -1887,7 +1895,7 @@ def create_agents_router(
                 )
                 if title is not None:
                     agent_session.title = title
-                if request_body.model is not None:
+                if request_body.model is not UNDEFINED and request_body.model is not None:
                     if is_turn_active(
                         agent_session.heartbeat_at,
                         now=datetime.now(timezone.utc),

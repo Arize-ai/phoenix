@@ -2441,6 +2441,34 @@ async def test_update_session_route_rejects_an_empty_update(
     agent_session_id = await _create_agent_session_row(db)
     response = await httpx_client.patch(_update_session_url(agent_session_id), json={})
     assert response.status_code == 422
+    assert response.text == "No fields to update"
+
+
+async def test_update_session_route_rejects_explicit_null_fields(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """Both fields are non-nullable: an explicit JSON null must 422 rather
+    than be silently dropped like an omitted field."""
+    agent_session_id = await _create_agent_session_row(db)
+
+    response = await httpx_client.patch(
+        _update_session_url(agent_session_id),
+        json={
+            "title": None,
+            "model": {
+                "providerType": "builtin",
+                "provider": "ANTHROPIC",
+                "modelName": "claude-opus-4-6",
+            },
+        },
+    )
+
+    assert response.status_code == 422
+    async with db() as session:
+        stored = await session.scalar(select(models.AgentSession))
+        assert stored is not None
+        assert stored.model_provider.value == "OPENAI"
 
 
 async def test_compact_rejects_a_request_asserting_a_model_the_session_is_not_on(

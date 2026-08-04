@@ -5755,18 +5755,15 @@ export interface components {
         };
         /**
          * UpdateAgentSessionRequestBody
-         * @description Request body for updating a persisted session's mutable fields.
-         *
-         *     At least one field must be provided; omitted (or null) fields are left
-         *     unchanged.
+         * @description Fields to update on a persisted session. Omit a field to leave it unchanged.
          */
         UpdateAgentSessionRequestBody: {
             /**
              * Title
-             * @description New title. Omitted or null leaves the title unchanged.
+             * @description New title for the session (null is rejected; title is required)
              */
             title?: string | null;
-            /** @description New model selection. Omitted or null leaves the model unchanged. */
+            /** @description New model selection for the session (null is rejected) */
             model?: components["schemas"]["AgentModelSelection"] | null;
         };
         /** UpdateAgentSessionResponseBody */
