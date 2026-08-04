@@ -5,8 +5,8 @@ import { fetchQuery, graphql } from "relay-runtime";
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
+  AIQueryDSLFilterField,
   createAnnotationMemberCompletions,
-  DSLFilterConditionField,
   type DSLFilterAIQueryProps,
   type DSLFilterValidationFailureReason,
   type DSLFilterValidConditionArgs,
@@ -200,7 +200,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   useAdvertiseAgentContext(advertisedContext);
 
   return (
-    <DSLFilterConditionField
+    <AIQueryDSLFilterField
       aria-label="Filter spans"
       value={filterCondition}
       onChange={setFilterCondition}

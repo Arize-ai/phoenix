@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./AIQueryDSLFilterField";
 export * from "./AIQueryModelPicker";
 export * from "./AIQuerySettingsButton";
 export * from "./AIQuerySettingsCard";

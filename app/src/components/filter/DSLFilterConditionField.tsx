@@ -6,22 +6,23 @@ import type {
 import {
   acceptCompletion,
   autocompletion,
-  completionStatus,
   snippetCompletion,
   startCompletion,
 } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
+import type { Extension } from "@codemirror/state";
 import CodeMirror, {
   type BasicSetupOptions,
   EditorView,
   keymap,
 } from "@uiw/react-codemirror";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import {
   startTransition,
   useEffect,
   useEffectEvent,
   useId,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -38,24 +39,12 @@ import {
   TooltipTrigger,
   VisuallyHidden,
 } from "@phoenix/components";
-import { PxiAnimatedGlyph } from "@phoenix/components/agent/PxiAnimatedGlyph";
-import { PxiGlyph } from "@phoenix/components/agent/PxiGlyph";
-import {
-  PxiOutline,
-  type PxiOutlineState,
-} from "@phoenix/components/agent/PxiOutline";
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
-import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { classNames } from "@phoenix/utils/classNames";
 
-import { AIQuerySettingsButton } from "./ai/AIQuerySettingsButton";
-import type { AIQueryDSL } from "./ai/types";
-import type { AIQueryGenerateResult, AIQueryStatus } from "./ai/useAIQuery";
-import { useAIQuery } from "./ai/useAIQuery";
 import { createDSLFilterCompletionSource } from "./dslFilterConditionFieldUtils";
 import {
-  dslFilterAIOutlineCSS,
   dslFilterCodeMirrorCSS,
   dslFilterErrorTooltipCSS,
   dslFilterFieldCSS,
@@ -128,6 +117,25 @@ const VALIDATION_DEBOUNCE_MS = 250;
 
 const defaultSnippets: DSLFilterSnippet[] = [];
 const defaultCompletionSources: CompletionSource[] = [];
+const defaultExtensions: Extension[] = [];
+
+/**
+ * The field is single-line, so every Enter variant is swallowed here and no
+ * key can insert a newline. Enter first gives the typeahead its accept.
+ * Keymaps composed in via the `extensions` prop mount ahead of this one, so
+ * they can claim any of these keys before the built-in handling.
+ */
+const singleLineKeymap = keymap.of([
+  {
+    key: "Enter",
+    run: (editorView: EditorView) => {
+      acceptCompletion(editorView);
+      return true;
+    },
+  },
+  { key: "Mod-Enter", run: () => true },
+  { key: "Shift-Enter", run: () => true },
+]);
 
 function snippetToCompletion({
   label,
@@ -168,63 +176,17 @@ export type DSLFilterValidConditionArgs<
 export type DSLFilterValidationFailureReason = "invalid" | "transport";
 
 /**
- * Opts a filter field into AI query. The field then shows the AI query
- * settings entry point and — once the user enables the feature — a sparkle
- * toggle that switches the field into plain-English mode: prose input with
- * no DSL affordances, where Enter converts the query to DSL with the
- * configured model (on-device browser AI by default) and offers an undo.
+ * The field's imperative surface, for compositions that move focus as part
+ * of flows the field itself cannot see (e.g. a mode toggle rendered in the
+ * control cluster).
  */
-export type DSLFilterAIQueryProps = {
+export type DSLFilterConditionFieldRef = {
   /**
-   * The DSL description handed to the model — typically derived from the
-   * field's own completions and snippets via `createAIQueryDSL` so the
-   * model's vocabulary can never drift from the typeahead's.
+   * Focuses the editor. `selectAll` puts the whole draft under the caret so
+   * the next keystroke replaces it; without it the editor's last selection
+   * is restored.
    */
-  dsl: AIQueryDSL;
-  /**
-   * Placeholder shown while the field is in plain-English mode, e.g.
-   * "describe spans in plain English". Falls back to a generic prompt.
-   */
-  placeholder?: string;
-};
-
-/**
- * The lifecycle of one natural-language → DSL conversion. `query` is the
- * user's original phrasing, kept so a finished (or failed) conversion can
- * always be undone back to it.
- */
-type AIQueryPhase =
-  | { name: "idle" }
-  | { name: "converting"; query: string }
-  | { name: "generated"; query: string }
-  | { name: "failed"; query: string; message: string };
-
-const AI_QUERY_IDLE: AIQueryPhase = { name: "idle" };
-
-/**
- * The resolved AI-query capability handed to the inner field. Assembled by
- * a wrapper component so the field itself never touches the preferences or
- * credentials contexts — a field without `aiQuery` renders with no
- * provider requirements at all.
- */
-type AIQueryRuntime<
-  TValidationResult extends DSLFilterConditionValidationResult =
-    DSLFilterConditionValidationResult,
-> = {
-  /**
-   * The user's AI-query preference. The settings entry point renders
-   * regardless (it is how the feature gets enabled); the conversion
-   * behaviors only engage when this is true.
-   */
-  isEnabled: boolean;
-  status: AIQueryStatus;
-  downloadProgress: number;
-  generate: (
-    query: string,
-    options?: { onDelta?: (partialExpression: string) => void }
-  ) => Promise<AIQueryGenerateResult<TValidationResult>>;
-  cancel: () => void;
-  placeholder?: string;
+  focus: (options?: { selectAll?: boolean }) => void;
 };
 
 export type DSLFilterConditionFieldProps<
@@ -306,12 +268,50 @@ export type DSLFilterConditionFieldProps<
   onValidationStateChange?: (isValid: boolean) => void;
   placeholder?: string;
   /**
-   * Opts the field into AI query — natural-language drafts convert to DSL
-   * on Enter using the model configured in the AI query settings. The
-   * feature stays invisible (beyond its settings entry point) until the
-   * user enables it there.
+   * What kind of text the field is holding. The default `"dsl"` is the full
+   * filter field: language, typeahead, validation. `"prose"` strips every
+   * DSL affordance down to a single-line prose input in the same chrome —
+   * sans-serif text, no typeahead, and no validation (prose is not an
+   * expression, and the last reported validation state stands, since the
+   * applied condition hasn't changed). Compositions that repurpose the
+   * field for natural-language input switch to it.
    */
-  aiQuery?: DSLFilterAIQueryProps;
+  variant?: "dsl" | "prose";
+  /**
+   * Extra CodeMirror extensions, mounted ahead of the field's own so a
+   * composed keymap can claim keys (Enter, Escape, Mod-Enter) before the
+   * built-in handling. Pass a referentially stable array — a new identity
+   * reconfigures the editor, resetting in-flight completion state.
+   */
+  extensions?: Extension[];
+  /**
+   * Renders the editor read-only while true. The field chrome (controls,
+   * badges) stays interactive.
+   */
+  isReadOnly?: boolean;
+  /**
+   * Replaces the leading filter icon — e.g. a composition marking a mode
+   * with its own glyph. Rendered in the same slot; give it the
+   * `filter-icon` class to inherit the slot's spacing.
+   */
+  leadingVisual?: ReactNode;
+  /**
+   * Additional controls rendered in the field's control cluster, between
+   * the validation error badge and the clear button.
+   */
+  extraControls?: ReactNode;
+  /**
+   * Reports focus entering/leaving the editor, for compositions whose
+   * affordances depend on whether the user is in the field.
+   */
+  onFocusChange?: (isFocused: boolean) => void;
+  /**
+   * Called when the clear button is pressed, before the field emits the
+   * empty value — the hook for compositions to walk back any state of
+   * their own that described the cleared text.
+   */
+  onClear?: () => void;
+  ref?: Ref<DSLFilterConditionFieldRef>;
   /**
    * Accessible name for the condition input
    */
@@ -321,11 +321,11 @@ export type DSLFilterConditionFieldProps<
 
 /**
  * A danger badge in the field's control cluster whose tooltip carries the
- * full story — one shell shared by the validation error and the AI
- * conversion failure so the two read identically. `children` is the
- * tooltip's detail below the title.
+ * full story — one shell shared by the validation error and composed
+ * error states (e.g. an AI conversion failure) so they read identically.
+ * `children` is the tooltip's detail below the title.
  */
-function ErrorBadge({
+export function DSLFilterErrorBadge({
   ariaLabel,
   badgeMessage,
   title,
@@ -378,56 +378,15 @@ function ErrorBadge({
  * full error on hover or focus, plus a red border once the user leaves the
  * field — so an error can never fight the suggestions dropdown for the same
  * space.
+ *
+ * The field knows nothing beyond the DSL. Richer behaviors compose in from
+ * outside through `extensions` (keymaps), `variant` (prose input in the same
+ * chrome), the `leadingVisual`/`extraControls` slots, and the imperative
+ * `ref` — see `AIQueryDSLFilterField` for the AI-query composition.
  */
 export function DSLFilterConditionField<
   TValidationResult extends DSLFilterConditionValidationResult,
 >(props: DSLFilterConditionFieldProps<TValidationResult>) {
-  const { aiQuery, ...rest } = props;
-  if (aiQuery != null) {
-    return <DSLFilterConditionFieldWithAIQuery {...rest} aiQuery={aiQuery} />;
-  }
-  return <DSLFilterConditionFieldImpl {...rest} />;
-}
-
-/**
- * Resolves the AI-query capability from the preferences and credentials
- * contexts, keeping those provider requirements out of the base field.
- */
-function DSLFilterConditionFieldWithAIQuery<
-  TValidationResult extends DSLFilterConditionValidationResult,
->(
-  props: Omit<DSLFilterConditionFieldProps<TValidationResult>, "aiQuery"> & {
-    aiQuery: DSLFilterAIQueryProps;
-  }
-) {
-  const { aiQuery, ...rest } = props;
-  const isEnabled = usePreferencesContext((state) => state.isAIQueryEnabled);
-  const { status, downloadProgress, generate, cancel } = useAIQuery({
-    dsl: aiQuery.dsl,
-    validate: props.validateCondition,
-  });
-  return (
-    <DSLFilterConditionFieldImpl
-      {...rest}
-      ai={{
-        isEnabled,
-        status,
-        downloadProgress,
-        generate,
-        cancel,
-        placeholder: aiQuery.placeholder,
-      }}
-    />
-  );
-}
-
-function DSLFilterConditionFieldImpl<
-  TValidationResult extends DSLFilterConditionValidationResult,
->(
-  props: Omit<DSLFilterConditionFieldProps<TValidationResult>, "aiQuery"> & {
-    ai?: AIQueryRuntime<TValidationResult>;
-  }
-) {
   const {
     value,
     onChange,
@@ -441,18 +400,18 @@ function DSLFilterConditionFieldImpl<
     validationRetryKey,
     onValidationStateChange,
     placeholder = "filter condition",
-    ai,
+    variant = "dsl",
+    extensions: composedExtensions = defaultExtensions,
+    isReadOnly = false,
+    leadingVisual,
+    extraControls,
+    onFocusChange,
+    onClear,
+    ref,
     "aria-label": ariaLabel = "filter condition",
     className,
   } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
-  const [aiPhase, setAIPhase] = useState<AIQueryPhase>(AI_QUERY_IDLE);
-  // The sparkle toggle's state: whether the field is in plain-English mode.
-  // Deliberately per-field and session-local — the mode describes what the
-  // user is typing right now, not a durable preference.
-  const [isAIMode, setIsAIMode] = useState<boolean>(false);
-  const isAIActive = ai?.isEnabled === true;
-  const isAIModeOn = isAIActive && isAIMode;
   const hasSettled = useRef<boolean>(false);
   const previousValidationRetryKey = useRef(validationRetryKey);
   // null means the condition is not known to be invalid; the empty string
@@ -471,239 +430,31 @@ function DSLFilterConditionFieldImpl<
   const hasError = errorMessage !== null;
   const hasCondition = value !== "";
 
-  // In plain-English mode every non-empty idle draft is a query waiting
-  // for Enter — the state the "AI · ⏎" affordance points at
-  const hasPendingAIQuery =
-    isAIModeOn && aiPhase.name === "idle" && value.trim() !== "";
-  const isConverting = aiPhase.name === "converting";
-  // The validation effect keys on the phase *name* — keying on the phase
-  // object would re-run validation on every object identity change
-  const aiPhaseName = aiPhase.name;
-
-  // Every change the field itself makes (typing, AI streaming, restores)
-  // goes through `emitChange` so its round-trip back through the controlled
-  // `value` prop can be told apart from a caller setting the value from
-  // outside (see the external-set effect below). Counted per string because
-  // a consumer that defers its update (e.g. through startTransition) can
-  // deliver several pending emissions across renders.
-  const pendingInternalChangesRef = useRef(new Map<string, number>());
-  const emitChange = (nextValue: string) => {
-    const pending = pendingInternalChangesRef.current;
-    pending.set(nextValue, (pending.get(nextValue) ?? 0) + 1);
-    onChange(nextValue);
-  };
-
-  const handleChange = (nextValue: string) => {
-    // Any real edit ends the post-conversion affordances — the text is the
-    // user's again. Streamed updates echo back from the editor with the
-    // value they were set to, so an identity check tells the two apart.
-    if (aiPhase.name !== "idle" && !isConverting && nextValue !== value) {
-      setAIPhase(AI_QUERY_IDLE);
-    }
-    emitChange(nextValue);
-  };
-
-  // Identifies the conversion whose resolution is still welcome. Clearing
-  // the field bumps this so a cancelled run's "restore the query" behavior
-  // can't clobber the clear; Escape cancels WITHOUT bumping, because there
-  // the restoration is the point.
-  const aiRunIdRef = useRef(0);
-
-  // A passing verdict the conversion already obtained for the condition it
-  // produced — consumed by the validation effect so settling the generated
-  // expression doesn't re-ask the validator the question it just answered
-  const prevalidatedRef = useRef<{
-    condition: string;
-    validationResult: TValidationResult;
-  } | null>(null);
-
-  const startAIConversion = (query: string) => {
-    if (ai == null) {
-      return;
-    }
-    const runId = ++aiRunIdRef.current;
-    setAIPhase({ name: "converting", query });
-    void ai.generate(query, { onDelta: emitChange }).then((result) => {
-      if (aiRunIdRef.current !== runId) {
-        return;
-      }
-      if (result.outcome === "success") {
-        prevalidatedRef.current = result.validation?.isValid
-          ? { condition: result.condition, validationResult: result.validation }
-          : null;
-        emitChange(result.condition);
-        setAIPhase({ name: "generated", query });
-        // The result is DSL, so the field returns to DSL mode to show it —
-        // with completions and validation live for editing it. Undo flips
-        // back to plain-English mode with the original query.
-        setIsAIMode(false);
-      } else if (result.outcome === "error") {
-        emitChange(query);
-        setAIPhase({ name: "failed", query, message: result.message });
-      } else {
-        emitChange(query);
-        setAIPhase(AI_QUERY_IDLE);
-      }
-    });
-  };
-
-  // `selectAll` puts the whole draft under the caret so the next keystroke
-  // replaces it. Selection is dispatched separately from focus because
-  // `focus()` alone restores whatever selection the editor last had.
-  const focusEditor = ({ selectAll = false }: { selectAll?: boolean } = {}) => {
-    const editorView = editorViewRef.current;
-    if (editorView == null) {
-      return;
-    }
-    editorView.focus();
-    if (selectAll) {
-      editorView.dispatch({
-        selection: { anchor: 0, head: editorView.state.doc.length },
-      });
-    }
-  };
-
-  const undoAIConversion = (query: string) => {
-    emitChange(query);
-    setAIPhase(AI_QUERY_IDLE);
-    setIsAIMode(true);
-    // The point of undo is to get the query back for editing, so the caret
-    // stays put rather than selecting what the user just asked to restore
-    focusEditor();
-  };
-
-  const toggleAIMode = () => {
-    if (isConverting) {
-      // Leaving mid-conversion abandons the run; its cancelled resolution
-      // restores the query
-      ai?.cancel();
-    } else if (aiPhase.name === "failed") {
-      setAIPhase(AI_QUERY_IDLE);
-    }
-    const isTurningAIModeOn = !isAIMode;
-    setIsAIMode(isTurningAIModeOn);
-    // Turning the mode on selects the draft: whatever is in the field is DSL,
-    // and the user is switching modes to ask a question instead. Turning it
-    // off leaves the caret alone — that text is the expression being edited.
-    focusEditor({ selectAll: isTurningAIModeOn });
-  };
-
-  const handleExternalValueSet = useEffectEvent(() => {
-    if (!isAIMode && aiPhase.name === "idle") {
-      return;
-    }
-    // The incoming value is a condition being applied, not the user's
-    // draft — abandon whatever the AI flow was doing (the run-id bump keeps
-    // a cancelled conversion's restore from clobbering the new value) and
-    // return to DSL mode so the condition validates and applies normally.
-    aiRunIdRef.current += 1;
-    ai?.cancel();
-    setAIPhase(AI_QUERY_IDLE);
-    setIsAIMode(false);
-  });
-
-  // Tells the value round-tripping back from the field's own emissions
-  // apart from a caller setting it from outside — PXI's filter action, a
-  // recent-search apply, a URL-driven update. The editor suppresses
-  // onChange for programmatic value syncs, so every internal path is
-  // covered by `emitChange`.
-  useEffect(() => {
-    const pending = pendingInternalChangesRef.current;
-    const count = pending.get(value);
-    if (count !== undefined) {
-      if (count === 1) {
-        pending.delete(value);
-      } else {
-        pending.set(value, count - 1);
-      }
-      return;
-    }
-    handleExternalValueSet();
-  }, [value]);
-
-  // The CodeMirror keymap must stay referentially stable (see the
-  // extensions memo below), so key handlers reach the current AI state
-  // through this ref rather than closing over it
-  const aiRuntimeRef = useRef<{
-    maybeConvert: (currentText: string) => boolean;
-    handleEscape: () => boolean;
-  } | null>(null);
-  useEffect(() => {
-    aiRuntimeRef.current = {
-      // The editor's own document is the query, not the `value` prop: a
-      // consumer whose onChange defers the update (e.g. through
-      // startTransition) can still be a render behind the keystroke that
-      // preceded Enter, and converting -- or restoring on cancel -- a stale
-      // draft would drop the user's last words
-      maybeConvert: (currentText: string) => {
-        if (!isAIModeOn || isConverting) {
-          return false;
+  useImperativeHandle(
+    ref,
+    () => ({
+      // Selection is dispatched separately from focus because `focus()`
+      // alone restores whatever selection the editor last had
+      focus: ({ selectAll = false }: { selectAll?: boolean } = {}) => {
+        const editorView = editorViewRef.current;
+        if (editorView == null) {
+          return;
         }
-        const query = currentText.trim();
-        if (!query) {
-          return false;
-        }
-        startAIConversion(query);
-        return true;
-      },
-      handleEscape: () => {
-        switch (aiPhase.name) {
-          case "converting":
-            ai?.cancel();
-            return true;
-          case "generated":
-            undoAIConversion(aiPhase.query);
-            return true;
-          case "failed":
-            setAIPhase(AI_QUERY_IDLE);
-            return true;
-          default:
-            return false;
+        editorView.focus();
+        if (selectAll) {
+          editorView.dispatch({
+            selection: { anchor: 0, head: editorView.state.doc.length },
+          });
         }
       },
-    };
-  });
+    }),
+    []
+  );
 
   // A cached result from a previous loader no longer describes the data
   useEffect(() => {
     loadedCompletionsRef.current = null;
   }, [loadCompletions]);
-
-  // The conversion keys work identically in both modes: with no completion
-  // open, Enter hands the draft to `maybeConvert` (which only engages in
-  // plain-English mode) and Escape walks back whatever AI query last did
-  const conversionKeymap = useMemo(
-    () =>
-      keymap.of([
-        {
-          key: "Enter",
-          run: (editorView: EditorView) => {
-            // Insert the highlighted completion if the dropdown is open;
-            // otherwise a plain-English draft converts via AI query.
-            // Always swallow the key so no newline is inserted.
-            if (!acceptCompletion(editorView)) {
-              aiRuntimeRef.current?.maybeConvert(
-                editorView.state.doc.toString()
-              );
-            }
-            return true;
-          },
-        },
-        {
-          key: "Escape",
-          run: (editorView: EditorView) => {
-            // With the typeahead open, Escape belongs to it; otherwise it
-            // walks back whatever AI query last did — cancels an in-flight
-            // conversion, undoes a finished one, dismisses a failure
-            if (completionStatus(editorView.state) !== null) {
-              return false;
-            }
-            return aiRuntimeRef.current?.handleEscape() ?? false;
-          },
-        },
-      ]),
-    []
-  );
 
   const contentAttributes = useMemo(
     () =>
@@ -717,13 +468,14 @@ function DSLFilterConditionFieldImpl<
   // The extensions must be referentially stable across renders — a new
   // array causes a CodeMirror reconfigure, which resets the in-flight
   // completion state (e.g. the dropdown opened by focusing the field).
-  // Plain-English mode strips the field down to prose: no DSL language, no
-  // typeahead — just the conversion keys and the accessible name. That
-  // branch comes first so none of the DSL machinery is built while the
-  // mode is on (a mode flip reconfigures the editor either way).
+  // The prose variant strips the field down to prose input: no DSL
+  // language, no typeahead — just the composed keymaps and the accessible
+  // name. That branch comes first so none of the DSL machinery is built
+  // while the variant is on (a variant flip reconfigures the editor either
+  // way).
   const extensions = useMemo(() => {
-    if (isAIModeOn) {
-      return [conversionKeymap, contentAttributes];
+    if (variant === "prose") {
+      return [...composedExtensions, singleLineKeymap, contentAttributes];
     }
     // Fetch loaded completions at most once per focus, retrying on failure
     // the next time the dropdown opens
@@ -749,7 +501,8 @@ function DSLFilterConditionFieldImpl<
       ...(isBrowsing ? fieldOptions.slice(0, MAX_BROWSE_FIELDS) : fieldOptions),
     ];
     return [
-      conversionKeymap,
+      ...composedExtensions,
+      singleLineKeymap,
       pythonLanguage,
       // Surface the suggestions dropdown whenever the empty field is
       // focused, clicked, or cleared — the empty state doubles as a
@@ -787,12 +540,12 @@ function DSLFilterConditionFieldImpl<
       }),
     ];
   }, [
-    isAIModeOn,
+    variant,
+    composedExtensions,
     snippets,
     completions,
     loadCompletions,
     completionSources,
-    conversionKeymap,
     contentAttributes,
   ]);
 
@@ -859,33 +612,13 @@ function DSLFilterConditionFieldImpl<
       return undefined;
     }
 
-    // In plain-English mode the draft is the AI's input, not a DSL
-    // expression — asking the validator about English only flags the field
-    // red while the user is mid-thought. The same goes for the partial
-    // expression streaming in during a conversion; the finished expression
-    // validates normally once the conversion lands the field back in DSL
-    // mode. The last reported validation state stands meanwhile: the
-    // applied condition hasn't changed, and reporting invalid here would
-    // disavow a filter that is still filtering.
-    if (isAIModeOn || aiPhaseName === "converting") {
+    // Prose is not a DSL expression — asking the validator about it only
+    // flags the field red while the user is mid-thought. The last reported
+    // validation state stands meanwhile: the applied condition hasn't
+    // changed, and reporting invalid here would disavow a filter that is
+    // still filtering.
+    if (variant === "prose") {
       hasSettled.current = true;
-      return undefined;
-    }
-
-    // A condition the AI conversion just validated settles without another
-    // round-trip — the validator already answered for exactly this text
-    const prevalidated = prevalidatedRef.current;
-    prevalidatedRef.current = null;
-    if (prevalidated !== null && prevalidated.condition === value) {
-      hasSettled.current = true;
-      reportValidationState(true);
-      startTransition(() => {
-        reportValidCondition({
-          condition: value,
-          validationResult: prevalidated.validationResult,
-          isInitialSettlement,
-        });
-      });
       return undefined;
     }
 
@@ -942,200 +675,82 @@ function DSLFilterConditionFieldImpl<
       isCancelled = true;
       clearTimeout(timeout);
     };
-  }, [value, validateCondition, validationRetryKey, isAIModeOn, aiPhaseName]);
-
-  // The PXI treatment reflects how engaged AI query is: a resting stroke
-  // while the field is in plain-English mode, the full animated glow while
-  // a conversion is in flight. Fields without AI query stay permanently
-  // idle, where the outline is invisible.
-  const aiOutlineState: PxiOutlineState = isConverting
-    ? "active"
-    : isAIModeOn
-      ? "eligible"
-      : "idle";
+  }, [value, validateCondition, validationRetryKey, variant]);
 
   return (
-    <PxiOutline
-      isFullWidth
-      state={aiOutlineState}
-      shouldFlash
-      css={dslFilterAIOutlineCSS}
+    <div
+      data-is-focused={isFocused}
+      data-is-invalid={hasError}
+      data-has-condition={hasCondition}
+      data-variant={variant}
+      className={classNames("dsl-filter-condition-field", className)}
+      css={dslFilterFieldCSS}
     >
-      <div
-        data-is-focused={isFocused}
-        data-is-invalid={hasError}
-        data-has-condition={hasCondition}
-        data-ai-mode={isAIModeOn}
-        className={classNames("dsl-filter-condition-field", className)}
-        css={dslFilterFieldCSS}
-      >
-        <Flex direction="row" alignItems="center">
-          {isConverting ? (
-            // While converting, the glyph thinks — the same wave animation
-            // the Ask PXI nav button shows while it works
-            <span className="filter-icon dsl-filter-condition-field__thinking-glyph">
-              <PxiGlyph animation="wave-reveal" size={13} />
-            </span>
-          ) : isAIModeOn ? (
-            <PxiAnimatedGlyph isIconSized className="filter-icon" />
-          ) : (
-            <Icon svg={<Icons.ListFilter />} className="filter-icon" />
-          )}
-          <CodeMirror
-            css={dslFilterCodeMirrorCSS}
-            indentWithTab={false}
-            basicSetup={basicSetupOptions}
-            readOnly={isConverting}
-            onCreateEditor={(editorView) => {
-              editorViewRef.current = editorView;
-            }}
-            onFocus={() => {
-              // Refresh the loaded completions each time the user returns to
-              // the field — the underlying names may have changed since
-              loadedCompletionsRef.current = null;
-              setIsFocused(true);
-            }}
-            onBlur={() => setIsFocused(false)}
-            value={value}
-            onChange={handleChange}
-            height="36px"
-            width="100%"
-            theme={codeMirrorTheme}
-            placeholder={
-              isAIModeOn
-                ? (ai?.placeholder ?? "describe what you are looking for")
-                : placeholder
-            }
-            extensions={extensions}
-          />
-          <div className="dsl-filter-condition-field__controls">
-            {hasError ? (
-              <ErrorBadge
-                ariaLabel="Filter condition error"
-                badgeMessage={errorMessage || "Invalid filter condition"}
-                title="Invalid filter condition"
-              >
-                {errorMessage ? (
-                  <Text size="S" color="text-700">
-                    {errorMessage}
-                  </Text>
-                ) : null}
-              </ErrorBadge>
-            ) : null}
-            {hasPendingAIQuery ? (
-              <span
-                className="ai-badge"
-                title="Press Enter to convert to a filter expression"
-              >
-                AI · ⏎
-              </span>
-            ) : null}
-            {/* The thinking glyph carries the "working" signal; a badge
-                only appears for the one state with real information — the
-                first-use model download and its progress */}
-            {isConverting && ai?.status === "downloading" ? (
-              <span className="ai-badge">
-                Downloading model…{" "}
-                {Math.round((ai?.downloadProgress ?? 0) * 100)}%
-              </span>
-            ) : null}
-            {aiPhase.name === "generated" ? (
-              <span className="ai-badge">
-                <TooltipTrigger delay={0}>
-                  <Pressable>
-                    <button
-                      onClick={() => undoAIConversion(aiPhase.query)}
-                      className="button--reset ai-undo-button"
-                      aria-label="Undo AI conversion and restore your query"
-                    >
-                      Undo
-                    </button>
-                  </Pressable>
-                  <Tooltip
-                    placement="bottom end"
-                    css={dslFilterErrorTooltipCSS}
-                  >
-                    <Flex direction="column" gap="size-25">
-                      <Text size="S" weight="heavy">
-                        Generated from “{aiPhase.query}”
-                      </Text>
-                      <Text size="S" color="text-700">
-                        Edit the expression freely, or undo to get your words
-                        back.
-                      </Text>
-                    </Flex>
-                  </Tooltip>
-                </TooltipTrigger>
-              </span>
-            ) : null}
-            {aiPhase.name === "failed" ? (
-              <ErrorBadge
-                ariaLabel="AI query error"
-                badgeMessage="Couldn’t convert to a filter"
-                title="Couldn’t convert to a filter"
-              >
-                <Text size="S" color="text-700">
-                  {aiPhase.message}
-                </Text>
-                <Text size="S" color="text-700">
-                  Rephrase the request, or write the expression directly.
-                </Text>
-              </ErrorBadge>
-            ) : null}
-            {isAIActive ? (
-              <TooltipTrigger delay={500}>
-                <IconButton
-                  size="XS"
-                  aria-label="Plain-English query"
-                  aria-pressed={isAIModeOn}
-                  className="ai-mode-toggle"
-                  onPress={toggleAIMode}
-                >
-                  <Icon svg={<Icons.Sparkles />} />
-                </IconButton>
-                <Tooltip placement="bottom end">
-                  {isAIModeOn
-                    ? "Switch back to the filter DSL"
-                    : "Query in plain English"}
-                </Tooltip>
-              </TooltipTrigger>
-            ) : null}
-            {ai != null ? <AIQuerySettingsButton /> : null}
-            <IconButton
-              size="XS"
-              className="clear-button"
-              aria-label="Clear filter condition"
-              onPress={() => {
-                // Invalidate any in-flight conversion so its cancelled
-                // resolution can't restore the query over the clear
-                aiRunIdRef.current++;
-                if (isConverting) {
-                  ai?.cancel();
-                }
-                setAIPhase(AI_QUERY_IDLE);
-                onChange("");
-                editorViewRef.current?.focus();
-              }}
+      <Flex direction="row" alignItems="center">
+        {leadingVisual ?? (
+          <Icon svg={<Icons.ListFilter />} className="filter-icon" />
+        )}
+        <CodeMirror
+          css={dslFilterCodeMirrorCSS}
+          indentWithTab={false}
+          basicSetup={basicSetupOptions}
+          readOnly={isReadOnly}
+          onCreateEditor={(editorView) => {
+            editorViewRef.current = editorView;
+          }}
+          onFocus={() => {
+            // Refresh the loaded completions each time the user returns to
+            // the field — the underlying names may have changed since
+            loadedCompletionsRef.current = null;
+            setIsFocused(true);
+            onFocusChange?.(true);
+          }}
+          onBlur={() => {
+            setIsFocused(false);
+            onFocusChange?.(false);
+          }}
+          value={value}
+          onChange={onChange}
+          height="36px"
+          width="100%"
+          theme={codeMirrorTheme}
+          placeholder={placeholder}
+          extensions={extensions}
+        />
+        <div className="dsl-filter-condition-field__controls">
+          {hasError ? (
+            <DSLFilterErrorBadge
+              ariaLabel="Filter condition error"
+              badgeMessage={errorMessage || "Invalid filter condition"}
+              title="Invalid filter condition"
             >
-              <Icon svg={<Icons.Close />} />
-            </IconButton>
-          </div>
-        </Flex>
-        <VisuallyHidden>
-          <span id={errorId} role="status">
-            {hasError ? `Invalid filter condition. ${errorMessage}`.trim() : ""}
-          </span>
-          <span role="status">
-            {isConverting
-              ? "Converting to a filter expression"
-              : aiPhase.name === "generated"
-                ? "Filter expression generated. Press Escape to undo."
-                : aiPhase.name === "failed"
-                  ? `AI query failed. ${aiPhase.message}`
-                  : ""}
-          </span>
-        </VisuallyHidden>
-      </div>
-    </PxiOutline>
+              {errorMessage ? (
+                <Text size="S" color="text-700">
+                  {errorMessage}
+                </Text>
+              ) : null}
+            </DSLFilterErrorBadge>
+          ) : null}
+          {extraControls}
+          <IconButton
+            size="XS"
+            className="clear-button"
+            aria-label="Clear filter condition"
+            onPress={() => {
+              onClear?.();
+              onChange("");
+              editorViewRef.current?.focus();
+            }}
+          >
+            <Icon svg={<Icons.Close />} />
+          </IconButton>
+        </div>
+      </Flex>
+      <VisuallyHidden>
+        <span id={errorId} role="status">
+          {hasError ? `Invalid filter condition. ${errorMessage}`.trim() : ""}
+        </span>
+      </VisuallyHidden>
+    </div>
   );
 }

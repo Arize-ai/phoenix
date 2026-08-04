@@ -6,6 +6,7 @@ import { fn } from "storybook/test";
 import { Flex, Text, View } from "@phoenix/components";
 import type { DSLFilterSnippet } from "@phoenix/components/filter";
 import {
+  AIQueryDSLFilterField,
   createAIQueryDSL,
   createAnnotationMemberCompletions,
   DSLFilterConditionField,
@@ -169,7 +170,7 @@ function AIQueryTemplate(args: DSLFilterConditionFieldProps) {
     <CredentialsProvider>
       <View width="600px" padding="size-400">
         <Flex direction="column" gap="size-100">
-          <DSLFilterConditionField
+          <AIQueryDSLFilterField
             {...args}
             value={value}
             onChange={setValue}

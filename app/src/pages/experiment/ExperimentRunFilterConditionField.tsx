@@ -4,8 +4,8 @@ import { useSearchParams } from "react-router";
 import { fetchQuery, graphql } from "relay-runtime";
 
 import {
+  AIQueryDSLFilterField,
   createAnnotationMemberCompletions,
-  DSLFilterConditionField,
   type DSLFilterAIQueryProps,
 } from "@phoenix/components/filter";
 import environment from "@phoenix/RelayEnvironment";
@@ -143,7 +143,7 @@ export function ExperimentRunFilterConditionField(
   }, [experimentIdsKey]);
 
   return (
-    <DSLFilterConditionField
+    <AIQueryDSLFilterField
       aria-label="Filter experiment runs"
       value={filterCondition}
       onChange={setFilterCondition}
