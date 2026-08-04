@@ -88,21 +88,6 @@ describe("Card", () => {
     });
   });
 
-  // CardCollapsedPreview hides itself off this attribute rather than off a
-  // prop, so it is a contract with header content and not an implementation
-  // detail — a card that stopped emitting it would break the preview silently
-  it("keeps data-collapsed on its root for header content to style off", () => {
-    render(
-      <Card title="user" collapsible headerContent={<span>preview</span>}>
-        body
-      </Card>
-    );
-    expect(query(".card").getAttribute("data-collapsed")).toBe("false");
-
-    click(query(".card__collapsible-button"));
-    expect(query(".card").getAttribute("data-collapsed")).toBe("true");
-  });
-
   it("collapses when the header is clicked without an interactive title", () => {
     render(
       <Card title="Attributes" collapsible>

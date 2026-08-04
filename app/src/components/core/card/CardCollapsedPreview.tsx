@@ -1,5 +1,7 @@
 import { css } from "@emotion/react";
 
+import { useCardIsCollapsed } from "./CardCollapsedContext";
+
 const cardCollapsedPreviewCSS = css`
   /* The card wraps header content in a block, and an inline box ignores
      overflow — without this the excerpt lays itself out at full width and gets
@@ -15,17 +17,6 @@ const cardCollapsedPreviewCSS = css`
      would otherwise butt up against the extra slot's controls, or against the
      card's edge on a card that has none */
   padding-right: var(--global-dimension-size-200);
-
-  /* An open card shows the real thing, so the excerpt only earns its place
-     while the card is closed.
-
-     Anchored through the header so it is the card this preview belongs to that
-     decides, not any card further up. Message cards render inside the input
-     card's body, and matching on ancestry alone would let that outer card —
-     open, as it usually is — hide every preview nested under it. */
-  .card[data-collapsed="false"] > header & {
-    display: none;
-  }
 `;
 
 /**
@@ -46,7 +37,10 @@ const cardCollapsedPreviewCSS = css`
  * a card without `interactiveTitle`, so it must not carry controls of its own.
  */
 export function CardCollapsedPreview({ children }: { children?: string }) {
-  if (!children) {
+  const isCollapsed = useCardIsCollapsed();
+  // An open card shows the real thing, so the excerpt only earns its place
+  // while the card is closed
+  if (!isCollapsed || !children) {
     return null;
   }
   return (
