@@ -503,58 +503,7 @@ describe("agentStore", () => {
     });
   });
 
-  describe("applyServerSessionModelConfig", () => {
-    const sessionModel = (modelName: string) =>
-      ({
-        provider: "OPENAI",
-        modelName,
-        invocationParameters: [],
-      }) as never;
-
-    it("applies a server-read model when no local write is pending", () => {
-      const store = createAgentStore();
-
-      store.getState().applyServerSessionModelConfig("s1", sessionModel("a"));
-
-      expect(store.getState().modelConfigBySessionId["s1"]).toEqual(
-        sessionModel("a")
-      );
-    });
-
-    it("ignores a server read that races an unacknowledged model change", () => {
-      const store = createAgentStore();
-      // The user picks a model; the write has not landed yet.
-      store.getState().setSessionModelConfig("s1", sessionModel("picked"));
-      store.getState().setSessionModelWritePending("s1", true);
-
-      // A poll returns the pre-change model.
-      store.getState().applyServerSessionModelConfig("s1", sessionModel("old"));
-
-      expect(store.getState().modelConfigBySessionId["s1"]).toEqual(
-        sessionModel("picked")
-      );
-
-      // Once acknowledged, server reads take effect again.
-      store.getState().setSessionModelWritePending("s1", false);
-      store
-        .getState()
-        .applyServerSessionModelConfig("s1", sessionModel("remote"));
-      expect(store.getState().modelConfigBySessionId["s1"]).toEqual(
-        sessionModel("remote")
-      );
-    });
-
-    it("scopes the pending guard to one session", () => {
-      const store = createAgentStore();
-      store.getState().setSessionModelWritePending("s1", true);
-
-      store.getState().applyServerSessionModelConfig("s2", sessionModel("b"));
-
-      expect(store.getState().modelConfigBySessionId["s2"]).toEqual(
-        sessionModel("b")
-      );
-    });
-
+  describe("session model write pending", () => {
     it("clears the pending guard with the rest of a session's state", () => {
       const store = createAgentStore();
       store.getState().setSessionModelWritePending("s1", true);
@@ -564,18 +513,6 @@ describe("agentStore", () => {
       expect(store.getState().isModelWritePendingBySessionId["s1"]).toBe(
         undefined
       );
-    });
-
-    it("returns the state unchanged when the server model is structurally equal", () => {
-      const store = createAgentStore();
-      store.getState().applyServerSessionModelConfig("s1", sessionModel("a"));
-      const before = store.getState().modelConfigBySessionId;
-
-      // Poll ticks re-apply the same model; an equal config must not replace
-      // the map and re-render every session surface.
-      store.getState().applyServerSessionModelConfig("s1", sessionModel("a"));
-
-      expect(store.getState().modelConfigBySessionId).toBe(before);
     });
   });
 

@@ -1,3 +1,4 @@
+import isEqual from "lodash/isEqual";
 import { graphql, readInlineData } from "react-relay";
 
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
@@ -79,6 +80,39 @@ export function resolvePersistedAgentModel({
   };
 }
 
+/** The slice of store state the server-read model apply reads and writes. */
+export type ServerSessionModelState = Pick<
+  AgentState,
+  | "isModelWritePendingBySessionId"
+  | "modelConfigBySessionId"
+  | "setSessionModelConfig"
+>;
+
+/**
+ * Writes a model config read back from the server into the store, unless a
+ * local model write for that session is still in flight — applying the read
+ * blindly would revert the user's pick mid-flight.
+ */
+export function applyServerSessionModelConfig({
+  state,
+  sessionId,
+  config,
+}: {
+  state: ServerSessionModelState;
+  sessionId: string;
+  config: ModelConfig;
+}): void {
+  if (state.isModelWritePendingBySessionId[sessionId]) {
+    return;
+  }
+  // Server reads arrive on every poll tick; skip identical configs so an
+  // unchanged model does not re-render every session surface.
+  if (isEqual(state.modelConfigBySessionId[sessionId], config)) {
+    return;
+  }
+  state.setSessionModelConfig(sessionId, config);
+}
+
 /**
  * Applies a session's server-persisted model selection to the store.
  *
@@ -86,7 +120,7 @@ export function resolvePersistedAgentModel({
  * @param params.session - fragment ref of the session read from the server
  * @param params.sessionId - the session's Relay node ID
  * @param params.customProviders - live custom provider catalog
- * @param params.state - store state owning the guarded model write
+ * @param params.state - store state receiving the guarded model write
  */
 export function applyPersistedAgentSessionModel({
   session,
@@ -97,14 +131,15 @@ export function applyPersistedAgentSessionModel({
   session: agentSessionModel_session$key;
   sessionId: string;
   customProviders: readonly CustomProviderInfo[];
-  state: Pick<AgentState, "applyServerSessionModelConfig">;
+  state: ServerSessionModelState;
 }): void {
   const { model } = readInlineData(agentSessionModelFragment, session);
   if (model.__typename === "%other") {
     return;
   }
-  state.applyServerSessionModelConfig(
+  applyServerSessionModelConfig({
+    state,
     sessionId,
-    resolvePersistedAgentModel({ model, customProviders })
-  );
+    config: resolvePersistedAgentModel({ model, customProviders }),
+  });
 }

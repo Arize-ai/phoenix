@@ -1,5 +1,4 @@
 import type { ChatStatus } from "ai";
-import isEqual from "lodash/isEqual";
 import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
@@ -122,14 +121,15 @@ export type PendingAgentMessage = {
 };
 
 /**
- * Dismissable per-session conflict notices raised by a rejected send or
- * compaction (HTTP 409):
+ * Dismissable per-session notices raised by a rejected send or compaction
+ * (HTTP 409). Unlike "busyElsewhere" — a live mode derived from server state —
+ * these are sticky records of a past rejection that clear on the next send:
  * - "refreshedFromStale": the transcript was replaced because another client
  *   appended to the session; drives the "chat has been refreshed" notice.
  * - "modelChangedElsewhere": another client moved the session to a different
  *   model; the transcript is untouched, so the notice names the model change.
  */
-export type AgentSessionConflictNotice =
+export type AgentSessionDismissableNotice =
   | "refreshedFromStale"
   | "modelChangedElsewhere";
 
@@ -137,7 +137,9 @@ export type AgentSessionConflictNotice =
  * The single notice a session surface should render, resolved with the
  * precedence defined in {@link selectSessionNotice}.
  */
-export type AgentSessionNotice = "busyElsewhere" | AgentSessionConflictNotice;
+export type AgentSessionNotice =
+  | "busyElsewhere"
+  | AgentSessionDismissableNotice;
 
 /**
  * Resolves which notice a session surface should render right now.
@@ -377,10 +379,12 @@ export interface AgentState extends AgentProps {
    * setting one replaces the other, and the next send clears it. Read through
    * {@link selectSessionNotice}, which folds in busy-elsewhere precedence.
    */
-  sessionNoticeBySessionId: Partial<Record<string, AgentSessionConflictNotice>>;
+  sessionNoticeBySessionId: Partial<
+    Record<string, AgentSessionDismissableNotice>
+  >;
   setSessionNotice: (
     sessionId: string,
-    notice: AgentSessionConflictNotice | null
+    notice: AgentSessionDismissableNotice | null
   ) => void;
   /** Model selections keyed by session ID. */
   modelConfigBySessionId: Partial<Record<string, ModelConfig>>;
@@ -393,15 +397,6 @@ export interface AgentState extends AgentProps {
    */
   isModelWritePendingBySessionId: Partial<Record<string, boolean>>;
   setSessionModelWritePending: (sessionId: string, isPending: boolean) => void;
-  /**
-   * Apply a model selection read back from the server, unless a local model
-   * write for that session is still in flight. Server reads use this rather
-   * than {@link setSessionModelConfig}, which is reserved for user intent.
-   */
-  applyServerSessionModelConfig: (
-    sessionId: string,
-    config: ModelConfig
-  ) => void;
 
   /**
    * Current unsent prompt-input draft keyed by session ID. Ephemeral and kept
@@ -1019,28 +1014,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setSessionModelWritePending" }
-      );
-    },
-    applyServerSessionModelConfig: (sessionId, config) => {
-      set(
-        (state) => {
-          if (state.isModelWritePendingBySessionId[sessionId]) {
-            return state;
-          }
-          // Server reads arrive on every poll tick; bail out structurally so
-          // an unchanged model does not re-render every session surface.
-          if (isEqual(state.modelConfigBySessionId[sessionId], config)) {
-            return state;
-          }
-          return {
-            modelConfigBySessionId: {
-              ...state.modelConfigBySessionId,
-              [sessionId]: config,
-            },
-          };
-        },
-        false,
-        { type: "applyServerSessionModelConfig" }
       );
     },
     // -- Page and mounted contexts (ephemeral) --

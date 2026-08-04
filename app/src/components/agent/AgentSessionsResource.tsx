@@ -427,8 +427,12 @@ function AgentSessionTranscript({
     if (!agentSession) {
       return;
     }
-    // Applied through the server-read path so seeding cannot overwrite a
-    // model change the user made while this query was in flight.
+    // The one mount-time seed of the session's persisted model into the
+    // store: the picker and the next send read the store, not Relay, and the
+    // session poll's cheap probe skips unchanged sessions, so without this
+    // an opened session would show the default model instead of its own.
+    // Applied through the guarded server-read path so seeding cannot
+    // overwrite a model change the user made while this query was in flight.
     applyPersistedAgentSessionModel({
       session: agentSession,
       sessionId,

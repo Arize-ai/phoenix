@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { resolvePersistedAgentModel } from "../agentSessionModel";
+import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
+import type { ModelConfig } from "@phoenix/store/playground/types";
+
+import {
+  applyServerSessionModelConfig,
+  resolvePersistedAgentModel,
+} from "../agentSessionModel";
 
 describe("resolvePersistedAgentModel", () => {
   it("restores a built-in selection with its persisted API type", () => {
@@ -107,5 +113,91 @@ describe("resolvePersistedAgentModel", () => {
       modelName: "orphaned-model",
       customProvider: { id: "provider-gone" },
     });
+  });
+});
+
+describe("applyServerSessionModelConfig", () => {
+  const sessionModel = (modelName: string): ModelConfig => ({
+    provider: "OPENAI",
+    modelName,
+    invocationParameters: getDefaultInvocationConfig("OPENAI"),
+  });
+
+  const createState = () => {
+    const state = {
+      isModelWritePendingBySessionId: {} as Partial<Record<string, boolean>>,
+      modelConfigBySessionId: {} as Partial<Record<string, ModelConfig>>,
+      setSessionModelConfig: vi.fn((sessionId: string, config: ModelConfig) => {
+        state.modelConfigBySessionId = {
+          ...state.modelConfigBySessionId,
+          [sessionId]: config,
+        };
+      }),
+    };
+    return state;
+  };
+
+  it("applies a server-read model when no local write is pending", () => {
+    const state = createState();
+
+    applyServerSessionModelConfig({
+      state,
+      sessionId: "s1",
+      config: sessionModel("a"),
+    });
+
+    expect(state.modelConfigBySessionId["s1"]).toEqual(sessionModel("a"));
+  });
+
+  it("ignores a server read that races an unacknowledged model change", () => {
+    const state = createState();
+    // The user picks a model; the write has not landed yet.
+    state.modelConfigBySessionId = { s1: sessionModel("picked") };
+    state.isModelWritePendingBySessionId = { s1: true };
+
+    // A poll returns the pre-change model.
+    applyServerSessionModelConfig({
+      state,
+      sessionId: "s1",
+      config: sessionModel("old"),
+    });
+    expect(state.modelConfigBySessionId["s1"]).toEqual(sessionModel("picked"));
+
+    // Once acknowledged, server reads take effect again.
+    state.isModelWritePendingBySessionId = { s1: false };
+    applyServerSessionModelConfig({
+      state,
+      sessionId: "s1",
+      config: sessionModel("remote"),
+    });
+    expect(state.modelConfigBySessionId["s1"]).toEqual(sessionModel("remote"));
+  });
+
+  it("scopes the pending guard to one session", () => {
+    const state = createState();
+    state.isModelWritePendingBySessionId = { s1: true };
+
+    applyServerSessionModelConfig({
+      state,
+      sessionId: "s2",
+      config: sessionModel("b"),
+    });
+
+    expect(state.modelConfigBySessionId["s2"]).toEqual(sessionModel("b"));
+  });
+
+  it("skips the store write when the server model is structurally equal", () => {
+    const state = createState();
+    state.modelConfigBySessionId = { s1: sessionModel("a") };
+
+    // Poll ticks re-apply the same model; an equal config must not replace
+    // the map and re-render every session surface.
+    applyServerSessionModelConfig({
+      state,
+      sessionId: "s1",
+      config: sessionModel("a"),
+    });
+
+    expect(state.setSessionModelConfig).not.toHaveBeenCalled();
   });
 });
