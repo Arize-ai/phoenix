@@ -3,6 +3,7 @@ import { css } from "@emotion/react";
 
 import {
   Card,
+  CardCollapsedPreview,
   CopyToClipboardButton,
   Disclosure,
   DisclosureGroup,
@@ -27,7 +28,7 @@ import {
 
 import { defaultCardProps } from "./constants";
 import { MessageContentsList } from "./MessageContentsList";
-import { formatJSONForCopy, getToolCalls } from "./utils";
+import { formatJSONForCopy, getMessagePreview, getToolCalls } from "./utils";
 
 /**
  * Displays a single LLM message (input or output) including its contents,
@@ -59,6 +60,11 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
           (message[MessageAttributePostfixes.name]
             ? `: ${message[MessageAttributePostfixes.name]}`
             : "")
+        }
+        headerContent={
+          <CardCollapsedPreview>
+            {getMessagePreview(message)}
+          </CardCollapsedPreview>
         }
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
