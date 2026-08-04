@@ -866,6 +866,50 @@ You can also filter spans by `metadata` values in the Phoenix trace view, which 
 
 ![The Spans tab in Phoenix filtered by attributes.metadata.request_source equal to cookbook](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/cookbooks/otel-cookbook/metadata-filter.png)
 
+### Recording governed-action evidence
+
+The same metadata pattern is useful when an agent takes an action that was checked by a governance, policy, approval, or verification system. Keep the fields vendor-neutral and attach references rather than large payloads: a stable action reference, a hash of the action payload, the governance verdict, the approval status, links to proof or replay artifacts, and any external verifier reference.
+
+```python
+from openai import OpenAI
+from openinference.instrumentation import using_metadata, using_session
+from openinference.instrumentation.openai import OpenAIInstrumentor
+from phoenix.otel import register
+
+tracer_provider = register(
+    project_name="otel-best-practices",
+    batch=False,
+)
+OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
+
+client = OpenAI()
+
+governed_action_metadata = {
+    "governance": {
+        "action_ref": "ticket-close-req-42",
+        "action_hash": "sha256:8c2f0e8c8f6a4f6a9d7d6b1d0b6c4a2e6f4c9a8b7d0e1f2a3b4c5d6e7f8a9b0c",
+        "verdict": "allow",
+        "approval_status": "approved",
+        "proof_url": "https://governance.example/proofs/ticket-close-req-42",
+        "replay_url": "https://governance.example/replay/ticket-close-req-42",
+        "external_verifier_ref": "verifier-run-2026-07-31-001",
+    }
+}
+
+with using_session(session_id="Governed Action Example"):
+    with using_metadata(governed_action_metadata):
+        response = client.responses.create(
+            model="gpt-5.4-mini",
+            input=(
+                "Summarize the governed action evidence for "
+                "ticket-close-req-42 in one sentence."
+            ),
+        )
+        print(response.output_text)
+```
+
+In Phoenix, open the span's **Attributes** tab and look for `metadata.governance`. You can then filter spans by fields such as `attributes.metadata.governance.verdict = "allow"` or `attributes.metadata.governance.approval_status = "approved"` when auditing agent actions. The producer of these fields can be any internal policy service, approval workflow, or external governance layer; OSuite is one example of a system that can emit this kind of evidence.
+
 ### Overriding a tool attribute
 
 You can also override attributes that an auto-instrumentor has set, or add attributes that it left out. The OpenAI Agents SDK auto-instrumentor only sets `tool.name` on tool spans — it does not populate `tool.description`. The following code redefines `get_weather` to set a custom `tool.description` attribute on the active tool span, then recreates the agent and re-runs it.
@@ -966,7 +1010,7 @@ You have now seen the building blocks for tracing AI applications with OpenInfer
 - **There are three ways to capture spans.** Auto-instrumentors wrap SDKs and emit spans for every call automatically. Manual instrumentation lets you create spans yourself with `tracer.start_as_current_span(...)`. Hybrid instrumentation combines the two — your manual spans wrap auto-instrumented calls and become their parents in the trace tree.
 - **Every span carries a small set of common attributes** — `openinference.span.kind`, `input.value`, `output.value`, `metadata`, `session.id`, `user.id`, and `tag.tags` — regardless of the kind. The `openinference.span.kind` attribute drives how Phoenix renders the span.
 - **Four span kinds cover most AI applications:** LLM, chain, agent, and tool. Each adds a kind-specific set of attributes — `llm.*` for model name, token counts, and costs; `tool.*` for tool name and description; `agent.name` (or `graph.node.id` for multi-agent graphs); chain spans rely on the common attributes alone.
-- **You can enrich auto-instrumented spans.** Use OpenInference context managers like `using_session`, `using_metadata`, `using_tags`, and `using_prompt_template` to attach attributes that the auto-instrumentor picks up via the OpenTelemetry context. You can also override or add specific attributes by grabbing the active span inside a tool function and calling `set_attribute(...)` directly.
+- **You can enrich auto-instrumented spans.** Use OpenInference context managers like `using_session`, `using_metadata`, `using_tags`, and `using_prompt_template` to attach attributes that the auto-instrumentor picks up via the OpenTelemetry context, including governance evidence for agent actions. You can also override or add specific attributes by grabbing the active span inside a tool function and calling `set_attribute(...)` directly.
 
 ### Where to go next
 
