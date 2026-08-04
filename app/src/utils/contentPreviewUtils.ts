@@ -1,4 +1,6 @@
-import { formatContentAsString } from "./jsonUtils";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
+
+import { formatContentAsString, safelyParseJSON } from "./jsonUtils";
 
 /**
  * How much of the content a preview keeps. Long enough that a reader can tell
@@ -44,6 +46,33 @@ export function toContentPreview(
     return undefined;
   }
   return truncate(singleLine, maxLength);
+}
+
+/**
+ * A one-line excerpt of a flat record — invocation parameters, say — read as
+ * `key: value` pairs rather than as the JSON it arrives in. Braces and quotes
+ * cost most of a header's width without telling the reader anything, so
+ * dropping them fits noticeably more of the record on the line.
+ *
+ * Falls back to a plain content preview for anything that is not a record, so a
+ * caller does not have to know the shape before asking.
+ */
+export function toRecordPreview(
+  content: unknown,
+  { maxLength = DEFAULT_MAX_PREVIEW_LENGTH }: { maxLength?: number } = {}
+): string | undefined {
+  const parsed =
+    typeof content === "string" ? safelyParseJSON(content).json : content;
+  if (!isStringKeyedObject(parsed) || Array.isArray(parsed)) {
+    return toContentPreview(content, { maxLength });
+  }
+  const entries = Object.entries(parsed).map(
+    ([key, value]) => `${key}: ${value === null ? "null" : toSingleLine(value)}`
+  );
+  if (entries.length === 0) {
+    return undefined;
+  }
+  return truncate(entries.join(", "), maxLength);
 }
 
 /**

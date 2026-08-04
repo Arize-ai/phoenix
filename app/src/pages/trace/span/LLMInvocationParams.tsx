@@ -1,4 +1,5 @@
 import { Card, CopyToClipboardButton } from "@phoenix/components";
+import { toRecordPreview } from "@phoenix/utils/contentPreviewUtils";
 
 import { ReadonlyJSONBlock } from "../ReadonlyJSONBlock";
 import { defaultCardProps } from "./constants";
@@ -19,6 +20,7 @@ export function LLMInvocationParams({
       {...defaultCardProps}
       defaultOpen={false}
       title="Invocation Params"
+      collapsedPreview={toRecordPreview(invocationParameters)}
       extra={<CopyToClipboardButton text={invocationParameters} />}
     >
       <ReadonlyJSONBlock>{invocationParameters}</ReadonlyJSONBlock>

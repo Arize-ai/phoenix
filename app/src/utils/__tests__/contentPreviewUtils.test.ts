@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { toContentPreview, toToolCallsPreview } from "../contentPreviewUtils";
+import {
+  toContentPreview,
+  toRecordPreview,
+  toToolCallsPreview,
+} from "../contentPreviewUtils";
 
 describe("toContentPreview", () => {
   it("returns plain text unquoted", () => {
@@ -36,6 +40,41 @@ describe("toContentPreview", () => {
     expect(toContentPreview(null)).toBeUndefined();
     expect(toContentPreview("")).toBeUndefined();
     expect(toContentPreview("   \n  ")).toBeUndefined();
+  });
+});
+
+describe("toRecordPreview", () => {
+  it("reads a JSON string as key: value pairs", () => {
+    expect(
+      toRecordPreview('{"temperature":0.7,"max_tokens":1000,"model":"gpt-4"}')
+    ).toBe("temperature: 0.7, max_tokens: 1000, model: gpt-4");
+  });
+
+  it("reads an object the same way", () => {
+    expect(toRecordPreview({ temperature: 0.7, stream: true })).toBe(
+      "temperature: 0.7, stream: true"
+    );
+  });
+
+  it("keeps a null value visible rather than blank", () => {
+    expect(toRecordPreview({ seed: null })).toBe("seed: null");
+  });
+
+  it("flattens a nested value onto the line", () => {
+    expect(toRecordPreview({ stop: ["\n", "END"] })).toBe(
+      'stop: [ "\\n", "END" ]'
+    );
+  });
+
+  it("falls back to a plain preview for content that is not a record", () => {
+    expect(toRecordPreview('["a","b"]')).toBe('["a","b"]');
+    expect(toRecordPreview(["a", "b"])).toBe('[ "a", "b" ]');
+    expect(toRecordPreview("not json at all")).toBe("not json at all");
+  });
+
+  it("returns undefined for an empty or absent record", () => {
+    expect(toRecordPreview("{}")).toBeUndefined();
+    expect(toRecordPreview(undefined)).toBeUndefined();
   });
 });
 

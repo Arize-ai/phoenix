@@ -113,6 +113,19 @@ export const CollapsedToolCallPreview = {
   },
 };
 
+export const CollapsedRecordPreview = {
+  render: Template,
+
+  args: {
+    title: "Invocation Params",
+    collapsible: true,
+    defaultOpen: false,
+    collapsedPreview:
+      "temperature: 0.7, max_tokens: 1000, model: gpt-4, top_p: 1",
+    width: "400px",
+  },
+};
+
 export const WithExtra = {
   render: Template,
 
