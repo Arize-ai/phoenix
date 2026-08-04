@@ -72,6 +72,10 @@ export const cardCSS = (style?: CSSProperties) => css`
       color: var(--global-text-color-700);
       font-size: var(--global-font-size-s);
       line-height: var(--global-line-height-s);
+      /* The preview is the last thing in the header's growing side, so its
+         ellipsis would otherwise butt up against the extra slot's controls, or
+         against the card's edge on a card that has none */
+      padding-right: var(--global-dimension-size-200);
     }
 
     /* The subtitle truncates rather than wrapping the fixed-height header */
