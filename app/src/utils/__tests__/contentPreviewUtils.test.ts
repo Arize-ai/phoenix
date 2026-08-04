@@ -40,10 +40,39 @@ describe("toContentPreview", () => {
 });
 
 describe("toToolCallsPreview", () => {
-  it("names the tools that were called", () => {
+  it("shows what each tool was called with", () => {
     expect(
-      toToolCallsPreview([{ name: "get_weather" }, { name: "get_time" }])
-    ).toBe("get_weather(), get_time()");
+      toToolCallsPreview([
+        { name: "get_weather", arguments: '{"city":"SF"}' },
+        { name: "get_time", arguments: '{"tz":"PST"}' },
+      ])
+    ).toBe('get_weather({"city":"SF"}), get_time({"tz":"PST"})');
+  });
+
+  it("flattens arguments that arrive as an object", () => {
+    expect(
+      toToolCallsPreview([{ name: "get_weather", arguments: { city: "SF" } }])
+    ).toBe('get_weather({ "city": "SF" })');
+  });
+
+  it("flattens arguments that span several lines", () => {
+    expect(
+      toToolCallsPreview([
+        { name: "get_weather", arguments: '{\n  "city": "SF"\n}' },
+      ])
+    ).toBe('get_weather({ "city": "SF" })');
+  });
+
+  it("names a tool that was called with nothing", () => {
+    expect(toToolCallsPreview([{ name: "list_tools" }])).toBe("list_tools()");
+  });
+
+  it("truncates the whole call rather than each argument", () => {
+    expect(
+      toToolCallsPreview([{ name: "search", arguments: '{"q":"abcdefgh"}' }], {
+        maxLength: 12,
+      })
+    ).toBe('search({"q":…');
   });
 
   it("skips tool calls that have no name", () => {

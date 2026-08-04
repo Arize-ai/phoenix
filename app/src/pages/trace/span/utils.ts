@@ -106,10 +106,15 @@ export function getMessagePreview(
     toToolCallsPreview(
       getToolCalls(message).map((toolCall) => ({
         name: toolCall.function?.name,
+        arguments: toolCall.function?.arguments,
       }))
     ) ??
     toToolCallsPreview([
-      { name: message[MessageAttributePostfixes.function_call_name] },
+      {
+        name: message[MessageAttributePostfixes.function_call_name],
+        arguments:
+          message[MessageAttributePostfixes.function_call_arguments_json],
+      },
     ])
   );
 }

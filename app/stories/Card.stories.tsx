@@ -100,6 +100,19 @@ export const CollapsedPreview = {
   },
 };
 
+export const CollapsedToolCallPreview = {
+  render: Template,
+
+  args: {
+    title: "assistant",
+    collapsible: true,
+    defaultOpen: false,
+    collapsedPreview:
+      'get_weather({"city":"San Francisco","units":"celsius"}), get_time({"tz":"America/Los_Angeles"})',
+    width: "400px",
+  },
+};
+
 export const WithExtra = {
   render: Template,
 

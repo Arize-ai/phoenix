@@ -30,7 +30,10 @@ import { validateMustacheSections } from "@phoenix/components/templateEditor/lan
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import { findToolCallName } from "@phoenix/schemas/toolCallSchemas";
+import {
+  findToolCallArguments,
+  findToolCallName,
+} from "@phoenix/schemas/toolCallSchemas";
 import type { ChatMessage, PlaygroundState } from "@phoenix/store";
 import { convertMessageToolCallsToProvider } from "@phoenix/store/playground/playgroundStoreUtils";
 import {
@@ -73,6 +76,7 @@ function getMessagePreview(message: ChatMessage): string | undefined {
     toToolCallsPreview(
       (message.toolCalls ?? []).map((toolCall) => ({
         name: findToolCallName(toolCall),
+        arguments: findToolCallArguments(toolCall),
       }))
     )
   );
