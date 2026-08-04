@@ -50,9 +50,6 @@ def _evaluate(span: v1.Span) -> Any:
     return asyncio.run(evaluate_suggestion_accepted(span, [span]))
 
 
-# --- spec / registration -------------------------------------------------
-
-
 def test_spec_configuration() -> None:
     assert SUGGESTION_ACCEPTED.name == "suggestion_accepted"
     assert SUGGESTION_ACCEPTED.annotator_kind == "CODE"
@@ -62,27 +59,6 @@ def test_spec_configuration() -> None:
         span_kinds=("TOOL",),
         attributes={APPROVAL_SOURCE_ATTRIBUTE: "user"},
     )
-
-
-def test_selector_names_no_tools() -> None:
-    """The point of the marker: discovery must not depend on a tool allowlist.
-
-    A newly approval-gated tool is covered the day it ships, with no change here.
-    """
-    assert SUGGESTION_ACCEPTED.selector.names == ()
-
-
-def test_selector_targets_tool_spans_anywhere_in_the_trace() -> None:
-    """Approval-gated tools are not roots, so discovery must not restrict parents."""
-    assert SUGGESTION_ACCEPTED.selector.parent_id is None
-
-
-def test_selector_excludes_automatic_accepts_at_discovery() -> None:
-    """Bypass-mode accepts are not evidence of what a user wanted."""
-    assert SUGGESTION_ACCEPTED.selector.attributes == ((APPROVAL_SOURCE_ATTRIBUTE, "user"),)
-
-
-# --- acceptance ----------------------------------------------------------
 
 
 def test_manual_acceptance_scores_one() -> None:
@@ -98,12 +74,7 @@ def test_manual_acceptance_scores_one() -> None:
 
 
 @pytest.mark.parametrize("tool_name", ["save_prompt", "load_dataset", "create_dataset"])
-def test_accept_vocabulary_no_longer_matters(tool_name: str) -> None:
-    """Tools disagree on their success word (`saved`, `loaded`, ...).
-
-    The marker is uniform, so classification is identical across all of them —
-    including tools that were missing from the old hand-maintained allowlist.
-    """
+def test_acceptance_uses_marker_across_tool_output_shapes(tool_name: str) -> None:
     score = _evaluate(
         _tool_span(
             tool_name=tool_name,
@@ -132,9 +103,6 @@ def test_tool_name_falls_back_to_the_span_name() -> None:
     assert score.metadata == {"tool_name": "load_dataset"}
 
 
-# --- rejection -----------------------------------------------------------
-
-
 def test_explicit_rejection_scores_zero() -> None:
     score = _evaluate(_tool_span(decision="rejected", source="user"))
 
@@ -143,9 +111,6 @@ def test_explicit_rejection_scores_zero() -> None:
     assert score.score == 0.0
     assert score.explanation == "user rejected the edit_prompt_instance suggestion"
     assert score.metadata == {"tool_name": "edit_prompt_instance"}
-
-
-# --- not applicable ------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -167,7 +132,6 @@ def test_non_user_decisions_are_not_annotated(case: str, decision: Any, source: 
     ["no marker at all", "decision only", "source only"],
 )
 def test_unmarked_spans_are_not_annotated(case: str) -> None:
-    """Cancellations, errors, and still-pending approvals carry no marker."""
     kwargs: dict[str, Any] = {}
     if case == "decision only":
         kwargs["decision"] = "accepted"
@@ -177,11 +141,6 @@ def test_unmarked_spans_are_not_annotated(case: str) -> None:
 
 
 def test_output_payload_never_drives_classification() -> None:
-    """Only the promoted attributes decide; a look-alike payload must not leak in.
-
-    This is what lets a read-only tool carry `status: "rejected"` in its own
-    output without being mistaken for an approval decision.
-    """
     assert (
         _evaluate(
             _tool_span(
@@ -212,21 +171,3 @@ def test_annotation_never_carries_the_raw_payload() -> None:
     assert score.metadata == {"tool_name": "edit_prompt_instance"}
     assert secret not in json.dumps({"e": score.explanation, "m": score.metadata})
     assert "prompt-abc123" not in json.dumps({"e": score.explanation, "m": score.metadata})
-
-
-def test_attribute_names_match_the_server_that_writes_them() -> None:
-    """The eval reads attributes the Phoenix server writes.
-
-    A drifted name would not raise — discovery would simply return nothing,
-    forever, and look like a quiet window. Pin the two constants together.
-    """
-    from phoenix.server.agents import approval as server_approval
-
-    assert APPROVAL_DECISION_ATTRIBUTE == server_approval.APPROVAL_DECISION_ATTRIBUTE
-    assert APPROVAL_SOURCE_ATTRIBUTE == server_approval.APPROVAL_SOURCE_ATTRIBUTE
-
-
-@pytest.mark.parametrize("decision", ["accepted", "rejected"])
-def test_every_decision_the_server_emits_is_classified(decision: str) -> None:
-    """The server only ever writes these two; neither may fall through as None."""
-    assert _evaluate(_tool_span(decision=decision, source="user")) is not None

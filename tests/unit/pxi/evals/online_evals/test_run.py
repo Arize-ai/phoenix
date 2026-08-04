@@ -70,8 +70,7 @@ class _FakeSpans:
         if trace_ids := kwargs.get("trace_ids"):
             self.hydrated_trace_ids.extend(trace_ids)
             return [span for trace_id in trace_ids for span in self.traces[trace_id]]
-        # Discovery: apply the same filters the server would, so a test with
-        # two selectors sees each query return only its own candidates.
+        # Mirror server-side discovery filtering.
         names = kwargs.get("name")
         kinds = kwargs.get("span_kind")
         parent_id = kwargs.get("parent_id")
@@ -248,9 +247,13 @@ def test_span_selector_rejects_empty_span_names(names: tuple[str, ...]) -> None:
 
 
 def test_span_selector_requires_a_bounding_filter() -> None:
-    """Without a name or attribute filter, discovery would sweep the whole window."""
     with pytest.raises(ValueError, match="at least one name or attribute"):
         SpanSelector(span_kinds=("TOOL",))
+
+
+def test_span_selector_rejects_empty_span_kinds() -> None:
+    with pytest.raises(ValueError, match="non-empty strings"):
+        SpanSelector(names=("pxi.turn",), span_kinds=("",))
 
 
 def test_span_selector_matches_on_attributes() -> None:
@@ -765,9 +768,6 @@ def test_project_defaults_from_environment(variable: str) -> None:
     assert args.project == "configured-project"
 
 
-# --- mixed root and TOOL targeting ---------------------------------------
-
-
 def _approval_tool(
     span_id: str,
     *,
@@ -799,7 +799,6 @@ def _discovery_requests(spans: _FakeSpans) -> list[dict[str, Any]]:
 
 
 def test_both_root_evaluators_share_one_discovery_query() -> None:
-    """Identical selectors are grouped, so two turn evaluators cost one query."""
     root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
     spans = _FakeSpans([root], {"trace": [root]}, [])
 
@@ -837,7 +836,6 @@ def test_tool_selector_issues_its_own_unparented_query() -> None:
     (request,) = _discovery_requests(spans)
     assert "parent_id" not in request
     assert request["span_kind"] == ["TOOL"]
-    # Discovery is by recorded decision, not by a hand-maintained tool list.
     assert "name" not in request
     assert request["attributes"] == {APPROVAL_SOURCE_ATTRIBUTE: "user"}
 
@@ -864,8 +862,6 @@ def test_mixed_selectors_each_receive_only_their_own_candidates() -> None:
 
 
 def test_multiple_targets_in_one_trace_hydrate_once_and_annotate_separately() -> None:
-    """One turn can contain suggestions the user decided differently; each
-    TOOL span keeps its own outcome rather than collapsing to a turn label."""
     root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
     rejected = _rejected("tool-rejected", trace_id="trace", parent_id="root")
     accepted = _accepted("tool-accepted", trace_id="trace", parent_id="root")
@@ -911,7 +907,6 @@ def test_checkpoint_on_one_target_does_not_suppress_another_in_the_same_trace() 
 
 @pytest.mark.parametrize("sample_rate", [1.0, 0.0])
 def test_sampling_includes_or_excludes_every_target_in_a_trace(sample_rate: float) -> None:
-    """Sampling is keyed on trace_id, so a turn is never partially annotated."""
     root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
     first = _accepted("tool-1", trace_id="trace", parent_id="root")
     second = _rejected("tool-2", trace_id="trace", parent_id="root")
@@ -929,7 +924,6 @@ def test_sampling_includes_or_excludes_every_target_in_a_trace(sample_rate: floa
 
 
 def test_settle_delay_applies_to_a_non_root_target_end_time() -> None:
-    """An in-flight TOOL span waits for the next run even though its root settled."""
     root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
     root["end_time"] = "2026-07-09T01:00:00+00:00"
     settled = _accepted("tool-settled", trace_id="trace", parent_id="root")
@@ -1042,12 +1036,7 @@ def test_cli_help_lists_the_suggestion_evaluator() -> None:
     assert "suggestion_accepted" in (action.choices or [])
 
 
-def test_one_selectors_discovery_failure_does_not_sink_the_other_evaluators() -> None:
-    """Selectors use different server features, so they can fail independently.
-
-    Attribute filtering needs a newer Phoenix than name filtering; a server that
-    rejects it must not take the turn-root evaluators down with it.
-    """
+def test_one_selector_discovery_failure_does_not_sink_other_evaluators() -> None:
     root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
     spans = _FakeSpans([root], {"trace": [root]}, [])
     real_get_spans = spans.get_spans
