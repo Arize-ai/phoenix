@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from phoenix.server.agents.pydantic_ai.tool_spans import (
+from phoenix.server.agents.approval import (
     APPROVAL_DECISION_ATTRIBUTE,
     APPROVAL_SOURCE_ATTRIBUTE,
     approval_attributes,
@@ -58,6 +58,12 @@ class TestApprovalAttributes:
             "accepted",
             None,
             [],
+            # Unhashable values: the marker is browser-supplied JSON, so a
+            # membership test against a frozenset must not be reached with one.
+            {"decision": {}, "source": "user"},
+            {"decision": ["accepted"], "source": "user"},
+            {"decision": "accepted", "source": {"a": 1}},
+            {"decision": "accepted", "source": ["user"]},
         ],
     )
     def test_ignores_malformed_markers(self, marker: object) -> None:

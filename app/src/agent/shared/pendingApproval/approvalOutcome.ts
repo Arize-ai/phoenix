@@ -31,9 +31,16 @@ export type ApprovalOutcome = {
  * Absence is meaningful: a tool output with no `approval` key did not express an
  * approval decision. Cancellations and still-pending proposals stay unmarked.
  *
+ * One known exception, pre-dating this marker: `submit_code_evaluator_draft` and
+ * `submit_llm_evaluator_draft` resolve with `status: "awaiting_user"` and the
+ * user's real decision happens later in a dialog whose outcome is never written
+ * back as tool output. Those decisions are invisible in traces whether or not
+ * they are marked — closing that gap means emitting a terminal tool output from
+ * the dialog's resolve/close paths, which is out of scope here.
+ *
  * The server promotes this marker onto the emitted TOOL span as the
  * `pxi.approval.decision` / `pxi.approval.source` attributes — see
- * `src/phoenix/server/agents/pydantic_ai/tool_spans/_mixin.py`. Renaming or
+ * `src/phoenix/server/agents/approval.py`. Renaming or
  * reshaping this object is a cross-language contract change.
  */
 export function approvalOutcome({
