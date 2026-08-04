@@ -1872,6 +1872,11 @@ class LegacyChatSubmitMessage(TypedDict):
     requestedSkills: NotRequired[Sequence[str]]
 
 
+class PatchAgentSessionRequestBody(TypedDict):
+    title: NotRequired[str]
+    model: NotRequired[Union[CustomProviderModelSelection, BuiltInProviderModelSelection]]
+
+
 class PhoenixUIMessage(TypedDict):
     id: str
     role: Literal["system", "user", "assistant"]
@@ -1918,11 +1923,6 @@ class PromptMessage(TypedDict):
     content: Union[
         str, Sequence[Union[TextContentPart, ToolCallContentPart, ToolResultContentPart]]
     ]
-
-
-class UpdateAgentSessionRequestBody(TypedDict):
-    title: NotRequired[str]
-    model: NotRequired[Union[CustomProviderModelSelection, BuiltInProviderModelSelection]]
 
 
 class AgentSessionData(TypedDict):
@@ -1980,6 +1980,10 @@ class GetAgentSessionResponseBody(TypedDict):
     data: AgentSessionData
 
 
+class PatchAgentSessionResponseBody(TypedDict):
+    data: AgentSessionData
+
+
 class PromptChatTemplate(TypedDict):
     type: Literal["chat"]
     messages: Sequence[PromptMessage]
@@ -2029,10 +2033,6 @@ class PromptVersionData(TypedDict):
 
 class PromptVersion(PromptVersionData):
     id: str
-
-
-class UpdateAgentSessionResponseBody(TypedDict):
-    data: AgentSessionData
 
 
 class CompactAgentSessionResponse(TypedDict):

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5de9983affbf3c116593506c7772a3df>>
+ * @generated SignedSource<<026b339fcafe4bb042796e63d3a88246>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
-export type UpdateAgentSessionInput = {
+export type PatchAgentSessionInput = {
   id: string;
   model?: AgentModelSelectionInput | null;
   title?: string | null;
@@ -33,10 +33,10 @@ export type AgentBuiltinProviderModelSelectionInput = {
   provider: ModelProvider;
 };
 export type EditAgentSessionTitleDialogMutation$variables = {
-  input: UpdateAgentSessionInput;
+  input: PatchAgentSessionInput;
 };
 export type EditAgentSessionTitleDialogMutation$data = {
-  readonly updateAgentSession: {
+  readonly patchAgentSession: {
     readonly agentSession: {
       readonly " $fragmentSpreads": FragmentRefs<"EditAgentSessionTitleDialog_session">;
     };
@@ -102,9 +102,9 @@ return {
       {
         "alias": null,
         "args": (v1/*:: as any*/),
-        "concreteType": "UpdateAgentSessionMutationPayload",
+        "concreteType": "PatchAgentSessionMutationPayload",
         "kind": "LinkedField",
-        "name": "updateAgentSession",
+        "name": "patchAgentSession",
         "plural": false,
         "selections": [
           {
@@ -157,9 +157,9 @@ return {
       {
         "alias": null,
         "args": (v1/*:: as any*/),
-        "concreteType": "UpdateAgentSessionMutationPayload",
+        "concreteType": "PatchAgentSessionMutationPayload",
         "kind": "LinkedField",
-        "name": "updateAgentSession",
+        "name": "patchAgentSession",
         "plural": false,
         "selections": [
           {
@@ -329,16 +329,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6d95a9acdfa13a80ff2e9f77935478b5",
+    "cacheID": "2017b0424379dd7a2b8b7e46db2a8f2d",
     "id": null,
     "metadata": {},
     "name": "EditAgentSessionTitleDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation EditAgentSessionTitleDialogMutation(\n  $input: UpdateAgentSessionInput!\n) {\n  updateAgentSession(input: $input) {\n    agentSession {\n      ...EditAgentSessionTitleDialog_session\n      id\n    }\n    query {\n      ...SettingsAgentSessionsCard_sessions_3dfUwN\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_3dfUwN on Query {\n  agentSessions(first: 20, viewerOnly: false) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        isActive\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation EditAgentSessionTitleDialogMutation(\n  $input: PatchAgentSessionInput!\n) {\n  patchAgentSession(input: $input) {\n    agentSession {\n      ...EditAgentSessionTitleDialog_session\n      id\n    }\n    query {\n      ...SettingsAgentSessionsCard_sessions_3dfUwN\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_3dfUwN on Query {\n  agentSessions(first: 20, viewerOnly: false) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        isActive\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "206385849712b627a3831d7297f7265b";
+(node as any).hash = "2c709b4e952028cbd62084a6039e9ec6";
 
 export default node;

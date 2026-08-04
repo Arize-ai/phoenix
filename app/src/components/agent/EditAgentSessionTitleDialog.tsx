@@ -91,9 +91,9 @@ function EditAgentSessionTitleForm({
   const [commitUpdate, isUpdating] =
     useMutation<EditAgentSessionTitleDialogMutation>(graphql`
       mutation EditAgentSessionTitleDialogMutation(
-        $input: UpdateAgentSessionInput!
+        $input: PatchAgentSessionInput!
       ) {
-        updateAgentSession(input: $input) {
+        patchAgentSession(input: $input) {
           agentSession {
             ...EditAgentSessionTitleDialog_session
           }

@@ -387,7 +387,7 @@ class CreateAgentSessionResponseBody(ResponseBody[AgentSession]):
     pass
 
 
-class UpdateAgentSessionRequestBody(V1RoutesBaseModel):
+class PatchAgentSessionRequestBody(V1RoutesBaseModel):
     """
     Fields to update on a persisted session. Omit a field to leave it unchanged.
     """
@@ -403,7 +403,7 @@ class UpdateAgentSessionRequestBody(V1RoutesBaseModel):
     )
 
     @model_validator(mode="after")
-    def _reject_explicit_nulls(self) -> "UpdateAgentSessionRequestBody":
+    def _reject_explicit_nulls(self) -> "PatchAgentSessionRequestBody":
         # Both fields are non-nullable: an omitted field stays UNDEFINED, but an
         # explicit JSON `null` arrives as None and must be rejected (422) rather
         # than silently dropped.
@@ -454,7 +454,7 @@ class GetAgentSessionResponseBody(ResponseBody[AgentSessionData]):
     pass
 
 
-class UpdateAgentSessionResponseBody(ResponseBody[AgentSessionData]):
+class PatchAgentSessionResponseBody(ResponseBody[AgentSessionData]):
     pass
 
 
@@ -1862,16 +1862,16 @@ def create_agents_router(
 
     @router.patch(
         "/agents/{agent_id}/sessions/{session_id}",
-        operation_id="updateAgentSession",
-        response_model=UpdateAgentSessionResponseBody,
+        operation_id="patchAgentSession",
+        response_model=PatchAgentSessionResponseBody,
         response_model_exclude_unset=True,
     )
-    async def update_session(
+    async def patch_session(
         agent_id: str,
         session_id: str,
         request: Request,
-        request_body: UpdateAgentSessionRequestBody,
-    ) -> UpdateAgentSessionResponseBody | JSONResponse:
+        request_body: PatchAgentSessionRequestBody,
+    ) -> PatchAgentSessionResponseBody | JSONResponse:
         """Update a persisted session's mutable fields."""
         if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
@@ -1923,7 +1923,7 @@ def create_agents_router(
                 )
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
-        return UpdateAgentSessionResponseBody(data=data)
+        return PatchAgentSessionResponseBody(data=data)
 
     @router.get(
         "/agents/{agent_id}/sessions",

@@ -2552,7 +2552,7 @@ type Mutation {
   createAgentSession(input: CreateAgentSessionInput!): CreateAgentSessionMutationPayload!
   truncateAgentSession(input: TruncateAgentSessionInput!): TruncateAgentSessionMutationPayload!
   branchAgentSession(input: BranchAgentSessionInput!): BranchAgentSessionMutationPayload!
-  updateAgentSession(input: UpdateAgentSessionInput!): UpdateAgentSessionMutationPayload!
+  patchAgentSession(input: PatchAgentSessionInput!): PatchAgentSessionMutationPayload!
   deleteAgentSession(input: DeleteAgentSessionInput!): DeleteAgentSessionMutationPayload!
   createAnnotationConfig(input: CreateAnnotationConfigInput!): CreateAnnotationConfigPayload!
   updateAnnotationConfig(input: UpdateAnnotationConfigInput!): UpdateAnnotationConfigPayload!
@@ -2776,6 +2776,21 @@ type PageInfo {
 
   """When paginating forwards, the cursor to continue."""
   endCursor: String
+}
+
+input PatchAgentSessionInput {
+  id: ID!
+
+  """New title. Omitted leaves the title unchanged."""
+  title: String
+
+  """New model selection. Omitted leaves the model unchanged."""
+  model: AgentModelSelectionInput
+}
+
+type PatchAgentSessionMutationPayload {
+  agentSession: AgentSession!
+  query: Query!
 }
 
 input PatchAnnotationInput {
@@ -4794,21 +4809,6 @@ type UnparsableSecret {
 input UnsetPromptLabelsInput {
   promptId: ID!
   promptLabelIds: [ID!]!
-}
-
-input UpdateAgentSessionInput {
-  id: ID!
-
-  """New title. Omitted leaves the title unchanged."""
-  title: String
-
-  """New model selection. Omitted leaves the model unchanged."""
-  model: AgentModelSelectionInput
-}
-
-type UpdateAgentSessionMutationPayload {
-  agentSession: AgentSession!
-  query: Query!
 }
 
 input UpdateAnnotationConfigInput {

@@ -93,7 +93,7 @@ _DELETE_MUTATION = """
 
 _UPDATE_TITLE_MUTATION = """
   mutation ($id: ID!, $title: String!) {
-    updateAgentSession(input: { id: $id, title: $title }) {
+    patchAgentSession(input: { id: $id, title: $title }) {
       agentSession {
         id
         title
@@ -104,7 +104,7 @@ _UPDATE_TITLE_MUTATION = """
 
 _UPDATE_MODEL_MUTATION = """
   mutation ($id: ID!, $model: AgentModelSelectionInput!) {
-    updateAgentSession(input: { id: $id, model: $model }) {
+    patchAgentSession(input: { id: $id, model: $model }) {
       agentSession {
         id
         model {
@@ -812,7 +812,7 @@ async def test_create_agent_session_rejects_long_title(
     )
 
 
-async def test_update_agent_session_title(
+async def test_patch_agent_session_title(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
@@ -834,13 +834,13 @@ async def test_update_agent_session_title(
 
     assert not response.errors
     assert response.data == {
-        "updateAgentSession": {"agentSession": {"id": agent_session_id, "title": "New title"}}
+        "patchAgentSession": {"agentSession": {"id": agent_session_id, "title": "New title"}}
     }
     async with db() as session:
         assert await session.scalar(select(models.AgentSession.title)) == "New title"
 
 
-async def test_update_agent_session_rejects_an_empty_update(
+async def test_patch_agent_session_rejects_an_empty_update(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
@@ -858,7 +858,7 @@ async def test_update_agent_session_rejects_an_empty_update(
     response = await gql_client.execute(
         query="""
           mutation ($id: ID!) {
-            updateAgentSession(input: { id: $id }) {
+            patchAgentSession(input: { id: $id }) {
               agentSession {
                 id
               }
@@ -872,7 +872,7 @@ async def test_update_agent_session_rejects_an_empty_update(
     assert "At least one field" in response.errors[0].message
 
 
-async def test_update_agent_session_model_moves_the_session(
+async def test_patch_agent_session_model_moves_the_session(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
@@ -904,7 +904,7 @@ async def test_update_agent_session_model_moves_the_session(
 
     assert not response.errors
     assert response.data == {
-        "updateAgentSession": {
+        "patchAgentSession": {
             "agentSession": {
                 "id": agent_session_id,
                 "model": {
@@ -922,7 +922,7 @@ async def test_update_agent_session_model_moves_the_session(
         assert refreshed.model_name == "claude-opus-4-6"
 
 
-async def test_update_agent_session_model_rejects_a_missing_custom_provider(
+async def test_patch_agent_session_model_rejects_a_missing_custom_provider(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
@@ -958,7 +958,7 @@ async def test_update_agent_session_model_rejects_a_missing_custom_provider(
         assert refreshed.model_name == original_model_name
 
 
-async def test_update_agent_session_model_is_rejected_while_a_turn_is_streaming(
+async def test_patch_agent_session_model_is_rejected_while_a_turn_is_streaming(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
@@ -999,7 +999,7 @@ async def test_update_agent_session_model_is_rejected_while_a_turn_is_streaming(
         assert refreshed.heartbeat_at is not None
 
 
-async def test_update_agent_session_model_ignores_a_stale_session_lock(
+async def test_patch_agent_session_model_ignores_a_stale_session_lock(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
@@ -1037,7 +1037,7 @@ async def test_update_agent_session_model_ignores_a_stale_session_lock(
         assert refreshed.model_name == "claude-opus-4-6"
 
 
-async def test_update_agent_session_title_rejects_empty_title(
+async def test_patch_agent_session_title_rejects_empty_title(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
@@ -1063,7 +1063,7 @@ async def test_update_agent_session_title_rejects_empty_title(
         assert await session.scalar(select(models.AgentSession.title)) == "Old title"
 
 
-async def test_update_agent_session_title_rejects_long_title(
+async def test_patch_agent_session_title_rejects_long_title(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:

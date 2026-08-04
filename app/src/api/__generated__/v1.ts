@@ -1607,10 +1607,10 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Update Session
+         * Patch Session
          * @description Update a persisted session's mutable fields.
          */
-        patch: operations["updateAgentSession"];
+        patch: operations["patchAgentSession"];
         trace?: never;
     };
     "/agents/{agent_id}/sessions/{session_id}/compact": {
@@ -3738,6 +3738,23 @@ export interface components {
             message?: string | null;
         };
         /**
+         * PatchAgentSessionRequestBody
+         * @description Fields to update on a persisted session. Omit a field to leave it unchanged.
+         */
+        PatchAgentSessionRequestBody: {
+            /**
+             * Title
+             * @description New title for the session (null is rejected; title is required)
+             */
+            title?: string | null;
+            /** @description New model selection for the session (null is rejected) */
+            model?: components["schemas"]["AgentModelSelection"] | null;
+        };
+        /** PatchAgentSessionResponseBody */
+        PatchAgentSessionResponseBody: {
+            data: components["schemas"]["AgentSessionData"];
+        };
+        /**
          * PhoenixUIMessage
          * @description ``UIMessage`` with metadata narrowed to the Phoenix wire shapes.
          */
@@ -5752,23 +5769,6 @@ export interface components {
              * Format: date-time
              */
             startedAt: string;
-        };
-        /**
-         * UpdateAgentSessionRequestBody
-         * @description Fields to update on a persisted session. Omit a field to leave it unchanged.
-         */
-        UpdateAgentSessionRequestBody: {
-            /**
-             * Title
-             * @description New title for the session (null is rejected; title is required)
-             */
-            title?: string | null;
-            /** @description New model selection for the session (null is rejected) */
-            model?: components["schemas"]["AgentModelSelection"] | null;
-        };
-        /** UpdateAgentSessionResponseBody */
-        UpdateAgentSessionResponseBody: {
-            data: components["schemas"]["AgentSessionData"];
         };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {
@@ -11497,7 +11497,7 @@ export interface operations {
             };
         };
     };
-    updateAgentSession: {
+    patchAgentSession: {
         parameters: {
             query?: never;
             header?: never;
@@ -11509,7 +11509,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdateAgentSessionRequestBody"];
+                "application/json": components["schemas"]["PatchAgentSessionRequestBody"];
             };
         };
         responses: {
@@ -11519,7 +11519,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UpdateAgentSessionResponseBody"];
+                    "application/json": components["schemas"]["PatchAgentSessionResponseBody"];
                 };
             };
             /** @description Validation Error */

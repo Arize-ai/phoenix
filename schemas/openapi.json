@@ -8184,9 +8184,9 @@
         "tags": [
           "chat"
         ],
-        "summary": "Update Session",
+        "summary": "Patch Session",
         "description": "Update a persisted session's mutable fields.",
-        "operationId": "updateAgentSession",
+        "operationId": "patchAgentSession",
         "parameters": [
           {
             "name": "agent_id",
@@ -8212,7 +8212,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateAgentSessionRequestBody"
+                "$ref": "#/components/schemas/PatchAgentSessionRequestBody"
               }
             }
           }
@@ -8223,7 +8223,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UpdateAgentSessionResponseBody"
+                  "$ref": "#/components/schemas/PatchAgentSessionResponseBody"
                 }
               }
             }
@@ -13625,6 +13625,49 @@
         "type": "object",
         "title": "OtlpStatus"
       },
+      "PatchAgentSessionRequestBody": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "New title for the session (null is rejected; title is required)"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentModelSelection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New model selection for the session (null is rejected)"
+          }
+        },
+        "type": "object",
+        "title": "PatchAgentSessionRequestBody",
+        "description": "Fields to update on a persisted session. Omit a field to leave it unchanged."
+      },
+      "PatchAgentSessionResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AgentSessionData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "PatchAgentSessionResponseBody"
+      },
       "PhoenixUIMessage": {
         "properties": {
           "id": {
@@ -18243,49 +18286,6 @@
           "startedAt"
         ],
         "title": "TurnTraceContext"
-      },
-      "UpdateAgentSessionRequestBody": {
-        "properties": {
-          "title": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 100
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title",
-            "description": "New title for the session (null is rejected; title is required)"
-          },
-          "model": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AgentModelSelection"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "New model selection for the session (null is rejected)"
-          }
-        },
-        "type": "object",
-        "title": "UpdateAgentSessionRequestBody",
-        "description": "Fields to update on a persisted session. Omit a field to leave it unchanged."
-      },
-      "UpdateAgentSessionResponseBody": {
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/AgentSessionData"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "UpdateAgentSessionResponseBody"
       },
       "UpdateAnnotationConfigResponseBody": {
         "properties": {

@@ -111,7 +111,7 @@ class DeleteAgentSessionInput:
 
 
 @strawberry.input
-class UpdateAgentSessionInput:
+class PatchAgentSessionInput:
     id: GlobalID
     title: Optional[str] = strawberry.field(
         default=UNSET,
@@ -124,7 +124,7 @@ class UpdateAgentSessionInput:
 
 
 @strawberry.type
-class UpdateAgentSessionMutationPayload:
+class PatchAgentSessionMutationPayload:
     agent_session: AgentSession
     query: Query
 
@@ -288,12 +288,12 @@ class AgentSessionMutationMixin:
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def update_agent_session(
+    async def patch_agent_session(
         self,
         info: Info[Context, None],
-        input: UpdateAgentSessionInput,
-    ) -> UpdateAgentSessionMutationPayload:
-        """Update a persisted session's mutable fields."""
+        input: PatchAgentSessionInput,
+    ) -> PatchAgentSessionMutationPayload:
+        """Partially update a persisted session; omitted fields are left unchanged."""
         has_title = input.title is not UNSET and input.title is not None
         has_model = input.model is not UNSET and input.model is not None
         if not has_title and not has_model:
@@ -334,7 +334,7 @@ class AgentSessionMutationMixin:
                 except ProviderNotFoundError as exc:
                     raise NotFound(str(exc)) from exc
             await session.flush()
-        return UpdateAgentSessionMutationPayload(
+        return PatchAgentSessionMutationPayload(
             agent_session=to_gql_agent_session(agent_session),
             query=Query(),
         )
