@@ -6,7 +6,10 @@ import {
   buildAIQueryRepairPrompt,
   buildAIQuerySystemPrompt,
 } from "./buildAIQueryPrompt";
-import { extractFilterExpression } from "./extractFilterExpression";
+import {
+  extractFilterExpression,
+  extractStreamedFilterExpression,
+} from "./extractFilterExpression";
 import type { AIQueryDSL } from "./types";
 
 export type GenerateFilterConditionArgs<
@@ -42,6 +45,13 @@ export type GenerateFilterConditionArgs<
   abortSignal?: AbortSignal;
 };
 
+/**
+ * The floor between streamed preview emissions. Tokens can arrive at 30-60
+ * per second; nobody reads that fast, and each emission re-renders the
+ * consumer's filter state.
+ */
+const DELTA_EMIT_INTERVAL_MS = 50;
+
 export type GenerateFilterConditionResult<
   TValidationResult extends DSLFilterConditionValidationResult =
     DSLFilterConditionValidationResult,
@@ -72,6 +82,7 @@ async function streamExpression({
 }): Promise<string> {
   const result = streamText({ model, system, messages, abortSignal });
   let text = "";
+  let lastDeltaEmitTime = 0;
   // Consume the full stream, not just the text: the SDK reports stream
   // failures and aborts as parts rather than throwing, and dropping them
   // would pass off whatever text arrived before the break as the model's
@@ -89,8 +100,14 @@ async function streamExpression({
       continue;
     }
     text += part.text;
-    const partial = extractFilterExpression(text);
-    if (partial) {
+    // Null until the answer has begun — reasoning never reaches the field.
+    // Emissions are coalesced: tokens arrive faster than anyone reads, and
+    // each one re-renders the consumer's filter state. The final expression
+    // is not throttled; it resolves through the return value below.
+    const partial = extractStreamedFilterExpression(text);
+    const now = Date.now();
+    if (partial && now - lastDeltaEmitTime >= DELTA_EMIT_INTERVAL_MS) {
+      lastDeltaEmitTime = now;
       onDelta?.(partial);
     }
   }
