@@ -73,12 +73,16 @@ class _FakeSpans:
         names = kwargs.get("name")
         kinds = kwargs.get("span_kind")
         parent_id = kwargs.get("parent_id")
+        attributes: dict[str, str] = kwargs.get("attributes") or {}
         return [
             span
             for span in self.candidates
             if (names is None or span["name"] in names)
             and (kinds is None or span["span_kind"] in kinds)
             and (parent_id != "null" or span.get("parent_id") is None)
+            and all(
+                span.get("attributes", {}).get(key) == value for key, value in attributes.items()
+            )
         ]
 
     def get_span_annotations(self, **_: Any) -> list[v1.SpanAnnotation]:
@@ -955,3 +959,33 @@ def test_cli_help_lists_the_suggestion_evaluator() -> None:
         action for action in run_module.build_arg_parser()._actions if action.dest == "eval"
     )
     assert "suggestion_accepted" in (action.choices or [])
+
+
+def test_one_selectors_discovery_failure_does_not_sink_the_other_evaluators() -> None:
+    """Selectors use different server features, so they can fail independently.
+
+    Attribute filtering needs a newer Phoenix than name filtering; a server that
+    rejects it must not take the turn-root evaluators down with it.
+    """
+    root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
+    spans = _FakeSpans([root], {"trace": [root]}, [])
+    real_get_spans = spans.get_spans
+
+    def failing_for_attribute_queries(**kwargs: Any) -> list[v1.Span]:
+        if kwargs.get("attributes"):
+            raise RuntimeError("server too old for attribute filtering")
+        return real_get_spans(**kwargs)
+
+    spans.get_spans = failing_for_attribute_queries  # type: ignore[method-assign]
+
+    summaries = _run(
+        _FakeClient(spans),
+        project="pxi_dev",
+        specs=[TOOL_COUNT_PER_TURN, SUGGESTION_ACCEPTED],
+        now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+    )
+
+    assert summaries["tool_count_per_turn"].discovered == 1
+    assert summaries["tool_count_per_turn"].annotations == 1
+    assert summaries["suggestion_accepted"].discovered == 0
+    assert summaries["suggestion_accepted"].errors == 1

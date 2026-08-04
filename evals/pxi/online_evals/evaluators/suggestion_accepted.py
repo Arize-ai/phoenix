@@ -32,10 +32,17 @@ from phoenix.evals.evaluators import Score
 
 from evals.pxi.online_evals.models import EvaluatorSpec, SpanSelector
 
+# Imported rather than re-declared: these names are the contract between the
+# server that writes the attributes and this evaluator that reads them, and a
+# duplicated literal would fail silently — a renamed attribute would simply
+# discover zero spans forever and look like a quiet window.
+from phoenix.server.agents.approval import (
+    APPROVAL_DECISION_ATTRIBUTE,
+    APPROVAL_SOURCE_ATTRIBUTE,
+)
+
 ANNOTATION_NAME = "suggestion_accepted"
 
-APPROVAL_DECISION_ATTRIBUTE = "pxi.approval.decision"
-APPROVAL_SOURCE_ATTRIBUTE = "pxi.approval.source"
 USER_APPROVAL_SOURCE = "user"
 
 DECISION_SCORES: dict[str, tuple[str, float]] = {

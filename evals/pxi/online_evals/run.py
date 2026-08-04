@@ -39,6 +39,15 @@ class OversizedTraceError(RuntimeError):
         )
 
 
+class CandidateLimitError(RuntimeError):
+    """Discovery hit its safety limit, so its candidate set is silently truncated.
+
+    Deliberately fatal rather than isolated to one selector: unlike a failed
+    query, this means the run's results would be quietly incomplete, and the
+    fix is to narrow the window rather than to continue.
+    """
+
+
 def _sampled(spec: EvaluatorSpec, artifact_id: str) -> bool:
     """Deterministic sampling keyed on the artifact alone, not the evaluator.
 
@@ -112,7 +121,7 @@ def _discover_candidates(
         **filters,  # type: ignore[arg-type]
     )
     if len(candidates) == MAX_CANDIDATE_SPANS:
-        raise RuntimeError(
+        raise CandidateLimitError(
             f"candidate discovery for selector {selector} reached its safety limit "
             f"({MAX_CANDIDATE_SPANS}); reduce the run window"
         )
@@ -230,13 +239,26 @@ async def run_evaluators(
     summaries = {spec.name: RunSummary() for spec in specs}
     candidates_by_selector: dict[SpanSelector, list[v1.Span]] = {}
     for selector in by_selector:
-        discovered = _discover_candidates(
-            client,
-            project=project,
-            selector=selector,
-            start_time=current - lookback,
-            end_time=current,
-        )
+        try:
+            discovered = _discover_candidates(
+                client,
+                project=project,
+                selector=selector,
+                start_time=current - lookback,
+                end_time=current,
+            )
+        except CandidateLimitError:
+            raise
+        except Exception:
+            # Selectors use different server features (attribute filtering needs
+            # a newer Phoenix than name filtering), so one selector's discovery
+            # failing must not take the other evaluators' results down with it.
+            # Counted as an error so the run still exits non-zero.
+            logger.exception("discovery failed for selector %s; skipping its evaluators", selector)
+            for spec in by_selector[selector]:
+                summaries[spec.name].errors += 1
+            candidates_by_selector[selector] = []
+            continue
         candidates_by_selector[selector] = [
             span for span in discovered if _ended_before(span, settled_cutoff)
         ]
@@ -284,6 +306,8 @@ async def run_evaluators(
     for spec, target, task in tasks:
         try:
             result = await task
+        except CandidateLimitError:
+            raise
         except Exception:
             logger.exception(
                 "%s failed on trace %s span %s; continuing",

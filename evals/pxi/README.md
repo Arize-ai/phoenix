@@ -88,8 +88,16 @@ content, instance ids, or proposal diffs.
 There is deliberately **no list of approval-gated tool names**. An earlier
 revision carried one and it went stale before shipping — every dataset-write
 tool is approval-gated and was missing from it. Discovery now keys off what a
-span *records*, so a newly gated tool is measured the day it ships, and a
-frontend drift guard fails the build if an approval payload ships unmarked.
+span *records*, so a newly gated tool is measured the day it ships. A frontend
+drift guard fails the build if a payload using the known accept/reject
+vocabulary ships unmarked; tools built on the shared `bindPendingApproval` core
+are covered by construction.
+
+Decisions recorded **before** the approval marker shipped carry no
+`pxi.approval.*` attributes. They are invisible to discovery — not annotated,
+not counted as not-applicable — and cannot be backfilled, since the marker is
+what identifies them. Expect the first runs after deploy to report low counts
+until marked traces accumulate.
 
 `submit_code_evaluator_draft` and `submit_llm_evaluator_draft` remain
 unmeasured: they resolve as `awaiting_user` and the dialog's real decision is
