@@ -162,13 +162,22 @@ export function AIQueryDSLFilterField<
   // streaming, restores) goes through `emitChange` so its round-trip back
   // through the controlled `value` prop can be told apart from a caller
   // setting the value from outside (see the external-set effect below).
-  // Counted per string because a consumer that defers its update (e.g.
-  // through startTransition) can deliver several pending emissions across
-  // renders.
-  const pendingInternalChangesRef = useRef(new Map<string, number>());
+  // An ordered queue rather than a per-string count: a consumer that
+  // defers its update (e.g. through startTransition) can deliver several
+  // pending emissions across renders — or coalesce intermediate ones away
+  // entirely, which the echo of a later emission then purges.
+  const pendingInternalChangesRef = useRef<string[]>([]);
+  // The value the consumer is expected to (eventually) render — the last
+  // emission, or the last externally set value. Emitting it again cannot
+  // produce another echo (React bails out on same-value state updates), so
+  // such emissions must not enqueue: the success handler re-emits the final
+  // streamed delta, and duplicate deltas normalize to the same expression.
+  const expectedValueRef = useRef<string>(value);
   const emitChange = (nextValue: string) => {
-    const pending = pendingInternalChangesRef.current;
-    pending.set(nextValue, (pending.get(nextValue) ?? 0) + 1);
+    if (nextValue !== expectedValueRef.current) {
+      expectedValueRef.current = nextValue;
+      pendingInternalChangesRef.current.push(nextValue);
+    }
     onChange(nextValue);
   };
 
@@ -251,10 +260,15 @@ export function AIQueryDSLFilterField<
 
   const toggleAIMode = () => {
     if (isConverting) {
-      // Leaving mid-conversion abandons the run; its cancelled resolution
-      // restores the query
+      // Mid-conversion the toggle cancels rather than switches modes: the
+      // cancelled resolution restores the query into plain-English mode,
+      // where it stays a question. Flipping to DSL here would strand that
+      // English prose in front of the DSL validator, flagging as invalid
+      // text the user never claimed was an expression.
       cancel();
-    } else if (aiPhase.name === "failed") {
+      return;
+    }
+    if (aiPhase.name === "failed") {
       setAIPhase(AI_QUERY_IDLE);
     }
     const isTurningAIModeOn = !isAIMode;
@@ -286,15 +300,18 @@ export function AIQueryDSLFilterField<
   // its clear through `onChange`, and the AI flows emit directly.
   useEffect(() => {
     const pending = pendingInternalChangesRef.current;
-    const count = pending.get(value);
-    if (count !== undefined) {
-      if (count === 1) {
-        pending.delete(value);
-      } else {
-        pending.set(value, count - 1);
-      }
+    const index = pending.indexOf(value);
+    if (index !== -1) {
+      // Consume the echoed emission and everything queued before it: the
+      // consumer renders its updates in dispatch order, so earlier entries
+      // it skipped were coalesced away and will never echo.
+      pending.splice(0, index + 1);
       return;
     }
+    // An external set supersedes any internal emission still in flight —
+    // and resets what the next emission compares itself against.
+    pending.length = 0;
+    expectedValueRef.current = value;
     handleExternalValueSet();
   }, [value]);
 
@@ -446,6 +463,10 @@ export function AIQueryDSLFilterField<
             cancel();
           }
           setAIPhase(AI_QUERY_IDLE);
+          // Clear resets the whole field, mode included: the emptied value
+          // then settles in DSL mode, which is what actually un-applies the
+          // active filter — an empty prose draft deliberately doesn't.
+          setIsAIMode(false);
         }}
         placeholder={
           isProse
@@ -526,9 +547,11 @@ export function AIQueryDSLFilterField<
                   <Icon svg={<Icons.Sparkles />} />
                 </IconButton>
                 <Tooltip placement="bottom end">
-                  {isAIModeOn
-                    ? "Switch back to the filter DSL"
-                    : "Query in plain English"}
+                  {isConverting
+                    ? "Cancel the conversion"
+                    : isAIModeOn
+                      ? "Switch back to the filter DSL"
+                      : "Query in plain English"}
                 </Tooltip>
               </TooltipTrigger>
             ) : null}

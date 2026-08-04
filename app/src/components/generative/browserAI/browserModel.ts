@@ -92,8 +92,10 @@ let activeDownload: {
 /**
  * Starts (or joins) the on-device model download, reporting progress as a
  * fraction from 0 to 1. Resolves when the model is ready to use. Aborting
- * `signal` detaches `onProgress` — the download itself is shared and keeps
- * going — so a caller that unmounts or moves on stops receiving callbacks.
+ * `signal` detaches `onProgress` and rejects the returned promise with an
+ * AbortError — the download itself is shared and keeps going — so a caller
+ * that cancels or unmounts gets its answer immediately instead of staying
+ * parked on a download that can take minutes.
  */
 export function downloadBrowserModel(
   onProgress?: (fraction: number) => void,
@@ -123,7 +125,30 @@ export function downloadBrowserModel(
       once: true,
     });
   }
-  return activeDownload.promise;
+  const downloadPromise = activeDownload.promise;
+  if (!signal) {
+    return downloadPromise;
+  }
+  return new Promise<void>((resolve, reject) => {
+    const onAbort = () => {
+      reject(new DOMException("The download wait was cancelled", "AbortError"));
+    };
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+    downloadPromise.then(
+      () => {
+        signal.removeEventListener("abort", onAbort);
+        resolve();
+      },
+      (error) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      }
+    );
+  });
 }
 
 export function createBrowserModel(): LanguageModel {

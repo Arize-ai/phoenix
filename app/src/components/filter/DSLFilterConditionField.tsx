@@ -595,6 +595,20 @@ export function DSLFilterConditionField<
     // a seeded default apart from something applied while the field was up.
     const isInitialSettlement = !hasSettled.current;
 
+    // Prose is not a DSL expression, so nothing in this variant settles a
+    // condition: asking the validator about the text only flags the field
+    // red while the user is mid-thought, and an emptied draft is a blank
+    // question, not a request to clear the applied filter. Checked before
+    // the empty branch below for exactly that reason. The draft still
+    // reports not-valid, as any unvalidated text does — a consumer must
+    // never pair prose with a passing validity (e.g. advertising the raw
+    // draft as the active filter).
+    if (variant === "prose") {
+      hasSettled.current = true;
+      reportValidationState(false);
+      return undefined;
+    }
+
     // An empty condition means "no filter" — resolve it here rather than
     // asking the validator about a blank (or whitespace-only) expression
     if (value.trim() === "") {
@@ -609,16 +623,6 @@ export function DSLFilterConditionField<
           isInitialSettlement,
         });
       });
-      return undefined;
-    }
-
-    // Prose is not a DSL expression — asking the validator about it only
-    // flags the field red while the user is mid-thought. The last reported
-    // validation state stands meanwhile: the applied condition hasn't
-    // changed, and reporting invalid here would disavow a filter that is
-    // still filtering.
-    if (variant === "prose") {
-      hasSettled.current = true;
       return undefined;
     }
 

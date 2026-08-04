@@ -134,7 +134,17 @@ export async function generateFilterCondition<
   if (!validate) {
     return { expression, validation: null };
   }
-  const validation = await validate(expression);
+  let validation: TValidationResult | null | undefined;
+  try {
+    validation = await validate(expression);
+  } catch {
+    // The validator could not answer (e.g. a transport failure) — that is
+    // not a generation failure, and the expression is already complete.
+    // Hand it back with no verdict: the field's own validation pipeline
+    // will ask again and surface a persistent transport problem as a
+    // retryable validation error instead of discarding the model's work.
+    return { expression, validation: null };
+  }
   if (validation == null) {
     return { expression, validation: null };
   }
