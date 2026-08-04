@@ -42,12 +42,27 @@ if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
+def _unused_db() -> DbSessionFactory:
+    """A session factory for tests that must never reach the database.
+
+    Cheaper than the `db` fixture, which builds an engine, a connection and a
+    savepoint per test -- and stricter: these tests assert mounting and
+    code-mode validation, so a session here would mean the test had started
+    measuring something else. Raising says so at the point it happens.
+    """
+
+    def _never(*_: object, **__: object) -> Any:
+        raise AssertionError("this test must not open a database session")
+
+    return DbSessionFactory(db=_never, dialect="sqlite")
+
+
 async def test_base_mcp_app_does_not_require_a_monty_runtime(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
 
-    mcp_app, sandbox = create_phoenix_mcp_app(FastAPI())
+    mcp_app, sandbox = create_phoenix_mcp_app(FastAPI(), db=_unused_db())
 
     assert sandbox is None
     async with LifespanManager(mcp_app):
@@ -58,7 +73,7 @@ def test_code_mode_requires_a_monty_runtime(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: True)
 
     with pytest.raises(ValueError, match="Monty runtime is required when MCP code mode is enabled"):
-        create_phoenix_mcp_app(FastAPI())
+        create_phoenix_mcp_app(FastAPI(), db=_unused_db())
 
 
 async def test_shared_monty_runtime_is_torn_down_after_the_mcp_server_drains(
