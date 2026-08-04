@@ -143,7 +143,10 @@ export function useDraftSessionCreation({
         );
         setPendingDraftUserMessage(null);
         const state = store.getState();
-        state.setSessionModelConfig(newSessionId, draftState.defaultModelConfig);
+        state.setSessionModelConfig(
+          newSessionId,
+          draftState.defaultModelConfig
+        );
         state.clearSessionEphemeralState(DRAFT_SESSION_ID);
         state.setIsDraftSessionTemporary(state.defaultTemporaryChat);
         state.setActiveSession(newSessionId);
