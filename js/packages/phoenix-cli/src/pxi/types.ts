@@ -167,7 +167,7 @@ export type PxiSessionClient = {
    * effect. Turns assert the model they expect rather than setting it, so this
    * is the only way to move an existing session to a different model.
    */
-  updateSessionModel: (options: {
+  patchSessionModel: (options: {
     sessionId: string;
     model: ModelSelection;
   }) => Promise<ModelSelection>;

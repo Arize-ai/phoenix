@@ -285,7 +285,7 @@ export function createPxiSessionClient({
         lastMessageId: session.last_message_id ?? null,
       };
     },
-    async updateSessionModel({ sessionId, model }) {
+    async patchSessionModel({ sessionId, model }) {
       const client = createPhoenixClient({ config, fetch: fetchImpl });
       try {
         const { data: payload } = await client.PATCH(

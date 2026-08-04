@@ -1296,7 +1296,7 @@ export function PxiApp({
     modelWriteCountRef.current += 1;
     const requestId = sessionRequestIdRef.current;
     void serverSessionClient
-      .updateSessionModel({
+      .patchSessionModel({
         sessionId: persistedSessionId,
         model: selectedModel,
       })
@@ -1345,7 +1345,7 @@ export function PxiApp({
           options.hasExplicitModelSelection &&
           !isSameModelSelection(session.model, options.modelSelection);
         const restoredModel = shouldWriteExplicitModel
-          ? await serverSessionClient.updateSessionModel({
+          ? await serverSessionClient.patchSessionModel({
               sessionId: session.id,
               model: options.modelSelection,
             })
