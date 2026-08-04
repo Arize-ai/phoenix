@@ -7,9 +7,7 @@ Utility, testing, data-generation, and CI scripts that support Phoenix developme
 | Script | Purpose |
 | --- | --- |
 | `generate_sitemap.py` | Generate `sitemap.xml` from `docs.json` for the repo root and `docs/phoenix/`. |
-| `generate_spans_with_event_attributes.py` | Send synthetic OTel spans with custom event attributes to a local Phoenix at `:6006`. |
 | `seed_vendor_tool_spans.py` | Insert vendor-tool example spans (OpenAI Responses, Google, Bedrock, Anthropic) directly into the Phoenix DB via `PHOENIX_SQL_DATABASE_URL`. |
-| `test_axis_label_clipping.py` | Reproduce issue #11312 — emit traces with long model names to test Metrics chart axis rendering. |
 | `update_helm.py <version>` | Bump the Phoenix version in `helm/values.yaml` and `helm/Chart.yaml`. |
 | `update_kustomize.py <version>` | Bump the Phoenix Docker image version in `kustomize/base/phoenix.yaml`. |
 
@@ -32,7 +30,6 @@ Scripts run from CI workflows.
 Data wrangling and corpus building (LangChain / LlamaIndex / HaluEval / MS MARCO / WikiQA / Wiki Toxic).
 - `build_langchain_vector_store.py`, `build_llama_index_*.py` — build vector stores over the Arize docs.
 - `convert_arize_docs_query_csv_to_jsonl.py`, `fetch_arize_documentation.py` — corpus prep.
-- `generate_traces.py` — emit synthetic LLM traces.
 - `wrangle_*.ipynb` — dataset preparation notebooks.
 
 ### `ddl/`
@@ -49,7 +46,17 @@ GraphQL smoke tests for the chat / playground / evaluator surface.
 - `test_create_llm_evaluator.py` — `createDatasetLlmEvaluator` mutation.
 
 ### `experiments/`
-- `generate_multipage_experiment_data.py` — seed an experiment with 300 examples for pagination testing.
+
+Parameterized experiment fixtures. Both support `--endpoint`, `--examples`, `--seed`,
+`--dataset-name`, and `--dry-run`:
+
+- `generate_baseline_metrics_data.py` — seed a sequence of improving experiments with a selected baseline.
+- `generate_multipage_experiment_data.py` — seed a large experiment with realistic mixed evaluator results for pagination testing.
+
+```bash
+uv run python scripts/experiments/generate_baseline_metrics_data.py --experiments 10
+uv run python scripts/experiments/generate_multipage_experiment_data.py --examples 300
+```
 
 ### `fixtures/`
 Notebook fixtures used during demos and manual testing: `ChatRAG-Bench.ipynb`, `multi-turn_chat_sessions.ipynb`, `vision.ipynb`.
@@ -58,14 +65,25 @@ Notebook fixtures used during demos and manual testing: `ChatRAG-Bench.ipynb`, `
 PL/pgSQL-backed bulk data generation for performance testing. See `generate_data_via_plpgsql/README.md`.
 
 ### `generate_spans/`
-- `generate_spans_deeply_nested.py` — emit deeply nested span trees.
-- `generate_spans_for_time_series.py` — emit spans spread over time for time-series charts (PEP 723 script).
 
-### `generate_spans_for_cost_calculations/`
-- `generate_spans_for_cost_calculations.py` — emit spans across many models/providers to exercise cost calculation.
+One parameterized interface for synthetic OpenInference span data. Every scenario supports
+`--endpoint`, `--project-name`, `--seed`, and `--dry-run`, followed by parameters specific to
+its intent:
 
-### `generate_spans_for_large_session/`
-- `generate_spans_for_large_session.py` — emit a single very large session for stress-testing the session view.
+```bash
+uv run python -m scripts.generate_spans --help
+uv run python -m scripts.generate_spans mixed --traces 100 --max-depth 3
+uv run python -m scripts.generate_spans axis-labels --traces 25
+uv run python -m scripts.generate_spans nested --depth 6 --branches 2
+uv run python -m scripts.generate_spans time-series --days 30 --timezone America/Denver
+uv run python -m scripts.generate_spans token-details --days 7
+uv run python -m scripts.generate_spans costs --provider openai --spans-per-model 2
+uv run python -m scripts.generate_spans large-session --turns 1000
+uv run python -m scripts.generate_spans events --traces 10 --exceptions-per-trace 1
+```
+
+Use `--dry-run` to validate a workload and inspect its counts without sending data. The
+individual Python files remain directly executable for focused development.
 
 ### `llm_token_pricing_tables/`
 - `litellm_model_prices.py` — fetch LiteLLM model pricing JSON, output `model_prices.csv` and `model_prices_by_token_type.csv`.
@@ -89,7 +107,6 @@ TypeScript mock for OpenAI / Anthropic / Google GenAI APIs with a real-time dash
 Smoke tests intended to be run against a live Phoenix instance.
 - `dataset_upsert_smoke.py` / `.ts` — exercise the dataset upsert/update flow end to end.
 - `experiment_runs_filters.ipynb` — interactive filter exploration.
-- `send_spans.py` — emit synthetic OpenInference spans.
 
 ### `uv/`
 - `type_check` — wrapper invoked by Make targets for typecheck.
@@ -102,8 +119,10 @@ uv run python scripts/<path>/<script>.py
 
 # PEP 723 scripts (declare their own deps inline) work standalone
 uv run scripts/ddl/generate_ddl_postgresql.py
-uv run scripts/generate_spans/generate_spans_for_time_series.py
+uv run python -m scripts.generate_spans time-series
 uv run scripts/perf/postgres/postgres_explain_analyze.py
 ```
 
-Most span-generation scripts assume Phoenix is reachable at `http://localhost:6006`; DB-direct scripts read `PHOENIX_SQL_DATABASE_URL`.
+OpenTelemetry scripts default to Phoenix at `http://localhost:6006`. The vendor-tool fixture
+reads `PHOENIX_SQL_DATABASE_URL`; PL/pgSQL scripts accept standard connection flags and
+`PGPASSWORD`.

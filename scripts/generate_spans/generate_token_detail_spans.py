@@ -9,12 +9,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Mapping
 
-from openinference.semconv.resource import ResourceAttributes
 from openinference.semconv.trace import (
     ImageAttributes,
     MessageAttributes,
@@ -24,11 +22,11 @@ from openinference.semconv.trace import (
     OpenInferenceSpanKindValues,
     SpanAttributes,
 )
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.trace import Status, StatusCode
+
+try:
+    from ._shared import Generator, add_common_arguments, positive_int
+except ImportError:  # Support direct execution from this directory.
+    from _shared import Generator, add_common_arguments, positive_int
 
 PROMPT_DETAILS_IMAGE = f"{SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS}.image"
 COMPLETION_DETAILS = "llm.token_count.completion_details"
@@ -215,13 +213,6 @@ def _daily_scenarios(day_index: int) -> list[Scenario]:
     ]
 
 
-def _trace_endpoint(endpoint: str) -> str:
-    endpoint = endpoint.rstrip("/")
-    if endpoint.endswith("/v1/traces"):
-        return endpoint
-    return f"{endpoint}/v1/traces"
-
-
 def _set_content_blocks(
     attributes: dict[str, str | int],
     message_prefix: str,
@@ -329,54 +320,37 @@ def _scenario_attributes(scenario: Scenario, run_id: str) -> Mapping[str, str | 
     return attributes
 
 
-def _parse_args() -> argparse.Namespace:
+def _date(value: str) -> date:
+    try:
+        return date.fromisoformat(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must use YYYY-MM-DD format") from error
+
+
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Generate Phoenix token detail fixture spans for cache, image, and audio data."
     )
-    parser.add_argument(
-        "--endpoint",
-        default="http://localhost:6006",
-        help="Phoenix base URL or OTLP trace endpoint. Defaults to http://localhost:6006.",
-    )
-    parser.add_argument(
-        "--project-name",
-        default="token-detail-fixtures",
-        help="Phoenix project name to write fixture spans into.",
-    )
+    add_common_arguments(parser, default_project="token-details")
     parser.add_argument(
         "--days",
-        type=int,
+        type=positive_int,
         default=7,
-        help="Number of daily fixture slices to generate.",
+        help="Number of daily fixture slices to generate (default: 7).",
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Validate and summarize spans without exporting them.",
+        "--start-date",
+        type=_date,
+        help="First fixture date in YYYY-MM-DD format (default: days ending today).",
     )
-    return parser.parse_args()
+    return parser
 
 
-def main() -> int:
-    args = _parse_args()
-    if args.days < 1:
-        raise ValueError("--days must be at least 1")
-
+def generate(args: argparse.Namespace) -> tuple[Generator, str, dict[str, int], dict[str, int]]:
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    tracer_provider = TracerProvider(
-        resource=Resource.create({ResourceAttributes.PROJECT_NAME: args.project_name})
-    )
-    if not args.dry_run:
-        tracer_provider.add_span_processor(
-            SimpleSpanProcessor(OTLPSpanExporter(endpoint=_trace_endpoint(args.endpoint)))
-        )
-    tracer = tracer_provider.get_tracer(__name__)
-
-    now = datetime.now(timezone.utc)
-    start_day = now.replace(hour=9, minute=0, second=0, microsecond=0) - timedelta(
-        days=args.days - 1
-    )
-    span_count = 0
+    last_date = date.today()
+    first_date = args.start_date or last_date - timedelta(days=args.days - 1)
+    start_day = datetime.combine(first_date, time(hour=9), tzinfo=timezone.utc)
     totals: dict[str, int] = {
         "prompt": 0,
         "completion": 0,
@@ -384,63 +358,65 @@ def main() -> int:
         "completion_output": 0,
     }
     detail_totals: dict[str, int] = {}
+    generator = Generator.from_args(args)
 
-    for day_index in range(args.days):
-        day_start = start_day + timedelta(days=day_index)
-        for scenario_index, scenario in enumerate(_daily_scenarios(day_index)):
-            start_time = day_start + timedelta(
-                hours=2 * scenario_index,
-                minutes=(day_index * 7 + scenario_index * 11) % 50,
-            )
-            start_time_ns = int(start_time.timestamp() * 1_000_000_000)
-            end_time_ns = start_time_ns + (scenario_index + 1) * 250_000_000
-            attributes = _scenario_attributes(scenario, run_id)
-
-            budget = scenario.budget
-            totals["prompt"] += budget.prompt_total
-            totals["completion"] += budget.completion_total
-            totals["prompt_input"] += budget.prompt_text
-            totals["completion_output"] += budget.completion_text
-            for key, value in (
-                ("prompt.cache_read", budget.cache_read),
-                ("prompt.cache_write", budget.cache_write),
-                ("prompt.image", budget.prompt_image),
-                ("prompt.audio", budget.prompt_audio),
-                ("completion.image", budget.completion_image),
-                ("completion.audio", budget.completion_audio),
-                ("completion.reasoning", budget.reasoning),
-            ):
-                detail_totals[key] = detail_totals.get(key, 0) + value
-
-            if not args.dry_run:
-                span = tracer.start_span(
-                    scenario.name,
-                    start_time=start_time_ns,
-                    attributes=attributes,
+    try:
+        for day_index in range(args.days):
+            day_start = start_day + timedelta(days=day_index)
+            for scenario_index, scenario in enumerate(_daily_scenarios(day_index)):
+                start_time = day_start + timedelta(
+                    hours=2 * scenario_index,
+                    minutes=(day_index * 7 + scenario_index * 11) % 50,
                 )
-                span.set_status(Status(StatusCode.OK))
-                span.end(end_time=end_time_ns)
-            span_count += 1
+                start_time_ns = int(start_time.timestamp() * 1_000_000_000)
+                end_time_ns = start_time_ns + (scenario_index + 1) * 250_000_000
+                attributes = _scenario_attributes(scenario, run_id)
 
-    if not args.dry_run:
-        tracer_provider.force_flush()
-        tracer_provider.shutdown()
+                budget = scenario.budget
+                totals["prompt"] += budget.prompt_total
+                totals["completion"] += budget.completion_total
+                totals["prompt_input"] += budget.prompt_text
+                totals["completion_output"] += budget.completion_text
+                for key, value in (
+                    ("prompt.cache_read", budget.cache_read),
+                    ("prompt.cache_write", budget.cache_write),
+                    ("prompt.image", budget.prompt_image),
+                    ("prompt.audio", budget.prompt_audio),
+                    ("completion.image", budget.completion_image),
+                    ("completion.audio", budget.completion_audio),
+                    ("completion.reasoning", budget.reasoning),
+                ):
+                    detail_totals[key] = detail_totals.get(key, 0) + value
 
-    print(f"project={args.project_name}")
+                with generator.span(
+                    scenario.name,
+                    "LLM",
+                    start_time=start_time_ns,
+                    end_time=end_time_ns,
+                    attributes=attributes,
+                    root=True,
+                ):
+                    pass
+    except BaseException:
+        generator.close()
+        raise
+    return generator, run_id, totals, detail_totals
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    generator, run_id, totals, detail_totals = generate(args)
+    generator.close()
+    generator.print_summary()
     print(f"run_id={run_id}")
-    print(f"spans={span_count}")
     print(f"prompt_total={totals['prompt']}")
     print(f"completion_total={totals['completion']}")
     print(f"prompt_input_remainder={totals['prompt_input']}")
     print(f"completion_output_remainder={totals['completion_output']}")
     for key in sorted(detail_totals):
         print(f"{key}={detail_totals[key]}")
-    if args.dry_run:
-        print("dry_run=true")
-    else:
-        print(f"exported_to={_trace_endpoint(args.endpoint)}")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

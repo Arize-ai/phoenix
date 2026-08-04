@@ -73,7 +73,7 @@
  *
  * Configuration:
  *   - num_traces: Number of traces to generate (default: 100)
- *   - Can be set via environment variable: num_traces
+ *   - Can be set via a psql variable: num_traces
  *
  * Performance Features:
  *   - Efficient batch processing
@@ -85,7 +85,7 @@
  *
  * Example:
  *   -- To run with custom parameters:
- *   num_traces=500 psql -d your_database -f generate_spans.sql
+ *   psql -v num_traces=500 -d your_database -f generate_spans.sql
  *
  * Expected Outcome:
  *   - Creates a 'default' project if it doesn't exist
@@ -526,18 +526,19 @@ $$ LANGUAGE plpgsql;
 -- Execution
 -- =============================================
 
+\if :{?num_traces}
+\else
+\set num_traces 100
+\endif
+
+SELECT set_config('phoenix.datagen_num_traces', :'num_traces', false);
+
 DO
 $$
     DECLARE
         v_num_traces INTEGER;
     BEGIN
-        -- Get number of traces to generate from parameter if provided
-        v_num_traces := current_setting('num_traces', true)::INTEGER;
-
-        -- Use default if not set
-        IF v_num_traces IS NULL THEN
-            v_num_traces := 100;
-        END IF;
+        v_num_traces := current_setting('phoenix.datagen_num_traces')::INTEGER;
 
         -- Generate spans
         PERFORM generate_spans(v_num_traces);
