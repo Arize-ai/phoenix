@@ -7656,6 +7656,78 @@
         }
       }
     },
+    "/v1/chat/completions": {
+      "post": {
+        "tags": [
+          "chat_completions"
+        ],
+        "summary": "OpenAI-compatible chat completions",
+        "description": "Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) \u2014 callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.",
+        "operationId": "createChatCompletion",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChatCompletionRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletion"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletionErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletionErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletionErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/login": {
       "post": {
         "summary": " Login",
@@ -8912,6 +8984,227 @@
         ],
         "title": "CategoricalAnnotationValue"
       },
+      "ChatCompletion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "object": {
+            "type": "string",
+            "const": "chat.completion",
+            "title": "Object",
+            "default": "chat.completion"
+          },
+          "created": {
+            "type": "integer",
+            "title": "Created"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "choices": {
+            "items": {
+              "$ref": "#/components/schemas/ChatCompletionChoice"
+            },
+            "type": "array",
+            "title": "Choices"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/ChatCompletionUsage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created",
+          "model",
+          "choices",
+          "usage"
+        ],
+        "title": "ChatCompletion"
+      },
+      "ChatCompletionChoice": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index",
+            "default": 0
+          },
+          "message": {
+            "$ref": "#/components/schemas/ChatCompletionMessage"
+          },
+          "finish_reason": {
+            "type": "string",
+            "title": "Finish Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "finish_reason"
+        ],
+        "title": "ChatCompletionChoice"
+      },
+      "ChatCompletionErrorDetail": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "param": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Param"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "type"
+        ],
+        "title": "ChatCompletionErrorDetail"
+      },
+      "ChatCompletionErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ChatCompletionErrorDetail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ChatCompletionErrorResponse"
+      },
+      "ChatCompletionMessage": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "const": "assistant",
+            "title": "Role",
+            "default": "assistant"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "ChatCompletionMessage"
+      },
+      "ChatCompletionRequestMessage": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "developer",
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ChatCompletionTextPart"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "ChatCompletionRequestMessage"
+      },
+      "ChatCompletionStreamOptions": {
+        "properties": {
+          "include_usage": {
+            "type": "boolean",
+            "title": "Include Usage",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ChatCompletionStreamOptions"
+      },
+      "ChatCompletionTextPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "text",
+            "title": "Type"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "text"
+        ],
+        "title": "ChatCompletionTextPart"
+      },
+      "ChatCompletionUsage": {
+        "properties": {
+          "prompt_tokens": {
+            "type": "integer",
+            "title": "Prompt Tokens"
+          },
+          "completion_tokens": {
+            "type": "integer",
+            "title": "Completion Tokens"
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt_tokens",
+          "completion_tokens",
+          "total_tokens"
+        ],
+        "title": "ChatCompletionUsage"
+      },
       "ChatContext": {
         "oneOf": [
           {
@@ -9424,6 +9717,197 @@
           "data"
         ],
         "title": "CreateApiKeyResponseBody"
+      },
+      "CreateChatCompletionRequestBody": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'."
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ChatCompletionRequestMessage"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Messages"
+          },
+          "stream": {
+            "type": "boolean",
+            "title": "Stream",
+            "default": false
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature"
+          },
+          "top_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top P"
+          },
+          "max_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Completion Tokens"
+          },
+          "stop": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop"
+          },
+          "frequency_penalty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presence Penalty"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "n": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N"
+          },
+          "stream_options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatCompletionStreamOptions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools"
+          },
+          "tool_choice": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Choice"
+          },
+          "response_format": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Format"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "messages"
+        ],
+        "title": "CreateChatCompletionRequestBody",
+        "examples": [
+          {
+            "messages": [
+              {
+                "content": "You are a helpful assistant.",
+                "role": "system"
+              },
+              {
+                "content": "Say hello.",
+                "role": "user"
+              }
+            ],
+            "model": "openai:gpt-4o"
+          }
+        ]
       },
       "CreateDatasetLabelRequestBody": {
         "properties": {

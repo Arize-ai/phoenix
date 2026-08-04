@@ -2307,6 +2307,11 @@ _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS = (
 )
 
 
+# POST endpoints that write nothing and are intentionally available to every
+# authenticated role, viewers included
+_VIEWER_ALLOWED_WRITE_OPERATIONS = ((422, "POST", "v1/chat/completions"),)
+
+
 # Credential issuance requires a human session (or, where supported, the admin secret).
 # A user API key cannot issue another credential, even when its owner has the required role.
 _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS = frozenset(
@@ -2375,6 +2380,7 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
             _ADMIN_ONLY_ENDPOINTS,
             _VIEWER_BLOCKED_WRITE_OPERATIONS,
             _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
+            _VIEWER_ALLOWED_WRITE_OPERATIONS,
         )
     }
 
@@ -2411,7 +2417,8 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
                 f"  - GET routes → _COMMON_RESOURCE_ENDPOINTS\n"
                 f"  - Admin-only routes (users, project CRUD) → _ADMIN_ONLY_ENDPOINTS\n"
                 f"  - Viewer-blocked writes → _VIEWER_BLOCKED_WRITE_OPERATIONS\n"
-                f"  - Viewer credential self-service → _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS\n\n"
+                f"  - Viewer credential self-service → _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS\n"
+                f"  - Viewer-allowed writes (e.g. LLM proxy) → _VIEWER_ALLOWED_WRITE_OPERATIONS\n\n"
                 f"Format: (expected_status_code, method, endpoint_path)\n"
                 f'Example: (404, "GET", "v1/projects/fake-id-{{}}") or (422, "POST", "v1/datasets/upload")'
             )
@@ -2422,8 +2429,8 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
             error_parts.append(
                 f"Routes in test constants but NOT in server (removed?):\n{routes_str}\n\n"
                 f"Remove these from _COMMON_RESOURCE_ENDPOINTS, _ADMIN_ONLY_ENDPOINTS,\n"
-                f"_VIEWER_BLOCKED_WRITE_OPERATIONS, or "
-                f"_VIEWER_ALLOWED_CREDENTIAL_OPERATIONS in _helpers.py"
+                f"_VIEWER_BLOCKED_WRITE_OPERATIONS, _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,\n"
+                f"or _VIEWER_ALLOWED_WRITE_OPERATIONS in _helpers.py"
             )
         raise AssertionError("Endpoint coverage is incomplete!\n\n" + "\n\n".join(error_parts))
 
