@@ -60,11 +60,15 @@ export function BrowserModelCard() {
       return undefined;
     }
     let isCancelled = false;
-    downloadBrowserModel((fraction) => {
-      if (!isCancelled) {
-        setDownloadProgress(fraction);
-      }
-    }).then(
+    const abortController = new AbortController();
+    downloadBrowserModel(
+      (fraction) => {
+        if (!isCancelled) {
+          setDownloadProgress(fraction);
+        }
+      },
+      { signal: abortController.signal }
+    ).then(
       () => {
         if (!isCancelled) {
           setAvailabilityOverride("available");
@@ -79,6 +83,7 @@ export function BrowserModelCard() {
     );
     return () => {
       isCancelled = true;
+      abortController.abort();
     };
   }, [availability]);
 

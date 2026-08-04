@@ -91,10 +91,13 @@ let activeDownload: {
 
 /**
  * Starts (or joins) the on-device model download, reporting progress as a
- * fraction from 0 to 1. Resolves when the model is ready to use.
+ * fraction from 0 to 1. Resolves when the model is ready to use. Aborting
+ * `signal` detaches `onProgress` — the download itself is shared and keeps
+ * going — so a caller that unmounts or moves on stops receiving callbacks.
  */
 export function downloadBrowserModel(
-  onProgress?: (fraction: number) => void
+  onProgress?: (fraction: number) => void,
+  { signal }: { signal?: AbortSignal } = {}
 ): Promise<void> {
   if (activeDownload === null) {
     const listeners = new Set<(fraction: number) => void>();
@@ -113,8 +116,12 @@ export function downloadBrowserModel(
     };
     activeDownload = download;
   }
-  if (onProgress) {
-    activeDownload.listeners.add(onProgress);
+  if (onProgress && !signal?.aborted) {
+    const { listeners } = activeDownload;
+    listeners.add(onProgress);
+    signal?.addEventListener("abort", () => listeners.delete(onProgress), {
+      once: true,
+    });
   }
   return activeDownload.promise;
 }

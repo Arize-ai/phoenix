@@ -318,9 +318,13 @@ export function ModelMenu({
     [contains]
   );
 
+  // A custom-provider selection carries `provider` only to satisfy the
+  // value shape — it names no real provider, so no provider icon is shown
   const selectedProvider = value?.provider;
   const isValidSelectedProvider =
-    selectedProvider && isModelProvider(selectedProvider);
+    value?.customProvider == null &&
+    selectedProvider &&
+    isModelProvider(selectedProvider);
 
   const selectedLeadingItem =
     selectedLeadingItemId != null

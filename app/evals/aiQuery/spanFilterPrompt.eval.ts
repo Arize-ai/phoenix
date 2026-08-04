@@ -51,7 +51,7 @@ for (const evalModel of googleApiKey ? GOOGLE_EVAL_MODELS : []) {
       px.test.each(rows)(
         (row) => row.id ?? row.input.query,
         async ({ input, expected }) => {
-          const expression = await generateFilterCondition({
+          const { expression } = await generateFilterCondition({
             model: createGoogleEvalModel(evalModel.modelId),
             dsl: spanFilterAIQueryDSL,
             query: input.query,

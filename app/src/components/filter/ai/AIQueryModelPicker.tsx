@@ -95,8 +95,9 @@ export function AIQueryModelPicker({
             value={
               config.kind === "server" && config.modelName
                 ? {
-                    // The menu trigger only renders the model name, so the
-                    // provider slot is display-inert for custom providers
+                    // The provider slot only satisfies the value shape for
+                    // custom providers — the menu ignores it (including its
+                    // icon) whenever `customProvider` is set
                     provider:
                       config.source === "builtin" ? config.provider : "OPENAI",
                     modelName: config.modelName,

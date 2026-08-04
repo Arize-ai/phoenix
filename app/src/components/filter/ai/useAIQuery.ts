@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   downloadBrowserModel,
@@ -17,14 +17,26 @@ export type AIQueryStatus = "idle" | "downloading" | "generating";
 /**
  * How one translation run ended. `cancelled` covers both an explicit cancel
  * and being superseded by a newer run — either way the caller should treat
- * the run as if it never happened.
+ * the run as if it never happened. A success carries the validator's
+ * passing verdict when one was obtained for exactly this condition, so the
+ * caller can apply it without a second validation round-trip.
  */
-export type AIQueryGenerateResult =
-  | { outcome: "success"; condition: string }
+export type AIQueryGenerateResult<
+  TValidationResult extends DSLFilterConditionValidationResult =
+    DSLFilterConditionValidationResult,
+> =
+  | {
+      outcome: "success";
+      condition: string;
+      validation: TValidationResult | null;
+    }
   | { outcome: "error"; message: string }
   | { outcome: "cancelled" };
 
-export type UseAIQueryArgs = {
+export type UseAIQueryArgs<
+  TValidationResult extends DSLFilterConditionValidationResult =
+    DSLFilterConditionValidationResult,
+> = {
   /**
    * The DSL to translate into, described by the entity layer.
    */
@@ -36,7 +48,7 @@ export type UseAIQueryArgs = {
    */
   validate?: (
     condition: string
-  ) => Promise<DSLFilterConditionValidationResult | null | undefined>;
+  ) => Promise<TValidationResult | null | undefined>;
 };
 
 export function toErrorMessage(error: unknown, fallback = "AI query failed") {
@@ -54,7 +66,10 @@ export function toErrorMessage(error: unknown, fallback = "AI query failed") {
  * `onDelta`, and resolves with a {@link AIQueryGenerateResult} describing
  * how the run ended.
  */
-export function useAIQuery({ dsl, validate }: UseAIQueryArgs) {
+export function useAIQuery<
+  TValidationResult extends DSLFilterConditionValidationResult =
+    DSLFilterConditionValidationResult,
+>({ dsl, validate }: UseAIQueryArgs<TValidationResult>) {
   const modelConfig = resolveAIQueryModelConfig(
     usePreferencesContext((state) => state.aiQueryModelConfig)
   );
@@ -62,10 +77,18 @@ export function useAIQuery({ dsl, validate }: UseAIQueryArgs) {
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // An unmounted hook can neither show nor apply a result — end the run so
+  // it stops streaming and detaches its download-progress listener
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
   const generate = async (
     query: string,
     { onDelta }: { onDelta?: (partialExpression: string) => void } = {}
-  ): Promise<AIQueryGenerateResult> => {
+  ): Promise<AIQueryGenerateResult<TValidationResult>> => {
     // One translation at a time: a new request supersedes the previous one
     abortControllerRef.current?.abort();
     const abortController = new AbortController();
@@ -89,7 +112,9 @@ export function useAIQuery({ dsl, validate }: UseAIQueryArgs) {
         ) {
           setStatus("downloading");
           setDownloadProgress(0);
-          await downloadBrowserModel(setDownloadProgress);
+          await downloadBrowserModel(setDownloadProgress, {
+            signal: abortController.signal,
+          });
         }
       }
       if (abortController.signal.aborted) {
@@ -97,7 +122,7 @@ export function useAIQuery({ dsl, validate }: UseAIQueryArgs) {
       }
       setStatus("generating");
       const model = await createAIQueryModel({ config: modelConfig });
-      const condition = await generateFilterCondition({
+      const { expression, validation } = await generateFilterCondition({
         model,
         dsl,
         query,
@@ -105,7 +130,12 @@ export function useAIQuery({ dsl, validate }: UseAIQueryArgs) {
         validate,
         abortSignal: abortController.signal,
       });
-      return { outcome: "success", condition };
+      // The stream ends without throwing on some abort paths — a cancelled
+      // run must never pass its partial text off as a finished answer
+      if (abortController.signal.aborted) {
+        return { outcome: "cancelled" };
+      }
+      return { outcome: "success", condition: expression, validation };
     } catch (caught) {
       if (abortController.signal.aborted) {
         return { outcome: "cancelled" };

@@ -12,9 +12,6 @@ importers:
 
   .:
     dependencies:
-      '@ai-sdk/google':
-        specifier: 4.0.27
-        version: 4.0.27(zod@4.4.3)
       '@ai-sdk/openai-compatible':
         specifier: 3.0.16
         version: 3.0.16(zod@4.4.3)
@@ -232,6 +229,9 @@ importers:
       '@ai-sdk/anthropic':
         specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
+      '@ai-sdk/google':
+        specifier: 4.0.27
+        version: 4.0.27(zod@4.4.3)
       '@ai-sdk/mcp':
         specifier: 2.0.10
         version: 2.0.10(zod@4.4.3)

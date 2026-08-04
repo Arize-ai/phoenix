@@ -7,8 +7,10 @@
  */
 export function extractFilterExpression(text: string): string {
   let expression = text.trim();
-  // Unwrap a markdown code fence, with or without a language tag
-  const fenceMatch = expression.match(/^```[^\n`]*\n?([\s\S]*?)```$/);
+  // Unwrap a markdown code fence, with or without a language tag. The
+  // closing fence is optional so a streamed partial unwraps too — otherwise
+  // the fence would sit visibly in the field until the stream finishes.
+  const fenceMatch = expression.match(/^```[^\n`]*\n?([\s\S]*?)(?:```)?$/);
   if (fenceMatch) {
     expression = fenceMatch[1].trim();
   }

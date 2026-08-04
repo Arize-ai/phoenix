@@ -207,7 +207,10 @@ const AI_QUERY_IDLE: AIQueryPhase = { name: "idle" };
  * credentials contexts — a field without `aiQuery` renders with no
  * provider requirements at all.
  */
-type AIQueryRuntime = {
+type AIQueryRuntime<
+  TValidationResult extends DSLFilterConditionValidationResult =
+    DSLFilterConditionValidationResult,
+> = {
   /**
    * The user's AI-query preference. The settings entry point renders
    * regardless (it is how the feature gets enabled); the conversion
@@ -219,7 +222,7 @@ type AIQueryRuntime = {
   generate: (
     query: string,
     options?: { onDelta?: (partialExpression: string) => void }
-  ) => Promise<AIQueryGenerateResult>;
+  ) => Promise<AIQueryGenerateResult<TValidationResult>>;
   cancel: () => void;
   placeholder?: string;
 };
@@ -422,7 +425,7 @@ function DSLFilterConditionFieldImpl<
   TValidationResult extends DSLFilterConditionValidationResult,
 >(
   props: Omit<DSLFilterConditionFieldProps<TValidationResult>, "aiQuery"> & {
-    ai?: AIQueryRuntime;
+    ai?: AIQueryRuntime<TValidationResult>;
   }
 ) {
   const {
@@ -477,6 +480,19 @@ function DSLFilterConditionFieldImpl<
   // object would re-run validation on every object identity change
   const aiPhaseName = aiPhase.name;
 
+  // Every change the field itself makes (typing, AI streaming, restores)
+  // goes through `emitChange` so its round-trip back through the controlled
+  // `value` prop can be told apart from a caller setting the value from
+  // outside (see the external-set effect below). Counted per string because
+  // a consumer that defers its update (e.g. through startTransition) can
+  // deliver several pending emissions across renders.
+  const pendingInternalChangesRef = useRef(new Map<string, number>());
+  const emitChange = (nextValue: string) => {
+    const pending = pendingInternalChangesRef.current;
+    pending.set(nextValue, (pending.get(nextValue) ?? 0) + 1);
+    onChange(nextValue);
+  };
+
   const handleChange = (nextValue: string) => {
     // Any real edit ends the post-conversion affordances — the text is the
     // user's again. Streamed updates echo back from the editor with the
@@ -484,7 +500,7 @@ function DSLFilterConditionFieldImpl<
     if (aiPhase.name !== "idle" && !isConverting && nextValue !== value) {
       setAIPhase(AI_QUERY_IDLE);
     }
-    onChange(nextValue);
+    emitChange(nextValue);
   };
 
   // Identifies the conversion whose resolution is still welcome. Clearing
@@ -493,28 +509,39 @@ function DSLFilterConditionFieldImpl<
   // the restoration is the point.
   const aiRunIdRef = useRef(0);
 
+  // A passing verdict the conversion already obtained for the condition it
+  // produced — consumed by the validation effect so settling the generated
+  // expression doesn't re-ask the validator the question it just answered
+  const prevalidatedRef = useRef<{
+    condition: string;
+    validationResult: TValidationResult;
+  } | null>(null);
+
   const startAIConversion = (query: string) => {
     if (ai == null) {
       return;
     }
     const runId = ++aiRunIdRef.current;
     setAIPhase({ name: "converting", query });
-    void ai.generate(query, { onDelta: onChange }).then((result) => {
+    void ai.generate(query, { onDelta: emitChange }).then((result) => {
       if (aiRunIdRef.current !== runId) {
         return;
       }
       if (result.outcome === "success") {
-        onChange(result.condition);
+        prevalidatedRef.current = result.validation?.isValid
+          ? { condition: result.condition, validationResult: result.validation }
+          : null;
+        emitChange(result.condition);
         setAIPhase({ name: "generated", query });
         // The result is DSL, so the field returns to DSL mode to show it —
         // with completions and validation live for editing it. Undo flips
         // back to plain-English mode with the original query.
         setIsAIMode(false);
       } else if (result.outcome === "error") {
-        onChange(query);
+        emitChange(query);
         setAIPhase({ name: "failed", query, message: result.message });
       } else {
-        onChange(query);
+        emitChange(query);
         setAIPhase(AI_QUERY_IDLE);
       }
     });
@@ -537,7 +564,7 @@ function DSLFilterConditionFieldImpl<
   };
 
   const undoAIConversion = (query: string) => {
-    onChange(query);
+    emitChange(query);
     setAIPhase(AI_QUERY_IDLE);
     setIsAIMode(true);
     // The point of undo is to get the query back for editing, so the caret
@@ -560,6 +587,39 @@ function DSLFilterConditionFieldImpl<
     // off leaves the caret alone — that text is the expression being edited.
     focusEditor({ selectAll: isTurningAIModeOn });
   };
+
+  const handleExternalValueSet = useEffectEvent(() => {
+    if (!isAIMode && aiPhase.name === "idle") {
+      return;
+    }
+    // The incoming value is a condition being applied, not the user's
+    // draft — abandon whatever the AI flow was doing (the run-id bump keeps
+    // a cancelled conversion's restore from clobbering the new value) and
+    // return to DSL mode so the condition validates and applies normally.
+    aiRunIdRef.current += 1;
+    ai?.cancel();
+    setAIPhase(AI_QUERY_IDLE);
+    setIsAIMode(false);
+  });
+
+  // Tells the value round-tripping back from the field's own emissions
+  // apart from a caller setting it from outside — PXI's filter action, a
+  // recent-search apply, a URL-driven update. The editor suppresses
+  // onChange for programmatic value syncs, so every internal path is
+  // covered by `emitChange`.
+  useEffect(() => {
+    const pending = pendingInternalChangesRef.current;
+    const count = pending.get(value);
+    if (count !== undefined) {
+      if (count === 1) {
+        pending.delete(value);
+      } else {
+        pending.set(value, count - 1);
+      }
+      return;
+    }
+    handleExternalValueSet();
+  }, [value]);
 
   // The CodeMirror keymap must stay referentially stable (see the
   // extensions memo below), so key handlers reach the current AI state
@@ -799,18 +859,37 @@ function DSLFilterConditionFieldImpl<
       return undefined;
     }
 
-    reportValidationState(false);
-
     // In plain-English mode the draft is the AI's input, not a DSL
     // expression — asking the validator about English only flags the field
     // red while the user is mid-thought. The same goes for the partial
     // expression streaming in during a conversion; the finished expression
     // validates normally once the conversion lands the field back in DSL
-    // mode.
+    // mode. The last reported validation state stands meanwhile: the
+    // applied condition hasn't changed, and reporting invalid here would
+    // disavow a filter that is still filtering.
     if (isAIModeOn || aiPhaseName === "converting") {
       hasSettled.current = true;
       return undefined;
     }
+
+    // A condition the AI conversion just validated settles without another
+    // round-trip — the validator already answered for exactly this text
+    const prevalidated = prevalidatedRef.current;
+    prevalidatedRef.current = null;
+    if (prevalidated !== null && prevalidated.condition === value) {
+      hasSettled.current = true;
+      reportValidationState(true);
+      startTransition(() => {
+        reportValidCondition({
+          condition: value,
+          validationResult: prevalidated.validationResult,
+          isInitialSettlement,
+        });
+      });
+      return undefined;
+    }
+
+    reportValidationState(false);
 
     // Debounce so intermediate keystrokes neither hit the server nor flash
     // the field red while a valid expression is being typed. A non-empty value

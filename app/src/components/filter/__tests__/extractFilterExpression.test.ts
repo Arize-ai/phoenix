@@ -21,6 +21,13 @@ describe("extractFilterExpression", () => {
     );
   });
 
+  it("unwraps a streamed partial whose closing fence has not arrived", () => {
+    expect(extractFilterExpression("```python\nspan_kind == 'LLM'")).toBe(
+      "span_kind == 'LLM'"
+    );
+    expect(extractFilterExpression("```\nlatency_ms >")).toBe("latency_ms >");
+  });
+
   it("drops a leading label", () => {
     expect(
       extractFilterExpression(
