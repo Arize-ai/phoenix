@@ -1577,7 +1577,7 @@ async def test_chat_turn_with_stale_last_message_id_is_rejected(
         ),
     )
     assert omitted_response.status_code == 409
-    assert omitted_response.json() == {"code": "agent_session_stale"}
+    assert omitted_response.json() == {"code": "agent_session_messages_stale"}
 
     # Pointing at a message that is no longer the transcript's last.
     stale_response = await httpx_client.post(
@@ -1589,7 +1589,7 @@ async def test_chat_turn_with_stale_last_message_id_is_rejected(
         ),
     )
     assert stale_response.status_code == 409
-    assert stale_response.json() == {"code": "agent_session_stale"}
+    assert stale_response.json() == {"code": "agent_session_messages_stale"}
 
     # A rejected send leaves the transcript untouched and the lock free.
     async with db() as session:
@@ -1620,7 +1620,7 @@ async def test_chat_turn_on_an_empty_session_rejects_a_last_message_id(
         ),
     )
     assert response.status_code == 409
-    assert response.json() == {"code": "agent_session_stale"}
+    assert response.json() == {"code": "agent_session_messages_stale"}
 
 
 async def test_follow_up_send_from_a_compaction_message_passes_the_stale_check(
@@ -1671,7 +1671,7 @@ async def test_follow_up_send_from_a_compaction_message_passes_the_stale_check(
         ),
     )
     assert stale_response.status_code == 409
-    assert stale_response.json() == {"code": "agent_session_stale"}
+    assert stale_response.json() == {"code": "agent_session_messages_stale"}
 
     # The compaction checkpoint is the valid follow-up point.
     follow_up_response = await httpx_client.post(

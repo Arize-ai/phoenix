@@ -2086,7 +2086,7 @@ export interface components {
             message: components["schemas"]["PhoenixUIMessage"];
             /**
              * Lastmessageid
-             * @description The id of the last transcript message the client has rendered, used for optimistic concurrency. Omit when the session has no messages; required (and validated against the persisted transcript) once it does. On mismatch the server rejects the send with HTTP 409 and code ``agent_session_stale`` — the client should refetch the session before retrying.
+             * @description The id of the last transcript message the client has rendered, used for optimistic concurrency. Omit when the session has no messages; required (and validated against the persisted transcript) once it does. On mismatch the server rejects the send with HTTP 409 and code ``agent_session_messages_stale`` — the client should refetch the session before retrying.
              */
             lastMessageId?: string | null;
         };

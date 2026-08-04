@@ -7,8 +7,8 @@ import {
   createPxiSessionClient,
   createUserMessage,
   isSessionBusyError,
+  isSessionMessagesStaleError,
   isSessionModelStaleError,
-  isSessionStaleError,
 } from "./client";
 import {
   getSlashCommandName,
@@ -1633,7 +1633,7 @@ export function PxiApp({
           return;
         }
         const isModelStale = isSessionModelStaleError({ error: err });
-        if (isModelStale || isSessionStaleError({ error: err })) {
+        if (isModelStale || isSessionMessagesStaleError({ error: err })) {
           // The send was rejected because this client's view of the session is
           // out of date (HTTP 409): either another client appended to the
           // transcript, or moved the session to a different model. Withdraw

@@ -49,12 +49,12 @@ export function isSessionBusyError({ error }: { error: unknown }): boolean {
  * `lastMessageId` no longer matches the persisted transcript — another client
  * appended to the session and this client is rendering a stale transcript.
  */
-const SESSION_STALE_ERROR_CODE = "agent_session_stale";
+const SESSION_MESSAGES_STALE_ERROR_CODE = "agent_session_messages_stale";
 
 /** Whether an error is the chat endpoint's stale-transcript (HTTP 409) rejection. */
-export function isSessionStaleError({ error }: { error: unknown }): boolean {
+export function isSessionMessagesStaleError({ error }: { error: unknown }): boolean {
   return (
-    error instanceof Error && error.message.includes(SESSION_STALE_ERROR_CODE)
+    error instanceof Error && error.message.includes(SESSION_MESSAGES_STALE_ERROR_CODE)
   );
 }
 
@@ -62,7 +62,7 @@ export function isSessionStaleError({ error }: { error: unknown }): boolean {
  * Error code the chat and compact endpoints return (HTTP 409) when the request
  * asserts a model the session is no longer on — another client moved it. The
  * transcript is unaffected, so this is distinct from
- * {@link SESSION_STALE_ERROR_CODE}: the user needs to be told their model
+ * {@link SESSION_MESSAGES_STALE_ERROR_CODE}: the user needs to be told their model
  * changed, not that messages were refreshed.
  */
 const SESSION_MODEL_STALE_ERROR_CODE = "agent_session_model_stale";
@@ -343,7 +343,7 @@ export function createPxiSessionClient({
 /**
  * Translate a compaction HTTP failure into a printable error. A 409 whose body
  * carries the session-busy or session-stale code is rethrown with that code in
- * the message so {@link isSessionBusyError} / {@link isSessionStaleError}
+ * the message so {@link isSessionBusyError} / {@link isSessionMessagesStaleError}
  * recognize it and the UI can enter its busy state or refresh the session.
  */
 async function buildCompactionHttpError({
@@ -368,8 +368,8 @@ async function buildCompactionHttpError({
   if (code === SESSION_BUSY_ERROR_CODE) {
     return new Error(SESSION_BUSY_ERROR_CODE);
   }
-  if (code === SESSION_STALE_ERROR_CODE) {
-    return new Error(SESSION_STALE_ERROR_CODE);
+  if (code === SESSION_MESSAGES_STALE_ERROR_CODE) {
+    return new Error(SESSION_MESSAGES_STALE_ERROR_CODE);
   }
   if (code === SESSION_MODEL_STALE_ERROR_CODE) {
     return new Error(SESSION_MODEL_STALE_ERROR_CODE);
@@ -623,7 +623,7 @@ export function createPxiChatClient({
         // the lock, or this client's transcript went stale) are not
         // model/provider failures: rethrow them unwrapped so the UI can enter
         // its busy state or refresh the transcript.
-        if (isSessionBusyError({ error }) || isSessionStaleError({ error })) {
+        if (isSessionBusyError({ error }) || isSessionMessagesStaleError({ error })) {
           throw error;
         }
         throw formatPxiRuntimeError({

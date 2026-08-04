@@ -27,8 +27,8 @@ import { isRecord } from "@phoenix/utils/typeUtils";
 
 import {
   SESSION_BUSY_ERROR_CODE,
+  SESSION_MESSAGES_STALE_ERROR_CODE,
   SESSION_MODEL_STALE_ERROR_CODE,
-  SESSION_STALE_ERROR_CODE,
   buildAgentChatApiUrl,
 } from "./agentChatApi";
 import { getRemovedUserMessageText } from "./removedUserMessageText";
@@ -228,7 +228,7 @@ export function createAgentSessionChat({
       // Matched exclusively so one rejection never raises both notices.
       const isStaleRejection =
         !isModelStaleRejection &&
-        error.message.includes(SESSION_STALE_ERROR_CODE);
+        error.message.includes(SESSION_MESSAGES_STALE_ERROR_CODE);
       if (!isBusyRejection && !isStaleRejection && !isModelStaleRejection) {
         return;
       }

@@ -352,7 +352,7 @@ class ChatSubmitMessage(_ChatRequestMixin):
             "used for optimistic concurrency. Omit when the session has no "
             "messages; required (and validated against the persisted "
             "transcript) once it does. On mismatch the server rejects the "
-            "send with HTTP 409 and code ``agent_session_stale`` — the "
+            "send with HTTP 409 and code ``agent_session_messages_stale`` — the "
             "client should refetch the session before retrying."
         ),
     )
@@ -2219,7 +2219,7 @@ def create_agents_router(
                     session_history[-1].message_id if session_history else None
                 )
                 if body.last_message_id != expected_last_message_id:
-                    return JSONResponse({"code": "agent_session_stale"}, status_code=409)
+                    return JSONResponse({"code": "agent_session_messages_stale"}, status_code=409)
                 transcript_messages = _merge_messages(
                     old_messages=[row.message for row in session_history],
                     new_message=body.message,
