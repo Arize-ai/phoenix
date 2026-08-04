@@ -166,7 +166,6 @@ class AgentSessionMutationMixin:
                 builtin_provider=routing.builtin_provider,
             )
             session.add(agent_session)
-            await session.flush()
         return CreateAgentSessionMutationPayload(
             agent_session=to_gql_agent_session(agent_session),
             query=Query(),
@@ -333,7 +332,6 @@ class AgentSessionMutationMixin:
                     )
                 except ProviderNotFoundError as exc:
                     raise NotFound(str(exc)) from exc
-            await session.flush()
         return PatchAgentSessionMutationPayload(
             agent_session=to_gql_agent_session(agent_session),
             query=Query(),
