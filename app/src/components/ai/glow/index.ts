@@ -7,5 +7,6 @@ export {
   aiGlowFlashOpacity,
   aiGlowWipe,
   aiGlowWipeContinuous,
+  aiGlowWipeContinuousCSS,
   aiGlowWipeMaskCSS,
 } from "./styles";

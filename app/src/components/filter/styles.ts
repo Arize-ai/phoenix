@@ -16,6 +16,10 @@ const popoverSurfaceCSS = css`
 
 export const dslFilterCodeMirrorCSS = css`
   flex: 1 1 auto;
+  /* A long expression must scroll inside the editor, not push the field's
+     controls out of view — without this the flex item's auto minimum is
+     the full content width */
+  min-width: 0;
   .cm-content {
     padding: var(--global-dimension-size-100) 0;
   }
@@ -133,11 +137,12 @@ export const dslFilterErrorTooltipCSS = css`
 `;
 
 /**
- * Grows the error badge out from the editor's right edge. Animating
+ * Grows a control-cluster badge out from the editor's right edge. Animating
  * max-width alongside opacity keeps the appearance smooth — the editor
  * cedes the space gradually instead of the badge popping in at full size.
+ * Exported so composed badges (e.g. the AI-query ones) grow in the same way.
  */
-const errorBadgeIn = keyframes`
+export const dslFilterBadgeGrowIn = keyframes`
   from {
     opacity: 0;
     max-width: 0;
@@ -175,6 +180,16 @@ export const dslFilterFieldCSS = css`
     margin-left: var(--global-dimension-size-100);
     margin-right: var(--global-dimension-size-50);
   }
+  /* Everything after the editor — badges, the mode toggle, settings, and
+     clear — shares one flex group so spacing comes from a single gap
+     rather than per-element margins */
+  .dsl-filter-condition-field__controls {
+    display: flex;
+    align-items: center;
+    flex: none;
+    gap: var(--global-dimension-size-50);
+    margin-inline-end: var(--global-dimension-size-100);
+  }
   .error-badge {
     display: flex;
     align-items: center;
@@ -182,7 +197,6 @@ export const dslFilterFieldCSS = css`
     max-width: 200px;
     overflow: hidden;
     padding: 2px var(--global-dimension-size-65);
-    margin-right: var(--global-dimension-size-50);
     border-radius: var(--global-rounding-small);
     background-color: var(--global-color-danger-100);
     color: var(--global-color-danger);
@@ -190,7 +204,7 @@ export const dslFilterFieldCSS = css`
     line-height: var(--global-line-height-xs);
     white-space: nowrap;
     cursor: default;
-    animation: ${errorBadgeIn} 0.25s ease-out;
+    animation: ${dslFilterBadgeGrowIn} 0.25s ease-out;
     @media (prefers-reduced-motion: reduce) {
       animation: none;
     }
@@ -206,26 +220,27 @@ export const dslFilterFieldCSS = css`
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  /* The clear affordance only exists once there is something to clear —
+     it leaves the layout entirely (no reserved empty slot) and grows in
+     like the badges do when a condition appears */
   .clear-button {
-    margin-right: var(--global-dimension-size-100);
-    padding: 2px;
-    color: var(--global-text-color-700);
-    border-radius: var(--global-rounding-small);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    visibility: hidden;
-    &:hover {
-      color: var(--global-text-color-900);
-      background-color: var(--global-color-gray-300);
-    }
-    &:focus-visible {
-      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
-      outline-offset: var(--focus-ring-offset);
-    }
+    display: none;
   }
   &[data-has-condition="true"] .clear-button {
-    visibility: visible;
+    display: flex;
+    overflow: hidden;
+    /* The grow-in animates max-width, so the resting bounds must be
+       interpolable: a fixed max and a free min */
+    min-width: 0;
+    max-width: var(--global-dimension-size-250);
+    animation: ${dslFilterBadgeGrowIn} 0.25s ease-out;
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+  /* The prose variant reads as prose, not code — mirror that in the
+     editor's font */
+  &[data-variant="prose"] .cm-content {
+    font-family: var(--global-font-family-sans);
   }
 `;

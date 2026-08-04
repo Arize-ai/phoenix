@@ -16,20 +16,20 @@ import {
   View,
 } from "@phoenix/components";
 import {
-  PxiOutline,
-  type PxiOutlineProps,
-  type PxiOutlineState,
-} from "@phoenix/components/agent/PxiOutline";
+  AIOutline,
+  type AIOutlineProps,
+  type AIOutlineState,
+} from "@phoenix/components/ai/AIOutline";
 
 const meta = {
-  title: "Agent/Solve with PXI/Outline",
-  component: PxiOutline,
+  title: "AI/Outline",
+  component: AIOutline,
   parameters: {
     width: 720,
     docs: {
       description: {
         component:
-          "Conic PXI outline for marking controls and surfaces as AI-enabled. Eligible outlines may optionally flash once; active outlines remain animated.",
+          "Conic gradient outline for marking controls and surfaces as AI-enabled. Eligible outlines may optionally flash once; active outlines remain animated.",
       },
     },
   },
@@ -55,7 +55,7 @@ const meta = {
       options: ["idle", "eligible", "active"],
     },
   },
-} satisfies Meta<typeof PxiOutline>;
+} satisfies Meta<typeof AIOutline>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -68,7 +68,7 @@ const stateLabelCSS = css`
   text-transform: capitalize;
 `;
 
-const outlineStates: PxiOutlineState[] = ["idle", "eligible", "active"];
+const outlineStates: AIOutlineState[] = ["idle", "eligible", "active"];
 
 export const States: Story = {
   render: () => (
@@ -78,9 +78,9 @@ export const States: Story = {
           <Text size="XS" color="text-500" css={stateLabelCSS}>
             {state}
           </Text>
-          <PxiOutline state={state}>
+          <AIOutline state={state}>
             <Button size="S">Hallucination evaluator</Button>
-          </PxiOutline>
+          </AIOutline>
         </Flex>
       ))}
     </Flex>
@@ -90,7 +90,7 @@ export const States: Story = {
 export const SelectTrigger: Story = {
   render: (args) => (
     <div css={outlineFrameCSS}>
-      <PxiOutline {...args}>
+      <AIOutline {...args}>
         <Select
           size="S"
           aria-label="Evaluator"
@@ -114,7 +114,7 @@ export const SelectTrigger: Story = {
             </ListBox>
           </Popover>
         </Select>
-      </PxiOutline>
+      </AIOutline>
     </div>
   ),
 };
@@ -127,25 +127,25 @@ export const FullWidthPanel: Story = {
   },
   render: (args) => (
     <div css={outlineFrameCSS}>
-      <PxiOutline {...args}>
+      <AIOutline {...args}>
         <Card title="Output">
           <View padding="size-200">
             The response cites a source that was not present in the retrieved
             documents.
           </View>
         </Card>
-      </PxiOutline>
+      </AIOutline>
     </div>
   ),
 };
 
-function EligibleFlashExample(props: PxiOutlineProps) {
+function EligibleFlashExample(props: AIOutlineProps) {
   const [flashKey, setFlashKey] = useState(0);
   return (
     <Flex direction="column" gap="size-300" css={outlineFrameCSS}>
-      <PxiOutline {...props} key={flashKey} state="eligible" shouldFlash>
+      <AIOutline {...props} key={flashKey} state="eligible" shouldFlash>
         <Button size="S">Hallucination evaluator</Button>
-      </PxiOutline>
+      </AIOutline>
       <Button
         size="S"
         onPress={() => setFlashKey((value) => value + 1)}
@@ -190,12 +190,12 @@ function ClippedRowExample() {
             Glow modes inside overflow: hidden
           </Text>
           <div css={clippedRowCSS}>
-            <PxiOutline glowMode="outer" state="eligible" shouldFlash>
+            <AIOutline glowMode="outer" state="eligible" shouldFlash>
               <Button size="S">Outer glow</Button>
-            </PxiOutline>
-            <PxiOutline glowMode="contained" state="eligible" shouldFlash>
+            </AIOutline>
+            <AIOutline glowMode="contained" state="eligible" shouldFlash>
               <Button size="S">Contained glow</Button>
-            </PxiOutline>
+            </AIOutline>
           </div>
         </Flex>
         <Flex direction="column" gap="size-100">
@@ -203,12 +203,12 @@ function ClippedRowExample() {
             Glow modes with overflow visible
           </Text>
           <Flex gap="size-200">
-            <PxiOutline glowMode="outer" state="eligible" shouldFlash>
+            <AIOutline glowMode="outer" state="eligible" shouldFlash>
               <Button size="S">Outer glow</Button>
-            </PxiOutline>
-            <PxiOutline glowMode="contained" state="eligible" shouldFlash>
+            </AIOutline>
+            <AIOutline glowMode="contained" state="eligible" shouldFlash>
               <Button size="S">Contained glow</Button>
-            </PxiOutline>
+            </AIOutline>
           </Flex>
         </Flex>
       </Flex>

@@ -1,18 +1,13 @@
 import { css } from "@emotion/react";
 import { useId, useState } from "react";
 
-import {
-  Button,
-  DisclosureArrow,
-  RichTooltip,
-  Text,
-  TooltipTrigger,
-} from "@phoenix/components";
-import {
-  SegmentChart,
-  useCategoryChartColors,
-} from "@phoenix/components/chart";
-import { TokenCount } from "@phoenix/components/trace";
+import { useCategoryChartColors } from "@phoenix/components/chart/colors";
+import { SegmentChart } from "@phoenix/components/chart/SegmentChart";
+import { Button } from "@phoenix/components/core/button";
+import { Text } from "@phoenix/components/core/content";
+import { DisclosureArrow } from "@phoenix/components/core/icon";
+import { RichTooltip, TooltipTrigger } from "@phoenix/components/core/tooltip";
+import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { formatInt, formatIntShort } from "@phoenix/utils/numberFormatUtils";
 import { getTokenDetailColor } from "@phoenix/utils/tokenDetailUtils";
 

@@ -136,6 +136,12 @@ const tabListCSS = css`
       var(--global-dimension-size-50);
     .react-aria-Tab {
       padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+      // Lay the label out as a flex line rather than an inline one: a rail
+      // label pairs an icon with text, and inline layout leaves the taller
+      // icon's descender space below the label, which sits it above the
+      // center of its pill.
+      display: flex;
+      align-items: center;
     }
 
     // The selected tab is marked with a filled pill behind its label (the

@@ -136,6 +136,19 @@ export const aiGlowWipeMaskCSS = css`
 `;
 
 /**
+ * The traveling-light pass of the "thinking" state: centers the wipe mask on
+ * an {@link aiGlowWipeMaskCSS} layer and sweeps it continuously. Shared by
+ * every surface that shows the working glow so the velocity and phase stay
+ * identical across them.
+ */
+export const aiGlowWipeContinuousCSS = css`
+  -webkit-mask-position: center;
+  mask-position: center;
+  animation: ${aiGlowWipeContinuous} var(--ai-glow-wipe-continuous-duration)
+    linear infinite both var(--ai-glow-wipe-continuous-delay);
+`;
+
+/**
  * The AI gradient as a conic fill. Animate with {@link aiConicSpin} to make
  * it rotate.
  */

@@ -28,7 +28,7 @@ describe("search destinations", () => {
     expect(sections[0]?.title).toBe("Profile");
     expect(
       sections[0]?.destinations.map((destination) => destination.metadata.label)
-    ).toEqual(["Account", "API Keys", "Apps", "Preferences"]);
+    ).toEqual(["Account", "API Keys", "Apps", "Preferences", "Generative AI"]);
   });
 
   it("does not match sections on non-prefix substrings of their title", () => {
@@ -72,7 +72,7 @@ describe("search destinations", () => {
     expect(sections).toHaveLength(1);
     expect(
       sections[0]?.destinations.map((destination) => destination.metadata.label)
-    ).toEqual(["Preferences"]);
+    ).toEqual(["Preferences", "Generative AI"]);
   });
 
   it("provides a direct destination and icon for every profile section", () => {
@@ -115,6 +115,13 @@ describe("search destinations", () => {
         label: "Preferences",
         description: "Theme, timezone, and code defaults",
         icon: "Options",
+        requiresViewer: false,
+      },
+      {
+        path: "/profile/generative-ai",
+        label: "Generative AI",
+        description: "AI query and model configuration",
+        icon: "Sparkles",
         requiresViewer: false,
       },
     ]);

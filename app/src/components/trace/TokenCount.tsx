@@ -1,9 +1,10 @@
 import { css } from "@emotion/react";
 import type { HTMLAttributes, Ref } from "react";
 
-import type { TextProps } from "@phoenix/components";
-import { Icon, Icons, Text } from "@phoenix/components";
+import type { TextProps } from "@phoenix/components/core/content";
+import { Text } from "@phoenix/components/core/content";
 import { getTextColor } from "@phoenix/components/core/content/textUtils";
+import { Icon, Icons } from "@phoenix/components/core/icon";
 import { quietHoverCSS } from "@phoenix/components/core/styles";
 import { formatNumber } from "@phoenix/utils/numberFormatUtils";
 

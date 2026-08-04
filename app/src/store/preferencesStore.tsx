@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
+import type { AIQueryModelConfig } from "@phoenix/components/filter/ai/types";
 import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
 import {
   pythonPackageManagers,
@@ -173,6 +174,16 @@ export interface PreferencesProps {
    * When undefined, falls back to {@link DEFAULT_MODEL_NAME}.
    */
   defaultModelName?: string;
+  /**
+   * Whether AI query is enabled on filter condition fields
+   * @default true
+   */
+  isAIQueryEnabled: boolean;
+  /**
+   * How AI query on filter fields resolves its language model. When
+   * undefined, the on-device browser model is used.
+   */
+  aiQueryModelConfig?: AIQueryModelConfig;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -277,6 +288,17 @@ export interface PreferencesState extends PreferencesProps {
    * Pass `undefined` (or an empty string) to clear the preference.
    */
   setDefaultModelName: (defaultModelName: string | undefined) => void;
+  /**
+   * Setter for enabling/disabling AI query on filter condition fields
+   */
+  setIsAIQueryEnabled: (isAIQueryEnabled: boolean) => void;
+  /**
+   * Setter for how AI query resolves its language model. Pass `undefined`
+   * to fall back to the on-device browser model.
+   */
+  setAIQueryModelConfig: (
+    aiQueryModelConfig: AIQueryModelConfig | undefined
+  ) => void;
 }
 
 export const createPreferencesStore = (
@@ -418,6 +440,14 @@ export const createPreferencesStore = (
       set({ defaultModelName: trimmed ? trimmed : undefined }, false, {
         type: "setDefaultModelName",
       });
+    },
+    isAIQueryEnabled: true,
+    setIsAIQueryEnabled: (isAIQueryEnabled) => {
+      set({ isAIQueryEnabled }, false, { type: "setIsAIQueryEnabled" });
+    },
+    aiQueryModelConfig: undefined,
+    setAIQueryModelConfig: (aiQueryModelConfig) => {
+      set({ aiQueryModelConfig }, false, { type: "setAIQueryModelConfig" });
     },
     ...initialProps,
   });

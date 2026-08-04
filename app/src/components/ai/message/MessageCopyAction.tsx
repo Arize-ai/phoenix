@@ -1,8 +1,9 @@
 import copy from "copy-to-clipboard";
 import { useState } from "react";
 
-import { MessageAction } from "@phoenix/components/ai/message/MessageAction";
 import { Icon, Icons } from "@phoenix/components/core/icon";
+
+import { MessageAction } from "./MessageAction";
 
 const SHOW_COPIED_TIMEOUT_MS = 2000;
 

@@ -7,8 +7,8 @@ import {
   aiGlowBreathe,
   aiGlowFlashOpacity,
   aiGlowWipe,
+  aiGlowWipeContinuousCSS,
   aiGlowWipeMaskCSS,
-  aiGlowWipeContinuous,
 } from "@phoenix/components/ai/glow";
 import { Button, type ButtonProps } from "@phoenix/components/core/button";
 import { classNames } from "@phoenix/utils/classNames";
@@ -138,10 +138,7 @@ const pxiButtonCSS = css`
 
     .pxi-button__glow {
       opacity: 1;
-      -webkit-mask-position: center;
-      mask-position: center;
-      animation: ${aiGlowWipeContinuous} var(--ai-glow-wipe-continuous-duration)
-        linear infinite both var(--ai-glow-wipe-continuous-delay);
+      ${aiGlowWipeContinuousCSS};
     }
 
     .pxi-button__glow::before {

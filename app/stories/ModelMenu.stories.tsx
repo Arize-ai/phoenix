@@ -4,14 +4,18 @@ import { Autocomplete, useFilter } from "react-aria-components";
 
 import {
   Button,
+  Icon,
+  Icons,
   Input,
   MenuContainer,
   MenuHeader,
   MenuTrigger,
   SearchField,
+  Text,
 } from "@phoenix/components";
 import { SearchIcon } from "@phoenix/components/core/field";
 import {
+  type ModelMenuLeadingItem,
   ModelsByProviderMenu,
   ProviderMenu,
 } from "@phoenix/components/generative/ModelMenu";
@@ -111,9 +115,11 @@ const CUSTOM_PROVIDERS: CustomProviderInfo[] = [
 function ModelMenuDemo({
   providers,
   customProviders = [],
+  leadingItems,
 }: {
   providers: ModelProviderInfo[];
   customProviders?: CustomProviderInfo[];
+  leadingItems?: ModelMenuLeadingItem[];
 }) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
@@ -186,12 +192,14 @@ function ModelMenuDemo({
               modelsByProvider={filteredModelsByProvider}
               providerInfoMap={providerInfoMap}
               customProviders={filteredCustomProviders}
+              leadingItems={leadingItems}
             />
           ) : (
             <ProviderMenu
               providers={providers}
               modelsByProvider={MODELS_BY_PROVIDER}
               customProviders={customProviders}
+              leadingItems={leadingItems}
             />
           )}
         </Autocomplete>
@@ -261,4 +269,31 @@ export const WithCustomProvider: Story = {
  */
 export const Empty: Story = {
   render: () => <ModelMenuDemo providers={[]} />,
+};
+
+/**
+ * Leading items — standalone model sources that are not providers — are
+ * listed above the provider list and selected directly, with an optional
+ * trailing annotation. AI query uses this to offer Browser AI — the
+ * browser's built-in on-device model, named for the model it actually runs
+ * ("Gemini Nano" in Chrome, "Phi" in Edge) — alongside the hosted providers.
+ */
+export const WithLeadingItem: Story = {
+  render: () => (
+    <ModelMenuDemo
+      providers={PROVISIONED_PROVIDERS}
+      leadingItems={[
+        {
+          id: "browser-ai",
+          label: "Gemini Nano",
+          icon: <Icon svg={<Icons.Globe />} />,
+          trailing: (
+            <Text color="success" size="XS">
+              Ready
+            </Text>
+          ),
+        },
+      ]}
+    />
+  ),
 };
