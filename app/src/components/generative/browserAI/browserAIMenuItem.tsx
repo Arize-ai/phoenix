@@ -48,15 +48,21 @@ export function BrowserModelAvailabilityStatus({
  * model — or null in browsers without one, where the picker simply doesn't
  * offer it. A plugin for the generic ModelMenu's `leadingItems` extension
  * point; the menu itself knows nothing about Browser AI.
+ *
+ * The entry is labeled with the model the browser actually runs (e.g.
+ * "Gemini Nano" in Chrome) rather than the category name, so it reads like
+ * every other row in the picker — each of which names a model, not a way of
+ * reaching one. The globe icon carries the on-device distinction.
  */
 export function useBrowserAIMenuItem(): ModelMenuLeadingItem | null {
   const availability = useBrowserModelAvailability();
-  if (getBrowserBuiltInModel() === null) {
+  const builtInModel = getBrowserBuiltInModel();
+  if (builtInModel === null) {
     return null;
   }
   return {
     id: BROWSER_AI_MENU_ITEM_ID,
-    label: "Browser AI",
+    label: builtInModel.modelName,
     icon: <Icon svg={<Icons.Globe />} />,
     trailing: <BrowserModelAvailabilityStatus />,
     // The Prompt API exists but no model can be provisioned on this device

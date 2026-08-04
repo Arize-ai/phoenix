@@ -274,8 +274,9 @@ export const Empty: Story = {
 /**
  * Leading items — standalone model sources that are not providers — are
  * listed above the provider list and selected directly, with an optional
- * trailing annotation. AI search uses this to offer Browser AI (the
- * browser's built-in on-device model) alongside the hosted providers.
+ * trailing annotation. AI search uses this to offer Browser AI — the
+ * browser's built-in on-device model, named for the model it actually runs
+ * ("Gemini Nano" in Chrome, "Phi" in Edge) — alongside the hosted providers.
  */
 export const WithLeadingItem: Story = {
   render: () => (
@@ -284,7 +285,7 @@ export const WithLeadingItem: Story = {
       leadingItems={[
         {
           id: "browser-ai",
-          label: "Browser AI",
+          label: "Gemini Nano",
           icon: <Icon svg={<Icons.Globe />} />,
           trailing: (
             <Text color="success" size="XS">
