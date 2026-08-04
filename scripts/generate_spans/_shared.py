@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
 import random
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -222,8 +223,11 @@ class Generator:
             resource=Resource.create({"openinference.project.name": project_name})
         )
         if not dry_run:
+            headers = None
+            if api_key := os.getenv("PHOENIX_API_KEY"):
+                headers = {"Authorization": f"Bearer {api_key}"}
             self._provider.add_span_processor(
-                SimpleSpanProcessor(OTLPSpanExporter(endpoint=self.endpoint))
+                SimpleSpanProcessor(OTLPSpanExporter(endpoint=self.endpoint, headers=headers))
             )
         self.tracer = self._provider.get_tracer("phoenix.synthetic-data")
 

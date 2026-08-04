@@ -179,7 +179,7 @@ def test_generator_applies_status_fallback_without_overwriting_body_status(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     exporter = InMemorySpanExporter()
-    monkeypatch.setattr(shared, "OTLPSpanExporter", lambda endpoint: exporter)
+    monkeypatch.setattr(shared, "OTLPSpanExporter", lambda endpoint, headers=None: exporter)
     generator = Generator(
         endpoint="http://localhost:6006",
         project_name="test",
@@ -204,11 +204,35 @@ def test_generator_applies_status_fallback_without_overwriting_body_status(
     assert statuses["body-ok"].status_code is StatusCode.OK
 
 
+def test_generator_uses_phoenix_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    exporter = InMemorySpanExporter()
+    exporter_options: dict[str, object] = {}
+
+    def make_exporter(*, endpoint: str, headers: object) -> InMemorySpanExporter:
+        exporter_options.update(endpoint=endpoint, headers=headers)
+        return exporter
+
+    monkeypatch.setenv("PHOENIX_API_KEY", "secret-key")
+    monkeypatch.setattr(shared, "OTLPSpanExporter", make_exporter)
+    generator = Generator(
+        endpoint="https://app.phoenix.arize.com",
+        project_name="test",
+        seed=3,
+        dry_run=False,
+    )
+    generator.close()
+
+    assert exporter_options == {
+        "endpoint": "https://app.phoenix.arize.com/v1/traces",
+        "headers": {"Authorization": "Bearer secret-key"},
+    }
+
+
 def test_event_fixtures_report_trace_local_child_counts_and_error_descriptions(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     exporter = InMemorySpanExporter()
-    monkeypatch.setattr(shared, "OTLPSpanExporter", lambda endpoint: exporter)
+    monkeypatch.setattr(shared, "OTLPSpanExporter", lambda endpoint, headers=None: exporter)
     args = events.build_parser().parse_args(
         ["--traces", "2", "--exceptions-per-trace", "1", "--seed", "7"]
     )

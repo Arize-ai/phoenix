@@ -71,6 +71,23 @@ One parameterized interface for synthetic OpenInference span data. Every scenari
 its intent:
 
 ```bash
+# Seed a local Phoenix with the representative mixed workload.
+make seed
+
+# Select and configure another scenario.
+make seed DATAGEN_SCENARIO=time-series DATAGEN_ARGS="--days 30 --timezone America/Denver"
+
+# Target a secured Phoenix project or collector and choose a reproducible seed.
+PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com \
+PHOENIX_API_KEY=your-api-key \
+PHOENIX_PROJECT=demo \
+make seed DATAGEN_SEED=7 DATAGEN_ARGS="--traces 250"
+
+# Inspect scenario-specific parameters or validate without exporting.
+make seed-help DATAGEN_SCENARIO=costs
+make seed DATAGEN_SCENARIO=costs DATAGEN_ARGS="--provider groq --dry-run"
+
+# The underlying CLI remains available for direct use.
 uv run python -m scripts.generate_spans --help
 uv run python -m scripts.generate_spans mixed --traces 100 --max-depth 3
 uv run python -m scripts.generate_spans axis-labels --traces 25
