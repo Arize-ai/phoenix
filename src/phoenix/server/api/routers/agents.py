@@ -66,7 +66,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolOutputAvailableChunk,
 )
 from pydantic_ai.usage import RequestUsage
-from sqlalchemy import Insert, exists, func, or_, select, tuple_, update
+from sqlalchemy import Insert, case, exists, func, or_, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1556,10 +1556,20 @@ async def _patch_agent_session(
     agent_session_rowid: int,
     user_id: int | None,
     title: str,
+    only_if_untitled: bool = False,
 ) -> int | None:
     values: dict[str, Any] = {"updated_at": func.now()}
     if title:
-        values["title"] = title
+        if only_if_untitled:
+            # Auto-generated titles must never clobber a manual rename that
+            # landed while the turn was streaming, so compare-and-set against
+            # a still-empty stored title.
+            values["title"] = case(
+                (models.AgentSession.title == "", title),
+                else_=models.AgentSession.title,
+            )
+        else:
+            values["title"] = title
     session_owner_filter = (
         models.AgentSession.user_id.is_(None)
         if user_id is None
@@ -1583,6 +1593,7 @@ async def _persist_agent_session_title(
     user_id: int | None,
     title: str,
 ) -> None:
+    """Persist an auto-generated session title unless the user already set one."""
     try:
         async with db() as session:
             await _patch_agent_session(
@@ -1590,6 +1601,7 @@ async def _persist_agent_session_title(
                 agent_session_rowid=agent_session_rowid,
                 user_id=user_id,
                 title=truncate_agent_session_title(title),
+                only_if_untitled=True,
             )
     except Exception:
         logger.exception(
@@ -1663,11 +1675,14 @@ async def _persist_agent_session_turn(
     if not new_messages:
         return
     async with db() as session:
+        # `title` only ever carries the auto-generated summary here; a manual
+        # rename made mid-turn must win over it.
         patched_agent_session_rowid = await _patch_agent_session(
             session,
             agent_session_rowid=agent_session_rowid,
             user_id=user_id,
             title=title or "",
+            only_if_untitled=True,
         )
         if patched_agent_session_rowid is None:
             raise RuntimeError(
