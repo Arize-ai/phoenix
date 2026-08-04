@@ -10,7 +10,10 @@ async function createPromptViaPlayground(
   promptName: string,
   description: string
 ) {
-  await page.goto("/playground");
+  // The playground is the heaviest page in the app; wait for the document
+  // rather than every subresource so a fully parallel run doesn't exceed the
+  // navigation timeout. The assertions below still gate on real readiness.
+  await page.goto("/playground", { waitUntil: "domcontentloaded" });
   await page.waitForURL("**/playground");
   await page.getByRole("button", { name: "Save Prompt" }).click();
   await page.getByPlaceholder("Select or enter new prompt").click();
