@@ -13,9 +13,9 @@ import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt
 import type { AgentState } from "@phoenix/store/agentStore";
 
 import {
-  REWIND_CLEARED_TOOL_NAMES,
-  clearPendingToolState,
-} from "../pendingToolStateClearers";
+  REWIND_CLEANUP_TOOL_NAMES,
+  cleanupPendingToolState,
+} from "../pendingToolStateCleanup";
 
 function createStateStub() {
   return {
@@ -30,7 +30,7 @@ function createStateStub() {
   };
 }
 
-describe("clearPendingToolState", () => {
+describe("cleanupPendingToolState", () => {
   it.each([
     [EDIT_PROMPT_TOOL_NAME, "setPendingPromptEdit"],
     [REMOVE_PROMPT_INSTANCE_TOOL_NAME, "setPendingPromptInstanceRemoval"],
@@ -44,7 +44,7 @@ describe("clearPendingToolState", () => {
     "clears pending state for %s via the matching setter",
     (tool, setterName) => {
       const state = createStateStub();
-      clearPendingToolState(state as unknown as AgentState, tool, "call-1");
+      cleanupPendingToolState(state as unknown as AgentState, tool, "call-1");
       expect(state[setterName]).toHaveBeenCalledExactlyOnceWith("call-1", null);
       const otherSetters = Object.entries(state).filter(
         ([name]) => name !== setterName
@@ -57,7 +57,7 @@ describe("clearPendingToolState", () => {
 
   it("is a no-op for tools without registered pending state", () => {
     const state = createStateStub();
-    clearPendingToolState(
+    cleanupPendingToolState(
       state as unknown as AgentState,
       "unknown_tool",
       "call-1"
@@ -68,9 +68,9 @@ describe("clearPendingToolState", () => {
   });
 });
 
-describe("REWIND_CLEARED_TOOL_NAMES", () => {
-  it("covers only the approval tools released on rewind or branch", () => {
-    expect([...REWIND_CLEARED_TOOL_NAMES].sort()).toEqual(
+describe("REWIND_CLEANUP_TOOL_NAMES", () => {
+  it("covers only the approval tools cleaned up on rewind or branch", () => {
+    expect([...REWIND_CLEANUP_TOOL_NAMES].sort()).toEqual(
       [
         EDIT_PROMPT_TOOL_NAME,
         REMOVE_PROMPT_INSTANCE_TOOL_NAME,

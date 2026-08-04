@@ -21,6 +21,7 @@ import {
 } from "@phoenix/components/agent/agentSessionRelay";
 import { selectAgentModel } from "@phoenix/components/agent/useAgentChatPanelState";
 import type { AgentStore } from "@phoenix/store/agentStore";
+import { isRecord } from "@phoenix/utils/typeUtils";
 
 import {
   SESSION_BUSY_ERROR_CODE,
@@ -110,7 +111,11 @@ export function createAgentSessionChat({
           }
         })
         .catch(() => {
-          // Transient failure: the next poll re-synchronizes.
+          // Swallowed on purpose: this refetch is a best-effort cache
+          // refresh after the turn's transcript was already persisted
+          // server-side, so nothing is lost. The session poll
+          // (useAgentSessionSync) probes the same record on its next tick
+          // and re-synchronizes Relay and the runtime transcript then.
         });
     },
   });
@@ -253,10 +258,6 @@ export function createAgentSessionChat({
   });
   turnClientStateByChat.set(chat, { turnTraceContext, toolTimings });
   return chat;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
 
 function appendPartToToolMessage({

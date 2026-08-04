@@ -6,9 +6,9 @@ import { ConnectionHandler, graphql, useMutation } from "react-relay";
 import { buildAgentChatApiUrl } from "@phoenix/agent/chat/agentChatApi";
 import { isRequestActive } from "@phoenix/agent/chat/chatUtils";
 import {
-  REWIND_CLEARED_TOOL_NAMES,
-  clearPendingToolState,
-} from "@phoenix/agent/chat/pendingToolStateClearers";
+  REWIND_CLEANUP_TOOL_NAMES,
+  cleanupPendingToolState,
+} from "@phoenix/agent/chat/pendingToolStateCleanup";
 import { getRemovedUserMessageText } from "@phoenix/agent/chat/removedUserMessageText";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
@@ -138,8 +138,8 @@ export function useAgentSessionHistory({
             continue;
           }
           const toolName = getToolName(part);
-          if (REWIND_CLEARED_TOOL_NAMES.has(toolName)) {
-            clearPendingToolState(state, toolName, part.toolCallId);
+          if (REWIND_CLEANUP_TOOL_NAMES.has(toolName)) {
+            cleanupPendingToolState(state, toolName, part.toolCallId);
           } else if (pendingElicitation?.toolCallId === part.toolCallId) {
             state.setPendingElicitation(sessionId, null);
           }

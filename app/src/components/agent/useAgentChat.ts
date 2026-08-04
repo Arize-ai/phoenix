@@ -16,7 +16,7 @@ import {
   getTurnClientState,
 } from "@phoenix/agent/chat/createAgentSessionChat";
 import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
-import { clearPendingToolState } from "@phoenix/agent/chat/pendingToolStateClearers";
+import { cleanupPendingToolState } from "@phoenix/agent/chat/pendingToolStateCleanup";
 import {
   SYSTEM_INTERRUPT_ERROR,
   USER_INTERRUPT_ERROR,
@@ -34,6 +34,7 @@ import {
   DRAFT_SESSION_ID,
   type PendingAgentMessage,
 } from "@phoenix/store/agentStore";
+import { isRecord } from "@phoenix/utils/typeUtils";
 
 import { refetchAgentSession } from "./agentSessionRelay";
 import type { AgentChatOperationError } from "./types";
@@ -220,7 +221,7 @@ export function useAgentChat({
     const unresolvedToolCalls = getUnresolvedToolCalls(messages);
 
     unresolvedToolCalls.forEach((toolCall) => {
-      clearPendingToolState(
+      cleanupPendingToolState(
         store.getState(),
         toolCall.tool,
         toolCall.toolCallId
@@ -532,10 +533,6 @@ function isSessionBusyConflict(body: string): boolean {
 
 function getAgentCompactErrorMessage(body: string, status: number): string {
   return body.trim() || `Compaction failed with status ${status}.`;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
 
 function getCompactionMessageFromResponse(
