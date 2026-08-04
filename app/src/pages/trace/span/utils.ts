@@ -94,39 +94,41 @@ export function getToolCalls(message: AttributeMessage): AttributeToolCall[] {
 export function getMessagePreview(
   message: AttributeMessage
 ): string | undefined {
+  const content = message[MessageAttributePostfixes.content];
+  const contents = message[MessageAttributePostfixes.contents];
+  const functionCallName =
+    message[MessageAttributePostfixes.function_call_name];
+  const functionCallArguments =
+    message[MessageAttributePostfixes.function_call_arguments_json];
+
   // The message is duck-typed, so `contents` is whatever the instrumentation
   // emitted. This runs in the card's own render, above the error boundary that
   // guards the rendered contents, so it has to survive any shape.
-  const contents = message[MessageAttributePostfixes.contents];
   const contentsText = (Array.isArray(contents) ? contents : [])
     .map(
       (content) => content?.[SemanticAttributePrefixes.message_content]?.text
     )
     .filter((text) => typeof text === "string" && text !== "")
     .join(" ");
+
+  // The card renders the deprecated function call only when it has both a name
+  // and its arguments, so previewing on the name alone would advertise a card
+  // body that turns out to be empty
+  const functionCall =
+    functionCallName && functionCallArguments
+      ? [{ name: functionCallName, arguments: functionCallArguments }]
+      : [];
+
   return (
     toContentPreview(contentsText) ??
-    toContentPreview(message[MessageAttributePostfixes.content]) ??
+    toContentPreview(content) ??
     toToolCallsPreview(
       getToolCalls(message).map((toolCall) => ({
         name: toolCall.function?.name,
         arguments: toolCall.function?.arguments,
       }))
     ) ??
-    // The card renders the deprecated function call only when it has both a
-    // name and its arguments, so previewing on the name alone would advertise a
-    // card body that turns out to be empty
-    toToolCallsPreview(
-      message[MessageAttributePostfixes.function_call_arguments_json]
-        ? [
-            {
-              name: message[MessageAttributePostfixes.function_call_name],
-              arguments:
-                message[MessageAttributePostfixes.function_call_arguments_json],
-            },
-          ]
-        : []
-    )
+    toToolCallsPreview(functionCall)
   );
 }
 

@@ -17,6 +17,7 @@ import { openInferenceModelProviderToPhoenixModelProvider } from "@phoenix/pages
 import type { AnyPart } from "@phoenix/schemas/promptSchemas";
 import {
   toContentPreview,
+  toPreviewLine,
   toToolCallsPreview,
 } from "@phoenix/utils/contentPreviewUtils";
 import {
@@ -167,14 +168,13 @@ function getMessagePreview(message: ChatTemplateMessage): string | undefined {
   // Every result, not just the first: a message whose first result part is
   // blank still has something worth previewing in the ones after it
   const toolResults = message.content
-    .map((part) => asToolResultPart(part)?.toolResult.result)
-    .filter((result) => result != null)
-    .map((result) => toContentPreview(result))
-    .filter((result) => result != null);
+    .map((part) => toPreviewLine(asToolResultPart(part)?.toolResult.result))
+    .filter(Boolean)
+    .join(" ");
   return (
     toContentPreview(text) ??
     toToolCallsPreview(toolCalls) ??
-    toContentPreview(toolResults.join(" "))
+    toContentPreview(toolResults)
   );
 }
 

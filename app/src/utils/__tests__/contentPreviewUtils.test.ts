@@ -2,9 +2,24 @@ import { describe, expect, it } from "vitest";
 
 import {
   toContentPreview,
+  toPreviewLine,
   toRecordPreview,
   toToolCallsPreview,
 } from "../contentPreviewUtils";
+
+describe("toPreviewLine", () => {
+  // callers assembling a preview from several values flatten each with this and
+  // truncate once at the end, so this must not truncate on its own
+  it("flattens without truncating", () => {
+    const long = "word ".repeat(100);
+    expect(toPreviewLine(long)).toBe(long.trim());
+  });
+
+  it("returns an empty string for nothing", () => {
+    expect(toPreviewLine(undefined)).toBe("");
+    expect(toPreviewLine(null)).toBe("");
+  });
+});
 
 describe("toContentPreview", () => {
   it("returns plain text unquoted", () => {

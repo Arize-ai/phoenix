@@ -9,12 +9,20 @@ import { formatContentAsString, safelyParseJSON } from "./jsonUtils";
  */
 const DEFAULT_MAX_PREVIEW_LENGTH = 200;
 
+type PreviewOptions = {
+  /** @default DEFAULT_MAX_PREVIEW_LENGTH */
+  maxLength?: number;
+};
+
 /**
  * Content flattened onto the single line a preview is rendered on. Newlines and
- * runs of whitespace collapse to single spaces. Not truncated — callers that
- * compose several of these have to truncate the composed result, not its parts.
+ * runs of whitespace collapse to single spaces.
+ *
+ * Deliberately not truncated: a caller assembling a preview out of several
+ * values flattens each with this and truncates once at the end, so the budget
+ * goes to the assembled line rather than being spent on each part.
  */
-function toSingleLine(content: unknown): string {
+export function toPreviewLine(content: unknown): string {
   if (content == null) {
     return "";
   }
@@ -60,9 +68,9 @@ function truncate(text: string, maxLength: number): string {
  */
 export function toContentPreview(
   content: unknown,
-  { maxLength = DEFAULT_MAX_PREVIEW_LENGTH }: { maxLength?: number } = {}
+  { maxLength = DEFAULT_MAX_PREVIEW_LENGTH }: PreviewOptions = {}
 ): string | undefined {
-  const singleLine = toSingleLine(content);
+  const singleLine = toPreviewLine(content);
   if (singleLine === "") {
     return undefined;
   }
@@ -80,15 +88,19 @@ export function toContentPreview(
  */
 export function toRecordPreview(
   content: unknown,
-  { maxLength = DEFAULT_MAX_PREVIEW_LENGTH }: { maxLength?: number } = {}
+  { maxLength = DEFAULT_MAX_PREVIEW_LENGTH }: PreviewOptions = {}
 ): string | undefined {
   const parsed =
     typeof content === "string" ? safelyParseJSON(content).json : content;
-  if (!isStringKeyedObject(parsed) || Array.isArray(parsed)) {
+  // An array satisfies isStringKeyedObject — its indices are string keys — but
+  // reading one out as `0: a, 1: b` tells the reader less than the JSON does
+  const isRecord = isStringKeyedObject(parsed) && !Array.isArray(parsed);
+  if (!isRecord) {
     return toContentPreview(content, { maxLength });
   }
   const entries = Object.entries(parsed).map(
-    ([key, value]) => `${key}: ${value === null ? "null" : toSingleLine(value)}`
+    ([key, value]) =>
+      `${key}: ${value === null ? "null" : toPreviewLine(value)}`
   );
   if (entries.length === 0) {
     return undefined;
@@ -105,11 +117,13 @@ export function toRecordPreview(
  */
 export function toToolCallsPreview(
   toolCalls: ReadonlyArray<{ name?: string | null; arguments?: unknown }>,
-  { maxLength = DEFAULT_MAX_PREVIEW_LENGTH }: { maxLength?: number } = {}
+  { maxLength = DEFAULT_MAX_PREVIEW_LENGTH }: PreviewOptions = {}
 ): string | undefined {
   const calls = toolCalls
     .filter((toolCall) => toolCall.name)
-    .map((toolCall) => `${toolCall.name}(${toSingleLine(toolCall.arguments)})`);
+    .map(
+      (toolCall) => `${toolCall.name}(${toPreviewLine(toolCall.arguments)})`
+    );
   if (calls.length === 0) {
     return undefined;
   }
