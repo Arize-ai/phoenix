@@ -4,8 +4,10 @@ from typing import Any, Optional, Union
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import ValidationError, field_validator, model_validator
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import Select
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 from typing_extensions import Self, TypeAlias, assert_never
@@ -104,6 +106,16 @@ class CreatePromptRequestBody(V1RoutesBaseModel):
 
 
 class CreatePromptResponseBody(ResponseBody[PromptVersion]):
+    pass
+
+
+class ClonePromptRequestBody(V1RoutesBaseModel):
+    name: Identifier
+    description: Optional[str] = None
+    metadata: Optional[dict[str, Any]] = None
+
+
+class ClonePromptResponseBody(ResponseBody[Prompt]):
     pass
 
 
@@ -756,6 +768,125 @@ async def delete_prompt_version_tag(
             raise HTTPException(404)
         await session.delete(tag)
     return None
+
+
+@router.post(
+    "/prompts/{prompt_identifier}/clone",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="clonePrompt",
+    summary="Clone a prompt",
+    description="Clone an existing prompt and all its versions into a new prompt with a different "
+    "name. Tags are not copied. If description or metadata are omitted, they are inherited from "
+    "the source prompt.",
+    response_description="The newly created prompt",
+    status_code=201,
+    responses=add_errors_to_responses(
+        [
+            404,
+            {"status_code": 409, "description": "A prompt with the given name already exists."},
+            422,
+        ]
+    ),
+)
+async def clone_prompt(
+    request: Request,
+    request_body: ClonePromptRequestBody,
+    prompt_identifier: str = Path(description="The identifier of the prompt to clone, i.e. name or ID."),
+) -> ClonePromptResponseBody:
+    """
+    Clone an existing prompt and all its versions.
+
+    Creates a new prompt with the given name, copying all versions from the source prompt.
+    Tags are not copied. Description and metadata are inherited from the source prompt
+    unless explicitly provided in the request body.
+
+    Args:
+        request (Request): The FastAPI request object.
+        request_body (ClonePromptRequestBody): The request body containing the new prompt name
+            and optional description/metadata overrides.
+        prompt_identifier (str): The identifier of the source prompt (name or GlobalID).
+
+    Returns:
+        ClonePromptResponseBody: Response containing the newly created prompt.
+
+    Raises:
+        HTTPException: If the source prompt is not found, the name is invalid,
+            or a prompt with the given name already exists.
+    """
+    identifier = _parse_prompt_identifier(prompt_identifier)
+    if isinstance(identifier, _PromptId):
+        where_clause = models.Prompt.id == int(identifier)
+    elif isinstance(identifier, Identifier):
+        where_clause = models.Prompt.name == identifier
+    else:
+        assert_never(identifier)
+
+    async with request.app.state.db() as session:
+        stmt = (
+            select(models.Prompt)
+            .options(joinedload(models.Prompt.prompt_versions))
+            .where(where_clause)
+        )
+        result = await session.execute(stmt)
+        source_prompt = result.unique().scalar_one_or_none()
+
+        if not source_prompt:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+
+        if "description" in request_body.model_fields_set:
+            description = (
+                request_body.description.strip()
+                if request_body.description is not None
+                else None
+            )
+        else:
+            description = source_prompt.description
+
+        if "metadata" in request_body.model_fields_set:
+            metadata = request_body.metadata or {}
+        else:
+            metadata = source_prompt.metadata_
+
+        new_prompt = models.Prompt(
+            name=request_body.name,
+            source_prompt_id=source_prompt.id,
+            description=description,
+            metadata_=metadata,
+        )
+
+        new_versions = [
+            models.PromptVersion(
+                prompt=new_prompt,
+                user_id=version.user_id,
+                description=version.description,
+                template_type=version.template_type,
+                template_format=version.template_format,
+                template=version.template,
+                invocation_parameters=normalize_invocation_parameters_for_write(
+                    version.invocation_parameters
+                ),
+                tools=version.tools,
+                response_format=version.response_format,
+                model_provider=version.model_provider,
+                model_name=version.model_name,
+                custom_provider_id=version.custom_provider_id,
+            )
+            for version in source_prompt.prompt_versions
+        ]
+        new_prompt.prompt_versions = new_versions
+
+        session.add(new_prompt)
+
+        try:
+            await session.flush()
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise HTTPException(
+                status_code=409,
+                detail=f"A prompt named '{request_body.name}' already exists",
+            )
+
+    data = _prompt_from_orm_prompt(new_prompt)
+    return ClonePromptResponseBody(data=data)
 
 
 @router.delete(
