@@ -1101,7 +1101,7 @@ describe("PXI app", () => {
       getSessionSyncState: async () => {
         throw new Error("not used");
       },
-      updateSessionModel: async ({ model }) => model,
+      patchSessionModel: async ({ model }) => model,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1150,7 +1150,7 @@ describe("PXI app", () => {
       getSessionSyncState: async () => {
         throw new Error("not used");
       },
-      updateSessionModel: async ({ model }) => model,
+      patchSessionModel: async ({ model }) => model,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1220,7 +1220,7 @@ describe("PXI app", () => {
       getSessionSyncState: async () => {
         throw new Error("not used");
       },
-      updateSessionModel: async ({ model }) => model,
+      patchSessionModel: async ({ model }) => model,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1289,7 +1289,7 @@ describe("PXI app", () => {
       getSessionSyncState: async () => {
         throw new Error("not used");
       },
-      updateSessionModel: async ({ model }) => model,
+      patchSessionModel: async ({ model }) => model,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1384,7 +1384,7 @@ describe("PXI app", () => {
       ],
       getSession,
       getSessionSyncState,
-      updateSessionModel: async ({ model }) => model,
+      patchSessionModel: async ({ model }) => model,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1492,7 +1492,7 @@ describe("PXI app", () => {
         messages: [],
         model: persistedModel,
       }),
-      updateSessionModel: async ({ model }) => model,
+      patchSessionModel: async ({ model }) => model,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1526,7 +1526,7 @@ describe("PXI app", () => {
       modelName: "gemini-3.5-flash",
     };
     const sessionModelResolver = vi.fn(async (model: ModelSelection) => model);
-    const updateSessionModel = vi.fn(
+    const patchSessionModel = vi.fn(
       async ({ model }: { sessionId: string; model: ModelSelection }) => model
     );
     const sessionClient: PxiSessionClient = {
@@ -1550,7 +1550,7 @@ describe("PXI app", () => {
         messages: [],
         model: persistedModel,
       }),
-      updateSessionModel,
+      patchSessionModel,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1572,7 +1572,7 @@ describe("PXI app", () => {
 
     // The flag is applied as a write, not shadowed locally, so the session
     // itself moves and every other client sees the change.
-    expect(updateSessionModel).toHaveBeenCalledWith({
+    expect(patchSessionModel).toHaveBeenCalledWith({
       sessionId: "session-1",
       model: {
         providerType: "builtin",
@@ -1595,7 +1595,7 @@ describe("PXI app", () => {
       modelName: "gpt-5.4",
     };
     const sessionModelResolver = vi.fn(async (model: ModelSelection) => model);
-    const updateSessionModel = vi.fn(
+    const patchSessionModel = vi.fn(
       async ({ model }: { sessionId: string; model: ModelSelection }) => model
     );
     const sessionClient: PxiSessionClient = {
@@ -1619,7 +1619,7 @@ describe("PXI app", () => {
         messages: [],
         model: persistedModel,
       }),
-      updateSessionModel,
+      patchSessionModel,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1639,7 +1639,7 @@ describe("PXI app", () => {
     await writeInput({ stdin, input: "\r" });
     await act(async () => Promise.resolve());
 
-    expect(updateSessionModel).not.toHaveBeenCalled();
+    expect(patchSessionModel).not.toHaveBeenCalled();
     expect(sessionModelResolver).toHaveBeenCalledWith(persistedModel);
     expect(stripAnsi(lastFrame() ?? "")).toContain("model: OPENAI/gpt-5.4");
     unmount();
@@ -1660,7 +1660,7 @@ describe("PXI app", () => {
       modelName: "claude-opus-4-6",
     };
     let resolveWrite: () => void = () => {};
-    const updateSessionModel = vi.fn(
+    const patchSessionModel = vi.fn(
       ({ model }: { sessionId: string; model: ModelSelection }) =>
         new Promise<ModelSelection>((resolve) => {
           resolveWrite = () => resolve(model);
@@ -1689,7 +1689,7 @@ describe("PXI app", () => {
         messages: [],
         model: persistedModel,
       }),
-      updateSessionModel,
+      patchSessionModel,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1783,7 +1783,7 @@ describe("PXI app", () => {
           model: getSessionCallCount === 1 ? originalModel : remoteModel,
         };
       },
-      updateSessionModel: async ({ model }) => model,
+      patchSessionModel: async ({ model }) => model,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1833,7 +1833,7 @@ describe("PXI app", () => {
       modelName: "gpt-5.4",
     };
     let resolveWrite: (model: ModelSelection) => void = () => {};
-    const updateSessionModel = vi.fn(
+    const patchSessionModel = vi.fn(
       ({ model }: { sessionId: string; model: ModelSelection }) =>
         new Promise<ModelSelection>((resolve) => {
           resolveWrite = () => resolve(model);
@@ -1869,7 +1869,7 @@ describe("PXI app", () => {
         updatedAt: "2026-07-24T13:05:00Z",
         lastMessageId: null,
       }),
-      updateSessionModel,
+      patchSessionModel,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -1905,7 +1905,7 @@ describe("PXI app", () => {
       await writeInput({ stdin, input: "\r" });
       await act(async () => Promise.resolve());
 
-      expect(updateSessionModel).toHaveBeenCalledTimes(1);
+      expect(patchSessionModel).toHaveBeenCalledTimes(1);
       expect(stripAnsi(lastFrame() ?? "")).toContain(
         "model: ANTHROPIC/claude-opus-4-6"
       );
@@ -1962,7 +1962,7 @@ describe("PXI app", () => {
       getSessionSyncState: async () => {
         throw new Error("not used");
       },
-      updateSessionModel: async ({ model }) => model,
+      patchSessionModel: async ({ model }) => model,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -2033,7 +2033,7 @@ describe("PXI app", () => {
       getSessionSyncState: async () => {
         throw new Error("not used");
       },
-      updateSessionModel: async ({ model }) => model,
+      patchSessionModel: async ({ model }) => model,
       compactSession: async () => {
         throw new Error("not used");
       },
@@ -2269,7 +2269,7 @@ describe("PXI /compact command", () => {
           modelName: "gemini-3.5-flash",
         } satisfies ModelSelection,
       }),
-      updateSessionModel: async ({ model }) => model,
+      patchSessionModel: async ({ model }) => model,
       compactSession,
     };
   }
