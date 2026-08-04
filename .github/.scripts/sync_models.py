@@ -10,12 +10,6 @@ from pydantic import AfterValidator, BaseModel
 
 PROMPT_TOKEN_ATTRIBUTE = "llm.token_count.prompt"
 
-TIER_THRESHOLDS: tuple[tuple[str, int], ...] = (
-    ("128k", 128_000),
-    ("200k", 200_000),
-    ("272k", 272_000),
-)
-
 
 class ThresholdBasedTokenPriceCustomization(BaseModel):
     type: Literal["threshold_based"] = "threshold_based"
@@ -157,29 +151,37 @@ def _tier_customization(
 ) -> Optional[ThresholdBasedTokenPriceCustomization]:
     """
     LiteLLM publishes whole-prompt tier rates as ``<base_field>_above_NNNk_tokens`` variants
-    (e.g. ``input_cost_per_token_above_200k_tokens``). Emit the first configured tier as a
+    (e.g. ``input_cost_per_token_above_200k_tokens``). Emit the lowest configured tier as a
     ThresholdBasedTokenPriceCustomization keyed on the prompt token count, so that once the
     prompt strictly exceeds the threshold every token bills at the elevated rate. Only a
     single tier per model is emitted today; no publicly-priced model in the LiteLLM manifest
     configures more than one tier for the same base field.
     """
-    for label, threshold in TIER_THRESHOLDS:
-        tier_field = f"{base_field}_above_{label}_tokens"
-        tier_rate = model_info.get(tier_field)
-        if tier_rate is None:
+    tier_field = re.compile(rf"{re.escape(base_field)}_above_(?P<thousands>\d+)k_tokens")
+
+    rates_by_threshold: dict[float, float] = {}
+    for field, rate in model_info.items():
+        match = tier_field.fullmatch(field)
+        if match is None or not _is_positive_number(rate):
             continue
-        try:
-            new_rate = float(tier_rate)
-        except (TypeError, ValueError):
-            continue
-        if new_rate <= 0:
-            continue
-        return ThresholdBasedTokenPriceCustomization(
-            key=PROMPT_TOKEN_ATTRIBUTE,
-            threshold=float(threshold),
-            new_rate=new_rate,
-        )
-    return None
+        threshold = float(match["thousands"]) * 1000
+        rates_by_threshold[threshold] = float(rate)
+
+    if not rates_by_threshold:
+        return None
+    lowest_threshold = min(rates_by_threshold)
+    return ThresholdBasedTokenPriceCustomization(
+        key=PROMPT_TOKEN_ATTRIBUTE,
+        threshold=lowest_threshold,
+        new_rate=rates_by_threshold[lowest_threshold],
+    )
+
+
+def _is_positive_number(value: Any) -> bool:
+    try:
+        return float(value) > 0
+    except (TypeError, ValueError):
+        return False
 
 
 def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
