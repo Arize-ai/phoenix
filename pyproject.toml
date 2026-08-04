@@ -383,8 +383,16 @@ venvPath = "."
 venv = ".venv"
 extraPaths = ["src"]
 pythonVersion = "3.10"
+# Restating all three defaults is required because setting exclude replaces
+# them; omitting "**/.*" makes pyright walk .venv and every other
+# dot-directory. packages/phoenix-sqlean is a vendored fork of
+# nalgeon/sqlean.py and is not held to this repo's typing standards.
+exclude = ["**/node_modules", "**/__pycache__", "**/.*", "packages/phoenix-sqlean"]
 
 [tool.ruff]
+# Apply excludes even to files passed explicitly on the command line
+# (editor/hook integrations do this), so vendored code stays untouched.
+force-exclude = true
 exclude = [
   "api_reference",
   "dist/",
@@ -401,6 +409,9 @@ exclude = [
   ".github/**/*.md",
   "AGENTS.md",
   "CLAUDE.md",
+  # Vendored fork of nalgeon/sqlean.py — keep formatting identical to upstream
+  # so diffs against the imported source stay reviewable.
+  "packages/phoenix-sqlean",
 ]
 line-length = 100
 target-version = "py310"
@@ -441,6 +452,9 @@ override-dependencies = [
 
 [tool.uv.workspace]
 members = ["packages/*"]
+# phoenix-sqlean is a vendored setup.py-based C extension (fork of
+# nalgeon/sqlean.py), not a uv-managed project.
+exclude = ["packages/phoenix-sqlean"]
 
 [tool.uv.sources]
 arize-phoenix-client = { workspace = true }
