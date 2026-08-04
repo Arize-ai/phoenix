@@ -1,3 +1,5 @@
+import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval";
+
 import {
   PATCH_EXPERIMENT_NAVIGATION_CANCEL_ERROR,
   PATCH_EXPERIMENT_STALE_TARGET_ERROR,
@@ -87,6 +89,7 @@ export function bindPendingPatchExperimentActions({
             approvalSource === "auto"
               ? `Experiment "${experimentName}" edit auto-applied.`
               : `Experiment "${experimentName}" updated.`,
+          ...approvalOutcome({ decision: "accepted", source: approvalSource }),
         },
       });
     },
@@ -102,6 +105,7 @@ export function bindPendingPatchExperimentActions({
           experimentName,
           changes: toChangeOutput(diff),
           message: `User rejected the proposed edit to experiment "${experimentName}".`,
+          ...approvalOutcome({ decision: "rejected", source: "user" }),
         },
       });
     },
