@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
+import { useMemo } from "react";
 
 import {
   aiConicBandCSS,
@@ -182,10 +183,13 @@ export function AIOutline({
   state = "idle",
 }: AIOutlineProps) {
   const canFlash = state === "eligible" && shouldFlash;
+  // The outline re-renders with its child (per keystroke when wrapping an
+  // input) — don't re-serialize the composed styles each time
+  const composedCSS = useMemo(() => css(outlineCSS, propCSS), [propCSS]);
   return (
     <div
       className={classNames("ai-outline", className)}
-      css={css(outlineCSS, propCSS)}
+      css={composedCSS}
       data-full-width={isFullWidth ? "true" : undefined}
       data-glow-mode={glowMode}
       data-radius={radius}

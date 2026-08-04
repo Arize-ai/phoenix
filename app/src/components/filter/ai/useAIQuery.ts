@@ -157,7 +157,6 @@ export function useAIQuery<
   return {
     status,
     downloadProgress,
-    modelConfig,
     generate,
     cancel,
   };

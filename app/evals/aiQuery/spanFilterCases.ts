@@ -1,23 +1,4 @@
-/**
- * A natural-language request paired with the span filter expressions
- * accepted as correct translations. The first accepted expression is the
- * canonical answer; the rest are alternative phrasings that filter the
- * same spans (clause order, equivalent fields). Anything else falls
- * through to the LLM equivalence judge.
- */
-export type SpanFilterEvalCase = {
-  /** Stable example id — keeps experiment runs upserting onto the same dataset example. */
-  id: string;
-  /** The natural-language request a user would type. */
-  query: string;
-  /** Expressions accepted as (normalized) exact matches. */
-  accepted: string[];
-  /**
-   * The one thing this case isolates — the reason it earns a slot. Read it
-   * as "the case fails when the model ...".
-   */
-  probes: string;
-};
+import type { FilterEvalCase } from "./evalCase";
 
 /**
  * The hill-climbing set: requests phrased the way someone debugging an agent
@@ -40,7 +21,7 @@ export type SpanFilterEvalCase = {
  * `spanFilterDSL`: a case that reuses an example's literals measures recall,
  * not translation.
  */
-export const spanFilterCases: SpanFilterEvalCase[] = [
+export const spanFilterCases: FilterEvalCase[] = [
   {
     id: "llm-bad-feedback",
     query: "llm spans where the user_feedback was bad",
@@ -50,7 +31,7 @@ export const spanFilterCases: SpanFilterEvalCase[] = [
       "span_kind == 'LLM' and evals['user_feedback'].label == 'bad'",
       "evals['user_feedback'].label == 'bad' and span_kind == 'LLM'",
     ],
-    probes:
+    failureMode:
       "scores the annotation instead of reading its label, or reaches for metadata['user_feedback']",
   },
   {
@@ -60,7 +41,7 @@ export const spanFilterCases: SpanFilterEvalCase[] = [
       "span_kind == 'TOOL' and 'timeout' in status_message",
       "'timeout' in status_message and span_kind == 'TOOL'",
     ],
-    probes:
+    failureMode:
       "puts the timeout in status_code, or hedges with extra alternative clauses the request never asked for",
   },
   {
@@ -72,13 +53,13 @@ export const spanFilterCases: SpanFilterEvalCase[] = [
       "span_kind == 'RETRIEVER' and output.value == ''",
       "output.value == '' and span_kind == 'RETRIEVER'",
     ],
-    probes: "has no spelling for emptiness on a text field",
+    failureMode: "has no spelling for emptiness on a text field",
   },
   {
     id: "has-groundedness-annotation",
     query: "spans that have a groundedness annotation at all",
     accepted: ["annotations['groundedness']", "evals['groundedness']"],
-    probes:
+    failureMode:
       "invents a comparison because a bare annotation looks like a value, not a condition",
   },
   {
@@ -90,7 +71,7 @@ export const spanFilterCases: SpanFilterEvalCase[] = [
       "span_kind != 'EMBEDDING' and span_kind != 'LLM'",
       "span_kind != 'LLM' and span_kind != 'EMBEDDING'",
     ],
-    probes:
+    failureMode:
       "distributes the negation as `or`, which keeps every span in the project",
   },
   {
@@ -103,14 +84,15 @@ export const spanFilterCases: SpanFilterEvalCase[] = [
       "(name == 'fetch_orders' or name == 'query_db') and status_code == 'ERROR'",
       "name in ['fetch_orders', 'query_db'] and status_code == 'ERROR'",
     ],
-    probes:
+    failureMode:
       "drops the parentheses when mixing and with or, silently widening the filter",
   },
   {
     id: "model-family-substring",
     query: "any gpt-4 variant",
     accepted: ["'gpt-4' in llm.model_name"],
-    probes: "tests equality against a family name that no single model reports",
+    failureMode:
+      "tests equality against a family name that no single model reports",
   },
   {
     id: "tool-name-attribute",
@@ -119,7 +101,7 @@ export const spanFilterCases: SpanFilterEvalCase[] = [
       "attributes['tool']['name'] == 'search_docs'",
       "tool.name == 'search_docs'",
     ],
-    probes:
+    failureMode:
       "flattens the dotted attribute into one subscript, attributes['tool.name']",
   },
   {
@@ -129,7 +111,7 @@ export const spanFilterCases: SpanFilterEvalCase[] = [
       "'ambiguous' in annotations['correctness'].explanation",
       "'ambiguous' in evals['correctness'].explanation",
     ],
-    probes: "searches the label or the output rather than the explanation",
+    failureMode: "searches the label or the output rather than the explanation",
   },
   {
     id: "rate-limit-errors",
@@ -138,7 +120,8 @@ export const spanFilterCases: SpanFilterEvalCase[] = [
       "status_code == 'ERROR' and 'rate limit' in status_message",
       "'rate limit' in status_message and status_code == 'ERROR'",
     ],
-    probes: "splits one phrase across status_code and status_message, or won't",
+    failureMode:
+      "splits one phrase across status_code and status_message, or won't",
   },
   {
     id: "slow-default-threshold",
@@ -147,7 +130,7 @@ export const spanFilterCases: SpanFilterEvalCase[] = [
       "span_kind == 'AGENT' and latency_ms > 10000",
       "latency_ms > 10000 and span_kind == 'AGENT'",
     ],
-    probes:
+    failureMode:
       "leaves an unstated threshold out, or picks one the prompt didn't define",
   },
   {
@@ -158,7 +141,7 @@ export const spanFilterCases: SpanFilterEvalCase[] = [
       "session.id == 'abc-123'",
       "metadata['session_id'] == 'abc-123'",
     ],
-    probes:
+    failureMode:
       "flattens the session path into one subscript, attributes['session.id']",
   },
   {
@@ -170,13 +153,13 @@ export const spanFilterCases: SpanFilterEvalCase[] = [
       "llm.token_count.completion > (llm.token_count.total / 2)",
       "llm.token_count.completion > 0.5 * llm.token_count.total",
     ],
-    probes: "does not know two fields can be compared arithmetically",
+    failureMode: "does not know two fields can be compared arithmetically",
   },
   {
     id: "top-n-approximation",
     query: "the five slowest spans",
     accepted: ["latency_ms > 10000"],
-    probes:
+    failureMode:
       "invents ordering or a limit the language does not have, instead of approximating with the default slow threshold",
   },
 ];

@@ -58,21 +58,15 @@ const DEFAULT_SERVER_MODEL_CONFIG: AIQueryModelConfig = {
   modelName: DEFAULT_MODEL_NAME,
 };
 
-// Keyed by the persisted legacy object so each one normalizes to the same
-// config instance, preserving the identity-stability guarantee below.
-const legacyConversions = new WeakMap<
-  LegacyProviderModelConfig,
-  AIQueryModelConfig
->();
-
 /**
  * Resolves the persisted (possibly absent) model config to an effective
  * one — no config means Browser AI where the browser has a built-in model,
  * and the default provider on the server proxy everywhere else (the picker
  * doesn't offer Browser AI there). Legacy browser-direct provider configs
  * map to the same provider on the server proxy. The single home of those
- * defaults, shared by every surface that reads the preference. Returns
- * stable objects so resolving on every render stays identity-safe.
+ * defaults, shared by every surface that reads the preference. No caller
+ * puts the result in a dependency array, so the converted legacy object
+ * needs no identity stability.
  */
 export function resolveAIQueryModelConfig(
   config: AIQueryModelConfig | LegacyProviderModelConfig | undefined
@@ -83,17 +77,12 @@ export function resolveAIQueryModelConfig(
       : DEFAULT_SERVER_MODEL_CONFIG;
   }
   if (config.kind === "provider") {
-    let converted = legacyConversions.get(config);
-    if (converted == null) {
-      converted = {
-        kind: "server",
-        source: "builtin",
-        provider: config.provider,
-        modelName: config.modelName,
-      };
-      legacyConversions.set(config, converted);
-    }
-    return converted;
+    return {
+      kind: "server",
+      source: "builtin",
+      provider: config.provider,
+      modelName: config.modelName,
+    };
   }
   return config;
 }

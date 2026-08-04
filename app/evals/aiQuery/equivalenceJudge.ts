@@ -1,6 +1,10 @@
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import type { LanguageModel } from "ai";
 
+import {
+  formatAIQueryFieldLines,
+  formatAIQueryNoteLines,
+} from "@phoenix/components/filter/ai/buildAIQueryPrompt";
 import type { AIQueryDSL } from "@phoenix/components/filter/ai/types";
 
 import { evalTracer } from "./telemetry";
@@ -27,19 +31,13 @@ export function createFilterEquivalenceJudge({
   model: LanguageModel;
   dsl: AIQueryDSL;
 }) {
-  const fieldLines = dsl.fields
-    .map((field) =>
-      field.description
-        ? `- ${field.name}: ${field.description}`
-        : `- ${field.name}`
-    )
-    .join("\n");
+  const fieldLines = formatAIQueryFieldLines(dsl);
   // The dialect's notes go into the rubric so the judge can reject a
   // candidate that is logically equivalent but written in syntax this
   // dialect rejects (list membership, chained ranges, arithmetic) — the
   // server would refuse it, so the eval must not count it correct.
   const notes = dsl.notes?.length
-    ? `\nNotes on this dialect:\n${dsl.notes.map((note) => `- ${note}`).join("\n")}\n`
+    ? `\nNotes on this dialect:\n${formatAIQueryNoteLines(dsl)}\n`
     : "";
   return createClassificationEvaluator<FilterEquivalenceRecord>({
     name: "filter_equivalence",

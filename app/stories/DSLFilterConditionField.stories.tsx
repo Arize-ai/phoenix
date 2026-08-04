@@ -1,5 +1,6 @@
 import type { Completion } from "@codemirror/autocomplete";
 import type { Meta, StoryFn } from "@storybook/react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { fn } from "storybook/test";
 
@@ -124,25 +125,29 @@ const meta: Meta<typeof DSLFilterConditionField> = {
 
 export default meta;
 
-const Template: StoryFn<DSLFilterConditionFieldProps> = (args) => {
+/**
+ * The shared story shell: local value state, the rendered field, and an
+ * "Applied condition" readout below it. Each template supplies the field.
+ */
+function FilterFieldHarness({
+  renderField,
+}: {
+  renderField: (fieldProps: {
+    value: string;
+    onChange: (value: string) => void;
+    onApplied: (condition: string) => void;
+  }) => ReactNode;
+}) {
   const [value, setValue] = useState<string>("");
   const [validCondition, setValidCondition] = useState<string>("");
   return (
     <View width="600px" padding="size-400">
       <Flex direction="column" gap="size-100">
-        <DSLFilterConditionField
-          {...args}
-          value={value}
-          onChange={setValue}
-          completions={completions}
-          snippets={snippets}
-          loadCompletions={loadCompletions}
-          validateCondition={validateCondition}
-          onValidCondition={(validCondition) => {
-            setValidCondition(validCondition.condition);
-            args.onValidCondition(validCondition);
-          }}
-        />
+        {renderField({
+          value,
+          onChange: setValue,
+          onApplied: setValidCondition,
+        })}
         <Text color="text-700" size="XS">
           {validCondition
             ? `Applied condition: ${validCondition}`
@@ -151,7 +156,27 @@ const Template: StoryFn<DSLFilterConditionFieldProps> = (args) => {
       </Flex>
     </View>
   );
-};
+}
+
+const Template: StoryFn<DSLFilterConditionFieldProps> = (args) => (
+  <FilterFieldHarness
+    renderField={({ value, onChange, onApplied }) => (
+      <DSLFilterConditionField
+        {...args}
+        value={value}
+        onChange={onChange}
+        completions={completions}
+        snippets={snippets}
+        loadCompletions={loadCompletions}
+        validateCondition={validateCondition}
+        onValidCondition={(validCondition) => {
+          onApplied(validCondition.condition);
+          args.onValidCondition(validCondition);
+        }}
+      />
+    )}
+  />
+);
 
 /**
  * Focus the empty field to see suggested conditions and fields; type to
@@ -164,20 +189,18 @@ export const Default = {
 };
 
 function AIQueryTemplate(args: DSLFilterConditionFieldProps) {
-  const [value, setValue] = useState<string>("");
-  const [validCondition, setValidCondition] = useState<string>("");
   return (
     <CredentialsProvider>
-      <View width="600px" padding="size-400">
-        <Flex direction="column" gap="size-100">
+      <FilterFieldHarness
+        renderField={({ value, onChange, onApplied }) => (
           <AIQueryDSLFilterField
             {...args}
             value={value}
-            onChange={setValue}
+            onChange={onChange}
             completions={completions}
             snippets={snippets}
             validateCondition={validateCondition}
-            onValidCondition={(args) => setValidCondition(args.condition)}
+            onValidCondition={(args) => onApplied(args.condition)}
             aiQuery={{
               dsl: createAIQueryDSL({
                 noun: "records",
@@ -188,13 +211,8 @@ function AIQueryTemplate(args: DSLFilterConditionFieldProps) {
                 "describe a record filter — Enter converts it to DSL",
             }}
           />
-          <Text color="text-700" size="XS">
-            {validCondition
-              ? `Applied condition: ${validCondition}`
-              : "No condition applied"}
-          </Text>
-        </Flex>
-      </View>
+        )}
+      />
     </CredentialsProvider>
   );
 }

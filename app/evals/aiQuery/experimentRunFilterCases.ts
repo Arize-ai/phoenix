@@ -1,32 +1,4 @@
-/**
- * A natural-language request paired with the experiment run filter
- * expressions accepted as correct translations. The first accepted
- * expression is the canonical answer; the rest are alternative phrasings
- * that filter the same runs (clause order, equivalent fields). Anything
- * else falls through to the LLM equivalence judge.
- */
-export type ExperimentRunFilterEvalCase = {
-  /** Stable example id — keeps experiment runs upserting onto the same dataset example. */
-  id: string;
-  /** The natural-language request a user would type. */
-  query: string;
-  /** Expressions accepted as (normalized) exact matches. */
-  accepted: string[];
-  /**
-   * The one thing this case isolates — the reason it earns a slot. Read it
-   * as "the case fails when the model ...".
-   */
-  probes: string;
-  /**
-   * Set when the query is a real question the DSL cannot express exactly:
-   * names the missing capability, and `accepted` holds today's best
-   * approximation. These cases are the language's measured wishlist — when
-   * the capability lands in `experiment_run_filters.py`, flip the accepted
-   * answers to the exact form and drop this tag, and the case becomes the
-   * regression test for the new syntax.
-   */
-  frontier?: string;
-};
+import type { FrontierFilterEvalCase } from "./evalCase";
 
 /**
  * Seeded from a production miss — "filter_correct is less than 1"
@@ -36,10 +8,11 @@ export type ExperimentRunFilterEvalCase = {
  * the experiments[i] scoping idiom. Prune cases every model exact-matches
  * across repeated runs, the way `spanFilterCases` was pruned.
  *
- * This set hill-climbs two things at once. Cases without a `frontier` tag
- * climb the prompt: they are expressible today, and a miss is a prompt
- * problem. Cases with one climb the language: the query is real, the DSL
- * cannot say it exactly, and the tag names the capability that would.
+ * This set hill-climbs two things at once. Cases without a
+ * `missingCapability` climb the prompt: they are expressible today, and a
+ * miss is a prompt problem. Cases with one climb the language: the query
+ * is real, the DSL cannot say it exactly, and the field names the
+ * capability that would.
  * Two engineer questions have no case because they have no approximation
  * at all — per-repetition flakiness (no repetition field in the DSL) and
  * aggregates ("the ten worst runs", "average score per experiment", which
@@ -50,19 +23,19 @@ export type ExperimentRunFilterEvalCase = {
  * `experimentRunFilterDSL`: a case that reuses an example's literals
  * measures recall, not translation.
  */
-export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
+export const experimentRunFilterCases: FrontierFilterEvalCase[] = [
   {
     id: "unseen-eval-name-score",
     query: "filter_correct is less than 1",
     accepted: ["evals['filter_correct'].score < 1"],
-    probes:
+    failureMode:
       "restates an eval name it has never seen as a numeric field it has — the production miss was latency_ms < 1000",
   },
   {
     id: "errored-runs",
     query: "runs that blew up",
     accepted: ["error is not None"],
-    probes: "reaches for the span dialect's status_code == 'ERROR'",
+    failureMode: "reaches for the span dialect's status_code == 'ERROR'",
   },
   {
     id: "error-substring",
@@ -71,34 +44,34 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "'rate limit' in error",
       "error is not None and 'rate limit' in error",
     ],
-    probes:
+    failureMode:
       "searches output or a status field for an error phrase instead of the error message",
   },
   {
     id: "eval-label",
     query: "runs the toxicity eval marked toxic",
     accepted: ["evals['toxicity'].label == 'toxic'"],
-    probes: "compares the score when the request names a label",
+    failureMode: "compares the score when the request names a label",
   },
   {
     id: "output-substring",
     query: "outputs that mention a refund",
     accepted: ["'refund' in output"],
-    probes:
+    failureMode:
       "picks the wrong one of the three text fields — input, output, reference_output",
   },
   {
     id: "reference-output-substring",
     query: "runs where the expected answer mentions Paris",
     accepted: ["'Paris' in reference_output['answer']"],
-    probes:
+    failureMode:
       "searches the run's output when the request points at the example's reference, or reads reference_output bare — the dialect requires a key",
   },
   {
     id: "latency-unit-conversion",
     query: "runs that took over two minutes",
     accepted: ["latency_ms > 120000", "latency_ms > 120_000"],
-    probes: "leaves the threshold in seconds or minutes",
+    failureMode: "leaves the threshold in seconds or minutes",
   },
   {
     id: "experiment-comparison",
@@ -108,7 +81,8 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "experiments[1].evals['conciseness'].score < experiments[0].evals['conciseness'].score",
       "experiments[0].evals['conciseness'].score > experiments[1].evals['conciseness'].score",
     ],
-    probes: "drops the experiments[i] scoping or counts experiments from 1",
+    failureMode:
+      "drops the experiments[i] scoping or counts experiments from 1",
   },
   {
     id: "error-or-low-score",
@@ -117,13 +91,14 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "error is not None or evals['relevance'].score < 0.3",
       "evals['relevance'].score < 0.3 or error is not None",
     ],
-    probes: "joins with and, or loses one branch of the disjunction",
+    failureMode: "joins with and, or loses one branch of the disjunction",
   },
   {
     id: "example-metadata",
     query: "runs on examples whose difficulty is hard",
     accepted: ["metadata['difficulty'] == 'hard'"],
-    probes: "invents a top-level difficulty field instead of a metadata key",
+    failureMode:
+      "invents a top-level difficulty field instead of a metadata key",
   },
   // --- Cross-experiment comparisons. The backend compiles each
   // experiments[i] reference against its own aliased run, so two experiments
@@ -139,7 +114,7 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "experiments[1].latency_ms > experiments[0].latency_ms",
       "experiments[0].latency_ms < experiments[1].latency_ms",
     ],
-    probes:
+    failureMode:
       "compares one experiment's latency to a constant instead of to the other experiment's",
   },
   {
@@ -150,9 +125,9 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "experiments[1].evals['correctness'].score < experiments[0].evals['correctness'].score",
       "experiments[0].evals['correctness'].score > experiments[1].evals['correctness'].score",
     ],
-    probes:
+    failureMode:
       "invents score subtraction the language does not have instead of approximating with a direct comparison",
-    frontier:
+    missingCapability:
       "subtraction between scoped fields — a - b > 0.2 is how engineers separate regression from noise",
   },
   {
@@ -162,7 +137,7 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "experiments[0].evals['sentiment'].label != experiments[1].evals['sentiment'].label",
       "experiments[1].evals['sentiment'].label != experiments[0].evals['sentiment'].label",
     ],
-    probes:
+    failureMode:
       "compares scores when the request names labels, or tests one experiment against a literal",
   },
   {
@@ -172,7 +147,7 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "experiments[0].output != experiments[1].output",
       "experiments[1].output != experiments[0].output",
     ],
-    probes:
+    failureMode:
       "leaves output unscoped, which cannot say anything about two experiments at once",
   },
   {
@@ -182,7 +157,8 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "experiments[0].error is not None and experiments[1].error is None",
       "experiments[1].error is None and experiments[0].error is not None",
     ],
-    probes: "drops one side of the asymmetry, or negates the wrong experiment",
+    failureMode:
+      "drops one side of the asymmetry, or negates the wrong experiment",
   },
   {
     id: "both-experiments-slow",
@@ -191,7 +167,7 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "experiments[0].latency_ms > 10000 and experiments[1].latency_ms > 10000",
       "experiments[1].latency_ms > 10000 and experiments[0].latency_ms > 10000",
     ],
-    probes:
+    failureMode:
       "leaves latency_ms unscoped — an unscoped field is OR'd across experiments, which asks whether either was slow, not both",
   },
   {
@@ -209,7 +185,7 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "latency_ms < 10000 and latency_ms >= 5000",
       "latency_ms <= 10000 and latency_ms > 5000",
     ],
-    probes:
+    failureMode:
       "chains the range like the span dialect — 5000 < latency_ms < 10000 — which this dialect rejects",
   },
   {
@@ -219,14 +195,14 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "evals['quality'].label == 'excellent' or evals['quality'].label == 'good'",
       "evals['quality'].label == 'good' or evals['quality'].label == 'excellent'",
     ],
-    probes:
+    failureMode:
       "tests the label against a list like the span dialect — in ['excellent', 'good'] — which this dialect rejects",
   },
   {
     id: "keyed-example-input",
     query: "runs whose input question mentions a visa",
     accepted: ["'visa' in input['question']"],
-    probes:
+    failureMode:
       "searches bare input, which the dialect rejects without a key selected",
   },
   // --- Regression-triage questions, phrased the way an AI engineer reading
@@ -243,7 +219,7 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "experiments[0].evals['grammar'].label == 'pass' and experiments[1].evals['grammar'].label == 'fail'",
       "experiments[1].evals['grammar'].label == 'fail' and experiments[0].evals['grammar'].label == 'pass'",
     ],
-    probes:
+    failureMode:
       "collapses the pass-to-fail transition into one unscoped label test, losing the direction of the flip",
   },
   {
@@ -254,7 +230,7 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "experiments[1].evals['accuracy'].score > experiments[0].evals['accuracy'].score and experiments[1].latency_ms > experiments[0].latency_ms",
       "experiments[1].latency_ms > experiments[0].latency_ms and experiments[1].evals['accuracy'].score > experiments[0].evals['accuracy'].score",
     ],
-    probes:
+    failureMode:
       "drops one axis of the tradeoff, or points both comparisons the same direction",
   },
   {
@@ -264,7 +240,7 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "evals['llm_judge'].label != evals['human'].label",
       "evals['human'].label != evals['llm_judge'].label",
     ],
-    probes:
+    failureMode:
       "reaches for experiments[i] when the request compares two evals on the same run",
   },
   {
@@ -275,7 +251,7 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "experiments[0].output != experiments[1].output and experiments[0].evals['coherence'].score == experiments[1].evals['coherence'].score",
       "experiments[0].evals['coherence'].score == experiments[1].evals['coherence'].score and experiments[0].output != experiments[1].output",
     ],
-    probes:
+    failureMode:
       "attaches 'didn't change' to the wrong field, or drops one conjunct of a two-part observation",
   },
   {
@@ -286,7 +262,7 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "experiments[2].evals['faithfulness'].score > experiments[0].evals['faithfulness'].score and experiments[2].evals['faithfulness'].score > experiments[1].evals['faithfulness'].score",
       "experiments[2].evals['faithfulness'].score > experiments[1].evals['faithfulness'].score and experiments[2].evals['faithfulness'].score > experiments[0].evals['faithfulness'].score",
     ],
-    probes:
+    failureMode:
       "stops after one comparison, or invents a max() the language does not have",
   },
   {
@@ -297,7 +273,7 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "experiments[0].error is not None or experiments[1].error is not None",
       "experiments[1].error is not None or experiments[0].error is not None",
     ],
-    probes:
+    failureMode:
       "does not know an unscoped field already means any compared experiment, or joins the scoped clauses with and",
   },
   {
@@ -305,13 +281,13 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
     query:
       "runs where the groundedness explanation mentions a missing citation",
     accepted: ["'missing citation' in evals['groundedness'].explanation"],
-    probes: "searches the output or the label instead of the explanation",
+    failureMode: "searches the output or the label instead of the explanation",
   },
   {
     id: "unscored-runs",
     query: "runs the safety eval never scored",
     accepted: ["evals['safety'].score is None"],
-    probes:
+    failureMode:
       "writes a bare evals['safety'] existence test, which this dialect rejects in boolean position",
   },
   {
@@ -322,9 +298,9 @@ export const experimentRunFilterCases: ExperimentRunFilterEvalCase[] = [
       "experiments[1].latency_ms > experiments[0].latency_ms",
       "experiments[0].latency_ms < experiments[1].latency_ms",
     ],
-    probes:
+    failureMode:
       "invents multiplication the language does not have instead of approximating with a direct comparison",
-    frontier:
+    missingCapability:
       "multiplication in comparisons — b > 2 * a is how engineers ask for at-least-2x regressions",
   },
 ];

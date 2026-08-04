@@ -17,7 +17,6 @@ import {
   Text,
   Tooltip,
   TooltipTrigger,
-  VisuallyHidden,
 } from "@phoenix/components";
 import { PxiAnimatedGlyph } from "@phoenix/components/agent/PxiAnimatedGlyph";
 import { PxiGlyph } from "@phoenix/components/agent/PxiGlyph";
@@ -104,6 +103,7 @@ export type AIQueryDSLFilterFieldProps<
   | "isReadOnly"
   | "leadingVisual"
   | "extraControls"
+  | "extraStatus"
   | "onFocusChange"
   | "onClear"
   | "ref"
@@ -144,19 +144,25 @@ export function AIQueryDSLFilterField<
 
   const fieldRef = useRef<DSLFilterConditionFieldRef | null>(null);
 
-  // In plain-English mode every non-empty idle draft is a query waiting
-  // for Enter — the state the "AI · ⏎" affordance points at
-  const hasPendingAIQuery =
-    isAIModeOn && aiPhase.name === "idle" && value.trim() !== "";
-  // In DSL mode the same draft can instead be handed to AI query with
-  // Mod-Enter — hinted at only while the user is actually typing (focused,
-  // non-empty) so an applied filter at rest doesn't carry a badge
-  const hasAIQueryHint =
-    isAIActive &&
-    !isAIModeOn &&
-    isFieldFocused &&
-    aiPhase.name === "idle" &&
-    value.trim() !== "";
+  // A non-empty idle draft is a query waiting for its conversion key: in
+  // plain-English mode that is Enter; in DSL mode, Mod-Enter — hinted only
+  // while the user is actually typing (focused), so an applied filter at
+  // rest doesn't carry a badge.
+  const hasIdleDraft =
+    isAIActive && aiPhase.name === "idle" && value.trim() !== "";
+  const conversionHint = !hasIdleDraft
+    ? null
+    : isAIModeOn
+      ? {
+          title: "Press Enter to convert to a filter expression",
+          label: "AI · ⏎",
+        }
+      : isFieldFocused
+        ? {
+            title: `Press ${modifierKey}+Enter to query with AI`,
+            label: `AI · ${modifierKey === "Cmd" ? "⌘" : "Ctrl"}⏎`,
+          }
+        : null;
 
   // Every change this composition makes (typing passed through, AI
   // streaming, restores) goes through `emitChange` so its round-trip back
@@ -486,20 +492,9 @@ export function AIQueryDSLFilterField<
         }
         extraControls={
           <>
-            {hasPendingAIQuery ? (
-              <span
-                className="ai-badge"
-                title="Press Enter to convert to a filter expression"
-              >
-                AI · ⏎
-              </span>
-            ) : null}
-            {hasAIQueryHint ? (
-              <span
-                className="ai-badge"
-                title={`Press ${modifierKey}+Enter to query with AI`}
-              >
-                AI · {modifierKey === "Cmd" ? "⌘" : "Ctrl"}⏎
+            {conversionHint ? (
+              <span className="ai-badge" title={conversionHint.title}>
+                {conversionHint.label}
               </span>
             ) : null}
             {/* The thinking glyph carries the "working" signal; a badge
@@ -558,18 +553,18 @@ export function AIQueryDSLFilterField<
             <AIQuerySettingsButton />
           </>
         }
+        extraStatus={
+          <span role="status">
+            {isConverting
+              ? "Converting to a filter expression"
+              : aiPhase.name === "generated"
+                ? "Filter expression generated. Press Escape to undo."
+                : aiPhase.name === "failed"
+                  ? `AI query failed. ${aiPhase.message}`
+                  : ""}
+          </span>
+        }
       />
-      <VisuallyHidden>
-        <span role="status">
-          {isConverting
-            ? "Converting to a filter expression"
-            : aiPhase.name === "generated"
-              ? "Filter expression generated. Press Escape to undo."
-              : aiPhase.name === "failed"
-                ? `AI query failed. ${aiPhase.message}`
-                : ""}
-        </span>
-      </VisuallyHidden>
     </AIOutline>
   );
 }

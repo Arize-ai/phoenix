@@ -1,6 +1,7 @@
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import type { LanguageModel } from "ai";
 
+import { formatAIQueryFieldLines } from "@phoenix/components/filter/ai/buildAIQueryPrompt";
 import type { AIQueryDSL } from "@phoenix/components/filter/ai/types";
 
 import { evalTracer } from "./telemetry";
@@ -31,13 +32,7 @@ export function createFilterIntentJudge({
   model: LanguageModel;
   dsl: AIQueryDSL;
 }) {
-  const fieldLines = dsl.fields
-    .map((field) =>
-      field.description
-        ? `- ${field.name}: ${field.description}`
-        : `- ${field.name}`
-    )
-    .join("\n");
+  const fieldLines = formatAIQueryFieldLines(dsl);
   return createClassificationEvaluator<FilterIntentRecord>({
     name: "filter_intent",
     model,

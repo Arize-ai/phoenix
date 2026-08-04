@@ -9,8 +9,14 @@ export type SpanFilterEvalModel = {
   modelId: string;
   /** The tier of the AI query feature this model simulates. */
   simulates: string;
-  /** The `filter_correct` pass rate the suite must reach to pass. */
+  /** The `filter_correct` pass rate the correctness suites must reach to pass. */
   minPassRate: number;
+  /**
+   * The `intent_captured` pass rate the intent suite must reach to pass.
+   * Kept on the model entry (rather than a lookup keyed by model id) so
+   * adding a model cannot silently ship without an intent bar.
+   */
+  intentMinPassRate: number;
 };
 
 /**
@@ -25,16 +31,19 @@ export const GOOGLE_EVAL_MODELS: SpanFilterEvalModel[] = [
     modelId: "gemma-4-26b-a4b-it",
     simulates: "Gemini Nano (on-device class, ~4B active params)",
     minPassRate: 0.75,
+    intentMinPassRate: 0.5,
   },
   {
     modelId: "gemini-3.1-flash-lite",
     simulates: "small hosted provider model",
     minPassRate: 0.85,
+    intentMinPassRate: 0.65,
   },
   {
     modelId: "gemini-3.5-flash-lite",
     simulates: "smallest current hosted provider model",
     minPassRate: 0.85,
+    intentMinPassRate: 0.65,
   },
 ];
 

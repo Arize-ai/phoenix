@@ -32,17 +32,6 @@ if (!googleApiKey) {
   });
 }
 
-/**
- * Initial bars, deliberately below the correctness suite's: the prompt has
- * no query-expansion guidance yet, and this suite exists to measure that
- * gap. Raise them as the prompt learns to capture intent.
- */
-const INTENT_MIN_PASS_RATE: Record<string, number> = {
-  "gemma-4-26b-a4b-it": 0.5,
-  "gemini-3.1-flash-lite": 0.65,
-  "gemini-3.5-flash-lite": 0.65,
-};
-
 const judge = createFilterIntentJudge({
   model: createGoogleEvalModel(JUDGE_MODEL_ID),
   dsl: spanFilterAIQueryDSL,
@@ -60,6 +49,8 @@ const rows = spanFilterIntentCases.map((evalCase) => ({
 }));
 
 for (const evalModel of googleApiKey ? GOOGLE_EVAL_MODELS : []) {
+  // One client per suite rather than per row, like the hoisted judge
+  const generationModel = createGoogleEvalModel(evalModel.modelId);
   px.describe(
     `AI query span filter intent · ${evalModel.modelId}`,
     () => {
@@ -67,7 +58,7 @@ for (const evalModel of googleApiKey ? GOOGLE_EVAL_MODELS : []) {
         (row) => row.id ?? row.input.query,
         async ({ input, expected }) => {
           const { expression } = await generateFilterCondition({
-            model: createGoogleEvalModel(evalModel.modelId),
+            model: generationModel,
             dsl: spanFilterAIQueryDSL,
             query: input.query,
           });
@@ -116,14 +107,14 @@ for (const evalModel of googleApiKey ? GOOGLE_EVAL_MODELS : []) {
       metadata: {
         model: evalModel.modelId,
         simulates: evalModel.simulates,
-        minPassRate: INTENT_MIN_PASS_RATE[evalModel.modelId],
+        minPassRate: evalModel.intentMinPassRate,
       },
       acceptanceCriteria: [
         {
           annotationName: "intent_captured",
           metric: "passRate",
           passFn: (annotation) => annotation.score === 1,
-          minPassRate: INTENT_MIN_PASS_RATE[evalModel.modelId] ?? 0.5,
+          minPassRate: evalModel.intentMinPassRate,
         },
       ],
     }

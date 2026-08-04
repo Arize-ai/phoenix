@@ -26,10 +26,10 @@ export type SpanFilterIntentEvalCase = {
    */
   surfaceForms: string[];
   /**
-   * The one thing this case isolates — the reason it earns a slot. Read it
-   * as "the case fails when the model ...".
+   * The specific wrong answer this case exists to catch — the reason it
+   * has a slot in the suite.
    */
-  probes: string;
+  failureMode: string;
 };
 
 /**
@@ -52,7 +52,7 @@ export const spanFilterIntentCases: SpanFilterIntentEvalCase[] = [
     expectedFields: ["output.value"],
     wrongFields: ["input.value"],
     surfaceForms: ["sorry", "apolog", "I apologize", "regret"],
-    probes:
+    failureMode:
       "echoes 'apology' as the search term (real apologies say 'sorry' or 'I apologize') or searches the input instead of the response",
   },
   {
@@ -62,7 +62,7 @@ export const spanFilterIntentCases: SpanFilterIntentEvalCase[] = [
     expectedFields: ["output.value"],
     wrongFields: ["input.value"],
     surfaceForms: ["I can't", "cannot", "unable to", "I won't", "not able to"],
-    probes: "searches for 'refused', a word refusals almost never contain",
+    failureMode: "searches for 'refused', a word refusals almost never contain",
   },
   {
     id: "frustrated-user",
@@ -77,7 +77,7 @@ export const spanFilterIntentCases: SpanFilterIntentEvalCase[] = [
       "useless",
       "third time",
     ],
-    probes:
+    failureMode:
       "searches for 'frustrated' itself, or reads the assistant's output for the user's mood",
   },
   {
@@ -93,7 +93,8 @@ export const spanFilterIntentCases: SpanFilterIntentEvalCase[] = [
       "I believe",
       "can't be certain",
     ],
-    probes: "searches for 'hedge' or 'hedged', jargon no model output contains",
+    failureMode:
+      "searches for 'hedge' or 'hedged', jargon no model output contains",
   },
   {
     id: "user-wants-human",
@@ -112,7 +113,7 @@ export const spanFilterIntentCases: SpanFilterIntentEvalCase[] = [
     // Included as the control: here the concept word IS a surface form, so
     // a faithful literal answer must pass — the judge may not demand
     // expansion where none is needed
-    probes:
+    failureMode:
       "searches the response for the request, or collapses to the full phrase 'asked for a human' that no user types",
   },
   {
@@ -122,7 +123,7 @@ export const spanFilterIntentCases: SpanFilterIntentEvalCase[] = [
     expectedFields: ["input.value"],
     wrongFields: ["output.value"],
     surfaceForms: ["thank", "thanks", "appreciate", "grateful"],
-    probes:
+    failureMode:
       "searches for 'gratitude' or 'expressed gratitude', phrasing thankful users never type",
   },
 ];

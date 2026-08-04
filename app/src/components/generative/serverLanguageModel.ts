@@ -14,7 +14,7 @@ import { prependBasename } from "@phoenix/utils/routingUtils";
  * `modelId` is the proxy's wire format: `{provider}:{model_name}` for
  * built-in providers, `custom:{provider_id}:{model_name}` for stored custom
  * provider records. Feature surfaces own their encoders (see the AI query
- * `toServerModelId` and the chat page's `toChatModelId`).
+ * `toServerModelId`).
  */
 export async function createServerLanguageModel(
   modelId: string,

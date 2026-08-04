@@ -301,6 +301,13 @@ export type DSLFilterConditionFieldProps<
    */
   extraControls?: ReactNode;
   /**
+   * Additional screen-reader announcements, rendered into the field's
+   * visually hidden region beside the validation status — compositions
+   * announce their own state changes here (as `role="status"` content)
+   * rather than mounting a second live region of their own.
+   */
+  extraStatus?: ReactNode;
+  /**
    * Reports focus entering/leaving the editor, for compositions whose
    * affordances depend on whether the user is in the field.
    */
@@ -405,6 +412,7 @@ export function DSLFilterConditionField<
     isReadOnly = false,
     leadingVisual,
     extraControls,
+    extraStatus,
     onFocusChange,
     onClear,
     ref,
@@ -494,12 +502,13 @@ export function DSLFilterConditionField<
         ? completion
         : { ...completion, section: fieldsSection }
     );
-    const staticOptions = (isBrowsing: boolean): Completion[] => [
-      ...(isBrowsing
-        ? snippetOptions.slice(0, MAX_BROWSE_SUGGESTIONS)
-        : snippetOptions),
-      ...(isBrowsing ? fieldOptions.slice(0, MAX_BROWSE_FIELDS) : fieldOptions),
+    const browseOptions = [
+      ...snippetOptions.slice(0, MAX_BROWSE_SUGGESTIONS),
+      ...fieldOptions.slice(0, MAX_BROWSE_FIELDS),
     ];
+    const allOptions = [...snippetOptions, ...fieldOptions];
+    const staticOptions = (isBrowsing: boolean): Completion[] =>
+      isBrowsing ? browseOptions : allOptions;
     return [
       ...composedExtensions,
       singleLineKeymap,
@@ -754,6 +763,7 @@ export function DSLFilterConditionField<
         <span id={errorId} role="status">
           {hasError ? `Invalid filter condition. ${errorMessage}`.trim() : ""}
         </span>
+        {extraStatus}
       </VisuallyHidden>
     </div>
   );

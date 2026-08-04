@@ -121,14 +121,16 @@ export function AIQueryModelPicker({
             <BrowserModelAvailabilityStatus warningOnly={isCompact} />
           ) : null}
         </Flex>
-        {isCompact ? null : config.kind === "browser" ? (
+        {isCompact ? null : (
           <span className="ai-query-model-picker__hint">
-            <BrowserBuiltInModelText />
-          </span>
-        ) : (
-          <span className="ai-query-model-picker__hint">
-            Provider credentials are managed on the server in{" "}
-            <Link to="/settings/providers">Settings → AI Providers</Link>
+            {config.kind === "browser" ? (
+              <BrowserBuiltInModelText />
+            ) : (
+              <>
+                Provider credentials are managed on the server in{" "}
+                <Link to="/settings/providers">Settings → AI Providers</Link>
+              </>
+            )}
           </span>
         )}
       </Flex>

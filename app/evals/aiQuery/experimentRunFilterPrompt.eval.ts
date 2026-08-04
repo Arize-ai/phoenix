@@ -42,6 +42,8 @@ const rows = experimentRunFilterCases.map((evalCase) => ({
 }));
 
 for (const evalModel of googleApiKey ? GOOGLE_EVAL_MODELS : []) {
+  // One client per suite rather than per row, like the hoisted judge
+  const generationModel = createGoogleEvalModel(evalModel.modelId);
   px.describe(
     `AI query experiment run filter prompt · ${evalModel.modelId}`,
     () => {
@@ -49,7 +51,7 @@ for (const evalModel of googleApiKey ? GOOGLE_EVAL_MODELS : []) {
         (row) => row.id ?? row.input.query,
         async ({ input, expected }) => {
           const { expression } = await generateFilterCondition({
-            model: createGoogleEvalModel(evalModel.modelId),
+            model: generationModel,
             dsl: experimentRunFilterAIQueryDSL,
             query: input.query,
           });

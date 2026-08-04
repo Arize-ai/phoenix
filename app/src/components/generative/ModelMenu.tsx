@@ -189,23 +189,7 @@ export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> &
      * @default "default"
      */
     variant?: "default" | "quiet";
-    /**
-     * Narrows the built-in providers the menu offers. Called for every
-     * provider the menu would otherwise list; return false to leave it out
-     * entirely. Callers that can only reach a subset of providers use this so
-     * the picker never offers a model they cannot run.
-     */
-    providerFilter?: (provider: ModelProviderInfo) => boolean;
-    /**
-     * Whether custom providers are offered. Custom providers are configured
-     * on the server, so callers that don't go through the server exclude
-     * them.
-     * @default true
-     */
-    includeCustomProviders?: boolean;
   };
-
-const NO_CUSTOM_PROVIDERS: CustomProviderInfo[] = [];
 
 export function ModelMenu({
   value,
@@ -214,8 +198,6 @@ export function ModelMenu({
   placement,
   shouldFlip,
   variant = "default",
-  providerFilter,
-  includeCustomProviders = true,
   leadingItems,
   selectedLeadingItemId,
   onLeadingItemSelect,
@@ -243,22 +225,11 @@ export function ModelMenu({
     [onChange, awsBedrockModelPrefix]
   );
   const {
-    customProviders: allCustomProviders,
+    customProviders,
     modelsByProvider,
     providerInfoMap,
-    visibleProviders: allVisibleProviders,
+    visibleProviders,
   } = useModelMenuData();
-
-  const visibleProviders = useMemo(
-    () =>
-      providerFilter
-        ? allVisibleProviders.filter(providerFilter)
-        : allVisibleProviders,
-    [allVisibleProviders, providerFilter]
-  );
-  const customProviders = includeCustomProviders
-    ? allCustomProviders
-    : NO_CUSTOM_PROVIDERS;
 
   // Providers whose models are searchable: visible in the menu and with
   // server dependencies installed, so search never surfaces a model that
