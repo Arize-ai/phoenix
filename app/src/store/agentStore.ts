@@ -124,13 +124,13 @@ export type PendingAgentMessage = {
  * Dismissable per-session notices raised by a rejected send or compaction
  * (HTTP 409). Unlike "busyElsewhere" — a live mode derived from server state —
  * these are sticky records of a past rejection that clear on the next send:
- * - "refreshedFromStale": the transcript was replaced because another client
+ * - "messagesAddedElsewhere": the transcript was replaced because another client
  *   appended to the session; drives the "chat has been refreshed" notice.
  * - "modelChangedElsewhere": another client moved the session to a different
  *   model; the transcript is untouched, so the notice names the model change.
  */
 export type AgentSessionDismissableNotice =
-  | "refreshedFromStale"
+  | "messagesAddedElsewhere"
   | "modelChangedElsewhere";
 
 /**

@@ -262,7 +262,7 @@ export function createAgentSessionChat({
         // Raise the refreshed-from-stale notice now; it renders once the
         // poll exits busy mode with the fresh transcript in place, and
         // clears on the next send.
-        store.getState().setSessionNotice(sessionId, "refreshedFromStale");
+        store.getState().setSessionNotice(sessionId, "messagesAddedElsewhere");
       }
       if (isModelStaleRejection) {
         // No other turn is running and the transcript is untouched — only

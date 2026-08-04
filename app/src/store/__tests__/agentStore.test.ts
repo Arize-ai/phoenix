@@ -520,9 +520,9 @@ describe("agentStore", () => {
     it("stores at most one dismissable notice per session", () => {
       const store = createAgentStore();
 
-      store.getState().setSessionNotice("s1", "refreshedFromStale");
+      store.getState().setSessionNotice("s1", "messagesAddedElsewhere");
       expect(selectSessionNotice(store.getState(), "s1")).toBe(
-        "refreshedFromStale"
+        "messagesAddedElsewhere"
       );
 
       store.getState().setSessionNotice("s1", "modelChangedElsewhere");
@@ -536,14 +536,14 @@ describe("agentStore", () => {
 
     it("gives busy-elsewhere precedence and restores the notice after the lock clears", () => {
       const store = createAgentStore();
-      store.getState().setSessionNotice("s1", "refreshedFromStale");
+      store.getState().setSessionNotice("s1", "messagesAddedElsewhere");
 
       store.getState().setSessionBusyElsewhere("s1", true);
       expect(selectSessionNotice(store.getState(), "s1")).toBe("busyElsewhere");
 
       store.getState().setSessionBusyElsewhere("s1", false);
       expect(selectSessionNotice(store.getState(), "s1")).toBe(
-        "refreshedFromStale"
+        "messagesAddedElsewhere"
       );
     });
 

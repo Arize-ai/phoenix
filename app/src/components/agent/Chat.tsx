@@ -521,8 +521,6 @@ export function ChatView({
   const draftInput = useAgentContext((state) =>
     sessionId ? (state.draftInputBySessionId[sessionId] ?? "") : ""
   );
-  // Which conflict notice (if any) to render; precedence between the busy
-  // banner and the dismissable notices is defined once in the store.
   const sessionNotice = useAgentContext((state) =>
     selectSessionNotice(state, sessionId)
   );
@@ -902,7 +900,7 @@ export function ChatView({
               </Alert>
             </div>
           ) : null}
-          {sessionNotice === "refreshedFromStale" && sessionId ? (
+          {sessionNotice === "messagesAddedElsewhere" && sessionId ? (
             <div
               className="chat__session-notice"
               role="status"
