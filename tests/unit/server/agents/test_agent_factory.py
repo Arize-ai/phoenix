@@ -225,16 +225,20 @@ def docs_mcp_server() -> _OfflineDocsMCPToolset:
 def model_with_web_access() -> TestModel:
     """Model whose profile advertises both native web tools."""
     return TestModel(
+        call_tools=[],
         profile=ModelProfile(
             supported_native_tools=frozenset({WebSearchTool, WebFetchTool}),
-        )
+        ),
     )
 
 
 @pytest.fixture
 def model_without_web_access() -> TestModel:
     """Model whose profile advertises no native web tools."""
-    return TestModel(profile=ModelProfile(supported_native_tools=frozenset()))
+    return TestModel(
+        call_tools=[],
+        profile=ModelProfile(supported_native_tools=frozenset()),
+    )
 
 
 def _get_system_text_blocks(body: MessageCreateParams) -> list[BetaTextBlockParam]:
@@ -1700,6 +1704,45 @@ class TestWebAccessCapabilities:
         native_tool_types = self._get_native_tool_types(model_without_web_access)
         assert WebSearchTool not in native_tool_types
         assert WebFetchTool not in native_tool_types
+
+
+class TestToolSearchCapability:
+    async def test_external_tools_use_native_anthropic_tool_search(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        tools_by_name = {tool.get("name"): tool for tool in captured_request.body.get("tools", [])}
+        assert "tool_search_tool_bm25" in tools_by_name
+        assert tools_by_name["list_datasets"].get("defer_loading") is True
+        assert "defer_loading" not in tools_by_name["get_route_info"]
+        assert "defer_loading" not in tools_by_name["write_span_note"]
+
+    async def test_external_tools_are_deferred_to_local_search_fallback(self) -> None:
+        model = TestModel(call_tools=[])
+        agent = build_agent(model=model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        request_parameters = model.last_model_request_parameters
+        assert request_parameters is not None
+        tools_by_name = {
+            tool_definition.name: tool_definition
+            for tool_definition in request_parameters.function_tools
+        }
+        assert "search_tools" in tools_by_name
+        assert tools_by_name["search_tools"].tool_kind == "tool-search"
+        assert "list_datasets" not in tools_by_name
+        assert "get_route_info" in tools_by_name
+        assert tools_by_name["get_route_info"].defer_loading is False
+        assert "write_span_note" in tools_by_name
+        assert tools_by_name["write_span_note"].defer_loading is False
 
 
 class TestDatasetEvaluatorSelectAndEditToolGates:
