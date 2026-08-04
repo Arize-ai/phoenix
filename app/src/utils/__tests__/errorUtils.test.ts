@@ -1,7 +1,32 @@
 import {
   getErrorMessagesFromRelayMutationError,
   getErrorMessagesFromRelaySubscriptionError,
+  isAbortError,
 } from "../errorUtils";
+
+describe("isAbortError", () => {
+  it("should detect the DOMException browsers raise on abort", () => {
+    const error = new DOMException("The user aborted a request.", "AbortError");
+    expect(isAbortError(error)).toBe(true);
+  });
+
+  it("should detect abort errors from non-DOM sources", () => {
+    expect(isAbortError({ name: "AbortError" })).toBe(true);
+  });
+
+  it("should not treat other errors as aborts", () => {
+    expect(isAbortError(new DOMException("No gesture", "SecurityError"))).toBe(
+      false
+    );
+    expect(isAbortError(new Error("AbortError"))).toBe(false);
+  });
+
+  it("should tolerate values that are not objects", () => {
+    expect(isAbortError(null)).toBe(false);
+    expect(isAbortError(undefined)).toBe(false);
+    expect(isAbortError("AbortError")).toBe(false);
+  });
+});
 
 describe("getErrorMessagesFromRelayMutationError", () => {
   it("should extract error messages from a Relay mutation error", () => {
