@@ -70,7 +70,6 @@ from sqlalchemy import ColumnElement, Insert, exists, func, or_, select, tuple_,
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from strawberry.relay import GlobalID
@@ -434,13 +433,6 @@ class AgentSessionData(AgentSessionSummary):
             "null for an empty transcript."
         ),
     )
-    messages: list[PhoenixUIMessage] | None = Field(
-        default=None,
-        description=(
-            "The persisted transcript. Omitted when the session is fetched with "
-            "include_messages=false."
-        ),
-    )
 
 
 class ListAgentSessionsResponseBody(PaginatedResponseBody[AgentSessionSummary]):
@@ -452,6 +444,10 @@ class GetAgentSessionResponseBody(ResponseBody[AgentSessionData]):
 
 
 class PatchAgentSessionResponseBody(ResponseBody[AgentSessionData]):
+    pass
+
+
+class ListAgentSessionMessagesResponseBody(PaginatedResponseBody[PhoenixUIMessage]):
     pass
 
 
@@ -1809,6 +1805,14 @@ def _parse_agent_session_cursor(cursor: str) -> Cursor:
     return parsed_cursor
 
 
+def _parse_agent_session_message_cursor(cursor: str) -> Cursor:
+    """Parse a rowid-only keyset cursor for the session transcript."""
+    try:
+        return Cursor.from_string(cursor)
+    except (binascii.Error, KeyError, UnicodeDecodeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail="Invalid cursor format") from error
+
+
 def _to_agent_session_summary(agent_session: models.AgentSession) -> AgentSessionSummary:
     return AgentSessionSummary(
         id=str(GlobalID(models.AgentSession.__name__, str(agent_session.id))),
@@ -1990,19 +1994,17 @@ def create_agents_router(
         operation_id="getAgentSession",
         response_model_by_alias=True,
         response_model_exclude_unset=True,
-        # AI SDK part types and tool states are required on the wire but modeled as defaults.
-        # Do not set response_model_exclude_defaults=True here.
     )
     async def get_session(
         agent_id: str,
         session_id: str,
         request: Request,
-        include_messages: bool = Query(
-            True,
-            description=("Whether to include the persisted transcript in the response."),
-        ),
     ) -> GetAgentSessionResponseBody:
-        """Retrieve an owned session and, optionally, its persisted transcript."""
+        """Retrieve an owned session's metadata.
+
+        The transcript lives on the ``/messages`` subresource; this route is the
+        cheap synchronization probe clients poll while a session is idle.
+        """
         if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
         if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
@@ -2015,48 +2017,85 @@ def create_agents_router(
             raise HTTPException(status_code=422, detail="Invalid agent session ID") from error
 
         statement = select(models.AgentSession).where(models.AgentSession.id == session_rowid)
-        if include_messages:
-            statement = statement.options(selectinload(models.AgentSession.messages))
         if (user_id := _get_request_user_id(request)) is not None:
             statement = statement.where(models.AgentSession.user_id == user_id)
         async with request.app.state.db() as session:
             agent_session = await session.scalar(statement)
             if agent_session is None:
                 raise HTTPException(status_code=404, detail="Agent session not found")
-            if include_messages:
-                message_rows = agent_session.messages
-                last_message_id = message_rows[-1].message_id if message_rows else None
-            else:
-                last_message_id = await session.scalar(
-                    select(models.AgentSessionMessage.message_id)
-                    .where(models.AgentSessionMessage.agent_session_id == session_rowid)
-                    .order_by(models.AgentSessionMessage.id.desc())
-                    .limit(1)
-                )
+            last_message_id = await session.scalar(
+                select(models.AgentSessionMessage.message_id)
+                .where(models.AgentSessionMessage.agent_session_id == session_rowid)
+                .order_by(models.AgentSessionMessage.id.desc())
+                .limit(1)
+            )
 
         summary = _to_agent_session_summary(agent_session)
-        is_active = is_turn_active(
-            agent_session.heartbeat_at,
-            now=datetime.now(timezone.utc),
+        return GetAgentSessionResponseBody(
+            data=AgentSessionData(
+                **summary.model_dump(),
+                model=get_agent_session_model(agent_session),
+                is_active=is_turn_active(
+                    agent_session.heartbeat_at,
+                    now=datetime.now(timezone.utc),
+                ),
+                last_message_id=last_message_id,
+            )
         )
-        if include_messages:
-            data = AgentSessionData(
-                **summary.model_dump(),
-                model=get_agent_session_model(agent_session),
-                is_active=is_active,
-                last_message_id=last_message_id,
-                messages=[message.message for message in agent_session.messages],
+
+    @router.get(
+        "/agents/{agent_id}/sessions/{session_id}/messages",
+        operation_id="listAgentSessionMessages",
+        response_model_by_alias=True,
+        response_model_exclude_unset=True,
+        # AI SDK part types and tool states are required on the wire but modeled as defaults.
+        # Do not set response_model_exclude_defaults=True here.
+    )
+    async def list_session_messages(
+        agent_id: str,
+        session_id: str,
+        request: Request,
+        cursor: str | None = Query(default=None, description="Opaque pagination cursor."),
+        limit: int = Query(default=100, gt=0, le=1000),
+    ) -> ListAgentSessionMessagesResponseBody:
+        """Page through an owned session's persisted transcript, oldest first."""
+        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
+            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
+        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
+            raise HTTPException(status_code=403, detail="Server agent is disabled")
+        try:
+            session_rowid = from_global_id_with_expected_type(
+                GlobalID.from_id(session_id), models.AgentSession.__name__
             )
-        else:
-            # `messages` is deliberately left unset so response_model_exclude_unset
-            # drops it from the probe payload.
-            data = AgentSessionData(
-                **summary.model_dump(),
-                model=get_agent_session_model(agent_session),
-                is_active=is_active,
-                last_message_id=last_message_id,
-            )
-        return GetAgentSessionResponseBody(data=data)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail="Invalid agent session ID") from error
+
+        session_statement = select(models.AgentSession.id).where(
+            models.AgentSession.id == session_rowid
+        )
+        if (user_id := _get_request_user_id(request)) is not None:
+            session_statement = session_statement.where(models.AgentSession.user_id == user_id)
+        statement = select(models.AgentSessionMessage).where(
+            models.AgentSessionMessage.agent_session_id == session_rowid
+        )
+        if cursor is not None:
+            parsed_cursor = _parse_agent_session_message_cursor(cursor)
+            statement = statement.where(models.AgentSessionMessage.id > parsed_cursor.rowid)
+        statement = statement.order_by(models.AgentSessionMessage.id).limit(limit + 1)
+        async with request.app.state.db() as session:
+            if await session.scalar(session_statement) is None:
+                raise HTTPException(status_code=404, detail="Agent session not found")
+            message_rows = list((await session.scalars(statement)).all())
+
+        has_next_page = len(message_rows) > limit
+        message_rows = message_rows[:limit]
+        next_cursor = None
+        if has_next_page and message_rows:
+            next_cursor = str(Cursor(rowid=message_rows[-1].id))
+        return ListAgentSessionMessagesResponseBody(
+            data=[message_row.message for message_row in message_rows],
+            next_cursor=next_cursor,
+        )
 
     @router.post(
         "/agents/{agent_id}/sessions/{session_id}/compact",

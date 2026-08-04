@@ -1718,6 +1718,17 @@ class TranscriptPersistedChunk(TypedDict):
     transient: NotRequired[bool]
 
 
+class AgentSessionData(TypedDict):
+    id: str
+    title: str
+    created_at: str
+    updated_at: str
+    is_ephemeral: bool
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    is_active: bool
+    last_message_id: NotRequired[str]
+
+
 class AssignAnnotationConfigToProjectResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
@@ -1750,6 +1761,10 @@ class CreateSpansRequestBody(TypedDict):
 
 class DeleteAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+
+
+class GetAgentSessionResponseBody(TypedDict):
+    data: AgentSessionData
 
 
 class GetIncompleteEvaluationsResponseBody(TypedDict):
@@ -1877,6 +1892,10 @@ class PatchAgentSessionRequestBody(TypedDict):
     model: NotRequired[Union[CustomProviderModelSelection, BuiltInProviderModelSelection]]
 
 
+class PatchAgentSessionResponseBody(TypedDict):
+    data: AgentSessionData
+
+
 class PhoenixUIMessage(TypedDict):
     id: str
     role: Literal["system", "user", "assistant"]
@@ -1925,18 +1944,6 @@ class PromptMessage(TypedDict):
     ]
 
 
-class AgentSessionData(TypedDict):
-    id: str
-    title: str
-    created_at: str
-    updated_at: str
-    is_ephemeral: bool
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-    is_active: bool
-    last_message_id: NotRequired[str]
-    messages: NotRequired[Sequence[PhoenixUIMessage]]
-
-
 class ChatRequest(TypedDict):
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     id: str
@@ -1976,12 +1983,9 @@ class CompactAgentSessionResponseData(TypedDict):
     compaction_message: NotRequired[PhoenixUIMessage]
 
 
-class GetAgentSessionResponseBody(TypedDict):
-    data: AgentSessionData
-
-
-class PatchAgentSessionResponseBody(TypedDict):
-    data: AgentSessionData
+class ListAgentSessionMessagesResponseBody(TypedDict):
+    data: Sequence[PhoenixUIMessage]
+    next_cursor: Optional[str]
 
 
 class PromptChatTemplate(TypedDict):

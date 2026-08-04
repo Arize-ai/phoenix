@@ -1598,7 +1598,10 @@ export interface paths {
         };
         /**
          * Get Session
-         * @description Retrieve an owned session and, optionally, its persisted transcript.
+         * @description Retrieve an owned session's metadata.
+         *
+         *     The transcript lives on the ``/messages`` subresource; this route is the
+         *     cheap synchronization probe clients poll while a session is idle.
          */
         get: operations["getAgentSession"];
         put?: never;
@@ -1611,6 +1614,26 @@ export interface paths {
          * @description Update a persisted session's mutable fields.
          */
         patch: operations["patchAgentSession"];
+        trace?: never;
+    };
+    "/agents/{agent_id}/sessions/{session_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Session Messages
+         * @description Page through an owned session's persisted transcript, oldest first.
+         */
+        get: operations["listAgentSessionMessages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/agents/{agent_id}/sessions/{session_id}/compact": {
@@ -1744,11 +1767,6 @@ export interface components {
              * @description The message ID of the most recently persisted transcript message, or null for an empty transcript.
              */
             last_message_id?: string | null;
-            /**
-             * Messages
-             * @description The persisted transcript. Omitted when the session is fetched with include_messages=false.
-             */
-            messages?: components["schemas"]["PhoenixUIMessage"][] | null;
         };
         /** AgentSessionSummary */
         AgentSessionSummary: {
@@ -3347,6 +3365,13 @@ export interface components {
             model: components["schemas"]["AgentModelSelection"];
         } & {
             [key: string]: unknown;
+        };
+        /** ListAgentSessionMessagesResponseBody */
+        ListAgentSessionMessagesResponseBody: {
+            /** Data */
+            data: components["schemas"]["PhoenixUIMessage"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** ListAgentSessionsResponseBody */
         ListAgentSessionsResponseBody: {
@@ -11464,10 +11489,7 @@ export interface operations {
     };
     getAgentSession: {
         parameters: {
-            query?: {
-                /** @description Whether to include the persisted transcript in the response. */
-                include_messages?: boolean;
-            };
+            query?: never;
             header?: never;
             path: {
                 agent_id: string;
@@ -11520,6 +11542,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PatchAgentSessionResponseBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listAgentSessionMessages: {
+        parameters: {
+            query?: {
+                /** @description Opaque pagination cursor. */
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                agent_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListAgentSessionMessagesResponseBody"];
                 };
             };
             /** @description Validation Error */

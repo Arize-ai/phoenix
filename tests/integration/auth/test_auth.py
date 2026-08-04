@@ -2032,6 +2032,18 @@ class TestApiAccessViaCookiesOrApiKeys:
             member_api_client.get(f"agents/assistant/sessions/{admin_session_id}").status_code
             == 404
         )
+        assert (
+            member_api_client.get(
+                f"agents/assistant/sessions/{member_session_id}/messages"
+            ).status_code
+            == 200
+        )
+        assert (
+            member_api_client.get(
+                f"agents/assistant/sessions/{admin_session_id}/messages"
+            ).status_code
+            == 404
+        )
 
     def test_agent_sessions_default_to_admins_own_sessions(
         self,

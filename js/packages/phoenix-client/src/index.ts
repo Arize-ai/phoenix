@@ -1,7 +1,10 @@
 export * from "./client";
 export * from "./authFetch";
 export * from "./errors";
-export { AGENT_SESSION_CHAT } from "./constants/serverRequirements";
+export {
+  AGENT_SESSION_CHAT,
+  AGENT_SESSION_MESSAGES,
+} from "./constants/serverRequirements";
 export { formatApiError } from "./utils/apiErrorUtils";
 export {
   formatVersion,

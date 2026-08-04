@@ -119,7 +119,7 @@ class TestListAgentSessions:
 
 
 class TestGetAgentSession:
-    async def test_gets_session_with_ordered_messages(
+    async def test_gets_session_metadata_with_transcript_tail(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
@@ -158,53 +158,11 @@ class TestGetAgentSession:
             "modelName": "gpt-test",
             "openaiApiType": "responses",
         }
-        assert [message["id"] for message in data["messages"]] == [
-            _message_uuid("user-message"),
-            _message_uuid("assistant-message"),
-        ]
-        assert data["messages"][0]["parts"] == [{"type": "text", "text": "Hello"}]
-        assert data["messages"][1]["parts"] == [{"type": "text", "text": "Hi"}]
-        assert data["last_message_id"] == _message_uuid("assistant-message")
-
-    async def test_sync_probe_omits_messages_but_reports_transcript_tail(
-        self,
-        httpx_client: httpx.AsyncClient,
-        db: DbSessionFactory,
-    ) -> None:
-        now = datetime.now(timezone.utc)
-        messages = [
-            PhoenixUIMessage(
-                id=_message_uuid("user-message"),
-                role="user",
-                parts=[TextUIPart(type="text", text="Hello")],
-            ),
-            PhoenixUIMessage(
-                id=_message_uuid("assistant-message"),
-                role="assistant",
-                parts=[TextUIPart(type="text", text="Hi")],
-            ),
-        ]
-        agent_session = await _insert_agent_session(
-            db,
-            title="Conversation",
-            updated_at=now,
-            messages=messages,
-        )
-        session_id = str(GlobalID("AgentSession", str(agent_session.id)))
-
-        response = await httpx_client.get(
-            f"/agents/assistant/sessions/{session_id}",
-            params={"include_messages": False},
-        )
-
-        assert response.status_code == 200
-        data = response.json()["data"]
-        assert data["id"] == session_id
         assert data["is_active"] is False
         assert data["last_message_id"] == _message_uuid("assistant-message")
         assert "messages" not in data
 
-    async def test_sync_probe_reports_null_tail_for_empty_transcript(
+    async def test_reports_null_tail_for_empty_transcript(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
@@ -213,10 +171,7 @@ class TestGetAgentSession:
         agent_session = await _insert_agent_session(db, title="Empty", updated_at=now)
         session_id = str(GlobalID("AgentSession", str(agent_session.id)))
 
-        response = await httpx_client.get(
-            f"/agents/assistant/sessions/{session_id}",
-            params={"include_messages": False},
-        )
+        response = await httpx_client.get(f"/agents/assistant/sessions/{session_id}")
 
         assert response.status_code == 200
         data = response.json()["data"]
@@ -271,3 +226,141 @@ class TestGetAgentSession:
     async def test_rejects_invalid_id(self, httpx_client: httpx.AsyncClient) -> None:
         response = await httpx_client.get("/agents/assistant/sessions/invalid")
         assert response.status_code == 422
+
+
+class TestListAgentSessionMessages:
+    async def test_returns_the_ordered_transcript(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        agent_session = await _insert_agent_session(
+            db,
+            title="Conversation",
+            updated_at=datetime.now(timezone.utc),
+            messages=[
+                PhoenixUIMessage(
+                    id=_message_uuid("user-message"),
+                    role="user",
+                    parts=[TextUIPart(type="text", text="Hello")],
+                ),
+                PhoenixUIMessage(
+                    id=_message_uuid("assistant-message"),
+                    role="assistant",
+                    parts=[TextUIPart(type="text", text="Hi")],
+                ),
+            ],
+        )
+        session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+        response = await httpx_client.get(f"/agents/assistant/sessions/{session_id}/messages")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert [message["id"] for message in payload["data"]] == [
+            _message_uuid("user-message"),
+            _message_uuid("assistant-message"),
+        ]
+        assert payload["data"][0]["parts"] == [{"type": "text", "text": "Hello"}]
+        assert payload["data"][1]["parts"] == [{"type": "text", "text": "Hi"}]
+        assert payload["next_cursor"] is None
+
+    async def test_paginates_the_transcript_by_message_order(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        message_ids = [_message_uuid(f"message-{index}") for index in range(3)]
+        agent_session = await _insert_agent_session(
+            db,
+            title="Conversation",
+            updated_at=datetime.now(timezone.utc),
+            messages=[
+                PhoenixUIMessage(
+                    id=message_id,
+                    role="user" if index % 2 == 0 else "assistant",
+                    parts=[TextUIPart(type="text", text=f"Message {index}")],
+                )
+                for index, message_id in enumerate(message_ids)
+            ],
+        )
+        session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+        fetched: list[str] = []
+        cursor: str | None = None
+        for _ in range(len(message_ids)):
+            params: dict[str, object] = {"limit": 1}
+            if cursor is not None:
+                params["cursor"] = cursor
+            response = await httpx_client.get(
+                f"/agents/assistant/sessions/{session_id}/messages",
+                params=params,
+            )
+            assert response.status_code == 200
+            payload = response.json()
+            assert len(payload["data"]) == 1
+            fetched.append(payload["data"][0]["id"])
+            cursor = payload["next_cursor"]
+
+        assert fetched == message_ids
+        assert cursor is None
+
+    async def test_returns_empty_transcript(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        agent_session = await _insert_agent_session(
+            db, title="Empty", updated_at=datetime.now(timezone.utc)
+        )
+        session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+        response = await httpx_client.get(f"/agents/assistant/sessions/{session_id}/messages")
+
+        assert response.status_code == 200
+        assert response.json() == {"data": [], "next_cursor": None}
+
+    async def test_rejects_invalid_session_id(self, httpx_client: httpx.AsyncClient) -> None:
+        response = await httpx_client.get("/agents/assistant/sessions/invalid/messages")
+        assert response.status_code == 422
+
+    async def test_rejects_invalid_cursor(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        agent_session = await _insert_agent_session(
+            db, title="Conversation", updated_at=datetime.now(timezone.utc)
+        )
+        session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+        response = await httpx_client.get(
+            f"/agents/assistant/sessions/{session_id}/messages",
+            params={"cursor": "invalid"},
+        )
+
+        assert response.status_code == 422
+
+    async def test_rejects_unknown_agent(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        agent_session = await _insert_agent_session(
+            db, title="Conversation", updated_at=datetime.now(timezone.utc)
+        )
+        session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+        response = await httpx_client.get(f"/agents/nonexistent/sessions/{session_id}/messages")
+
+        assert response.status_code == 404
+
+    async def test_returns_not_found_for_nonexistent_session(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        session_id = str(GlobalID("AgentSession", "1000000"))
+
+        response = await httpx_client.get(f"/agents/assistant/sessions/{session_id}/messages")
+
+        assert response.status_code == 404

@@ -8245,8 +8245,60 @@
           "chat"
         ],
         "summary": "Get Session",
-        "description": "Retrieve an owned session and, optionally, its persisted transcript.",
+        "description": "Retrieve an owned session's metadata.\n\nThe transcript lives on the ``/messages`` subresource; this route is the\ncheap synchronization probe clients poll while a session is idle.",
         "operationId": "getAgentSession",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAgentSessionResponseBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agents/{agent_id}/sessions/{session_id}/messages": {
+      "get": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "List Session Messages",
+        "description": "Page through an owned session's persisted transcript, oldest first.",
+        "operationId": "listAgentSessionMessages",
         "parameters": [
           {
             "name": "agent_id",
@@ -8267,16 +8319,34 @@
             }
           },
           {
-            "name": "include_messages",
+            "name": "cursor",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "description": "Whether to include the persisted transcript in the response.",
-              "default": true,
-              "title": "Include Messages"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque pagination cursor.",
+              "title": "Cursor"
             },
-            "description": "Whether to include the persisted transcript in the response."
+            "description": "Opaque pagination cursor."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "default": 100,
+              "title": "Limit"
+            }
           }
         ],
         "responses": {
@@ -8285,7 +8355,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetAgentSessionResponseBody"
+                  "$ref": "#/components/schemas/ListAgentSessionMessagesResponseBody"
                 }
               }
             }
@@ -8560,21 +8630,6 @@
             ],
             "title": "Last Message Id",
             "description": "The message ID of the most recently persisted transcript message, or null for an empty transcript."
-          },
-          "messages": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/PhoenixUIMessage"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Messages",
-            "description": "The persisted transcript. Omitted when the session is fetched with include_messages=false."
           }
         },
         "type": "object",
@@ -12648,6 +12703,34 @@
         ],
         "title": "LegacyChatSubmitMessage",
         "description": "Submit message extended with Phoenix-specific fields."
+      },
+      "ListAgentSessionMessagesResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/PhoenixUIMessage"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "ListAgentSessionMessagesResponseBody"
       },
       "ListAgentSessionsResponseBody": {
         "properties": {

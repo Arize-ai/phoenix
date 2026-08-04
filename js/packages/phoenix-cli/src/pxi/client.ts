@@ -183,6 +183,41 @@ export async function createAgentSession({
   };
 }
 
+/**
+ * Fetch one page of a session's persisted transcript, oldest message first.
+ *
+ * The transcript is a paginated subresource of the session, so restoring a
+ * session walks these pages until the server stops handing back a cursor.
+ */
+async function fetchAgentSessionMessagesPage({
+  client,
+  sessionId,
+  cursor,
+}: {
+  client: ReturnType<typeof createPhoenixClient>;
+  sessionId: string;
+  cursor: string | null;
+}): Promise<{ messages: PxiMessage[]; nextCursor: string | null }> {
+  const { data: payload } = await client.GET(
+    "/agents/{agent_id}/sessions/{session_id}/messages",
+    {
+      params: {
+        path: { agent_id: SERVER_AGENT_ID, session_id: sessionId },
+        query: cursor === null ? {} : { cursor },
+      },
+    }
+  );
+  if (!payload) {
+    throw new Error(
+      "Could not restore the selected PXI session because Phoenix returned no data."
+    );
+  }
+  return {
+    messages: payload.data as PxiMessage[],
+    nextCursor: payload.next_cursor ?? null,
+  };
+}
+
 /** Create the session-management client used by the TUI. */
 export function createPxiSessionClient({
   config,
@@ -248,27 +283,40 @@ export function createPxiSessionClient({
         );
       }
       const session = payload.data;
+      const messages: PxiMessage[] = [];
+      let cursor: string | null = null;
+      do {
+        const page = await fetchAgentSessionMessagesPage({
+          client,
+          sessionId,
+          cursor,
+        });
+        messages.push(...page.messages);
+        cursor = page.nextCursor;
+      } while (cursor !== null);
       return {
         id: session.id,
         title: session.title,
         updatedAt: session.updated_at,
         isTemporary: session.is_ephemeral,
         isActive: session.is_active === true,
-        lastMessageId: session.last_message_id ?? null,
-        messages: (session.messages ?? []) as PxiMessage[],
+        // Derived from the transcript actually applied, not the metadata
+        // response: the two requests aren't atomic, so the transcript can
+        // advance in between. The polling loop self-corrects next tick.
+        lastMessageId: messages.at(-1)?.id ?? null,
+        messages,
         model: session.model,
       };
     },
     async getSessionSyncState({ sessionId }): Promise<PxiSessionSyncState> {
       const client = createPhoenixClient({ config, fetch: fetchImpl });
+      // Cheap synchronization probe: session metadata only, so idle polling
+      // doesn't re-download the whole transcript.
       const { data: payload } = await client.GET(
         "/agents/{agent_id}/sessions/{session_id}",
         {
           params: {
             path: { agent_id: SERVER_AGENT_ID, session_id: sessionId },
-            // Cheap synchronization probe: session metadata only, so idle
-            // polling doesn't re-download the whole transcript.
-            query: { include_messages: false },
           },
         }
       );

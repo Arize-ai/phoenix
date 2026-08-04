@@ -32,6 +32,18 @@ function userMessage(text: string): PxiMessage {
   };
 }
 
+/** The URL a recorded `fetch` mock call was made against. */
+function requestUrl(call: unknown[] | undefined): string {
+  const [input, init] = (call ?? []) as [
+    string | URL | Request | undefined,
+    RequestInit | undefined,
+  ];
+  if (input === undefined) {
+    throw new Error("Expected a recorded fetch call.");
+  }
+  return input instanceof Request ? input.url : new Request(input, init).url;
+}
+
 function createChunkStream(
   chunks: UIMessageChunk[]
 ): ReadableStream<UIMessageChunk> {
@@ -269,14 +281,23 @@ describe("PXI client", () => {
                 modelName: "gpt-5.4",
               },
               is_active: false,
-              messages: [
-                {
-                  id: "user-1",
-                  role: "user",
-                  parts: [{ type: "text", text: "What failed?" }],
-                },
-              ],
+              last_message_id: "user-1",
             },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: "user-1",
+                role: "user",
+                parts: [{ type: "text", text: "What failed?" }],
+              },
+            ],
+            next_cursor: null,
           }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         )
@@ -309,6 +330,10 @@ describe("PXI client", () => {
       provider: "OPENAI",
       modelName: "gpt-5.4",
     });
+    expect(session.lastMessageId).toBe("user-1");
+    expect(requestUrl(fetchImpl.mock.calls[2])).toBe(
+      "http://localhost:6006/agents/server/sessions/session-1/messages"
+    );
   });
 
   it("follows pagination when listing persisted sessions", async () => {
@@ -366,6 +391,74 @@ describe("PXI client", () => {
       updatedAt: "2026-07-24T10:00:00Z",
       isTemporary: false,
     });
+  });
+
+  it("pages through a multi-page transcript when restoring a session", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              id: "session-1",
+              title: "Investigate traces",
+              created_at: "2026-07-24T11:00:00Z",
+              updated_at: "2026-07-24T12:00:00Z",
+              is_ephemeral: false,
+              last_message_id: "assistant-1",
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: "user-1",
+                role: "user",
+                parts: [{ type: "text", text: "What failed?" }],
+              },
+            ],
+            next_cursor: "cursor-1",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: "assistant-1",
+                role: "assistant",
+                parts: [{ type: "text", text: "The retriever timed out." }],
+              },
+            ],
+            next_cursor: null,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      ) as typeof fetch;
+    const sessionClient = createPxiSessionClient({
+      config: { endpoint: "http://localhost:6006" },
+      fetch: fetchImpl,
+    });
+
+    const session = await sessionClient.getSession({ sessionId: "session-1" });
+
+    expect(session.messages.map((message) => message.id)).toEqual([
+      "user-1",
+      "assistant-1",
+    ]);
+    expect(session.lastMessageId).toBe("assistant-1");
+    expect(requestUrl(fetchImpl.mock.calls[1])).toBe(
+      "http://localhost:6006/agents/server/sessions/session-1/messages"
+    );
+    expect(requestUrl(fetchImpl.mock.calls[2])).toBe(
+      "http://localhost:6006/agents/server/sessions/session-1/messages?cursor=cursor-1"
+    );
   });
 
   it("compacts a session on the server-agent compact route", async () => {
