@@ -14,9 +14,6 @@ describe("approvalOutcome", () => {
   });
 
   it("survives being spread after a payload that carries its own approval key", () => {
-    // `pendingSavePrompt` and `pendingPromptToolWrite` spread a tool's own
-    // action result into the output. Spreading the marker last is what keeps a
-    // colliding key from silently winning.
     const toolPayload = { status: "saved", approval: "not-the-marker" };
     const output = {
       ...toolPayload,
@@ -26,13 +23,6 @@ describe("approvalOutcome", () => {
   });
 });
 
-/**
- * Drift guard. The whole point of the marker is that trace consumers never need
- * a hand-maintained list of approval-gated tool names — which only holds while
- * every gated tool actually stamps it. Rather than trusting review to catch a
- * new gated tool, find the approval payloads by what they contain and require
- * each one to carry the marker.
- */
 describe("approval marker coverage", () => {
   const agentDir = join(__dirname, "..", "..", "..");
 
@@ -46,14 +36,8 @@ describe("approval marker coverage", () => {
     });
   }
 
-  /**
-   * Scan by *behavior*, not filename. Keying off `pending*.ts` would have missed
-   * `agent/tools/approval.ts`, which emits an accept payload of its own and had
-   * to be patched alongside the pending modules.
-   */
   const ACCEPT_EVIDENCE = /acceptedBy:|approvalStatus:|status: "accepted"/;
   const REJECT_EVIDENCE = /status: "rejected"/;
-  /** Actually produces tool output, as opposed to describing or parsing it. */
   const EMITS_TOOL_OUTPUT = /addToolOutput\(|AgentClientActionResult/;
 
   const emitters = sourceFiles(agentDir)
@@ -65,8 +49,6 @@ describe("approval marker coverage", () => {
     );
 
   it("finds every module that emits an approval payload", () => {
-    // Exact, so deleting or renaming an approval path is a visible change here
-    // rather than a silently smaller scan.
     expect(emitters.map((e) => e.path.slice(agentDir.length + 1)).sort())
       .toMatchInlineSnapshot(`
         [

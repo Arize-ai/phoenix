@@ -154,12 +154,6 @@ def test_synthesizes_root_and_clamped_client_tool_span() -> None:
 
 
 def test_approval_decision_is_promoted_to_span_attributes() -> None:
-    """An approval-gated tool's decision must be filterable without parsing output.
-
-    Client tool spans are synthesized here rather than emitted by the tool-execution
-    wrapper — external tools never run server-side — so this is the only seam where
-    the marker can reach the span.
-    """
     now = datetime(2026, 7, 10, 12, tzinfo=timezone.utc)
     turn_trace_context = TurnTraceContext(
         trace_id="5" * 32,
@@ -228,8 +222,6 @@ def test_approval_decision_is_promoted_to_span_attributes() -> None:
     spans_by_name = {span.name: span for span in db_traces[0].spans}
     gated = spans_by_name["edit_prompt_instance"].attributes
     assert gated["pxi"]["approval"] == {"decision": "rejected", "source": "user"}
-    # A tool with no approval marker must stay unattributed, so the attribute's
-    # presence alone is a sound discovery filter.
     assert "pxi" not in spans_by_name["read_prompt_instance"].attributes
 
 

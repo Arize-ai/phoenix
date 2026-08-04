@@ -725,9 +725,6 @@ def _synthesize_client_tool_spans(
             else:
                 attributes[SpanAttributes.OUTPUT_VALUE] = json.dumps(part.output)
                 attributes[SpanAttributes.OUTPUT_MIME_TYPE] = "application/json"
-                # Approval-gated tools record the user's accept/reject decision
-                # in their output; promoting it to attributes lets consumers
-                # filter decisions server-side instead of scanning output.value.
                 attributes.update(approval_attributes(part.output))
                 status = Status(StatusCode.OK)
             tracer.record_readable_span(

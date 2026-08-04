@@ -1,12 +1,11 @@
-// Imported from the leaf module rather than the `pendingApproval` barrel:
-// `pendingApproval/types` takes a type-only import of `ApprovalSource` from this
-// file, and going through the barrel would widen that erased type cycle into a
-// runtime one.
-import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval/approvalOutcome";
-import type { ApprovalOutcome } from "@phoenix/agent/shared/pendingApproval/approvalOutcome";
+import {
+  approvalOutcome,
+  type ApprovalOutcome,
+  type ApprovalSource,
+} from "@phoenix/agent/shared/pendingApproval";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
-export type ApprovalSource = "user" | "auto";
+export type { ApprovalSource };
 
 export type EvaluatorSubmitResult =
   | {
@@ -104,10 +103,6 @@ export function createEvaluatorSubmitClientAction<
       persisted: true,
       acceptedBy: result.acceptedBy,
       evaluator: result.evaluator,
-      // This branch is only reached under `shouldAutoAccept()`, so the source is
-      // structurally "auto". Using the literal rather than `result.acceptedBy`
-      // keeps that true even if a future submit host is registered without the
-      // `createEvaluatorHostSubmit` wrapper that normalizes the field.
       ...approvalOutcome({ decision: "accepted", source: "auto" }),
     };
     return { ok: true, output: JSON.stringify(output) };
