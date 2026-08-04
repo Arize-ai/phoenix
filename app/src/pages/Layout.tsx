@@ -245,6 +245,14 @@ function SideNav({ isExpanded }: { isExpanded: boolean }) {
               isExpanded={isExpanded}
             />
           </li>
+          <li key="chat">
+            <NavLink
+              to="/chat"
+              text="Chat"
+              leadingVisual={<Icon svg={<Icons.MessageCircle />} />}
+              isExpanded={isExpanded}
+            />
+          </li>
           <li key="rest-api">
             <NavLink
               to="/apis/rest"
