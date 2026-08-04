@@ -27,15 +27,20 @@ def approval_attributes(result: Any) -> dict[str, str]:
     proposals — yields no attributes.
 
     The result arrives either as a mapping or as a JSON string, depending on the
-    tool. Anything unrecognized or malformed is ignored rather than raised: this
-    is telemetry enrichment and must never fail a tool call.
+    tool. It originates in the browser, so every field is untrusted: anything
+    unrecognized or malformed is ignored rather than raised. This is telemetry
+    enrichment and must never fail a tool call.
     """
     marker = _marker(result)
     if marker is None:
         return {}
     decision = marker.get("decision")
     source = marker.get("source")
-    if decision not in _DECISIONS or source not in _SOURCES:
+    # `x in frozenset` raises TypeError on unhashable values, so the isinstance
+    # guards are load-bearing, not decoration — `decision` may be any JSON value.
+    if not isinstance(decision, str) or decision not in _DECISIONS:
+        return {}
+    if not isinstance(source, str) or source not in _SOURCES:
         return {}
     return {
         APPROVAL_DECISION_ATTRIBUTE: decision,

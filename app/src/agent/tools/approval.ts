@@ -104,7 +104,11 @@ export function createEvaluatorSubmitClientAction<
       persisted: true,
       acceptedBy: result.acceptedBy,
       evaluator: result.evaluator,
-      ...approvalOutcome({ decision: "accepted", source: result.acceptedBy }),
+      // This branch is only reached under `shouldAutoAccept()`, so the source is
+      // structurally "auto". Using the literal rather than `result.acceptedBy`
+      // keeps that true even if a future submit host is registered without the
+      // `createEvaluatorHostSubmit` wrapper that normalizes the field.
+      ...approvalOutcome({ decision: "accepted", source: "auto" }),
     };
     return { ok: true, output: JSON.stringify(output) };
   };

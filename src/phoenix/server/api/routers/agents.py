@@ -118,6 +118,7 @@ from phoenix.db.types.data_stream_protocol import (
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.agents.agent_factory import build_agent
+from phoenix.server.agents.approval import approval_attributes
 from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.capabilities.skills import Skill
 from phoenix.server.agents.context import (
@@ -1010,6 +1011,10 @@ def _synthesize_client_tool_spans(
             else:
                 attributes[SpanAttributes.OUTPUT_VALUE] = json.dumps(part.output)
                 attributes[SpanAttributes.OUTPUT_MIME_TYPE] = "application/json"
+                # Approval-gated tools record the user's accept/reject decision
+                # in their output; promoting it to attributes lets consumers
+                # filter decisions server-side instead of scanning output.value.
+                attributes.update(approval_attributes(part.output))
                 status = Status(StatusCode.OK)
             tracer.record_readable_span(
                 build_synthetic_readable_span(
