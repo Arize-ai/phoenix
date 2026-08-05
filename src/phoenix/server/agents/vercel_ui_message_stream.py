@@ -155,10 +155,13 @@ def create_streaming_ui_message_state(
     """
     message = (
         UIMessage.model_validate(
+            # exclude_unset clones the message's exact wire shape, like the
+            # upstream ``structuredClone``: explicit nulls survive (required
+            # ``Any`` fields may legally hold null) and absent keys stay absent.
             last_message.model_dump(
                 mode="json",
                 by_alias=True,
-                exclude_none=True,
+                exclude_unset=True,
             )
         )
         if last_message is not None and last_message.role == "assistant"
@@ -193,6 +196,7 @@ async def process_ui_message_stream(
     async for chunk in stream:
         if isinstance(chunk, TextStartChunk):
             text_part = TextUIPart(
+                type="text",
                 text="",
                 provider_metadata=chunk.provider_metadata,
                 state="streaming",
@@ -233,6 +237,7 @@ async def process_ui_message_stream(
             write()
         elif isinstance(chunk, ReasoningStartChunk):
             reasoning_part = ReasoningUIPart(
+                type="reasoning",
                 text="",
                 provider_metadata=chunk.provider_metadata,
                 state="streaming",
@@ -274,11 +279,14 @@ async def process_ui_message_stream(
             del state.active_reasoning_parts[chunk.id]
             write()
         elif isinstance(chunk, FileChunk):
-            state.message.parts.append(FileUIPart(url=chunk.url, media_type=chunk.media_type))
+            state.message.parts.append(
+                FileUIPart(type="file", url=chunk.url, media_type=chunk.media_type)
+            )
             write()
         elif isinstance(chunk, SourceUrlChunk):
             state.message.parts.append(
                 SourceUrlUIPart(
+                    type="source-url",
                     source_id=chunk.source_id,
                     url=chunk.url,
                     title=chunk.title,
@@ -289,6 +297,7 @@ async def process_ui_message_stream(
         elif isinstance(chunk, SourceDocumentChunk):
             state.message.parts.append(
                 SourceDocumentUIPart(
+                    type="source-document",
                     source_id=chunk.source_id,
                     media_type=chunk.media_type,
                     title=chunk.title,
@@ -441,7 +450,7 @@ async def process_ui_message_stream(
             )
             write()
         elif isinstance(chunk, StartStepChunk):
-            state.message.parts.append(StepStartUIPart())
+            state.message.parts.append(StepStartUIPart(type="step-start"))
         elif isinstance(chunk, FinishStepChunk):
             state.active_text_parts = {}
             state.active_reasoning_parts = {}
@@ -687,6 +696,7 @@ def _update_tool_part(
     if dynamic:
         if part_state == "input-streaming":
             replacement: UIMessagePart = DynamicToolInputStreamingPart(
+                type="dynamic-tool",
                 tool_name=tool_name,
                 tool_call_id=tool_call_id,
                 title=resolved_title,
@@ -697,6 +707,7 @@ def _update_tool_part(
             )
         elif part_state == "input-available":
             replacement = DynamicToolInputAvailablePart(
+                type="dynamic-tool",
                 tool_name=tool_name,
                 tool_call_id=tool_call_id,
                 title=resolved_title,
@@ -707,6 +718,7 @@ def _update_tool_part(
             )
         elif part_state == "approval-requested":
             replacement = DynamicToolApprovalRequestedPart(
+                type="dynamic-tool",
                 tool_name=tool_name,
                 tool_call_id=tool_call_id,
                 title=resolved_title,
@@ -717,6 +729,7 @@ def _update_tool_part(
             )
         elif part_state == "output-available":
             replacement = DynamicToolOutputAvailablePart(
+                type="dynamic-tool",
                 tool_name=tool_name,
                 tool_call_id=tool_call_id,
                 title=resolved_title,
@@ -730,6 +743,7 @@ def _update_tool_part(
             )
         elif part_state == "output-denied":
             replacement = DynamicToolOutputDeniedPart(
+                type="dynamic-tool",
                 tool_name=tool_name,
                 tool_call_id=tool_call_id,
                 title=resolved_title,
@@ -741,6 +755,7 @@ def _update_tool_part(
         else:
             assert error_text is not None
             replacement = DynamicToolOutputErrorPart(
+                type="dynamic-tool",
                 tool_name=tool_name,
                 tool_call_id=tool_call_id,
                 title=resolved_title,

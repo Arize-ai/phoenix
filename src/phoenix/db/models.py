@@ -6,7 +6,7 @@ import orjson
 import sqlalchemy as sa
 import sqlalchemy.sql as sql
 from openinference.semconv.trace import RerankerAttributes, SpanAttributes
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import (
     JSON,
     NUMERIC,
@@ -260,11 +260,28 @@ class _UIMessage(TypeDecorator[PhoenixUIMessage]):
     def process_bind_param(
         self, value: Optional[PhoenixUIMessage], _: Dialect
     ) -> Optional[dict[str, Any]]:
-        return (
-            value.model_dump(mode="json", by_alias=True, exclude_none=True)
-            if value is not None
-            else None
+        if value is None:
+            return None
+        # exclude_unset preserves the validated wire shape exactly: explicit
+        # nulls survive (required ``Any`` fields such as a dynamic tool part's
+        # ``output`` may legally hold null, and dropping the key would make the
+        # stored JSON fail validation on read), while absent keys stay absent.
+        dumped = value.model_dump(mode="json", by_alias=True, exclude_unset=True)
+        # A message that does not survive the dump — e.g. one built server-side
+        # without its defaulted ``type`` discriminator, which can re-validate as
+        # a different part type — would poison every subsequent transcript read,
+        # so refuse it at write time instead.
+        error = (
+            f"UI message {value.id!r} does not round-trip through its JSON "
+            "representation and cannot be persisted"
         )
+        try:
+            revalidated = PhoenixUIMessageAdapter.validate_python(dumped)
+        except ValidationError as exc:
+            raise ValueError(error) from exc
+        if revalidated != value:
+            raise ValueError(error)
+        return dumped
 
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
