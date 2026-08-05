@@ -2781,7 +2781,10 @@ class _SemanticPolicy:
         if isinstance(needle_node, ast.Constant):
             comparison = f"{ast.unparse(needle_node)} in {ast.unparse(haystack_node)}"
             raise SyntaxError(
-                f"`{comparison}` compares two literals, expected a span field on the left"
+                # The noun stays grain-neutral: this check also fires inside
+                # comprehensions, where the correct left operand is an element
+                # field rather than a session one.
+                f"`{comparison}` compares two literals, expected a field on the left"
             )
         needle = self._kind(needle_node, scopes)
         if needle not in _LOOKUP_KINDS:
