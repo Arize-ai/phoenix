@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from secrets import token_hex
 
 import pytest
@@ -12,7 +11,7 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.types import DbSessionFactory
 
-from .._helpers import _add_project, _add_project_session, _add_span, _add_trace
+from .._helpers import _add_project, _add_span, _add_trace
 
 _INTEGRITY_ERRORS = (SQLAlchemyIntegrityError, SQLiteIntegrityError)
 
@@ -174,65 +173,6 @@ async def test_eval_work_unit_accepts_expired_status(db: DbSessionFactory) -> No
         )
         assert fetched is not None
         assert fetched.status == "EXPIRED"
-
-
-async def test_session_liveness_and_work_accounting(db: DbSessionFactory) -> None:
-    evaluated_through = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    async with db() as session:
-        project = await _add_project(session)
-        project_session = await _add_project_session(session, project)
-        project_session_id = project_session.id
-        evaluator = models.BuiltinEvaluator(
-            name=Identifier(root=f"eval-{token_hex(4)}"),
-            kind="BUILTIN",
-            key=token_hex(8),
-            input_schema={},
-            output_configs=[],
-        )
-        session.add(evaluator)
-        await session.flush()
-        criteria = models.ProjectEvaluatorCriteria(
-            project_id=project.id,
-            evaluator_id=evaluator.id,
-            name=Identifier(root=f"criteria-{token_hex(4)}"),
-            filter_condition="",
-            sampling_rate=1.0,
-            evaluation_target="SESSION",
-        )
-        session.add(criteria)
-        await session.flush()
-        evaluator_id = evaluator.id
-        criteria_id = criteria.id
-        session.add(
-            models.EvalSessionWorkUnit(
-                project_session_rowid=project_session_id,
-                evaluator_id=evaluator_id,
-                criteria_id=criteria_id,
-                config_fingerprint="fp-session",
-                evaluated_through=evaluated_through,
-            )
-        )
-
-    async with db() as session:
-        fetched_session = await session.get(models.ProjectSession, project_session_id)
-        assert fetched_session is not None
-        assert fetched_session.last_activity_at is not None
-        assert fetched_session.content_complete is True
-
-        work_unit = await session.scalar(
-            select(models.EvalSessionWorkUnit).options(
-                selectinload(models.EvalSessionWorkUnit.project_session),
-                selectinload(models.EvalSessionWorkUnit.evaluator),
-                selectinload(models.EvalSessionWorkUnit.criteria),
-            )
-        )
-        assert work_unit is not None
-        assert work_unit.project_session.id == project_session_id
-        assert work_unit.evaluator.id == evaluator_id
-        assert work_unit.criteria.id == criteria_id
-        assert work_unit.evaluated_through == evaluated_through
-        assert work_unit.status == "PENDING"
-        assert work_unit.attempts == 0
 
 
 async def test_project_evaluator_criteria_defaults_and_relationships(

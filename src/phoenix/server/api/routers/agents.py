@@ -84,6 +84,7 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.insertion.project_session import advance_project_session_liveness
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.capabilities.skills import Skill
@@ -773,6 +774,7 @@ async def _persist_db_traces(
     )
     traces_to_insert: list[models.Trace] = []
     spans_to_insert: list[models.Span] = []
+    project_session_rowids_with_new_spans: set[int] = set()
     for db_trace in db_traces:
         # Only inserted traces should point at the persistent ProjectSession;
         # associating skipped transient traces causes autoflush warnings.
@@ -789,6 +791,7 @@ async def _persist_db_traces(
             if db_trace.spans:
                 if persistent_project_session is not None:
                     db_trace.project_session = persistent_project_session
+                    project_session_rowids_with_new_spans.add(persistent_project_session.id)
                 traces_to_insert.append(db_trace)
             continue
         if db_trace.start_time < existing_trace.start_time:
@@ -797,6 +800,12 @@ async def _persist_db_traces(
             existing_trace.end_time = db_trace.end_time
         if existing_trace.project_session_rowid is None and persistent_project_session is not None:
             existing_trace.project_session = persistent_project_session
+        if db_trace.spans:
+            project_session_rowid = existing_trace.project_session_rowid or (
+                persistent_project_session.id if persistent_project_session is not None else None
+            )
+            if project_session_rowid is not None:
+                project_session_rowids_with_new_spans.add(project_session_rowid)
         if existing_trace.project_session is not None:
             if db_trace.start_time < existing_trace.project_session.start_time:
                 existing_trace.project_session.start_time = db_trace.start_time
@@ -812,6 +821,7 @@ async def _persist_db_traces(
             spans_to_insert.append(db_span)
     session.add_all([*traces_to_insert, *spans_to_insert])
     await session.flush()
+    await advance_project_session_liveness(session, project_session_rowids_with_new_spans)
     await _refresh_cumulative_span_counts(session=session, trace_ids=trace_ids)
     return project_ids
 
@@ -1078,6 +1088,7 @@ async def _upsert_project_sessions(
             "project_id": project_session.project_id,
             "start_time": project_session.start_time,
             "end_time": project_session.end_time,
+            "last_span_seen_at": project_session.end_time,
         }
         for project_session in project_sessions_by_session_id.values()
     ]

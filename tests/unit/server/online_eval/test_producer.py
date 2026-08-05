@@ -1,4 +1,3 @@
-from asyncio import sleep
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any
@@ -7,7 +6,6 @@ import pytest
 from sqlalchemy import func, select, update
 
 from phoenix.db import models
-from phoenix.db.insertion.span import insert_span
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.evaluators import ContainsEvaluator
 from phoenix.server.online_eval import producer as producer_module
@@ -26,36 +24,12 @@ from phoenix.server.online_eval.producer import (
     resolve_criteria,
 )
 from phoenix.server.types import DbSessionFactory
-from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
 
 from ..._helpers import _add_project, _add_span, _add_trace
 
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def _ingest_span(
-    *,
-    trace_id: str,
-    span_id: str,
-    session_id: str,
-    start_time: datetime,
-    end_time: datetime,
-) -> Span:
-    return Span(
-        name="session-span",
-        context=SpanContext(trace_id=trace_id, span_id=span_id),
-        span_kind=SpanKind.CHAIN,
-        parent_id=None,
-        start_time=start_time,
-        end_time=end_time,
-        status_code=SpanStatusCode.OK,
-        status_message="",
-        attributes={"session": {"id": session_id}},
-        events=[],
-        conversation=None,
-    )
 
 
 async def _seed_criteria(
@@ -275,66 +249,6 @@ async def test_active_criteria_are_bulk_resolved_once(
 
     assert len(active) == 3
     assert call_sizes == [3]
-
-
-async def test_span_ingest_advances_session_liveness_in_its_transaction_without_producer(
-    db: DbSessionFactory,
-    dialect: str,
-) -> None:
-    trace_id = token_hex(16)
-    session_id = f"session-{token_hex(8)}"
-    start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    end_time = start_time + timedelta(seconds=1)
-
-    async with db() as session:
-        inserted = await insert_span(
-            session,
-            _ingest_span(
-                trace_id=trace_id,
-                span_id=token_hex(8),
-                session_id=session_id,
-                start_time=start_time,
-                end_time=end_time,
-            ),
-            "project",
-        )
-        assert inserted is not None
-        project_session = await session.scalar(
-            select(models.ProjectSession).where(models.ProjectSession.session_id == session_id)
-        )
-        assert project_session is not None
-        first_activity_at = project_session.last_activity_at
-
-    if dialect == "sqlite":
-        await sleep(1)
-
-    async with db() as session:
-        inserted = await insert_span(
-            session,
-            _ingest_span(
-                trace_id=trace_id,
-                span_id=token_hex(8),
-                session_id=session_id,
-                start_time=start_time,
-                end_time=end_time,
-            ),
-            "project",
-        )
-        assert inserted is not None
-        project_session = await session.scalar(
-            select(models.ProjectSession).where(models.ProjectSession.session_id == session_id)
-        )
-        assert project_session is not None
-        advanced_activity_at = project_session.last_activity_at
-        assert advanced_activity_at > first_activity_at
-
-    async with db() as session:
-        committed_activity_at = await session.scalar(
-            select(models.ProjectSession.last_activity_at).where(
-                models.ProjectSession.session_id == session_id
-            )
-        )
-    assert committed_activity_at == advanced_activity_at
 
 
 @pytest.mark.parametrize("evaluation_target", ["TRACE", "SESSION"])

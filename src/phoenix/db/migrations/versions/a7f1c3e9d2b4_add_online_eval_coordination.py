@@ -38,121 +38,34 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def _create_session_work_units_table() -> None:
-    op.create_table(
-        "eval_session_work_units",
-        sa.Column("id", _Integer, primary_key=True),
-        sa.Column(
-            "project_session_rowid",
-            _Integer,
-            sa.ForeignKey("project_sessions.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column(
-            "evaluator_id",
-            _Integer,
-            sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column(
-            "criteria_id",
-            _Integer,
-            sa.ForeignKey("project_evaluator_criteria.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column("config_fingerprint", sa.String(), nullable=False),
-        sa.Column(
-            "evaluated_through",
-            sa.TIMESTAMP(timezone=True),
-            nullable=False,
-        ),
-        sa.Column(
-            "status",
-            sa.String(),
-            sa.CheckConstraint(
-                "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')",
-                name="valid_eval_work_status",
-            ),
-            nullable=False,
-            server_default="PENDING",
-        ),
-        sa.Column("claimed_at", sa.TIMESTAMP(timezone=True), nullable=True),
-        sa.Column("claimed_by", sa.String(), nullable=True),
-        sa.Column("attempts", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("error", sa.String(), nullable=True),
-        sa.Column("cooldown_until", sa.TIMESTAMP(timezone=True), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-        sa.Column(
-            "updated_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-        sa.UniqueConstraint(
-            "project_session_rowid",
-            "evaluator_id",
-            "config_fingerprint",
-        ),
-    )
-    op.create_index(
-        "ix_eval_session_work_units_claimable",
-        "eval_session_work_units",
-        ["status", "id"],
-        postgresql_where=sa.text("status NOT IN ('DONE', 'EXPIRED')"),
-        sqlite_where=sa.text("status NOT IN ('DONE', 'EXPIRED')"),
-    )
-    op.create_index(
-        "ix_eval_session_work_units_terminal",
-        "eval_session_work_units",
-        ["updated_at"],
-        postgresql_where=sa.text("status IN ('DONE', 'EXPIRED')"),
-        sqlite_where=sa.text("status IN ('DONE', 'EXPIRED')"),
-    )
-    op.create_index(
-        "ix_eval_session_work_units_error_attempts",
-        "eval_session_work_units",
-        ["attempts"],
-        postgresql_where=sa.text("status = 'ERROR'"),
-        sqlite_where=sa.text("status = 'ERROR'"),
-    )
-    op.create_index(
-        "ix_eval_session_work_units_evaluator_id",
-        "eval_session_work_units",
-        ["evaluator_id"],
-    )
-    op.create_index(
-        "ix_eval_session_work_units_criteria_id",
-        "eval_session_work_units",
-        ["criteria_id"],
-    )
-
-
 def upgrade() -> None:
     with op.batch_alter_table("project_sessions") as batch_op:
         batch_op.add_column(
             sa.Column(
-                "last_activity_at",
+                "last_span_seen_at",
                 sa.TIMESTAMP(timezone=True),
-                nullable=False,
-                server_default=sa.func.now(),
+                nullable=True,
             )
         )
-        batch_op.add_column(
-            sa.Column(
-                "content_complete",
-                sa.Boolean(),
-                nullable=False,
-                server_default=sa.text("true"),
-            )
+
+    op.execute(
+        sa.text(
+            "UPDATE project_sessions "
+            "SET last_span_seen_at = end_time "
+            "WHERE last_span_seen_at IS NULL"
+        )
+    )
+
+    with op.batch_alter_table("project_sessions") as batch_op:
+        batch_op.alter_column(
+            "last_span_seen_at",
+            existing_type=sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
         )
         batch_op.create_index(
-            "ix_project_sessions_last_activity_at",
-            ["last_activity_at"],
+            "ix_project_sessions_project_id_last_span_seen_at",
+            ["project_id", "last_span_seen_at"],
         )
 
     op.create_table(
@@ -346,17 +259,9 @@ def upgrade() -> None:
         "eval_work_units",
         ["criteria_id"],
     )
-    _create_session_work_units_table()
 
 
 def downgrade() -> None:
-    op.drop_index("ix_eval_session_work_units_criteria_id", table_name="eval_session_work_units")
-    op.drop_index("ix_eval_session_work_units_evaluator_id", table_name="eval_session_work_units")
-    op.drop_index("ix_eval_session_work_units_error_attempts", table_name="eval_session_work_units")
-    op.drop_index("ix_eval_session_work_units_terminal", table_name="eval_session_work_units")
-    op.drop_index("ix_eval_session_work_units_claimable", table_name="eval_session_work_units")
-    op.drop_table("eval_session_work_units")
-
     op.drop_index("ix_eval_work_units_criteria_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_evaluator_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_error_attempts", table_name="eval_work_units")
@@ -373,6 +278,5 @@ def downgrade() -> None:
     op.drop_table("eval_work_cursors")
 
     with op.batch_alter_table("project_sessions") as batch_op:
-        batch_op.drop_index("ix_project_sessions_last_activity_at")
-        batch_op.drop_column("content_complete")
-        batch_op.drop_column("last_activity_at")
+        batch_op.drop_index("ix_project_sessions_project_id_last_span_seen_at")
+        batch_op.drop_column("last_span_seen_at")

@@ -16,6 +16,7 @@ class SpanInsertionEvent(NamedTuple):
     project_rowid: int
     span_rowid: int
     trace_rowid: int
+    project_session_rowid: Optional[int]
 
 
 class ClearProjectSpansEvent(NamedTuple):
@@ -79,11 +80,11 @@ async def insert_span(
         ) or models.ProjectSession(session_id=session_id)
 
     if project_session is not None:
-        project_session.last_activity_at = func.now()
         if project_session.id is None:
             # ProjectSession record needs to be persisted for the first time.
             project_session.start_time = trace.start_time
             project_session.end_time = trace.end_time
+            project_session.last_span_seen_at = trace.end_time
             project_session.project_id = project_rowid
             session.add(project_session)
             await session.flush()
@@ -188,4 +189,9 @@ async def insert_span(
             + cumulative_llm_token_count_completion,
         )
     )
-    return SpanInsertionEvent(project_rowid, span_rowid, trace.id)
+    return SpanInsertionEvent(
+        project_rowid,
+        span_rowid,
+        trace.id,
+        project_session.id if project_session is not None else None,
+    )
