@@ -24,9 +24,24 @@ def build_parser() -> argparse.ArgumentParser:
         description="Generate one deeply nested trace for tree-view and query stress testing."
     )
     add_common_arguments(parser, default_project="deeply-nested")
-    parser.add_argument("--branches", type=positive_int, default=3)
-    parser.add_argument("--children-per-level", type=positive_int, default=3)
-    parser.add_argument("--depth", type=positive_int, default=5)
+    parser.add_argument(
+        "--branches",
+        type=positive_int,
+        default=3,
+        help="Chains hanging off the root span (default: 3).",
+    )
+    parser.add_argument(
+        "--children-per-level",
+        type=positive_int,
+        default=3,
+        help="Children each chain span spawns at the next level (default: 3).",
+    )
+    parser.add_argument(
+        "--depth",
+        type=positive_int,
+        default=5,
+        help="Levels of chain nesting beneath each branch (default: 5).",
+    )
     parser.add_argument(
         "--max-llm-spans-per-chain",
         type=positive_int,

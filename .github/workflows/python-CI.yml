@@ -52,6 +52,12 @@ jobs:
             phoenix:
               - "evals/**"
               - "src/**"
+              # Datagen packages only: tests/unit/test_span_datagen.py imports them, so a
+              # change here must run the unit tests. Deliberately not all of scripts/, which
+              # holds notebooks and unrelated tooling.
+              - "scripts/generate_spans/**"
+              - "scripts/experiments/**"
+              - "scripts/generate_data_via_plpgsql/**"
               - "tests/**"
               - "tutorials/**"
               - "pyproject.toml"
@@ -454,6 +460,7 @@ jobs:
             src/phoenix/
             evals/
             packages/phoenix-evals/
+            scripts/
             tests/unit/
             tests/conftest.py
             tests/__generated__/

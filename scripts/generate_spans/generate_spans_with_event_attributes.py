@@ -29,7 +29,12 @@ def build_parser() -> argparse.ArgumentParser:
         description="Generate spans with representative structured events and exceptions."
     )
     add_common_arguments(parser, default_project="event-attributes")
-    parser.add_argument("--traces", type=positive_int, default=5)
+    parser.add_argument(
+        "--traces",
+        type=positive_int,
+        default=5,
+        help="Number of traces to generate (default: 5).",
+    )
     parser.add_argument(
         "--exceptions-per-trace",
         type=non_negative_int,

@@ -24,9 +24,24 @@ def build_parser() -> argparse.ArgumentParser:
         description="Generate model-name length fixtures for metrics chart label testing."
     )
     add_common_arguments(parser, default_project="axis-labels")
-    parser.add_argument("--traces", type=positive_int, default=25)
-    parser.add_argument("--min-calls", type=positive_int, default=1)
-    parser.add_argument("--max-calls", type=positive_int, default=4)
+    parser.add_argument(
+        "--traces",
+        type=positive_int,
+        default=25,
+        help="Number of traces to generate (default: 25).",
+    )
+    parser.add_argument(
+        "--min-calls",
+        type=positive_int,
+        default=1,
+        help="Fewest LLM calls per trace (default: 1).",
+    )
+    parser.add_argument(
+        "--max-calls",
+        type=positive_int,
+        default=4,
+        help="Most LLM calls per trace (default: 4).",
+    )
     return parser
 
 

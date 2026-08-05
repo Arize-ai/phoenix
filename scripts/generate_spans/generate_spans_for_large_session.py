@@ -1,11 +1,28 @@
 from __future__ import annotations
 
 import argparse
+from datetime import timedelta
 
 try:
-    from ._shared import Generator, add_common_arguments, llm_attributes, positive_int
+    from ._shared import (
+        Generator,
+        add_common_arguments,
+        duration_for,
+        llm_attributes,
+        ns,
+        positive_int,
+        utc_now,
+    )
 except ImportError:  # Support direct execution from this directory.
-    from _shared import Generator, add_common_arguments, llm_attributes, positive_int
+    from _shared import (
+        Generator,
+        add_common_arguments,
+        duration_for,
+        llm_attributes,
+        ns,
+        positive_int,
+        utc_now,
+    )
 
 USER_REQUESTS = (
     "Summarize today's support activity.",
@@ -42,24 +59,40 @@ def build_parser() -> argparse.ArgumentParser:
 def generate(args: argparse.Namespace) -> Generator:
     generator = Generator.from_args(args)
     session_id = args.session_id or f"large-session-{args.seed}"
+    # Plan the turns first so the conversation can be backdated to end about now. Emitting at
+    # wall clock put 500 turns inside 9 milliseconds, which left the session view — the very
+    # thing this scenario exists to stress — showing a multi-hour conversation as instant.
+    turns = []
+    for turn in range(args.turns):
+        content_index = turn % len(USER_REQUESTS)
+        attributes = llm_attributes(
+            generator.rng,
+            input_value=USER_REQUESTS[content_index],
+            output_value=ASSISTANT_RESPONSES[content_index],
+        )
+        duration = duration_for(generator.rng, int(attributes.get("llm.token_count.completion", 0)))
+        think = 0.0 if turn == 0 else generator.rng.lognormvariate(3.4, 1.1)
+        turns.append((attributes, duration, think))
+    total = sum(duration + think for _attributes, duration, think in turns)
+    cursor = utc_now() - timedelta(seconds=total)
+
     try:
-        for turn in range(args.turns):
-            content_index = turn % len(USER_REQUESTS)
+        for turn, (attributes, duration, think) in enumerate(turns):
+            cursor += timedelta(seconds=think)
             with generator.span(
                 f"assistant-turn-{turn + 1}",
                 "LLM",
                 attributes={
-                    **llm_attributes(
-                        generator.rng,
-                        input_value=USER_REQUESTS[content_index],
-                        output_value=ASSISTANT_RESPONSES[content_index],
-                    ),
+                    **attributes,
                     "session.id": session_id,
                     "synthetic.turn": turn + 1,
                 },
+                start_time=ns(cursor),
+                end_time=ns(cursor + timedelta(seconds=duration)),
                 root=True,
             ):
                 pass
+            cursor += timedelta(seconds=duration)
     except BaseException:
         generator.close()
         raise

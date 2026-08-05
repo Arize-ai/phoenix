@@ -1,26 +1,13 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Callable
 
-from .generate_axis_label_spans import main as axis_labels_main
-from .generate_mixed_workload import main as mixed_main
-from .generate_spans_deeply_nested import main as nested_main
-from .generate_spans_for_cost_calculations import main as costs_main
-from .generate_spans_for_large_session import main as large_session_main
-from .generate_spans_for_time_series import main as time_series_main
-from .generate_spans_with_event_attributes import main as events_main
-from .generate_token_detail_spans import main as token_details_main
+from ._registry import SCENARIOS, Scenario
+from .generate_all import main as all_main
 
-COMMANDS: dict[str, tuple[str, Callable[[list[str] | None], int]]] = {
-    "axis-labels": ("long model names for chart labels", axis_labels_main),
-    "mixed": ("bounded mixed-kind workload", mixed_main),
-    "nested": ("one deeply nested trace", nested_main),
-    "time-series": ("business-shaped historical traffic", time_series_main),
-    "token-details": ("cache and multimodal token fixtures", token_details_main),
-    "costs": ("cost-manifest model coverage", costs_main),
-    "large-session": ("many turns in one session", large_session_main),
-    "events": ("structured span events and exceptions", events_main),
+COMMANDS: dict[str, tuple[str, Scenario]] = {
+    **SCENARIOS,
+    "all": ("run every scenario into its own project", all_main),
 }
 
 
@@ -46,7 +33,12 @@ def main(argv: list[str] | None = None) -> int:
         choices = ", ".join(COMMANDS)
         print(f"unknown scenario {command!r}; choose one of: {choices}", file=sys.stderr)
         return 2
-    return COMMANDS[command][1](args)
+    try:
+        return COMMANDS[command][1](args)
+    except ConnectionError as error:
+        # An unreachable endpoint is a setup mistake, not a bug worth a traceback.
+        print(f"error: {error}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

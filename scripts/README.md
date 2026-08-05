@@ -2,6 +2,31 @@
 
 Utility, testing, data-generation, and CI scripts that support Phoenix development. Most Python scripts can be run with `uv run scripts/<path>`; some declare PEP 723 inline dependencies and others assume the project venv is active.
 
+## Which data generator do I want?
+
+Three directories generate data and they are not interchangeable — pick by what you need the
+data to *do*, not by volume.
+
+| I need… | Use | Why |
+| --- | --- | --- |
+| Traces that behave like real traffic | `generate_spans/` (`make seed`) | Exports over OTLP, so Phoenix computes costs, sessions, and rollups normally |
+| A local Phoenix that looks lived-in | `make seed-all` | Every trace scenario **plus** datasets and experiments |
+| Traces only, every shape | `make seed DATAGEN_SCENARIO=all` | Every scenario, each into its own project — no datasets or experiments |
+| Datasets, experiments, evaluations | `experiments/` (`make seed-experiments`) | Drives the dataset → experiment → evaluation loop via the client and GraphQL |
+| Millions of rows for storage/query perf | `generate_data_via_plpgsql/` | Writes Postgres directly — fast, but **no costs and no sessions** (it bypasses ingestion) |
+
+Each directory has its own README with the full option list and its gotchas.
+
+> **If `make` fails with `Required uv version ==0.11.12 does not match…`**, that is the exact
+> pin in `pyproject.toml` (`[tool.uv] required-version`, kept in step with the Dockerfile's
+> builder image), not a problem with the target. Either `uv self update 0.11.12`, or skip the
+> wrapper and run the underlying command — every `make seed*` target is a thin wrapper:
+>
+> ```bash
+> python -m scripts.generate_spans all --endpoint http://localhost:6006 --seed 42
+> python scripts/experiments/generate_baseline_metrics_data.py --endpoint http://localhost:6006
+> ```
+
 ## Top-level scripts
 
 | Script | Purpose |
@@ -47,13 +72,19 @@ GraphQL smoke tests for the chat / playground / evaluator surface.
 
 ### `experiments/`
 
-Parameterized experiment fixtures. Both support `--endpoint`, `--examples`, `--seed`,
-`--dataset-name`, and `--dry-run`:
+Parameterized experiment fixtures driving the dataset → experiment → evaluation loop. See
+`experiments/README.md` for the script table and gotchas. Both support `--endpoint`,
+`--examples`, `--seed`, `--dataset-name`, and `--dry-run`:
 
 - `generate_baseline_metrics_data.py` — seed a sequence of improving experiments with a selected baseline.
 - `generate_multipage_experiment_data.py` — seed a large experiment with realistic mixed evaluator results for pagination testing.
 
 ```bash
+make seed-experiments
+make seed-experiments DATAGEN_EXPERIMENT=generate_multipage_experiment_data.py \
+  DATAGEN_ARGS="--examples 300"
+
+# The scripts remain directly runnable.
 uv run python scripts/experiments/generate_baseline_metrics_data.py --experiments 10
 uv run python scripts/experiments/generate_multipage_experiment_data.py --examples 300
 ```
@@ -68,11 +99,16 @@ PL/pgSQL-backed bulk data generation for performance testing. See `generate_data
 
 One parameterized interface for synthetic OpenInference span data. Every scenario supports
 `--endpoint`, `--project-name`, `--seed`, and `--dry-run`, followed by parameters specific to
-its intent:
+its intent. See `generate_spans/README.md` for the scenario table, the contract for adding a
+scenario, and the gotchas worth reading before editing these files.
 
 ```bash
 # Seed a local Phoenix with the representative mixed workload.
 make seed
+
+# Seed every scenario at once, each into its own project.
+# With DATAGEN_PROJECT/PHOENIX_PROJECT set, that value becomes a prefix (demo-rag, demo-agent).
+make seed DATAGEN_SCENARIO=all
 
 # Select and configure another scenario.
 make seed DATAGEN_SCENARIO=time-series DATAGEN_ARGS="--days 30 --timezone America/Denver"
@@ -90,13 +126,19 @@ make seed DATAGEN_SCENARIO=costs DATAGEN_ARGS="--provider groq --dry-run"
 # The underlying CLI remains available for direct use.
 uv run python -m scripts.generate_spans --help
 uv run python -m scripts.generate_spans mixed --traces 100 --max-depth 3
+uv run python -m scripts.generate_spans agent --traces 25 --max-steps 4
+uv run python -m scripts.generate_spans rag --traces 60 --top-k 4 --miss-rate 0.25
+uv run python -m scripts.generate_spans prompts --traces 90 --v2-share 0.5
 uv run python -m scripts.generate_spans axis-labels --traces 25
 uv run python -m scripts.generate_spans nested --depth 6 --branches 2
 uv run python -m scripts.generate_spans time-series --days 30 --timezone America/Denver
 uv run python -m scripts.generate_spans token-details --days 7
 uv run python -m scripts.generate_spans costs --provider openai --spans-per-model 2
+uv run python -m scripts.generate_spans sessions --sessions 40 --users 12 --days 7
 uv run python -m scripts.generate_spans large-session --turns 1000
 uv run python -m scripts.generate_spans events --traces 10 --exceptions-per-trace 1
+uv run python -m scripts.generate_spans edge-cases --list
+uv run python -m scripts.generate_spans edge-cases --only unicode
 ```
 
 Use `--dry-run` to validate a workload and inspect its counts without sending data. The

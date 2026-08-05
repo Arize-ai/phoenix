@@ -52,17 +52,34 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _profiles(count: int) -> list[IterationProfile]:
+    """Improving iterations, with two that regress.
+
+    The trend rises overall, but a strictly monotonic sequence would make the fixture unable
+    to show the comparison people actually care about — an experiment that came out *worse*
+    than the one before it. The setback iterations move quality, latency, and error rate
+    together, the way a real bad change does.
+    """
     denominator = max(1, count - 1)
+    # Never the final iteration: the sequence as a whole must still read as an improvement.
+    setbacks = {
+        index for index in (max(1, count // 3), max(2, count * 2 // 3)) if index < count - 1
+    }
+    # Scaled to the per-step gain, so a setback always reads as a dip rather than merely a
+    # smaller improvement. A fixed penalty vanishes at low --experiments counts, where each
+    # step already moves further than the penalty subtracts.
+    quality_penalty = (0.4 / denominator) * 1.6
+    latency_penalty = (0.09 / denominator) * 1.6
     profiles = []
     for index in range(count):
         progress = index / denominator
-        error_rate = 0.12 - progress * 0.09
-        if index in {max(1, count // 3), max(2, count * 2 // 3)}:
-            error_rate += 0.1
+        regressed = index in setbacks
+        error_rate = 0.12 - progress * 0.09 + (0.1 if regressed else 0.0)
+        quality = 0.5 + progress * 0.4 - (quality_penalty if regressed else 0.0)
+        latency = 0.16 - progress * 0.09 + (latency_penalty if regressed else 0.0)
         profiles.append(
             IterationProfile(
-                quality=0.5 + progress * 0.4,
-                latency_seconds=0.16 - progress * 0.09,
+                quality=max(0.05, quality),
+                latency_seconds=latency,
                 prompt_tokens=180 - round(progress * 65),
                 completion_tokens=84 - round(progress * 35),
                 error_rate=min(0.3, error_rate),
