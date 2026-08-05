@@ -31,22 +31,34 @@ class AssistantMessageMetadataUsageTokens(CamelBaseModel):
     total: int
 
 
-class AssistantMessageMetadataUsageTokenDetails(CamelBaseModel):
+class AssistantMessageMetadataUsageCacheTokenDetails(CamelBaseModel):
+    """Prompt-cache token counts, mounted as the usage payload's
+    ``prompt_details`` because cached tokens are a breakdown of the prompt."""
+
     cache_read: int
     cache_write: int
 
 
 class AssistantMessageMetadataUsage(CamelBaseModel):
     tokens: AssistantMessageMetadataUsageTokens
-    prompt_details: AssistantMessageMetadataUsageTokenDetails | None = None
+    prompt_details: AssistantMessageMetadataUsageCacheTokenDetails | None = None
 
 
 class AssistantMessageMetadataTraceIds(CamelBaseModel):
+    """Identifiers locating the trace of the turn that produced the message,
+    advertised to the UI so it can link the message to a viewable trace."""
+
     trace_id: str
     root_span_id: str
 
 
 class TurnTraceContext(CamelBaseModel):
+    """The trace context a turn's spans are parented to — echoed from the
+    client when it supplied one, otherwise minted by the server. Unlike
+    ``AssistantMessageMetadataTraceIds`` this is an input to span recording
+    (it carries ``started_at`` and enforces OTel hex formats), not a pointer
+    to an already recorded trace."""
+
     trace_id: str = Field(pattern=r"^[0-9a-f]{32}$")
     root_span_id: str = Field(pattern=r"^[0-9a-f]{16}$")
     started_at: datetime
@@ -59,8 +71,13 @@ class AssistantMessageMetadata(CamelBaseModel):
 
     type: Literal["assistant"]
     session_id: str
+
     trace: AssistantMessageMetadataTraceIds | None = None
+    """Where the turn's trace can be viewed, when any tracing was active."""
+
     turn_trace_context: TurnTraceContext | None = None
+    """The trace context the turn's spans were parented to."""
+
     usage: AssistantMessageMetadataUsage | None = None
 
 

@@ -9616,7 +9616,8 @@
           "traceId",
           "rootSpanId"
         ],
-        "title": "AssistantMessageMetadataTraceIds"
+        "title": "AssistantMessageMetadataTraceIds",
+        "description": "Identifiers locating the trace of the turn that produced the message,\nadvertised to the UI so it can link the message to a viewable trace."
       },
       "AssistantMessageMetadataUsage": {
         "properties": {
@@ -9626,7 +9627,7 @@
           "promptDetails": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/AssistantMessageMetadataUsageTokenDetails"
+                "$ref": "#/components/schemas/AssistantMessageMetadataUsageCacheTokenDetails"
               },
               {
                 "type": "null"
@@ -9641,7 +9642,7 @@
         ],
         "title": "AssistantMessageMetadataUsage"
       },
-      "AssistantMessageMetadataUsageTokenDetails": {
+      "AssistantMessageMetadataUsageCacheTokenDetails": {
         "properties": {
           "cacheRead": {
             "type": "integer",
@@ -9658,7 +9659,8 @@
           "cacheRead",
           "cacheWrite"
         ],
-        "title": "AssistantMessageMetadataUsageTokenDetails"
+        "title": "AssistantMessageMetadataUsageCacheTokenDetails",
+        "description": "Prompt-cache token counts, mounted as the usage payload's\n``prompt_details`` because cached tokens are a breakdown of the prompt."
       },
       "AssistantMessageMetadataUsageTokens": {
         "properties": {
@@ -19322,7 +19324,8 @@
           "rootSpanId",
           "startedAt"
         ],
-        "title": "TurnTraceContext"
+        "title": "TurnTraceContext",
+        "description": "The trace context a turn's spans are parented to \u2014 echoed from the\nclient when it supplied one, otherwise minted by the server. Unlike\n``AssistantMessageMetadataTraceIds`` this is an input to span recording\n(it carries ``started_at`` and enforces OTel hex formats), not a pointer\nto an already recorded trace."
       },
       "UpdateAnnotationConfigResponseBody": {
         "properties": {

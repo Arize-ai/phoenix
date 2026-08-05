@@ -68,7 +68,7 @@ async def test_load_agent_session_history_returns_the_full_uncompacted_transcrip
         )
 
     assert [row.message for row in history] == messages
-    assert not history[0].is_compaction_point
+    assert not history[0].is_compaction_message
 
 
 async def test_load_agent_session_history_starts_at_the_latest_compaction_point(
@@ -118,7 +118,7 @@ async def test_load_agent_session_history_starts_at_the_latest_compaction_point(
         _message_uuid("user-3"),
         _message_uuid("assistant-3"),
     ]
-    assert history[0].is_compaction_point
+    assert history[0].is_compaction_message
     assert history[0].message.id == _message_uuid("compaction-2")
 
 
