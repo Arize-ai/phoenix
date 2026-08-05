@@ -767,6 +767,11 @@ class ProjectSession(HasId):
         UtcTimeStamp,
         nullable=True,
     )
+    content_complete: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("true"),
+    )
     traces: Mapped[list["Trace"]] = relationship(
         "Trace",
         back_populates="project_session",
