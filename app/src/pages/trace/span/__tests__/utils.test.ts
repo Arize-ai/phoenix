@@ -85,11 +85,12 @@ describe("getLLMAttributes", () => {
             tool: {
               // An instrumentation that flattens `tool.json_schema.*` makes
               // ingestion store json_schema as a nested object instead of a
-              // JSON string.
+              // JSON string. json_schema is typed unknown, so this shape is
+              // supplied directly rather than asserted into a string.
               json_schema: {
                 name: "search",
                 parameters: { type: "object" },
-              } as unknown as string,
+              },
             },
           },
         ],
