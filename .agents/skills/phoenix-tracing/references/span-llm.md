@@ -36,10 +36,24 @@ Represent calls to language models (OpenAI, Anthropic, local models, etc.).
 **Input messages:**
 - `llm.input_messages.{i}.message.role` - "user", "assistant", "system", "tool"
 - `llm.input_messages.{i}.message.content` - Text content
-- `llm.input_messages.{i}.message.contents.{j}` - Multimodal (text + images)
+- `llm.input_messages.{i}.message.contents.{j}` - Structured content parts (multimodal)
 - `llm.input_messages.{i}.message.tool_calls` - Tool invocations
 
 **Output messages:** Same structure as input messages.
+
+**Structured content parts.** Each entry under `message.contents.{j}` carries a
+type tag and its payload:
+
+- `llm.output_messages.{i}.message.contents.{j}.message_content.type` - one of
+  `text`, `image`, `audio`, `reasoning`, `tool_use`
+- `llm.output_messages.{i}.message.contents.{j}.message_content.text` - the text
+  payload, set for both `text` and `reasoning` parts
+
+Reasoning content is a content part, not a separate attribute — a model's
+thinking tokens arrive as a part with `type = "reasoning"` alongside the `text`
+parts of the same message. Code that reads message text should filter on
+`message_content.type` rather than concatenating every part, or reasoning text
+will be mixed into the visible answer.
 
 ## Example: Basic LLM Call
 
