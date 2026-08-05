@@ -94,11 +94,12 @@ Direct columns of the session row:
 | `start_time`, `end_time` | datetime | Earliest and latest trace timestamps |
 | `duration_ms` | float | Wall-clock duration in milliseconds |
 
-Datetime comparands are ISO 8601 strings, e.g.
-`start_time > '2026-07-01T00:00:00+00:00'`; values without a timezone are read as UTC.
-Prefer an offset-bearing literal: the DSL reads naive input as UTC, but general REST
-normalization localizes naive input to the server timezone, and an expression that means
-different instants in different places is a bad thing to save.
+Datetime comparands are ISO 8601 strings with an explicit offset, e.g.
+`start_time > '2026-07-01T00:00:00+00:00'` or a trailing `Z`. A literal without one is
+rejected at validation (`datetime literal '…' has no timezone, add an offset (e.g. 'Z' for
+UTC)`). The offset is required rather than defaulted to UTC: general REST normalization
+localizes naive input to the server timezone, and an expression that means different
+instants in different places is a bad thing to save.
 
 `start_time` and `end_time` are not the view's time range, and the difference is easy to trip
 over. `timeRange` selects the candidate universe by *interval overlap* with a half-open
