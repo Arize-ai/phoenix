@@ -57,6 +57,8 @@ jobs:
             packages/phoenix-sqlean/Makefile
             packages/phoenix-sqlean/README.md
             packages/phoenix-sqlean/LICENSE
+            packages/phoenix-sqlean/THIRD_PARTY_LICENSES
+            packages/phoenix-sqlean/cibuildwheel.toml
             packages/phoenix-sqlean/setup.cfg
             packages/phoenix-sqlean/setup.py
             packages/phoenix-sqlean/sqlean
@@ -106,12 +108,27 @@ jobs:
           python setup.py build_ext -i
           python -m tests
 
+  # The test job compiles in place, so nothing else here runs cibuildwheel. One
+  # interpreter suffices: this covers the build, not the compiler matrix.
+  wheel:
+    name: cibuildwheel smoke test
+    needs: [changes, download-sources]
+    if: needs.changes.outputs.sqlean == 'true'
+    uses: ./.github/workflows/phoenix-sqlean-build.yml
+    with:
+      sources-artifact: sqlean-sources
+      runners: '["ubuntu-latest"]'
+      cibw-build: cp312-manylinux_x86_64
+      cibw-archs-linux: x86_64
+      emulate-aarch64: false
+
   ci-required:
     name: phoenix-sqlean CI Required
     needs:
       - changes
       - download-sources
       - test
+      - wheel
     if: always()
     runs-on: ubuntu-latest
     steps:

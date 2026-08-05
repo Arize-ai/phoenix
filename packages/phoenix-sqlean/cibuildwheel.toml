@@ -1,0 +1,26 @@
+# Read by .github/workflows/phoenix-sqlean-build.yml, which publish.yaml and
+# phoenix-sqlean-ci.yml both call. CIBW_* env vars still win; that is how CI
+# narrows the matrix.
+
+[tool.cibuildwheel]
+# Anything not listed installs from the sdist, which needs a C toolchain --
+# currently musllinux and PyPy, and whatever gets dropped from here.
+build = "cp310-macosx* cp311-macosx* cp312-macosx* cp313-macosx* cp314-macosx* cp310-manylinux* cp311-manylinux* cp312-manylinux* cp313-manylinux* cp314-manylinux* cp310-win* cp311-win* cp312-win* cp313-win* cp314-win*"
+
+# test-sources must carry everything the suite reads from cwd:
+# tests/extensions.py imports SQLEAN_VERSION from setup.py, which reads README.md
+# at import (hence setuptools). These resolve against cibuildwheel's cwd, not
+# package-dir. Cross-compiled wheels (macOS x86_64, win_arm64) go untested;
+# phoenix-sqlean-ci.yml's native ARM legs cover them.
+test-sources = ["tests", "setup.py", "README.md"]
+test-requires = ["setuptools==83.0.0"]
+test-command = "python -m tests"
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64", "aarch64"]
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
+
+[tool.cibuildwheel.windows]
+archs = ["AMD64", "ARM64"]
