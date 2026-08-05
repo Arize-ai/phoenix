@@ -33,8 +33,7 @@ const AGENT_SESSION_CHAT_PATH =
 const SERVER_AGENT_ID = "server";
 const AGENT_SESSION_PAGE_LIMIT = 100;
 /**
- * The `code` discriminator of every HTTP 409 the agent session routes return,
- * from the server's `AgentSessionConflictError` OpenAPI schema.
+ * The `code` discriminator of every HTTP 409 the agent session routes return.
  */
 type AgentSessionConflictCode =
   componentsV1["schemas"]["AgentSessionConflictError"]["code"];
