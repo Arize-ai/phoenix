@@ -2090,7 +2090,6 @@ def create_agents_router(
                 GlobalID.from_id(session_id), models.AgentSession.__name__
             )
         except ValueError as error:
-            # An unparseable ID is indistinguishable from a missing session.
             raise HTTPException(status_code=404, detail="Agent session not found") from error
 
         statement = select(models.AgentSession).where(models.AgentSession.id == session_rowid)
@@ -2146,7 +2145,6 @@ def create_agents_router(
                 GlobalID.from_id(session_id), models.AgentSession.__name__
             )
         except ValueError as error:
-            # An unparseable ID is indistinguishable from a missing session.
             raise HTTPException(status_code=404, detail="Agent session not found") from error
 
         session_statement = select(models.AgentSession.id).where(
