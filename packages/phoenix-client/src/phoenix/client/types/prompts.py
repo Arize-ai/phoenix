@@ -24,6 +24,12 @@ from phoenix.client.helpers.sdk.anthropic.messages import (
 from phoenix.client.helpers.sdk.anthropic.messages import (
     to_chat_messages_and_kwargs as to_messages_anthropic,
 )
+from phoenix.client.helpers.sdk.google_genai.generate_content import (
+    GoogleGenAIModelKwargs,
+)
+from phoenix.client.helpers.sdk.google_genai.generate_content import (
+    to_chat_messages_and_kwargs as to_messages_google_genai,
+)
 from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
     GoogleModelKwargs,
     create_prompt_version_from_google,
@@ -43,6 +49,7 @@ from phoenix.client.utils.template_formatters import TemplateFormatter
 if TYPE_CHECKING:
     from anthropic.types import MessageParam
     from anthropic.types.message_create_params import MessageCreateParamsBase
+    from google.genai import types as genai_types
     from google.generativeai import protos
     from openai.types.chat import ChatCompletionMessageParam
     from openai.types.chat.completion_create_params import CompletionCreateParamsBase
@@ -269,6 +276,14 @@ class PromptVersion:
                     formatter=formatter,
                 )
             )
+        if sdk == "google_genai":
+            return GoogleGenAIPrompt(
+                *to_messages_google_genai(
+                    obj,
+                    variables=variables,
+                    formatter=formatter,
+                )
+            )
         if sdk == "boto3":
             raise NotImplementedError("Boto3 is not supported yet")
         assert_never(sdk)
@@ -469,12 +484,51 @@ class GoogleGenerativeaiPrompt(_FormattedPrompt):
     kwargs: GoogleModelKwargs
 
 
+@dataclass(frozen=True)
+class GoogleGenAIPrompt(_FormattedPrompt):
+    """
+    Represents a formatted prompt for the Google GenAI SDK (google-genai).
+
+    Attributes:
+        messages (Sequence[genai_types.Content]): A sequence of content messages
+            to pass as ``contents`` to ``client.models.generate_content``.
+        kwargs (GoogleGenAIModelKwargs): Keyword arguments (``model`` and ``config``)
+            for ``client.models.generate_content``.
+    """
+
+    messages: Sequence[genai_types.Content]
+    kwargs: GoogleGenAIModelKwargs
+
+
 SDK: TypeAlias = Literal[
     "anthropic",  # https://pypi.org/project/anthropic/
-    "google_generativeai",  # https://pypi.org/project/google-generativeai/
+    "google_genai",  # https://pypi.org/project/google-genai/
+    "google_generativeai",  # https://pypi.org/project/google-generativeai/ (deprecated)
     "openai",  # https://pypi.org/project/openai/
     "boto3",  # https://boto3.amazonaws.com/v1/documentation/api/latest/index.html
 ]
+
+
+def _default_google_sdk() -> SDK:
+    """
+    Prefers the legacy ``google-generativeai`` SDK for backwards compatibility,
+    but falls back to the new ``google-genai`` SDK when only the latter is
+    installed. The two packages conflict on ``protobuf`` requirements, so many
+    environments can only install one of them.
+    """
+    from importlib.util import find_spec
+
+    try:
+        if find_spec("google.generativeai") is not None:
+            return "google_generativeai"
+    except ModuleNotFoundError:
+        return "google_generativeai"
+    try:
+        if find_spec("google.genai") is not None:
+            return "google_genai"
+    except ModuleNotFoundError:
+        pass
+    return "google_generativeai"
 
 
 def _to_sdk(
@@ -502,7 +556,7 @@ def _to_sdk(
     if model_provider == "ANTHROPIC":
         return "anthropic"
     if model_provider == "GOOGLE":
-        return "google_generativeai"
+        return _default_google_sdk()
     if model_provider == "DEEPSEEK":
         return "openai"
     if model_provider == "XAI":
