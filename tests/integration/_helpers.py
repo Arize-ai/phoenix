@@ -2222,6 +2222,7 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/projects/fake-id-{}/session_annotations"),
     # Spans
     (422, "GET", "v1/spans"),
+    (404, "GET", "v1/spans/fake-id-{}"),
     # Sessions
     (404, "GET", "v1/projects/fake-id-{}/sessions"),
     (404, "GET", "v1/sessions/fake-id-{}"),
