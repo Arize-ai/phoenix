@@ -150,6 +150,15 @@ def upgrade() -> None:
             nullable=True,
         ),
     )
+    op.add_column(
+        "project_sessions",
+        sa.Column(
+            "content_complete",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("true"),
+        ),
+    )
     op.create_index(
         "ix_project_sessions_project_id_last_span_ingested_at",
         "project_sessions",
@@ -360,9 +369,17 @@ def upgrade() -> None:
         "eval_work_units",
         ["criteria_id"],
     )
+    _create_session_work_units_table()
 
 
 def downgrade() -> None:
+    op.drop_index("ix_eval_session_work_units_criteria_id", table_name="eval_session_work_units")
+    op.drop_index("ix_eval_session_work_units_evaluator_id", table_name="eval_session_work_units")
+    op.drop_index("ix_eval_session_work_units_error_attempts", table_name="eval_session_work_units")
+    op.drop_index("ix_eval_session_work_units_terminal", table_name="eval_session_work_units")
+    op.drop_index("ix_eval_session_work_units_claimable", table_name="eval_session_work_units")
+    op.drop_table("eval_session_work_units")
+
     op.drop_index("ix_eval_work_units_criteria_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_evaluator_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_error_attempts", table_name="eval_work_units")
@@ -382,4 +399,5 @@ def downgrade() -> None:
         "ix_project_sessions_project_id_last_span_ingested_at",
         table_name="project_sessions",
     )
+    op.drop_column("project_sessions", "content_complete")
     op.drop_column("project_sessions", "last_span_ingested_at")
