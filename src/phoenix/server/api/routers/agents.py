@@ -831,6 +831,42 @@ async def _persist_db_traces_and_emit_event(
         event_queue.put(SpanInsertEvent(project_ids))
 
 
+async def _flush_and_persist_agent_traces(
+    *,
+    tracer: Tracer,
+    request: Request,
+    project_name: str,
+    ingest_traces: bool,
+) -> None:
+    """Flush an agent turn's tracer, persist what it captured, and tear it down.
+
+    Every caller runs this from a ``finally``, which is what makes the guarding
+    here load-bearing on two counts. An exception raised in a ``finally``
+    replaces the one already in flight, so an unguarded failure here would
+    discard the real error — an endpoint raising ``HTTPException(502)`` would
+    answer 500 with none of its detail. And it would skip the ``shutdown()``
+    below, stranding the provider's export thread and holding onto every
+    buffered span for the life of the process.
+
+    Recording telemetry is bookkeeping either way: a turn whose traces cannot be
+    written still produced its answer, so a failure is logged rather than raised.
+    """
+    try:
+        tracer.tracer_provider.force_flush()
+        if ingest_traces:
+            project_id = await _ensure_project_exists(request.app.state.db, project_name)
+            db_traces = tracer.get_db_traces(project_id=project_id)
+            await _persist_db_traces_and_emit_event(
+                db=request.app.state.db,
+                event_queue=request.state.event_queue,
+                db_traces=db_traces,
+            )
+    except Exception:
+        logger.exception("Failed to persist agent traces for project %r", project_name)
+    finally:
+        tracer.tracer_provider.shutdown()
+
+
 async def _refresh_cumulative_span_counts(
     *,
     session: AsyncSession,
@@ -1282,18 +1318,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 yield build_stream_error_chunk(exc)
             finally:
                 if tracer is not None:
-                    tracer.tracer_provider.force_flush()
-                    if ingest_traces:
-                        project_id = await _ensure_project_exists(
-                            request.app.state.db, project_name
-                        )
-                        db_traces = tracer.get_db_traces(project_id=project_id)
-                        await _persist_db_traces_and_emit_event(
-                            db=request.app.state.db,
-                            event_queue=request.state.event_queue,
-                            db_traces=db_traces,
-                        )
-                    tracer.tracer_provider.shutdown()
+                    await _flush_and_persist_agent_traces(
+                        tracer=tracer,
+                        request=request,
+                        project_name=project_name,
+                        ingest_traces=ingest_traces,
+                    )
 
         return adapter.streaming_response(_stream_with_session())
 
@@ -1614,18 +1644,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             end_time=datetime.now(timezone.utc),
                             user_email=phoenix_user_email if attach_user_id else None,
                         )
-                    tracer.tracer_provider.force_flush()
-                    if ingest_traces:
-                        project_id = await _ensure_project_exists(
-                            request.app.state.db, project_name
-                        )
-                        db_traces = tracer.get_db_traces(project_id=project_id)
-                        await _persist_db_traces_and_emit_event(
-                            db=request.app.state.db,
-                            event_queue=request.state.event_queue,
-                            db_traces=db_traces,
-                        )
-                    tracer.tracer_provider.shutdown()
+                    await _flush_and_persist_agent_traces(
+                        tracer=tracer,
+                        request=request,
+                        project_name=project_name,
+                        ingest_traces=ingest_traces,
+                    )
 
         return adapter.streaming_response(_stream_with_session())
 
@@ -1693,16 +1717,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
         finally:
             if tracer is not None:
-                tracer.tracer_provider.force_flush()
-                if ingest_traces:
-                    project_id = await _ensure_project_exists(request.app.state.db, project_name)
-                    db_traces = tracer.get_db_traces(project_id=project_id)
-                    await _persist_db_traces_and_emit_event(
-                        db=request.app.state.db,
-                        event_queue=request.state.event_queue,
-                        db_traces=db_traces,
-                    )
-                tracer.tracer_provider.shutdown()
+                await _flush_and_persist_agent_traces(
+                    tracer=tracer,
+                    request=request,
+                    project_name=project_name,
+                    ingest_traces=ingest_traces,
+                )
         return _SummarizeResponse(summary=result.summary.strip())
 
     return router
