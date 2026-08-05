@@ -190,13 +190,14 @@ export function getLLMAttributes(
         .filter(Boolean) as AttributeLLMToolDefinition[])
     : [];
   const toolSchemas = toolDefinitions.reduce<string[]>((acc, tool) => {
-    if (tool?.json_schema) {
-      // Same object-rebuilt-by-ingestion case as tool.parameters below: an
-      // instrumentation that flattens `tool.json_schema.*` into dotted keys
-      // makes ingestion store json_schema as a nested object. toolSchemas is
-      // typed string[] and handed to MimeTypeCodeBlock, so coerce any non-string
-      // value back to JSON text rather than letting an object reach the renderer.
-      acc.push(asToolAttributeString(tool.json_schema) as string);
+    // Same object-rebuilt-by-ingestion case as tool.parameters below: an
+    // instrumentation that flattens `tool.json_schema.*` into dotted keys makes
+    // ingestion store json_schema as a nested object, so it is typed unknown.
+    // asToolAttributeString narrows it and coerces any non-string value back to
+    // JSON text before it reaches MimeTypeCodeBlock, which expects string[].
+    const schema = asToolAttributeString(tool?.json_schema);
+    if (schema != null) {
+      acc.push(schema);
     }
     return acc;
   }, []);

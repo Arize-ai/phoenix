@@ -19,7 +19,11 @@ export type AttributeTool = {
 };
 
 export type AttributeLLMToolDefinition = {
-  [ToolAttributePostfixes.json_schema]?: string;
+  // Conventionally a JSON string, but an instrumentation that flattens
+  // `tool.json_schema.*` into dotted keys makes ingestion rebuild it as a
+  // nested object. Model it as unknown and narrow at the use site rather than
+  // asserting a shape the runtime value may not have.
+  [ToolAttributePostfixes.json_schema]?: unknown;
 };
 
 export type AttributeLLMTool = {
