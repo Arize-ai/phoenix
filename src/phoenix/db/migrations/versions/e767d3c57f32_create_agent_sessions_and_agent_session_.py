@@ -179,6 +179,11 @@ def upgrade() -> None:
         sqlite_autoincrement=True,
     )
     op.create_index(
+        "ix_agent_session_messages_agent_session_id_id",
+        "agent_session_messages",
+        ["agent_session_id", "id"],
+    )
+    op.create_index(
         "ix_agent_session_messages_compaction",
         "agent_session_messages",
         ["agent_session_id", sa.column("id").desc()],
