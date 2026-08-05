@@ -113,6 +113,7 @@ import { GraphQLPage } from "./pages/apis/GraphQLPage";
 import { RestAPIPage } from "./pages/apis/RestAPIPage";
 import { Layout } from "./pages/Layout";
 import { layoutLoader } from "./pages/layoutLoader";
+import { NotFoundPage } from "./pages/NotFound";
 import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
 import { ProjectRoot } from "./pages/project/ProjectRoot";
 import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
@@ -1105,6 +1106,8 @@ export const appRouteObjects = createRoutesFromElements(
           loader={exampleRedirectLoader}
           errorElement={<ErrorElement />}
         />
+        {/* Catch-all: render a 404 page for any unmatched URL. */}
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Route>
   </Route>

@@ -5,6 +5,7 @@ import { redirect } from "react-router";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { projectRedirectLoaderQuery } from "./__generated__/projectRedirectLoaderQuery.graphql";
+import { notFound } from "./notFound";
 
 export async function projectRedirectLoader({ params }: LoaderFunctionArgs) {
   const { project_name: projectName } = params;
@@ -30,6 +31,6 @@ export async function projectRedirectLoader({ params }: LoaderFunctionArgs) {
   if (response?.getProjectByName) {
     return redirect(`/projects/${response.getProjectByName.id}`);
   } else {
-    throw new Error(`Project with name "${projectName}" not found`);
+    throw notFound({ kind: "project-onboarding", projectName });
   }
 }
