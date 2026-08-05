@@ -1,6 +1,7 @@
 import {
   formatApiError,
   HttpError,
+  type componentsV1,
   type pathsV1,
 } from "@arizeai/phoenix-client";
 import {
@@ -32,10 +33,17 @@ const AGENT_SESSION_CHAT_PATH =
 const SERVER_AGENT_ID = "server";
 const AGENT_SESSION_PAGE_LIMIT = 100;
 /**
+ * The `code` discriminator of every HTTP 409 the agent session routes return.
+ */
+type AgentSessionConflictCode =
+  componentsV1["schemas"]["AgentSessionConflictError"]["code"];
+
+/**
  * Error code the chat endpoint returns (HTTP 409) while another client's turn
  * holds the session lock.
  */
-const SESSION_BUSY_ERROR_CODE = "agent_session_busy";
+const SESSION_BUSY_ERROR_CODE =
+  "agent_session_busy" satisfies AgentSessionConflictCode;
 
 /** Whether an error is the chat endpoint's session-busy (HTTP 409) rejection. */
 export function isSessionBusyError({ error }: { error: unknown }): boolean {
@@ -49,7 +57,8 @@ export function isSessionBusyError({ error }: { error: unknown }): boolean {
  * `lastMessageId` no longer matches the persisted transcript — another client
  * appended to the session and this client is rendering a stale transcript.
  */
-const SESSION_MESSAGES_STALE_ERROR_CODE = "agent_session_messages_stale";
+const SESSION_MESSAGES_STALE_ERROR_CODE =
+  "agent_session_messages_stale" satisfies AgentSessionConflictCode;
 
 /** Whether an error is the chat endpoint's stale-transcript (HTTP 409) rejection. */
 export function isSessionMessagesStaleError({
@@ -70,7 +79,8 @@ export function isSessionMessagesStaleError({
  * {@link SESSION_MESSAGES_STALE_ERROR_CODE}: the user needs to be told their model
  * changed, not that messages were refreshed.
  */
-const SESSION_MODEL_STALE_ERROR_CODE = "agent_session_model_stale";
+const SESSION_MODEL_STALE_ERROR_CODE =
+  "agent_session_model_stale" satisfies AgentSessionConflictCode;
 
 /** Whether an error is the stale-model (HTTP 409) rejection. */
 export function isSessionModelStaleError({

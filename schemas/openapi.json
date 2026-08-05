@@ -8074,7 +8074,7 @@
           "chat"
         ],
         "summary": "Run Server Agent",
-        "operationId": "run_server_agent_agents_server_sessions__session_id__chat_post",
+        "operationId": "legacyServerAgentChat",
         "deprecated": true,
         "parameters": [
           {
@@ -8114,6 +8114,56 @@
               }
             }
           },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -8134,7 +8184,7 @@
         ],
         "summary": "Create Session",
         "description": "Create a persisted agent session owned by the requesting user.",
-        "operationId": "create_session_agents__agent_id__sessions_post",
+        "operationId": "createAgentSession",
         "parameters": [
           {
             "name": "agent_id",
@@ -8167,15 +8217,65 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "400": {
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "type": "string"
                 }
               }
-            }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
           }
         }
       },
@@ -8238,15 +8338,45 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "type": "string"
                 }
               }
-            }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         }
       }
@@ -8300,15 +8430,75 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "409": {
+            "description": "The request conflicts with the session's current state; the body's ``code`` field says how.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/AgentSessionConflictError"
                 }
               }
             }
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
           }
         }
       },
@@ -8349,6 +8539,36 @@
                 }
               }
             }
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
           },
           "422": {
             "description": "Validation Error",
@@ -8432,15 +8652,45 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "type": "string"
                 }
               }
-            }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         }
       }
@@ -8451,7 +8701,7 @@
           "chat"
         ],
         "summary": "Compact Agent Session",
-        "operationId": "compact_agent_session_agents__agent_id__sessions__session_id__compact_post",
+        "operationId": "compactAgentSession",
         "parameters": [
           {
             "name": "agent_id",
@@ -8493,6 +8743,76 @@
               }
             }
           },
+          "409": {
+            "description": "The request conflicts with the session's current state; the body's ``code`` field says how.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSessionConflictError"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "502": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -8512,7 +8832,7 @@
           "chat"
         ],
         "summary": "Chat",
-        "operationId": "chat_agents__agent_id__sessions__session_id__chat_post",
+        "operationId": "agentSessionChat",
         "parameters": [
           {
             "name": "agent_id",
@@ -8551,6 +8871,66 @@
                 "schema": {}
               }
             }
+          },
+          "409": {
+            "description": "The request conflicts with the session's current state; the body's ``code`` field says how.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSessionConflictError"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
           },
           "422": {
             "description": "Validation Error",
@@ -8645,19 +9025,39 @@
           }
         }
       },
-      "AgentSession": {
+      "AgentSessionConflictError": {
         "properties": {
-          "id": {
+          "code": {
             "type": "string",
-            "title": "Id",
-            "description": "The session's GlobalID \u2014 the ``session_id`` the chat route expects."
+            "enum": [
+              "agent_session_busy",
+              "agent_session_model_stale",
+              "agent_session_messages_stale",
+              "agent_session_messages_conflict",
+              "agent_session_compaction_conflict"
+            ],
+            "title": "Code",
+            "description": "Machine-readable reason the request conflicted."
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "Optional human-readable elaboration on the conflict."
           }
         },
         "type": "object",
         "required": [
-          "id"
+          "code"
         ],
-        "title": "AgentSession"
+        "title": "AgentSessionConflictError",
+        "description": "Body of every HTTP 409 returned by the agent session routes.\n\n- ``agent_session_busy``: another turn holds the session's turn lock.\n- ``agent_session_model_stale``: the request asserted a model the session\n  is no longer set to; refetch the session before retrying.\n- ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer\n  matches the persisted transcript \u2014 another client appended; refetch the\n  transcript and retry.\n- ``agent_session_messages_conflict``: the submitted assistant message and\n  the request's ``lastMessageId`` contradict each other. Unlike\n  ``agent_session_messages_stale`` this is not a concurrent-writer race but\n  an inconsistent request; fix the client rather than retrying.\n- ``agent_session_compaction_conflict``: the conversation changed while it\n  was being compacted; retry."
       },
       "AgentSessionData": {
         "properties": {
@@ -10040,7 +10440,7 @@
       "CreateAgentSessionResponseBody": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/AgentSession"
+            "$ref": "#/components/schemas/CreatedAgentSession"
           }
         },
         "type": "object",
@@ -10781,6 +11181,20 @@
           "data"
         ],
         "title": "CreateUserResponseBody"
+      },
+      "CreatedAgentSession": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The session's GlobalID \u2014 the ``session_id`` the chat route expects."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "CreatedAgentSession"
       },
       "CreatedApiKey": {
         "properties": {
@@ -14195,28 +14609,14 @@
       "PatchAgentSessionRequestBody": {
         "properties": {
           "title": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 100
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
+            "maxLength": 100,
             "title": "Title",
-            "description": "New title for the session (null is rejected; title is required)"
+            "description": "New title for the session"
           },
           "model": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AgentModelSelection"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "New model selection for the session (null is rejected)"
+            "$ref": "#/components/schemas/AgentModelSelection",
+            "description": "New model selection for the session"
           }
         },
         "type": "object",

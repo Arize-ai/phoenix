@@ -43,7 +43,6 @@ from pydantic import (
     ConfigDict,
     Field,
     TypeAdapter,
-    model_validator,
 )
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult
@@ -162,7 +161,11 @@ from phoenix.server.api.helpers.playground_registry import (
 )
 from phoenix.server.api.openapi.registry import register_openapi_schema
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
-from phoenix.server.api.routers.v1.utils import PaginatedResponseBody, ResponseBody
+from phoenix.server.api.routers.v1.utils import (
+    PaginatedResponseBody,
+    ResponseBody,
+    add_errors_to_responses,
+)
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     Cursor,
@@ -234,7 +237,15 @@ def _get_updated_provider_metadata(
 
 
 class _CamelBaseModel(BaseModel):
-    """Base model with camelCase aliases."""
+    """Base model with camelCase aliases.
+
+    The wire casing under ``/agents`` is deliberately split: the chat route's
+    request body and stream chunks extend this class because they follow the
+    Vercel AI SDK data stream protocol, which dictates camelCase, while the
+    session CRUD payloads extend ``V1RoutesBaseModel`` and keep the REST API's
+    snake_case convention. Do not normalize either side to match the other —
+    both casings are external contracts.
+    """
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
@@ -376,14 +387,80 @@ class CreateAgentSessionRequestBody(V1RoutesBaseModel):
     )
 
 
-class AgentSession(V1RoutesBaseModel):
+class CreatedAgentSession(V1RoutesBaseModel):
     id: str = Field(
         description="The session's GlobalID — the ``session_id`` the chat route expects."
     )
 
 
-class CreateAgentSessionResponseBody(ResponseBody[AgentSession]):
+class CreateAgentSessionResponseBody(ResponseBody[CreatedAgentSession]):
     pass
+
+
+AgentSessionConflictCode = Literal[
+    "agent_session_busy",
+    "agent_session_model_stale",
+    "agent_session_messages_stale",
+    "agent_session_messages_conflict",
+    "agent_session_compaction_conflict",
+]
+
+
+class AgentSessionConflictError(V1RoutesBaseModel):
+    """Body of every HTTP 409 returned by the agent session routes.
+
+    - ``agent_session_busy``: another turn holds the session's turn lock.
+    - ``agent_session_model_stale``: the request asserted a model the session
+      is no longer set to; refetch the session before retrying.
+    - ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer
+      matches the persisted transcript — another client appended; refetch the
+      transcript and retry.
+    - ``agent_session_messages_conflict``: the submitted assistant message and
+      the request's ``lastMessageId`` contradict each other. Unlike
+      ``agent_session_messages_stale`` this is not a concurrent-writer race but
+      an inconsistent request; fix the client rather than retrying.
+    - ``agent_session_compaction_conflict``: the conversation changed while it
+      was being compacted; retry.
+    """
+
+    code: AgentSessionConflictCode = Field(
+        description="Machine-readable reason the request conflicted."
+    )
+    message: str | None = Field(
+        default=None,
+        description="Optional human-readable elaboration on the conflict.",
+    )
+
+
+class _AgentSessionConflict(Exception):
+    """Internal signal converted to a 409 ``AgentSessionConflictError`` response."""
+
+    def __init__(self, code: AgentSessionConflictCode, message: str | None = None) -> None:
+        super().__init__(message or code)
+        self.code = code
+        self.message = message
+
+
+def _conflict_response(
+    code: AgentSessionConflictCode,
+    message: str | None = None,
+) -> JSONResponse:
+    body = AgentSessionConflictError(code=code, message=message)
+    return JSONResponse(
+        body.model_dump(mode="json", exclude_none=True),
+        status_code=409,
+    )
+
+
+_CONFLICT_RESPONSES: dict[int | str, dict[str, Any]] = {
+    409: {
+        "model": AgentSessionConflictError,
+        "description": (
+            "The request conflicts with the session's current state; the body's "
+            "``code`` field says how."
+        ),
+    }
+}
 
 
 class PatchAgentSessionRequestBody(V1RoutesBaseModel):
@@ -391,23 +468,15 @@ class PatchAgentSessionRequestBody(V1RoutesBaseModel):
     Fields to update on a persisted session. Omit a field to leave it unchanged.
     """
 
-    title: str | None = Field(
+    title: str = Field(
         default=UNDEFINED,
         max_length=MAX_AGENT_SESSION_TITLE_LENGTH,
-        description="New title for the session (null is rejected; title is required)",
+        description="New title for the session",
     )
-    model: AgentModelSelection | None = Field(
+    model: AgentModelSelection = Field(
         default=UNDEFINED,
-        description="New model selection for the session (null is rejected)",
+        description="New model selection for the session",
     )
-
-    @model_validator(mode="after")
-    def _reject_explicit_nulls(self) -> "PatchAgentSessionRequestBody":
-        if self.title is None:
-            raise ValueError("title cannot be null")
-        if self.model is None:
-            raise ValueError("model cannot be null")
-        return self
 
 
 class AgentSessionSummary(V1RoutesBaseModel):
@@ -1380,9 +1449,9 @@ def _merge_messages(
         return [*old_messages, new_message]
     if new_message.role == "assistant":
         if not old_messages or old_messages[-1].id != new_message.id:
-            raise HTTPException(
-                status_code=409,
-                detail=(
+            raise _AgentSessionConflict(
+                "agent_session_messages_conflict",
+                (
                     "The submitted assistant message does not match the session's "
                     "latest transcript message; reload the conversation"
                 ),
@@ -1491,13 +1560,13 @@ async def _claim_agent_session_turn_lock_for_model(
         session,
         agent_session_rowid=agent_session_rowid,
     ):
-        return JSONResponse({"code": "agent_session_busy"}, status_code=409)
+        return _conflict_response("agent_session_busy")
     if requested_model != session_model:
         await _clear_agent_session_turn_lock(
             session,
             agent_session_rowid=agent_session_rowid,
         )
-        return JSONResponse({"code": "agent_session_model_stale"}, status_code=409)
+        return _conflict_response("agent_session_model_stale")
     return None
 
 
@@ -1836,7 +1905,14 @@ def create_agents_router(
         dependencies.append(Depends(is_authenticated))
     router = APIRouter(tags=["chat"], dependencies=dependencies)
 
-    @router.post("/agents/{agent_id}/sessions", status_code=201)
+    @router.post(
+        "/agents/{agent_id}/sessions",
+        operation_id="createAgentSession",
+        status_code=201,
+        response_model_by_alias=True,
+        response_model_exclude_unset=True,
+        responses=add_errors_to_responses([400, 401, 403, 404, 422, 507]),
+    )
     async def create_session(
         agent_id: str,
         request: Request,
@@ -1872,7 +1948,7 @@ def create_agents_router(
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
         return CreateAgentSessionResponseBody(
-            data=AgentSession(
+            data=CreatedAgentSession(
                 id=str(GlobalID(models.AgentSession.__name__, str(agent_session_rowid)))
             )
         )
@@ -1881,7 +1957,12 @@ def create_agents_router(
         "/agents/{agent_id}/sessions/{session_id}",
         operation_id="patchAgentSession",
         response_model=PatchAgentSessionResponseBody,
+        response_model_by_alias=True,
         response_model_exclude_unset=True,
+        responses=add_errors_to_responses(
+            [400, 401, 403, 404, 422, 507],
+            responses=dict(_CONFLICT_RESPONSES),
+        ),
     )
     async def patch_session(
         agent_id: str,
@@ -1897,7 +1978,7 @@ def create_agents_router(
         if request_body.title is UNDEFINED and request_body.model is UNDEFINED:
             raise HTTPException(status_code=422, detail="No fields to update")
         title: str | None = None
-        if request_body.title is not UNDEFINED and request_body.title is not None:
+        if request_body.title is not UNDEFINED:
             try:
                 title = validate_agent_session_title(request_body.title, allow_empty=False)
             except ValueError as exc:
@@ -1912,12 +1993,12 @@ def create_agents_router(
                 )
                 if title is not None:
                     agent_session.title = title
-                if request_body.model is not UNDEFINED and request_body.model is not None:
+                if request_body.model is not UNDEFINED:
                     if is_turn_active(
                         agent_session.heartbeat_at,
                         now=datetime.now(timezone.utc),
                     ):
-                        return JSONResponse({"code": "agent_session_busy"}, status_code=409)
+                        return _conflict_response("agent_session_busy")
                     await set_session_model(
                         session,
                         agent_session=agent_session,
@@ -1941,6 +2022,7 @@ def create_agents_router(
         response_model_by_alias=True,
         response_model_exclude_unset=True,
         response_model_exclude_defaults=True,
+        responses=add_errors_to_responses([401, 403, 404, 422]),
     )
     async def list_sessions(
         agent_id: str,
@@ -1994,6 +2076,7 @@ def create_agents_router(
         operation_id="getAgentSession",
         response_model_by_alias=True,
         response_model_exclude_unset=True,
+        responses=add_errors_to_responses([401, 403, 404]),
     )
     async def get_session(
         agent_id: str,
@@ -2010,7 +2093,7 @@ def create_agents_router(
                 GlobalID.from_id(session_id), models.AgentSession.__name__
             )
         except ValueError as error:
-            raise HTTPException(status_code=422, detail="Invalid agent session ID") from error
+            raise HTTPException(status_code=404, detail="Agent session not found") from error
 
         statement = select(models.AgentSession).where(models.AgentSession.id == session_rowid)
         if (user_id := _get_request_user_id(request)) is not None:
@@ -2046,6 +2129,7 @@ def create_agents_router(
         response_model_exclude_unset=True,
         # AI SDK part types and tool states are required on the wire but modeled as defaults.
         # Do not set response_model_exclude_defaults=True here.
+        responses=add_errors_to_responses([401, 403, 404, 422]),
     )
     async def list_session_messages(
         agent_id: str,
@@ -2064,7 +2148,7 @@ def create_agents_router(
                 GlobalID.from_id(session_id), models.AgentSession.__name__
             )
         except ValueError as error:
-            raise HTTPException(status_code=422, detail="Invalid agent session ID") from error
+            raise HTTPException(status_code=404, detail="Agent session not found") from error
 
         session_statement = select(models.AgentSession.id).where(
             models.AgentSession.id == session_rowid
@@ -2095,8 +2179,13 @@ def create_agents_router(
 
     @router.post(
         "/agents/{agent_id}/sessions/{session_id}/compact",
+        operation_id="compactAgentSession",
         response_model=CompactAgentSessionResponse,
         response_model_exclude_none=True,
+        responses=add_errors_to_responses(
+            [400, 401, 403, 404, 502, 507],
+            responses=dict(_CONFLICT_RESPONSES),
+        ),
     )
     async def compact_agent_session(
         agent_id: str,
@@ -2199,9 +2288,9 @@ def create_agents_router(
                     or current_latest_row.id != boundary_row.id
                     or current_latest_row.message != boundary_row.message
                 ):
-                    raise HTTPException(
-                        status_code=409,
-                        detail="The conversation changed while it was being compacted; try again",
+                    return _conflict_response(
+                        "agent_session_compaction_conflict",
+                        "The conversation changed while it was being compacted; try again",
                     )
                 compaction_message = _build_compaction_message(
                     message_id=str(uuid4()),
@@ -2229,7 +2318,14 @@ def create_agents_router(
                 agent_session_rowid=agent_session_rowid,
             )
 
-    @router.post("/agents/{agent_id}/sessions/{session_id}/chat")
+    @router.post(
+        "/agents/{agent_id}/sessions/{session_id}/chat",
+        operation_id="agentSessionChat",
+        responses=add_errors_to_responses(
+            [400, 401, 403, 404, 507],
+            responses=dict(_CONFLICT_RESPONSES),
+        ),
+    )
     async def chat(
         agent_id: str,
         session_id: str,
@@ -2277,7 +2373,7 @@ def create_agents_router(
                     session_history[-1].message_id if session_history else None
                 )
                 if body.last_message_id != expected_last_message_id:
-                    return JSONResponse({"code": "agent_session_messages_stale"}, status_code=409)
+                    return _conflict_response("agent_session_messages_stale")
                 transcript_messages = _merge_messages(
                     old_messages=[row.message for row in session_history],
                     new_message=body.message,
@@ -2299,6 +2395,8 @@ def create_agents_router(
                     project_name=project_name,
                     agent_session_rowid=agent_session_rowid,
                 )
+        except _AgentSessionConflict as exc:
+            return _conflict_response(exc.code, exc.message)
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
