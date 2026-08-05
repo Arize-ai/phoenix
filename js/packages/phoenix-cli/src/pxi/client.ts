@@ -164,10 +164,13 @@ export async function createAgentSession({
   const client = createPhoenixClient({ config, fetch: fetchImpl });
   let agentSessionId: string | undefined;
   try {
-    const { data: payload } = await client.POST("/v1/agents/{agent_id}/sessions", {
-      params: { path: { agent_id: SERVER_AGENT_ID } },
-      body: { title: "", is_ephemeral: temporary, model },
-    });
+    const { data: payload } = await client.POST(
+      "/v1/agents/{agent_id}/sessions",
+      {
+        params: { path: { agent_id: SERVER_AGENT_ID } },
+        body: { title: "", is_ephemeral: temporary, model },
+      }
+    );
     agentSessionId = payload?.data.id;
   } catch (error) {
     if (error instanceof HttpError) {
