@@ -1551,6 +1551,10 @@ def _build_interrupted_tool_output(
     error_text = _interrupted_tool_error_text(part)
     if isinstance(part, _DYNAMIC_UNRESOLVED_TOOL_PART_TYPES):
         return DynamicToolOutputErrorPart(
+            # The defaulted type literal must be passed explicitly: this part
+            # is persisted, and the persistence layer's exclude_unset dump
+            # drops defaulted-but-unset fields from the stored JSON.
+            type="dynamic-tool",
             tool_name=part.tool_name,
             tool_call_id=part.tool_call_id,
             title=part.title,
@@ -2099,6 +2103,10 @@ def _build_compaction_message(*, message_id: str, summary: str) -> PhoenixUIMess
         id=message_id,
         role="user",
         metadata=UserMessageMetadata(
+            # The discriminator must be passed explicitly: the persistence
+            # layer dumps with exclude_unset, and a defaulted-but-unset tag
+            # would be dropped from the stored JSON.
+            type="user",
             current_date_time=datetime.now(timezone.utc).isoformat(),
             time_zone="UTC",
             is_compaction_message=True,
@@ -3001,11 +3009,14 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 )
 
                 async def _persist_turn() -> TranscriptPersistedChunk:
+                    # exclude_unset preserves the exact wire shape: explicit
+                    # nulls survive (required ``Any`` fields on tool parts may
+                    # legally hold null) so the persisted JSON re-validates.
                     generated_assistant_message = PhoenixUIMessage.model_validate(
                         message_state.message.model_dump(
                             mode="json",
                             by_alias=True,
-                            exclude_none=True,
+                            exclude_unset=True,
                         )
                     )
                     if continued_assistant_message is not None:
