@@ -364,18 +364,26 @@ Under the scan lowering the outermost comprehension of each record is uncorrelat
 one pass over the element table answers the question for every session at once:
 
 - `any(...)` → `session_id IN (SELECT session_key … WHERE predicate)`
-- `all(...)` → `session_id NOT IN (SELECT session_key … WHERE predicate IS NOT TRUE
-  AND session_key IS NOT NULL)`
 - `len`/`sum` → a `(session_key, aggregate)` subquery grouped by session and LEFT JOINed on
   the session row, read through a `COALESCE(…, 0)`
 - `max`/`min` → the same grouped subquery, read raw so an empty set stays NULL
 
+`all(...)` is the exception: it keeps the correlated `NOT EXISTS` shape under both lowerings.
+The uncorrelated form — `session_id NOT IN (SELECT session_key … WHERE predicate IS NOT
+TRUE)` — puts every element that fails the test in the anti-set, which is most of the element
+table whenever the predicate is selective, i.e. whenever someone is actually filtering, and
+`NOT IN` over a set that size degrades past statement timeouts where the correlated form
+plans as a per-session anti-join probe. Measured on a 3M-span corpus (100k sessions in the
+filtered project): the anti-set shape exceeded a 90-second statement timeout where the
+correlated form returned in well under a second; on a predicate that is true almost
+everywhere — the anti-set shape's best case — the two are within the same order of magnitude.
+The correlated shape is also immune to the `NOT IN` NULL trap: `Trace.project_session_rowid`
+is nullable, one NULL in a `NOT IN` set empties the whole result, and a NULL key simply never
+matches the correlation.
+
 The two lowerings agree by construction. A session with no matching elements is absent from
-the `any` set and absent from the `all` counterexample set, which is exactly the vacuous-truth
-rule; `len` and `sum` coalesce to `0`; `max` and `min` stay NULL and so fail every comparison.
-The `session_key IS NOT NULL` guard on `all` is required, not defensive:
-`Trace.project_session_rowid` is nullable, and SQL `NOT IN` returns no rows at all when its
-subquery yields a single NULL.
+the `any` set and has no `all` counterexample, which is exactly the vacuous-truth rule; `len`
+and `sum` coalesce to `0`; `max` and `min` stay NULL and so fail every comparison.
 
 Only the outermost comprehension changes shape. A nested comprehension stays correlated to the
 element enclosing it, which the enclosing subquery has already scoped to a session. Inner

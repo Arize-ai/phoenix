@@ -1024,6 +1024,27 @@ def test_session_filter_quantifiers_probe_lowering_compiles_to_correlated_exists
     assert "traces.project_rowid in (1)" in compiled
 
 
+def test_session_filter_all_keeps_correlated_shape_under_scan_lowering() -> None:
+    """`all` compiles to a correlated NOT EXISTS under the scan lowering too. The uncorrelated
+    `NOT IN (anti-set)` shape holds every element failing the predicate — most of the element
+    table whenever the predicate is selective — and degrades past statement timeouts where the
+    correlated form plans as a per-session anti-join probe. `any` keeps the scan semi-join."""
+    subquery = SessionFilter(
+        'any(s.status_code == "ERROR" for s in spans) '
+        "and all(s.llm_token_count_prompt < 1000 for s in spans)"
+    ).as_session_rowids_subquery(project_rowids=[1], lowering="scan")
+    compiled = str(
+        select(models.ProjectSession.id)
+        .where(models.ProjectSession.id.in_(subquery))
+        .compile(compile_kwargs={"literal_binds": True})
+    ).lower()
+
+    assert "not (exists" in compiled
+    assert "not in (select" not in compiled
+    # The `any` half still lowers to the uncorrelated semi-join.
+    assert "project_sessions.id in (select" in compiled
+
+
 async def test_session_filter_ratio_zero_denominator_excludes_without_error(
     db: DbSessionFactory,
 ) -> None:
