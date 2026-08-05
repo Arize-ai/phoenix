@@ -31,7 +31,10 @@ export const sessionFilterCases: FrontierFilterEvalCase[] = [
   {
     id: "p95-latency-frontier",
     query: "sessions whose p95 span latency is above 750 milliseconds",
-    accepted: ["max(span.latency_ms for span in spans) > 750"],
+    accepted: [
+      "max(span.latency_ms for span in spans) > 750",
+      "any(span.latency_ms > 750 for span in spans)",
+    ],
     failureMode:
       "invents latency_p95_ms instead of using the closest expressible span-latency reduction",
     missingCapability:
@@ -62,6 +65,8 @@ export const sessionFilterCases: FrontierFilterEvalCase[] = [
       "annotations['correctness'].label == 'incorrect'",
       'annotations["correctness"].label == "incorrect"',
       "annotations[\"correctness\"].label == 'incorrect'",
+      "any(annotation.name == 'correctness' and annotation.label == 'incorrect' for annotation in session_annotations)",
+      "any(annotation.label == 'incorrect' and annotation.name == 'correctness' for annotation in session_annotations)",
     ],
     failureMode:
       "uses != 'correct', which also matches labels other than incorrect and excludes nulls differently",
@@ -73,6 +78,8 @@ export const sessionFilterCases: FrontierFilterEvalCase[] = [
     accepted: [
       "start_time >= '2026-07-10T00:00:00-04:00'",
       'start_time >= "2026-07-10T00:00:00-04:00"',
+      "start_time >= '2026-07-10T04:00:00+00:00'",
+      "start_time >= '2026-07-10T04:00:00Z'",
     ],
     failureMode:
       "drops the inclusive boundary, shifts the date, or omits the UTC offset",
@@ -92,6 +99,10 @@ export const sessionFilterCases: FrontierFilterEvalCase[] = [
       "num_traces_with_error / num_traces > 0.25",
       "num_traces_with_error > num_traces * 0.25",
       "num_traces_with_error > 0.25 * num_traces",
+      "num_traces > 0 and (num_traces_with_error / num_traces > 0.25)",
+      "num_traces > 0 and num_traces_with_error / num_traces > 0.25",
+      "num_traces > 0 and (num_traces_with_error / num_traces) > 0.25",
+      "num_traces > 0 and num_traces_with_error > 0.25 * num_traces",
     ],
     failureMode: "does not compare the two session aggregates arithmetically",
   },

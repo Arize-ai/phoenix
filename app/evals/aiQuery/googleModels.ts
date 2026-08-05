@@ -33,7 +33,7 @@ export const GOOGLE_EVAL_MODELS: AIQueryEvalModel[] = [
     modelId: "gemma-4-26b-a4b-it",
     simulates: "Gemini Nano (on-device class, ~4B active params)",
     minPassRate: 0.75,
-    sessionMinPassRate: 0.75,
+    sessionMinPassRate: 0.85,
     intentMinPassRate: 0.5,
   },
   {

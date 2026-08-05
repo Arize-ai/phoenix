@@ -168,6 +168,10 @@ const sessionFilterAIExamples = [
     expression: "metadata['deployment'] == 'staging'",
   },
   {
+    description: "sessions the quality annotation labeled bad",
+    expression: "annotations['quality'].label == 'bad'",
+  },
+  {
     description: "sessions with no helpfulness annotation",
     expression: "annotations['helpfulness'].score is None",
   },
@@ -188,5 +192,6 @@ export const sessionFilterAIQueryDSL = createAIQueryDSL({
     "Project-specific session annotation names and root-span attribute keys are discovered at runtime. Preserve names from the request verbatim in annotations['name'], metadata['key'], user.id, or attributes['otel.key']; do not invent near-synonyms.",
     "attributes string subscripts are OTel wire keys. attributes['llm.model_name'] and attributes['llm']['model_name'] name the same key.",
     "num_traces is an approximate conversation-turn count only when instrumentation starts one trace per exchange. tool_span_count counts TOOL spans.",
+    "The only helpers are any, all, len, max, min, and sum over comprehensions. sorted(), list indexing, and slicing are not supported — approximate a percentile with max() or a threshold count instead.",
   ],
 });
