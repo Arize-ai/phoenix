@@ -331,7 +331,7 @@ async def test_project_code_evaluator_crud_and_connection(
     assert omitted["enabled"] is False
     assert omitted["evaluationDelaySeconds"] == 30
     assert omitted["schedulabilityStatus"] == "NOT_SCHEDULABLE"
-    assert omitted["schedulabilityReason"] == "TRACE_TARGET_UNSUPPORTED"
+    assert omitted["schedulabilityReason"] == "DISABLED"
     async with db() as session:
         criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
         assert criteria is not None
