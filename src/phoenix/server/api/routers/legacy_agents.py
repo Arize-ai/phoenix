@@ -164,12 +164,6 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
         request: Request,
         request_body: LegacyChatRequest,
     ) -> Response:
-        logger.warning(
-            "Deprecated route POST /agents/server/sessions/%s/chat was called; "
-            "clients should migrate to POST /v1/agents/assistant/sessions/{session_id}/chat "
-            "with a session created via the createAgentSession GraphQL mutation.",
-            session_id,
-        )
         if get_env_phoenix_agents_disable_bash():
             raise HTTPException(status_code=403, detail="Server agent is disabled")
 
