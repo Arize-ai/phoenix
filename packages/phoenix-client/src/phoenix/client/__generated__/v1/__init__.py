@@ -75,7 +75,7 @@ class AssistantMessageMetadataTraceIds(TypedDict):
     rootSpanId: str
 
 
-class AssistantMessageMetadataUsageTokenDetails(TypedDict):
+class AssistantMessageMetadataUsageCacheTokenDetails(TypedDict):
     cacheRead: int
     cacheWrite: int
 
@@ -1261,7 +1261,7 @@ class AnnotateTracesResponseBody(TypedDict):
 
 class AssistantMessageMetadataUsage(TypedDict):
     tokens: AssistantMessageMetadataUsageTokens
-    promptDetails: NotRequired[AssistantMessageMetadataUsageTokenDetails]
+    promptDetails: NotRequired[AssistantMessageMetadataUsageCacheTokenDetails]
 
 
 class BuiltInProviderModelSelection(TypedDict):

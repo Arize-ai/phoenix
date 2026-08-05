@@ -1999,7 +1999,11 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
-        /** AssistantMessageMetadataTraceIds */
+        /**
+         * AssistantMessageMetadataTraceIds
+         * @description Identifiers locating the trace of the turn that produced the message,
+         *     advertised to the UI so it can link the message to a viewable trace.
+         */
         AssistantMessageMetadataTraceIds: {
             /** Traceid */
             traceId: string;
@@ -2009,10 +2013,14 @@ export interface components {
         /** AssistantMessageMetadataUsage */
         AssistantMessageMetadataUsage: {
             tokens: components["schemas"]["AssistantMessageMetadataUsageTokens"];
-            promptDetails?: components["schemas"]["AssistantMessageMetadataUsageTokenDetails"] | null;
+            promptDetails?: components["schemas"]["AssistantMessageMetadataUsageCacheTokenDetails"] | null;
         };
-        /** AssistantMessageMetadataUsageTokenDetails */
-        AssistantMessageMetadataUsageTokenDetails: {
+        /**
+         * AssistantMessageMetadataUsageCacheTokenDetails
+         * @description Prompt-cache token counts, mounted as the usage payload's
+         *     ``prompt_details`` because cached tokens are a breakdown of the prompt.
+         */
+        AssistantMessageMetadataUsageCacheTokenDetails: {
             /** Cacheread */
             cacheRead: number;
             /** Cachewrite */
@@ -5986,7 +5994,14 @@ export interface components {
              */
             end_time: string;
         };
-        /** TurnTraceContext */
+        /**
+         * TurnTraceContext
+         * @description The trace context a turn's spans are parented to — echoed from the
+         *     client when it supplied one, otherwise minted by the server. Unlike
+         *     ``AssistantMessageMetadataTraceIds`` this is an input to span recording
+         *     (it carries ``started_at`` and enforces OTel hex formats), not a pointer
+         *     to an already recorded trace.
+         */
         TurnTraceContext: {
             /** Traceid */
             traceId: string;

@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from phoenix.db.models import _UIMessage
+from phoenix.db.models import _PhoenixUIMessage
 from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessageAdapter,
     TextUIPart,
@@ -25,7 +25,7 @@ _MESSAGE_ID = "3f2f9d9e-1234-4abc-8def-1234567890ab"
 
 def _round_trip(raw: dict[str, Any]) -> None:
     """Assert a wire payload survives bind → stored JSON → result unchanged."""
-    column_type = _UIMessage()
+    column_type = _PhoenixUIMessage()
     message = PhoenixUIMessageAdapter.validate_python(raw)
     stored = column_type.process_bind_param(message, None)  # type: ignore[arg-type]
     assert stored == raw
@@ -81,7 +81,7 @@ def test_server_built_compaction_message_round_trips() -> None:
         ),
         parts=[TextUIPart(type="text", text="summary")],
     )
-    column_type = _UIMessage()
+    column_type = _PhoenixUIMessage()
     stored = column_type.process_bind_param(message, None)  # type: ignore[arg-type]
     assert stored is not None
     assert stored["metadata"]["isCompactionMessage"] is True
@@ -101,10 +101,10 @@ def test_message_that_cannot_round_trip_is_rejected_at_write() -> None:
         parts=[TextUIPart(type="text", text="hello")],
     )
     with pytest.raises(Exception, match="round-trip|discriminator|type"):
-        _UIMessage().process_bind_param(message, None)  # type: ignore[arg-type]
+        _PhoenixUIMessage().process_bind_param(message, None)  # type: ignore[arg-type]
 
 
 def test_none_binds_and_loads_as_none() -> None:
-    column_type = _UIMessage()
+    column_type = _PhoenixUIMessage()
     assert column_type.process_bind_param(None, None) is None  # type: ignore[arg-type]
     assert column_type.process_result_value(None, None) is None  # type: ignore[arg-type]

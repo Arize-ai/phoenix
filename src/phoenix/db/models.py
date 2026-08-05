@@ -69,7 +69,6 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
     PhoenixUIMessageAdapter,
-    UserMessageMetadata,
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfig
@@ -253,7 +252,7 @@ class JsonList(TypeDecorator[list[Any]]):
         return orjson.loads(orjson.dumps(value)) if isinstance(value, list) and value else value
 
 
-class _UIMessage(TypeDecorator[PhoenixUIMessage]):
+class _PhoenixUIMessage(TypeDecorator[PhoenixUIMessage]):
     cache_ok = True
     impl = JSON_
 
@@ -3491,7 +3490,7 @@ class AgentSessionMessage(HasId):
         ForeignKey("agent_sessions.id", ondelete="CASCADE"),
         nullable=False,
     )
-    message: Mapped[PhoenixUIMessage] = mapped_column(_UIMessage, nullable=False)
+    message: Mapped[PhoenixUIMessage] = mapped_column(_PhoenixUIMessage, nullable=False)
     message_id: Mapped[str] = mapped_column(
         String,
         sa.Computed(message["id"].as_string(), persisted=True),
@@ -3510,12 +3509,6 @@ class AgentSessionMessage(HasId):
         nullable=False,
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-
-    @property
-    def is_compaction_point(self) -> bool:
-        metadata = self.message.metadata
-        return isinstance(metadata, UserMessageMetadata) and metadata.is_compaction_message
-
     agent_session: Mapped[AgentSession] = relationship(
         "AgentSession",
         back_populates="messages",
