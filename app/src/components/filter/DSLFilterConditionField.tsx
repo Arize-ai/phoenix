@@ -868,7 +868,9 @@ export function DSLFilterConditionField<
                   : warnings[0]
               }
               title={
-                hasError ? "Invalid filter condition" : "Filter condition warning"
+                hasError
+                  ? "Invalid filter condition"
+                  : "Filter condition warning"
               }
             >
               {hasError ? (
