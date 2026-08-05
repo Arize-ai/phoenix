@@ -59,7 +59,7 @@ async def _add_session_liveness(
     project_id: int | None = None,
     content_complete: bool = True,
 ) -> tuple[int, int, datetime]:
-    last_activity_at = _now() - timedelta(seconds=age_seconds)
+    last_span_seen_at = _now() - timedelta(seconds=age_seconds)
     async with db() as session:
         if project_id is None:
             project = await _add_project(session)
@@ -74,11 +74,11 @@ async def _add_session_liveness(
             update(models.ProjectSession)
             .where(models.ProjectSession.id == project_session.id)
             .values(
-                last_activity_at=last_activity_at,
+                last_span_seen_at=last_span_seen_at,
                 content_complete=content_complete,
             )
         )
-        return project.id, project_session.id, last_activity_at
+        return project.id, project_session.id, last_span_seen_at
 
 
 async def _set_delay(
@@ -97,7 +97,7 @@ async def _set_delay(
 async def test_materializes_due_complete_session_with_activity_snapshot(
     db: DbSessionFactory,
 ) -> None:
-    project_id, project_session_id, last_activity_at = await _add_session_liveness(
+    project_id, project_session_id, last_span_seen_at = await _add_session_liveness(
         db,
         age_seconds=600,
     )
@@ -134,7 +134,7 @@ async def test_materializes_due_complete_session_with_activity_snapshot(
                         "evaluator_id": evaluator_id,
                         "criteria_id": criteria_id,
                         "config_fingerprint": unit.config_fingerprint,
-                        "evaluated_through": last_activity_at,
+                        "evaluated_through": last_span_seen_at,
                     }
                 ],
                 db.dialect,
@@ -145,7 +145,7 @@ async def test_materializes_due_complete_session_with_activity_snapshot(
         )
     assert unit.evaluator_id == evaluator_id
     assert unit.criteria_id == criteria_id
-    assert unit.evaluated_through == last_activity_at
+    assert unit.evaluated_through == last_span_seen_at
     assert unit.status == "PENDING"
     assert cursor.claimed_by == sweeper._sweeper_id
     assert live_work_count == 1
@@ -271,7 +271,7 @@ async def test_successful_work_closes_evaluate_once_key(
         await session.execute(
             update(models.ProjectSession)
             .where(models.ProjectSession.id == project_session_id)
-            .values(last_activity_at=_now() - timedelta(seconds=400))
+            .values(last_span_seen_at=_now() - timedelta(seconds=400))
         )
 
     await sweeper._tick()
