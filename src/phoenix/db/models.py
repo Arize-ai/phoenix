@@ -3501,6 +3501,11 @@ class AgentSessionMessage(HasId):
     __table_args__ = (
         CheckConstraint(matches_uuid_format("message_id"), name="valid_message_id"),
         Index(
+            "ix_agent_session_messages_agent_session_id_id",
+            "agent_session_id",
+            "id",
+        ),
+        Index(
             "ix_agent_session_messages_compaction",
             "agent_session_id",
             sa.desc("id"),

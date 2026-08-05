@@ -1211,6 +1211,8 @@ CREATE TABLE public.agent_session_messages (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_agent_session_messages_agent_session_id_id ON public.agent_session_messages
+    USING btree (agent_session_id, id);
 CREATE INDEX ix_agent_session_messages_compaction ON public.agent_session_messages
     USING btree (agent_session_id, id DESC) WHERE is_compaction_message;
 
