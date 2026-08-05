@@ -1,5 +1,19 @@
 # Changelog
 
+## [19.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.17.0...arize-phoenix-v19.18.0) (2026-08-05)
+
+
+### Features
+
+* add REST endpoint for prompt metadata updates ([#13731](https://github.com/Arize-ai/phoenix/issues/13731)) ([244ef9c](https://github.com/Arize-ai/phoenix/commit/244ef9c7e0da3f60c5e800dc25c26c826ebc3c3f))
+* **sessions:** expression filter DSL ([#14101](https://github.com/Arize-ai/phoenix/issues/14101)) ([64f505b](https://github.com/Arize-ai/phoenix/commit/64f505b91dea65841ada8ceb7d35dd85d032ea68))
+
+
+### Bug Fixes
+
+* **cost-tracking:** sync LiteLLM above_NNNk_tokens tier rates as threshold_based customizations ([#14329](https://github.com/Arize-ai/phoenix/issues/14329)) ([e80d01a](https://github.com/Arize-ai/phoenix/commit/e80d01a4ee140b78f06f0a0943b12bea7a134ead))
+* **ui:** size time-range control buttons explicitly so Safari renders them uniformly ([#15082](https://github.com/Arize-ai/phoenix/issues/15082)) ([1169f00](https://github.com/Arize-ai/phoenix/commit/1169f00463b8dd062fcbcd7671ecbc91c3770500))
+
 ## [19.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.16.0...arize-phoenix-v19.17.0) (2026-08-04)
 
 
