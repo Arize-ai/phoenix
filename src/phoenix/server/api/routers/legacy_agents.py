@@ -4,10 +4,10 @@ To be removed.
 """
 
 import logging
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator
 from contextlib import aclosing
 from datetime import datetime, timezone
-from typing import Annotated, Any, Literal, TypeAlias
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from openinference.instrumentation import using_session
@@ -40,8 +40,6 @@ from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
 from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.api.routers.agents import (
-    _SERVER_AGENT_ID,
-    ChatRequest,
     _AgentSpanContextRecorder,
     _build_message_metadata_chunk,
     _ensure_project_exists,
@@ -144,16 +142,7 @@ def _log_run_complete(result: AgentRunResult[Any]) -> None:
         logger.info("%s", message)
 
 
-SessionChatHandler: TypeAlias = Callable[[str, str, Request, ChatRequest], Awaitable[Response]]
-"""Calling contract of the session chat endpoint, injected by the app so this
-route can delegate requests that carry the new single-``message`` body shape."""
-
-
-def create_legacy_agents_router(
-    authentication_enabled: bool,
-    *,
-    session_chat: SessionChatHandler,
-) -> APIRouter:
+def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [
         Depends(is_agent_assistant_enabled),
         Depends(prevent_access_in_read_only_mode),
@@ -173,13 +162,11 @@ def create_legacy_agents_router(
     async def run_server_agent(
         session_id: str,
         request: Request,
-        request_body: LegacyChatRequest | ChatRequest,
+        request_body: LegacyChatRequest,
     ) -> Response:
-        if isinstance(request_body, ChatRequest):
-            return await session_chat(_SERVER_AGENT_ID, session_id, request, request_body)
         logger.warning(
             "Deprecated route POST /agents/server/sessions/%s/chat was called; "
-            "clients should migrate to POST /agents/assistant/sessions/{session_id}/chat "
+            "clients should migrate to POST /v1/agents/assistant/sessions/{session_id}/chat "
             "with a session created via the createAgentSession GraphQL mutation.",
             session_id,
         )

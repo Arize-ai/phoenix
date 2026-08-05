@@ -141,21 +141,21 @@ export const ADD_SESSION_NOTE_IDENTIFIER: ParameterRequirement = {
 export const AGENT_SESSION_CREATE: RouteRequirement = {
   kind: "route",
   method: "POST",
-  path: "/agents/{agent_id}/sessions",
+  path: "/v1/agents/{agent_id}/sessions",
   minServerVersion: [20, 0, 0],
 };
 
 export const AGENT_SESSION_CHAT: RouteRequirement = {
   kind: "route",
   method: "POST",
-  path: "/agents/{agent_id}/sessions/{session_id}/chat",
+  path: "/v1/agents/{agent_id}/sessions/{session_id}/chat",
   minServerVersion: [20, 0, 0],
 };
 
 export const AGENT_SESSION_MESSAGES: RouteRequirement = {
   kind: "route",
   method: "GET",
-  path: "/agents/{agent_id}/sessions/{session_id}/messages",
+  path: "/v1/agents/{agent_id}/sessions/{session_id}/messages",
   minServerVersion: [20, 0, 0],
 };
 

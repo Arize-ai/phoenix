@@ -92,23 +92,23 @@ def _user_message(text: str, *, message_id: str = _DEFAULT_USER_MESSAGE_ID) -> d
 
 
 def _chat_url(agent_session_id: str) -> str:
-    return f"/agents/assistant/sessions/{agent_session_id}/chat"
+    return f"/v1/agents/assistant/sessions/{agent_session_id}/chat"
 
 
 def _server_agent_chat_url(agent_session_id: str) -> str:
-    return f"/agents/server/sessions/{agent_session_id}/chat"
+    return f"/v1/agents/server/sessions/{agent_session_id}/chat"
 
 
 def _compact_url(agent_session_id: str) -> str:
-    return f"/agents/assistant/sessions/{agent_session_id}/compact"
+    return f"/v1/agents/assistant/sessions/{agent_session_id}/compact"
 
 
 def _server_agent_compact_url(agent_session_id: str) -> str:
-    return f"/agents/server/sessions/{agent_session_id}/compact"
+    return f"/v1/agents/server/sessions/{agent_session_id}/compact"
 
 
 def _patch_session_url(agent_session_id: str) -> str:
-    return f"/agents/assistant/sessions/{agent_session_id}"
+    return f"/v1/agents/assistant/sessions/{agent_session_id}"
 
 
 def _compact_body() -> dict[str, Any]:
@@ -764,7 +764,7 @@ async def test_server_agent_compact_route_matches_chat_route_gating(
     )
 
     unknown_agent_response = await httpx_client.post(
-        f"/agents/nonexistent/sessions/{agent_session_id}/compact",
+        f"/v1/agents/nonexistent/sessions/{agent_session_id}/compact",
         json=_compact_body(),
     )
     assert unknown_agent_response.status_code == 404
@@ -2135,7 +2135,7 @@ async def test_create_session_route_creates_a_temporary_session(
     httpx_client: httpx.AsyncClient,
 ) -> None:
     response = await httpx_client.post(
-        "/agents/server/sessions",
+        "/v1/agents/server/sessions",
         json=_create_session_body(title=" CLI session ", is_ephemeral=True),
     )
     assert response.status_code == 201
@@ -2160,7 +2160,7 @@ async def test_create_session_route_defaults_to_a_persistent_untitled_session(
     httpx_client: httpx.AsyncClient,
 ) -> None:
     response = await httpx_client.post(
-        "/agents/assistant/sessions",
+        "/v1/agents/assistant/sessions",
         json=_create_session_body(),
     )
     assert response.status_code == 201
@@ -2176,7 +2176,7 @@ async def test_create_session_route_defaults_to_a_persistent_untitled_session(
 async def test_create_session_route_requires_a_model(
     httpx_client: httpx.AsyncClient,
 ) -> None:
-    response = await httpx_client.post("/agents/assistant/sessions", json={})
+    response = await httpx_client.post("/v1/agents/assistant/sessions", json={})
 
     assert response.status_code == 422
 
@@ -2185,7 +2185,7 @@ async def test_create_session_route_rejects_long_title(
     httpx_client: httpx.AsyncClient,
 ) -> None:
     response = await httpx_client.post(
-        "/agents/assistant/sessions",
+        "/v1/agents/assistant/sessions",
         json=_create_session_body(title="x" * (MAX_AGENT_SESSION_TITLE_LENGTH + 1)),
     )
 
@@ -2204,7 +2204,7 @@ async def test_create_session_route_yields_a_chattable_session(
     monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
 
     created = await httpx_client.post(
-        "/agents/server/sessions",
+        "/v1/agents/server/sessions",
         json=_create_session_body(is_ephemeral=True),
     )
     assert created.status_code == 201
@@ -2399,7 +2399,7 @@ async def test_patch_session_route_rejects_unknown_agents(
 ) -> None:
     agent_session_id = await _create_agent_session_row(db)
     response = await httpx_client.patch(
-        f"/agents/unknown/sessions/{agent_session_id}",
+        f"/v1/agents/unknown/sessions/{agent_session_id}",
         json={
             "model": {
                 "providerType": "builtin",
@@ -2563,7 +2563,7 @@ async def test_create_session_route_rejects_unknown_agents(
     httpx_client: httpx.AsyncClient,
 ) -> None:
     response = await httpx_client.post(
-        "/agents/unknown/sessions",
+        "/v1/agents/unknown/sessions",
         json=_create_session_body(),
     )
     assert response.status_code == 404
@@ -2578,7 +2578,7 @@ async def test_create_session_route_is_forbidden_when_agents_are_disabled(
     )
 
     response = await httpx_client.post(
-        "/agents/server/sessions",
+        "/v1/agents/server/sessions",
         json=_create_session_body(),
     )
     assert response.status_code == 403
@@ -2592,14 +2592,14 @@ async def test_create_session_route_forbids_the_server_agent_when_bash_is_disabl
     monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_BASH", "true")
 
     server_response = await httpx_client.post(
-        "/agents/server/sessions",
+        "/v1/agents/server/sessions",
         json=_create_session_body(),
     )
     assert server_response.status_code == 403
     assert "Server agent is disabled" in server_response.text
 
     assistant_response = await httpx_client.post(
-        "/agents/assistant/sessions",
+        "/v1/agents/assistant/sessions",
         json=_create_session_body(),
     )
     assert assistant_response.status_code == 201
@@ -2616,7 +2616,7 @@ async def test_agents_router_is_forbidden_in_read_only_mode(
     app.state.read_only = True
 
     create_response = await httpx_client.post(
-        "/agents/server/sessions",
+        "/v1/agents/server/sessions",
         json=_create_session_body(),
     )
     assert create_response.status_code == 403

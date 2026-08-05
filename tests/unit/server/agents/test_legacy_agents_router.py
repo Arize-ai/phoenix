@@ -201,8 +201,8 @@ async def test_new_chat_route_is_unaffected_by_the_legacy_registration(
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The legacy router registers first so /agents/server/... isn't captured
-    by /agents/{agent_id}/...; the new route must keep working alongside it."""
+    """The session routes live under /v1 while the legacy route keeps its
+    original path; the new route must keep working alongside it."""
 
     async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
         return TestModel(call_tools=[])
@@ -221,7 +221,7 @@ async def test_new_chat_route_is_unaffected_by_the_legacy_registration(
         agent_session_id = str(GlobalID("AgentSession", str(agent_session.id)))
 
     response = await httpx_client.post(
-        f"/agents/assistant/sessions/{agent_session_id}/chat",
+        f"/v1/agents/assistant/sessions/{agent_session_id}/chat",
         json={
             "trigger": "submit-message",
             "id": session_id,
@@ -239,35 +239,16 @@ async def test_new_chat_route_is_unaffected_by_the_legacy_registration(
     assert "data-transcript-persisted" in response.text
 
 
-async def test_new_contract_body_on_the_server_agent_url_delegates_to_the_session_handler(
-    db: DbSessionFactory,
+async def test_new_contract_body_on_the_legacy_url_is_rejected(
     httpx_client: httpx.AsyncClient,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-
-    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
-        return TestModel(call_tools=[])
-
-    # The delegated turn runs in the session handler, so its model seam —
-    # not the legacy route's — is the one in play.
-    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
-    session_id = "13131313-1313-4313-8313-131313131313"
-    async with db() as session:
-        agent_session = models.AgentSession(
-            **_agent_session_model_kwargs(),
-            user_id=None,
-            title="Already titled",
-            project_name=get_env_phoenix_agents_assistant_project_name(),
-        )
-        session.add(agent_session)
-        await session.flush()
-        agent_session_id = str(GlobalID("AgentSession", str(agent_session.id)))
-
+    """The legacy route only speaks the full-transcript shape; the session
+    routes' single-``message`` body belongs to /v1/agents/... instead."""
     response = await httpx_client.post(
-        f"/agents/server/sessions/{agent_session_id}/chat",
+        f"/agents/server/sessions/{_CLIENT_MINTED_SESSION_ID}/chat",
         json={
             "trigger": "submit-message",
-            "id": session_id,
+            "id": _CLIENT_MINTED_SESSION_ID,
             "message": _user_message("hello"),
             "model": {
                 "providerType": "builtin",
@@ -276,19 +257,14 @@ async def test_new_contract_body_on_the_server_agent_url_delegates_to_the_sessio
             },
         },
     )
-
-    assert response.status_code == 200
-    assert "deprecation" not in response.headers
-    assert "data-transcript-persisted" in response.text
-    async with db() as session:
-        assert (await session.scalars(select(models.AgentSessionMessage))).all()
+    assert response.status_code == 422
 
 
 async def test_unknown_agent_id_still_returns_not_found(
     httpx_client: httpx.AsyncClient,
 ) -> None:
     """Only the literal ``server`` segment maps to the legacy route; other
-    unknown agent ids keep 404ing in the new handler."""
+    agent ids under the unversioned path match no route at all."""
     response = await httpx_client.post(
         f"/agents/other/sessions/{_CLIENT_MINTED_SESSION_ID}/chat",
         json={
