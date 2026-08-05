@@ -34,7 +34,15 @@ class ThresholdBasedTokenCostCalculator(TokenCostCalculator):
         attributes: Mapping[str, Any],
         tokens: float,
     ) -> float:
-        if not (v := get_attribute_value(attributes, self.key)):
+        v = get_attribute_value(attributes, self.key)
+        # `v` is whatever the span carried: OTLP preserves the type the client
+        # sent, so a token count can arrive as a string or a list. Comparing one
+        # of those against the threshold raises, which costs the span its entire
+        # cost record — the callers that ingest spans swallow the error and move
+        # on. Anything not numeric bills at the base rate, matching how
+        # `get_aggregated_tokens` reads the same attributes. `bool` is excluded
+        # because it is an `int` subclass and never a token count.
+        if not isinstance(v, (int, float)) or isinstance(v, bool) or not v:
             return tokens * self.base_rate
         if v > self.threshold:
             return tokens * self.new_rate
