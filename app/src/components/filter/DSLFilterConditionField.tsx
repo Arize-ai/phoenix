@@ -10,9 +10,17 @@ import {
   startCompletion,
 } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
-import type { Extension } from "@codemirror/state";
+import {
+  type Extension,
+  type Range,
+  StateEffect,
+  StateField,
+} from "@codemirror/state";
+import { css } from "@emotion/react";
 import CodeMirror, {
   type BasicSetupOptions,
+  Decoration,
+  type DecorationSet,
   EditorView,
   keymap,
 } from "@uiw/react-codemirror";
@@ -43,7 +51,10 @@ import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
 import { classNames } from "@phoenix/utils/classNames";
 
-import { createDSLFilterCompletionSource } from "./dslFilterConditionFieldUtils";
+import {
+  createDSLFilterCompletionSource,
+  type DSLFilterCompletionRequest,
+} from "./dslFilterConditionFieldUtils";
 import {
   dslFilterCodeMirrorCSS,
   dslFilterErrorTooltipCSS,
@@ -57,6 +68,8 @@ import {
 export type DSLFilterConditionValidationResult = {
   isValid: boolean;
   errorMessage?: string | null;
+  /** Non-blocking advisories on an otherwise-valid condition; the condition still applies. */
+  warnings?: readonly string[] | null;
 };
 
 /**
@@ -71,9 +84,25 @@ export type DSLFilterSnippet = {
   snippet: string;
   /** Additional context shown when the suggestion is selected. */
   info?: string;
+  /**
+   * Ranks this snippet above its unboosted siblings in the dropdown. Within a
+   * section CodeMirror orders equally-scored options alphabetically by label,
+   * so array position decides only which snippets make the browse cut — this
+   * is what decides where one lands once it has.
+   */
+  boost?: number;
 };
 
 const pythonLanguage = python();
+
+const warningListCSS = css`
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-25);
+`;
 
 const basicSetupOptions: BasicSetupOptions = {
   lineNumbers: false,
@@ -88,6 +117,39 @@ const basicSetupOptions: BasicSetupOptions = {
 
 const suggestionsSection: CompletionSection = { name: "Suggestions", rank: 1 };
 const fieldsSection: CompletionSection = { name: "Fields", rank: 3 };
+
+/** The document range an invalid condition is blamed on, or null for none. */
+export type DSLFilterErrorRange = { from: number; to: number };
+
+const setErrorRangeEffect = StateEffect.define<DSLFilterErrorRange | null>();
+
+const errorRangeMark = Decoration.mark({ class: "cm-dsl-filter-error-region" });
+
+/**
+ * Underlines the sub-expression an error was blamed on. Carried in editor
+ * state rather than in the extensions array: reconfiguring CodeMirror on every
+ * validation result would reset the open completion dropdown.
+ */
+const errorRangeField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(decorations, transaction) {
+    let next = decorations.map(transaction.changes);
+    for (const effect of transaction.effects) {
+      if (!effect.is(setErrorRangeEffect)) {
+        continue;
+      }
+      const range = effect.value;
+      const documentLength = transaction.state.doc.length;
+      const marks: Range<Decoration>[] =
+        range && range.from < range.to && range.to <= documentLength
+          ? [errorRangeMark.range(range.from, range.to)]
+          : [];
+      next = Decoration.set(marks);
+    }
+    return next;
+  },
+  provide: (field) => EditorView.decorations.from(field),
+});
 
 /**
  * Section for completions loaded via `loadCompletions` — sorts between the
@@ -105,8 +167,11 @@ export function createLoadedCompletionSection(name: string): CompletionSection {
  * sections below the fold; the full list still surfaces via fuzzy matching
  * once the user types.
  */
-const MAX_BROWSE_SUGGESTIONS = 5;
-const MAX_BROWSE_FIELDS = 20;
+export const MAX_BROWSE_SUGGESTIONS = 5;
+// Sized to fit a grain's whole core vocabulary, so the cap only trims
+// data-derived names — a lower cap silently evicts the trailing core
+// sections, which callers rank-order expecting all of them to be browsable.
+const MAX_BROWSE_FIELDS = 30;
 
 /**
  * How long a typed condition must sit still before it is validated. Tuned by
@@ -141,6 +206,7 @@ function snippetToCompletion({
   label,
   snippet,
   info,
+  boost,
 }: DSLFilterSnippet): Completion {
   return snippetCompletion(snippet, {
     label,
@@ -148,6 +214,7 @@ function snippetToCompletion({
     info,
     type: "text",
     section: suggestionsSection,
+    boost,
   });
 }
 
@@ -213,7 +280,8 @@ export type DSLFilterConditionFieldProps<
    * become tab-through fields on insert. Order most-useful-first: while the
    * user is browsing (nothing typed at the cursor) only the first few are
    * shown so the group doesn't bury the fields below it; the rest surface
-   * via fuzzy matching as the user types.
+   * via fuzzy matching as the user types. Array order decides which snippets
+   * make that cut, not how they read once shown — set `boost` for that.
    */
   snippets?: DSLFilterSnippet[];
   /**
@@ -231,6 +299,24 @@ export type DSLFilterConditionFieldProps<
    * field comparison. Pass a referentially stable array.
    */
   completionSources?: CompletionSource[];
+  /**
+   * Replaces `completions` and `snippets` at cursor positions where a
+   * different vocabulary applies — e.g. inside a comprehension, where only the
+   * loop variable's element fields can be written. Return null to use the
+   * default vocabulary, or an array (possibly empty) to use it instead for
+   * this position. `completionSources` are unaffected. Pass a referentially
+   * stable function.
+   */
+  getContextualCompletions?: (
+    request: DSLFilterCompletionRequest
+  ) => Completion[] | null;
+  /**
+   * Locates the sub-expression to blame for a validation error, so the field
+   * can underline it instead of flagging the whole condition. Returning null
+   * (or omitting this) leaves the error unanchored. Pass a referentially
+   * stable function.
+   */
+  getErrorRange?: (condition: string) => DSLFilterErrorRange | null;
   /**
    * Async validation of the condition expression. Never called with an
    * empty (or whitespace-only) condition — the field resolves those as
@@ -327,20 +413,24 @@ export type DSLFilterConditionFieldProps<
 };
 
 /**
- * A danger badge in the field's control cluster whose tooltip carries the
- * full story — one shell shared by the validation error and composed
- * error states (e.g. an AI conversion failure) so they read identically.
- * `children` is the tooltip's detail below the title.
+ * A status badge in the field's control cluster whose tooltip carries the
+ * full story — one shell shared by the validation error, validator-supplied
+ * warnings, and composed error states (e.g. an AI conversion failure) so
+ * they read identically. `children` is the tooltip's detail below the
+ * title. `severity` defaults to danger; warnings render the same shell in
+ * the warning palette.
  */
 export function DSLFilterErrorBadge({
   ariaLabel,
   badgeMessage,
   title,
+  severity = "danger",
   children,
 }: {
   ariaLabel: string;
   badgeMessage: string;
   title: string;
+  severity?: "danger" | "warning";
   children?: ReactNode;
 }) {
   return (
@@ -350,15 +440,16 @@ export function DSLFilterErrorBadge({
           role="button"
           tabIndex={0}
           className="error-badge"
+          data-severity={severity}
           aria-label={ariaLabel}
         >
-          <Icon svg={<Icons.AlertCircle />} color="danger" />
+          <Icon svg={<Icons.AlertCircle />} color={severity} />
           <span className="error-badge__message">{badgeMessage}</span>
         </div>
       </Pressable>
       <Tooltip placement="bottom end" css={dslFilterErrorTooltipCSS}>
         <Flex direction="row" gap="size-100" alignItems="start">
-          <Icon svg={<Icons.AlertCircle />} color="danger" />
+          <Icon svg={<Icons.AlertCircle />} color={severity} />
           <Flex direction="column" gap="size-25">
             <Text size="S" weight="heavy">
               {title}
@@ -401,6 +492,8 @@ export function DSLFilterConditionField<
     snippets = defaultSnippets,
     loadCompletions,
     completionSources = defaultCompletionSources,
+    getContextualCompletions,
+    getErrorRange,
     validateCondition,
     onValidCondition,
     onValidationFailed,
@@ -425,6 +518,7 @@ export function DSLFilterConditionField<
   // null means the condition is not known to be invalid; the empty string
   // means invalid with no server-provided detail
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<readonly string[]>([]);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
 
@@ -433,9 +527,10 @@ export function DSLFilterConditionField<
   // time it opens; invalidated on focus so names created elsewhere in the
   // app (e.g. a new annotation) appear when the user returns to filter
   const loadedCompletionsRef = useRef<Promise<Completion[]> | null>(null);
-  const errorId = useId();
+  const statusId = useId();
 
   const hasError = errorMessage !== null;
+  const hasWarnings = warnings.length > 0;
   const hasCondition = value !== "";
 
   useImperativeHandle(
@@ -502,16 +597,28 @@ export function DSLFilterConditionField<
         ? completion
         : { ...completion, section: fieldsSection }
     );
-    const browseOptions = [
-      ...snippetOptions.slice(0, MAX_BROWSE_SUGGESTIONS),
-      ...fieldOptions.slice(0, MAX_BROWSE_FIELDS),
-    ];
-    const allOptions = [...snippetOptions, ...fieldOptions];
-    const staticOptions = (isBrowsing: boolean): Completion[] =>
-      isBrowsing ? browseOptions : allOptions;
+    const staticOptions = (
+      request: DSLFilterCompletionRequest
+    ): Completion[] => {
+      const contextualOptions = getContextualCompletions?.(request);
+      if (contextualOptions) {
+        return request.isBrowsing
+          ? contextualOptions.slice(0, MAX_BROWSE_FIELDS)
+          : contextualOptions;
+      }
+      return [
+        ...(request.isBrowsing
+          ? snippetOptions.slice(0, MAX_BROWSE_SUGGESTIONS)
+          : snippetOptions),
+        ...(request.isBrowsing
+          ? fieldOptions.slice(0, MAX_BROWSE_FIELDS)
+          : fieldOptions),
+      ];
+    };
     return [
       ...composedExtensions,
       singleLineKeymap,
+      errorRangeField,
       pythonLanguage,
       // Surface the suggestions dropdown whenever the empty field is
       // focused, clicked, or cleared — the empty state doubles as a
@@ -555,8 +662,21 @@ export function DSLFilterConditionField<
     completions,
     loadCompletions,
     completionSources,
+    getContextualCompletions,
     contentAttributes,
   ]);
+
+  // Anchor the error to the sub-expression it came from once validation has
+  // settled; a dispatched effect rather than a reconfigure, so an open
+  // dropdown survives.
+  useEffect(() => {
+    const editorView = editorViewRef.current;
+    if (!editorView) {
+      return;
+    }
+    const range = hasError ? (getErrorRange?.(value) ?? null) : null;
+    editorView.dispatch({ effects: setErrorRangeEffect.of(range) });
+  }, [hasError, value, getErrorRange]);
 
   // Validity attributes are applied directly to the contenteditable so
   // toggling them doesn't force a CodeMirror reconfigure
@@ -566,12 +686,12 @@ export function DSLFilterConditionField<
       return;
     }
     content.setAttribute("aria-invalid", hasError ? "true" : "false");
-    if (hasError) {
-      content.setAttribute("aria-describedby", errorId);
+    if (hasError || hasWarnings) {
+      content.setAttribute("aria-describedby", statusId);
     } else {
       content.removeAttribute("aria-describedby");
     }
-  }, [hasError, errorId]);
+  }, [hasError, hasWarnings, statusId]);
 
   // Held as effect events so the validation effect below does not depend on
   // their identity. A caller passing an inline arrow would otherwise revalidate
@@ -595,9 +715,10 @@ export function DSLFilterConditionField<
     let isCancelled = false;
 
     // The last validation no longer describes what's in the field — drop any
-    // stale error so the field isn't flagged invalid mid-edit. An error only
-    // shows once the current text has settled and failed validation.
+    // stale error or warnings so the field isn't flagged mid-edit. Status
+    // only shows once the current text has settled and been validated.
     setErrorMessage(null);
+    setWarnings([]);
 
     // Whether this run settles the mount-time value. Read before the branches
     // below flip the ref: both settle paths report it, so consumers can tell
@@ -657,10 +778,12 @@ export function DSLFilterConditionField<
 
           if (!result?.isValid) {
             setErrorMessage(result?.errorMessage ?? "");
+            setWarnings([]);
             reportValidationState(false);
             reportValidationFailed("invalid");
           } else {
             setErrorMessage(null);
+            setWarnings(result.warnings ?? []);
             reportValidationState(true);
             startTransition(() => {
               reportValidCondition({
@@ -679,6 +802,7 @@ export function DSLFilterConditionField<
           // rather than leaving a normal-looking field whose filter is
           // silently never applied
           setErrorMessage("The condition could not be validated");
+          setWarnings([]);
           reportValidationState(false);
           reportValidationFailed("transport");
         });
@@ -694,6 +818,7 @@ export function DSLFilterConditionField<
     <div
       data-is-focused={isFocused}
       data-is-invalid={hasError}
+      data-is-warning={!hasError && hasWarnings}
       data-has-condition={hasCondition}
       data-variant={variant}
       className={classNames("dsl-filter-condition-field", className)}
@@ -731,17 +856,40 @@ export function DSLFilterConditionField<
           extensions={extensions}
         />
         <div className="dsl-filter-condition-field__controls">
-          {hasError ? (
+          {hasError || hasWarnings ? (
             <DSLFilterErrorBadge
-              ariaLabel="Filter condition error"
-              badgeMessage={errorMessage || "Invalid filter condition"}
-              title="Invalid filter condition"
+              severity={hasError ? "danger" : "warning"}
+              ariaLabel={
+                hasError ? "Filter condition error" : "Filter condition warning"
+              }
+              badgeMessage={
+                hasError
+                  ? errorMessage || "Invalid filter condition"
+                  : warnings[0]
+              }
+              title={
+                hasError
+                  ? "Invalid filter condition"
+                  : "Filter condition warning"
+              }
             >
-              {errorMessage ? (
-                <Text size="S" color="text-700">
-                  {errorMessage}
-                </Text>
-              ) : null}
+              {hasError ? (
+                errorMessage ? (
+                  <Text size="S" color="text-700">
+                    {errorMessage}
+                  </Text>
+                ) : null
+              ) : (
+                <ul css={warningListCSS}>
+                  {warnings.map((warning, index) => (
+                    <li key={`${warning}-${index}`}>
+                      <Text size="S" color="text-700">
+                        {warning}
+                      </Text>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </DSLFilterErrorBadge>
           ) : null}
           {extraControls}
@@ -760,8 +908,10 @@ export function DSLFilterConditionField<
         </div>
       </Flex>
       <VisuallyHidden>
-        <span id={errorId} role="status">
-          {hasError ? `Invalid filter condition. ${errorMessage}`.trim() : ""}
+        <span id={statusId} role="status">
+          {hasError
+            ? `Invalid filter condition. ${errorMessage}`.trim()
+            : warnings.join(" ")}
         </span>
         {extraStatus}
       </VisuallyHidden>

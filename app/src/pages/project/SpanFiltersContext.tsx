@@ -18,6 +18,7 @@ import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
+import { joinFilterConditions } from "@phoenix/utils/filterConditionUtils";
 
 import { validateSpanFilterCondition } from "./spanFilterValidation";
 
@@ -106,11 +107,12 @@ export function SpanFiltersProvider(
   const appendFilterCondition = useCallback(
     (condition: string) => {
       startTransition(() => {
-        if (filterCondition.length > 0) {
-          _setFilterCondition(filterCondition + " and " + condition);
-        } else {
-          _setFilterCondition(condition);
-        }
+        _setFilterCondition(
+          joinFilterConditions({
+            existingCondition: filterCondition,
+            nextCondition: condition,
+          })
+        );
       });
     },
     [filterCondition]

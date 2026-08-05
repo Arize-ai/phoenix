@@ -52,7 +52,9 @@ export const dslFilterCodeMirrorCSS = css`
       line-height: var(--global-line-height-s);
       max-height: 400px;
       min-width: 280px;
-      max-width: 560px;
+      /* Wide enough that the longest shipped suggestion snippet (~77 mono
+         chars) fits its own stacked line — see li.dsl-filter-suggestion */
+      max-width: 640px;
       & > completion-section {
         display: list-item;
         padding: var(--global-dimension-size-100)
@@ -96,6 +98,18 @@ export const dslFilterCodeMirrorCSS = css`
     li.dsl-filter-suggestion .cm-completionLabel {
       font-family: var(--global-font-family-sans);
     }
+    /* A suggestion's detail is a whole example condition, not a short type
+       hint — beside the label under the 60% cap it truncates unreadably.
+       Stack it full-width under the prose label instead. */
+    li.dsl-filter-suggestion {
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--global-dimension-size-25);
+    }
+    li.dsl-filter-suggestion .cm-completionDetail {
+      margin-left: 0;
+      max-width: 100%;
+    }
     .cm-completionMatchedText {
       text-decoration: none;
       font-weight: var(--font-weight-heavy);
@@ -123,6 +137,23 @@ export const dslFilterCodeMirrorCSS = css`
     color: var(--global-text-color-700);
     max-width: 300px;
   }
+  /* The tab-through blanks an inserted snippet leaves behind — CodeMirror's
+     default marking is a near-invisible gray, so tint them with the primary
+     color to read as "fill me in": the active one is selected for overtyping,
+     Tab hops to the next, and the marks clear once the user moves on */
+  .cm-snippetField {
+    background-color: color-mix(
+      in srgb,
+      var(--global-color-primary) 18%,
+      transparent
+    );
+    border-radius: var(--global-rounding-small);
+  }
+  /* The sub-expression a validation error was blamed on */
+  .cm-dsl-filter-error-region {
+    text-decoration: underline wavy var(--global-color-danger);
+    text-underline-offset: 3px;
+  }
 `;
 
 /**
@@ -137,10 +168,11 @@ export const dslFilterErrorTooltipCSS = css`
 `;
 
 /**
- * Grows a control-cluster badge out from the editor's right edge. Animating
- * max-width alongside opacity keeps the appearance smooth — the editor
- * cedes the space gradually instead of the badge popping in at full size.
- * Exported so composed badges (e.g. the AI-query ones) grow in the same way.
+ * Grows a control-cluster badge (error or warning) out from the editor's
+ * right edge. Animating max-width alongside opacity keeps the appearance
+ * smooth — the editor cedes the space gradually instead of the badge popping
+ * in at full size. Exported so composed badges (e.g. the AI-query ones)
+ * grow in the same way.
  */
 export const dslFilterBadgeGrowIn = keyframes`
   from {
@@ -175,6 +207,9 @@ export const dslFilterFieldCSS = css`
   &[data-is-invalid="true"]:not([data-is-focused="true"]) {
     border-color: var(--global-color-danger);
   }
+  &[data-is-warning="true"]:not([data-is-focused="true"]) {
+    border-color: var(--global-color-warning);
+  }
   box-sizing: border-box;
   .filter-icon {
     margin-left: var(--global-dimension-size-100);
@@ -198,8 +233,6 @@ export const dslFilterFieldCSS = css`
     overflow: hidden;
     padding: 2px var(--global-dimension-size-65);
     border-radius: var(--global-rounding-small);
-    background-color: var(--global-color-danger-100);
-    color: var(--global-color-danger);
     font-size: var(--global-font-size-xs);
     line-height: var(--global-line-height-xs);
     white-space: nowrap;
@@ -207,6 +240,18 @@ export const dslFilterFieldCSS = css`
     animation: ${dslFilterBadgeGrowIn} 0.25s ease-out;
     @media (prefers-reduced-motion: reduce) {
       animation: none;
+    }
+    &[data-severity="danger"] {
+      background-color: var(--global-color-danger-100);
+      color: var(--global-color-danger);
+    }
+    &[data-severity="warning"] {
+      background-color: color-mix(
+        in srgb,
+        var(--global-color-warning) 10%,
+        transparent
+      );
+      color: var(--global-color-warning);
     }
     .icon-wrap {
       flex-shrink: 0;

@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
 import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
 import { AnnotationSummaryPopover } from "@phoenix/components/annotation/AnnotationSummaryPopover";
@@ -33,6 +34,7 @@ export function AnnotationSummaryTokens({
   annotationsByName,
   categoricalAnnotationConfigsByName,
   showFilterActions = false,
+  renderFilterActions,
 }: {
   summaries: readonly AnnotationSummary[];
   /** Every annotation behind a summary, newest first, keyed by summary name */
@@ -42,6 +44,8 @@ export function AnnotationSummaryTokens({
     AnnotationConfigCategorical | undefined
   >;
   showFilterActions?: boolean;
+  /** Grain-specific filter actions rendered in the popover's filters column */
+  renderFilterActions?: (annotation: Annotation) => ReactNode;
 }) {
   return (
     <>
@@ -58,6 +62,7 @@ export function AnnotationSummaryTokens({
             width="500px"
             meanScore={meanScore}
             showFilterActions={showFilterActions}
+            renderFilterActions={renderFilterActions}
           >
             <AnnotationLabel
               annotation={latestAnnotation}

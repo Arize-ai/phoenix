@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fa3cb88d77c0f3d75350f6c8fd2aef99>>
+ * @generated SignedSource<<0f2318542f7b7d0370a05d606ae18348>>
  * @lightSyntaxTransform
  */
 
@@ -86,12 +86,7 @@ return {
     {
       "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "filterIoSubstring"
-    },
-    {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "sessionId"
+      "name": "sessionFilterCondition"
     },
     {
       "defaultValue": null,
@@ -202,13 +197,8 @@ return {
         },
         {
           "kind": "Variable",
-          "name": "filterIoSubstring",
-          "variableName": "filterIoSubstring"
-        },
-        {
-          "kind": "Variable",
-          "name": "sessionId",
-          "variableName": "sessionId"
+          "name": "sessionFilterCondition",
+          "variableName": "sessionFilterCondition"
         },
         {
           "kind": "Variable",
@@ -279,6 +269,6 @@ return {
 };
 })();
 
-(node as any).hash = "78d6985aa96cf32af722550d3db8bb65";
+(node as any).hash = "93b73a746a593b64f93a918940c33105";
 
 export default node;
