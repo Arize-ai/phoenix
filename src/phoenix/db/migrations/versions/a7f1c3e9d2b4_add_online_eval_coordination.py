@@ -38,6 +38,19 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _restore_sqlite_project_session_desc_indexes() -> None:
+    if op.get_bind().dialect.name != "sqlite":
+        return
+    for index_name, column_name in (
+        ("ix_project_sessions_project_id_start_time", "start_time"),
+        ("ix_project_sessions_project_id_end_time", "end_time"),
+    ):
+        op.drop_index(index_name, table_name="project_sessions")
+        op.execute(
+            f"CREATE INDEX {index_name} ON project_sessions (project_id, {column_name} DESC)"
+        )
+
+
 def upgrade() -> None:
     with op.batch_alter_table("project_sessions") as batch_op:
         batch_op.add_column(
@@ -67,6 +80,7 @@ def upgrade() -> None:
             "ix_project_sessions_project_id_last_span_seen_at",
             ["project_id", "last_span_seen_at"],
         )
+    _restore_sqlite_project_session_desc_indexes()
 
     op.create_table(
         "eval_work_cursors",
@@ -280,3 +294,4 @@ def downgrade() -> None:
     with op.batch_alter_table("project_sessions") as batch_op:
         batch_op.drop_index("ix_project_sessions_project_id_last_span_seen_at")
         batch_op.drop_column("last_span_seen_at")
+    _restore_sqlite_project_session_desc_indexes()

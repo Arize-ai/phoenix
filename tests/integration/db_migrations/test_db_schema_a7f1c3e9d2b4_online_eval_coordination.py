@@ -23,6 +23,30 @@ from . import (
 _DOWN = "d4e5f6a7b8c9"
 _PREVIOUS = "c9d0e1f2a3b4"
 _UP = "a7f1c3e9d2b4"
+_SQLITE_PROJECT_SESSION_DESC_INDEX_SQL = {
+    "ix_project_sessions_project_id_end_time": (
+        "CREATE INDEX ix_project_sessions_project_id_end_time "
+        "ON project_sessions (project_id, end_time DESC)"
+    ),
+    "ix_project_sessions_project_id_start_time": (
+        "CREATE INDEX ix_project_sessions_project_id_start_time "
+        "ON project_sessions (project_id, start_time DESC)"
+    ),
+}
+
+
+def _get_sqlite_project_session_index_sql(conn: Connection) -> dict[str, str]:
+    rows = conn.execute(
+        sa.text(
+            "SELECT name, sql FROM sqlite_master "
+            "WHERE type = 'index' "
+            "AND name IN ("
+            "'ix_project_sessions_project_id_start_time', "
+            "'ix_project_sessions_project_id_end_time'"
+            ")"
+        )
+    ).all()
+    return {name: sql for name, sql in rows if sql is not None}
 
 
 def _constraint_name(name: str, db_backend: _DBBackend) -> str:
@@ -274,6 +298,11 @@ async def test_project_session_liveness_schema(
     before = await _run_async(_engine, _get)
     assert before is not None
     assert "last_span_seen_at" not in before["column_names"]
+    if _db_backend == "sqlite":
+        assert (
+            await _run_async(_engine, _get_sqlite_project_session_index_sql)
+            == _SQLITE_PROJECT_SESSION_DESC_INDEX_SQL
+        )
     await _run_async(_engine, _seed)
 
     await _up(_engine, _alembic_config, _UP, _schema)
@@ -288,6 +317,16 @@ async def test_project_session_liveness_schema(
     last_span_seen_at, index_columns = await _run_async(_engine, _get_backfill_and_index)
     assert last_span_seen_at.replace(tzinfo=timezone.utc) == end_time
     assert index_columns == ["project_id", "last_span_seen_at"]
+    if _db_backend == "sqlite":
+        assert (
+            await _run_async(_engine, _get_sqlite_project_session_index_sql)
+            == _SQLITE_PROJECT_SESSION_DESC_INDEX_SQL
+        )
 
     await _down(_engine, _alembic_config, _PREVIOUS, _schema)
     assert await _run_async(_engine, _get) == before
+    if _db_backend == "sqlite":
+        assert (
+            await _run_async(_engine, _get_sqlite_project_session_index_sql)
+            == _SQLITE_PROJECT_SESSION_DESC_INDEX_SQL
+        )
