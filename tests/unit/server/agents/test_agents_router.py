@@ -14,7 +14,7 @@ from uuid import UUID
 
 import httpx
 import pytest
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from openinference.instrumentation import OITracer, TraceConfig
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.trace import TracerProvider
@@ -57,6 +57,7 @@ from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
 from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
 from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS, get_otel_session_id
 from phoenix.server.api.routers.agents import (
+    _AgentSessionConflict,
     _build_message_metadata_chunk,
     _emit_turn_root_span,
     _get_span_context,
@@ -1790,12 +1791,12 @@ def test_merge_rejects_an_assistant_message_that_is_not_the_trailing_one() -> No
         {"id": _message_uuid("assistant-stale"), "role": "assistant", "parts": []}
     )
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(_AgentSessionConflict) as exc_info:
         _merge_messages(
             old_messages=persisted,
             new_message=stale_assistant,
         )
-    assert exc_info.value.status_code == 409
+    assert exc_info.value.code == "agent_session_transcript_conflict"
 
 
 async def test_chat_endpoint_rejects_regenerate_requests(

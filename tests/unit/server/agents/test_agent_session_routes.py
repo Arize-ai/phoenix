@@ -225,7 +225,7 @@ class TestGetAgentSession:
 
     async def test_rejects_invalid_id(self, httpx_client: httpx.AsyncClient) -> None:
         response = await httpx_client.get("/agents/assistant/sessions/invalid")
-        assert response.status_code == 422
+        assert response.status_code == 404
 
 
 class TestListAgentSessionMessages:
@@ -322,7 +322,7 @@ class TestListAgentSessionMessages:
 
     async def test_rejects_invalid_session_id(self, httpx_client: httpx.AsyncClient) -> None:
         response = await httpx_client.get("/agents/assistant/sessions/invalid/messages")
-        assert response.status_code == 422
+        assert response.status_code == 404
 
     async def test_rejects_invalid_cursor(
         self,

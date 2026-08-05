@@ -8,8 +8,15 @@ from typing import Any, Literal, Mapping, Optional, Sequence, TypedDict, Union
 from typing_extensions import NotRequired
 
 
-class AgentSession(TypedDict):
-    id: str
+class AgentSessionConflictError(TypedDict):
+    code: Literal[
+        "agent_session_busy",
+        "agent_session_model_stale",
+        "agent_session_messages_stale",
+        "agent_session_transcript_conflict",
+        "agent_session_compaction_conflict",
+    ]
+    message: NotRequired[str]
 
 
 class AgentSessionSummary(TypedDict):
@@ -120,10 +127,6 @@ class CodeEvaluatorContext(TypedDict):
     evaluatorNodeId: NotRequired[str]
 
 
-class CreateAgentSessionResponseBody(TypedDict):
-    data: AgentSession
-
-
 class CreateApiKeyRequestBody(TypedDict):
     data: ApiKeyData
 
@@ -165,6 +168,10 @@ class CreateProjectRequestBody(TypedDict):
 class CreateSpansResponseBody(TypedDict):
     total_received: int
     total_queued: int
+
+
+class CreatedAgentSession(TypedDict):
+    id: str
 
 
 class CreatedApiKey(TypedDict):
@@ -1324,6 +1331,10 @@ class ContinuousAnnotationConfigData(TypedDict):
     description: NotRequired[str]
     lower_bound: NotRequired[float]
     upper_bound: NotRequired[float]
+
+
+class CreateAgentSessionResponseBody(TypedDict):
+    data: CreatedAgentSession
 
 
 class CreateApiKeyResponseBody(TypedDict):

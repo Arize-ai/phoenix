@@ -1578,7 +1578,7 @@ export interface paths {
          * Run Server Agent
          * @deprecated
          */
-        post: operations["run_server_agent_agents_server_sessions__session_id__chat_post"];
+        post: operations["legacyServerAgentChat"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1602,7 +1602,7 @@ export interface paths {
          * Create Session
          * @description Create a persisted agent session owned by the requesting user.
          */
-        post: operations["create_session_agents__agent_id__sessions_post"];
+        post: operations["createAgentSession"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1663,7 +1663,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Compact Agent Session */
-        post: operations["compact_agent_session_agents__agent_id__sessions__session_id__compact_post"];
+        post: operations["compactAgentSession"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1680,7 +1680,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Chat */
-        post: operations["chat_agents__agent_id__sessions__session_id__chat_post"];
+        post: operations["agentSessionChat"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1747,13 +1747,32 @@ export interface components {
             data: components["schemas"]["DatasetLabel"];
         };
         AgentModelSelection: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
-        /** AgentSession */
-        AgentSession: {
+        /**
+         * AgentSessionConflictError
+         * @description Body of every HTTP 409 returned by the agent session routes.
+         *
+         *     - ``agent_session_busy``: another turn holds the session's turn lock.
+         *     - ``agent_session_model_stale``: the request asserted a model the session
+         *       is no longer set to; refetch the session before retrying.
+         *     - ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer
+         *       matches the persisted transcript; refetch the transcript before retrying.
+         *     - ``agent_session_transcript_conflict``: the submitted assistant
+         *       continuation does not match the transcript's trailing message.
+         *     - ``agent_session_compaction_conflict``: the conversation changed while it
+         *       was being compacted; retry.
+         */
+        AgentSessionConflictError: {
             /**
-             * Id
-             * @description The session's GlobalID — the ``session_id`` the chat route expects.
+             * Code
+             * @description Machine-readable reason the request conflicted.
+             * @enum {string}
              */
-            id: string;
+            code: "agent_session_busy" | "agent_session_model_stale" | "agent_session_messages_stale" | "agent_session_transcript_conflict" | "agent_session_compaction_conflict";
+            /**
+             * Message
+             * @description Optional human-readable elaboration on the conflict.
+             */
+            message?: string | null;
         };
         /** AgentSessionData */
         AgentSessionData: {
@@ -2308,7 +2327,7 @@ export interface components {
         };
         /** CreateAgentSessionResponseBody */
         CreateAgentSessionResponseBody: {
-            data: components["schemas"]["AgentSession"];
+            data: components["schemas"]["CreatedAgentSession"];
         };
         /** CreateAnnotationConfigData */
         CreateAnnotationConfigData: components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"];
@@ -2575,6 +2594,14 @@ export interface components {
         CreateUserResponseBody: {
             /** Data */
             data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"] | components["schemas"]["LDAPUser"];
+        };
+        /** CreatedAgentSession */
+        CreatedAgentSession: {
+            /**
+             * Id
+             * @description The session's GlobalID — the ``session_id`` the chat route expects.
+             */
+            id: string;
         };
         /** CreatedApiKey */
         CreatedApiKey: {
@@ -3935,11 +3962,11 @@ export interface components {
         PatchAgentSessionRequestBody: {
             /**
              * Title
-             * @description New title for the session (null is rejected; title is required)
+             * @description New title for the session
              */
-            title?: string | null;
-            /** @description New model selection for the session (null is rejected) */
-            model?: components["schemas"]["AgentModelSelection"] | null;
+            title?: string;
+            /** @description New model selection for the session */
+            model?: components["schemas"]["AgentModelSelection"];
         };
         /** PatchAgentSessionResponseBody */
         PatchAgentSessionResponseBody: {
@@ -11608,7 +11635,7 @@ export interface operations {
             };
         };
     };
-    run_server_agent_agents_server_sessions__session_id__chat_post: {
+    legacyServerAgentChat: {
         parameters: {
             query?: never;
             header?: never;
@@ -11632,6 +11659,42 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11639,6 +11702,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
@@ -11667,18 +11739,45 @@ export interface operations {
                     "application/json": components["schemas"]["ListAgentSessionsResponseBody"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "text/plain": string;
                 };
             };
         };
     };
-    create_session_agents__agent_id__sessions_post: {
+    createAgentSession: {
         parameters: {
             query?: never;
             header?: never;
@@ -11702,13 +11801,58 @@ export interface operations {
                     "application/json": components["schemas"]["CreateAgentSessionResponseBody"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
@@ -11732,6 +11876,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetAgentSessionResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Validation Error */
@@ -11770,13 +11941,67 @@ export interface operations {
                     "application/json": components["schemas"]["PatchAgentSessionResponseBody"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description The request conflicts with the session's current state; the body's ``code`` field says how. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSessionConflictError"];
+                };
+            };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
@@ -11806,18 +12031,45 @@ export interface operations {
                     "application/json": components["schemas"]["ListAgentSessionMessagesResponseBody"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "text/plain": string;
                 };
             };
         };
     };
-    compact_agent_session_agents__agent_id__sessions__session_id__compact_post: {
+    compactAgentSession: {
         parameters: {
             query?: never;
             header?: never;
@@ -11842,6 +12094,51 @@ export interface operations {
                     "application/json": components["schemas"]["CompactAgentSessionResponse"];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description The request conflicts with the session's current state; the body's ``code`` field says how. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSessionConflictError"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11851,9 +12148,27 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
         };
     };
-    chat_agents__agent_id__sessions__session_id__chat_post: {
+    agentSessionChat: {
         parameters: {
             query?: never;
             header?: never;
@@ -11878,6 +12193,51 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description The request conflicts with the session's current state; the body's ``code`` field says how. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSessionConflictError"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11885,6 +12245,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };

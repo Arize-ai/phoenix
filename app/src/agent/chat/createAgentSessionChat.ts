@@ -36,6 +36,7 @@ import {
   SESSION_MESSAGES_STALE_ERROR_CODE,
   SESSION_MODEL_STALE_ERROR_CODE,
   buildAgentChatApiUrl,
+  parseAgentSessionConflictCode,
 } from "./agentChatApi";
 import { getRemovedUserMessageText } from "./removedUserMessageText";
 
@@ -228,13 +229,12 @@ export function createAgentSessionChat({
     onError: (error) => {
       transcriptPersistence.cancelPendingWaiters();
       turnCompletionGate.fail(error);
-      const isBusyRejection = error.message.includes(SESSION_BUSY_ERROR_CODE);
-      const isModelStaleRejection = error.message.includes(
-        SESSION_MODEL_STALE_ERROR_CODE
-      );
+      const conflictCode = parseAgentSessionConflictCode(error.message);
+      const isBusyRejection = conflictCode === SESSION_BUSY_ERROR_CODE;
+      const isModelStaleRejection =
+        conflictCode === SESSION_MODEL_STALE_ERROR_CODE;
       const isMessagesStaleRejection =
-        !isModelStaleRejection &&
-        error.message.includes(SESSION_MESSAGES_STALE_ERROR_CODE);
+        conflictCode === SESSION_MESSAGES_STALE_ERROR_CODE;
       if (
         !isBusyRejection &&
         !isMessagesStaleRejection &&

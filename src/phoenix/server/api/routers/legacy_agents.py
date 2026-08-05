@@ -52,6 +52,7 @@ from phoenix.server.api.routers.agents import (
     _resolve_trace_recording,
     _subagents_enabled,
 )
+from phoenix.server.api.routers.v1.utils import add_errors_to_responses
 from phoenix.server.authorization import (
     is_agent_assistant_enabled,
     is_not_locked,
@@ -165,7 +166,9 @@ def create_legacy_agents_router(
 
     @router.post(
         "/agents/server/sessions/{session_id}/chat",
+        operation_id="legacyServerAgentChat",
         deprecated=True,
+        responses=add_errors_to_responses([400, 401, 403, 404, 507]),
     )
     async def run_server_agent(
         session_id: str,
