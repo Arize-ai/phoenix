@@ -560,6 +560,10 @@
 - [Create A System API Key](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/create-a-system-api-key): POST /v1/system/api_keys — mint a system API key for CI or service-to-service calls (admin)
 - [Delete A System API Key](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/delete-a-system-api-key): DELETE /v1/system/api_keys/{api_key_id} — revoke a system API key (admin)
 
+### REST API — Chat Completions
+
+- [OpenAI-Compatible Chat Completions](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/chat-completions/openai-compatible-chat-completions): POST /v1/chat/completions — OpenAI wire-format proxy; model is `{provider}:{model_name}` (or `custom:{provider_id}:{model_name}`), provider credentials resolved server-side, `stream: true` for SSE chunks, no tool calling
+
 ### REST API — Datasets
 
 - [List Datasets](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-datasets): GET /v1/datasets — paginate datasets in the workspace
@@ -590,6 +594,7 @@
 - [List Experiments By Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-experiments-by-dataset): GET /v1/datasets/{dataset_id}/experiments — list experiments tied to a dataset
 - [Create Experiment On A Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-experiment-on-a-dataset): POST /v1/datasets/{dataset_id}/experiments — start a new experiment over a dataset version
 - [Get Experiment By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/get-experiment-by-id): GET /v1/experiments/{experiment_id} — fetch experiment metadata
+- [Update An Experiment By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/update-an-experiment-by-id): PATCH /v1/experiments/{experiment_id} — partially update name, description, or metadata; patching an ephemeral experiment extends its sweep window
 - [Delete Experiment By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/delete-experiment-by-id): DELETE /v1/experiments/{experiment_id} — delete an experiment and its runs
 - [Download Experiment Runs As JSON](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-json-file): GET /v1/experiments/{experiment_id}/json — export full experiment runs as JSON
 - [Download Experiment Runs As CSV](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-csv-file): GET /v1/experiments/{experiment_id}/csv — export experiment runs as CSV

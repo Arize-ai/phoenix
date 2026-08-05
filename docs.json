@@ -1011,6 +1011,12 @@
                     ]
                   },
                   {
+                    "group": "Chat Completions",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/chat-completions/openai-compatible-chat-completions"
+                    ]
+                  },
+                  {
                     "group": "Datasets",
                     "pages": [
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-datasets",
@@ -1045,6 +1051,7 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-experiments-by-dataset",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-experiment-on-a-dataset",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/get-experiment-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/update-an-experiment-by-id",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/delete-experiment-by-id",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-json-file",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-csv-file",
