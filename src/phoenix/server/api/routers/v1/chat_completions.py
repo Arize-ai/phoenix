@@ -377,7 +377,11 @@ def _sse_event(payload: dict[str, Any]) -> str:
         "first, environment second) — callers never handle provider API keys. "
         f"{_MODEL_FORMAT_HELP} "
         "Set `stream: true` for server-sent events of `chat.completion.chunk` "
-        "payloads terminated by `data: [DONE]`. Tool calling is not supported."
+        "payloads terminated by `data: [DONE]`. Tool calling is not supported.\n\n"
+        "**Phoenix is not an AI gateway.** The same server also takes on trace "
+        "ingestion traffic, so routing production LLM calls through it competes "
+        "with ingestion. Use this endpoint only to quickly try out different "
+        "models in non-production environments."
     ),
 )
 async def create_chat_completion(
