@@ -621,6 +621,9 @@ T = TypeVar("T", bound=BuiltInEvaluator)
 
 
 def register_builtin_evaluator(cls: type[T]) -> type[T]:
+    implementation_version = getattr(cls, "implementation_version", None)
+    if not isinstance(implementation_version, str) or not implementation_version.strip():
+        raise ValueError(f"{cls.__name__}.implementation_version must be a non-empty string")
     _BUILTIN_EVALUATORS[cls.name] = cls
     _BUILTIN_EVALUATORS_BY_KEY[cls._key] = cls
     return cls

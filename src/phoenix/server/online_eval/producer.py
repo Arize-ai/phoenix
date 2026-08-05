@@ -156,13 +156,13 @@ async def resolve_criteria_bulk(
             version_ref = version.id if version is not None else None
         elif isinstance(evaluator, models.BuiltinEvaluator):
             evaluator_class = get_builtin_evaluator_by_key(evaluator.key)
-            implementation_version = (
-                evaluator_class.implementation_version if evaluator_class is not None else None
-            )
+            if evaluator_class is None:
+                resolved.append(None)
+                continue
             version_ref = [
                 evaluator.key,
                 evaluator.synced_at.isoformat(),
-                implementation_version,
+                evaluator_class.implementation_version,
             ]
         else:
             resolved.append(None)

@@ -43,15 +43,19 @@ async def _seed_criteria(
     """Create a builtin evaluator and a criteria row, returning
     (evaluator_id, criteria_id)."""
     async with db() as session:
-        evaluator = models.BuiltinEvaluator(
-            name=Identifier(root=f"eval-{token_hex(4)}"),
-            kind="BUILTIN",
-            key=token_hex(8),
-            input_schema={},
-            output_configs=[],
+        evaluator = await session.scalar(
+            select(models.BuiltinEvaluator).where(models.BuiltinEvaluator.key == "contains")
         )
-        session.add(evaluator)
-        await session.flush()
+        if evaluator is None:
+            evaluator = models.BuiltinEvaluator(
+                name=Identifier(root="contains"),
+                kind="BUILTIN",
+                key="contains",
+                input_schema={},
+                output_configs=[],
+            )
+            session.add(evaluator)
+            await session.flush()
         criteria = models.ProjectEvaluatorCriteria(
             project_id=project_id,
             evaluator_id=evaluator.id,
@@ -224,6 +228,35 @@ async def test_builtin_implementation_version_changes_fingerprint(
         assert second is not None
 
     assert config_fingerprint(first) != config_fingerprint(second)
+
+
+async def test_unregistered_builtin_cannot_resolve_criteria(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root="unregistered"),
+            kind="BUILTIN",
+            key="unregistered",
+            input_schema={},
+            output_configs=[],
+            synced_at=_now(),
+        )
+        session.add(evaluator)
+        await session.flush()
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(root="criteria"),
+            filter_condition="",
+            sampling_rate=1.0,
+            evaluation_target="SPAN",
+        )
+        session.add(criteria)
+        await session.flush()
+
+        assert await resolve_criteria(session, criteria, evaluator) is None
 
 
 async def test_active_criteria_are_bulk_resolved_once(
@@ -967,7 +1000,7 @@ async def test_uncompilable_filter_is_skipped_without_stalling(db: DbSessionFact
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
     good_evaluator_id, _ = await _seed_criteria(db, project.id)
-    bad_evaluator_id, _ = await _seed_criteria(db, project.id, filter_condition="span_kind ==")
+    _, bad_criteria_id = await _seed_criteria(db, project.id, filter_condition="span_kind ==")
     cursor_id = await _seed_cursor(
         db,
         observed_high_water_id=span.id,
@@ -980,7 +1013,7 @@ async def test_uncompilable_filter_is_skipped_without_stalling(db: DbSessionFact
     async with db() as session:
         units = list(await session.scalars(select(models.EvalWorkUnit)))
     assert {unit.evaluator_id for unit in units} == {good_evaluator_id}
-    assert bad_evaluator_id not in {unit.evaluator_id for unit in units}
+    assert bad_criteria_id not in {unit.criteria_id for unit in units}
     cursor = await _get_cursor(db, cursor_id)
     assert cursor.produced_through_id == span.id
 
