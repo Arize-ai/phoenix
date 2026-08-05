@@ -352,7 +352,10 @@ jobs:
         with:
           platforms: arm64
       - name: Build wheels
-        uses: pypa/cibuildwheel@9c00cb4f6b517705a3794b22395aedc36257242c # v3.2.1
+        # Must be >= v3.4.0: earlier releases reference actions/setup-python@v6
+        # inside their own action.yml, and this org rejects unpinned actions
+        # transitively, so the job fails while preparing actions.
+        uses: pypa/cibuildwheel@1828c10ab37f080699c7b81cea34097c684a7074 # v4.2.0
         with:
           package-dir: pkg
         env:
