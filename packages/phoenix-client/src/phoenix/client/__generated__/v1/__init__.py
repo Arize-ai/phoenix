@@ -388,6 +388,11 @@ class OtlpStatus(TypedDict):
     message: NotRequired[str]
 
 
+class PatchPromptRequestBody(TypedDict):
+    description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+
+
 class PlaygroundBuiltinModelContext(TypedDict):
     type: Literal["builtin"]
     provider: str
@@ -1474,6 +1479,10 @@ class ListDatasetExamplesData(TypedDict):
 
 class ListDatasetExamplesResponseBody(TypedDict):
     data: ListDatasetExamplesData
+
+
+class PatchPromptResponseBody(TypedDict):
+    data: Prompt
 
 
 class PlaygroundContext(TypedDict):

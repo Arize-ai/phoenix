@@ -6004,6 +6004,79 @@
       }
     },
     "/v1/prompts/{prompt_identifier}": {
+      "patch": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Update prompt metadata",
+        "description": "Update a prompt's description and metadata by identifier.",
+        "operationId": "patchPrompt",
+        "parameters": [
+          {
+            "name": "prompt_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the prompt, i.e. name or ID.",
+              "title": "Prompt Identifier"
+            },
+            "description": "The identifier of the prompt, i.e. name or ID."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchPromptRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated prompt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchPromptResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
       "delete": {
         "tags": [
           "prompts"
@@ -13626,6 +13699,50 @@
         "additionalProperties": false,
         "type": "object",
         "title": "OtlpStatus"
+      },
+      "PatchPromptRequestBody": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "New description for the prompt (null clears the description)"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "New metadata object for the prompt (replaces the existing metadata as a whole; null is rejected)"
+          }
+        },
+        "type": "object",
+        "title": "PatchPromptRequestBody",
+        "description": "Fields to update on a prompt. Omit a field to leave it unchanged."
+      },
+      "PatchPromptResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Prompt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "PatchPromptResponseBody"
       },
       "PhoenixUIMessage": {
         "properties": {

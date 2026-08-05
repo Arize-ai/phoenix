@@ -2248,7 +2248,7 @@ _ADMIN_ONLY_ENDPOINTS = (
     (422, "DELETE", "v1/system/api_keys/fake-id-{}"),
 )
 
-# Write operations blocked for viewers (POST/PUT/DELETE)
+# Write operations blocked for viewers (POST/PUT/PATCH/DELETE)
 # Viewers always receive 403, non-viewers (admins/members) get expected_non_viewer_status
 _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     # POST routes
@@ -2280,6 +2280,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     # PATCH routes
     (422, "PATCH", "v1/experiments/fake-id-{}"),
     (422, "PATCH", "v1/dataset_labels/fake-id-{}"),
+    (422, "PATCH", "v1/prompts/fake-id-{}"),
     # DELETE routes
     (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
     (404, "DELETE", "v1/projects/{0}/annotation_configs/{0}"),
