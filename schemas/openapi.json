@@ -8092,15 +8092,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/LegacyChatRequest"
-                  },
-                  {
-                    "$ref": "#/components/schemas/ChatRequest"
-                  }
-                ],
-                "title": "Request Body"
+                "$ref": "#/components/schemas/LegacyChatRequest"
               }
             }
           }
@@ -8177,7 +8169,7 @@
         }
       }
     },
-    "/agents/{agent_id}/sessions": {
+    "/v1/agents/{agent_id}/sessions": {
       "post": {
         "tags": [
           "chat"
@@ -8381,7 +8373,7 @@
         }
       }
     },
-    "/agents/{agent_id}/sessions/{session_id}": {
+    "/v1/agents/{agent_id}/sessions/{session_id}": {
       "patch": {
         "tags": [
           "chat"
@@ -8583,7 +8575,7 @@
         }
       }
     },
-    "/agents/{agent_id}/sessions/{session_id}/messages": {
+    "/v1/agents/{agent_id}/sessions/{session_id}/messages": {
       "get": {
         "tags": [
           "chat"
@@ -8695,7 +8687,7 @@
         }
       }
     },
-    "/agents/{agent_id}/sessions/{session_id}/compact": {
+    "/v1/agents/{agent_id}/sessions/{session_id}/compact": {
       "post": {
         "tags": [
           "chat"
@@ -8826,7 +8818,7 @@
         }
       }
     },
-    "/agents/{agent_id}/sessions/{session_id}/chat": {
+    "/v1/agents/{agent_id}/sessions/{session_id}/chat": {
       "post": {
         "tags": [
           "chat"

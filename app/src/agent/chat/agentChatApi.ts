@@ -2,9 +2,9 @@ import type { components, paths } from "@phoenix/api/__generated__/v1";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 const CHAT_PATH_TEMPLATE =
-  "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof paths;
+  "/v1/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof paths;
 const COMPACT_PATH_TEMPLATE =
-  "/agents/{agent_id}/sessions/{session_id}/compact" satisfies keyof paths;
+  "/v1/agents/{agent_id}/sessions/{session_id}/compact" satisfies keyof paths;
 const ASSISTANT_AGENT_ID = "assistant";
 
 /**

@@ -1892,9 +1892,7 @@ def _to_agent_session_summary(agent_session: models.AgentSession) -> AgentSessio
     )
 
 
-def create_agents_router(
-    authentication_enabled: bool,
-) -> tuple[APIRouter, Callable[[str, str, Request, ChatRequest], Awaitable[Response]]]:
+def create_agents_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [
         Depends(is_agent_assistant_enabled),
         Depends(prevent_access_in_read_only_mode),
@@ -1903,7 +1901,7 @@ def create_agents_router(
     ]
     if authentication_enabled:
         dependencies.append(Depends(is_authenticated))
-    router = APIRouter(tags=["chat"], dependencies=dependencies)
+    router = APIRouter(prefix="/v1", tags=["chat"], dependencies=dependencies)
 
     @router.post(
         "/agents/{agent_id}/sessions",
@@ -2903,4 +2901,4 @@ def create_agents_router(
             )
             raise
 
-    return router, chat
+    return router

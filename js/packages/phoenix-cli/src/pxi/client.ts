@@ -29,7 +29,7 @@ import type {
 } from "./types";
 
 const AGENT_SESSION_CHAT_PATH =
-  "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof pathsV1;
+  "/v1/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof pathsV1;
 const SERVER_AGENT_ID = "server";
 const AGENT_SESSION_PAGE_LIMIT = 100;
 /**
@@ -164,10 +164,13 @@ export async function createAgentSession({
   const client = createPhoenixClient({ config, fetch: fetchImpl });
   let agentSessionId: string | undefined;
   try {
-    const { data: payload } = await client.POST("/agents/{agent_id}/sessions", {
-      params: { path: { agent_id: SERVER_AGENT_ID } },
-      body: { title: "", is_ephemeral: temporary, model },
-    });
+    const { data: payload } = await client.POST(
+      "/v1/agents/{agent_id}/sessions",
+      {
+        params: { path: { agent_id: SERVER_AGENT_ID } },
+        body: { title: "", is_ephemeral: temporary, model },
+      }
+    );
     agentSessionId = payload?.data.id;
   } catch (error) {
     if (error instanceof HttpError) {
@@ -206,7 +209,7 @@ async function fetchAgentSessionMessagesPage({
   cursor: string | null;
 }): Promise<{ messages: PxiMessage[]; nextCursor: string | null }> {
   const { data: payload } = await client.GET(
-    "/agents/{agent_id}/sessions/{session_id}/messages",
+    "/v1/agents/{agent_id}/sessions/{session_id}/messages",
     {
       params: {
         path: { agent_id: SERVER_AGENT_ID, session_id: sessionId },
@@ -247,7 +250,7 @@ export function createPxiSessionClient({
       let cursor: string | undefined;
       do {
         const { data: payload } = await client.GET(
-          "/agents/{agent_id}/sessions",
+          "/v1/agents/{agent_id}/sessions",
           {
             params: {
               path: { agent_id: SERVER_AGENT_ID },
@@ -277,7 +280,7 @@ export function createPxiSessionClient({
     async getSession({ sessionId }) {
       const client = createPhoenixClient({ config, fetch: fetchImpl });
       const { data: payload } = await client.GET(
-        "/agents/{agent_id}/sessions/{session_id}",
+        "/v1/agents/{agent_id}/sessions/{session_id}",
         {
           params: {
             path: { agent_id: SERVER_AGENT_ID, session_id: sessionId },
@@ -318,7 +321,7 @@ export function createPxiSessionClient({
     async getSessionSyncState({ sessionId }): Promise<PxiSessionSyncState> {
       const client = createPhoenixClient({ config, fetch: fetchImpl });
       const { data: payload } = await client.GET(
-        "/agents/{agent_id}/sessions/{session_id}",
+        "/v1/agents/{agent_id}/sessions/{session_id}",
         {
           params: {
             path: { agent_id: SERVER_AGENT_ID, session_id: sessionId },
@@ -342,7 +345,7 @@ export function createPxiSessionClient({
       const client = createPhoenixClient({ config, fetch: fetchImpl });
       try {
         const { data: payload } = await client.PATCH(
-          "/agents/{agent_id}/sessions/{session_id}",
+          "/v1/agents/{agent_id}/sessions/{session_id}",
           {
             params: {
               path: { agent_id: SERVER_AGENT_ID, session_id: sessionId },
@@ -370,7 +373,7 @@ export function createPxiSessionClient({
       const client = createPhoenixClient({ config, fetch: fetchImpl });
       try {
         const { data: payload } = await client.POST(
-          "/agents/{agent_id}/sessions/{session_id}/compact",
+          "/v1/agents/{agent_id}/sessions/{session_id}/compact",
           {
             params: {
               path: { agent_id: SERVER_AGENT_ID, session_id: sessionId },

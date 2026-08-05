@@ -193,7 +193,7 @@ describe("PXI client", () => {
         agentSessionId: "QWdlbnRTZXNzaW9uOjE=",
       })
     ).toBe(
-      "http://localhost:6006/agents/server/sessions/QWdlbnRTZXNzaW9uOjE%3D/chat"
+      "http://localhost:6006/v1/agents/server/sessions/QWdlbnRTZXNzaW9uOjE%3D/chat"
     );
   });
 
@@ -332,7 +332,7 @@ describe("PXI client", () => {
     });
     expect(session.lastMessageId).toBe("user-1");
     expect(requestUrl(fetchImpl.mock.calls[2])).toBe(
-      "http://localhost:6006/agents/server/sessions/session-1/messages"
+      "http://localhost:6006/v1/agents/server/sessions/session-1/messages"
     );
   });
 
@@ -454,10 +454,10 @@ describe("PXI client", () => {
     ]);
     expect(session.lastMessageId).toBe("assistant-1");
     expect(requestUrl(fetchImpl.mock.calls[1])).toBe(
-      "http://localhost:6006/agents/server/sessions/session-1/messages"
+      "http://localhost:6006/v1/agents/server/sessions/session-1/messages"
     );
     expect(requestUrl(fetchImpl.mock.calls[2])).toBe(
-      "http://localhost:6006/agents/server/sessions/session-1/messages?cursor=cursor-1"
+      "http://localhost:6006/v1/agents/server/sessions/session-1/messages?cursor=cursor-1"
     );
   });
 
@@ -473,7 +473,7 @@ describe("PXI client", () => {
         const request =
           _input instanceof Request ? _input : new Request(_input, init);
         expect(request.url).toBe(
-          "http://localhost:6006/agents/server/sessions/session-1/compact"
+          "http://localhost:6006/v1/agents/server/sessions/session-1/compact"
         );
         expect(request.method).toBe("POST");
         expect(await request.json()).toEqual({

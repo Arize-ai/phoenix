@@ -1131,14 +1131,8 @@ def create_app(
     )
     app.include_router(create_v1_router(authentication_enabled))
     if not get_env_disable_agent_assistant():
-        # Starlette matches routes in registration order: the deprecated
-        # /agents/server/... route must precede the agents router, or the
-        # /agents/{agent_id}/... route captures it with agent_id="server".
-        agents_router, session_chat = create_agents_router(authentication_enabled)
-        app.include_router(
-            create_legacy_agents_router(authentication_enabled, session_chat=session_chat)
-        )
-        app.include_router(agents_router)
+        app.include_router(create_legacy_agents_router(authentication_enabled))
+        app.include_router(create_agents_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
     app.include_router(auth_md_router)

@@ -1585,7 +1585,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/agents/{agent_id}/sessions": {
+    "/v1/agents/{agent_id}/sessions": {
         parameters: {
             query?: never;
             header?: never;
@@ -1609,7 +1609,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/agents/{agent_id}/sessions/{session_id}": {
+    "/v1/agents/{agent_id}/sessions/{session_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1633,7 +1633,7 @@ export interface paths {
         patch: operations["patchAgentSession"];
         trace?: never;
     };
-    "/agents/{agent_id}/sessions/{session_id}/messages": {
+    "/v1/agents/{agent_id}/sessions/{session_id}/messages": {
         parameters: {
             query?: never;
             header?: never;
@@ -1653,7 +1653,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/agents/{agent_id}/sessions/{session_id}/compact": {
+    "/v1/agents/{agent_id}/sessions/{session_id}/compact": {
         parameters: {
             query?: never;
             header?: never;
@@ -1670,7 +1670,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/agents/{agent_id}/sessions/{session_id}/chat": {
+    "/v1/agents/{agent_id}/sessions/{session_id}/chat": {
         parameters: {
             query?: never;
             header?: never;
@@ -11649,7 +11649,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["LegacyChatRequest"] | components["schemas"]["ChatRequest"];
+                "application/json": components["schemas"]["LegacyChatRequest"];
             };
         };
         responses: {
