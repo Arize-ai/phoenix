@@ -88,7 +88,7 @@ from phoenix.db.types.data_stream_protocol import (
     AssistantMessageMetadata,
     AssistantMessageMetadataTraceIds,
     AssistantMessageMetadataUsage,
-    AssistantMessageMetadataUsageTokenDetails,
+    AssistantMessageMetadataUsageCacheTokenDetails,
     AssistantMessageMetadataUsageTokens,
     DynamicToolApprovalRequestedPart,
     DynamicToolApprovalRespondedPart,
@@ -791,7 +791,7 @@ def _build_usage_payload(usage: RequestUsage) -> AssistantMessageMetadataUsage:
         )
     )
     if usage.cache_read_tokens or usage.cache_write_tokens:
-        usage_payload.prompt_details = AssistantMessageMetadataUsageTokenDetails(
+        usage_payload.prompt_details = AssistantMessageMetadataUsageCacheTokenDetails(
             cache_read=usage.cache_read_tokens,
             cache_write=usage.cache_write_tokens,
         )
@@ -2494,7 +2494,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 )
                 first_row = message_rows[0] if message_rows else None
                 latest_compaction = (
-                    first_row if first_row is not None and first_row.is_compaction_point else None
+                    first_row if first_row is not None and first_row.is_compaction_message else None
                 )
                 latest_row = message_rows[-1] if message_rows else None
                 if latest_row is None or latest_row.message.role != "assistant":
@@ -2532,7 +2532,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 current_first_row = current_history[0] if current_history else None
                 current_compaction = (
                     current_first_row
-                    if current_first_row is not None and current_first_row.is_compaction_point
+                    if current_first_row is not None and current_first_row.is_compaction_message
                     else None
                 )
                 if current_compaction is not None and (
