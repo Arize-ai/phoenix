@@ -237,7 +237,15 @@ def _get_updated_provider_metadata(
 
 
 class _CamelBaseModel(BaseModel):
-    """Base model with camelCase aliases."""
+    """Base model with camelCase aliases.
+
+    The wire casing under ``/agents`` is deliberately split: the chat route's
+    request body and stream chunks extend this class because they follow the
+    Vercel AI SDK data stream protocol, which dictates camelCase, while the
+    session CRUD payloads extend ``V1RoutesBaseModel`` and keep the REST API's
+    snake_case convention. Do not normalize either side to match the other —
+    both casings are external contracts.
+    """
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
