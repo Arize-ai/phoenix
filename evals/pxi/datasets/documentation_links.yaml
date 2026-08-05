@@ -1,0 +1,86 @@
+dataset_name: documentation_links
+description: PXI server-side eval suite for canonical Phoenix documentation markdown links.
+evaluators:
+  - documentation_tools_used
+  - documentation_links_valid
+examples:
+  - id: install-phoenix-locally
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: How do I install Phoenix locally?
+    expected:
+      tools:
+        required: []
+        documentation_any:
+          - search_phoenix
+          - query_docs_filesystem_phoenix
+      links:
+        canonical_docs_domain: https://arize.com/docs/phoenix
+    metadata:
+      category: documentation
+  - id: trace-openai-application
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: How do I trace an OpenAI application with Phoenix?
+    expected:
+      tools:
+        required: []
+        documentation_any:
+          - search_phoenix
+          - query_docs_filesystem_phoenix
+      links:
+        canonical_docs_domain: https://arize.com/docs/phoenix
+    metadata:
+      category: documentation
+  - id: create-dataset-from-traces
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: How do I create a dataset in Phoenix from existing traces?
+    expected:
+      tools:
+        required: []
+        documentation_any:
+          - search_phoenix
+          - query_docs_filesystem_phoenix
+      links:
+        canonical_docs_domain: https://arize.com/docs/phoenix
+    metadata:
+      category: documentation
+  - id: run-experiment-with-evaluators
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: How do I run an experiment with Phoenix evaluators?
+    expected:
+      tools:
+        required: []
+        documentation_any:
+          - search_phoenix
+          - query_docs_filesystem_phoenix
+      links:
+        canonical_docs_domain: https://arize.com/docs/phoenix
+    metadata:
+      category: documentation
+  - id: configure-phoenix-authentication
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: How do I configure Phoenix authentication?
+    expected:
+      tools:
+        required: []
+        documentation_any:
+          - search_phoenix
+          - query_docs_filesystem_phoenix
+      links:
+        canonical_docs_domain: https://arize.com/docs/phoenix
+    metadata:
+      category: documentation

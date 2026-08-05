@@ -2,11 +2,12 @@
 
 from typing import Any
 
-from evals.pxi.evaluators.links import in_app_links_valid
+from evals.pxi.evaluators.links import documentation_links_valid, in_app_links_valid
 from evals.pxi.evaluators.text import assistant_text_substrings_match
 from evals.pxi.evaluators.tools import (
     bash_command_substrings_match,
     correct_tools_called,
+    documentation_tools_used,
     forbidden_tool_call_args_match,
     tool_call_args_match,
     tool_call_count_within_limit,
@@ -22,6 +23,8 @@ EVALUATORS_BY_NAME: dict[str, Any] = {
     "assistant_text_substrings_match": assistant_text_substrings_match,
     "bash_command_substrings_match": bash_command_substrings_match,
     "correct_tools_called": correct_tools_called,
+    "documentation_links_valid": documentation_links_valid,
+    "documentation_tools_used": documentation_tools_used,
     "forbidden_tool_call_args_match": forbidden_tool_call_args_match,
     "in_app_links_valid": in_app_links_valid,
     "tool_call_args_match": tool_call_args_match,
@@ -33,6 +36,8 @@ __all__ = [
     "assistant_text_substrings_match",
     "bash_command_substrings_match",
     "correct_tools_called",
+    "documentation_links_valid",
+    "documentation_tools_used",
     "forbidden_tool_call_args_match",
     "in_app_links_valid",
     "tool_call_args_match",
