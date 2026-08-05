@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from threading import Lock
 from typing import Callable, Optional, Sequence
 
+import anyio
 import wrapt
 from openinference.semconv.resource import ResourceAttributes
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
@@ -114,20 +115,27 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
     ensure that traces are not split across multiple calls to get_db_traces.
     It's recommended to use a separate tracer for distinct operations.
 
+    A tracer is scoped to one operation and owns everything it captured, so use
+    it as a context manager: leaving the block stops the provider's processors
+    and releases the buffered spans. Build the trace models before leaving.
+
+    Use ``async with`` from async code. With a remote exporter attached the
+    release drains the batch queue, and ``async with`` moves that off the event
+    loop.
+
     Example usage:
-        tracer = Tracer(span_cost_calculator=span_cost_calculator)
+        async with Tracer(span_cost_calculator=span_cost_calculator) as tracer:
+            with tracer.start_as_current_span("operation") as span:
+                span.set_attribute("key", "value")
+                with tracer.start_as_current_span("child-operation") as child:
+                    pass
 
-        with tracer.start_as_current_span("operation") as span:
-            span.set_attribute("key", "value")
-            with tracer.start_as_current_span("child-operation") as child:
-                pass
+            # Build trace models and persist to database
 
-        # Build trace models and persist to database
-
-        db_traces = tracer.get_db_traces(project_id=123)
-        async with db_session() as session:
-            session.add_all(db_traces)
-            await session.flush()
+            db_traces = tracer.get_db_traces(project_id=123)
+            async with db_session() as session:
+                session.add_all(db_traces)
+                await session.flush()
 
         # Access spans, span_costs, and span cost details via SQLAlchemy relationships
         db_spans = db_traces[0].spans
@@ -157,8 +165,8 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         # which stores a bound method and so keeps the provider — and through it every
         # buffered span, message histories included — reachable for the life of the process.
         # That is meant for a single process-wide provider, but these are request-scoped:
-        # one per agent turn and one per experiment work item. Opt out, and let each owner
-        # shut its provider down when it is done with it.
+        # one per agent turn, one per experiment work item, one per playground stream.
+        # Opt out, and let each owner scope its tracer with `with`.
         provider = TracerProvider(
             resource=resource,
             span_limits=span_limits,
@@ -181,6 +189,7 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
             provider.add_span_processor(remote_processor)
 
         self._self_provider = provider
+        self._self_entered = False
         tracer = provider.get_tracer(__name__)
         super().__init__(tracer)
 
@@ -297,6 +306,89 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
 
     def shutdown(self) -> None:
         self._self_provider.shutdown()
+
+    def __enter__(self) -> "Tracer":
+        """Claim the tracer for one block. A second claim is an error.
+
+        Reuse fails quietly otherwise, which is the worst way for it to fail:
+        the first release stops the batch processor but not
+        ``SimpleSpanProcessor``, so spans recorded afterwards reach the local
+        buffer while remote export refuses them, and the two disagree with
+        nothing raised. The flag is never cleared, so this rejects reuse after
+        the block as well as re-entry inside it.
+        """
+        if self._self_entered:
+            raise RuntimeError(
+                "This Tracer has already been entered. A tracer is scoped to one "
+                "operation — build a new one rather than reusing this."
+            )
+        self._self_entered = True
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        """Stop the provider's processors, then release the captured spans.
+
+        The order matters. ``shutdown()`` runs the processors' shutdown hooks,
+        and with a remote exporter attached it also drains the batch queue — for
+        as long as the collector takes. ``SimpleSpanProcessor`` keeps filling the
+        buffer throughout, so clearing first would leave behind whatever ended
+        during the drain. Neither call is sufficient alone: ``shutdown()``
+        reaches ``_BufferedSpanExporter.shutdown()``, which returns without
+        touching the buffer.
+
+        This does not seal the tracer. Only the batch processor refuses spans
+        afterwards; ``SimpleSpanProcessor.on_end`` has no shutdown check in SDK
+        1.43.0, so a span ending after this returns still lands in the buffer
+        unread. Nothing enforces a bound on that — the tracer is meant to go out
+        of scope with its block. Call ``get_db_traces`` before leaving.
+
+        A teardown failure is logged rather than raised, so that it cannot
+        replace the error — or the cancellation — the block is already
+        unwinding.
+
+        Prefer ``async with`` in async code: with a remote exporter attached
+        this blocks for a whole OTLP round-trip.
+        """
+        try:
+            self.shutdown()
+        except Exception:
+            logger.exception("Failed to shut down the tracer provider")
+        self.clear()
+
+    async def __aenter__(self) -> "Tracer":
+        return self.__enter__()
+
+    async def __aexit__(self, *exc_info: object) -> None:
+        """Release, on a worker thread when the release can block.
+
+        With a remote exporter attached and anything left in the batch queue,
+        the release drains it — a full OTLP round-trip. On the event loop that
+        would stall every other request on the worker, hence the thread.
+
+        ``BatchProcessor.shutdown`` joins its worker for up to 30 seconds, which
+        waits out an export already in flight. Past that it abandons what is
+        still queued and calls the exporter's ``shutdown()``; for the OTLP HTTP
+        exporter that closes the session and sets the flag its retry loop polls,
+        so a retrying export gives up at its next checkpoint. A hung collector
+        therefore delays the caller rather than hanging it, at the cost of the
+        spans it had not sent.
+
+        Shielded because the usual way an agent turn ends early is the client
+        disconnecting, which cancels this scope: an unshielded ``await`` here
+        raises before the release runs, and the tracer is never torn down at
+        all. The shield covers anyio scope cancellation, which is what Starlette
+        delivers. A native ``asyncio.Task.cancel`` arriving while this is queued
+        for a thread-pool token still skips the release — no current owner
+        combines a remote exporter with native cancellation.
+
+        There is nothing to drain without a remote exporter, so that case skips
+        the thread rather than paying for a hop it cannot use.
+        """
+        if self._self_remote_exporter is None:
+            self.__exit__()
+            return
+        with anyio.CancelScope(shield=True):
+            await anyio.to_thread.run_sync(self.__exit__)
 
 
 def build_synthetic_readable_span(

@@ -10,12 +10,18 @@ from collections.abc import (
     Iterable,
     Sequence,
 )
-from contextlib import AbstractContextManager, aclosing, nullcontext
+from contextlib import (
+    AbstractAsyncContextManager,
+    AbstractContextManager,
+    aclosing,
+    nullcontext,
+)
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any, Literal, TypeVar
 
+import anyio
 from fastapi import APIRouter, Depends, HTTPException
 from openinference.instrumentation import using_metadata, using_session, using_user
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
@@ -136,6 +142,10 @@ from phoenix.tracers import (
 )
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
+
+# Bound on the shielded trace write in `_persist_agent_traces`, matching
+# the experiment runner's shielded DB writes.
+_TRACE_PERSIST_TIMEOUT_SECONDS = 5
 
 _PXI_INSTRUMENTATION_SCOPE = InstrumentationScope("phoenix.server.pxi")
 
@@ -831,29 +841,42 @@ async def _persist_db_traces_and_emit_event(
         event_queue.put(SpanInsertEvent(project_ids))
 
 
-async def _flush_and_persist_agent_traces(
+def _tracer_scope(tracer: Tracer | None) -> AbstractAsyncContextManager[object]:
+    """Bound a tracer's lifetime, or do nothing when trace recording is off.
+
+    Leaving the block releases the tracer, so teardown depends on no statement
+    inside it running. It is also what drains the remote exporter, on a worker
+    thread and necessarily after everything in the block — so a hung collector
+    cannot delay the local write, and there is no flush left to order by hand.
+    """
+    return nullcontext() if tracer is None else tracer
+
+
+async def _persist_agent_traces(
     *,
     tracer: Tracer,
     request: Request,
     project_name: str,
-    ingest_traces: bool,
 ) -> None:
-    """Flush an agent turn's tracer, persist what it captured, and tear it down.
+    """Persist what an agent turn's tracer captured.
 
-    Every caller runs this from a ``finally``, which is what makes the guarding
-    here load-bearing on two counts. An exception raised in a ``finally``
-    replaces the one already in flight, so an unguarded failure here would
-    discard the real error — an endpoint raising ``HTTPException(502)`` would
-    answer 500 with none of its detail. And it would skip the ``shutdown()``
-    below, stranding the provider's export thread and holding onto every
-    buffered span for the life of the process.
+    Callers run this from a ``finally``, so it never raises: an exception here
+    would replace the one already in flight, and a turn whose traces cannot be
+    written still produced its answer. Failures are logged instead.
 
-    Recording telemetry is bookkeeping either way: a turn whose traces cannot be
-    written still produced its answer, so a failure is logged rather than raised.
+    Teardown is not done here — the ``with`` block owning the tracer releases
+    it, so nothing this function does can skip it.
+
+    Both phases are shielded because the usual failure is a client
+    disconnecting, which cancels this scope: unshielded, the first suspending
+    ``await`` raises ``CancelledError`` straight through ``except Exception``
+    and the traces are lost. ``_persist_run`` shields the same way.
     """
     try:
-        tracer.tracer_provider.force_flush()
-        if ingest_traces:
+        # Bounded as well as shielded, so a stalled database cannot pile up
+        # handlers on a burst of disconnects. Expiry is a `TimeoutError`, so it
+        # logs like any other write failure.
+        with anyio.fail_after(_TRACE_PERSIST_TIMEOUT_SECONDS, shield=True):
             project_id = await _ensure_project_exists(request.app.state.db, project_name)
             db_traces = tracer.get_db_traces(project_id=project_id)
             await _persist_db_traces_and_emit_event(
@@ -863,8 +886,6 @@ async def _flush_and_persist_agent_traces(
             )
     except Exception:
         logger.exception("Failed to persist agent traces for project %r", project_name)
-    finally:
-        tracer.tracer_provider.shutdown()
 
 
 async def _refresh_cumulative_span_counts(
@@ -1297,33 +1318,33 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             )
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
-            try:
-                with detached_otel_context(), using_session(session_id=session_id):
-                    raw_stream = adapter.run_stream(deps=None, on_complete=_on_complete)
-                    assert _is_async_generator(raw_stream)
-                    async with aclosing(raw_stream) as stream:
-                        async for chunk in stream:
-                            if isinstance(chunk, ToolInputAvailableChunk):
-                                chunk.provider_metadata = _get_updated_provider_metadata(
-                                    provider_metadata=chunk.provider_metadata or {},
-                                    tool_name=chunk.tool_name,
-                                    emitted_at=datetime.now(timezone.utc),
-                                )
-                            yield chunk
-            except Exception as exc:
-                # Surface the failure to the client as an error chunk (e.g. a
-                # rejected API key) instead of letting the connection close
-                # silently, which leaves the agent appearing to hang.
-                logger.exception("Server agent chat stream failed for session %s", session_id)
-                yield build_stream_error_chunk(exc)
-            finally:
-                if tracer is not None:
-                    await _flush_and_persist_agent_traces(
-                        tracer=tracer,
-                        request=request,
-                        project_name=project_name,
-                        ingest_traces=ingest_traces,
-                    )
+            async with _tracer_scope(tracer):
+                try:
+                    with detached_otel_context(), using_session(session_id=session_id):
+                        raw_stream = adapter.run_stream(deps=None, on_complete=_on_complete)
+                        assert _is_async_generator(raw_stream)
+                        async with aclosing(raw_stream) as stream:
+                            async for chunk in stream:
+                                if isinstance(chunk, ToolInputAvailableChunk):
+                                    chunk.provider_metadata = _get_updated_provider_metadata(
+                                        provider_metadata=chunk.provider_metadata or {},
+                                        tool_name=chunk.tool_name,
+                                        emitted_at=datetime.now(timezone.utc),
+                                    )
+                                yield chunk
+                except Exception as exc:
+                    # Surface the failure to the client as an error chunk (e.g. a
+                    # rejected API key) instead of letting the connection close
+                    # silently, which leaves the agent appearing to hang.
+                    logger.exception("Server agent chat stream failed for session %s", session_id)
+                    yield build_stream_error_chunk(exc)
+                finally:
+                    if tracer is not None and ingest_traces:
+                        await _persist_agent_traces(
+                            tracer=tracer,
+                            request=request,
+                            project_name=project_name,
+                        )
 
         return adapter.streaming_response(_stream_with_session())
 
@@ -1548,108 +1569,112 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             stream_error: BaseException | None = None
-            try:
-                if tracer is not None and body.turn_trace_context is not None:
-                    _synthesize_client_tool_spans(
-                        tracer=tracer,
-                        turn_ids=turn_ids,
-                        messages=body.messages,
-                        received_at=request_received_at,
-                        session_id=session_id,
-                    )
-                with (
-                    detached_otel_context(parent_context),
-                    using_session(session_id=session_id),
-                    _maybe_using_user(attach_user_id, phoenix_user_email),
-                ):
-                    raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
-                    assert _is_async_generator(raw_stream)
-
-                    async def _agent_message_chunks() -> AsyncIterator[BaseChunk]:
-                        # Forced skills are streamed as their own `load_skill` steps so
-                        # the browser transcript matches what the model received. They
-                        # are emitted once, right after the stream's opening `start`
-                        # message chunk and before the model's own output.
-                        forced_skills_streamed = not forced_skills
-                        async with aclosing(raw_stream) as stream:
-                            async for agent_message_chunk in stream:
-                                if isinstance(agent_message_chunk, ToolInputAvailableChunk):
-                                    agent_message_chunk.provider_metadata = (
-                                        _get_updated_provider_metadata(
-                                            provider_metadata=agent_message_chunk.provider_metadata
-                                            or {},
-                                            tool_name=agent_message_chunk.tool_name,
-                                            emitted_at=datetime.now(timezone.utc),
-                                        )
-                                    )
-                                yield agent_message_chunk
-                                if not forced_skills_streamed and isinstance(
-                                    agent_message_chunk,
-                                    StartChunk,
-                                ):
-                                    forced_skill_message_chunks = (
-                                        iter_requested_skill_response_chunks(
-                                            skills=forced_skills,
-                                            load_skill_template=agent_prompts.load_skill,
-                                        )
-                                    )
-                                    for forced_skill_message_chunk in forced_skill_message_chunks:
-                                        if isinstance(
-                                            forced_skill_message_chunk, ToolInputAvailableChunk
-                                        ):
-                                            provider_metadata = _get_updated_provider_metadata(
-                                                provider_metadata=forced_skill_message_chunk.provider_metadata
-                                                or {},
-                                                tool_name=forced_skill_message_chunk.tool_name,
-                                                emitted_at=datetime.now(timezone.utc),
-                                            )
-                                            forced_skill_message_chunk.provider_metadata = (
-                                                provider_metadata
-                                            )
-                                        yield forced_skill_message_chunk
-                                    forced_skills_streamed = True
-
-                    async for message_chunk in _interleave_agent_and_subagent_message_chunks(
-                        agent_message_chunks=_agent_message_chunks(),
-                        subagent_message_chunks=subagent_message_chunks,
-                        final_tool_outputs_by_tool_call_id=final_tool_outputs_by_tool_call_id,
-                    ):
-                        yield message_chunk
-            except Exception as exc:
-                # Surface the failure to the client as an error chunk (e.g. a
-                # rejected API key) instead of letting the connection close
-                # silently, which leaves the agent appearing to hang.
-                stream_error = exc
-                logger.exception("Agent chat stream failed for session %s", session_id)
-                yield build_stream_error_chunk(exc)
-            except BaseException as exc:
-                # Cancellation and other non-``Exception`` failures propagate so
-                # client disconnects are not misreported as agent errors.
-                stream_error = exc
-                raise
-            finally:
-                if tracer is not None:
-                    if turn_is_terminal or stream_error is not None:
-                        _emit_turn_root_span(
+            async with _tracer_scope(tracer):
+                try:
+                    if tracer is not None and body.turn_trace_context is not None:
+                        _synthesize_client_tool_spans(
                             tracer=tracer,
                             turn_ids=turn_ids,
+                            messages=body.messages,
+                            received_at=request_received_at,
                             session_id=session_id,
-                            input_text=_get_last_user_text(body.messages),
-                            output_text=turn_final_output_text,
-                            error_message=(
-                                None
-                                if stream_error is None
-                                else (str(stream_error) or type(stream_error).__name__)
-                            ),
-                            end_time=datetime.now(timezone.utc),
-                            user_email=phoenix_user_email if attach_user_id else None,
                         )
-                    await _flush_and_persist_agent_traces(
-                        tracer=tracer,
-                        request=request,
-                        project_name=project_name,
-                        ingest_traces=ingest_traces,
-                    )
+                    with (
+                        detached_otel_context(parent_context),
+                        using_session(session_id=session_id),
+                        _maybe_using_user(attach_user_id, phoenix_user_email),
+                    ):
+                        raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
+                        assert _is_async_generator(raw_stream)
+
+                        async def _agent_message_chunks() -> AsyncIterator[BaseChunk]:
+                            # Forced skills are streamed as their own `load_skill` steps so
+                            # the browser transcript matches what the model received. They
+                            # are emitted once, right after the stream's opening `start`
+                            # message chunk and before the model's own output.
+                            forced_skills_streamed = not forced_skills
+                            async with aclosing(raw_stream) as stream:
+                                async for agent_message_chunk in stream:
+                                    if isinstance(agent_message_chunk, ToolInputAvailableChunk):
+                                        agent_message_chunk.provider_metadata = (
+                                            _get_updated_provider_metadata(
+                                                provider_metadata=(
+                                                    agent_message_chunk.provider_metadata or {}
+                                                ),
+                                                tool_name=agent_message_chunk.tool_name,
+                                                emitted_at=datetime.now(timezone.utc),
+                                            )
+                                        )
+                                    yield agent_message_chunk
+                                    if not forced_skills_streamed and isinstance(
+                                        agent_message_chunk,
+                                        StartChunk,
+                                    ):
+                                        forced_skill_message_chunks = (
+                                            iter_requested_skill_response_chunks(
+                                                skills=forced_skills,
+                                                load_skill_template=agent_prompts.load_skill,
+                                            )
+                                        )
+                                        for (
+                                            forced_skill_message_chunk
+                                        ) in forced_skill_message_chunks:
+                                            if isinstance(
+                                                forced_skill_message_chunk, ToolInputAvailableChunk
+                                            ):
+                                                provider_metadata = _get_updated_provider_metadata(
+                                                    provider_metadata=forced_skill_message_chunk.provider_metadata
+                                                    or {},
+                                                    tool_name=forced_skill_message_chunk.tool_name,
+                                                    emitted_at=datetime.now(timezone.utc),
+                                                )
+                                                forced_skill_message_chunk.provider_metadata = (
+                                                    provider_metadata
+                                                )
+                                            yield forced_skill_message_chunk
+                                        forced_skills_streamed = True
+
+                        async for message_chunk in _interleave_agent_and_subagent_message_chunks(
+                            agent_message_chunks=_agent_message_chunks(),
+                            subagent_message_chunks=subagent_message_chunks,
+                            final_tool_outputs_by_tool_call_id=final_tool_outputs_by_tool_call_id,
+                        ):
+                            yield message_chunk
+                except Exception as exc:
+                    # Surface the failure to the client as an error chunk (e.g. a
+                    # rejected API key) instead of letting the connection close
+                    # silently, which leaves the agent appearing to hang.
+                    stream_error = exc
+                    logger.exception("Agent chat stream failed for session %s", session_id)
+                    yield build_stream_error_chunk(exc)
+                except BaseException as exc:
+                    # Cancellation and other non-``Exception`` failures propagate so
+                    # client disconnects are not misreported as agent errors.
+                    stream_error = exc
+                    raise
+                finally:
+                    if tracer is not None:
+                        if turn_is_terminal or stream_error is not None:
+                            _emit_turn_root_span(
+                                tracer=tracer,
+                                turn_ids=turn_ids,
+                                session_id=session_id,
+                                input_text=_get_last_user_text(body.messages),
+                                output_text=turn_final_output_text,
+                                error_message=(
+                                    None
+                                    if stream_error is None
+                                    else (str(stream_error) or type(stream_error).__name__)
+                                ),
+                                end_time=datetime.now(timezone.utc),
+                                user_email=phoenix_user_email if attach_user_id else None,
+                            )
+                        if ingest_traces:
+                            await _persist_agent_traces(
+                                tracer=tracer,
+                                request=request,
+                                project_name=project_name,
+                            )
 
         return adapter.streaming_response(_stream_with_session())
 
@@ -1687,42 +1712,42 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         )
         tracer_provider = tracer.tracer_provider if tracer is not None else None
 
-        try:
-            async with request.app.state.db() as session:
-                model = await build_model(
-                    body.model,
-                    session=session,
-                    decrypt=request.app.state.decrypt,
-                    tracer_provider=tracer_provider,
-                )
-                user = request.user if "user" in request.scope else None
-                phoenix_user = user if isinstance(user, PhoenixUser) else None
-                phoenix_user_email = await _load_phoenix_user_email(
-                    session=session,
-                    phoenix_user=phoenix_user,
-                )
-        except AgentError as exc:
-            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+        async with _tracer_scope(tracer):
+            try:
+                async with request.app.state.db() as session:
+                    model = await build_model(
+                        body.model,
+                        session=session,
+                        decrypt=request.app.state.decrypt,
+                        tracer_provider=tracer_provider,
+                    )
+                    user = request.user if "user" in request.scope else None
+                    phoenix_user = user if isinstance(user, PhoenixUser) else None
+                    phoenix_user_email = await _load_phoenix_user_email(
+                        session=session,
+                        phoenix_user=phoenix_user,
+                    )
+            except AgentError as exc:
+                raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-        history = VercelAIAdapter.load_messages(body.messages)
-        parent_context = extract_otel_context(dict(request.headers))
-        try:
-            with (
-                detached_otel_context(parent_context),
-                using_metadata({"session_id": session_id}),
-                _maybe_using_user(attach_user_id, phoenix_user_email),
-            ):
-                result = await summarize_messages(messages=history, model=model)
-        except SummarizationError as exc:
-            raise HTTPException(status_code=502, detail=str(exc)) from exc
-        finally:
-            if tracer is not None:
-                await _flush_and_persist_agent_traces(
-                    tracer=tracer,
-                    request=request,
-                    project_name=project_name,
-                    ingest_traces=ingest_traces,
-                )
-        return _SummarizeResponse(summary=result.summary.strip())
+            history = VercelAIAdapter.load_messages(body.messages)
+            parent_context = extract_otel_context(dict(request.headers))
+            try:
+                with (
+                    detached_otel_context(parent_context),
+                    using_metadata({"session_id": session_id}),
+                    _maybe_using_user(attach_user_id, phoenix_user_email),
+                ):
+                    result = await summarize_messages(messages=history, model=model)
+            except SummarizationError as exc:
+                raise HTTPException(status_code=502, detail=str(exc)) from exc
+            finally:
+                if tracer is not None and ingest_traces:
+                    await _persist_agent_traces(
+                        tracer=tracer,
+                        request=request,
+                        project_name=project_name,
+                    )
+            return _SummarizeResponse(summary=result.summary.strip())
 
     return router
