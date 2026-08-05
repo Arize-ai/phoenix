@@ -527,7 +527,6 @@ class TaskWorkItem(WorkItem):
     async def execute(self) -> None:
         """Execute the task, write to DB, and report results."""
         logger.debug(f"TaskWorkItem {self.debug_identifier} starting execution")
-        tracer = self._tracer_factory()
         example_id = GlobalID(
             DatasetExample.__name__,
             str(self._dataset_example_revision.dataset_example_id),
@@ -571,6 +570,10 @@ class TaskWorkItem(WorkItem):
             await self._running_experiment.on_failure(self, error)
             return
 
+        # Built here rather than at the top of the method so the `finally` below
+        # spans its whole lifetime — the branch above returns without ever
+        # tracing anything.
+        tracer = self._tracer_factory()
         try:
             logger.debug(
                 f"TaskWorkItem {self.debug_identifier}: "
@@ -712,6 +715,12 @@ class TaskWorkItem(WorkItem):
 
             logger.debug(f"TaskWorkItem {self.debug_identifier} completed successfully")
             await self._running_experiment.on_task_success(self, db_run)
+
+        finally:
+            # The tracer is scoped to this one work item and holds every span it
+            # captured — full message histories included — so release it here
+            # rather than waiting on a collection cycle.
+            tracer.shutdown()
 
     def _is_rate_limit_error(self, e: Exception) -> bool:
         """Check if exception is a rate limit error using client's provider-specific logic."""
@@ -983,6 +992,10 @@ class EvalWorkItem(WorkItem):
                     f"wrote {len(annotations)} annotation(s)"
                 )
                 await self._running_experiment.on_eval_success(self)
+
+        finally:
+            # See the matching teardown in TaskWorkItem.execute.
+            tracer.shutdown()
 
     async def _persist_eval_results(
         self,

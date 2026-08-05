@@ -153,7 +153,17 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         # chat conversations can record the full message history on each LLM
         # span without attribute eviction.
         span_limits = SpanLimits(max_span_attributes=100_000)
-        provider = TracerProvider(resource=resource, span_limits=span_limits)
+        # `shutdown_on_exit` (the SDK default) registers `atexit.register(provider.shutdown)`,
+        # which stores a bound method and so keeps the provider — and through it every
+        # buffered span, message histories included — reachable for the life of the process.
+        # That is meant for a single process-wide provider, but these are request-scoped:
+        # one per agent turn and one per experiment work item. Opt out, and let each owner
+        # shut its provider down when it is done with it.
+        provider = TracerProvider(
+            resource=resource,
+            span_limits=span_limits,
+            shutdown_on_exit=False,
+        )
         self._self_resource = resource
         simple_processor = SimpleSpanProcessor(self._self_exporter)
         self._self_span_processors: list[SpanProcessor] = [simple_processor]

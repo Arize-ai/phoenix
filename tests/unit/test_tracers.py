@@ -1,7 +1,10 @@
+import gc
 import json
 import re
+import weakref
 from datetime import datetime, timezone
-from typing import Sequence
+from typing import Sequence, cast
+from unittest.mock import Mock
 
 import pytest
 from openinference.semconv.trace import SpanAttributes
@@ -46,6 +49,46 @@ class TestExtractOtelContext:
     def test_returns_invalid_context_for_empty_carrier(self) -> None:
         extracted = extract_otel_context({})
         assert not get_current_span(extracted).get_span_context().is_valid
+
+
+class TestTracerLifecycle:
+    """A `Tracer` is request-scoped and must not outlive its owner.
+
+    One is built per agent turn and per experiment work item, and each holds
+    every span it captured — with full message histories, since the span limits
+    are raised so nothing is evicted.
+    """
+
+    @staticmethod
+    def _tracer() -> Tracer:
+        return Tracer(span_cost_calculator=cast(SpanCostCalculator, Mock()))
+
+    def test_provider_does_not_register_an_atexit_handler(self) -> None:
+        """`TracerProvider`'s `shutdown_on_exit` default has to stay off here.
+
+        It does `atexit.register(provider.shutdown)`, which stores a bound
+        method and so pins the provider for the life of the process. That is
+        meant for one process-wide provider, not for one per request.
+        """
+        tracer = self._tracer()
+        assert tracer.tracer_provider._atexit_handler is None
+
+    def test_provider_is_collected_once_the_tracer_is_dropped(self) -> None:
+        tracer = self._tracer()
+        with tracer.start_as_current_span("operation"):
+            pass
+        provider_ref = weakref.ref(tracer.tracer_provider)
+        del tracer
+        gc.collect()
+        assert provider_ref() is None, (
+            "the tracer provider outlived its tracer, so every span it captured is still reachable"
+        )
+
+    def test_shutdown_is_idempotent(self) -> None:
+        """Owners call `shutdown()` from a `finally`, which can run twice."""
+        tracer = self._tracer()
+        tracer.shutdown()
+        tracer.shutdown()
 
 
 class TestTracer:
