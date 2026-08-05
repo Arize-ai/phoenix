@@ -43,10 +43,6 @@ const AGENT_SESSION_CONFLICT_CODES = [
 
 /**
  * Recover the conflict `code` from a failed request's error message.
- *
- * The AI SDK surfaces a rejected send as an `Error` whose message carries the
- * response body, so first parse the message as an `AgentSessionConflictError`
- * body and fall back to substring detection for wrapped messages.
  */
 export function parseAgentSessionConflictCode(
   errorMessage: string
@@ -55,21 +51,16 @@ export function parseAgentSessionConflictCode(
     const body: unknown = JSON.parse(errorMessage);
     if (typeof body === "object" && body !== null && "code" in body) {
       const parsedCode = (body as { code: unknown }).code;
-      const matchedCode = AGENT_SESSION_CONFLICT_CODES.find(
-        (conflictCode) => conflictCode === parsedCode
+      return (
+        AGENT_SESSION_CONFLICT_CODES.find(
+          (conflictCode) => conflictCode === parsedCode
+        ) ?? null
       );
-      if (matchedCode) {
-        return matchedCode;
-      }
     }
   } catch {
-    // The message is not a bare JSON body; fall through to substring detection.
+    // The message is not a JSON body, so it cannot be a conflict rejection.
   }
-  return (
-    AGENT_SESSION_CONFLICT_CODES.find((conflictCode) =>
-      errorMessage.includes(conflictCode)
-    ) ?? null
-  );
+  return null;
 }
 
 export function buildAgentChatApiUrl(sessionId: string): string {
