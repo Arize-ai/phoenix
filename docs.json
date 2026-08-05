@@ -1333,6 +1333,12 @@
             "pages": [
               "docs/phoenix/release-notes",
               {
+                "group": "08.2026",
+                "pages": [
+                  "docs/phoenix/release-notes/08-2026/08-04-2026-chat-completions-proxy-ai-query-and-annotation-charts"
+                ]
+              },
+              {
                 "group": "07.2026",
                 "pages": [
                   "docs/phoenix/release-notes/07-2026/07-28-2026-experiment-charts-span-downloads-and-root-span-filters",
