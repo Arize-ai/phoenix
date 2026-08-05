@@ -156,6 +156,10 @@ function SpanNoteBarContent({
                 spanNotes {
                   id
                   explanation
+                  identifier
+                  source
+                  annotatorKind
+                  metadata
                   createdAt
                   updatedAt
                   user {

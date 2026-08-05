@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c841acaca4452c7bc323cbed6d8b36e0>>
+ * @generated SignedSource<<98676ff1479f42319a85fc5e4f055ee3>>
  * @lightSyntaxTransform
  */
 
@@ -8,6 +8,8 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type AnnotationSource = "API" | "APP";
+export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type SpanNotesListDeleteNoteMutation$variables = {
   annotationId: string;
   spanId: string;
@@ -18,11 +20,16 @@ export type SpanNotesListDeleteNoteMutation$data = {
       readonly node: {
         readonly id?: string;
         readonly spanNotes?: ReadonlyArray<{
+          readonly annotatorKind: AnnotatorKind;
           readonly createdAt: string;
           readonly explanation: string | null;
           readonly id: string;
+          readonly identifier: string;
+          readonly metadata: any;
+          readonly source: AnnotationSource;
           readonly updatedAt: string;
           readonly user: {
+            readonly id: string;
             readonly profilePictureUrl: string | null;
             readonly username: string;
           } | null;
@@ -85,36 +92,88 @@ v3 = {
 v4 = {
   "alias": null,
   "args": null,
-  "kind": "ScalarField",
-  "name": "explanation",
-  "storageKey": null
-},
-v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "createdAt",
-  "storageKey": null
-},
-v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "updatedAt",
-  "storageKey": null
-},
-v7 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "username",
-  "storageKey": null
-},
-v8 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "profilePictureUrl",
+  "concreteType": "SpanAnnotation",
+  "kind": "LinkedField",
+  "name": "spanNotes",
+  "plural": true,
+  "selections": [
+    (v3/*:: as any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "explanation",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "identifier",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "source",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "annotatorKind",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "metadata",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "createdAt",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "updatedAt",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "User",
+      "kind": "LinkedField",
+      "name": "user",
+      "plural": false,
+      "selections": [
+        (v3/*:: as any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "username",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "profilePictureUrl",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
   "storageKey": null
 };
 return {
@@ -152,34 +211,7 @@ return {
                     "kind": "InlineFragment",
                     "selections": [
                       (v3/*:: as any*/),
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "SpanAnnotation",
-                        "kind": "LinkedField",
-                        "name": "spanNotes",
-                        "plural": true,
-                        "selections": [
-                          (v3/*:: as any*/),
-                          (v4/*:: as any*/),
-                          (v5/*:: as any*/),
-                          (v6/*:: as any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "User",
-                            "kind": "LinkedField",
-                            "name": "user",
-                            "plural": false,
-                            "selections": [
-                              (v7/*:: as any*/),
-                              (v8/*:: as any*/)
-                            ],
-                            "storageKey": null
-                          }
-                        ],
-                        "storageKey": null
-                      }
+                      (v4/*:: as any*/)
                     ],
                     "type": "Span",
                     "abstractKey": null
@@ -238,35 +270,7 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "SpanAnnotation",
-                        "kind": "LinkedField",
-                        "name": "spanNotes",
-                        "plural": true,
-                        "selections": [
-                          (v3/*:: as any*/),
-                          (v4/*:: as any*/),
-                          (v5/*:: as any*/),
-                          (v6/*:: as any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "User",
-                            "kind": "LinkedField",
-                            "name": "user",
-                            "plural": false,
-                            "selections": [
-                              (v7/*:: as any*/),
-                              (v8/*:: as any*/),
-                              (v3/*:: as any*/)
-                            ],
-                            "storageKey": null
-                          }
-                        ],
-                        "storageKey": null
-                      }
+                      (v4/*:: as any*/)
                     ],
                     "type": "Span",
                     "abstractKey": null
@@ -283,16 +287,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "96c45052248715711c0470b9e20c05f5",
+    "cacheID": "c990e270d5ac3a514aec27c85aecebff",
     "id": null,
     "metadata": {},
     "name": "SpanNotesListDeleteNoteMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanNotesListDeleteNoteMutation(\n  $annotationId: ID!\n  $spanId: ID!\n) {\n  deleteSpanAnnotations(input: {annotationIds: [$annotationId]}) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          id\n          spanNotes {\n            id\n            explanation\n            createdAt\n            updatedAt\n            user {\n              username\n              profilePictureUrl\n              id\n            }\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation SpanNotesListDeleteNoteMutation(\n  $annotationId: ID!\n  $spanId: ID!\n) {\n  deleteSpanAnnotations(input: {annotationIds: [$annotationId]}) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          id\n          spanNotes {\n            id\n            explanation\n            identifier\n            source\n            annotatorKind\n            metadata\n            createdAt\n            updatedAt\n            user {\n              id\n              username\n              profilePictureUrl\n            }\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9d919dcc841da4b238fc8c5987a7b65f";
+(node as any).hash = "44e57af0fd851b5f1a5614e77d36bd7c";
 
 export default node;

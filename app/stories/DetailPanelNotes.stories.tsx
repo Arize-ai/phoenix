@@ -13,27 +13,39 @@ import {
 
 const notes: SpanNote[] = [
   {
+    annotatorKind: "HUMAN",
     id: "note-1",
     explanation:
       "The retriever returned onboarding docs for a billing question.",
+    identifier: "manual-review",
+    metadata: {},
+    source: "APP",
     createdAt: "2026-07-23T16:00:00.000Z",
     updatedAt: "2026-07-23T16:00:00.000Z",
-    user: { username: "alice" },
+    user: { id: "user-1", username: "alice" },
   },
   {
+    annotatorKind: "LLM",
     id: "note-2",
     explanation:
       "The agent retried the same invalid tool argument twice before recovering.\nThe second retry produced the same validation error as the first.",
+    identifier: "automated-review",
+    metadata: { workflow: "trace-review" },
+    source: "API",
     createdAt: "2026-07-23T16:02:00.000Z",
     updatedAt: "2026-07-24T18:30:00.000Z",
     user: null,
   },
   {
+    annotatorKind: "HUMAN",
     id: "note-3",
     explanation: "The final answer correctly acknowledged the failed lookup.",
+    identifier: "pxi",
+    metadata: { workflow: "trace-review" },
+    source: "API",
     createdAt: "2026-07-23T16:04:00.000Z",
     updatedAt: "2026-07-23T16:04:00.000Z",
-    user: { username: "reviewer@example.com" },
+    user: { id: "user-2", username: "reviewer@example.com" },
   },
 ];
 

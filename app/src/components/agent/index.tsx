@@ -18,6 +18,8 @@ export type {
   PxiOutlineState,
 } from "./PxiOutline";
 export { PxiButton } from "./PxiButton";
+export { PxiAnimatedGlyph } from "./PxiAnimatedGlyph";
+export type { PxiAnimatedGlyphSize } from "./PxiAnimatedGlyph";
 export type {
   PxiButtonProps,
   PxiButtonSize,

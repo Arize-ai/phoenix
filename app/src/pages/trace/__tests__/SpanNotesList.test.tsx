@@ -5,7 +5,10 @@ import { userEvent } from "storybook/test";
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
-import { SpanNotesListContent } from "@phoenix/pages/trace/SpanNotesList";
+import {
+  type SpanNote,
+  SpanNotesListContent,
+} from "@phoenix/pages/trace/SpanNotesList";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -25,6 +28,21 @@ function TestProviders({ children }: { children: ReactNode }) {
       <PreferencesProvider>{children}</PreferencesProvider>
     </ThemeProvider>
   );
+}
+
+function buildSpanNote(overrides: Partial<SpanNote> = {}): SpanNote {
+  return {
+    annotatorKind: "HUMAN",
+    id: "note-1",
+    explanation: "First observation",
+    identifier: "manual-review",
+    metadata: {},
+    source: "APP",
+    createdAt: "2026-07-23T16:00:00.000Z",
+    updatedAt: "2026-07-23T16:00:00.000Z",
+    user: { id: "user-1", username: "alice" },
+    ...overrides,
+  };
 }
 
 beforeEach(() => {
@@ -75,20 +93,14 @@ describe("SpanNotesListContent", () => {
             onDeleteNote={onDeleteNote}
             onUpdateNote={onUpdateNote}
             notes={[
-              {
-                id: "note-1",
-                explanation: "First observation",
-                createdAt: "2026-07-23T16:00:00.000Z",
-                updatedAt: "2026-07-23T16:00:00.000Z",
-                user: { username: "alice" },
-              },
-              {
+              buildSpanNote(),
+              buildSpanNote({
                 id: "note-2",
                 explanation: "Second observation",
                 createdAt: "2026-07-23T16:01:00.000Z",
                 updatedAt: "2026-07-23T16:01:00.000Z",
                 user: null,
-              },
+              }),
             ]}
           />
         </TestProviders>
@@ -123,7 +135,7 @@ describe("SpanNotesListContent", () => {
     expect(firstNoteText?.parentElement).toBe(firstNoteTextSurface);
     expect(firstNoteFrame?.getAttribute("data-framed")).toBe("false");
     expect(firstNoteFrame?.style.padding).toBe("");
-    expect(getComputedStyle(firstNoteFrame?.firstElementChild!).gap).toBe(
+    expect(getComputedStyle(firstNoteFrame!.firstElementChild!).gap).toBe(
       "var(--global-dimension-size-100)"
     );
     expect(getComputedStyle(firstNoteFooter!).display).toBe("flex");
@@ -148,6 +160,62 @@ describe("SpanNotesListContent", () => {
     expect(firstNoteActions?.textContent).toBe("EditDelete");
   });
 
+  it("attributes pxi notes between the real author and date", () => {
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanNotesListContent
+            notes={[
+              buildSpanNote({
+                annotatorKind: "HUMAN",
+                id: "pxi-note",
+                identifier: "pxi",
+                metadata: { workflow: "trace-review" },
+                source: "API",
+              }),
+            ]}
+            onDeleteNote={onDeleteNote}
+            onUpdateNote={onUpdateNote}
+          />
+        </TestProviders>
+      );
+    });
+
+    const author = container.querySelector<HTMLElement>(".span-note__author");
+    const attribution = author?.querySelector<HTMLElement>(
+      ".span-note__attribution"
+    );
+    const authorChildren = Array.from(author?.children ?? []);
+    const dateText = author?.querySelector("time")?.closest(".text");
+    const attributionText = attribution?.querySelector(".text");
+
+    expect(authorChildren.indexOf(attribution!)).toBe(2);
+    expect(authorChildren.indexOf(dateText!)).toBe(3);
+    expect(attribution?.textContent).toBe("via pxi");
+    expect(
+      attribution?.querySelector(".pxi-animated-glyph__mark")
+    ).not.toBeNull();
+    expect(attributionText?.getAttribute("data-size")).toBe(
+      dateText?.getAttribute("data-size")
+    );
+    expect(getComputedStyle(attributionText!).color).toBe(
+      getComputedStyle(dateText!).color
+    );
+    expect(author?.getAttribute("title")).toBe(
+      [
+        "Author: alice",
+        "User ID: user-1",
+        "Annotation ID: pxi-note",
+        "Identifier: pxi",
+        "Source: API",
+        "Annotator kind: HUMAN",
+        "Created: 2026-07-23T16:00:00.000Z",
+        "Updated: 2026-07-23T16:00:00.000Z",
+        'Metadata: {\n  "workflow": "trace-review"\n}',
+      ].join("\n")
+    );
+  });
+
   it("scrolls a newly created note into view and marks it for fade-in", () => {
     act(() => {
       root.render(
@@ -157,20 +225,13 @@ describe("SpanNotesListContent", () => {
             onDeleteNote={onDeleteNote}
             onUpdateNote={onUpdateNote}
             notes={[
-              {
-                id: "note-1",
-                explanation: "First observation",
-                createdAt: "2026-07-23T16:00:00.000Z",
-                updatedAt: "2026-07-23T16:00:00.000Z",
-                user: { username: "alice" },
-              },
-              {
+              buildSpanNote(),
+              buildSpanNote({
                 id: "note-2",
                 explanation: "New observation",
                 createdAt: "2026-07-23T16:01:00.000Z",
                 updatedAt: "2026-07-23T16:01:00.000Z",
-                user: { username: "alice" },
-              },
+              }),
             ]}
           />
         </TestProviders>
@@ -199,15 +260,7 @@ describe("SpanNotesListContent", () => {
       root.render(
         <TestProviders>
           <SpanNotesListContent
-            notes={[
-              {
-                id: "note-1",
-                explanation: "First observation",
-                createdAt: "2026-07-23T16:00:00.000Z",
-                updatedAt: "2026-07-23T16:00:00.000Z",
-                user: { username: "alice" },
-              },
-            ]}
+            notes={[buildSpanNote()]}
             onDeleteNote={onDeleteNote}
             onUpdateNote={onUpdateNote}
           />
@@ -232,15 +285,7 @@ describe("SpanNotesListContent", () => {
       root.render(
         <TestProviders>
           <SpanNotesListContent
-            notes={[
-              {
-                id: "note-1",
-                explanation: "First observation",
-                createdAt: "2026-07-23T16:00:00.000Z",
-                updatedAt: "2026-07-23T16:00:00.000Z",
-                user: { username: "alice" },
-              },
-            ]}
+            notes={[buildSpanNote()]}
             onDeleteNote={onDeleteNote}
             onUpdateNote={onUpdateNote}
           />
@@ -285,15 +330,7 @@ describe("SpanNotesListContent", () => {
       root.render(
         <TestProviders>
           <SpanNotesListContent
-            notes={[
-              {
-                id: "note-1",
-                explanation: "First observation",
-                createdAt: "2026-07-23T16:00:00.000Z",
-                updatedAt: "2026-07-23T16:00:00.000Z",
-                user: { username: "alice" },
-              },
-            ]}
+            notes={[buildSpanNote()]}
             onDeleteNote={onDeleteNote}
             onUpdateNote={onUpdateNote}
           />
@@ -325,15 +362,7 @@ describe("SpanNotesListContent", () => {
       root.render(
         <TestProviders>
           <SpanNotesListContent
-            notes={[
-              {
-                id: "note-1",
-                explanation: "First observation",
-                createdAt: "2026-07-23T16:00:00.000Z",
-                updatedAt: "2026-07-23T16:00:00.000Z",
-                user: { username: "alice" },
-              },
-            ]}
+            notes={[buildSpanNote()]}
             onDeleteNote={onDeleteNote}
             onUpdateNote={onUpdateNote}
           />
@@ -368,7 +397,7 @@ describe("SpanNotesListContent", () => {
     expect(getComputedStyle(frame!).scrollMarginBlockEnd).toBe(
       "var(--global-dimension-size-200)"
     );
-    expect(getComputedStyle(frame?.firstElementChild!).gap).toBe(
+    expect(getComputedStyle(frame!.firstElementChild!).gap).toBe(
       "var(--global-dimension-size-200)"
     );
     expect(getComputedStyle(actions!).gap).toBe(
@@ -438,20 +467,17 @@ describe("SpanNotesListContent", () => {
     expect(container.querySelector(".span-note__editor")).toBeNull();
   });
 
-  it("shows the last edit date and reveals the creation date on hover", async () => {
-    const user = userEvent.setup();
+  it("shows the last edit date and includes both timestamps in the metadata title", () => {
     act(() => {
       root.render(
         <TestProviders>
           <SpanNotesListContent
             notes={[
-              {
-                id: "note-1",
+              buildSpanNote({
                 explanation: "Updated observation",
                 createdAt: "2026-07-23T16:00:00.000Z",
                 updatedAt: "2026-07-24T18:30:00.000Z",
-                user: { username: "alice" },
-              },
+              }),
             ]}
             onDeleteNote={onDeleteNote}
             onUpdateNote={onUpdateNote}
@@ -465,11 +491,10 @@ describe("SpanNotesListContent", () => {
       "2026-07-24T18:30:00.000Z"
     );
     expect(editedTime?.textContent).toMatch(/Jul 24, 2026, .* Edited$/);
-
-    await act(async () => user.hover(editedTime!));
-
-    expect(document.body.textContent).toMatch(
-      /Created at Jul 23, 2026, \d{1,2}:\d{2} [AP]M/
-    );
+    const metadataTitle = container
+      .querySelector(".span-note__author")
+      ?.getAttribute("title");
+    expect(metadataTitle).toContain("Created: 2026-07-23T16:00:00.000Z");
+    expect(metadataTitle).toContain("Updated: 2026-07-24T18:30:00.000Z");
   });
 });

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c6a023070c31b2307de7305da85fdfcb>>
+ * @generated SignedSource<<6e5035f0842b485ad3afb6f52323f247>>
  * @lightSyntaxTransform
  */
 
@@ -8,6 +8,8 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type AnnotationSource = "API" | "APP";
+export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type CreateSpanNoteInput = {
   note: string;
   spanId: string;
@@ -22,9 +24,13 @@ export type SpanNoteBarAddNoteMutation$data = {
       readonly node: {
         readonly id?: string;
         readonly spanNotes?: ReadonlyArray<{
+          readonly annotatorKind: AnnotatorKind;
           readonly createdAt: string;
           readonly explanation: string | null;
           readonly id: string;
+          readonly identifier: string;
+          readonly metadata: any;
+          readonly source: AnnotationSource;
           readonly updatedAt: string;
           readonly user: {
             readonly id: string;
@@ -104,6 +110,34 @@ v5 = {
       "args": null,
       "kind": "ScalarField",
       "name": "explanation",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "identifier",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "source",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "annotatorKind",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "metadata",
       "storageKey": null
     },
     {
@@ -262,16 +296,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "499a78174b1a8c19acf54e4a326385a9",
+    "cacheID": "a6371a1da574129efaab308cf15d5595",
     "id": null,
     "metadata": {},
     "name": "SpanNoteBarAddNoteMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanNoteBarAddNoteMutation(\n  $input: CreateSpanNoteInput!\n  $spanNodeId: ID!\n) {\n  createSpanNote(annotationInput: $input) {\n    spanAnnotations {\n      id\n    }\n    query {\n      node(id: $spanNodeId) {\n        __typename\n        ... on Span {\n          id\n          spanNotes {\n            id\n            explanation\n            createdAt\n            updatedAt\n            user {\n              id\n              username\n              profilePictureUrl\n            }\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation SpanNoteBarAddNoteMutation(\n  $input: CreateSpanNoteInput!\n  $spanNodeId: ID!\n) {\n  createSpanNote(annotationInput: $input) {\n    spanAnnotations {\n      id\n    }\n    query {\n      node(id: $spanNodeId) {\n        __typename\n        ... on Span {\n          id\n          spanNotes {\n            id\n            explanation\n            identifier\n            source\n            annotatorKind\n            metadata\n            createdAt\n            updatedAt\n            user {\n              id\n              username\n              profilePictureUrl\n            }\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8c27044dac8e7c14e04f570442ba3a71";
+(node as any).hash = "b6de24337895eb286db988e31908ac34";
 
 export default node;

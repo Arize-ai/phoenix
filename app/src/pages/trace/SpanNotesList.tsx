@@ -9,11 +9,9 @@ import {
   Text,
   TextArea,
   TextField,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
   View,
 } from "@phoenix/components";
+import { PxiAnimatedGlyph } from "@phoenix/components/agent";
 import { promptInputSurfaceCSS } from "@phoenix/components/ai/prompt-input";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
@@ -47,9 +45,14 @@ export function SpanNotesList({ newNoteId, spanId }: SpanNotesListProps) {
             spanNotes {
               id
               explanation
+              identifier
+              source
+              annotatorKind
+              metadata
               createdAt
               updatedAt
               user {
+                id
                 username
                 profilePictureUrl
               }
@@ -73,9 +76,14 @@ export function SpanNotesList({ newNoteId, spanId }: SpanNotesListProps) {
               spanNotes {
                 id
                 explanation
+                identifier
+                source
+                annotatorKind
+                metadata
                 createdAt
                 updatedAt
                 user {
+                  id
                   username
                   profilePictureUrl
                 }
@@ -96,9 +104,14 @@ export function SpanNotesList({ newNoteId, spanId }: SpanNotesListProps) {
               spanNotes {
                 id
                 explanation
+                identifier
+                source
+                annotatorKind
+                metadata
                 createdAt
                 updatedAt
                 user {
+                  id
                   username
                   profilePictureUrl
                 }
@@ -145,15 +158,42 @@ export function SpanNotesList({ newNoteId, spanId }: SpanNotesListProps) {
 }
 
 export type SpanNote = {
+  annotatorKind: string;
   id: string;
   explanation: string | null;
+  identifier: string;
+  metadata: unknown;
+  source: string;
   createdAt: string;
   updatedAt: string;
   user: {
+    id: string;
     profilePictureUrl?: string | null;
     username: string;
   } | null;
 };
+
+function getSpanNoteMetadataTitle({
+  note,
+  username,
+}: {
+  note: SpanNote;
+  username: string;
+}) {
+  const userId = note.user?.id ?? "none";
+  const serializedMetadata = JSON.stringify(note.metadata, null, 2);
+  return [
+    `Author: ${username}`,
+    `User ID: ${userId}`,
+    `Annotation ID: ${note.id}`,
+    `Identifier: ${note.identifier}`,
+    `Source: ${note.source}`,
+    `Annotator kind: ${note.annotatorKind}`,
+    `Created: ${note.createdAt}`,
+    `Updated: ${note.updatedAt}`,
+    `Metadata: ${serializedMetadata}`,
+  ].join("\n");
+}
 
 const noteFadeInKeyframes = keyframes`
   from {
@@ -199,7 +239,8 @@ const noteCSS = css`
   }
 
   .span-note__footer,
-  .span-note__author {
+  .span-note__author,
+  .span-note__attribution {
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -219,6 +260,11 @@ const noteCSS = css`
   .span-note__author {
     gap: var(--global-dimension-size-100);
     min-width: 0;
+  }
+
+  .span-note__attribution {
+    flex: none;
+    gap: var(--global-dimension-size-50);
   }
 
   .span-note__author > * {
@@ -320,7 +366,8 @@ function SpanNoteListItem({
   const isEdited = updatedAt.getTime() > createdAt.getTime();
   const displayedDate = isEdited ? updatedAt : createdAt;
   const displayedDateText = friendlyDateTimeFormatter(displayedDate);
-  const createdDateText = friendlyDateTimeFormatter(createdAt);
+  const isPxiNote = note.identifier.toLowerCase() === "pxi";
+  const metadataTitle = getSpanNoteMetadataTitle({ note, username });
 
   useLayoutEffect(() => {
     if (!isNewNote) {
@@ -430,7 +477,7 @@ function SpanNoteListItem({
             {isConfirmingDelete ? (
               <Text>Confirm</Text>
             ) : (
-              <div className="span-note__author">
+              <div className="span-note__author" title={metadataTitle}>
                 <UserPicture
                   name={username}
                   profilePictureUrl={note.user?.profilePictureUrl}
@@ -439,17 +486,20 @@ function SpanNoteListItem({
                 <Text size="XS" weight="heavy">
                   {username}
                 </Text>
+                {isPxiNote ? (
+                  <span className="span-note__attribution">
+                    <PxiAnimatedGlyph size="S" />
+                    <Text color="text-500" size="XS">
+                      via pxi
+                    </Text>
+                  </span>
+                ) : null}
                 {isEdited ? (
-                  <TooltipTrigger delay={0}>
-                    <TriggerWrap>
-                      <Text color="text-500" size="XS">
-                        <time dateTime={note.updatedAt}>
-                          {displayedDateText} Edited
-                        </time>
-                      </Text>
-                    </TriggerWrap>
-                    <Tooltip>Created at {createdDateText}</Tooltip>
-                  </TooltipTrigger>
+                  <Text color="text-500" size="XS">
+                    <time dateTime={note.updatedAt}>
+                      {displayedDateText} Edited
+                    </time>
+                  </Text>
                 ) : (
                   <Text color="text-500" size="XS">
                     <time dateTime={note.createdAt}>{displayedDateText}</time>
