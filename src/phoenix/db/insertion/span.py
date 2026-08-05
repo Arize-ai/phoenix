@@ -84,7 +84,6 @@ async def insert_span(
             # ProjectSession record needs to be persisted for the first time.
             project_session.start_time = trace.start_time
             project_session.end_time = trace.end_time
-            project_session.last_span_seen_at = trace.end_time
             project_session.project_id = project_rowid
             session.add(project_session)
             await session.flush()

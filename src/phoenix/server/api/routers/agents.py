@@ -1088,7 +1088,6 @@ async def _upsert_project_sessions(
             "project_id": project_session.project_id,
             "start_time": project_session.start_time,
             "end_time": project_session.end_time,
-            "last_span_seen_at": project_session.end_time,
         }
         for project_session in project_sessions_by_session_id.values()
     ]
