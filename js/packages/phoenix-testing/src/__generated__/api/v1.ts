@@ -3781,11 +3781,11 @@ export interface components {
             description?: string | null;
             /**
              * Metadata
-             * @description New metadata object for the prompt (replaces the existing metadata as a whole; null is rejected)
+             * @description New metadata object for the prompt (replaces the existing metadata as a whole)
              */
             metadata?: {
                 [key: string]: unknown;
-            } | null;
+            };
         };
         /** PatchPromptResponseBody */
         PatchPromptResponseBody: {
