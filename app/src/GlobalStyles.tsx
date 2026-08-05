@@ -1242,6 +1242,10 @@ const tableCSS = (theme: Theme) => css`
     );
     --global-table-bordered-cell-border-color: var(--global-color-gray-100);
     --global-table-pagination-border-color: var(--global-color-gray-300);
+    /* Recessed surface behind the inline detail area an expanded row reveals,
+       matching the header so the detail area reads as table chrome rather than
+       as another row of values. */
+    --global-table-row-details-background-color: var(--global-color-gray-75);
 
     --global-table-cell-padding-y: var(--global-dimension-size-100);
     --global-table-cell-padding-x: var(--global-dimension-size-200);

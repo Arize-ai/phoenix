@@ -29,3 +29,6 @@ export * from "./addRowRangeToSelection";
 export * from "./constants";
 export * from "./RowSelectionColumn";
 export * from "./useShiftClickRowSelection";
+
+// Row expansion
+export * from "./RowDetails";

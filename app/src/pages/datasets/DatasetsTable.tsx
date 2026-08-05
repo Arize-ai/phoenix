@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import type {
   CellContext,
   ColumnDef,
+  ExpandedState,
   SortingState,
 } from "@tanstack/react-table";
 import {
@@ -12,6 +13,7 @@ import {
 } from "@tanstack/react-table";
 import type { Dispatch, SetStateAction } from "react";
 import {
+  Fragment,
   startTransition,
   useCallback,
   useEffect,
@@ -39,17 +41,23 @@ import {
   ColumnHeaderCell,
   ColumnOrderingProvider,
   CompactJSONCell,
+  createRowExpandColumn,
+  EXPAND_COLUMN_ID,
+  EXPAND_COLUMN_PINNING,
+  RowDetailsRow,
   useColumnOrder,
   UserCell,
 } from "@phoenix/components/table";
 import {
   getCommonPinningStyles,
+  rowDetailsTableCSS,
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useNotifySuccess, useViewerCanModify } from "@phoenix/contexts";
 import { useDatasetsTableContext } from "@phoenix/contexts/DatasetsTableContext";
+import { useDimensions } from "@phoenix/hooks";
 import { toggleArrayItem } from "@phoenix/utils/arrayUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
@@ -59,6 +67,7 @@ import type {
   DatasetsTableDatasetsQuery,
 } from "./__generated__/DatasetsTableDatasetsQuery.graphql";
 import { DatasetActionMenu } from "./DatasetActionMenu";
+import { DatasetRowDetails } from "./DatasetRowDetails";
 import { DatasetsEmpty } from "./DatasetsEmpty";
 const PAGE_SIZE = 100;
 
@@ -66,12 +75,27 @@ const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
 
+const datasetsTableCSS = css(selectableTableCSS, rowDetailsTableCSS);
+
 type DatasetsTableProps = {
   query: DatasetsTable_datasets$key;
   filter: string;
   labelFilter?: string[];
   onLabelFilterChange?: Dispatch<SetStateAction<string[]>>;
 };
+
+/**
+ * Where a dataset row leads: its experiments when it has any, its examples
+ * otherwise.
+ */
+function datasetLandingPath(dataset: {
+  id: string;
+  experimentCount: number;
+}): string {
+  return dataset.experimentCount > 0
+    ? `${dataset.id}/experiments`
+    : `${dataset.id}/examples`;
+}
 
 function toGqlSort(sort: SortingState[number]): DatasetSort {
   const col = sort.id;
@@ -88,6 +112,9 @@ export function DatasetsTable(props: DatasetsTableProps) {
   "use no memo";
   const { filter, labelFilter, onLabelFilterChange } = props;
   const [sorting, setSorting] = useState<SortingState>([]);
+  // Keyed by dataset id (see getRowId), so a dataset that is expanded stays
+  // expanded as sorting, filtering and pagination move it around the table
+  const [expanded, setExpanded] = useState<ExpandedState>({});
 
   const toggleLabelFilter = useCallback(
     (labelId: string) => {
@@ -111,6 +138,9 @@ export function DatasetsTable(props: DatasetsTableProps) {
   );
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  // The detail area an expanded row reveals lays itself out against the visible
+  // width rather than against a table that is usually wider than it
+  const tableContainerDimensions = useDimensions(tableContainerRef);
   const navigate = useNavigate();
   const notifySuccess = useNotifySuccess();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -199,14 +229,14 @@ export function DatasetsTable(props: DatasetsTableProps) {
   const canModify = useViewerCanModify();
   const columns = useMemo(() => {
     const cols: ColumnDef<(typeof tableData)[number]>[] = [
+      createRowExpandColumn<(typeof tableData)[number]>({
+        getRowLabel: (row) => row.original.name,
+      }),
       {
         header: "name",
         accessorKey: "name",
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => {
-          const hasExperiments = row.original.experimentCount > 0;
-          const to = hasExperiments
-            ? `${row.original.id}/experiments`
-            : `${row.original.id}/examples`;
+          const to = datasetLandingPath(row.original);
           return (
             <CellWithControlsWrap
               controls={<CopyToClipboardButton text={row.original.name} />}
@@ -441,7 +471,8 @@ export function DatasetsTable(props: DatasetsTableProps) {
     columnOrder,
     onColumnOrderChange: setColumnOrder,
     columnVisibility,
-    nonOrderableColumnIds: [ACTIONS_COLUMN_ID],
+    // The disclosure and the pinned actions column stay at the edges
+    nonOrderableColumnIds: [EXPAND_COLUMN_ID, ACTIONS_COLUMN_ID],
   });
 
   const table = useReactTable({
@@ -449,10 +480,12 @@ export function DatasetsTable(props: DatasetsTableProps) {
     data: tableData,
     state: {
       sorting,
+      expanded,
       columnSizing,
       columnVisibility,
       columnOrder: leafColumnOrder,
       columnPinning: {
+        ...EXPAND_COLUMN_PINNING,
         right: [ACTIONS_COLUMN_ID],
       },
     },
@@ -463,6 +496,16 @@ export function DatasetsTable(props: DatasetsTableProps) {
     onSortingChange: setSorting,
     onColumnSizingChange: setColumnSizing,
     onColumnVisibilityChange: setColumnVisibility,
+    onExpandedChange: setExpanded,
+    // Datasets have no subrows; every row instead reveals its own detail area
+    getRowCanExpand: () => true,
+    // Ties the expansion state to the dataset rather than to a position in the
+    // table, which sorting, filtering and pagination all change
+    getRowId: (row) => row.id,
+    // Sorting, filtering and pagination are all served by a refetch, so leaving
+    // this on tanstack's default would collapse every row whenever the page
+    // asked the server for a different slice of the same datasets
+    autoResetExpanded: false,
     manualSorting: true,
   });
 
@@ -491,6 +534,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
   }, [sorting, refetch, filter, labelFilter]);
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
+  const visibleColumnCount = table.getVisibleLeafColumns().length;
 
   const { columnSizingInfo, columnSizing: columnSizingState } =
     table.getState();
@@ -530,7 +574,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
       >
         <table
           data-testid="datasets-table"
-          css={selectableTableCSS}
+          css={datasetsTableCSS}
           style={{
             ...columnSizeVars,
             width: table.getTotalSize(),
@@ -624,37 +668,43 @@ export function DatasetsTable(props: DatasetsTableProps) {
           ) : (
             <tbody>
               {rows.map((row) => {
+                const isExpanded = row.getIsExpanded();
                 return (
-                  <tr
-                    key={row.id}
-                    onClick={() => {
-                      const hasExperiments = row.original.experimentCount > 0;
-                      const to = hasExperiments
-                        ? `${row.original.id}/experiments`
-                        : `${row.original.id}/examples`;
-                      navigate(to);
-                    }}
-                  >
-                    {row.getVisibleCells().map((cell) => {
-                      const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
-                      return (
-                        <td
-                          key={cell.id}
-                          align={cell.column.columnDef.meta?.textAlign}
-                          style={{
-                            width: `calc(var(${colSizeVar}) * 1px)`,
-                            maxWidth: `calc(var(${colSizeVar}) * 1px)`,
-                            ...getCommonPinningStyles(cell.column),
-                          }}
-                        >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
+                  <Fragment key={row.id}>
+                    <tr
+                      data-expanded={isExpanded}
+                      onClick={() => navigate(datasetLandingPath(row.original))}
+                    >
+                      {row.getVisibleCells().map((cell) => {
+                        const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
+                        return (
+                          <td
+                            key={cell.id}
+                            align={cell.column.columnDef.meta?.textAlign}
+                            style={{
+                              width: `calc(var(${colSizeVar}) * 1px)`,
+                              maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                              ...getCommonPinningStyles(cell.column),
+                            }}
+                          >
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    {isExpanded ? (
+                      <RowDetailsRow
+                        rowId={row.id}
+                        colSpan={visibleColumnCount}
+                        scrollPortWidth={tableContainerDimensions?.width}
+                      >
+                        <DatasetRowDetails dataset={row.original} />
+                      </RowDetailsRow>
+                    ) : null}
+                  </Fragment>
                 );
               })}
             </tbody>

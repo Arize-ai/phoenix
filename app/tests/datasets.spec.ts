@@ -163,4 +163,53 @@ test.describe("Datasets", () => {
     await expect(datasetRow(page, datasetNameA)).toBeVisible();
     await expect(datasetRow(page, datasetNameZ)).not.toBeVisible();
   });
+
+  test("can expand a dataset row to read its details inline", async ({
+    page,
+  }) => {
+    const datasetName = `test-dataset-${randomUUID()}`;
+    const description = "Secondary detail shown in the expanded row";
+
+    await page.goto("/datasets");
+    await page.waitForURL("**/datasets");
+    await createDataset(page, datasetName, description);
+
+    await page
+      .getByRole("searchbox", { name: "Search datasets by name" })
+      .fill(datasetName);
+    await expect(datasetRow(page, datasetName)).toBeVisible();
+
+    const toggle = page.getByRole("button", {
+      name: `Toggle details for ${datasetName}`,
+    });
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+    const details = page
+      .getByTestId("datasets-table")
+      .locator('tr[data-row="details"]');
+    await expect(details).toHaveCount(0);
+
+    // the control is a button, so it opens from the keyboard
+    await toggle.focus();
+    await page.keyboard.press("Enter");
+
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(details).toHaveCount(1);
+    await expect(details).toContainText(description);
+    await expect(details).toContainText("Dataset ID");
+    // expanding must not follow the row into the dataset
+    expect(new URL(page.url()).pathname).toBe("/datasets");
+
+    // a refetching sort leaves the row expanded rather than snapping it shut
+    await clickSortableHeaderAndExpect(
+      page.getByRole("columnheader", { name: "name" }).first(),
+      "ascending"
+    );
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(details).toHaveCount(1);
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(details).toHaveCount(0);
+  });
 });

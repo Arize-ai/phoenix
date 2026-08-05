@@ -11,9 +11,22 @@ export const CHECKBOX_COLUMN_ID = "select";
 export const ACTIONS_COLUMN_ID = "actions";
 
 /**
+ * Column id shared by every table's row-expansion disclosure column.
+ */
+export const EXPAND_COLUMN_ID = "expand";
+
+/**
  * Pins the checkbox column to the left so it stays visible while a table's
  * other columns scroll horizontally.
  */
 export const CHECKBOX_COLUMN_PINNING = {
   left: [CHECKBOX_COLUMN_ID],
+} satisfies ColumnPinningState;
+
+/**
+ * Pins the row-expansion column to the left so the disclosure control stays
+ * visible while a table's other columns scroll horizontally.
+ */
+export const EXPAND_COLUMN_PINNING = {
+  left: [EXPAND_COLUMN_ID],
 } satisfies ColumnPinningState;

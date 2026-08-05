@@ -198,6 +198,35 @@ export const expandableSelectableTableCSS = css(
   expandableRowsTableCSS
 );
 
+/**
+ * Styling for tables that reveal an inline detail area beneath an expanded row,
+ * keyed off `data-row="details"` on the detail `<tr>` and `data-expanded` on the
+ * row it belongs to.
+ *
+ * A row and its detail area read as one block: the border that would divide them
+ * is dropped, the detail cell carries the recessed background across the full
+ * table width, and the detail row is not clickable the way the data rows are.
+ *
+ * @see RowDetailsRow, which renders the markup these selectors target
+ */
+export const rowDetailsTableCSS = css`
+  tbody:not(.is-empty) {
+    tr[data-expanded="true"]:not(:last-of-type) > td {
+      border-bottom: none;
+    }
+    tr[data-row="details"] > td {
+      // The detail area stands in for the whole row rather than holding one
+      // column's value, so it lays out its own padding
+      padding: 0;
+      background-color: var(--global-table-row-details-background-color);
+    }
+    // Only the row above navigates on click; the detail area is read in place
+    tr[data-row="details"] {
+      cursor: default;
+    }
+  }
+`;
+
 export const paginationCSS = css`
   display: flex;
   justify-content: flex-end;
