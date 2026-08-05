@@ -401,7 +401,7 @@ AgentSessionConflictCode = Literal[
     "agent_session_busy",
     "agent_session_model_stale",
     "agent_session_messages_stale",
-    "agent_session_transcript_conflict",
+    "agent_session_messages_conflict",
     "agent_session_compaction_conflict",
 ]
 
@@ -413,9 +413,12 @@ class AgentSessionConflictError(V1RoutesBaseModel):
     - ``agent_session_model_stale``: the request asserted a model the session
       is no longer set to; refetch the session before retrying.
     - ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer
-      matches the persisted transcript; refetch the transcript before retrying.
-    - ``agent_session_transcript_conflict``: the submitted assistant
-      continuation does not match the transcript's trailing message.
+      matches the persisted transcript — another client appended; refetch the
+      transcript and retry.
+    - ``agent_session_messages_conflict``: the submitted assistant message and
+      the request's ``lastMessageId`` contradict each other. Unlike
+      ``agent_session_messages_stale`` this is not a concurrent-writer race but
+      an inconsistent request; fix the client rather than retrying.
     - ``agent_session_compaction_conflict``: the conversation changed while it
       was being compacted; retry.
     """
@@ -1447,7 +1450,7 @@ def _merge_messages(
     if new_message.role == "assistant":
         if not old_messages or old_messages[-1].id != new_message.id:
             raise _AgentSessionConflict(
-                "agent_session_transcript_conflict",
+                "agent_session_messages_conflict",
                 (
                     "The submitted assistant message does not match the session's "
                     "latest transcript message; reload the conversation"

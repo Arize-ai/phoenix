@@ -1796,7 +1796,7 @@ def test_merge_rejects_an_assistant_message_that_is_not_the_trailing_one() -> No
             old_messages=persisted,
             new_message=stale_assistant,
         )
-    assert exc_info.value.code == "agent_session_transcript_conflict"
+    assert exc_info.value.code == "agent_session_messages_conflict"
 
 
 async def test_chat_endpoint_rejects_regenerate_requests(

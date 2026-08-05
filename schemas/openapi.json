@@ -9033,7 +9033,7 @@
               "agent_session_busy",
               "agent_session_model_stale",
               "agent_session_messages_stale",
-              "agent_session_transcript_conflict",
+              "agent_session_messages_conflict",
               "agent_session_compaction_conflict"
             ],
             "title": "Code",
@@ -9057,7 +9057,7 @@
           "code"
         ],
         "title": "AgentSessionConflictError",
-        "description": "Body of every HTTP 409 returned by the agent session routes.\n\n- ``agent_session_busy``: another turn holds the session's turn lock.\n- ``agent_session_model_stale``: the request asserted a model the session\n  is no longer set to; refetch the session before retrying.\n- ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer\n  matches the persisted transcript; refetch the transcript before retrying.\n- ``agent_session_transcript_conflict``: the submitted assistant\n  continuation does not match the transcript's trailing message.\n- ``agent_session_compaction_conflict``: the conversation changed while it\n  was being compacted; retry."
+        "description": "Body of every HTTP 409 returned by the agent session routes.\n\n- ``agent_session_busy``: another turn holds the session's turn lock.\n- ``agent_session_model_stale``: the request asserted a model the session\n  is no longer set to; refetch the session before retrying.\n- ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer\n  matches the persisted transcript \u2014 another client appended; refetch the\n  transcript and retry.\n- ``agent_session_messages_conflict``: the submitted assistant message and\n  the request's ``lastMessageId`` contradict each other. Unlike\n  ``agent_session_messages_stale`` this is not a concurrent-writer race but\n  an inconsistent request; fix the client rather than retrying.\n- ``agent_session_compaction_conflict``: the conversation changed while it\n  was being compacted; retry."
       },
       "AgentSessionData": {
         "properties": {

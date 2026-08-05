@@ -13,7 +13,7 @@ class AgentSessionConflictError(TypedDict):
         "agent_session_busy",
         "agent_session_model_stale",
         "agent_session_messages_stale",
-        "agent_session_transcript_conflict",
+        "agent_session_messages_conflict",
         "agent_session_compaction_conflict",
     ]
     message: NotRequired[str]
