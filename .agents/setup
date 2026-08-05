@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+uv_version="0.11.31"
+node_version="22.22.0"
+pnpm_version="11.11.0"
+node_name="node-v${node_version}-linux-x64"
+node_dir="$HOME/.local/share/$node_name"
+node_current="$HOME/.local/share/phoenix-node"
+
+export PATH="$HOME/.local/bin:$node_current/bin:$PATH"
+
+echo "==> Installing system dependencies"
+if ! compgen -G "/usr/lib/postgresql/*/bin/pg_ctl" >/dev/null; then
+  sudo apt-get update
+  sudo env DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y --no-install-recommends postgresql
+fi
+
+echo "==> Installing uv $uv_version"
+if ! command -v uv >/dev/null || [[ "$(uv --version)" != "uv $uv_version "* ]]; then
+  curl -LsSf "https://astral.sh/uv/$uv_version/install.sh" |
+    env UV_INSTALL_DIR="$HOME/.local/bin" INSTALLER_NO_MODIFY_PATH=1 sh
+fi
+
+echo "==> Installing Node.js $node_version"
+if [[ ! -x "$node_dir/bin/node" ]]; then
+  mkdir -p "$HOME/.local/share"
+  tmp_dir="$(mktemp -d)"
+  trap 'rm -rf "$tmp_dir"' EXIT
+  curl -fsSLo "$tmp_dir/$node_name.tar.xz" \
+    "https://nodejs.org/dist/v$node_version/$node_name.tar.xz"
+  curl -fsSLo "$tmp_dir/SHASUMS256.txt" \
+    "https://nodejs.org/dist/v$node_version/SHASUMS256.txt"
+  (
+    cd "$tmp_dir"
+    grep "  $node_name.tar.xz\$" SHASUMS256.txt | sha256sum --check --status
+  )
+  tar -xJf "$tmp_dir/$node_name.tar.xz" -C "$HOME/.local/share"
+  rm -rf "$tmp_dir"
+  trap - EXIT
+fi
+ln -sfn "$node_dir" "$node_current"
+
+echo "==> Enabling pnpm $pnpm_version"
+corepack enable
+corepack install --global "pnpm@$pnpm_version"
+
+profile_marker="# Phoenix orb development toolchain"
+if ! grep -Fqx "$profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
+  cat >>"$HOME/.bash_profile" <<EOF
+
+$profile_marker
+case "\$PWD/" in
+  "$repo_root"/*)
+    export PATH="\$HOME/.local/bin:\$HOME/.local/share/phoenix-node/bin:\$PATH"
+    ;;
+esac
+EOF
+fi
+
+echo "==> Installing Python dependencies"
+uv sync --frozen --python 3.10
+uv tool install tox --with tox-uv
+
+echo "==> Installing frontend dependencies"
+pnpm --dir app install --frozen-lockfile
+
+echo "==> Installing TypeScript package dependencies"
+pnpm --dir js install --frozen-lockfile
+
+echo "==> Phoenix orb setup complete"
