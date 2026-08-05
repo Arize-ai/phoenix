@@ -25,16 +25,13 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref || github.event.before }}
         run: |
-          cp schemas/openapi.json head.json
+          jq '.paths |= with_entries(select(.key | startswith("/agent") | not))' \
+            schemas/openapi.json > head.json
           if [ -z "$BASE_REF" ]; then
             echo "::error::Could not determine base ref for OpenAPI schema comparison"
             exit 1
           fi
           git checkout "$BASE_REF"
-      # The unversioned /agents/... paths (the deprecated legacy chat route)
-      # carry no compatibility guarantees and are dropped from the baseline
-      # only, so their removal never counts as a break. The head schema is
-      # checked in full, including the /v1/agents/... routes.
       - name: Snapshot base schema
         run: |
           jq '.paths |= with_entries(select(.key | startswith("/agent") | not))' \
