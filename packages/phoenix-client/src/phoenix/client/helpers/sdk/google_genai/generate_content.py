@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from types import MappingProxyType
 from typing import (
@@ -9,7 +10,6 @@ from typing import (
     Literal,
     Mapping,
     Optional,
-    Sequence,
     TypedDict,
     Union,
     cast,
@@ -78,6 +78,9 @@ def to_chat_messages_and_kwargs(
     template = obj["template"]
     system_messages: list[str] = []
     messages: list[genai_types.Content] = []
+    # Google identifies tool results by function name rather than call id, so the
+    # names advertised by preceding tool calls are collected up front.
+    tool_call_names = _collect_tool_call_names(template)
     if template["type"] == "chat":
         for message in template["messages"]:
             if message["role"] == "system":
@@ -91,7 +94,9 @@ def to_chat_messages_and_kwargs(
                             if text := formatter.format(part["text"], variables=variables):
                                 system_messages.append(text)
             else:
-                messages.extend(_ContentConversion.to_google(message, variables, formatter))
+                messages.extend(
+                    _ContentConversion.to_google(message, variables, formatter, tool_call_names)
+                )
     elif template["type"] == "string":
         raise NotImplementedError
     else:
@@ -104,6 +109,23 @@ def to_chat_messages_and_kwargs(
         else:
             config.system_instruction = "\n\n".join(system_messages)
     return messages, kwargs
+
+
+def _collect_tool_call_names(
+    template: Union[v1.PromptChatTemplate, v1.PromptStringTemplate],
+    /,
+) -> dict[str, str]:
+    ans: dict[str, str] = {}
+    if template["type"] != "chat":
+        return ans
+    for message in template["messages"]:
+        content = message["content"]
+        if isinstance(content, str):
+            continue
+        for part in content:
+            if part["type"] == "tool_call":
+                ans[part["tool_call_id"]] = part["tool_call"]["name"]
+    return ans
 
 
 def _to_model_kwargs(
@@ -128,15 +150,52 @@ def _to_model_kwargs(
         top_p=invocation_parameters.get("top_p"),
         top_k=invocation_parameters.get("top_k"),
     )
+    if "thinking_config" in invocation_parameters:
+        config.thinking_config = _ThinkingConfigConversion.to_google(
+            invocation_parameters["thinking_config"]
+        )
     tool_kwargs = _ToolKwargsConversion.to_google(obj.get("tools"))
     if "tools" in tool_kwargs:
         config.tools = list(tool_kwargs["tools"])
     if "tool_config" in tool_kwargs:
         config.tool_config = tool_kwargs["tool_config"]
+    if "response_format" in obj:
+        response_format = obj["response_format"]
+        if response_format["type"] == "json_schema":
+            config.response_mime_type = "application/json"
+            if schema := response_format["json_schema"].get("schema"):
+                config.response_json_schema = dict(schema)
+        elif TYPE_CHECKING:
+            assert_never(response_format["type"])
     return {
         "model": obj["model_name"],
         "config": config,
     }
+
+
+class _ThinkingConfigConversion:
+    @staticmethod
+    def to_google(
+        obj: v1.PromptGoogleThinkingConfig,
+    ) -> Optional[genai_types.ThinkingConfig]:
+        from google.genai import types as genai_types
+
+        kwargs: dict[str, Any] = {}
+        if "thinking_budget" in obj:
+            kwargs["thinking_budget"] = obj["thinking_budget"]
+        if "include_thoughts" in obj:
+            kwargs["include_thoughts"] = obj["include_thoughts"]
+        if thinking_level := obj.get("thinking_level"):
+            # `thinking_level` was added in google-genai 1.50.0.
+            if "thinking_level" in genai_types.ThinkingConfig.model_fields:
+                kwargs["thinking_level"] = thinking_level.upper()
+            else:
+                logger.warning(
+                    "Ignoring `thinking_level`: it requires `google-genai>=1.50.0`.",
+                )
+        if not kwargs:
+            return None
+        return genai_types.ThinkingConfig.model_validate(kwargs)
 
 
 class _ToolKwargsConversion:
@@ -149,16 +208,22 @@ class _ToolKwargsConversion:
             return ans
         from google.genai import types as genai_types
 
+        tools: list[genai_types.Tool] = []
         function_declarations: list[genai_types.FunctionDeclaration] = []
         for t in obj["tools"]:
             if t["type"] == "function":
                 function_declarations.append(_FunctionDeclarationConversion.to_google(t))
-        ans["tools"] = [
-            genai_types.Tool(
-                function_declarations=function_declarations,
-            )
-        ]
-        if "tool_choice" in obj:
+            elif t["type"] == "raw":
+                tools.append(genai_types.Tool.model_validate(dict(t["raw"])))
+            elif TYPE_CHECKING:
+                assert_never(t["type"])
+        if function_declarations:
+            tools.append(genai_types.Tool(function_declarations=function_declarations))
+        if tools:
+            ans["tools"] = tools
+        # `function_calling_config` only applies when function declarations are present;
+        # Google rejects it for built-in tools such as `google_search`.
+        if function_declarations and "tool_choice" in obj:
             ans["tool_config"] = _ToolConfigConversion.to_google(obj["tool_choice"])
         return ans
 
@@ -261,13 +326,16 @@ class _FunctionDeclarationConversion:
         from google.genai import types as genai_types
 
         function = obj["function"]
-        return genai_types.FunctionDeclaration(
+        ans = genai_types.FunctionDeclaration(
             name=function["name"],
             description=function["description"] if "description" in function else "",
-            parameters=_SchemaConversion.to_google(function["parameters"])
-            if "parameters" in function
-            else None,
         )
+        if "parameters" in function:
+            # Passing the JSON schema through verbatim preserves constructs that
+            # `genai_types.Schema` cannot express, such as `anyOf`, `$ref`/`$defs`
+            # and `default` — which Pydantic-generated schemas rely on.
+            ans.parameters_json_schema = dict(function["parameters"])
+        return ans
 
     @staticmethod
     def from_google(
@@ -277,7 +345,11 @@ class _FunctionDeclarationConversion:
             name=obj.name or "",
             description=obj.description or "",
         )
-        if obj.parameters is not None:
+        if obj.parameters_json_schema is not None:
+            function["parameters"] = dict(
+                cast("Mapping[str, Any]", obj.parameters_json_schema),
+            )
+        elif obj.parameters is not None:
             function["parameters"] = _SchemaConversion.from_google(obj.parameters)
         return v1.PromptToolFunction(
             type="function",
@@ -286,48 +358,13 @@ class _FunctionDeclarationConversion:
 
 
 class _SchemaConversion:
-    @staticmethod
-    def to_google(
-        obj: Mapping[str, Any],
-    ) -> genai_types.Schema:
-        from google.genai import types as genai_types
+    """
+    Converts a ``genai_types.Schema`` into a JSON schema mapping.
 
-        ans = genai_types.Schema()
-        if isinstance(type_ := obj.get("type"), str):
-            if type_ == "string":
-                ans.type = genai_types.Type.STRING
-            elif type_ == "number":
-                ans.type = genai_types.Type.NUMBER
-            elif type_ == "integer":
-                ans.type = genai_types.Type.INTEGER
-            elif type_ == "boolean":
-                ans.type = genai_types.Type.BOOLEAN
-            elif type_ == "array":
-                ans.type = genai_types.Type.ARRAY
-            elif type_ == "object":
-                ans.type = genai_types.Type.OBJECT
-        if isinstance(format_ := obj.get("format"), str):
-            ans.format = format_
-        if isinstance(description := obj.get("description"), str):
-            ans.description = description
-        if isinstance(nullable := obj.get("nullable"), bool):
-            ans.nullable = nullable
-        if isinstance(enum := obj.get("enum"), Sequence):
-            ans.enum = list(cast(Sequence[str], enum))
-        if isinstance(items := obj.get("items"), Mapping):
-            ans.items = _SchemaConversion.to_google(cast(Mapping[str, Any], items))
-        if isinstance(max_items := obj.get("maxItems"), int):
-            ans.max_items = max_items
-        if isinstance(min_items := obj.get("minItems"), int):
-            ans.min_items = min_items
-        if isinstance(properties := obj.get("properties"), Mapping):
-            ans.properties = {
-                k: _SchemaConversion.to_google(v)
-                for k, v in cast(Mapping[str, Mapping[str, Any]], properties).items()
-            }
-        if isinstance(required := obj.get("required"), Sequence):
-            ans.required = list(cast(Sequence[str], required))
-        return ans
+    Only this direction is needed: tool parameters are sent to Google as raw JSON
+    schema via ``FunctionDeclaration.parameters_json_schema``, which avoids the
+    lossy translation into ``genai_types.Schema``.
+    """
 
     @staticmethod
     def from_google(
@@ -378,6 +415,7 @@ class _ContentConversion:
         variables: Mapping[str, str],
         formatter: TemplateFormatter,
         /,
+        tool_call_names: Optional[Mapping[str, str]] = None,
     ) -> Iterator[genai_types.Content]:
         from google.genai import types as genai_types
 
@@ -391,11 +429,16 @@ class _ContentConversion:
             if part["type"] == "text":
                 parts.append(_TextContentPartConversion.to_google(part, variables, formatter))
             elif part["type"] == "tool_call":
-                continue
+                parts.append(_ToolCallContentPartConversion.to_google(part))
             elif part["type"] == "tool_result":
-                continue
+                parts.append(
+                    _ToolResultContentPartConversion.to_google(part, tool_call_names or {})
+                )
             elif TYPE_CHECKING:
                 assert_never(part["type"])
+        if not parts:
+            # Google rejects `Content` with an empty `parts` list.
+            return
         yield genai_types.Content(role=role, parts=parts)
 
     @staticmethod
@@ -408,10 +451,98 @@ class _ContentConversion:
             if _has_text(part):
                 parts.append(_TextContentPartConversion.from_google(part))
             elif _has_function_call(part):
-                continue
+                parts.append(_ToolCallContentPartConversion.from_google(part))
             elif _has_function_response(part):
-                continue
+                parts.append(_ToolResultContentPartConversion.from_google(part))
         return v1.PromptMessage(role=role, content=parts)
+
+
+class _ToolCallContentPartConversion:
+    @staticmethod
+    def to_google(
+        obj: v1.ToolCallContentPart,
+    ) -> genai_types.Part:
+        from google.genai import types as genai_types
+
+        function = obj["tool_call"]
+        args: dict[str, Any] = {}
+        if arguments := function.get("arguments"):
+            try:
+                loaded = json.loads(arguments)
+            except json.JSONDecodeError:
+                logger.warning(
+                    "Ignoring malformed JSON arguments for tool call %r", function.get("name")
+                )
+            else:
+                if isinstance(loaded, dict):
+                    args = cast("dict[str, Any]", loaded)
+        return genai_types.Part(
+            function_call=genai_types.FunctionCall(
+                id=obj["tool_call_id"] or None,
+                name=function["name"],
+                args=args,
+            )
+        )
+
+    @staticmethod
+    def from_google(
+        obj: genai_types.Part,
+    ) -> v1.ToolCallContentPart:
+        assert obj.function_call is not None
+        fc = obj.function_call
+        return v1.ToolCallContentPart(
+            type="tool_call",
+            tool_call_id=fc.id or "",
+            tool_call=v1.ToolCallFunction(
+                type="function",
+                name=fc.name or "",
+                arguments=json.dumps(fc.args) if fc.args else "{}",
+            ),
+        )
+
+
+class _ToolResultContentPartConversion:
+    @staticmethod
+    def to_google(
+        obj: v1.ToolResultContentPart,
+        tool_call_names: Mapping[str, str],
+        /,
+    ) -> genai_types.Part:
+        from google.genai import types as genai_types
+
+        tool_call_id = obj["tool_call_id"]
+        result = obj.get("tool_result")
+        # Google requires `response` to be a mapping, so scalars and sequences are wrapped.
+        response: dict[str, Any] = (
+            dict(result) if isinstance(result, Mapping) else {"output": result}
+        )
+        return genai_types.Part(
+            function_response=genai_types.FunctionResponse(
+                id=tool_call_id or None,
+                # Google identifies responses by function name; fall back to the call id
+                # when the originating tool call is not part of the same prompt.
+                name=tool_call_names.get(tool_call_id, tool_call_id),
+                response=response,
+            )
+        )
+
+    @staticmethod
+    def from_google(
+        obj: genai_types.Part,
+    ) -> v1.ToolResultContentPart:
+        assert obj.function_response is not None
+        fr = obj.function_response
+        response = fr.response
+        result: Any = response
+        if isinstance(response, Mapping):
+            mapping: Mapping[str, Any] = response
+            # Unwrap the envelope added by `to_google` for non-mapping results.
+            result = mapping["output"] if set(mapping) == {"output"} else dict(mapping)
+        return v1.ToolResultContentPart(
+            type="tool_result",
+            tool_call_id=fr.id or "",
+            tool_result=result,
+        )
 
 
 class _TextContentPartConversion:

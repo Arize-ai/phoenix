@@ -513,8 +513,13 @@ def _default_google_sdk() -> SDK:
     """
     Prefers the legacy ``google-generativeai`` SDK for backwards compatibility,
     but falls back to the new ``google-genai`` SDK when only the latter is
-    installed. The two packages conflict on ``protobuf`` requirements, so many
-    environments can only install one of them.
+    installed.
+
+    The legacy package pins ``protobuf<6``, which cannot be resolved alongside
+    packages that require ``protobuf>=6`` (e.g. ``langgraph-cli[inmem]``), so
+    such environments can install only ``google-genai``. The two Google SDKs do
+    not conflict with each other, so pass ``sdk="google_genai"`` explicitly to
+    select the new SDK when both are installed.
     """
     from importlib.util import find_spec
 
