@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { MAX_BROWSE_SUGGESTIONS } from "@phoenix/components/filter";
 
-import { sessionFilterSnippets } from "../SessionFilterConditionField";
+import { sessionFilterSnippets } from "../sessionFilterDSL";
 
 describe("session filter snippets", () => {
   it("offers text search over both input and output in the empty-state dropdown", () => {
