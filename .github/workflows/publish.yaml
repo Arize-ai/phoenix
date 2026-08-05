@@ -352,7 +352,10 @@ jobs:
         with:
           platforms: arm64
       - name: Build wheels
-        uses: pypa/cibuildwheel@9c00cb4f6b517705a3794b22395aedc36257242c # v3.2.1
+        # Must be >= v3.4.0: earlier releases reference actions/setup-python@v6
+        # inside their own action.yml, and this org rejects unpinned actions
+        # transitively, so the job fails while preparing actions.
+        uses: pypa/cibuildwheel@1828c10ab37f080699c7b81cea34097c684a7074 # v4.2.0
         with:
           package-dir: pkg
         env:
@@ -445,8 +448,27 @@ jobs:
 
   slack:
     name: Slack notification
-    needs: [list-python-packages, publish-phoenix, publish-packages, publish-sqlean, trigger-version-updates]
-    if: always() && inputs.feature_branch == '' && (needs.publish-phoenix.result != 'skipped' || needs.publish-packages.result != 'skipped' || needs.publish-sqlean.result != 'skipped')
+    # Depends on the build jobs too, not just the publish ones: a publish job
+    # is gated on its build succeeding, so a failed build leaves it *skipped*
+    # rather than failed. Watching only publish results therefore reports
+    # success for a package that never shipped, as long as some other package
+    # published in the same run.
+    needs:
+      - list-python-packages
+      - build-phoenix
+      - publish-phoenix
+      - build-packages
+      - publish-packages
+      - sqlean-sources
+      - build-sqlean
+      - publish-sqlean
+      - trigger-version-updates
+    if: >-
+      always() && inputs.feature_branch == '' &&
+      (contains(needs.*.result, 'failure')
+      || needs.publish-phoenix.result != 'skipped'
+      || needs.publish-packages.result != 'skipped'
+      || needs.publish-sqlean.result != 'skipped')
     runs-on: ubuntu-latest
     permissions: {}
     steps:
@@ -456,9 +478,10 @@ jobs:
           PHOENIX_RESULT: ${{ needs.publish-phoenix.result }}
           PACKAGES_RESULT: ${{ needs.publish-packages.result }}
           SQLEAN_RESULT: ${{ needs.publish-sqlean.result }}
+          ANY_FAILURE: ${{ contains(needs.*.result, 'failure') }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if [ "$PHOENIX_RESULT" = "failure" ] || [ "$PACKAGES_RESULT" = "failure" ] || [ "$SQLEAN_RESULT" = "failure" ]; then
+          if [ "$ANY_FAILURE" = "true" ]; then
             {
               echo "text<<EOF"
               echo "🚨🚨🚨 PYPI Publication Failed 🚨🚨🚨"
