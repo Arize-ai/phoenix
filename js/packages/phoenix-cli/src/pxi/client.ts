@@ -530,13 +530,17 @@ export function buildPxiChatRequest({
   if (!message) {
     throw new Error("A chat submit request requires a message to send");
   }
+  if (message.role !== "user") {
+    // The chat contract only accepts user messages; client tool results are
+    // submitted as `toolOutputs`, which the CLI never produces because it
+    // executes no client tools.
+    throw new Error("A chat submit request requires a trailing user message");
+  }
   // The send's optimistic-concurrency check: the id of the last transcript
-  // message this client believes is persisted. A new user message at the tail
-  // is the turn being submitted, so the message before it is the persisted
-  // tail; a trailing assistant message (client-tool continuation) is itself
-  // the persisted tail. Null while the transcript is empty.
-  const lastMessageId =
-    (message.role === "assistant" ? message.id : messages.at(-2)?.id) ?? null;
+  // message this client believes is persisted. The new user message at the
+  // tail is the turn being submitted, so the message before it is the
+  // persisted tail. Null while the transcript is empty.
+  const lastMessageId = messages.at(-2)?.id ?? null;
   return {
     ...buildPxiRequestBase({ options }),
     message,

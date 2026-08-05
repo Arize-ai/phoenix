@@ -2028,7 +2028,6 @@ class PromptMessage(TypedDict):
 class ChatRequest(TypedDict):
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     id: str
-    message: PhoenixUIMessage
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
     attachUserId: NotRequired[bool]
@@ -2056,6 +2055,17 @@ class ChatRequest(TypedDict):
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]
     trigger: NotRequired[str]
+    message: NotRequired[PhoenixUIMessage]
+    toolOutputs: NotRequired[
+        Sequence[
+            Union[
+                PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart,
+                PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart,
+                PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart,
+                PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart,
+            ]
+        ]
+    ]
     lastMessageId: NotRequired[str]
 
 
