@@ -13,6 +13,19 @@ GitHub
 **We want to hear from you!** The DevRel team wants to hear from the Phoenix community. If you're building with Phoenix and want to tell us what's working, what's painful, or what you wish existed, [grab 25 minutes with us](https://cal.com/team/arize/user-interview).
 </Info>
 
+<ReleaseUpdate label="08.04.2026" href="/docs/phoenix/release-notes/08-2026/08-04-2026-chat-completions-proxy-ai-query-and-annotation-charts" title="Chat Completions Proxy, AI Query, and Annotation Charts">
+**Available in arize-phoenix 19.11.0–19.17.0, @arizeai/phoenix-evals 2.2.0+ and @arizeai/phoenix-cli 1.14.0+ (TypeScript)**
+
+Call any provider through Phoenix without handling its keys, write filters in plain English, and chart every annotation.
+
+- **OpenAI-compatible `/v1/chat/completions`** — proxy chat completions (streaming included) to built-in or custom providers with credentials resolved on the server
+- **AI Query for filter fields** — describe the spans, traces, or experiment runs you want in plain English and press Enter, using on-device Browser AI or any provider Phoenix knows
+- **Annotation metric charts** — a chart per annotation name on the project Metrics page and in the chart strip, with the three-chart selection cap lifted and charts loaded on scroll
+- **Conversation-grounded Hallucination evaluator** — judges a response against the whole transcript, including tool results; labels change to `grounded` / `hallucinated`
+- **Annotations in span downloads** — export evaluations alongside spans as OpenInference attributes, streamed straight to disk
+- **Pinned note bar in span details** — press `n` to take notes without leaving the trace
+</ReleaseUpdate>
+
 <ReleaseUpdate label="07.28.2026" href="/docs/phoenix/release-notes/07-2026/07-28-2026-experiment-charts-span-downloads-and-root-span-filters" title="Experiment Charts, Span Downloads, and Root-Span Filters">
 **Available in arize-phoenix 19.5.0–19.10.0, arize-phoenix-evals 3.3.0+ (Python), @arizeai/phoenix-client 7.1.0+, @arizeai/phoenix-evals 2.1.0+, @arizeai/phoenix-otel 2.1.0+, @arizeai/phoenix-cli 1.13.0+ (TypeScript)**
 
