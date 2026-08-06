@@ -14,7 +14,7 @@ A LangChain TypeScript travel planner agent with Phoenix tracing and optional ev
 1. **Install dependencies:**
 
 ```bash
-cd langchain-ts-quickstart
+cd js/examples/apps/langchain-quickstart
 npm install
 ```
 
@@ -27,14 +27,20 @@ Copy `.env.example` to `.env` and fill in:
 OPENAI_API_KEY=your-openai-api-key
 TAVILY_API_KEY=your-tavily-api-key
 
-# Optional: Phoenix (defaults shown). Tracing reads PHOENIX_COLLECTOR_ENDPOINT;
-# the API clients fall back to it, so this one value covers both.
+# Optional: Phoenix (defaults shown)
+# PHOENIX_COLLECTOR_ENDPOINT is where traces are exported; PHOENIX_ENDPOINT is the
+# server base URL the eval scripts call. Both accept a base URL here — register()
+# appends the OTLP /v1/traces path for you.
 PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_ENDPOINT=http://localhost:6006
 PHOENIX_PROJECT_NAME=langchain-travel-agent
 
 # Optional: for custom_evals (uses Fireworks model)
 FIREWORKS_API_KEY=your-fireworks-api-key
 ```
+
+See [Environments](https://arize.com/docs/phoenix/environments) for the full list of
+Phoenix environment variables.
 
 3. **Start Phoenix** (if running locally):
 
@@ -77,7 +83,8 @@ npm run custom_evals
 ```
 
 - Uses a custom classification evaluator with a travel-plan correctness template.
-- Requires `PHOENIX_ENDPOINT` or `PHOENIX_HOST` and `FIREWORKS_API_KEY`.
+- Requires `FIREWORKS_API_KEY`. Reads spans from the Phoenix at `PHOENIX_ENDPOINT`
+  (defaults to `http://localhost:6006`).
 - Evaluates the same LangGraph spans and logs annotations as `custom_correctness`.
 
 ## What to Look For in Phoenix
@@ -97,7 +104,7 @@ After running evals, you’ll see span annotations (e.g. correctness / custom_co
 ### Project Structure
 
 ```
-langchain-ts-quickstart/
+langchain-quickstart/
 ├── package.json              # Dependencies and scripts
 ├── tsconfig.json             # TypeScript configuration
 ├── .env.example              # Example environment variables
@@ -147,6 +154,8 @@ langchain-ts-quickstart/
 - Or run from the Phoenix repo root: `uv run phoenix serve`
 - Evals still run and print results; only sending annotations to Phoenix fails until the server is upgraded.
 
-**custom_evals: Set PHOENIX_ENDPOINT or PHOENIX_HOST**
+**Evals find no spans, or annotate the wrong Phoenix**
 
-- Set one of these in `.env` (e.g. `PHOENIX_ENDPOINT=http://localhost:6006`) and ensure `FIREWORKS_API_KEY` is set for the Fireworks evaluator model.
+- The eval scripts read from `PHOENIX_ENDPOINT`, which defaults to `http://localhost:6006`. Point it at the same Phoenix the agent traced to (e.g. `PHOENIX_ENDPOINT=https://phoenix.example.com`).
+- Confirm `PHOENIX_PROJECT_NAME` matches between the agent run and the eval run — both default to `langchain-travel-agent`.
+- For `npm run custom_evals`, also set `FIREWORKS_API_KEY` for the evaluator model.

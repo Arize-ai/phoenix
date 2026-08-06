@@ -5,7 +5,7 @@ Follow these steps to get the LangChain TypeScript travel planner agent running.
 ## 1. Navigate to the directory
 
 ```bash
-cd quickstarts/langchain-ts-quickstart
+cd js/examples/apps/langchain-quickstart
 ```
 
 ## 2. Install dependencies
@@ -35,8 +35,10 @@ Create a `.env` from `.env.example` and set at least:
 OPENAI_API_KEY=your-key-here
 TAVILY_API_KEY=your-tavily-key-here
 
-# Optional: Phoenix (defaults). Tracing reads PHOENIX_COLLECTOR_ENDPOINT.
+# Optional: Phoenix (defaults). Traces are exported to PHOENIX_COLLECTOR_ENDPOINT;
+# the eval scripts call the Phoenix API on PHOENIX_ENDPOINT.
 PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_ENDPOINT=http://localhost:6006
 PHOENIX_PROJECT_NAME=langchain-travel-agent
 ```
 
@@ -84,7 +86,7 @@ npm run custom_evals
 ## File structure
 
 ```
-langchain-ts-quickstart/
+langchain-quickstart/
 ├── src/
 │   ├── index.ts              # Phoenix register + LangChain travel agent
 │   ├── tools.ts              # essential_info, budget_basics, local_flavor (Tavily)
