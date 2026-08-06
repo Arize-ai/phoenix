@@ -147,7 +147,7 @@ px.describe("text-to-sql", () => { /* tests log token_f1, valid_sql, latency_ms 
 
 | Variable | Purpose |
 |---|---|
-| `PHOENIX_ENDPOINT` | Phoenix base URL. Falls back to `PHOENIX_COLLECTOR_ENDPOINT`, then legacy `PHOENIX_HOST` |
+| `PHOENIX_ENDPOINT` | Phoenix base URL for API access — the client reads this. Falls back to `PHOENIX_COLLECTOR_ENDPOINT` when unset, so a repo already configured for tracing works unchanged |
 | `PHOENIX_API_KEY` | Bearer token |
 | `PHOENIX_CLIENT_HEADERS` | Optional JSON headers |
 | `PHOENIX_TEST_TRACKING` | `false` disables sync (dry run) |
