@@ -484,8 +484,13 @@ class AgentSessionConflictError(V1RoutesBaseModel):
     )
 
 
-class _AgentSessionConflict(Exception):
-    """Internal signal converted to a 409 ``AgentSessionConflictError`` response."""
+class AgentSessionConflict(Exception):
+    """Signals a 409 conflict on an agent session route.
+
+    Raising this unwinds any open database transaction, so nothing the
+    conflicted request wrote is persisted. The app renders it as an
+    ``AgentSessionConflictError`` body via ``agent_session_conflict_handler``.
+    """
 
     def __init__(self, code: AgentSessionConflictCode, message: str | None = None) -> None:
         super().__init__(message or code)
@@ -493,11 +498,11 @@ class _AgentSessionConflict(Exception):
         self.message = message
 
 
-def _conflict_response(
-    code: AgentSessionConflictCode,
-    message: str | None = None,
+async def agent_session_conflict_handler(
+    request: Request,
+    exc: AgentSessionConflict,
 ) -> JSONResponse:
-    body = AgentSessionConflictError(code=code, message=message)
+    body = AgentSessionConflictError(code=exc.code, message=exc.message)
     return JSONResponse(
         body.model_dump(mode="json", exclude_none=True),
         status_code=409,
@@ -1600,7 +1605,7 @@ def _apply_tool_outputs(
     for tool_output in tool_outputs:
         matched_call = tool_calls_by_id.get(tool_output.tool_call_id)
         if matched_call is None:
-            raise _AgentSessionConflict(
+            raise AgentSessionConflict(
                 "agent_session_tool_outputs_conflict",
                 (
                     f"Tool output {tool_output.tool_call_id!r} does not match a "
@@ -1610,7 +1615,7 @@ def _apply_tool_outputs(
             )
         matched_index, call_part = matched_call
         if not _tool_output_matches_call(call_part, tool_output):
-            raise _AgentSessionConflict(
+            raise AgentSessionConflict(
                 "agent_session_tool_outputs_conflict",
                 (
                     f"Tool output {tool_output.tool_call_id!r} names a different "
@@ -1653,7 +1658,7 @@ def _merge_messages(
     updated_messages: dict[_MessageId, PhoenixUIMessage] = {}
     if tool_outputs:
         if not messages or messages[-1].role != "assistant":
-            raise _AgentSessionConflict(
+            raise AgentSessionConflict(
                 "agent_session_tool_outputs_conflict",
                 (
                     "Tool outputs were submitted but the session's latest "
@@ -1777,22 +1782,21 @@ async def _claim_agent_session_turn_lock_for_model(
     agent_session_rowid: int,
     session_model: AgentModelSelection,
     requested_model: AgentModelSelection,
-) -> JSONResponse | None:
+) -> None:
     """Claim the session's turn lock while enforcing the request's model
     precondition.
+
+    Raises ``AgentSessionConflict`` on failure; the raise rolls back the
+    caller's transaction, so a claim taken before a stale-model rejection is
+    never committed.
     """
     if not await _claim_agent_session_turn_lock(
         session,
         agent_session_rowid=agent_session_rowid,
     ):
-        return _conflict_response("agent_session_busy")
+        raise AgentSessionConflict("agent_session_busy")
     if requested_model != session_model:
-        await _clear_agent_session_turn_lock(
-            session,
-            agent_session_rowid=agent_session_rowid,
-        )
-        return _conflict_response("agent_session_model_stale")
-    return None
+        raise AgentSessionConflict("agent_session_model_stale")
 
 
 async def _release_agent_session_turn_lock(
@@ -2193,7 +2197,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         session_id: str,
         request: Request,
         request_body: PatchAgentSessionRequestBody,
-    ) -> PatchAgentSessionResponseBody | JSONResponse:
+    ) -> PatchAgentSessionResponseBody:
         """Update a persisted session's mutable fields."""
         if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
@@ -2222,7 +2226,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         agent_session.heartbeat_at,
                         now=datetime.now(timezone.utc),
                     ):
-                        return _conflict_response("agent_session_busy")
+                        raise AgentSessionConflict("agent_session_busy")
                     await set_session_model(
                         session,
                         agent_session=agent_session,
@@ -2434,15 +2438,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             )
             agent_session_rowid = agent_session.id
             session_model = get_agent_session_model(agent_session)
-            if (
-                conflict := await _claim_agent_session_turn_lock_for_model(
-                    session,
-                    agent_session_rowid=agent_session_rowid,
-                    session_model=session_model,
-                    requested_model=request_body.model,
-                )
-            ) is not None:
-                return conflict
+            await _claim_agent_session_turn_lock_for_model(
+                session,
+                agent_session_rowid=agent_session_rowid,
+                session_model=session_model,
+                requested_model=request_body.model,
+            )
 
         heartbeat_task = asyncio.create_task(
             _heartbeat_agent_session_turn_lock(
@@ -2512,7 +2513,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     or current_latest_row.id != boundary_row.id
                     or current_latest_row.message != boundary_row.message
                 ):
-                    return _conflict_response(
+                    raise AgentSessionConflict(
                         "agent_session_compaction_conflict",
                         "The conversation changed while it was being compacted; try again",
                     )
@@ -2597,7 +2598,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     session_history[-1].message_id if session_history else None
                 )
                 if body.last_message_id != expected_last_message_id:
-                    return _conflict_response("agent_session_messages_stale")
+                    raise AgentSessionConflict("agent_session_messages_stale")
                 merged_transcript = _merge_messages(
                     old_messages=[row.message for row in session_history],
                     new_message=body.message,
@@ -2605,15 +2606,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 )
                 transcript_messages = merged_transcript.messages
                 session_model = get_agent_session_model(agent_session)
-                if (
-                    conflict := await _claim_agent_session_turn_lock_for_model(
-                        session,
-                        agent_session_rowid=agent_session.id,
-                        session_model=session_model,
-                        requested_model=body.model,
-                    )
-                ) is not None:
-                    return conflict
+                await _claim_agent_session_turn_lock_for_model(
+                    session,
+                    agent_session_rowid=agent_session.id,
+                    session_model=session_model,
+                    requested_model=body.model,
+                )
                 # Persist merge rewrites under the turn lock, before the model
                 # runs, so the transcript stays accurate even if the turn fails.
                 for message_row in session_history:
@@ -2627,8 +2625,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     project_name=project_name,
                     agent_session_rowid=agent_session_rowid,
                 )
-        except _AgentSessionConflict as exc:
-            return _conflict_response(exc.code, exc.message)
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 

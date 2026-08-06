@@ -95,6 +95,8 @@ from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, build_context
 from phoenix.server.api.dataloaders import CacheForDataLoaders
 from phoenix.server.api.routers import (
+    AgentSessionConflict,
+    agent_session_conflict_handler,
     create_agents_router,
     create_auth_router,
     create_legacy_agents_router,
@@ -1123,6 +1125,7 @@ def create_app(
         middleware=middlewares,
         exception_handlers={
             HTTPException: plain_text_http_exception_handler,
+            AgentSessionConflict: agent_session_conflict_handler,
         },
         debug=debug,
         swagger_ui_parameters={
