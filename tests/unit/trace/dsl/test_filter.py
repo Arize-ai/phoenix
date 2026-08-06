@@ -243,7 +243,11 @@ async def test_filter_translated(
     "condition",
     [
         pytest.param("name and status_code", id="named-columns"),
-        pytest.param('"" in input.value and span.k', id="issue-5802"),
+        # Reported as `... and span.k`, respelled after `span` became a reserved root:
+        # that spelling is now an invalid-field rejection, pinned in
+        # `test_filter_error_messages.py`, and no longer reaches the boolean-position
+        # check this case exists for. The shape under test is the dotted attribute path.
+        pytest.param('"" in input.value and svc.k', id="issue-5802"),
         pytest.param("revenueio.language_code == 'en-US' and r", id="issue-10306"),
         pytest.param("name == 'n' and r", id="bare-name-operand"),
         pytest.param("name == 'n' and input.value", id="attribute-operand"),

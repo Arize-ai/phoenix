@@ -114,10 +114,36 @@ ACCEPTED = [
     # would silently change this condition's meaning -- every new *name* is a
     # breaking change -- so its current meaning is pinned here on purpose.
     "parent == 'x'",
+    # `span.<field>` is a reserved root over a closed set of members reading this
+    # span's own cost row. Reserving it was a breaking change for conditions that
+    # keyed `attributes['span.*']`, taken deliberately; the members are pinned here
+    # and the shapes beneath the root are pinned in REJECTED.
+    "span.total_cost > 0.1",
+    "span.prompt_cost + span.completion_cost == span.total_cost",
+    "span.total_tokens > 100",
+    "span.total_cost_per_token > 0.0001",
+    # The root shadows only the dotted spelling. Subscripting `attributes` names the
+    # attribute called `span` explicitly and is untouched, and a bare `total_cost` is
+    # still an attribute path -- the cost members are reachable only through the root,
+    # so no previously-bare name changed meaning.
+    "attributes['span'] == 'x'",
+    "total_cost > 1",
 ]
 
 # Every form the spec documents as rejected, with the reason it documents.
 REJECTED = [
+    # Reserved root, closed member set. Nothing lies beneath `span.`, so a misspelling
+    # has no attribute path to fall into and is answered by name -- the property that
+    # reserving the root buys, and the reason the break was worth taking.
+    ("span.totl_cost > 1", "did you mean `span.total_cost`"),
+    ("span.nonsense > 1", "invalid field `span.nonsense`"),
+    ("span.total_cost.foo > 1", "cannot be traversed further"),
+    ("span['total_cost'] > 1", "cannot be traversed further"),
+    ("span == 1", "can only be used as `span.<field>`"),
+    # A resolved member is typed identically on both sides of the compiler, so it
+    # rejects exactly as a bare column does -- the two encodings of one rule, pinned
+    # against each other (`latency_ms > '100'` is the same row, below).
+    ("span.total_cost > '100'", "cannot compare"),
     # no implicit numeric coercion
     ("latency_ms > '100'", "cannot compare"),
     ("'100' < latency_ms", "cannot compare"),

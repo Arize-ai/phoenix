@@ -34,6 +34,8 @@ VALID_CONDITIONS = [
     "metadata['flag'] is True",
     "llm.token_count.total > 5",
     "0.5 < latency_ms < 1000",
+    "span.total_cost > 0.1",
+    "span.total_cost_per_token > 0.0001 and span.total_tokens > 100",
 ]
 
 # Substrings that mean the message is describing Python, or our implementation,
