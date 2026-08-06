@@ -6,9 +6,6 @@ import { financialOrchestratorAgent } from "./agents/financial-orchestrator-agen
 import { financialResearcherAgent } from "./agents/financial-researcher-agent";
 import { financialWriterAgent } from "./agents/financial-writer-agent";
 
-// ArizeExporter POSTs to this URL as given, so it needs the OTLP path.
-const phoenixTracesUrl = `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`;
-
 export const mastra = new Mastra({
   agents: {
     financialOrchestratorAgent,
@@ -22,7 +19,8 @@ export const mastra = new Mastra({
           process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart",
         exporters: [
           new ArizeExporter({
-            endpoint: phoenixTracesUrl,
+            // ArizeExporter POSTs to this URL as given, so it needs the OTLP path.
+            endpoint: `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`,
             apiKey: process.env.PHOENIX_API_KEY,
             projectName: process.env.PHOENIX_PROJECT_NAME,
           }),

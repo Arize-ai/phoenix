@@ -75,9 +75,6 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
     import { Observability } from "@mastra/observability";
     import { ArizeExporter } from "@mastra/arize";
 
-    // ArizeExporter POSTs to this URL as given, so it needs the OTLP path.
-    const phoenixTracesUrl = `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`;
-
     export const mastra = new Mastra({
       agents: {},
       observability: new Observability({
@@ -87,7 +84,8 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
               process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart",
             exporters: [
               new ArizeExporter({
-                endpoint: phoenixTracesUrl,
+                // ArizeExporter POSTs to this URL as given, so it needs the OTLP path.
+                endpoint: `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`,
                 apiKey: process.env.PHOENIX_API_KEY,
                 projectName: process.env.PHOENIX_PROJECT_NAME,
               }),
@@ -347,9 +345,6 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
     import { financialResearcherAgent } from "./agents/financial-researcher-agent";
     import { financialWriterAgent } from "./agents/financial-writer-agent";
 
-    // ArizeExporter POSTs to this URL as given, so it needs the OTLP path.
-    const phoenixTracesUrl = `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`;
-
     export const mastra = new Mastra({
       agents: {
         financialOrchestratorAgent,
@@ -363,7 +358,8 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
               process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart",
             exporters: [
               new ArizeExporter({
-                endpoint: phoenixTracesUrl,
+                // ArizeExporter POSTs to this URL as given, so it needs the OTLP path.
+                endpoint: `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`,
                 apiKey: process.env.PHOENIX_API_KEY,
                 projectName: process.env.PHOENIX_PROJECT_NAME,
               }),
