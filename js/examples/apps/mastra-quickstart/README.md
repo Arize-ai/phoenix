@@ -39,17 +39,6 @@ A quickstart that combines [Mastra](https://mastra.ai) (multi-agent framework) w
    `ArizeExporter` POSTs to it verbatim, so it carries the OTLP `/v1/traces` path and
    `src/mastra/index.ts` passes it straight through.
 
-   Against a hosted or self-hosted instance the pair looks like:
-
-   ```bash
-   PHOENIX_ENDPOINT=https://phoenix.example.com
-   PHOENIX_COLLECTOR_ENDPOINT=https://phoenix.example.com/v1/traces
-   PHOENIX_API_KEY=your-api-key
-   ```
-
-   See [Environments](https://arize.com/docs/phoenix/environments) for the full list of
-   Phoenix environment variables.
-
 ## Scripts
 
 | Script             | Description                                                                                                                                       |

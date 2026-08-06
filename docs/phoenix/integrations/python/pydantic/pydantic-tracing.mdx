@@ -13,14 +13,7 @@ pip install openinference-instrumentation-pydantic-ai pydantic-ai opentelemetry-
 
 ## Setup
 
-Point Phoenix at your instance:
-
-```bash
-export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006  # base URL; the snippet below appends /v1/traces
-export PHOENIX_API_KEY=your-api-key                      # only if your Phoenix has authentication enabled
-```
-
-Then set up tracing using OpenTelemetry and the PydanticAI instrumentation:
+Set up tracing using OpenTelemetry and the PydanticAI instrumentation:
 
 ```python expandable
 import os

@@ -3,45 +3,22 @@ title: "What is my Phoenix Endpoint?"
 ---
 
 
-Your Phoenix instance has one URL, and two environment variables point at it — one per concern:
+There are two endpoints that matter in Phoenix:
 
-1. **API access** — `PHOENIX_ENDPOINT`. Read by the Phoenix clients, the `px` CLI, and MCP to query traces, log annotations, and retrieve prompts.
-2. **Trace export** — `PHOENIX_COLLECTOR_ENDPOINT`. Where your instrumented application sends OpenTelemetry traces.
+1. **Application Endpoint:** The endpoint your Phoenix instance is running on
+2. **OTEL Tracing Endpoint:** The endpoint through which your Phoenix instance receives OpenTelemetry traces
 
-You choose the URL itself when you set up the app. For a local `phoenix serve` it is `http://localhost:6006`. For a remote deployment it is under the `Hostname` field of the **Settings** page.
+### **Application Endpoint**
 
-### API access — `PHOENIX_ENDPOINT`
+You choose this endpoint when you set up the app. For a local `phoenix serve` the default is `http://localhost:6006`. For a remote deployment, it's available under the `Hostname` field of the **Settings** page.
 
-Always a plain base URL, with no request path: the clients and the CLI append their own.
+To set this endpoint, use the `PHOENIX_ENDPOINT` environment variable. This is used by the Phoenix client package to query traces, log annotations, and retrieve prompts.
 
-```bash
-export PHOENIX_ENDPOINT=http://localhost:6006
-```
+### **OTEL Tracing Endpoint**
 
-If you have only ever set `PHOENIX_COLLECTOR_ENDPOINT`, that keeps working — API access falls back to it.
+You choose this endpoint when you set up the app. For a remote deployment, it's available under the `Hostname` field of the **Settings** page. For a local `phoenix serve` the defaults are:
 
-### Trace export — `PHOENIX_COLLECTOR_ENDPOINT`
+* Using the GRPC protocol: `http://localhost:4317`
+* Using the HTTP protocol: `http://localhost:6006/v1/traces`
 
-This one accepts either the base URL or the full OTLP trace endpoint. Which shape you want depends on the exporter reading it:
-
-* **`register()`** derives the OTLP target itself, so give it the base URL:
-
-  ```bash
-  export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
-  ```
-
-  Left to infer, Python's `register()` sends over OTLP/gRPC on port `4317` for self-hosted servers; pass `protocol="http/protobuf"` to send over HTTP instead. The TypeScript SDK always uses OTLP/HTTP.
-
-* **Exporters that POST to exactly the URL they are given** — a bare `OTLPSpanExporter`, Mastra's `ArizeExporter` — need the full OTLP/HTTP URL:
-
-  ```bash
-  export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
-  ```
-
-You can also skip the variable and pass the target to `register()` directly, as `register(endpoint="http://localhost:6006/v1/traces")`.
-
-<Tip>
-In the common case one Phoenix serves both concerns, so set both variables to the same base URL — which is what `px setup` writes into `.env.phoenix`. Set them to different values only when trace ingest and API access genuinely live at different addresses.
-</Tip>
-
-For every connection setting and the order each one resolves in, see [Environments](/docs/phoenix/environments).
+To set this endpoint, use the `register(endpoint=YOUR ENDPOINT)` function. This endpoint can also be set using environment variables. For more on the register function and other configuration options, [see here](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-otel#configuring-the-collector-endpoint).

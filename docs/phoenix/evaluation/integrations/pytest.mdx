@@ -326,11 +326,9 @@ The plugin is configured entirely through environment variables, so the same sui
 | `PHOENIX_TEST_TRACKING` | `true` | Master switch. Set to `0` or `false` to run offline — tests execute but nothing is sent to Phoenix. |
 | `PHOENIX_TEST_REPETITIONS` | `1` | Default repetitions per marked test. |
 | `PHOENIX_TEST_DATASET` | _(file path)_ | Override the dataset name for all collected tests. |
-| `PHOENIX_ENDPOINT` | `http://localhost:6006` | Base URL of your Phoenix server. The plugin sends both its API calls and its spans here. |
+| `PHOENIX_ENDPOINT` | — | Your Phoenix server URL. |
 | `PHOENIX_API_KEY` | — | Bearer token for Phoenix. |
 | `PHOENIX_CLIENT_HEADERS` | — | Optional JSON headers forwarded to the Phoenix client. |
-
-If you already set `PHOENIX_COLLECTOR_ENDPOINT` for tracing, the plugin falls back to it, so an existing setup keeps working. See [Environments](/docs/phoenix/environments) for how the endpoint variables relate.
 
 To iterate locally without recording anything:
 

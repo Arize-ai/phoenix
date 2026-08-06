@@ -84,9 +84,8 @@ disable discovery entirely.
 
 Credentials (`PHOENIX_API_KEY` and `PHOENIX_CLIENT_HEADERS`) and server location
 (`PHOENIX_ENDPOINT` and the variables it falls back to) are each resolved as a
-group from one source tier, so a value never mixes with one from a
-lower-priority source. If explicit or process credentials are paired with an
-endpoint from `.env.phoenix`, the client warns once and continues without
+group from one source tier. If explicit or process credentials are paired with
+an endpoint from `.env.phoenix`, the client warns once and continues without
 logging credential values.
 
 Discovery results, including a missing file, are cached per working directory

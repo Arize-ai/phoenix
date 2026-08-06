@@ -71,42 +71,28 @@ Phoenix reads its connection settings from environment variables. Two endpoint v
 
 | Variable | What it is | When to set it |
 |----------|------------|----------------|
-| `PHOENIX_COLLECTOR_ENDPOINT` | Where your **traces are exported**. Read by `register()` and the OTLP exporters it configures. Accepts either a Phoenix base URL (`http://localhost:6006`) or a full OTLP trace endpoint (`http://localhost:6006/v1/traces`) — [which shape you need](#which-collector-url-shape-do-you-need) depends on the exporter. | Whenever you are tracing to a Phoenix that isn't at `http://localhost:6006`. **Phoenix's OTel SDKs take their export target from this variable.** |
-| `PHOENIX_ENDPOINT` | The base URL for **everything except trace export** — the API clients, the `px` CLI, and MCP. Always a base URL (e.g. `http://localhost:6006`); it never carries a request path. | Whenever you use those against a Phoenix that isn't at `http://localhost:6006`. Falls back to `PHOENIX_COLLECTOR_ENDPOINT`. |
+| `PHOENIX_COLLECTOR_ENDPOINT` | Where your **traces are exported**. Read by `register()` and the OTLP exporters it configures. Takes either a Phoenix base URL (`http://localhost:6006`) or a full OTLP trace endpoint (`http://localhost:6006/v1/traces`), depending on the exporter that reads it. | Whenever you are tracing to a Phoenix that isn't at `http://localhost:6006`. **Phoenix's OTel SDKs take their export target from this variable.** |
+| `PHOENIX_ENDPOINT` | The base URL for **everything except trace export** — the API clients, the `px` CLI, and MCP. Always a base URL (e.g. `http://localhost:6006`), never a request path. | Whenever you use those against a Phoenix that isn't at `http://localhost:6006`. Falls back to `PHOENIX_COLLECTOR_ENDPOINT`. |
 | `PHOENIX_API_KEY` | The credential used to **authenticate** to a Phoenix instance that has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled. | When connecting to any authenticated deployment. A local `phoenix serve` needs none. |
 | `PHOENIX_CLIENT_HEADERS` | Extra headers (JSON) sent with every request, e.g. `api_key=...`. | Only when a deployment requires custom headers. |
 
 **If you set only one, set `PHOENIX_COLLECTOR_ENDPOINT`.** It configures tracing, and the clients and the `px` CLI fall back to it for API access — so one value covers everything. `PHOENIX_ENDPOINT` is the canonical setting for those client surfaces, and it wins when both are set, but the fallback means you rarely need it on its own.
 
-The two variables back each other up, but not yet symmetrically. API access falls back to `PHOENIX_COLLECTOR_ENDPOINT` in every SDK; trace export does not yet read `PHOENIX_ENDPOINT` in every SDK (see [Full resolution order](#full-resolution-order)), so setting **only** `PHOENIX_ENDPOINT` can still leave trace export pointed at `http://localhost:6006`.
+The fallback does not run both ways in every SDK. API access falls back to `PHOENIX_COLLECTOR_ENDPOINT` everywhere, but Python trace export does not yet read `PHOENIX_ENDPOINT`, so setting **only** `PHOENIX_ENDPOINT` can leave Python trace export pointed at `http://localhost:6006`.
 
 Set both — to the same value in the usual case where one Phoenix serves both concerns, which is what `px setup` writes into `.env.phoenix`, or to different values when trace ingest and API access genuinely live at different URLs.
 
 `PHOENIX_HOST` is **not** a client setting — on the Phoenix server it is the bind host (e.g. `0.0.0.0`, paired with `PHOENIX_PORT`). Some JS tools still accept it as a last-resort legacy fallback for the base URL, but new configuration should use the variables above.
 
-### Which collector URL shape do you need?
-
-`PHOENIX_ENDPOINT` is always a plain base URL — the `px` CLI and the API clients append their own request paths to it. `PHOENIX_COLLECTOR_ENDPOINT` accepts two shapes, and which one you need depends on the exporter that reads it:
-
-- **`register()`** derives the OTLP target itself, so the **base URL** form is the one to use. The TypeScript SDK appends `/v1/traces` (OTLP/HTTP); the Python SDK infers the transport, using OTLP/gRPC on port `4317` for self-hosted servers unless you pass `protocol="http/protobuf"`.
-- **Exporters that POST to exactly the URL they are given** — `@mastra/arize`'s `ArizeExporter`, a bare `OTLPTraceExporter` — need the **full OTLP/HTTP URL**, so give them the `/v1/traces`-suffixed form. Either set `PHOENIX_COLLECTOR_ENDPOINT` to that URL, or build it in code where the exporter is constructed, the way the Mastra examples do (`` `${PHOENIX_COLLECTOR_ENDPOINT}/v1/traces` ``).
-
-The suffixed form stays usable for API access either way: the `px` CLI and the API clients strip a trailing `/v1/traces` when they infer their base URL from this variable.
-
 <Warning>
-With Python's `register()`, pair a `/v1/traces`-suffixed `PHOENIX_COLLECTOR_ENDPOINT` with `protocol="http/protobuf"`. Left to infer, the Python SDK rewrites the endpoint's port to the gRPC port `4317` while keeping the `/v1/traces` path, and traces are exported to a URL that answers nothing.
+Keep `PHOENIX_ENDPOINT` a **base URL**. The `px` CLI and the API clients append their own request paths to it.
+
+`PHOENIX_COLLECTOR_ENDPOINT` takes the shape the exporter reading it needs. `register()` derives the OTLP target from a base URL — the TypeScript SDK appends `/v1/traces` (OTLP/HTTP), while the Python SDK infers the transport, using OTLP/gRPC on port `4317` for self-hosted servers unless you pass `protocol="http/protobuf"`; a gRPC endpoint is just `host:port`.
+
+Exporters that POST to exactly the URL they are given — `@mastra/arize`'s `ArizeExporter`, a bare `OTLPTraceExporter` — need the *full* OTLP/HTTP URL. Set `PHOENIX_COLLECTOR_ENDPOINT` to the `/v1/traces`-suffixed form, or build that URL in code where the exporter is constructed, the way the Mastra examples do (`` `${PHOENIX_COLLECTOR_ENDPOINT}/v1/traces` ``). The `px` CLI and the API clients strip the suffix when inferring their base URL from it.
+
+With Python's `register()`, pair a suffixed value with `protocol="http/protobuf"`. Left to infer, the Python SDK rewrites the port to the gRPC port `4317` and keeps the `/v1/traces` path, and no spans arrive.
 </Warning>
-
-### Full resolution order
-
-Each concern resolves through a chain — the settings above are the top of each one. You should not need the rest, but they explain why an unfamiliar environment resolves the way it does:
-
-| Concern | Resolution order |
-|---------|------------------|
-| **API access** — clients, `px` CLI, MCP | `PHOENIX_ENDPOINT` → `PHOENIX_COLLECTOR_ENDPOINT` (any trailing `/v1/traces` stripped) → `OTEL_EXPORTER_OTLP_ENDPOINT` → `PHOENIX_HOST` (with `PHOENIX_PORT`) → `http://localhost:6006` |
-| **Trace export** — `register()` and the exporters it configures | the `endpoint` / `url` argument → `PHOENIX_COLLECTOR_ENDPOINT` → `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` (used as-is — full URL) → `OTEL_EXPORTER_OTLP_ENDPOINT` → `PHOENIX_ENDPOINT` → `http://localhost:6006` |
-
-The lower rungs of the trace-export chain are still arriving in Python: `arize-phoenix-otel` reads `OTEL_EXPORTER_OTLP_ENDPOINT` but neither `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` nor `PHOENIX_ENDPOINT`, while the TypeScript package implements the chain in full. Setting `PHOENIX_COLLECTOR_ENDPOINT` avoids the difference entirely.
 
 ### Choosing a project
 

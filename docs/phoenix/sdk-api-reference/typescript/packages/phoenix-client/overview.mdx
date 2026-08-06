@@ -128,8 +128,6 @@ const client = createClient({
 | `PHOENIX_API_KEY` | `options.headers.Authorization` | Bearer token for authenticated environments. |
 | `PHOENIX_CLIENT_HEADERS` | `options.headers` | Optional JSON-encoded object of additional headers to send on every request. Most setups do not need this. |
 
-When `PHOENIX_ENDPOINT` is unset, the client falls back to your trace-export setting and then to older variables such as `PHOENIX_HOST`, so an existing environment keeps resolving to the same server. See [Environments](/docs/phoenix/environments) for the full resolution order.
-
 ## API Client
 
 `createClient()` returns an `openapi-fetch` client that is typed against Phoenix's generated OpenAPI schema. Use this layer when you need an endpoint that does not yet have a high-level helper.

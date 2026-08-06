@@ -29,9 +29,8 @@ You can run every query in this guide against any Phoenix project that has trace
     ```bash
     npm install -g @arizeai/phoenix-cli       # provides the `px` command
 
-    # Scoped to THIS terminal (re-run it in each new shell). The `px` CLI and
-    # the Python/TS clients read PHOENIX_ENDPOINT, falling back to
-    # PHOENIX_COLLECTOR_ENDPOINT if you already have that one set.
+    # Scoped to THIS terminal (re-run it in each new shell). Both the `px` CLI
+    # and the Python/TS clients read PHOENIX_ENDPOINT.
     export PHOENIX_ENDPOINT=http://localhost:6006
     export PHOENIX_PROJECT=high-signal-demo
 

@@ -29,7 +29,7 @@ from phoenix.otel import register
 tracer_provider = register()
 ```
 
-That's it! By default, `register` reads the `PHOENIX_COLLECTOR_ENDPOINT` environment variable, falling back to `http://localhost:6006` if the variable is not set. It then chooses the transport: for a self-hosted Phoenix it uses OTLP/gRPC and rewrites the port to the gRPC port `4317`, so an otherwise unconfigured `register()` exports to `http://localhost:4317`. Pass `protocol="http/protobuf"` to send OTLP/HTTP to `/v1/traces` instead.
+That's it! By default, `register` reads the `PHOENIX_COLLECTOR_ENDPOINT` environment variable, falling back to `http://localhost:4317` using gRPC if the variable is not set.
 
 ## Configuration
 
@@ -39,7 +39,7 @@ The SDK automatically reads these environment variables:
 
 | Variable | Description |
 |----------|-------------|
-| `PHOENIX_COLLECTOR_ENDPOINT` | Base Phoenix collector URL. A full OTLP trace endpoint also works when paired with `protocol="http/protobuf"` |
+| `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix server URL |
 | `PHOENIX_PROJECT` | Project name for traces (canonical) |
 | `PHOENIX_PROJECT_NAME` | Alias for `PHOENIX_PROJECT`; if both are set, `PHOENIX_PROJECT` wins |
 | `PHOENIX_API_KEY` | API key (automatically adds auth header) |

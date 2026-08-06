@@ -100,8 +100,6 @@ When using **Vertex AI Agent Engine** for remote deployment, instrumentation mus
 
 When deployed to Agent Engine, the Vertex AI framework aggressively manages the OpenTelemetry global state. If Phoenix uses the global `TracerProvider`, Vertex AI will automatically shut down the Phoenix export pipeline during container initialization, resulting in dropped traces and warnings. To avoid this, Phoenix must use an isolated (non-global) provider.
 
-Your agent runs inside Agent Engine, so the collector endpoint has to be a Phoenix that Google Cloud can reach — `http://localhost:6006` resolves to the Agent Engine container, not to your machine.
-
 **Main Application:**
 ```python expandable
 from vertexai import agent_engines
@@ -115,6 +113,7 @@ remote_agent = agent_engines.create(
     ],
     extra_packages=["adk_agent.py"],
     env_vars={
+        # Agent Engine reaches this URL, not your machine, so localhost will not work here
         "PHOENIX_COLLECTOR_ENDPOINT": "https://your-phoenix.example.com",  # Base URL of your Phoenix deployment — register() derives the OTLP target from it; no /v1/traces here
         "PHOENIX_API_KEY": "<your-phoenix-api-key>",
     },

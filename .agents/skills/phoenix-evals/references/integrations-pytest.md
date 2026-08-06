@@ -115,7 +115,7 @@ Refusal = invariant (asserted → gates CI); helpfulness + latency = signals (lo
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PHOENIX_ENDPOINT` | — | Phoenix base URL for API access — the client reads this. Falls back to `PHOENIX_COLLECTOR_ENDPOINT` when unset, so a repo already configured for tracing works unchanged |
+| `PHOENIX_ENDPOINT` | — | Phoenix base URL |
 | `PHOENIX_API_KEY` | — | Bearer token |
 | `PHOENIX_CLIENT_HEADERS` | — | Optional JSON headers |
 | `PHOENIX_TEST_TRACKING` | `true` | Set `0`/`false` to run offline (tests execute, nothing uploaded) |

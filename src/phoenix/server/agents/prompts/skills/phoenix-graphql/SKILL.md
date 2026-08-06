@@ -89,7 +89,7 @@ query Overview($name: String!, $timeRange: TimeRange) {
 
 Facts users need to call the API themselves:
 
-- **Endpoint**: `POST <phoenix-endpoint>/graphql` with a JSON body `{ "query": "...", "variables": { ... } }`, where `<phoenix-endpoint>` is the Phoenix base URL (`PHOENIX_ENDPOINT`, e.g. `http://localhost:6006`). A GraphiQL IDE is served on GET at the same path.
+- **Endpoint**: `POST <phoenix-endpoint>/graphql` with a JSON body `{ "query": "...", "variables": { ... } }`, where `<phoenix-endpoint>` is the Phoenix base URL from `PHOENIX_ENDPOINT`. A GraphiQL IDE is served on GET at the same path.
 - **Auth**: send a Phoenix API key as a bearer token: `Authorization: Bearer <API_KEY>`. API keys are created in Phoenix settings.
 - The GraphQL schema is primarily designed for the Phoenix UI and may change between versions; for stable programmatic access, recommend the REST API (`/v1/...`) and the `arize-phoenix-client` Python / `@arizeai/phoenix-client` TypeScript packages where they cover the need, and GraphQL for everything else.
 

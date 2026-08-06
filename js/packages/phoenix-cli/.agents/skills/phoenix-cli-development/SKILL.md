@@ -232,10 +232,7 @@ The CLI MUST resolve configuration from multiple sources. Use `resolveConfig()` 
 
 1. **CLI flags** (highest priority) — `--endpoint`, `--api-key`, `--project`
 2. **Environment variables** — `PHOENIX_ENDPOINT`, `PHOENIX_API_KEY`, `PHOENIX_PROJECT` (alias: `PHOENIX_PROJECT_NAME`)
-3. **Profiles** — the named profile selected by `--profile` or the active one
-4. **Defaults** — `http://localhost:6006` for endpoint
-
-`PHOENIX_ENDPOINT` is the canonical endpoint variable and the top of a ranked chain: the trace-export variable `PHOENIX_COLLECTOR_ENDPOINT` is read below it as an *inferred* endpoint, and `PHOENIX_HOST` below that as *legacy*. The rank matters — an inferred endpoint yields to a configured profile, a canonical one does not. Do not restate the chain here or in command code: `js/packages/phoenix-config/src/env.ts` is the source of truth for both the order and the rank each variable carries.
+3. **Defaults** — `http://localhost:6006` for endpoint
 
 Command handlers MUST NOT read environment variables directly.
 
