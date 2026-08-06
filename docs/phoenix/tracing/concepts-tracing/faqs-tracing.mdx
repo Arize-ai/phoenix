@@ -4,53 +4,44 @@ title: "FAQs: Tracing"
 
 ## How to log traces
 
-To log traces, you must instrument your application either manually or automatically. To log to a remote instance of Phoenix, you must also configure the host and port where your traces will be sent.
+To log traces, you must instrument your application either manually or automatically. To log to a remote instance of Phoenix, you must also point `PHOENIX_COLLECTOR_ENDPOINT` at it.
 
 <Tabs>
 <Tab title="Local Phoenix">
-When running running Phoenix locally on the default port of `6006`, no additional configuration is necessary.
+When running Phoenix locally on the default port of `6006`, no additional configuration is necessary.
 
 ```python
 import phoenix as px
-from phoenix.trace import LangChainInstrumentor
+from openinference.instrumentation.langchain import LangChainInstrumentor
+from phoenix.otel import register
 
 px.launch_app()
 
-LangChainInstrumentor().instrument()
+tracer_provider = register()
+LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
 
 # run your LangChain application
 ```
 </Tab>
 
 <Tab title="Remote Phoenix">
-If you are running a remote instance of Phoenix, you can configure your instrumentation to log to that instance using the `PHOENIX_HOST` and `PHOENIX_PORT` environment variables.
+If you are running a remote instance of Phoenix, set `PHOENIX_COLLECTOR_ENDPOINT` to its URL before registering. Include the scheme — the value is parsed as a URL.
 
 ```python
 import os
-from phoenix.trace import LangChainInstrumentor
+from openinference.instrumentation.langchain import LangChainInstrumentor
+from phoenix.otel import register
 
 # assume phoenix is running at 162.159.135.42:6007
-os.environ["PHOENIX_HOST"] = "162.159.135.42"
-os.environ["PHOENIX_PORT"] = "6007"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://162.159.135.42:6007"
 
-LangChainInstrumentor().instrument()  # logs to http://162.159.135.42:6007
+tracer_provider = register()
+LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
 
 # run your LangChain application
 ```
 
-Alternatively, you can use the `PHOENIX_COLLECTOR_ENDPOINT` environment variable.
-
-```python
-import os
-from phoenix.trace import LangChainInstrumentor
-
-# assume phoenix is running at 162.159.135.42:6007
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "162.159.135.42:6007"
-
-LangChainInstrumentor().instrument()  # logs to http://162.159.135.42:6007
-
-# run your LangChain application
-```
+Given a base URL like the one above, `register()` exports over OTLP/gRPC on port `4317`. If only the HTTP port is reachable, pass `register(protocol="http/protobuf")` to export to `/v1/traces` instead. If the deployment has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled, also set `PHOENIX_API_KEY`. See [Environments](/docs/phoenix/environments) for the rest of the connection settings.
 </Tab>
 </Tabs>
 
@@ -113,7 +104,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk import trace as trace_sdk
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-endpoint = "http://127.0.0.1:6006/v1/traces"  # full OTLP traces URL — not PHOENIX_COLLECTOR_ENDPOINT, which is a base URL
+endpoint = "http://127.0.0.1:6006/v1/traces"  # OTLPSpanExporter POSTs here verbatim, so the URL carries the OTLP path
 tracer_provider = trace_sdk.TracerProvider()
 trace_api.set_tracer_provider(tracer_provider)
 tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
