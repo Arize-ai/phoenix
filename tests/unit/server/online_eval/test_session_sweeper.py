@@ -179,7 +179,7 @@ async def test_session_with_null_liveness_is_never_eligible(
 async def test_storage_pause_renews_lease_without_materializing(
     db: DbSessionFactory,
 ) -> None:
-    project_id, project_session_id, last_span_seen_at = await _add_session_liveness(
+    project_id, project_session_id, last_span_ingested_at = await _add_session_liveness(
         db,
         age_seconds=600,
     )
@@ -215,7 +215,7 @@ async def test_storage_pause_renews_lease_without_materializing(
             )
         ).one()
     assert work_count == 0
-    assert project_session.last_span_seen_at == last_span_seen_at
+    assert project_session.last_span_ingested_at == last_span_ingested_at
     assert cursor.claimed_by == sweeper._sweeper_id
 
 
