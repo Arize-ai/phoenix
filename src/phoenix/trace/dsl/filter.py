@@ -21,6 +21,11 @@ from phoenix.db.models import SafeJsonBoolean, SafeJsonFloat
 
 NameMap: TypeAlias = typing.Mapping[str, "sqlalchemy.SQLColumnExpression[typing.Any]"]
 
+# Declared here rather than beside the inference rules that consume it, because the
+# reserved-root declarations below type their members with it. As a forward reference it
+# degrades the `NamedTuple` synthesized from those declarations.
+FilterValueType: TypeAlias = typing.Literal["boolean", "datetime", "number", "string", "null"]
+
 _VALID_EVAL_ATTRIBUTES: tuple[str, ...] = ("score", "label", "explanation")
 
 
@@ -191,6 +196,16 @@ class _RootNamespace(typing.NamedTuple):
         """
         return f"__{self.keyword}_{member}__"
 
+    def iterable_key(self, member: str) -> str:
+        """The grain-wide name a collection member is registered under in `iterables`.
+
+        Dotted on purpose. Iterables are also resolvable as bare identifiers, so
+        registering this one as `cost_details` would make that bare name an iterable and
+        silently change what a stored condition using it as an attribute meant -- the very
+        break the reserved root exists to avoid. No bare identifier can equal a dotted key.
+        """
+        return f"{self.keyword}.{member}"
+
 
 # The `span` root reads this span's own cost row. Cost lives on `span_costs`, not on
 # `spans`, so these are not columns of the filtered row -- they are bound per-instance
@@ -217,7 +232,24 @@ _SPAN_COST_SCALARS: typing.Mapping[str, "FilterValueType"] = MappingProxyType(
 _SPAN_COST_RATIOS: frozenset[str] = frozenset(
     {"total_cost_per_token", "prompt_cost_per_token", "completion_cost_per_token"}
 )
-_SPAN_NAMESPACE = _RootNamespace(keyword="span", scalars=_SPAN_COST_SCALARS)
+_SPAN_COST_DETAILS = "cost_details"
+# The per-token-type rows behind this span's cost. Element fields stay nullable rather than
+# coalescing: unlike the rollups above, a detail row's `cost` being absent is a fact about
+# that row, and the family's rule is that a missing value fails every comparison.
+_COST_DETAIL_FIELDS: typing.Mapping[str, str] = MappingProxyType(
+    {
+        "token_type": "string",
+        "is_prompt": "boolean",
+        "cost": "float",
+        "tokens": "float",
+        "cost_per_token": "float",
+    }
+)
+_SPAN_NAMESPACE = _RootNamespace(
+    keyword="span",
+    scalars=_SPAN_COST_SCALARS,
+    iterables=frozenset({_SPAN_COST_DETAILS}),
+)
 
 # Comprehension forms: `any`/`all` yield a boolean, the rest yield a number. Each extracted
 # comprehension is replaced by a reserved name carrying the matching prefix, which is how the
@@ -337,6 +369,12 @@ class _IterableGrammar(typing.NamedTuple):
     element_bindings: _FilterBindings
     nested: typing.Mapping[str, str] = MappingProxyType({})
     related: typing.Mapping[str, _FilterBindings] = MappingProxyType({})
+    # How the elements are reached, for grains whose comprehensions are lowered by
+    # `_comprehension_bindings` below. `scope` receives a select already reading from the
+    # aliased `model` and returns it joined and correlated to the row being filtered. The
+    # session grain lowers its own comprehensions and leaves both unset.
+    model: typing.Optional[typing.Any] = None
+    scope: typing.Optional[typing.Callable[[typing.Any, typing.Any], typing.Any]] = None
 
 
 class ElementFieldReference(typing.NamedTuple):
@@ -348,6 +386,77 @@ class ElementFieldReference(typing.NamedTuple):
     kind: typing.Literal["string", "float", "datetime", "boolean"]
     uppercase: bool
 
+
+def _cost_detail_bindings() -> _FilterBindings:
+    """The language a predicate inside `for x in span.cost_details` compiles against.
+
+    Strict and closed, unlike the span grain around it. The outer dialect is permissive
+    because it predates the family and its accepted surface is a compatibility promise;
+    this scope is new, has no stored conditions to honour, and so gets the family's
+    established comprehension dialect -- unknown names rejected with a suggestion, every
+    sub-expression typed before SQL is built.
+    """
+
+    def columns(kind: str) -> NameMap:
+        return MappingProxyType(
+            {
+                name: getattr(models.SpanCostDetail, name)
+                for name, field_kind in _COST_DETAIL_FIELDS.items()
+                if field_kind == kind
+            }
+        )
+
+    return _FilterBindings(
+        string_names=columns("string"),
+        float_names=columns("float"),
+        datetime_names=MappingProxyType({}),
+        boolean_names=columns("boolean"),
+        extra_names=MappingProxyType({}),
+        aggregate_names=frozenset(),
+        legacy_replacements=MappingProxyType({}),
+        uppercase_names=frozenset(),
+        # Annotations are unreachable from inside a comprehension, so this surface is
+        # declared to satisfy the dataclass and never consulted.
+        annotation_model=models.SpanAnnotation,
+        annotation_fk="span_rowid",
+        entity_id=models.Span.id,
+        annotation_table_prefix="span_annotation",
+        reject_unbound_names=True,
+        case_insensitive_containment=True,
+        strict_semantics=True,
+    )
+
+
+def _scope_cost_details(stmt: typing.Any, element: typing.Any) -> typing.Any:
+    """Join an aliased `SpanCostDetail` to its cost row and correlate that to this span.
+
+    `SpanCost` is aliased rather than named directly because a caller may already have it
+    in the enclosing statement, where SQLAlchemy would correlate the outer one instead of
+    adding it to this subquery -- silently widening the predicate to every span's details.
+
+    `Span` is correlated explicitly rather than left to auto-correlation, which only omits
+    a relation the immediately enclosing query selects from. This subquery is nested one
+    deeper than that whenever the same condition also reads an annotation, and `spans`
+    would then be re-rendered here as a cross join -- reading as "any span at all has a
+    matching detail" rather than "this one does".
+    """
+    span_cost = aliased(models.SpanCost)
+    return (
+        stmt.join(span_cost, onclause=span_cost.id == element.span_cost_id)
+        .where(span_cost.span_rowid == models.Span.id)
+        .correlate(models.Span)
+    )
+
+
+_SPAN_ITERABLES: typing.Mapping[str, "_IterableGrammar"] = MappingProxyType(
+    {
+        _SPAN_NAMESPACE.iterable_key(_SPAN_COST_DETAILS): _IterableGrammar(
+            element_bindings=_cost_detail_bindings(),
+            model=models.SpanCostDetail,
+            scope=_scope_cost_details,
+        ),
+    }
+)
 
 SPAN_BINDINGS = _FilterBindings(
     string_names=_STRING_NAMES,
@@ -367,11 +476,12 @@ SPAN_BINDINGS = _FilterBindings(
     entity_id=models.Span.id,
     annotation_table_prefix="span_annotation",
     reject_unbound_names=False,
-    quantifiers=frozenset(),
+    quantifiers=frozenset(COMPREHENSION_NAMES),
     exists_names=frozenset(),
     supports_parent_keyword=True,
     case_insensitive_containment=True,
     root_namespace=_SPAN_NAMESPACE,
+    iterables=_SPAN_ITERABLES,
 )
 
 
@@ -515,6 +625,16 @@ def _resolve_iterable(
         )
         raise SyntaxError(f"invalid iterable `{node.id}`{suggestion}")
     if isinstance(node, ast.Attribute) and isinstance(value := node.value, ast.Name):
+        namespace = bindings.root_namespace
+        if namespace is not None and value.id == namespace.keyword:
+            # A collection member of the reserved root, e.g. `span.cost_details`. Registered
+            # under its dotted spelling, so it is reachable only this way -- see
+            # `_RootNamespace.iterable_key`.
+            if (member := node.attr) not in namespace.iterables:
+                raise _invalid_member_error(member, namespace)
+            if scopes:
+                raise _nested_iterable_error(ast.unparse(node), scopes[-1])
+            return namespace.iterable_key(member), None
         if (scope := _scope_of(value.id, scopes)) is not None:
             if len(scopes) > 1:
                 raise _nested_iterable_error(ast.unparse(node), scopes[-1])
@@ -671,12 +791,17 @@ def _validate_comprehensions(
             if _scope_of(variable, scopes) is not None:
                 raise SyntaxError(f"`{variable}` is already in use as a loop variable")
             if (namespace := bindings.root_namespace) is not None and variable == namespace.keyword:
-                # Shadowing the reserved root would make `span.<x>` mean the loop element in
-                # one scope and the filtered row in another. Structural validation walks the
-                # raw tree with no scope information, so it could not tell them apart --
-                # rejecting the name is cheaper than teaching that walk about scopes. Grains
-                # without a reserved root are unaffected, which is why the session grain can
-                # keep spelling its span loops `for span in spans`.
+                # Python would allow the shadow; this is a deliberate deviation, for the
+                # sake of a construct the family already intends to grow. Comparing an
+                # element field against an outer field -- `any(d.cost > span.total_cost / 2
+                # for d in span.cost_details)` -- is on the roadmap for every grain. It can
+                # only exist if the root denotes the filtered row in every scope, so the
+                # root is treated as a keyword rather than a bindable name.
+                #
+                # Rejecting is also the reversible direction: under the additive-only
+                # policy a rejection can be lifted later, while a restriction added later
+                # cannot. Grains that reserve no root are unaffected, which is how the
+                # session grain keeps spelling its span loops `for span in spans`.
                 raise SyntaxError(
                     f"`{namespace.keyword}` is reserved and cannot be a loop variable"
                 )
@@ -1183,6 +1308,76 @@ def _join_span_cost(
     return stmt, span_cost, bindings
 
 
+_REDUCTIONS: typing.Mapping[str, typing.Any] = MappingProxyType(
+    {
+        "sum": sqlalchemy.func.sum,
+        "max": sqlalchemy.func.max,
+        "min": sqlalchemy.func.min,
+    }
+)
+
+
+def _comprehension_bindings(
+    specs: typing.Iterable[ComprehensionSpec],
+    bindings: _FilterBindings,
+) -> dict[str, typing.Any]:
+    """Build each extracted comprehension as a correlated subquery over its element table.
+
+    Correlated only. The session grain also has an uncorrelated `scan` lowering, because a
+    session aggregates over thousands of spans and paying a probe per session row is the
+    cost it exists to avoid; a span's own collections are small and one hop away, so the
+    correlated shape is the whole story here. That also sidesteps the `NOT IN` anti-set
+    blowup the scan lowering has for `all(...)`, which is not a shape this can produce.
+
+    Parameterized by `bindings` rather than by a grain, so the seam is the one a lowering
+    shared across grains would use: what varies is the iterable's model and how it
+    correlates, both declared on `_IterableGrammar`.
+    """
+    result: dict[str, typing.Any] = {}
+    for spec in specs:
+        grammar = bindings.iterables[spec.iterable]
+        if grammar.model is None or grammar.scope is None:
+            raise ValueError(f"iterable {spec.iterable!r} declares no lowering")
+        element = aliased(grammar.model)
+        element_globals = _eval_globals(
+            grammar.element_bindings,
+            {},
+            {
+                **spec.literal_bindings,
+                **{name: getattr(element, name) for name in grammar.element_bindings.names},
+            },
+        )
+        # `None` only for `len`, which counts rows and has no element expression; every
+        # other kind reduces or tests one, so the branches below can rely on it.
+        predicate: typing.Any = (
+            None if spec.predicate is None else eval(spec.predicate, element_globals)
+        )
+        if spec.kind in QUANTIFIER_NAMES:
+            stmt = sqlalchemy.select(literal(1))
+        elif spec.kind == "len":
+            stmt = sqlalchemy.select(sqlalchemy.func.count())
+        else:
+            stmt = sqlalchemy.select(_REDUCTIONS[spec.kind](predicate))
+        stmt = grammar.scope(stmt.select_from(element), element)
+        if spec.condition is not None:
+            stmt = stmt.where(eval(spec.condition, element_globals))
+        if spec.kind == "any":
+            result[spec.name] = stmt.where(predicate).exists()
+        elif spec.kind == "all":
+            # A missing field fails every comparison, so an element whose predicate is NULL
+            # has to count as a counterexample: `IS NOT TRUE`, never `NOT`.
+            result[spec.name] = sqlalchemy.not_(stmt.where(predicate.is_not(True)).exists())
+        elif spec.kind in ("len", "sum"):
+            # Python's `len(())` and `sum(())` are both 0, and the reference semantics are
+            # CPython's; an empty subquery would otherwise read as NULL.
+            result[spec.name] = sqlalchemy.func.coalesce(stmt.scalar_subquery(), 0)
+        else:
+            # `max`/`min` over nothing is SQL NULL, which reads as missing and so fails
+            # every comparison -- the same answer Python gives by raising.
+            result[spec.name] = stmt.scalar_subquery()
+    return result
+
+
 def _eval_globals(
     bindings: _FilterBindings,
     aliased_annotation_attributes: typing.Mapping[str, typing.Any],
@@ -1321,6 +1516,8 @@ class SpanFilter:
             stmt, span_cost, cost_bindings = _join_span_cost(stmt, self._namespace_members)
             extra_bindings.update(cost_bindings)
             correlated.append(span_cost)
+        if self._comprehensions:
+            extra_bindings.update(_comprehension_bindings(self._comprehensions, SPAN_BINDINGS))
         predicate = eval(
             self.compiled,
             _eval_globals(
@@ -1748,9 +1945,6 @@ def _is_bool_sequence(node: typing.Any) -> TypeGuard[typing.Union[ast.List, ast.
         and bool(node.elts)
         and all(_is_bool_constant(element) for element in node.elts)
     )
-
-
-FilterValueType: TypeAlias = typing.Literal["boolean", "datetime", "number", "string", "null"]
 
 
 def _get_filter_value_type(node: ast.AST) -> typing.Optional[FilterValueType]:
