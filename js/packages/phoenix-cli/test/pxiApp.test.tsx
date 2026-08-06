@@ -846,7 +846,50 @@ describe("PXI app", () => {
     unmount();
   });
 
-  it("shows a bash summary and a spinner while its input streams in", () => {
+  it("shows a bash summary and a spinner while its input streams in", async () => {
+    const partialAssistantMessage: PxiMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          toolCallId: "tool-1",
+          toolName: "bash",
+          state: "input-streaming",
+          input: { summary: "Run the unit test suite" },
+        },
+      ],
+    };
+    const client: PxiChatClient = {
+      sendMessage: async ({ abortSignal, onAssistantMessage }) => {
+        onAssistantMessage(partialAssistantMessage);
+        // Keep the turn streaming so the pending tool stays live.
+        return new Promise((resolve) => {
+          abortSignal?.addEventListener("abort", () => resolve(null), {
+            once: true,
+          });
+        });
+      },
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "run the tests" });
+    await writeInput({ stdin, input: "\r" });
+
+    const frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain("$ bash · Run the unit test suite");
+    expect(frame).toContain("⠋");
+    expect(frame).not.toContain("✓");
+    unmount();
+  });
+
+  it("marks a restored pending tool as pending elsewhere instead of running", () => {
+    // A pending tool restored from persistence isn't running in this CLI:
+    // the client that owns it (e.g. a browser approval) may still submit its
+    // result, and sending a message from here interrupts it. Either way the
+    // spinner would misrepresent it as work this CLI is watching.
     const assistantMessage: PxiMessage = {
       id: "assistant-1",
       role: "assistant",
@@ -865,8 +908,11 @@ describe("PXI app", () => {
     );
 
     const frame = stripAnsi(lastFrame() ?? "");
-    expect(frame).toContain("$ bash · Run the unit test suite");
-    expect(frame).toContain("⠋");
+    expect(frame).toContain(
+      "$ bash Pending in another client — sending a message here interrupts it"
+    );
+    expect(frame).toContain("⚠");
+    expect(frame).not.toContain("⠋");
     expect(frame).not.toContain("✓");
     unmount();
   });
