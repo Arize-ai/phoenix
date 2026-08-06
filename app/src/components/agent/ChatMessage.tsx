@@ -41,14 +41,15 @@ const assistantMessageCSS = css`
   width: 100%;
 
   /* Mirrors the chat's compaction-divider treatment so turn-level notices
-     share one visual language. */
+     share one visual language, in the warning palette the interrupted
+     recovery notice already uses. */
   .assistant-message__interrupted {
     display: flex;
     align-items: center;
     gap: var(--global-dimension-size-100);
     width: 100%;
     margin: var(--global-dimension-size-100) 0;
-    color: var(--global-text-color-300);
+    color: var(--global-color-warning-700);
     font-size: var(--global-font-size-xs);
   }
 
@@ -57,7 +58,7 @@ const assistantMessageCSS = css`
     content: "";
     height: 1px;
     flex: 1;
-    background-color: var(--global-border-color-default);
+    background-color: var(--global-color-warning-500);
   }
 
   .assistant-message__interrupted-label {
