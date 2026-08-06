@@ -338,8 +338,6 @@ export function useAgentChat({
           environment: relayEnvironment,
           sessionId,
         }) ?? toAgentModelSelection(store.getState().defaultModelConfig);
-      // The queued message survives a compaction no-op: it is sent whether a
-      // checkpoint was created or the conversation was already compact.
       const sendPendingMessage = async () => {
         if (!pendingMessage) {
           return;
@@ -364,9 +362,6 @@ export function useAgentChat({
             response.status === 409 &&
             isSessionAlreadyCompactConflict(errorBody)
           ) {
-            // A benign no-op, not a failure: nothing new has finished since
-            // the latest checkpoint, or a concurrent request's checkpoint
-            // already covers it.
             setCompactionStatus(
               "Conversation is already compact. There are no older complete turns to compact."
             );
@@ -422,8 +417,6 @@ export function useAgentChat({
             getAgentCompactErrorMessage(errorBody, response.status)
           );
         }
-        // A 200 always means a checkpoint was created, and the body's data
-        // is that checkpoint message.
         const result: unknown = await response.json();
         const compactionMessage = getCompactionMessageFromResponse(result);
         if (

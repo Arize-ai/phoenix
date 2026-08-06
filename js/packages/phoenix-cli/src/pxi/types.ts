@@ -143,9 +143,10 @@ export type PxiSessionSyncState = {
 };
 
 /**
- * The outcome of a compaction request. `compacted` is false when the
- * conversation had no older complete turns to compact; `compactionMessage` is
- * the persisted checkpoint (the fresh one, or the existing one for a no-op).
+ * The outcome of a compaction request. `compacted` is true when a new
+ * checkpoint was persisted, and `compactionMessage` is that checkpoint. A
+ * no-op — the conversation was already as compact as it can get — yields
+ * `compacted: false` with no message.
  */
 export type PxiCompactionResult = {
   compacted: boolean;

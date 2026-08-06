@@ -94,6 +94,15 @@ export function isSessionModelStaleError({
   );
 }
 
+/**
+ * Error code the compact endpoint returns (HTTP 409) when there are no
+ * complete turns to compact — nothing new has finished since the latest
+ * checkpoint, or a concurrent request's checkpoint already covers them. A
+ * benign no-op, not a failure.
+ */
+const SESSION_ALREADY_COMPACT_ERROR_CODE =
+  "agent_session_already_compact" satisfies AgentSessionConflictCode;
+
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
 }
@@ -387,18 +396,44 @@ export function createPxiSessionClient({
           );
         }
         return {
-          compacted: payload.data.compacted,
-          compactionMessage: (payload.data.compaction_message ??
-            null) as PxiMessage | null,
+          compacted: true,
+          compactionMessage: payload.data as PxiMessage,
         };
       } catch (error) {
         if (error instanceof HttpError) {
+          const code = await readConflictCode({ response: error.response });
+          if (code === SESSION_ALREADY_COMPACT_ERROR_CODE) {
+            return { compacted: false, compactionMessage: null };
+          }
           throw await buildCompactionHttpError({ error });
         }
         throw error;
       }
     },
   };
+}
+
+/**
+ * Read the `code` discriminator out of a conflict response body, if any. The
+ * response is cloned so the caller can still consume the body.
+ */
+async function readConflictCode({
+  response,
+}: {
+  response: Response;
+}): Promise<string | null> {
+  try {
+    const body: unknown = await response.clone().json();
+    if (body !== null && typeof body === "object") {
+      const record = body as { code?: unknown };
+      if (typeof record.code === "string") {
+        return record.code;
+      }
+    }
+  } catch {
+    // Not JSON.
+  }
+  return null;
 }
 
 /**
@@ -412,17 +447,10 @@ async function buildCompactionHttpError({
 }: {
   error: HttpError;
 }): Promise<Error> {
-  let code: string | null = null;
+  const code = await readConflictCode({ response: error.response });
   let detail: string | null = null;
   try {
-    const body: unknown = await error.response.clone().json();
-    if (body !== null && typeof body === "object") {
-      const record = body as { code?: unknown };
-      if (typeof record.code === "string") {
-        code = record.code;
-      }
-    }
-    detail = formatApiError(body);
+    detail = formatApiError(await error.response.clone().json());
   } catch {
     // Not JSON: fall through to the status-line message.
   }

@@ -483,12 +483,10 @@ describe("PXI client", () => {
             modelName: "gpt-5.4",
           },
         });
-        return new Response(
-          JSON.stringify({
-            data: { compacted: true, compaction_message: checkpoint },
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ data: checkpoint }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
       }
     ) as typeof fetch;
     const sessionClient = createPxiSessionClient({
@@ -507,6 +505,30 @@ describe("PXI client", () => {
 
     expect(result.compacted).toBe(true);
     expect(result.compactionMessage).toEqual(checkpoint);
+  });
+
+  it("treats a compaction 409 already-compact rejection as a no-op result", async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ code: "agent_session_already_compact" }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      })
+    ) as typeof fetch;
+    const sessionClient = createPxiSessionClient({
+      config: { endpoint: "http://localhost:6006" },
+      fetch: fetchImpl,
+    });
+
+    const result = await sessionClient.compactSession({
+      sessionId: "session-1",
+      model: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-5.4",
+      },
+    });
+
+    expect(result).toEqual({ compacted: false, compactionMessage: null });
   });
 
   it("surfaces a compaction 409 busy rejection as a session-busy error", async () => {
