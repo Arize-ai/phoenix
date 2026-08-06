@@ -295,7 +295,7 @@ const MESSAGES: Message[] = [
     ),
   },
   {
-    // 20 - the long final message Option A must reveal
+    // 20 - the long final output message
     role: "assistant",
     content:
       "Recovery confirmed - error rate is back to baseline (0.3%) and p99 " +
