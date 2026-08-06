@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING
 
 import strawberry
 from openinference.instrumentation import OITracer, TraceConfig
@@ -20,6 +21,8 @@ from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
     NativeToolRetryCapability,
+    PhoenixMCPCapability,
+    PhoenixMCPToolset,
     SkillsCapability,
     build_anthropic_prompt_cache_capability,
     get_context_capability_function,
@@ -46,6 +49,11 @@ from phoenix.server.api.context import Context
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
 
+if TYPE_CHECKING:
+    from fastmcp import FastMCP
+
+    from phoenix.server.bearer_auth import PhoenixUser
+
 
 def get_skills_capability_function(
     *,
@@ -70,6 +78,8 @@ def build_agent(
     model: Model,
     prompts: AgentPrompts | None = None,
     docs_mcp_server: MCPToolset[AgentDependencies] | None = None,
+    phoenix_mcp_server: "FastMCP | None" = None,
+    principal: "PhoenixUser | None" = None,
     enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
     server_agent: AbstractAgent[None, str] | None = None,
@@ -152,6 +162,19 @@ def build_agent(
             MintlifyDocsMCPCapability[AgentDependencies](
                 mcp_server=docs_mcp_server,
                 instructions=resolved_prompts.docs_tool,
+            )
+        )
+    if phoenix_mcp_server is not None:
+        # Per agent: the toolset carries this request's principal and this run's
+        # tool-group reveals.
+        capabilities.append(
+            PhoenixMCPCapability[AgentDependencies](
+                mcp_server=PhoenixMCPToolset[AgentDependencies](
+                    phoenix_mcp_server,
+                    principal=principal,
+                    id="phoenix_rest_api",
+                ),
+                instructions=resolved_prompts.phoenix_mcp_tools,
             )
         )
     if enable_web_access:

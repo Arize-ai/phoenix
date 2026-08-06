@@ -1230,6 +1230,15 @@ def create_app(
     # Consumed by the OAuth2 authorization server (resource-indicator validation)
     # and the protected-resource metadata routes; None when the mount is disabled.
     app.state.mcp_mount_path = mcp_mount_path
+    # The agent's own instance, independent of the mount and its configuration.
+    # Read-only: mutations belong to the agent's editing tools, which route
+    # approval through the user.
+    pxi_mcp_server = None
+    if not get_env_disable_agent_assistant():
+        from phoenix.server.mcp_server import build_phoenix_mcp_server
+
+        pxi_mcp_server, _ = build_phoenix_mcp_server(app, code_mode=False, read_only=True, db=db)
+    app.state.pxi_mcp_server = pxi_mcp_server
     app.add_middleware(GZipMiddleware)
     static_dir = SERVER_DIR / "static"
     web_manifest_path = static_dir / ".vite" / "manifest.json"
