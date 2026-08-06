@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { useRelayEnvironment } from "react-relay";
 
 import { isRequestActive } from "@phoenix/agent/chat/chatUtils";
+import { cleanupResolvedPendingToolState } from "@phoenix/agent/chat/pendingToolStateCleanup";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
@@ -163,9 +164,14 @@ export function useAgentSessionSync({
       if (wasBusyElsewhere) {
         chatInstance.clearError();
       }
-      chatInstance.messages = Array.isArray(agentSession.messages)
+      const syncedMessages = Array.isArray(agentSession.messages)
         ? (agentSession.messages as AgentUIMessage[])
         : [];
+      chatInstance.messages = syncedMessages;
+      // Another client may have resolved — or interrupted — tool calls this
+      // client still shows Accept/Reject affordances for; drop any pending
+      // approval state the synced transcript marks as terminal.
+      cleanupResolvedPendingToolState(store.getState(), syncedMessages);
       // Record the applied tail (from the full fetch, not the probe: the
       // transcript may have moved again in between) so unchanged idle ticks
       // stop at the probe.

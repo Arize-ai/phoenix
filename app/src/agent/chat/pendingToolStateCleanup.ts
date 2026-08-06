@@ -1,3 +1,5 @@
+import { getToolOrDynamicToolName, isToolUIPart, type UIMessage } from "ai";
+
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
@@ -65,4 +67,39 @@ export function cleanupPendingToolState(
   toolCallId: string
 ): void {
   PENDING_TOOL_STATE_CLEANUP[tool]?.(state, toolCallId);
+}
+
+const RESOLVED_TOOL_STATES: ReadonlySet<string> = new Set([
+  "output-available",
+  "output-error",
+  "output-denied",
+]);
+
+/**
+ * Cleans up pending approval/edit store state owned by tool calls the
+ * transcript shows as resolved. Applied when a synced transcript replaces
+ * local messages: another client may have resolved — or interrupted — a tool
+ * call this client is still rendering an Accept/Reject affordance for, and
+ * that affordance must not outlive the call's persisted terminal state.
+ * Pending calls the transcript still shows as unresolved are left alone.
+ */
+export function cleanupResolvedPendingToolState(
+  state: AgentState,
+  messages: readonly UIMessage[]
+): void {
+  for (const message of messages) {
+    if (message.role !== "assistant") {
+      continue;
+    }
+    for (const part of message.parts) {
+      if (!isToolUIPart(part) || !RESOLVED_TOOL_STATES.has(part.state)) {
+        continue;
+      }
+      cleanupPendingToolState(
+        state,
+        getToolOrDynamicToolName(part),
+        part.toolCallId
+      );
+    }
+  }
 }

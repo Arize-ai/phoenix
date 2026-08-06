@@ -15,7 +15,9 @@ import type { AgentState } from "@phoenix/store/agentStore";
 import {
   REWIND_CLEANUP_TOOL_NAMES,
   cleanupPendingToolState,
+  cleanupResolvedPendingToolState,
 } from "../pendingToolStateCleanup";
+import type { AgentUIMessage } from "../types";
 
 function createStateStub() {
   return {
@@ -65,6 +67,61 @@ describe("cleanupPendingToolState", () => {
     for (const setter of Object.values(state)) {
       expect(setter).not.toHaveBeenCalled();
     }
+  });
+});
+
+describe("cleanupResolvedPendingToolState", () => {
+  const editPromptPart = (
+    state: "input-available" | "approval-requested" | "output-error",
+    toolCallId: string
+  ) =>
+    ({
+      type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+      toolCallId,
+      state,
+      input: {},
+      ...(state === "output-error"
+        ? {
+            errorText:
+              "The tool call was interrupted before a result was produced.",
+          }
+        : {}),
+    }) as AgentUIMessage["parts"][number];
+
+  it("clears pending state for tool calls the transcript shows as resolved", () => {
+    const state = createStateStub();
+    const messages = [
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [editPromptPart("output-error", "call-1")],
+      },
+    ] as AgentUIMessage[];
+
+    cleanupResolvedPendingToolState(state as unknown as AgentState, messages);
+
+    expect(state.setPendingPromptEdit).toHaveBeenCalledExactlyOnceWith(
+      "call-1",
+      null
+    );
+  });
+
+  it("leaves pending state alone while the transcript still shows the call unresolved", () => {
+    const state = createStateStub();
+    const messages = [
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          editPromptPart("input-available", "call-1"),
+          editPromptPart("approval-requested", "call-2"),
+        ],
+      },
+    ] as AgentUIMessage[];
+
+    cleanupResolvedPendingToolState(state as unknown as AgentState, messages);
+
+    expect(state.setPendingPromptEdit).not.toHaveBeenCalled();
   });
 });
 
