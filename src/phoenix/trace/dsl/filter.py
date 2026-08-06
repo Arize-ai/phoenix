@@ -790,31 +790,6 @@ def _validate_comprehensions(
             variable = typing.cast(ast.Name, generator.target).id
             if _scope_of(variable, scopes) is not None:
                 raise SyntaxError(f"`{variable}` is already in use as a loop variable")
-            if (namespace := bindings.root_namespace) is not None and variable == namespace.keyword:
-                # Python would allow the shadow, so this is a deviation and owes a reason.
-                # It is *not* that shadowing breaks anything: it would simply make the
-                # filtered row unreachable inside that one comprehension, which is ordinary
-                # lexical scoping and exactly what Python does.
-                #
-                # The reason is that the restriction is nearly free and the direction is
-                # reversible. Nobody needs this spelling -- `for detail in
-                # span.cost_details` reads better regardless -- and under the additive-only
-                # policy a rejection can be lifted later while a restriction cannot be
-                # added. Cheap option value on a one-way door, and the option is real:
-                # reading an outer field inside a comprehension is on the roadmap for every
-                # grain, and keeping the root unambiguous is one less thing in its way.
-                #
-                # It also removes a genuine footgun. Python evaluates the outermost `for`
-                # clause's iterable in the *enclosing* scope, so in `for span in
-                # span.cost_details` the same token means the filtered row on the right and
-                # the loop element in the body -- a rule most people do not know they are
-                # relying on.
-                #
-                # Grains that reserve no root are unaffected, which is how the session grain
-                # keeps spelling its span loops `for span in spans`.
-                raise SyntaxError(
-                    f"`{namespace.keyword}` is reserved and cannot be a loop variable"
-                )
             scope = _ElementScope(variable, iterable, bindings.iterables[iterable])
             _validate_element_expression(comprehension.elt, kind, scope, bindings)
             for inner in (*generator.ifs, comprehension.elt):
@@ -874,32 +849,47 @@ def _validate_root_namespace(
     if (namespace := bindings.root_namespace) is None:
         return
     keyword = namespace.keyword
-    roots: set[int] = set()
-    for node in ast.walk(expression.body):
-        if not isinstance(node, (ast.Attribute, ast.Subscript)):
-            continue
-        if (root := _namespace_root(node, keyword)) is None:
-            continue
-        roots.add(id(root))
-        if not _is_member_access(node):
-            # `span.a.b`, `span.a['b']`, `span['a']`. `ast.walk` is breadth-first, so the
-            # outermost node is seen first and names the whole offending expression.
-            raise _namespace_traversal_error(node, namespace)
-        if (member := node.attr) in namespace.iterables:
-            if id(node) not in iterable_slots:
-                raise SyntaxError(
-                    f"`{keyword}.{member}` is a collection and can only be iterated, "
-                    f'e.g. `any(x.<field> == "..." for x in {keyword}.{member})`'
-                )
-            continue
-        if member not in namespace.scalars:
-            raise _invalid_member_error(member, namespace)
-    for node in ast.walk(expression.body):
-        if isinstance(node, ast.Name) and node.id == keyword and id(node) not in roots:
-            # A bare `span`, i.e. one that is not the root of a member access. Rejected
-            # rather than left to mean `attributes['span']`, so the root is reserved whole
-            # and the closed-set guarantee has no hole at its base.
-            raise SyntaxError(f"`{keyword}` can only be used as `{keyword}.<field>`")
+
+    def check(node: ast.AST, shadowed: bool) -> None:
+        if isinstance(node, (ast.GeneratorExp, ast.ListComp)):
+            # A loop variable may be named after the root, and then it *is* the root's
+            # name inside the comprehension body -- ordinary lexical scoping, and what
+            # Python does. The iterable is deliberately checked unshadowed: Python
+            # evaluates the outermost `for` clause's iterable in the enclosing scope, so
+            # `for span in span.cost_details` reads the root on the right and the element
+            # in the body. Shape is already validated, so there is exactly one generator.
+            generator = node.generators[0]
+            check(generator.iter, shadowed)
+            target = generator.target
+            inner = shadowed or (isinstance(target, ast.Name) and target.id == keyword)
+            for child in (*generator.ifs, node.elt):
+                check(child, inner)
+            return
+        if not shadowed:
+            if isinstance(node, (ast.Attribute, ast.Subscript)) and _namespace_root(node, keyword):
+                if not _is_member_access(node):
+                    # `span.a.b`, `span.a['b']`, `span['a']` -- the outermost node is
+                    # reached first and names the whole offending expression.
+                    raise _namespace_traversal_error(node, namespace)
+                if (member := node.attr) in namespace.iterables:
+                    if id(node) not in iterable_slots:
+                        raise SyntaxError(
+                            f"`{keyword}.{member}` is a collection and can only be iterated"
+                            f', e.g. `any(x.<field> == "..." for x in {keyword}.{member})`'
+                        )
+                elif member not in namespace.scalars:
+                    raise _invalid_member_error(member, namespace)
+                # Consumed, root Name and all: nothing below it is a separate reference.
+                return
+            if isinstance(node, ast.Name) and node.id == keyword:
+                # A bare `span` that roots nothing. Rejected rather than left to mean
+                # `attributes['span']`, so the root is reserved whole and the closed-set
+                # guarantee has no hole at its base.
+                raise SyntaxError(f"`{keyword}` can only be used as `{keyword}.<field>`")
+        for child in ast.iter_child_nodes(node):
+            check(child, shadowed)
+
+    check(expression.body, False)
 
 
 class _ComprehensionExtractor(ast.NodeTransformer):
