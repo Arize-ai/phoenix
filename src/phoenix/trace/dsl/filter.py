@@ -1061,6 +1061,7 @@ class SpanFilter:
     _aliased_annotation_relations: tuple[AliasedAnnotationRelation] = field(init=False, repr=False)
     _aliased_annotation_attributes: dict[str, Mapped[typing.Any]] = field(init=False, repr=False)
     _literal_bindings: dict[str, typing.Any] = field(init=False, repr=False)
+    _comprehensions: tuple[ComprehensionSpec, ...] = field(init=False, repr=False)
 
     def __bool__(self) -> bool:
         return bool(self.condition)
@@ -1096,52 +1097,30 @@ class SpanFilter:
         object.__setattr__(self, "condition", self.condition.strip())
         if not (source := self.condition):
             return
-        try:
-            root = ast.parse(source, mode="eval")
-        except ValueError as error:
-            # A NUL anywhere in the source, which CPython 3.10 reports as a
-            # `ValueError` rather than a `SyntaxError`. Callers catch only the
-            # latter, so it would escape as a server error. From 3.11 on the
-            # same NUL is already a `SyntaxError`, reworded by the
-            # `_format_syntax_error` boundary in `__post_init__`.
-            raise SyntaxError("condition cannot contain a NUL character") from error
-        _validate_expression(root, source)
-        # Derived from the tree parsed just above rather than from the source
-        # again, so a caller holding a filter is spared a parse of its own.
-        # Taken after validation so that a filter which escapes this
-        # constructor always carries the scope of a condition known to be
-        # valid, and so that invalid input is not analyzed for nothing.
-        object.__setattr__(self, "root_scope", _scope_or_none(root.body))
-        source, aliased_annotation_relations = _apply_eval_aliasing(source)
-        root = ast.parse(source, mode="eval")
-        translator = _FilterTranslator(
-            reserved_keywords=(
-                alias
-                for aliased_annotation in aliased_annotation_relations
-                for alias, _ in aliased_annotation.attributes
-            ),
-            string_keywords=(
-                alias
-                for aliased_annotation in aliased_annotation_relations
-                for alias in (
-                    aliased_annotation._label_attribute_alias,
-                    aliased_annotation._explanation_attribute_alias,
-                )
-            ),
+        # The same parse -> validate -> translate -> compile path the session grain
+        # runs, parameterized by `SPAN_BINDINGS`. Sharing it is what lets a construct
+        # added to the compiler reach every grain at once, rather than being ported by
+        # hand into a second implementation that then drifts.
+        compiled_condition = _compile_condition(source, SPAN_BINDINGS, None)
+        # Derived from the tree validation ran against -- pre-aliasing, so the scope
+        # analysis sees the condition as written -- rather than from the source again,
+        # so a caller holding a filter is spared a parse of its own. Taken from a
+        # condition known to be valid, so invalid input is never analyzed for nothing.
+        object.__setattr__(self, "root_scope", _scope_or_none(compiled_condition.validated.body))
+        object.__setattr__(self, "translated", compiled_condition.translated)
+        object.__setattr__(self, "compiled", compiled_condition.compiled)
+        object.__setattr__(
+            self,
+            "_aliased_annotation_relations",
+            compiled_condition.aliased_annotation_relations,
         )
-        translated = translator.visit(root)
-        ast.fix_missing_locations(translated)
-        compiled = compile(translated, filename="", mode="eval")
-        aliased_annotation_attributes = {
-            alias: attribute
-            for aliased_annotation in aliased_annotation_relations
-            for alias, attribute in aliased_annotation.attributes
-        }
-        object.__setattr__(self, "translated", translated)
-        object.__setattr__(self, "compiled", compiled)
-        object.__setattr__(self, "_aliased_annotation_relations", aliased_annotation_relations)
-        object.__setattr__(self, "_aliased_annotation_attributes", aliased_annotation_attributes)
-        object.__setattr__(self, "_literal_bindings", translator.literal_bindings)
+        object.__setattr__(
+            self,
+            "_aliased_annotation_attributes",
+            compiled_condition.aliased_annotation_attributes,
+        )
+        object.__setattr__(self, "_literal_bindings", compiled_condition.literal_bindings)
+        object.__setattr__(self, "_comprehensions", compiled_condition.comprehensions)
 
     def __call__(self, select: Select[typing.Any]) -> Select[typing.Any]:
         if not self.condition:
