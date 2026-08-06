@@ -6,10 +6,10 @@ from phoenix.db.types.data_stream_protocol import (
     TextUIPart,
     ToolInputStreamingPart,
 )
+from phoenix.server.agents.ui_message_stream import finalize_interrupted_ui_message_state
 from phoenix.server.agents.vercel_ui_message_stream import (
     PartialToolCall,
     create_streaming_ui_message_state,
-    finalize_interrupted_ui_message_state,
 )
 
 

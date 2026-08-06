@@ -152,11 +152,11 @@ from phoenix.server.agents.types import (
 )
 from phoenix.server.agents.ui_message_stream import (
     AgentErrorChunk,
+    finalize_interrupted_ui_message_state,
     iter_chunks_with_error_parts,
 )
 from phoenix.server.agents.vercel_ui_message_stream import (
     create_streaming_ui_message_state,
-    finalize_interrupted_ui_message_state,
     process_ui_message_stream,
 )
 from phoenix.server.api.helpers.agent_sessions import (
