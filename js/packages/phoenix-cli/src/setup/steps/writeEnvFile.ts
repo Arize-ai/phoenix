@@ -32,8 +32,9 @@ export function renderEnvFile(connection: Connection, isoDate: string): string {
   // adds the header and shell quoting.
   const lines = [
     COPY.ENV_FILE.fileHeaderEnv(isoDate),
-    "# Traces are exported to the collector endpoint; API reads/writes go to",
-    "# the endpoint. Both are base URLs, and here they are the same server.",
+    "# Both are base URLs for the same server here — keep both. Tracing reads",
+    "# only PHOENIX_COLLECTOR_ENDPOINT, while the API clients and `px` read",
+    "# PHOENIX_ENDPOINT (falling back to the collector one when it is unset).",
     ...Object.entries(connectionEnv(connection)).map(
       ([key, value]) => `${key}=${quoteEnvValue(value)}`
     ),
