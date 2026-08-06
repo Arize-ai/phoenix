@@ -13,7 +13,7 @@ class AgentSessionConflictError(TypedDict):
         "agent_session_busy",
         "agent_session_model_stale",
         "agent_session_messages_stale",
-        "agent_session_messages_conflict",
+        "agent_session_tool_outputs_conflict",
         "agent_session_compaction_conflict",
     ]
     message: NotRequired[str]
@@ -2028,7 +2028,6 @@ class PromptMessage(TypedDict):
 class ChatRequest(TypedDict):
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     id: str
-    message: PhoenixUIMessage
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
     attachUserId: NotRequired[bool]
@@ -2056,6 +2055,17 @@ class ChatRequest(TypedDict):
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]
     trigger: NotRequired[str]
+    message: NotRequired[PhoenixUIMessage]
+    toolOutputs: NotRequired[
+        Sequence[
+            Union[
+                PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart,
+                PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart,
+                PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart,
+                PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart,
+            ]
+        ]
+    ]
     lastMessageId: NotRequired[str]
 
 

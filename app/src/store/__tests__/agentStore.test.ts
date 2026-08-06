@@ -11,6 +11,7 @@ import {
   getEffectiveTraceRecordingSettings,
   hasAcknowledgedCurrentTraceConsent,
   resolveAssistantStorageKey,
+  selectIsSessionOccupied,
   selectSessionNotice,
 } from "../agentStore";
 
@@ -546,6 +547,50 @@ describe("agentStore", () => {
       store.getState().clearSessionEphemeralState("s1");
 
       expect(selectSessionNotice(store.getState(), "s1")).toBeNull();
+    });
+  });
+
+  describe("selectIsSessionOccupied", () => {
+    it("is unoccupied for unknown or absent sessions", () => {
+      const store = createAgentStore();
+      expect(selectIsSessionOccupied(store.getState(), "s1")).toBe(false);
+      expect(selectIsSessionOccupied(store.getState(), null)).toBe(false);
+      expect(selectIsSessionOccupied(store.getState(), undefined)).toBe(false);
+    });
+
+    it("is occupied while this client's response is in flight", () => {
+      const store = createAgentStore();
+
+      store.getState().setSessionChatStatus("s1", "submitted");
+      expect(selectIsSessionOccupied(store.getState(), "s1")).toBe(true);
+
+      store.getState().setSessionChatStatus("s1", "streaming");
+      expect(selectIsSessionOccupied(store.getState(), "s1")).toBe(true);
+
+      // The settled statuses — including error — release the occupation. A
+      // ready status with a pending client tool call is the window in which
+      // the user must still be able to respond to approvals.
+      store.getState().setSessionChatStatus("s1", "ready");
+      expect(selectIsSessionOccupied(store.getState(), "s1")).toBe(false);
+
+      store.getState().setSessionChatStatus("s1", "error");
+      expect(selectIsSessionOccupied(store.getState(), "s1")).toBe(false);
+    });
+
+    it("is occupied while another client's turn holds the session lock", () => {
+      const store = createAgentStore();
+
+      store.getState().setSessionBusyElsewhere("s1", true);
+      expect(selectIsSessionOccupied(store.getState(), "s1")).toBe(true);
+
+      store.getState().setSessionBusyElsewhere("s1", false);
+      expect(selectIsSessionOccupied(store.getState(), "s1")).toBe(false);
+    });
+
+    it("scopes occupation to the queried session", () => {
+      const store = createAgentStore();
+      store.getState().setSessionChatStatus("s1", "streaming");
+      expect(selectIsSessionOccupied(store.getState(), "s2")).toBe(false);
     });
   });
 

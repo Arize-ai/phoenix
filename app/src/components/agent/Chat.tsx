@@ -39,6 +39,7 @@ import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import {
   DRAFT_SESSION_ID,
   hasAcknowledgedCurrentTraceConsent,
+  selectIsSessionOccupied,
   selectSessionNotice,
 } from "@phoenix/store/agentStore";
 
@@ -525,6 +526,12 @@ export function ChatView({
     selectSessionNotice(state, sessionId)
   );
   const isBusyElsewhere = sessionNotice === "busyElsewhere";
+  // A turn is in motion here or on another client. Shared with the tool
+  // approval affordances (ToolPartApprovalActions), which pause themselves on
+  // the same selector.
+  const isSessionOccupied = useAgentContext((state) =>
+    selectIsSessionOccupied(state, sessionId)
+  );
   const setDraftInput = useAgentContext((state) => state.setDraftInput);
   const setSessionNotice = useAgentContext((state) => state.setSessionNotice);
   const [elicitationDraft, setElicitationDraft] =
@@ -653,14 +660,14 @@ export function ChatView({
   const hasChatSettled = status === "ready" || status === "error";
 
   const onRewindRequest = useMemo<MessageRewindRequest | undefined>(() => {
-    if (!hasChatSettled || isBusyElsewhere || !rewindToMessage) {
+    if (isSessionOccupied || !rewindToMessage) {
       return undefined;
     }
     return (request) => {
       setHistoryActionError(null);
       setRewindRequest(request);
     };
-  }, [hasChatSettled, isBusyElsewhere, rewindToMessage]);
+  }, [isSessionOccupied, rewindToMessage]);
 
   const handleConfirmRewind = async () => {
     if (!rewindRequest) {

@@ -289,7 +289,7 @@ describe("buildAgentChatRequestBody", () => {
 
     expect(body.trigger).toBe("submit-message");
     expect(body).not.toHaveProperty("messages");
-    expect("message" in body && body.message.id).toBe("user-2");
+    expect(body.message?.id).toBe("user-2");
     // The message before the submitted one is the transcript's persisted
     // tail — the send's optimistic-concurrency check.
     expect(body.lastMessageId).toBe("assistant-1");
@@ -364,11 +364,36 @@ describe("buildAgentChatRequestBody", () => {
     expect(body.lastMessageId).toBe("compaction-1");
   });
 
-  it("uses the trailing assistant message's own id as lastMessageId on continuations", () => {
+  it("sends resolved client tool outputs instead of the assistant message on continuations", () => {
     const continuationAssistant: AgentUIMessage = {
       id: "assistant-1",
       role: "assistant",
-      parts: [{ type: "text", text: "resolved tool output" }],
+      parts: [
+        { type: "text", text: "working on it" },
+        {
+          type: "tool-read_prompt",
+          toolCallId: "call-1",
+          state: "output-available",
+          input: {},
+          output: { ok: true },
+          callProviderMetadata: {
+            phoenix: {
+              toolExecutionEnvironment: "client",
+              toolInputEmittedAt: "2026-07-10T12:00:00Z",
+            },
+          },
+        },
+        {
+          type: "tool-load_skill",
+          toolCallId: "call-2",
+          state: "output-available",
+          input: {},
+          output: "<skill/>",
+          callProviderMetadata: {
+            phoenix: { toolExecutionEnvironment: "server" },
+          },
+        },
+      ],
     };
 
     const body = buildAgentChatRequestBody({
@@ -392,7 +417,67 @@ describe("buildAgentChatRequestBody", () => {
       },
     });
 
+    // The server owns the assistant message; only the client-executed tool
+    // outputs travel, and the message field is omitted entirely.
+    expect(body.message).toBeUndefined();
+    expect(body.toolOutputs?.map((part) => part.toolCallId)).toEqual([
+      "call-1",
+    ]);
     // The continued assistant message is itself the persisted transcript tail.
+    expect(body.lastMessageId).toBe("assistant-1");
+  });
+
+  it("attaches interrupted client tool outputs to a superseding user message", () => {
+    const interruptedAssistant: AgentUIMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-edit_prompt",
+          toolCallId: "call-1",
+          state: "output-error",
+          input: {},
+          errorText: "The user has interrupted this tool call.",
+          callProviderMetadata: {
+            phoenix: {
+              toolExecutionEnvironment: "client",
+              toolInputEmittedAt: "2026-07-10T12:00:00Z",
+            },
+          },
+        },
+      ],
+    };
+    const newUserMessage: AgentUIMessage = {
+      id: "user-2",
+      role: "user",
+      parts: [{ type: "text", text: "never mind" }],
+    };
+
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      messages: [userMessage, interruptedAssistant, newUserMessage],
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: false,
+        exportRemoteTraces: false,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
+      },
+      agentsConfig,
+      permissions: { edits: "manual" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    expect(body.message?.id).toBe("user-2");
+    expect(body.toolOutputs?.map((part) => part.toolCallId)).toEqual([
+      "call-1",
+    ]);
     expect(body.lastMessageId).toBe("assistant-1");
   });
 });

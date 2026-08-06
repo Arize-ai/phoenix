@@ -107,6 +107,20 @@ const RUNNING_TOOL_STATES: ReadonlySet<ToolProgressState> = new Set([
   "input-available",
   "approval-responded",
 ]);
+/**
+ * Tool states that have not reached a terminal output. The CLI executes no
+ * client tools and has no approval affordance, so it can never resolve one of
+ * these itself: a pending call either belongs to the turn currently streaming
+ * here, is still resolvable by the client that owns it (e.g. a browser
+ * approval), or gets closed out as interrupted by the server on this CLI's
+ * next send.
+ */
+const PENDING_TOOL_STATES: ReadonlySet<ToolProgressState> = new Set([
+  ...RUNNING_TOOL_STATES,
+  "approval-requested",
+]);
+const PENDING_ELSEWHERE_TOOL_STATUS_TEXT =
+  "Pending in another client — sending a message here interrupts it";
 const ESCAPE_INPUT = "\x1B";
 const BACKSPACE_INPUTS = new Set(["\b", "\x7F"]);
 const FORWARD_DELETE_INPUTS = new Set([
@@ -235,9 +249,20 @@ function ToolSpinner() {
  * The leading state glyph of a tool row: a spinner while the call is in
  * flight, then a settled glyph — `✓` success, `✗` failure (including a
  * non-zero exit code surfaced via `statusSuffix`), `?` awaiting approval,
- * `⊘` denied.
+ * `⊘` denied. Pending calls this CLI cannot resolve (restored from
+ * persistence; the owning client may still submit them) show a warning
+ * instead of a spinner.
  */
-function ToolStateIndicator({ tool }: { tool: ToolProgress }) {
+function ToolStateIndicator({
+  tool,
+  isPendingElsewhere,
+}: {
+  tool: ToolProgress;
+  isPendingElsewhere?: boolean;
+}) {
+  if (isPendingElsewhere) {
+    return <Text color="yellow">⚠</Text>;
+  }
   if (RUNNING_TOOL_STATES.has(tool.state)) {
     return <ToolSpinner />;
   }
@@ -267,10 +292,12 @@ function ToolStateIndicator({ tool }: { tool: ToolProgress }) {
  */
 function InlineToolProgress({
   tool,
+  isPendingElsewhere,
   marginTop,
   marginBottom,
 }: {
   tool: ToolProgress;
+  isPendingElsewhere?: boolean;
   marginTop: number;
   marginBottom: number;
 }) {
@@ -294,11 +321,18 @@ function InlineToolProgress({
       marginBottom={marginBottom}
     >
       <Text wrap="truncate-end">
-        <ToolStateIndicator tool={tool} />{" "}
+        <ToolStateIndicator
+          tool={tool}
+          isPendingElsewhere={isPendingElsewhere}
+        />{" "}
         <Text color="yellow">
           {tool.icon} {tool.toolName}
         </Text>
-        {showStatusText ? <Text color="yellow"> {tool.statusText}</Text> : null}
+        {isPendingElsewhere ? (
+          <Text color="yellow"> {PENDING_ELSEWHERE_TOOL_STATUS_TEXT}</Text>
+        ) : showStatusText ? (
+          <Text color="yellow"> {tool.statusText}</Text>
+        ) : null}
         {tool.previewText ? <Text dimColor> · {tool.previewText}</Text> : null}
         {tool.statusSuffix ? (
           <Text color="red"> ({tool.statusSuffix})</Text>
@@ -334,9 +368,18 @@ function InlineToolProgress({
  */
 function MessageParts({
   message,
+  hasLivePendingTools,
   phoenixBaseUrl,
 }: {
   message: PxiMessage;
+  /**
+   * Whether this message's pending tool calls belong to a turn this CLI is
+   * watching live (streaming here, or busy on another client). When false,
+   * pending tool parts render as pending-elsewhere warnings instead of
+   * spinners: the owning client may still submit them, and sending a message
+   * from here interrupts them.
+   */
+  hasLivePendingTools: boolean;
   phoenixBaseUrl?: string;
 }) {
   const toolProgressByPart = message.parts.map((part) =>
@@ -361,6 +404,9 @@ function MessageParts({
             <InlineToolProgress
               key={tool.toolCallId}
               tool={tool}
+              isPendingElsewhere={
+                !hasLivePendingTools && PENDING_TOOL_STATES.has(tool.state)
+              }
               marginTop={toolProgressByPart[index - 1] ? 0 : 1}
               marginBottom={toolProgressByPart[index + 1] ? 0 : 1}
             />
@@ -378,9 +424,18 @@ function MessageParts({
  */
 function Transcript({
   messages,
+  liveMessageId,
   phoenixBaseUrl,
 }: {
   messages: PxiMessage[];
+  /**
+   * The id of the one message whose pending tool calls a live turn (streaming
+   * here, or busy on another client) is actively driving; null when the
+   * session is idle. Pending tools outside that message aren't resolvable by
+   * this CLI — though the client that owns them may still submit results — so
+   * they render as pending-elsewhere warnings instead of spinners.
+   */
+  liveMessageId: string | null;
   phoenixBaseUrl?: string;
 }) {
   if (messages.length === 0) {
@@ -408,7 +463,11 @@ function Transcript({
             <Text color={color} bold>
               {label}
             </Text>
-            <MessageParts message={message} phoenixBaseUrl={phoenixBaseUrl} />
+            <MessageParts
+              message={message}
+              hasLivePendingTools={message.id === liveMessageId}
+              phoenixBaseUrl={phoenixBaseUrl}
+            />
           </Box>
         );
       })}
@@ -2012,6 +2071,11 @@ export function PxiApp({
       <Box marginTop={1} flexDirection="column">
         <Transcript
           messages={messages}
+          liveMessageId={
+            status === "streaming" || isSessionBusy
+              ? (messages.at(-1)?.id ?? null)
+              : null
+          }
           phoenixBaseUrl={options.config.endpoint}
         />
       </Box>

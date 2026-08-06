@@ -1757,10 +1757,12 @@ export interface components {
          *     - ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer
          *       matches the persisted transcript — another client appended; refetch the
          *       transcript and retry.
-         *     - ``agent_session_messages_conflict``: the submitted assistant message and
-         *       the request's ``lastMessageId`` contradict each other. Unlike
-         *       ``agent_session_messages_stale`` this is not a concurrent-writer race but
-         *       an inconsistent request; fix the client rather than retrying.
+         *     - ``agent_session_tool_outputs_conflict``: the submitted ``toolOutputs`` do
+         *       not match the transcript's trailing assistant message (no trailing
+         *       assistant message to continue, an unknown ``toolCallId``, or a tool-name
+         *       mismatch). Unlike ``agent_session_messages_stale`` this is not a
+         *       concurrent-writer race but an inconsistent request; fix the client
+         *       rather than retrying.
          *     - ``agent_session_compaction_conflict``: the conversation changed while it
          *       was being compacted; retry.
          */
@@ -1770,7 +1772,7 @@ export interface components {
              * @description Machine-readable reason the request conflicted.
              * @enum {string}
              */
-            code: "agent_session_busy" | "agent_session_model_stale" | "agent_session_messages_stale" | "agent_session_messages_conflict" | "agent_session_compaction_conflict";
+            code: "agent_session_busy" | "agent_session_model_stale" | "agent_session_messages_stale" | "agent_session_tool_outputs_conflict" | "agent_session_compaction_conflict";
             /**
              * Message
              * @description Optional human-readable elaboration on the conflict.
@@ -2231,8 +2233,13 @@ export interface components {
             trigger?: "submit-message";
             /** Id */
             id: string;
-            /** @description The turn's new message: a user message to append, or the transcript's trailing assistant message updated with client-executed tool results. */
-            message: components["schemas"]["PhoenixUIMessage"];
+            /** @description The turn's new user message to append. May be omitted for client-tool continuation, where ``toolOutputs`` resolve the trailing assistant message's pending tool calls instead. */
+            message?: components["schemas"]["PhoenixUIMessage"] | null;
+            /**
+             * Tooloutputs
+             * @description Client-executed tool results for pending tool calls on the transcript's trailing assistant message, matched by ``toolCallId``. Submitted alone they continue the assistant turn; submitted with ``message`` they resolve dangling tool calls before the new user turn runs.
+             */
+            toolOutputs?: (components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"])[];
             /**
              * Lastmessageid
              * @description The id of the last transcript message the client has rendered, used for optimistic concurrency. Omit when the session has no messages; required (and validated against the persisted transcript) once it does. On mismatch the server rejects the send with HTTP 409 and code ``agent_session_messages_stale`` — the client should refetch the session before retrying.

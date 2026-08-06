@@ -993,14 +993,20 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
     tool_part = next(
         part for part in resolved_assistant_message["parts"] if part["type"] == "tool-list_datasets"
     )
-    tool_part["state"] = "output-available"
-    tool_part["output"] = {"datasets": []}
+    tool_output = {
+        "type": "tool-list_datasets",
+        "toolCallId": tool_part["toolCallId"],
+        "state": "output-available",
+        "input": tool_part.get("input"),
+        "output": {"datasets": []},
+    }
 
     continuation_response = await httpx_client.post(
         _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
-            resolved_assistant_message,
+            None,
+            toolOutputs=[tool_output],
             lastMessageId=assistant_message_id,
         ),
     )
@@ -1036,6 +1042,133 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
         isinstance(part, TextUIPart) and part.text == "done"
         for part in persisted_assistant.message.parts
     )
+
+
+def _assistant_message_with_pending_client_tool() -> dict[str, Any]:
+    """A persisted assistant tail whose client tool call never resolved — the
+    transcript an interrupted browser leaves behind."""
+    return {
+        "id": _message_uuid("assistant-1"),
+        "role": "assistant",
+        "parts": [
+            {"type": "text", "text": "Editing the prompt"},
+            {
+                "type": "tool-edit_prompt_instance",
+                "toolCallId": "tool-call-pending",
+                "state": "input-available",
+                "input": {"instanceId": 3},
+                "callProviderMetadata": {
+                    "phoenix": {
+                        "toolExecutionEnvironment": "client",
+                        "toolInputEmittedAt": "2026-08-05T20:35:35+00:00",
+                    }
+                },
+            },
+        ],
+    }
+
+
+async def _load_pending_tool_part(
+    db: DbSessionFactory,
+) -> dict[str, Any]:
+    async with db() as session:
+        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
+        assert agent_session_rowid is not None
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+    assistant_message = next(
+        message for message in stored_messages if message["id"] == _message_uuid("assistant-1")
+    )
+    return next(
+        part for part in assistant_message["parts"] if part.get("toolCallId") == "tool-call-pending"
+    )
+
+
+async def test_user_turn_persists_interrupted_repair_for_dangling_client_tool(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    session_id = "47474747-4747-4447-8447-474747474747"
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[
+            _user_message("edit the prompt"),
+            _assistant_message_with_pending_client_tool(),
+        ],
+    )
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            _user_message("what happened", message_id=_message_uuid("msg-user-2")),
+            lastMessageId=_message_uuid("assistant-1"),
+        ),
+    )
+    assert response.status_code == 200
+
+    repaired_part = await _load_pending_tool_part(db)
+    assert repaired_part["state"] == "output-error"
+    assert "interrupted" in repaired_part["errorText"]
+    assert "client environment" in repaired_part["errorText"]
+    # The original call's input and server-stamped metadata survive the repair.
+    assert repaired_part["input"] == {"instanceId": 3}
+    phoenix_metadata = repaired_part["callProviderMetadata"]["phoenix"]
+    assert phoenix_metadata["toolExecutionEnvironment"] == "client"
+
+
+async def test_user_turn_applies_submitted_tool_output_error_resolutions(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    session_id = "48484848-4848-4448-8448-484848484848"
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[
+            _user_message("edit the prompt"),
+            _assistant_message_with_pending_client_tool(),
+        ],
+    )
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            _user_message("never mind", message_id=_message_uuid("msg-user-2")),
+            toolOutputs=[
+                {
+                    "type": "tool-edit_prompt_instance",
+                    "toolCallId": "tool-call-pending",
+                    "state": "output-error",
+                    "input": {"instanceId": 3},
+                    "errorText": "The user has interrupted this tool call.",
+                    "callProviderMetadata": {
+                        "phoenix": {
+                            "toolExecutionEnvironment": "client",
+                            "toolInputEmittedAt": "2026-08-05T20:35:35+00:00",
+                        }
+                    },
+                }
+            ],
+            lastMessageId=_message_uuid("assistant-1"),
+        ),
+    )
+    assert response.status_code == 200
+
+    resolved_part = await _load_pending_tool_part(db)
+    assert resolved_part["state"] == "output-error"
+    assert resolved_part["errorText"] == "The user has interrupted this tool call."
 
 
 def test_message_metadata_can_use_propagated_root_span_context() -> None:
@@ -1733,7 +1866,26 @@ def _assistant_message_with_tool_states() -> dict[str, Any]:
     }
 
 
-def test_merge_appends_user_message_without_modifying_persisted_messages() -> None:
+def _parts_by_tool_call_id(message: PhoenixUIMessage) -> dict[str, Any]:
+    return {
+        tool_call_id: part
+        for part in message.parts
+        if (tool_call_id := getattr(part, "tool_call_id", None)) is not None
+    }
+
+
+def _tool_output(**overrides: Any) -> dict[str, Any]:
+    return {
+        "type": "tool-bash",
+        "toolCallId": "tool-call-unresolved",
+        "state": "output-available",
+        "input": {"command": "ls"},
+        "output": {"stdout": "README.md"},
+        **overrides,
+    }
+
+
+def test_merge_appends_user_message_and_repairs_unresolved_tool_calls() -> None:
     persisted = _validated_messages(
         [_user_message("run a command"), _assistant_message_with_tool_states()]
     )
@@ -1745,58 +1897,137 @@ def test_merge_appends_user_message_without_modifying_persisted_messages() -> No
         ),
     )
 
-    assert [message.id for message in merged] == [
+    assert [message.id for message in merged.messages] == [
         _message_uuid("msg-user-1"),
         _message_uuid("assistant-1"),
         _message_uuid("msg-user-2"),
     ]
-    assert merged[1] is persisted[1]
+    assert merged.continued_assistant_message is None
+    repaired = merged.updated_messages[_message_uuid("assistant-1")]
+    assert merged.messages[1] is repaired
+    parts = _parts_by_tool_call_id(repaired)
+    assert parts["tool-call-unresolved"].state == "output-error"
+    assert "interrupted" in parts["tool-call-unresolved"].error_text
+    assert parts["tool-call-streaming"].state == "output-error"
+    assert parts["tool-call-done"].state == "output-available"
+    assert parts["tool-call-done"].output == {"stdout": "/"}
 
 
-def test_merge_replaces_the_trailing_assistant_message() -> None:
+def test_merge_applies_tool_outputs_to_the_trailing_assistant_message() -> None:
     persisted = _validated_messages(
         [_user_message("run a command"), _assistant_message_with_tool_states()]
-    )
-    resolved_assistant = PhoenixUIMessage.model_validate(
-        {
-            "id": _message_uuid("assistant-1"),
-            "role": "assistant",
-            "parts": [
-                {
-                    "type": "tool-bash",
-                    "toolCallId": "tool-call-unresolved",
-                    "state": "output-available",
-                    "input": {"command": "ls"},
-                    "output": {"stdout": "README.md"},
-                },
-            ],
-        }
     )
 
     merged = _merge_messages(
         old_messages=persisted,
-        new_message=resolved_assistant,
+        new_message=None,
+        tool_outputs=[ToolOutputAvailablePart.model_validate(_tool_output())],
     )
 
-    assert [message.id for message in merged] == [
-        _message_uuid("msg-user-1"),
-        _message_uuid("assistant-1"),
-    ]
-    assert merged[-1] is resolved_assistant
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    assert continued.id == _message_uuid("assistant-1")
+    assert merged.messages[-1] is continued
+    assert set(merged.updated_messages) == {_message_uuid("assistant-1")}
+    parts = _parts_by_tool_call_id(continued)
+    assert parts["tool-call-unresolved"].state == "output-available"
+    assert parts["tool-call-unresolved"].output == {"stdout": "README.md"}
+    # The streaming call the outputs did not cover can never be resolved, so
+    # it is authoritatively closed out before the turn continues.
+    assert parts["tool-call-streaming"].state == "output-error"
 
 
-def test_merge_rejects_an_assistant_message_that_is_not_the_trailing_one() -> None:
-    persisted = _validated_messages([_user_message("hello")])
-    stale_assistant = PhoenixUIMessage.model_validate(
-        {"id": _message_uuid("assistant-stale"), "role": "assistant", "parts": []}
+def test_merge_ignores_tool_outputs_for_already_resolved_tool_calls() -> None:
+    persisted = _validated_messages(
+        [_user_message("run a command"), _assistant_message_with_tool_states()]
+    )
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=None,
+        tool_outputs=[
+            ToolOutputAvailablePart.model_validate(_tool_output()),
+            ToolOutputAvailablePart.model_validate(
+                _tool_output(toolCallId="tool-call-done", output={"stdout": "overwritten"})
+            ),
+        ],
+    )
+
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    parts = _parts_by_tool_call_id(continued)
+    assert parts["tool-call-done"].output == {"stdout": "/"}
+
+
+def test_merge_rejects_tool_outputs_that_match_no_tool_call() -> None:
+    persisted = _validated_messages(
+        [_user_message("run a command"), _assistant_message_with_tool_states()]
     )
 
     with pytest.raises(_AgentSessionConflict) as exc_info:
         _merge_messages(
             old_messages=persisted,
-            new_message=stale_assistant,
+            new_message=None,
+            tool_outputs=[
+                ToolOutputAvailablePart.model_validate(_tool_output(toolCallId="tool-call-missing"))
+            ],
         )
-    assert exc_info.value.code == "agent_session_messages_conflict"
+    assert exc_info.value.code == "agent_session_tool_outputs_conflict"
+
+
+def test_merge_rejects_tool_outputs_that_rename_the_tool() -> None:
+    persisted = _validated_messages(
+        [_user_message("run a command"), _assistant_message_with_tool_states()]
+    )
+
+    with pytest.raises(_AgentSessionConflict) as exc_info:
+        _merge_messages(
+            old_messages=persisted,
+            new_message=None,
+            tool_outputs=[ToolOutputAvailablePart.model_validate(_tool_output(type="tool-python"))],
+        )
+    assert exc_info.value.code == "agent_session_tool_outputs_conflict"
+
+
+def test_merge_rejects_tool_outputs_without_a_trailing_assistant_message() -> None:
+    persisted = _validated_messages([_user_message("hello")])
+
+    with pytest.raises(_AgentSessionConflict) as exc_info:
+        _merge_messages(
+            old_messages=persisted,
+            new_message=None,
+            tool_outputs=[ToolOutputAvailablePart.model_validate(_tool_output())],
+        )
+    assert exc_info.value.code == "agent_session_tool_outputs_conflict"
+
+
+async def test_chat_endpoint_rejects_assistant_message_submissions(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    session_id = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+    response = await httpx_client.post(
+        _chat_url(str(GlobalID("AgentSession", "999999"))),
+        json=_chat_body(
+            session_id,
+            {
+                "id": _message_uuid("assistant-1"),
+                "role": "assistant",
+                "parts": [{"type": "text", "text": "stale answer"}],
+            },
+        ),
+    )
+    assert response.status_code == 422
+
+
+async def test_chat_endpoint_requires_a_message_or_tool_outputs(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    session_id = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+    response = await httpx_client.post(
+        _chat_url(str(GlobalID("AgentSession", "999999"))),
+        json=_chat_body(session_id, None),
+    )
+    assert response.status_code == 422
 
 
 async def test_chat_endpoint_rejects_regenerate_requests(

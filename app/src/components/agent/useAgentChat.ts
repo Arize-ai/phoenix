@@ -216,8 +216,11 @@ export function useAgentChat({
     clearError,
   });
 
-  // Anthropic doesn't accept unresolved tool calls, so we resolve them by
-  // marking them as error before the next request goes out.
+  // Local lifecycle cleanup for interrupted client tools: pending calls are
+  // resolved as output-error so the UI settles, pending dialogs are cleared,
+  // and the next send carries the errors to the server as toolOutputs so the
+  // persisted transcript resolves them too. Anything the client can't report
+  // (e.g. a killed tab) is repaired authoritatively server-side at merge time.
   const addInterruptedToolOutputs = async ({
     messages,
     errorText,
