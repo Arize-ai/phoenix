@@ -186,14 +186,15 @@ async function handleFetchError(
  */
 function setupTracer({
   projectName,
-  baseUrl,
+  traceExportUrl,
   headers,
   useBatchSpanProcessor,
   diagLogLevel,
   setGlobalTracerProvider,
 }: {
   projectName: string | null;
-  baseUrl: string;
+  /** Where spans are exported; omit to let `register()` read the environment. */
+  traceExportUrl?: string;
   headers?: Record<string, string>;
   useBatchSpanProcessor: boolean;
   diagLogLevel?: DiagLogLevel;
@@ -209,7 +210,7 @@ function setupTracer({
 
   const provider = register({
     projectName,
-    url: baseUrl,
+    url: traceExportUrl,
     headers,
     batch: useBatchSpanProcessor,
     diagLogLevel,
@@ -316,7 +317,7 @@ export async function resumeExperiment({
   // Initialize tracer (only if experiment has a project_name)
   const tracerSetup = setupTracer({
     projectName: experiment.projectName,
-    baseUrl: getTraceExportUrl(baseUrl),
+    traceExportUrl: getTraceExportUrl(client.config),
     headers: client.config.headers
       ? toObjectHeaders(client.config.headers)
       : undefined,

@@ -209,11 +209,18 @@ describe("env", () => {
       expect(result).toBeUndefined();
     });
 
-    it("should return empty string when env var is empty", () => {
+    it("should treat an empty env var as unset", () => {
       process.env["EMPTY_VAR"] = "";
       const result = getStrFromEnvironment("EMPTY_VAR");
-      expect(result).toBe("");
+      expect(result).toBeUndefined();
       delete process.env["EMPTY_VAR"];
+    });
+
+    it("should treat a whitespace-only env var as unset", () => {
+      process.env["BLANK_VAR"] = "   ";
+      const result = getStrFromEnvironment("BLANK_VAR");
+      expect(result).toBeUndefined();
+      delete process.env["BLANK_VAR"];
     });
 
     it("should return the string value", () => {
@@ -222,10 +229,12 @@ describe("env", () => {
       expect(result).toBe("http://localhost:6006");
     });
 
-    it("should preserve whitespace", () => {
+    // Values are typically written by shells and setup scripts, where a stray
+    // space is a typo rather than part of the value.
+    it("should trim surrounding whitespace", () => {
       process.env[ENV_PHOENIX_HOST] = "  spaced  ";
       const result = getStrFromEnvironment(ENV_PHOENIX_HOST);
-      expect(result).toBe("  spaced  ");
+      expect(result).toBe("spaced");
     });
   });
 

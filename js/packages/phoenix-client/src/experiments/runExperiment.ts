@@ -278,7 +278,7 @@ export async function runExperiment({
 
     taskProvider = register({
       projectName,
-      url: getTraceExportUrl(baseUrl),
+      url: getTraceExportUrl(client.config),
       headers: client.config.headers
         ? toObjectHeaders(client.config.headers)
         : undefined,
@@ -633,7 +633,7 @@ export async function evaluateExperiment({
   } else if (!isDryRun) {
     provider = register({
       projectName: "evaluators",
-      url: getTraceExportUrl(baseUrl),
+      url: getTraceExportUrl(client.config),
       headers: client.config.headers
         ? toObjectHeaders(client.config.headers)
         : undefined,
