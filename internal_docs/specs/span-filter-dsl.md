@@ -241,19 +241,15 @@ Once a root is reserved, adding members to it later is additive: an unknown
 member already errors, so admitting one cannot change what an accepted
 condition meant.
 
-Two shapes are rejected that Python would allow, both deliberate:
+**Traversal past a member** (`span.total_cost.x`, `span['total_cost']`) is
+rejected: the root exposes its fields directly and nothing further.
 
-- **Traversal past a member** (`span.total_cost.x`, `span['total_cost']`). The
-  root exposes its fields directly and nothing further.
-- **Shadowing the root with a loop variable**
-  (`any(span.cost > 1 for span in span.cost_details)`). Not because shadowing
-  would break anything — it would make the filtered row unreachable inside that
-  one comprehension, which is ordinary lexical scoping. The restriction is kept
-  because it is nearly free (no one needs this spelling) and reversible: under
-  the additive-only policy a rejection can be lifted later, a restriction cannot
-  be added. It also removes a footgun — Python evaluates the outermost `for`
-  clause's iterable in the *enclosing* scope, so `for span in span.cost_details`
-  reads the same token two ways in one line.
+The root **can** be shadowed by a loop variable, following Python's scoping
+rather than departing from it. In `any(span.cost > 1 for span in
+span.cost_details)` the `span` on the right of `in` is the root — Python
+evaluates the outermost `for` clause's iterable in the enclosing scope — and
+every other `span` in the line is the element. Inside such a comprehension the
+filtered row is unreachable, exactly as a shadowed name is in Python.
 
 **Missing values.** Cost and token members coalesce to `0`, matching the session
 grain's rollups so that one name means one thing across grains — a span with no
