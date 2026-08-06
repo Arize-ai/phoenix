@@ -158,7 +158,9 @@ export function AssistantMessage({
               role="assistant"
               onRequest={onRewindRequest}
               showRewind={allowRewind}
-              traceId={getAssistantMessageMetadata(message)?.trace?.traceId}
+              traceId={
+                getAssistantMessageMetadata(message)?.turnTraceContext?.traceId
+              }
             />
           ) : null}
         </AssistantMessageActions>

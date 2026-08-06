@@ -9559,16 +9559,6 @@
             "type": "string",
             "title": "Sessionid"
           },
-          "trace": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AssistantMessageMetadataTraceIds"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "turnTraceContext": {
             "anyOf": [
               {
@@ -9598,26 +9588,6 @@
         ],
         "title": "AssistantMessageMetadata",
         "description": "Wire schema for the chat stream's ``message_metadata`` payload."
-      },
-      "AssistantMessageMetadataTraceIds": {
-        "properties": {
-          "traceId": {
-            "type": "string",
-            "title": "Traceid"
-          },
-          "rootSpanId": {
-            "type": "string",
-            "title": "Rootspanid"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "traceId",
-          "rootSpanId"
-        ],
-        "title": "AssistantMessageMetadataTraceIds",
-        "description": "Identifiers locating the trace of the turn that produced the message,\nadvertised to the UI so it can link the message to a viewable trace."
       },
       "AssistantMessageMetadataUsage": {
         "properties": {
@@ -13341,16 +13311,6 @@
           "sessionId": {
             "type": "string",
             "title": "Sessionid"
-          },
-          "trace": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AssistantMessageMetadataTraceIds"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "turnTraceContext": {
             "anyOf": [
@@ -19315,7 +19275,7 @@
           "startedAt"
         ],
         "title": "TurnTraceContext",
-        "description": "The trace context a turn's spans are parented to \u2014 minted by the\nserver at the turn's first request and recovered from this persisted\nmetadata when a client-tool continuation resumes the turn. Unlike\n``AssistantMessageMetadataTraceIds`` this is an input to span recording\n(it carries ``started_at`` and enforces OTel hex formats), not a pointer\nto an already recorded trace."
+        "description": "The trace identity a turn's spans are parented to \u2014 minted by the\nserver at the turn's first request. The server recovers it from the\npersisted assistant message when a client-tool continuation resumes the\nturn, and the UI uses its ids to link the message to a viewable trace."
       },
       "UpdateAnnotationConfigResponseBody": {
         "properties": {

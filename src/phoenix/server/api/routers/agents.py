@@ -23,8 +23,7 @@ from openinference.instrumentation import using_session, using_user
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry import trace as trace_api
 from opentelemetry.context import Context
-from opentelemetry.sdk.trace import Event, SpanProcessor
-from opentelemetry.sdk.trace import Span as SDKSpan
+from opentelemetry.sdk.trace import Event
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator
 from opentelemetry.sdk.util.instrumentation import InstrumentationScope
 from opentelemetry.semconv.attributes.exception_attributes import EXCEPTION_MESSAGE
@@ -86,7 +85,6 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.types.data_stream_protocol import (
     AssistantMessageMetadata,
-    AssistantMessageMetadataTraceIds,
     AssistantMessageMetadataUsage,
     AssistantMessageMetadataUsageCacheTokenDetails,
     AssistantMessageMetadataUsageTokens,
@@ -659,33 +657,6 @@ def _is_async_generator(
     )
 
 
-class _AgentSpanContextRecorder(SpanProcessor):
-    """Records the `SpanContext` of the current agent turn's AGENT span as
-    it starts."""
-
-    span_context: SpanContext | None
-
-    def __init__(self) -> None:
-        self.span_context = None
-
-    def on_start(self, span: SDKSpan, parent_context: Context | None = None) -> None:
-        attrs = span.attributes or {}
-        if (
-            attrs.get(SpanAttributes.OPENINFERENCE_SPAN_KIND)
-            == OpenInferenceSpanKindValues.AGENT.value
-        ):
-            self.span_context = span.get_span_context()
-
-    def on_end(self, span: SDKSpan) -> None:  # type: ignore[override]
-        pass
-
-    def shutdown(self) -> None:
-        pass
-
-    def force_flush(self, timeout_millis: int = 30000) -> bool:
-        return True
-
-
 @dataclass
 class _TurnTraceIds:
     trace_id: int
@@ -745,31 +716,14 @@ def _turn_parent_context(ids: _TurnTraceIds) -> Context:
 
 def _build_assistant_message_metadata(
     *,
-    span_context: SpanContext | None,
     turn_trace_context: TurnTraceContext | None,
     session_id: str,
     usage: RequestUsage,
 ) -> AssistantMessageMetadata:
     """Build the metadata payload attached to the turn's assistant message."""
-    trace_ids = (
-        AssistantMessageMetadataTraceIds(
-            trace_id=turn_trace_context.trace_id,
-            root_span_id=turn_trace_context.root_span_id,
-        )
-        if turn_trace_context is not None
-        else (
-            AssistantMessageMetadataTraceIds(
-                trace_id=format_trace_id(span_context.trace_id),
-                root_span_id=format_span_id(span_context.span_id),
-            )
-            if span_context is not None
-            else None
-        )
-    )
     return AssistantMessageMetadata(
         type="assistant",
         session_id=session_id,
-        trace=trace_ids,
         turn_trace_context=turn_trace_context,
         usage=_build_usage_payload(usage),
     )
@@ -777,7 +731,6 @@ def _build_assistant_message_metadata(
 
 def _build_message_metadata_chunk(
     *,
-    span_context: SpanContext | None,
     turn_trace_context: TurnTraceContext | None,
     session_id: str,
     usage: RequestUsage,
@@ -785,7 +738,6 @@ def _build_message_metadata_chunk(
     """Build the `MessageMetadataChunk` emitted at the end of an agent turn."""
     return MessageMetadataChunk(
         message_metadata=_build_assistant_message_metadata(
-            span_context=span_context,
             session_id=session_id,
             turn_trace_context=turn_trace_context,
             usage=usage,
@@ -2692,10 +2644,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     else None
                 )
                 tracer_provider = tracer.tracer_provider if tracer is not None else None
-                agent_span_recorder: _AgentSpanContextRecorder | None = None
-                if tracer is not None:
-                    agent_span_recorder = _AgentSpanContextRecorder()
-                    tracer.tracer_provider.add_span_processor(agent_span_recorder)
                 sandbox_availability = SandboxAvailability()
                 model_provider_availability = ModelProviderAvailability()
                 agent_supports_availability_gate = agent_id == _ASSISTANT_AGENT_ID
@@ -2940,7 +2888,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 continued_turn_trace_context, now=request_received_at
             )
             parent_context = _turn_parent_context(turn_ids)
-            request_parent_span_context = _get_span_context(parent_context)
             resolved_turn_trace_context = (
                 TurnTraceContext(
                     trace_id=format_trace_id(turn_ids.trace_id),
@@ -2989,18 +2936,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 if isinstance(result.output, str):
                     turn_is_terminal = True
                     turn_final_output_text = result.output.strip() or None
-                # Only advertise a trace when the tracer is actually recording
-                span_context = (
-                    (
-                        agent_span_recorder.span_context
-                        if agent_span_recorder and agent_span_recorder.span_context is not None
-                        else request_parent_span_context
-                    )
-                    if tracer is not None
-                    else None
-                )
                 yield _build_message_metadata_chunk(
-                    span_context=span_context,
                     turn_trace_context=resolved_turn_trace_context,
                     session_id=otel_session_id,
                     usage=_get_current_context_usage(result),

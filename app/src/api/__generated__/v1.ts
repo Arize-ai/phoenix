@@ -1993,22 +1993,10 @@ export interface components {
             type: "assistant";
             /** Sessionid */
             sessionId: string;
-            trace?: components["schemas"]["AssistantMessageMetadataTraceIds"] | null;
             turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
         } & {
             [key: string]: unknown;
-        };
-        /**
-         * AssistantMessageMetadataTraceIds
-         * @description Identifiers locating the trace of the turn that produced the message,
-         *     advertised to the UI so it can link the message to a viewable trace.
-         */
-        AssistantMessageMetadataTraceIds: {
-            /** Traceid */
-            traceId: string;
-            /** Rootspanid */
-            rootSpanId: string;
         };
         /** AssistantMessageMetadataUsage */
         AssistantMessageMetadataUsage: {
@@ -3472,7 +3460,6 @@ export interface components {
             type?: "assistant";
             /** Sessionid */
             sessionId: string;
-            trace?: components["schemas"]["AssistantMessageMetadataTraceIds"] | null;
             turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
         } & {
@@ -6014,12 +6001,10 @@ export interface components {
         };
         /**
          * TurnTraceContext
-         * @description The trace context a turn's spans are parented to — minted by the
-         *     server at the turn's first request and recovered from this persisted
-         *     metadata when a client-tool continuation resumes the turn. Unlike
-         *     ``AssistantMessageMetadataTraceIds`` this is an input to span recording
-         *     (it carries ``started_at`` and enforces OTel hex formats), not a pointer
-         *     to an already recorded trace.
+         * @description The trace identity a turn's spans are parented to — minted by the
+         *     server at the turn's first request. The server recovers it from the
+         *     persisted assistant message when a client-tool continuation resumes the
+         *     turn, and the UI uses its ids to link the message to a viewable trace.
          */
         TurnTraceContext: {
             /** Traceid */

@@ -40,7 +40,6 @@ from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
 from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.api.routers.agents import (
-    _AgentSpanContextRecorder,
     _build_message_metadata_chunk,
     _ensure_project_exists,
     _get_current_context_usage,
@@ -200,10 +199,6 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
             else None
         )
         tracer_provider = tracer.tracer_provider if tracer is not None else None
-        agent_span_recorder: _AgentSpanContextRecorder | None = None
-        if tracer is not None:
-            agent_span_recorder = _AgentSpanContextRecorder()
-            tracer.tracer_provider.add_span_processor(agent_span_recorder)
 
         try:
             model = await build_model(
@@ -247,7 +242,6 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
             yield _build_message_metadata_chunk(
-                span_context=agent_span_recorder.span_context if agent_span_recorder else None,
                 turn_trace_context=None,
                 session_id=session_id,
                 usage=_get_current_context_usage(result),

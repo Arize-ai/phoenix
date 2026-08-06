@@ -44,21 +44,11 @@ class AssistantMessageMetadataUsage(CamelBaseModel):
     prompt_details: AssistantMessageMetadataUsageCacheTokenDetails | None = None
 
 
-class AssistantMessageMetadataTraceIds(CamelBaseModel):
-    """Identifiers locating the trace of the turn that produced the message,
-    advertised to the UI so it can link the message to a viewable trace."""
-
-    trace_id: str
-    root_span_id: str
-
-
 class TurnTraceContext(CamelBaseModel):
-    """The trace context a turn's spans are parented to — minted by the
-    server at the turn's first request and recovered from this persisted
-    metadata when a client-tool continuation resumes the turn. Unlike
-    ``AssistantMessageMetadataTraceIds`` this is an input to span recording
-    (it carries ``started_at`` and enforces OTel hex formats), not a pointer
-    to an already recorded trace."""
+    """The trace identity a turn's spans are parented to — minted by the
+    server at the turn's first request. The server recovers it from the
+    persisted assistant message when a client-tool continuation resumes the
+    turn, and the UI uses its ids to link the message to a viewable trace."""
 
     trace_id: str = Field(pattern=r"^[0-9a-f]{32}$")
     root_span_id: str = Field(pattern=r"^[0-9a-f]{16}$")
@@ -73,11 +63,9 @@ class AssistantMessageMetadata(CamelBaseModel):
     type: Literal["assistant"]
     session_id: str
 
-    trace: AssistantMessageMetadataTraceIds | None = None
-    """Where the turn's trace can be viewed, when any tracing was active."""
-
     turn_trace_context: TurnTraceContext | None = None
-    """The trace context the turn's spans were parented to."""
+    """The trace context the turn's spans were parented to, set when any
+    tracing was active for the turn."""
 
     usage: AssistantMessageMetadataUsage | None = None
 

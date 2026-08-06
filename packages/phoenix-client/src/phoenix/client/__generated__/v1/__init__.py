@@ -70,11 +70,6 @@ class AppContext(TypedDict):
     timeZone: str
 
 
-class AssistantMessageMetadataTraceIds(TypedDict):
-    traceId: str
-    rootSpanId: str
-
-
 class AssistantMessageMetadataUsageCacheTokenDetails(TypedDict):
     cacheRead: int
     cacheWrite: int
@@ -1569,7 +1564,6 @@ class IncompleteExperimentRun(TypedDict):
 class LegacyAssistantMessageMetadata(TypedDict):
     type: Literal["assistant"]
     sessionId: str
-    trace: NotRequired[AssistantMessageMetadataTraceIds]
     turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
 
@@ -1816,7 +1810,6 @@ class AssignAnnotationConfigToProjectResponseBody(TypedDict):
 class AssistantMessageMetadata(TypedDict):
     type: Literal["assistant"]
     sessionId: str
-    trace: NotRequired[AssistantMessageMetadataTraceIds]
     turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
 

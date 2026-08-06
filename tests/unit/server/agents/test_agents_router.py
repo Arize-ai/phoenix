@@ -74,7 +74,7 @@ from phoenix.server.settings.registry import (
     AgentTraceRecordingSetting,
 )
 from phoenix.server.types import DbSessionFactory
-from phoenix.tracers import Tracer, extract_otel_context
+from phoenix.tracers import Tracer
 from tests.unit._helpers import _agent_session_model_kwargs, _message_uuid
 
 _BUILD_MODEL_PATCH_TARGET = "phoenix.server.api.routers.agents.build_model"
@@ -1171,25 +1171,6 @@ async def test_user_turn_applies_submitted_tool_output_error_resolutions(
     assert resolved_part["errorText"] == "The user has interrupted this tool call."
 
 
-def test_message_metadata_can_use_propagated_root_span_context() -> None:
-    trace_id = "931b2fbce00d0b18834637856fa72c7e"
-    root_span_id = "f66a81825e150dc1"
-    parent_context = extract_otel_context({"traceparent": f"00-{trace_id}-{root_span_id}-01"})
-
-    metadata_chunk = _build_message_metadata_chunk(
-        span_context=_get_span_context(parent_context),
-        turn_trace_context=None,
-        session_id="session-1",
-        usage=RequestUsage(input_tokens=1, output_tokens=2),
-    )
-
-    metadata = metadata_chunk.message_metadata
-    assert metadata is not None
-    assert metadata.trace is not None
-    assert metadata.trace.trace_id == trace_id
-    assert metadata.trace.root_span_id == root_span_id
-
-
 def test_turn_trace_context_is_clamped_and_used_for_metadata() -> None:
     now = datetime(2026, 7, 10, 12, tzinfo=timezone.utc)
     turn_trace_context = TurnTraceContext(
@@ -1204,16 +1185,12 @@ def test_turn_trace_context_is_clamped_and_used_for_metadata() -> None:
     assert span_context.trace_id == int("1" * 32, 16)
 
     metadata = _build_message_metadata_chunk(
-        span_context=None,
         turn_trace_context=turn_trace_context,
         session_id="session-1",
         usage=RequestUsage(),
     ).message_metadata
     assert metadata is not None
     assert metadata.turn_trace_context == turn_trace_context
-    assert metadata.trace is not None
-    assert metadata.trace.trace_id == turn_trace_context.trace_id
-    assert metadata.trace.root_span_id == turn_trace_context.root_span_id
 
 
 def test_zero_turn_ids_are_replaced() -> None:
@@ -1665,10 +1642,6 @@ async def test_chat_stream_metadata_reuses_the_persisted_turn_trace_context(
         if chunk.get("type") == "message-metadata" and "sessionId" in chunk["messageMetadata"]
     ]
     assert len(phoenix_metadata_chunks) == 1
-    assert phoenix_metadata_chunks[0]["trace"] == {
-        "traceId": trace_id,
-        "rootSpanId": root_span_id,
-    }
     assert phoenix_metadata_chunks[0]["turnTraceContext"]["traceId"] == trace_id
     assert phoenix_metadata_chunks[0]["turnTraceContext"]["rootSpanId"] == root_span_id
 
@@ -1678,11 +1651,9 @@ async def test_chat_stream_metadata_reuses_the_persisted_turn_trace_context(
         stored_messages = await _load_session_messages(session, agent_session_rowid)
     assistant_messages = [message for message in stored_messages if message["role"] == "assistant"]
     assert assistant_messages
-    assert assistant_messages[-1]["metadata"]["trace"] == {
-        "traceId": trace_id,
-        "rootSpanId": root_span_id,
-    }
-    assert assistant_messages[-1]["metadata"]["turnTraceContext"]["traceId"] == trace_id
+    persisted_turn_trace_context = assistant_messages[-1]["metadata"]["turnTraceContext"]
+    assert persisted_turn_trace_context["traceId"] == trace_id
+    assert persisted_turn_trace_context["rootSpanId"] == root_span_id
 
 
 async def test_chat_turn_without_a_message_is_rejected(

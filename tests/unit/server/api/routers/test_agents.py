@@ -7,12 +7,6 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 from jinja2 import Template
-from opentelemetry.trace import (
-    SpanContext,
-    TraceFlags,
-    format_span_id,
-    format_trace_id,
-)
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
 from pydantic_ai.usage import RequestUsage
 from sqlalchemy import delete, func, select, update
@@ -440,58 +434,33 @@ class TestPersistDbTracesAndEmitEvent:
 
 
 class TestBuildMessageMetadataChunk:
-    @staticmethod
-    def _span_context() -> SpanContext:
-        return SpanContext(
-            trace_id=0x0123456789ABCDEF0123456789ABCDEF,
-            span_id=0x0123456789ABCDEF,
-            is_remote=True,
-            trace_flags=TraceFlags(TraceFlags.SAMPLED),
-        )
-
-    def test_omits_trace_when_no_span_or_turn_context(self) -> None:
-        # When tracing is off, `_on_complete` passes no span context and no turn
-        # trace context. The chunk must then advertise no trace so the UI does
-        # not render feedback/trace actions pointing at a nonexistent trace.
+    def test_omits_turn_trace_context_when_none(self) -> None:
+        # When tracing is off and the turn is not a continuation, no turn
+        # trace context exists. The chunk must then advertise none so the UI
+        # does not render feedback/trace actions pointing at a nonexistent
+        # trace.
         chunk = _build_message_metadata_chunk(
-            span_context=None,
             turn_trace_context=None,
             session_id="session-1",
             usage=RequestUsage(),
         )
-        assert chunk.message_metadata.trace is None
+        assert chunk.message_metadata.turn_trace_context is None
 
-    def test_uses_turn_trace_context_when_present(self) -> None:
+    def test_advertises_the_turn_trace_context_when_present(self) -> None:
         turn_trace_context = TurnTraceContext(
             trace_id="0123456789abcdef0123456789abcdef",
             root_span_id="0123456789abcdef",
             started_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
         )
         chunk = _build_message_metadata_chunk(
-            span_context=self._span_context(),
             turn_trace_context=turn_trace_context,
             session_id="session-1",
             usage=RequestUsage(),
         )
-        assert chunk.message_metadata.trace is not None
-        assert chunk.message_metadata.trace.trace_id == turn_trace_context.trace_id
-        assert chunk.message_metadata.trace.root_span_id == turn_trace_context.root_span_id
-
-    def test_falls_back_to_span_context_when_no_turn_context(self) -> None:
-        span_context = self._span_context()
-        chunk = _build_message_metadata_chunk(
-            span_context=span_context,
-            turn_trace_context=None,
-            session_id="session-1",
-            usage=RequestUsage(),
-        )
-        assert chunk.message_metadata.trace is not None
-        assert chunk.message_metadata.trace.trace_id == format_trace_id(span_context.trace_id)
-        assert chunk.message_metadata.trace.root_span_id == format_span_id(span_context.span_id)
+        assert chunk.message_metadata.turn_trace_context == turn_trace_context
 
     def test_reports_the_final_request_as_the_current_context_size(self) -> None:
         chunk = _build_message_metadata_chunk(
-            span_context=None,
             turn_trace_context=None,
             session_id="session-1",
             usage=RequestUsage(
