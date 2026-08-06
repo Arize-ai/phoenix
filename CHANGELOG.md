@@ -1,5 +1,23 @@
 # Changelog
 
+## [19.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.18.0...arize-phoenix-v19.19.0) (2026-08-06)
+
+
+### Features
+
+* **ui:** collapse all but the last message in LLM spans ([#15173](https://github.com/Arize-ai/phoenix/issues/15173)) ([11f418f](https://github.com/Arize-ai/phoenix/commit/11f418fb86bce253736d551129849cddffe17297))
+
+
+### Bug Fixes
+
+* **db:** replace sqlean.py with arize-phoenix-sqlean ([#15139](https://github.com/Arize-ai/phoenix/issues/15139)) ([0fc6f0a](https://github.com/Arize-ai/phoenix/commit/0fc6f0afd98e1c2a43a479e08b0922feb43ade16))
+
+
+### Documentation
+
+* remove Arize AX from tutorial and get-started flows ([#15171](https://github.com/Arize-ai/phoenix/issues/15171)) ([e75fec0](https://github.com/Arize-ai/phoenix/commit/e75fec0399c2e99b67067f6da839c5b3c3a0ad0d))
+* update API reference to include chat completions ([#15114](https://github.com/Arize-ai/phoenix/issues/15114)) ([3af38bd](https://github.com/Arize-ai/phoenix/commit/3af38bd088eb2e0055ed12c3ca68fc020aa68ee3))
+
 ## [19.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.17.0...arize-phoenix-v19.18.0) (2026-08-05)
 
 
