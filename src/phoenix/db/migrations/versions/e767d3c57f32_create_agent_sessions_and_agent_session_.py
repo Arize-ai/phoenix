@@ -177,6 +177,13 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
         sa.CheckConstraint(
             _uuid_format_check("message_id", _bind_dialect_name()),
             name="valid_message_id",
