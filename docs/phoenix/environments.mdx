@@ -104,9 +104,9 @@ Each concern resolves through a chain — the settings above are the top of each
 | Concern | Resolution order |
 |---------|------------------|
 | **API access** — clients, `px` CLI, MCP | `PHOENIX_ENDPOINT` → `PHOENIX_COLLECTOR_ENDPOINT` (any trailing `/v1/traces` stripped) → `OTEL_EXPORTER_OTLP_ENDPOINT` → `PHOENIX_HOST` (with `PHOENIX_PORT`) → `http://localhost:6006` |
-| **Trace export** — `register()` and the exporters it configures | the `endpoint` / `url` argument → `PHOENIX_COLLECTOR_ENDPOINT` → `OTEL_EXPORTER_OTLP_ENDPOINT` → `PHOENIX_ENDPOINT` → `http://localhost:6006` |
+| **Trace export** — `register()` and the exporters it configures | the `endpoint` / `url` argument → `PHOENIX_COLLECTOR_ENDPOINT` → `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` (used as-is — full URL) → `OTEL_EXPORTER_OTLP_ENDPOINT` → `PHOENIX_ENDPOINT` → `http://localhost:6006` |
 
-The lower rungs of the trace-export chain are still arriving per SDK: Python `arize-phoenix-otel` reads `OTEL_EXPORTER_OTLP_ENDPOINT` but not yet `PHOENIX_ENDPOINT`, and the TypeScript package is the other way around. Setting `PHOENIX_COLLECTOR_ENDPOINT` avoids the difference entirely.
+The lower rungs of the trace-export chain are still arriving in Python: `arize-phoenix-otel` reads `OTEL_EXPORTER_OTLP_ENDPOINT` but neither `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` nor `PHOENIX_ENDPOINT`, while the TypeScript package implements the chain in full. Setting `PHOENIX_COLLECTOR_ENDPOINT` avoids the difference entirely.
 
 ### Choosing a project
 
