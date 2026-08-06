@@ -71,7 +71,9 @@ export function LLMOutput({
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             {isRawView && <ConnectedMarkdownModeSelect />}
-            {view === "output-messages" && <LLMMessagesCollapseToggle />}
+            {view === "output-messages" && (
+              <LLMMessagesCollapseToggle scope="output" />
+            )}
             {views.length > 0 && (
               <LLMIOViewSelect
                 label="Output view"

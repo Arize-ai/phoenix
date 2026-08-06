@@ -1,5 +1,27 @@
 import type { PropsWithChildren } from "react";
-import { createContext, startTransition, useContext, useState } from "react";
+import { createContext, useContext, useState } from "react";
+
+import type { AttributeMessage } from "@phoenix/openInference/tracing/types";
+
+import { getMessagePreview } from "./utils";
+
+type MessagesOpenState = {
+  /**
+   * The state a bulk expand/collapse put the list in, or null when the reader
+   * has not used the toggle. Held for the list as a whole rather than as an
+   * entry per message so that a message arriving later — a span still being
+   * written — follows the reader's last choice instead of its own default.
+   */
+  allOpen: boolean | null;
+
+  /**
+   * The state the reader chose on individual messages, which wins over
+   * {@link MessagesOpenState.allOpen}.
+   */
+  openStateByIndex: Record<number, boolean>;
+};
+
+const UNTOUCHED: MessagesOpenState = { allOpen: null, openStateByIndex: {} };
 
 type LLMMessagesCollapseContextType = {
   /** How many messages the list holds, which is what "the last one" refers to. */
@@ -30,51 +52,68 @@ const LLMMessagesCollapseContext =
  * control that expands or collapses them all.
  *
  * A conversation sent to a model is mostly history the reader has already seen;
- * what they came for is the last message. So every message starts collapsed
- * except that one, and the reader opens the earlier turns they actually want.
+ * what they came for is the last message. So a message starts collapsed unless
+ * it is the last one, and the reader opens the earlier turns they actually
+ * want.
  *
  * Mount one provider per list — the input and output sides of a span each get
- * their own — and remount it when the span changes, so open states never carry
- * over to a different conversation's messages.
+ * their own.
  */
 export function LLMMessagesCollapseProvider({
-  messageCount,
+  messages,
+  spanId,
   children,
-}: PropsWithChildren<{ messageCount: number }>) {
-  const [openStateByIndex, setOpenStateByIndex] = useState<
-    Record<number, boolean>
-  >({});
+}: PropsWithChildren<{
+  messages: AttributeMessage[];
+  /** The span the messages belong to. Reading a different span starts over. */
+  spanId: string;
+}>) {
+  const [state, setState] = useState<MessagesOpenState>(UNTOUCHED);
+  const [renderedSpanId, setRenderedSpanId] = useState(spanId);
 
-  const isMessageOpen = (index: number) =>
-    openStateByIndex[index] ?? index === messageCount - 1;
-
-  const setMessageOpen = (index: number, isOpen: boolean) => {
-    setOpenStateByIndex((prev) => ({ ...prev, [index]: isOpen }));
-  };
+  // Adjusting the state during render rather than remounting on a `key`: the
+  // cards below hold state of their own — which of messages / tools / raw they
+  // are showing — that is meant to survive the reader moving between spans.
+  const openState = renderedSpanId === spanId ? state : UNTOUCHED;
+  if (renderedSpanId !== spanId) {
+    setRenderedSpanId(spanId);
+    setState(UNTOUCHED);
+  }
 
   /**
-   * Applies a global expand/collapse as a non-urgent update — expanding a long
-   * conversation mounts every message's markdown and tool calls at once.
+   * Whether a message the reader has not touched shows itself.
+   *
+   * A message with no preview has nothing to stand in for its body while
+   * collapsed — an image-only turn previews as nothing at all — so collapsing
+   * it would leave a bare role header and hide the only content it carries.
    */
-  const setAllMessagesOpen = (isOpen: boolean) => {
-    startTransition(() => {
-      setOpenStateByIndex(
-        Object.fromEntries(
-          Array.from({ length: messageCount }, (_, index) => [index, isOpen])
-        )
-      );
-    });
+  const isOpenByDefault = (index: number) =>
+    index === messages.length - 1 || getMessagePreview(messages[index]) == null;
+
+  const isMessageOpen = (index: number) =>
+    openState.openStateByIndex[index] ??
+    openState.allOpen ??
+    isOpenByDefault(index);
+
+  const setMessageOpen = (index: number, isOpen: boolean) => {
+    setState((prev) => ({
+      ...prev,
+      openStateByIndex: { ...prev.openStateByIndex, [index]: isOpen },
+    }));
   };
 
-  const areAllMessagesExpanded = Array.from(
-    { length: messageCount },
-    (_, index) => index
-  ).every((index) => isMessageOpen(index));
+  const setAllMessagesOpen = (isOpen: boolean) => {
+    setState({ allOpen: isOpen, openStateByIndex: {} });
+  };
+
+  const areAllMessagesExpanded = messages.every((_, index) =>
+    isMessageOpen(index)
+  );
 
   return (
     <LLMMessagesCollapseContext.Provider
       value={{
-        messageCount,
+        messageCount: messages.length,
         isMessageOpen,
         setMessageOpen,
         areAllMessagesExpanded,

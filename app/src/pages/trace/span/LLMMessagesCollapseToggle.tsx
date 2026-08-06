@@ -17,15 +17,23 @@ import { useLLMMessagesCollapse } from "./LLMMessagesCollapseContext";
  * Renders nothing for a list of one, where the message is already open and
  * there is nothing for the control to do.
  */
-export function LLMMessagesCollapseToggle() {
+export function LLMMessagesCollapseToggle({
+  /**
+   * Which side of the span the messages are, which names the control. An LLM
+   * span can show this toggle twice, and two buttons reading "expand all
+   * messages" would leave a screen reader with no way to tell the prompt from
+   * the completion.
+   */
+  scope,
+}: {
+  scope: "input" | "output";
+}) {
   const { messageCount, areAllMessagesExpanded, setAllMessagesOpen } =
     useLLMMessagesCollapse();
   if (messageCount < 2) {
     return null;
   }
-  const label = areAllMessagesExpanded
-    ? "Collapse all messages"
-    : "Expand all messages";
+  const label = `${areAllMessagesExpanded ? "Collapse" : "Expand"} all ${scope} messages`;
   return (
     <TooltipTrigger>
       <IconButton

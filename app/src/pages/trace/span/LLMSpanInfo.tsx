@@ -31,12 +31,9 @@ export function LLMSpanInfo({
 
   return (
     <Flex direction="column" gap="size-200">
-      {/* keyed on the span so that expanding a message in one span does not
+      {/* the span is passed so that expanding a message in one span does not
           decide what the next span the reader opens looks like */}
-      <LLMMessagesCollapseProvider
-        key={`input-${span.id}`}
-        messageCount={inputMessages.length}
-      >
+      <LLMMessagesCollapseProvider spanId={span.id} messages={inputMessages}>
         <LLMInput
           modelName={modelName}
           provider={provider}
@@ -48,10 +45,7 @@ export function LLMSpanInfo({
           invocationParameters={invocationParameters}
         />
       </LLMMessagesCollapseProvider>
-      <LLMMessagesCollapseProvider
-        key={`output-${span.id}`}
-        messageCount={outputMessages.length}
-      >
+      <LLMMessagesCollapseProvider spanId={span.id} messages={outputMessages}>
         <LLMOutput output={output} outputMessages={outputMessages} />
       </LLMMessagesCollapseProvider>
     </Flex>

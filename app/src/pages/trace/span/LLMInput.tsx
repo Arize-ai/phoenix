@@ -163,7 +163,9 @@ export function LLMInput({
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             {isRawView && <ConnectedMarkdownModeSelect />}
-            {view === "input-messages" && <LLMMessagesCollapseToggle />}
+            {view === "input-messages" && (
+              <LLMMessagesCollapseToggle scope="input" />
+            )}
             {views.length > 0 && (
               <LLMIOViewSelect
                 label="Input view"
