@@ -104,3 +104,6 @@ wasm/*.wasm
 
 # Harbor run artifacts
 /jobs/
+
+# pi extensions
+.pi/extensions/
