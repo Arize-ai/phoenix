@@ -3459,6 +3459,11 @@ class AgentSession(HasId):
             postgresql_where=text("is_ephemeral IS TRUE"),
             sqlite_where=text("is_ephemeral IS TRUE"),
         ),
+        Index(
+            "ix_agent_sessions_updated_at_id",
+            "updated_at",
+            "id",
+        ),
         dict(sqlite_autoincrement=True),
     )
 
