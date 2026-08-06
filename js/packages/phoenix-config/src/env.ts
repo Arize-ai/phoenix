@@ -820,8 +820,9 @@ export interface ResolvedTraceExportEndpoint extends ResolvedEnvironmentValue {
  * @returns The resolved endpoint, or an empty result if no variable is set.
  */
 export function getTraceExportEndpointFromEnvironment(): ResolvedTraceExportEndpoint {
-  const { source, values } =
-    resolveEnvironmentTierWithSource(TRACE_EXPORT_ENV_KEYS);
+  const { source, values } = resolveEnvironmentTierWithSource(
+    TRACE_EXPORT_ENV_KEYS
+  );
   const resolved = findFirstSetEnvKey(TRACE_EXPORT_ENV_KEYS, values);
 
   const override = fileCanonicalOverride({

@@ -21,7 +21,7 @@ import {
 
 /**
  * Default Phoenix endpoint used when no endpoint environment variable
- * (PHOENIX_ENDPOINT, PHOENIX_COLLECTOR_ENDPOINT, legacy PHOENIX_HOST) is set.
+ * (PHOENIX_ENDPOINT, the trace-export variables, legacy PHOENIX_HOST) is set.
  */
 export const DEFAULT_PHOENIX_ENDPOINT = "http://localhost:6006";
 
@@ -97,10 +97,10 @@ function loadConfigFromEnvironmentWithSources(): {
 } {
   const config: PhoenixConfig = {};
 
-  // PHOENIX_ENDPOINT (canonical for API access) first, inferring from
-  // PHOENIX_COLLECTOR_ENDPOINT when only that is set, then legacy
-  // PHOENIX_HOST — the same resolution the API clients use. `px setup`
-  // writes the first two into `.env.phoenix`.
+  // PHOENIX_ENDPOINT (canonical for API access) first, inferring from the
+  // trace-export variables when only those are set, then legacy PHOENIX_HOST
+  // — the same resolution the API clients use. `px setup` writes
+  // PHOENIX_ENDPOINT and PHOENIX_COLLECTOR_ENDPOINT into `.env.phoenix`.
   const endpoint = getBaseUrlFromEnvironmentWithSource();
   if (endpoint.value) {
     config.endpoint = endpoint.value;
@@ -260,8 +260,8 @@ export interface ResolveConfigOptions {
  * Priority (highest to lowest):
  *   1. CLI flags
  *   2. Explicitly set environment variables (an endpoint inferred from the
- *      trace-export variable PHOENIX_COLLECTOR_ENDPOINT ranks below the
- *      profile)
+ *      trace-export variables PHOENIX_COLLECTOR_ENDPOINT or
+ *      OTEL_EXPORTER_OTLP_ENDPOINT ranks below the profile)
  *   3. Active profile (from --profile or settings file)
  *   4. Discovered `.env.phoenix` file values
  *   5. Built-in defaults
@@ -286,7 +286,7 @@ export function resolveConfig({
     Object.entries(cliOptions).filter(([, value]) => value !== undefined)
   ) as Partial<PhoenixConfig>;
 
-  // A process-env endpoint merely *inferred* from the trace-export variable
+  // A process-env endpoint merely *inferred* from a trace-export variable
   // (PHOENIX_COLLECTOR_ENDPOINT exported in the shell for app tracing, which
   // historically had no effect on px) must not out-rank an explicitly
   // configured profile — it would redirect authenticated commands and strip
