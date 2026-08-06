@@ -370,12 +370,13 @@ class SessionEvalSweeper(DaemonTask):
             )
             if self._db.dialect is SupportedSQLDialect.SQLITE:
                 due_at = (
-                    cast(func.julianday(models.ProjectSession.last_span_seen_at), Float) * 86_400
+                    cast(func.julianday(models.ProjectSession.last_span_ingested_at), Float)
+                    * 86_400
                     + criterion.delay_seconds
                 )
             else:
                 due_at = (
-                    func.extract("epoch", models.ProjectSession.last_span_seen_at)
+                    func.extract("epoch", models.ProjectSession.last_span_ingested_at)
                     + criterion.delay_seconds
                 )
             statements.append(
@@ -384,18 +385,19 @@ class SessionEvalSweeper(DaemonTask):
                     literal(criterion.evaluator_id).label("evaluator_id"),
                     literal(criterion.criteria_id).label("criteria_id"),
                     literal(criterion.fingerprint).label("config_fingerprint"),
-                    models.ProjectSession.last_span_seen_at.label("evaluated_through"),
+                    models.ProjectSession.last_span_ingested_at.label("evaluated_through"),
                     due_at.label("effective_due_time"),
                 ).where(
                     models.ProjectSession.project_id == criterion.project_id,
                     models.ProjectSession.content_complete.is_(True),
-                    models.ProjectSession.last_span_seen_at
+                    models.ProjectSession.last_span_ingested_at.is_not(None),
+                    models.ProjectSession.last_span_ingested_at
                     <= database_now - timedelta(seconds=criterion.delay_seconds),
                     ~successful_result_exists,
                     ~live_work_exists,
                     or_(
                         successful_watermark.is_(None),
-                        successful_watermark < models.ProjectSession.last_span_seen_at,
+                        successful_watermark < models.ProjectSession.last_span_ingested_at,
                     ),
                 )
             )
@@ -437,20 +439,24 @@ class SessionEvalSweeper(DaemonTask):
         watermark_rows = (
             await session.execute(
                 select(
-                    models.ProjectSession.last_span_seen_at,
+                    models.ProjectSession.last_span_ingested_at,
                     models.EvalSessionWorkUnit.evaluated_through,
                 )
                 .join(
                     models.EvalSessionWorkUnit,
                     models.EvalSessionWorkUnit.project_session_rowid == models.ProjectSession.id,
                 )
-                .where(models.EvalSessionWorkUnit.status == "DONE")
+                .where(
+                    models.EvalSessionWorkUnit.status == "DONE",
+                    models.ProjectSession.last_span_ingested_at.is_not(None),
+                )
             )
         ).all()
         watermark_lag_seconds = max(
             (
-                max((last_span_seen_at - evaluated_through).total_seconds(), 0.0)
-                for last_span_seen_at, evaluated_through in watermark_rows
+                max((last_span_ingested_at - evaluated_through).total_seconds(), 0.0)
+                for last_span_ingested_at, evaluated_through in watermark_rows
+                if last_span_ingested_at is not None
             ),
             default=0.0,
         )

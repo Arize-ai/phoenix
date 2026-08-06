@@ -138,6 +138,7 @@ def _create_session_work_units_table() -> None:
         ["criteria_id"],
     )
 
+
 def upgrade() -> None:
     op.add_column(
         "project_sessions",
