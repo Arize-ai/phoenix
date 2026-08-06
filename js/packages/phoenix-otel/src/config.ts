@@ -1,31 +1,31 @@
 import {
-  ENV_PHOENIX_COLLECTOR_ENDPOINT,
   getCredentialsFromEnvironmentWithSource,
   getProjectFromEnvironment,
-  getStrFromEnvironmentWithSource,
+  getTraceExportEndpointFromEnvironment,
 } from "@arizeai/phoenix-config";
 
 /**
- * Resolves the OTel endpoint and credentials as source-aware groups.
+ * Resolves the trace-export endpoint and credentials as source-aware groups.
  *
- * Trace export reads `PHOENIX_COLLECTOR_ENDPOINT` only. API consumers treat
- * `PHOENIX_ENDPOINT` as canonical and fall back to the collector variable when
- * it is unset; the inference deliberately does not run in this direction,
- * which keeps trace export identical across the TypeScript and Python SDKs.
+ * The endpoint resolves `PHOENIX_COLLECTOR_ENDPOINT` first, then the
+ * OTel-standard `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` and
+ * `OTEL_EXPORTER_OTLP_ENDPOINT`, then `PHOENIX_ENDPOINT` — so a configuration
+ * that names Phoenix once exports spans there rather than silently to
+ * localhost.
  */
 export function getEnvConfig() {
   return {
     credentials: getCredentialsFromEnvironmentWithSource(),
-    endpoint: getStrFromEnvironmentWithSource(ENV_PHOENIX_COLLECTOR_ENDPOINT),
+    endpoint: getTraceExportEndpointFromEnvironment(),
   };
 }
 
 /**
  * A utility function that gets the configured collector URL
- * @returns the URL for the phoenix collector endpoint if configured
+ * @returns the URL traces are exported to, as configured in the environment,
+ *   or `undefined` if no trace-export variable is set
  */
 export function getEnvCollectorURL(): string | undefined {
-  // TODO: support OTEL environment variables
   return getEnvConfig().endpoint.value;
 }
 

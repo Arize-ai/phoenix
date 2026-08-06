@@ -36,6 +36,17 @@ const phoenixCredentialsToClientOptions = (
 };
 
 /**
+ * Where a client's base URL came from: an explicit `baseUrl` option
+ * (`"explicit"`), a Phoenix environment variable (`"environment"`), or the
+ * built-in localhost default (`"default"`).
+ *
+ * Explicit configuration outranks the ambient environment, so this is what
+ * decides whether an environment variable may retarget the client's trace
+ * export.
+ */
+export type BaseUrlSource = "default" | "environment" | "explicit";
+
+/**
  * Get the environment options from the environment.
  *
  * @returns The environment options as a Partial<ClientOptions> object.

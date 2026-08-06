@@ -16,7 +16,10 @@ import {
 import type { Span } from "@opentelemetry/api";
 
 import { createDataset } from "../datasets";
-import { cleanupOwnedTracerProvider } from "../experiments/tracing";
+import {
+  cleanupOwnedTracerProvider,
+  getTraceExportUrl,
+} from "../experiments/tracing";
 import { createClient, type PhoenixClient } from "../index";
 import { ensureString } from "../utils/ensureString";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
@@ -362,7 +365,7 @@ export async function initializeSuite(suite: SuiteState): Promise<void> {
   try {
     provider = register({
       projectName: suite.projectName,
-      url: baseUrl,
+      url: getTraceExportUrl(client.config),
       headers: client.config.headers
         ? toObjectHeaders(client.config.headers)
         : undefined,

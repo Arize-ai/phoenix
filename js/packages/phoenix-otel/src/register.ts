@@ -1,8 +1,8 @@
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 import {
+  DEFAULT_PHOENIX_COLLECTOR_ENDPOINT,
   ENV_PHOENIX_COLLECTOR_ENDPOINT,
-  ENV_PHOENIX_ENDPOINT,
-  getStrFromEnvironment,
+  type ResolvedTraceExportEndpoint,
   warnIfUsingFileEndpointWithCredentials,
 } from "@arizeai/phoenix-config";
 import type { DiagLogLevel } from "@opentelemetry/api";
@@ -562,6 +562,55 @@ export function register(params: RegisterParams): NodeTracerProvider {
  * });
  * ```
  */
+/** Where spans go when neither an argument nor the environment names a server. */
+const DEFAULT_TRACE_EXPORT_URL = DEFAULT_PHOENIX_COLLECTOR_ENDPOINT;
+
+/**
+ * Builds the OTLP export URL from a resolved trace-export endpoint. A value
+ * from `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is the traces URL already and is
+ * used verbatim, per the OpenTelemetry specification; every other value is a
+ * server URL that gets the `/v1/traces` path when it is missing.
+ */
+function toTraceExportUrl(endpoint: ResolvedTraceExportEndpoint): string {
+  if (endpoint.value === undefined) {
+    return ensureCollectorEndpoint(DEFAULT_TRACE_EXPORT_URL);
+  }
+  return endpoint.shape === "fully-qualified"
+    ? new URL(endpoint.value).toString()
+    : ensureCollectorEndpoint(endpoint.value);
+}
+
+const loggedTraceExportSources = new Set<string>();
+
+/**
+ * Notes once which variable trace export resolved from when it resolved below
+ * `PHOENIX_COLLECTOR_ENDPOINT`. Where spans go is worth stating plainly — the
+ * batching exporter swallows delivery failures — but a fallback that reaches
+ * the user's Phoenix is working as intended, not a misconfiguration.
+ */
+function logTraceExportSource({
+  envKey,
+  url,
+}: {
+  envKey?: string;
+  url: string;
+}): void {
+  if (!envKey || loggedTraceExportSources.has(`${envKey}\0${url}`)) {
+    return;
+  }
+  loggedTraceExportSources.add(`${envKey}\0${url}`);
+  // eslint-disable-next-line no-console
+  console.info(
+    `Exporting traces to ${url}, resolved from ${envKey}. ` +
+      `Set ${ENV_PHOENIX_COLLECTOR_ENDPOINT} to export them somewhere else.`
+  );
+}
+
+/** @internal Resets the one-time trace-export source log latch for tests. */
+export function resetTraceExportSourceLogForTesting(): void {
+  loggedTraceExportSources.clear();
+}
+
 export function getDefaultSpanProcessor({
   url: paramsUrl,
   apiKey: paramsApiKey,
@@ -572,35 +621,25 @@ export function getDefaultSpanProcessor({
   "url" | "apiKey" | "batch" | "headers"
 >): SpanProcessor {
   const envConfig = getEnvConfig();
-  const configuredUrl = paramsUrl || envConfig.endpoint.value;
-  if (!configuredUrl) {
-    // PHOENIX_ENDPOINT is canonical for API access but is deliberately not read
-    // for trace export, so a user who set only it would otherwise export to
-    // localhost and lose every span with nothing logged.
-    const apiEndpoint = getStrFromEnvironment(ENV_PHOENIX_ENDPOINT);
-    if (apiEndpoint) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `${ENV_PHOENIX_ENDPOINT} is set ("${apiEndpoint}") but ${ENV_PHOENIX_COLLECTOR_ENDPOINT} is not. ` +
-          `Trace export reads ${ENV_PHOENIX_COLLECTOR_ENDPOINT} only, so spans are being sent to ` +
-          `http://localhost:6006. Set ${ENV_PHOENIX_COLLECTOR_ENDPOINT} (usually to the same value) ` +
-          `or pass \`url\` to register().`
-      );
-    }
-  }
+  const usesEnvEndpoint = !paramsUrl && envConfig.endpoint.value !== undefined;
   let url: string;
   try {
-    url = ensureCollectorEndpoint(configuredUrl || "http://localhost:6006");
+    url = paramsUrl
+      ? ensureCollectorEndpoint(paramsUrl)
+      : toTraceExportUrl(envConfig.endpoint);
   } catch (error) {
-    if (!paramsUrl && envConfig.endpoint.source?.kind === "env-file") {
+    if (usesEnvEndpoint && envConfig.endpoint.source?.kind === "env-file") {
       // eslint-disable-next-line no-console
       console.warn(
-        `Ignoring invalid ${ENV_PHOENIX_COLLECTOR_ENDPOINT} value from ${envConfig.endpoint.source.filePath}: ${error instanceof Error ? error.message : "invalid URL"}.`
+        `Ignoring invalid ${envConfig.endpoint.envKey} value from ${envConfig.endpoint.source.filePath}: ${error instanceof Error ? error.message : "invalid URL"}.`
       );
-      url = ensureCollectorEndpoint("http://localhost:6006");
+      url = ensureCollectorEndpoint(DEFAULT_TRACE_EXPORT_URL);
     } else {
       throw error;
     }
+  }
+  if (usesEnvEndpoint && envConfig.endpoint.rank !== "canonical") {
+    logTraceExportSource({ envKey: envConfig.endpoint.envKey, url });
   }
   const apiKey = paramsApiKey || envConfig.credentials.apiKey;
   const explicitHeaders: Headers = Array.isArray(paramsHeaders)
@@ -633,11 +672,12 @@ export function getDefaultSpanProcessor({
     : envConfig.credentials.source?.kind === "process"
       ? "the process environment"
       : undefined;
-  if (!paramsUrl) {
+  if (usesEnvEndpoint) {
     warnIfUsingFileEndpointWithCredentials({
       credentialSource,
       endpointSource: envConfig.endpoint.source,
-      endpointVariable: ENV_PHOENIX_COLLECTOR_ENDPOINT,
+      endpointVariable:
+        envConfig.endpoint.envKey ?? ENV_PHOENIX_COLLECTOR_ENDPOINT,
     });
   }
   const configureHeaders =
