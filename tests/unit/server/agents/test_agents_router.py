@@ -57,7 +57,7 @@ from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
 from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
 from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS, get_otel_session_id
 from phoenix.server.api.routers.agents import (
-    _AgentSessionConflict,
+    AgentSessionConflict,
     _build_message_metadata_chunk,
     _emit_turn_root_span,
     _get_span_context,
@@ -1964,7 +1964,7 @@ def test_merge_rejects_tool_outputs_that_match_no_tool_call() -> None:
         [_user_message("run a command"), _assistant_message_with_tool_states()]
     )
 
-    with pytest.raises(_AgentSessionConflict) as exc_info:
+    with pytest.raises(AgentSessionConflict) as exc_info:
         _merge_messages(
             old_messages=persisted,
             new_message=None,
@@ -1980,7 +1980,7 @@ def test_merge_rejects_tool_outputs_that_rename_the_tool() -> None:
         [_user_message("run a command"), _assistant_message_with_tool_states()]
     )
 
-    with pytest.raises(_AgentSessionConflict) as exc_info:
+    with pytest.raises(AgentSessionConflict) as exc_info:
         _merge_messages(
             old_messages=persisted,
             new_message=None,
@@ -1992,7 +1992,7 @@ def test_merge_rejects_tool_outputs_that_rename_the_tool() -> None:
 def test_merge_rejects_tool_outputs_without_a_trailing_assistant_message() -> None:
     persisted = _validated_messages([_user_message("hello")])
 
-    with pytest.raises(_AgentSessionConflict) as exc_info:
+    with pytest.raises(AgentSessionConflict) as exc_info:
         _merge_messages(
             old_messages=persisted,
             new_message=None,
