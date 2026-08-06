@@ -11,11 +11,13 @@ session's transcript.
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 
 from phoenix.db.models import _UIMessage
 from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessageAdapter,
     TextUIPart,
+    ToolOutputDeniedPart,
     UserMessageMetadata,
 )
 from phoenix.db.types.data_stream_protocol.phoenix_types import PhoenixUIMessage
@@ -89,19 +91,26 @@ def test_server_built_compaction_message_round_trips() -> None:
 
 
 def test_message_that_cannot_round_trip_is_rejected_at_write() -> None:
-    # A defaulted-but-unset discriminator is dropped by the exclude_unset dump,
-    # so the stored metadata could not be re-validated against the tagged union.
+    # The vendored tool parts default their ``state`` discriminator, so an
+    # unset ``state`` is dropped by the exclude_unset dump and the stored part
+    # would re-validate as a different member of the tool-part union.
     message = PhoenixUIMessage(
         id=_MESSAGE_ID,
-        role="user",
-        metadata=UserMessageMetadata(
+        role="assistant",
+        parts=[ToolOutputDeniedPart(type="tool-search", tool_call_id="call_1")],
+    )
+    with pytest.raises(Exception, match="round-trip"):
+        _UIMessage().process_bind_param(message, None)  # type: ignore[arg-type]
+
+
+def test_metadata_discriminator_is_required_at_construction() -> None:
+    # The Phoenix-owned metadata types drop upstream's ergonomic ``type``
+    # default so a forgotten discriminator fails here instead of at persist.
+    with pytest.raises(ValidationError, match="type"):
+        UserMessageMetadata(  # type: ignore[call-arg]
             current_date_time="2026-08-05T00:00:00+00:00",
             time_zone="UTC",
-        ),
-        parts=[TextUIPart(type="text", text="hello")],
-    )
-    with pytest.raises(Exception, match="round-trip|discriminator|type"):
-        _UIMessage().process_bind_param(message, None)  # type: ignore[arg-type]
+        )
 
 
 def test_none_binds_and_loads_as_none() -> None:

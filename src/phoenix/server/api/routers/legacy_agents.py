@@ -67,10 +67,16 @@ _DEPRECATION_HEADER = "Deprecation"
 _DEPRECATION_HEADER_VALUE = "true"
 
 
+class LegacyAssistantMessageMetadata(AssistantMessageMetadata):
+    """Legacy transcripts predate the ``type`` discriminator, so default it here."""
+
+    type: Literal["assistant"] = "assistant"
+
+
 class LegacyAssistantMetadataUIMessage(UIMessage):
     """``UIMessage`` with ``metadata`` narrowed to ``AssistantMessageMetadata``."""
 
-    metadata: AssistantMessageMetadata | None = None
+    metadata: LegacyAssistantMessageMetadata | None = None
 
 
 class _LegacyObservabilityMixin(BaseModel):

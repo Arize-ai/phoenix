@@ -155,9 +155,6 @@ def create_streaming_ui_message_state(
     """
     message = (
         UIMessage.model_validate(
-            # exclude_unset clones the message's exact wire shape, like the
-            # upstream ``structuredClone``: explicit nulls survive (required
-            # ``Any`` fields may legally hold null) and absent keys stay absent.
             last_message.model_dump(
                 mode="json",
                 by_alias=True,
@@ -696,6 +693,7 @@ def _update_tool_part(
     if dynamic:
         if part_state == "input-streaming":
             replacement: UIMessagePart = DynamicToolInputStreamingPart(
+                state="input-streaming",
                 type="dynamic-tool",
                 tool_name=tool_name,
                 tool_call_id=tool_call_id,
@@ -707,6 +705,7 @@ def _update_tool_part(
             )
         elif part_state == "input-available":
             replacement = DynamicToolInputAvailablePart(
+                state="input-available",
                 type="dynamic-tool",
                 tool_name=tool_name,
                 tool_call_id=tool_call_id,
@@ -718,6 +717,7 @@ def _update_tool_part(
             )
         elif part_state == "approval-requested":
             replacement = DynamicToolApprovalRequestedPart(
+                state="approval-requested",
                 type="dynamic-tool",
                 tool_name=tool_name,
                 tool_call_id=tool_call_id,
@@ -729,6 +729,7 @@ def _update_tool_part(
             )
         elif part_state == "output-available":
             replacement = DynamicToolOutputAvailablePart(
+                state="output-available",
                 type="dynamic-tool",
                 tool_name=tool_name,
                 tool_call_id=tool_call_id,
@@ -743,6 +744,7 @@ def _update_tool_part(
             )
         elif part_state == "output-denied":
             replacement = DynamicToolOutputDeniedPart(
+                state="output-denied",
                 type="dynamic-tool",
                 tool_name=tool_name,
                 tool_call_id=tool_call_id,
@@ -755,6 +757,7 @@ def _update_tool_part(
         else:
             assert error_text is not None
             replacement = DynamicToolOutputErrorPart(
+                state="output-error",
                 type="dynamic-tool",
                 tool_name=tool_name,
                 tool_call_id=tool_call_id,
@@ -768,6 +771,7 @@ def _update_tool_part(
             )
     elif part_state == "input-streaming":
         replacement = ToolInputStreamingPart(
+            state="input-streaming",
             type=static_type,
             tool_call_id=tool_call_id,
             title=resolved_title,
@@ -778,6 +782,7 @@ def _update_tool_part(
         )
     elif part_state == "input-available":
         replacement = ToolInputAvailablePart(
+            state="input-available",
             type=static_type,
             tool_call_id=tool_call_id,
             title=resolved_title,
@@ -788,6 +793,7 @@ def _update_tool_part(
         )
     elif part_state == "approval-requested":
         replacement = ToolApprovalRequestedPart(
+            state="approval-requested",
             type=static_type,
             tool_call_id=tool_call_id,
             title=resolved_title,
@@ -798,6 +804,7 @@ def _update_tool_part(
         )
     elif part_state == "output-available":
         replacement = ToolOutputAvailablePart(
+            state="output-available",
             type=static_type,
             tool_call_id=tool_call_id,
             title=resolved_title,
@@ -811,6 +818,7 @@ def _update_tool_part(
         )
     elif part_state == "output-denied":
         replacement = ToolOutputDeniedPart(
+            state="output-denied",
             type=static_type,
             tool_call_id=tool_call_id,
             title=resolved_title,
@@ -822,6 +830,7 @@ def _update_tool_part(
     else:
         assert error_text is not None
         replacement = ToolOutputErrorPart(
+            state="output-error",
             type=static_type,
             tool_call_id=tool_call_id,
             title=resolved_title,
