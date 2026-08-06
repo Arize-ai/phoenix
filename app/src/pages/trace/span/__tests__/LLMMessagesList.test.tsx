@@ -92,21 +92,32 @@ describe("LLMMessagesList", () => {
   });
 
   describe("the collapse toggle", () => {
-    it("collapses every message, then expands every message", () => {
+    // the list arrives mostly collapsed, so opening it up is the move the
+    // control has to offer first
+    it("expands every message, then collapses every message", () => {
       renderMessages(MESSAGES);
-      expect(toggleButton().getAttribute("aria-label")).toBe(
-        "Collapse all messages"
-      );
-
-      press(toggleButton());
-      expect(collapsedStates()).toEqual([true, true, true]);
-
-      // with nothing left to collapse the control offers the way back
       expect(toggleButton().getAttribute("aria-label")).toBe(
         "Expand all messages"
       );
+
       press(toggleButton());
       expect(collapsedStates()).toEqual([false, false, false]);
+
+      // with nothing left to expand the control offers the way back
+      expect(toggleButton().getAttribute("aria-label")).toBe(
+        "Collapse all messages"
+      );
+      press(toggleButton());
+      expect(collapsedStates()).toEqual([true, true, true]);
+    });
+
+    // an expand that only reached the last message would look like a no-op
+    it("keeps offering the expand while some messages are still collapsed", () => {
+      renderMessages(MESSAGES);
+      press(container.querySelectorAll("li > .card button")[0]);
+      expect(toggleButton().getAttribute("aria-label")).toBe(
+        "Expand all messages"
+      );
     });
 
     it("is not rendered for a single message", () => {

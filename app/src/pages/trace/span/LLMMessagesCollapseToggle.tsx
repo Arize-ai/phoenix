@@ -11,32 +11,31 @@ import { useLLMMessagesCollapse } from "./LLMMessagesCollapseContext";
 /**
  * Expands or collapses every message in an LLM message list at once.
  *
+ * The list arrives mostly collapsed, so the control offers the expand until
+ * every message is open, and only then offers the way back.
+ *
  * Renders nothing for a list of one, where the message is already open and
  * there is nothing for the control to do.
  */
 export function LLMMessagesCollapseToggle() {
-  const { messageCount, areAllMessagesCollapsed, setAllMessagesOpen } =
+  const { messageCount, areAllMessagesExpanded, setAllMessagesOpen } =
     useLLMMessagesCollapse();
   if (messageCount < 2) {
     return null;
   }
-  const label = areAllMessagesCollapsed
-    ? "Expand all messages"
-    : "Collapse all messages";
+  const label = areAllMessagesExpanded
+    ? "Collapse all messages"
+    : "Expand all messages";
   return (
     <TooltipTrigger>
       <IconButton
         size="S"
         aria-label={label}
-        onPress={() => setAllMessagesOpen(areAllMessagesCollapsed)}
+        onPress={() => setAllMessagesOpen(!areAllMessagesExpanded)}
       >
         <Icon
           svg={
-            areAllMessagesCollapsed ? (
-              <Icons.RowExpand />
-            ) : (
-              <Icons.RowCollapse />
-            )
+            areAllMessagesExpanded ? <Icons.RowCollapse /> : <Icons.RowExpand />
           }
         />
       </IconButton>

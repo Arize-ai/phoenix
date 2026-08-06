@@ -11,8 +11,12 @@ type LLMMessagesCollapseContextType = {
   /** Records the open state the reader asked for on a single message. */
   setMessageOpen: (index: number, isOpen: boolean) => void;
 
-  /** Whether every message is currently collapsed. Drives the toggle. */
-  areAllMessagesCollapsed: boolean;
+  /**
+   * Whether every message is currently expanded. Drives the toggle, which
+   * offers the expand until there is nothing left to expand — the list starts
+   * mostly collapsed, so opening it up is the move a reader reaches for first.
+   */
+  areAllMessagesExpanded: boolean;
 
   /** Expands or collapses every message at once. */
   setAllMessagesOpen: (isOpen: boolean) => void;
@@ -62,10 +66,10 @@ export function LLMMessagesCollapseProvider({
     });
   };
 
-  const areAllMessagesCollapsed = Array.from(
+  const areAllMessagesExpanded = Array.from(
     { length: messageCount },
     (_, index) => index
-  ).every((index) => !isMessageOpen(index));
+  ).every((index) => isMessageOpen(index));
 
   return (
     <LLMMessagesCollapseContext.Provider
@@ -73,7 +77,7 @@ export function LLMMessagesCollapseProvider({
         messageCount,
         isMessageOpen,
         setMessageOpen,
-        areAllMessagesCollapsed,
+        areAllMessagesExpanded,
         setAllMessagesOpen,
       }}
     >
