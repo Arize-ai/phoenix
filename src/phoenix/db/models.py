@@ -1219,10 +1219,11 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 
 @compiles(CaseInsensitiveContains, "sqlite")
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
-    # Use sqlean's `text_lower` to handle non-ASCII characters
+    # sqlean's `text_casefold`, not `text_lower`: case folding is the operation
+    # Unicode defines for caseless matching.
     string, substring = list(element.clauses)
     result = compiler.process(
-        func.text_contains(func.text_lower(string), func.text_lower(substring)), **kw
+        func.text_contains(func.text_casefold(string), func.text_casefold(substring)), **kw
     )
     return result
 

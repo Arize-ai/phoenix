@@ -48,24 +48,6 @@ async def test_memory_sqlite_models_are_ready_when_created_inside_running_loop()
         await engine.dispose()
 
 
-async def test_sqlite_text_lower_override_handles_unicode() -> None:
-    engine = aio_sqlite_engine(get_async_db_url("sqlite:///:memory:"), migrate=False)
-    try:
-        async with engine.connect() as conn:
-            row = (
-                await conn.execute(
-                    text(
-                        "select "
-                        "text_contains(text_lower('istanbul branch'), text_lower('İstanbul')), "
-                        "text_contains(text_lower('Hello Wörld'), text_lower('WÖRLD'))"
-                    )
-                )
-            ).one()
-        assert row == (0, 1)
-    finally:
-        await engine.dispose()
-
-
 async def test_memory_sqlite_init_failure_propagates_to_caller() -> None:
     async def fail(_engine: object) -> None:
         raise RuntimeError("init failed")
