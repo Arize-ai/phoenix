@@ -133,7 +133,11 @@ type AgentSession implements Node {
   Whether a response is currently streaming on this session, i.e. its lock has a live (non-stale) heartbeat.
   """
   isActive: Boolean!
-  model: AgentModelSelection!
+
+  """
+  The session's persisted model selection, or null when the custom provider it referenced has been deleted. On null, clients fall back to their own default model; the session adopts the model asserted by the next chat or compaction request.
+  """
+  model: AgentModelSelection
 
   """
   The message ID of the most recently persisted transcript message, or null for an empty transcript.

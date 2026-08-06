@@ -56,10 +56,13 @@ export const sessionModelQuery = graphql`
   }
 `;
 
-/** A session's server-persisted model selection, minus Relay's `%other` arm. */
+/**
+ * A session's server-persisted model selection, minus Relay's `%other` arm and
+ * the null tombstone a deleted custom provider leaves behind.
+ */
 export type PersistedAgentModel = Exclude<
   agentSessionModel_session$data["model"],
-  { __typename: "%other" }
+  { __typename: "%other" } | null
 >;
 
 /**
@@ -207,7 +210,9 @@ export function useAgentSessionModelConfig(
       return undefined;
     }
     const { model } = readInlineData(agentSessionModelFragment, sessionKey);
-    if (model.__typename === "%other") {
+    // A null model is the deleted-custom-provider tombstone: resolving to
+    // undefined lets the panel fall back to the user's default model config.
+    if (model == null || model.__typename === "%other") {
       return undefined;
     }
     return resolvePersistedAgentModel({ model, customProviders });

@@ -124,12 +124,27 @@ async def set_session_model(
     agent_session.model_name = routing.model_name
     agent_session.custom_provider_id = routing.custom_provider_id
     agent_session.model_provider_type = routing.model_provider_type
-    return get_agent_session_model(agent_session)
+    selection = get_agent_session_model(agent_session)
+    assert selection is not None  # ``resolve_model_routing`` resolves every selection
+    return selection
 
 
-def model_selection_from_routing(routing: AgentModelRouting) -> AgentModelSelection:
-    """Reconstruct the model selection encoded by the routing column values."""
-    if routing.model_provider_type == "custom" and routing.custom_provider_id is not None:
+def model_selection_from_routing(routing: AgentModelRouting) -> Optional[AgentModelSelection]:
+    """Reconstruct the model selection encoded by the routing column values.
+
+    Returns ``None`` when a custom session's provider row is gone — the
+    tombstone the ``ON DELETE SET NULL`` foreign key leaves behind when the
+    session's custom provider is deleted. Callers surface the null so clients
+    substitute their own default; the session adopts the model asserted by
+    the next turn.
+    """
+    if routing.model_provider_type == "builtin":
+        return BuiltInProviderModelSelection(
+            provider_type="builtin",
+            provider=routing.model_provider,
+            model_name=routing.model_name,
+        )
+    if routing.custom_provider_id is not None:
         return CustomProviderModelSelection(
             provider_type="custom",
             provider_id=str(
@@ -140,17 +155,14 @@ def model_selection_from_routing(routing: AgentModelRouting) -> AgentModelSelect
             ),
             model_name=routing.model_name,
         )
-    return BuiltInProviderModelSelection(
-        provider_type="builtin",
-        provider=routing.model_provider,
-        model_name=routing.model_name,
-    )
+    return None
 
 
 def get_agent_session_model(
     agent_session: models.AgentSession,
-) -> AgentModelSelection:
-    """Return the model selection in effect for a session."""
+) -> Optional[AgentModelSelection]:
+    """Return the model selection in effect for a session, or ``None`` when the
+    session's custom provider has been deleted."""
     return model_selection_from_routing(
         AgentModelRouting(
             model_provider=agent_session.model_provider,

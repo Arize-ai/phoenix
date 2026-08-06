@@ -2790,6 +2790,205 @@ async def test_chat_rejects_a_turn_asserting_a_model_the_session_is_not_on(
         assert agent_session.heartbeat_at is None
 
 
+async def _create_tombstone_agent_session_row(
+    db: DbSessionFactory,
+    *,
+    messages: list[dict[str, Any]] | None = None,
+) -> str:
+    """Create a session whose custom provider has been deleted.
+
+    The ``ON DELETE SET NULL`` foreign key nulls ``custom_provider_id`` while
+    ``model_provider_type`` still reads ``custom``, so the session's model
+    selection resolves as ``None``.
+    """
+    async with db() as session:
+        agent_session = models.AgentSession(
+            model_provider=ModelProvider.OPENAI,
+            model_name="custom-model",
+            custom_provider_id=None,
+            model_provider_type="custom",
+            user_id=None,
+            title="",
+            project_name=get_env_phoenix_agents_assistant_project_name(),
+        )
+        session.add(agent_session)
+        await session.flush()
+        session.add_all(
+            models.AgentSessionMessage(
+                agent_session_id=agent_session.id,
+                message=PhoenixUIMessage.model_validate(message),
+            )
+            for message in messages or []
+        )
+        return str(GlobalID("AgentSession", str(agent_session.id)))
+
+
+async def test_chat_adopts_the_asserted_model_when_the_sessions_provider_was_deleted(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Deleting a session's custom provider leaves its model unresolvable
+    (it reads as null). Rather than rejecting every send as stale against a
+    model that no longer exists, the first turn adopts the model it asserts —
+    clients assert their own default when the session's model reads as null —
+    and the session persists that selection."""
+    built_selections = []
+
+    async def _fake_build_model(selection: object, **kwargs: object) -> TestModel:
+        built_selections.append(selection)
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    agent_session_id = await _create_tombstone_agent_session_row(db)
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            "11111111-1111-4111-8111-111111111111",
+            _user_message("hello"),
+            model={
+                "providerType": "builtin",
+                "provider": "ANTHROPIC",
+                "modelName": "claude-opus-4-6",
+            },
+        ),
+    )
+
+    assert response.status_code == 200
+    assert built_selections == [
+        BuiltInProviderModelSelection(
+            provider_type="builtin",
+            provider=ModelProvider.ANTHROPIC,
+            model_name="claude-opus-4-6",
+        )
+    ]
+    global_id = GlobalID.from_id(agent_session_id)
+    async with db() as session:
+        agent_session = await session.get(models.AgentSession, int(global_id.node_id))
+        assert agent_session is not None
+        assert agent_session.model_provider.value == "ANTHROPIC"
+        assert agent_session.model_name == "claude-opus-4-6"
+        assert agent_session.custom_provider_id is None
+        assert agent_session.model_provider_type == "builtin"
+        assert agent_session.heartbeat_at is None
+
+
+async def test_chat_adoption_rejects_an_assertion_naming_a_missing_provider(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Adoption still validates the asserted selection: a custom selection
+    naming a provider that does not exist is refused, and the turn lock is
+    handed back so the session stays usable."""
+    built_selections = []
+
+    async def _fake_build_model(selection: object, **kwargs: object) -> TestModel:
+        built_selections.append(selection)
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    agent_session_id = await _create_tombstone_agent_session_row(db)
+    missing_provider_gid = str(GlobalID(models.GenerativeModelCustomProvider.__name__, "999"))
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            "11111111-1111-4111-8111-111111111111",
+            _user_message("hello"),
+            model={
+                "providerType": "custom",
+                "providerId": missing_provider_gid,
+                "modelName": "custom-model",
+            },
+        ),
+    )
+
+    assert response.status_code == 404
+    assert built_selections == []
+    global_id = GlobalID.from_id(agent_session_id)
+    async with db() as session:
+        agent_session = await session.get(models.AgentSession, int(global_id.node_id))
+        assert agent_session is not None
+        # The session keeps its unresolved model and a released lock.
+        assert agent_session.custom_provider_id is None
+        assert agent_session.model_provider_type == "custom"
+        assert agent_session.heartbeat_at is None
+
+
+async def test_compact_adopts_the_asserted_model_when_the_sessions_provider_was_deleted(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Compaction shares the chat route's adoption semantics: on a session
+    whose model reads as null, the summary runs on — and the session adopts —
+    the asserted model."""
+    built_selections = []
+    checkpoint = {
+        "objectives": ["Investigate the trace"],
+        "constraints_and_preferences": [],
+        "decisions": [],
+        "completed_work": [],
+        "active_work": [],
+        "blockers": [],
+        "next_steps": [],
+        "important_details": [],
+    }
+
+    def compact_function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
+        return ModelResponse(
+            parts=[ToolCallPart(tool_name="conversation_checkpoint", args=checkpoint)]
+        )
+
+    async def _fake_build_model(selection: object, **kwargs: object) -> FunctionModel:
+        built_selections.append(selection)
+        return FunctionModel(function=compact_function)
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    agent_session_id = await _create_tombstone_agent_session_row(
+        db,
+        messages=[
+            _user_message("Find the slow span", message_id=_message_uuid("user-1")),
+            {
+                "id": _message_uuid("assistant-1"),
+                "role": "assistant",
+                "parts": [{"type": "text", "text": "The slow span is trace-id-123."}],
+            },
+        ],
+    )
+
+    response = await httpx_client.post(
+        _compact_url(agent_session_id),
+        json={
+            "model": {
+                "providerType": "builtin",
+                "provider": "ANTHROPIC",
+                "modelName": "claude-opus-4-6",
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["compacted"] is True
+    assert built_selections == [
+        BuiltInProviderModelSelection(
+            provider_type="builtin",
+            provider=ModelProvider.ANTHROPIC,
+            model_name="claude-opus-4-6",
+        )
+    ]
+    global_id = GlobalID.from_id(agent_session_id)
+    async with db() as session:
+        agent_session = await session.get(models.AgentSession, int(global_id.node_id))
+        assert agent_session is not None
+        assert agent_session.model_provider.value == "ANTHROPIC"
+        assert agent_session.model_name == "claude-opus-4-6"
+        assert agent_session.model_provider_type == "builtin"
+        assert agent_session.heartbeat_at is None
+
+
 async def test_create_session_route_rejects_unknown_agents(
     httpx_client: httpx.AsyncClient,
 ) -> None:

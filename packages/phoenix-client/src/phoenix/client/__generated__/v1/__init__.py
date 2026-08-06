@@ -1803,7 +1803,7 @@ class AgentSessionData(TypedDict):
     created_at: str
     updated_at: str
     is_ephemeral: bool
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    model: Optional[Union[CustomProviderModelSelection, BuiltInProviderModelSelection]]
     is_active: bool
     last_message_id: NotRequired[str]
 

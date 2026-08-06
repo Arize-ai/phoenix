@@ -187,9 +187,12 @@ async def test_set_session_model_rejects_a_deleted_custom_provider(
             )
 
 
-async def test_deleted_custom_provider_reads_as_builtin_fallback(
+async def test_deleted_custom_provider_reads_as_unresolved_model(
     db: DbSessionFactory,
 ) -> None:
+    """Deleting a custom provider leaves the ``ON DELETE SET NULL`` tombstone,
+    which reads back as no selection at all — clients substitute their own
+    default and the next turn's assertion is adopted."""
     provider_id, provider_gid = await _add_custom_provider(db)
     agent_session_id = await _add_builtin_session(db)
 
@@ -212,8 +215,4 @@ async def test_deleted_custom_provider_reads_as_builtin_fallback(
         await session.flush()
         await session.refresh(agent_session)
 
-        assert get_agent_session_model(agent_session) == BuiltInProviderModelSelection(
-            provider_type="builtin",
-            provider=ModelProvider.OPENAI,
-            model_name="custom-model",
-        )
+        assert get_agent_session_model(agent_session) is None

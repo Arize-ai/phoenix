@@ -6,6 +6,7 @@ from strawberry.relay import GlobalID
 from phoenix.config import EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, TextUIPart
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _agent_session_model_kwargs, _message_uuid
 
@@ -176,6 +177,33 @@ class TestGetAgentSession:
         data = response.json()["data"]
         assert data["last_message_id"] is None
         assert "messages" not in data
+
+    async def test_reports_null_model_when_the_custom_provider_was_deleted(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """A deleted custom provider leaves the session's model unresolvable;
+        the route serializes it as null so clients fall back to their own
+        default model."""
+
+        async with db() as session:
+            agent_session = models.AgentSession(
+                model_provider=ModelProvider.OPENAI,
+                model_name="custom-model",
+                custom_provider_id=None,
+                model_provider_type="custom",
+                project_name="pxi-test",
+                title="Orphaned provider",
+            )
+            session.add(agent_session)
+            await session.flush()
+            session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+        response = await httpx_client.get(f"/v1/agents/assistant/sessions/{session_id}")
+
+        assert response.status_code == 200
+        assert response.json()["data"]["model"] is None
 
     async def test_gets_temporary_session(
         self,

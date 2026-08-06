@@ -131,10 +131,19 @@ class AgentSession(Node):
         assert heartbeat_at is None or isinstance(heartbeat_at, datetime)
         return is_turn_active(heartbeat_at, now=datetime.now(timezone.utc))
 
-    @strawberry.field(permission_classes=[CanAccessAgentSession])  # type: ignore
-    async def model(self, info: Info[Context, None]) -> AgentModelSelection:
+    @strawberry.field(
+        description=(
+            "The session's persisted model selection, or null when the custom "
+            "provider it referenced has been deleted. On null, clients fall "
+            "back to their own default model; the session adopts the model "
+            "asserted by the next chat or compaction request."
+        ),
+        permission_classes=[CanAccessAgentSession],
+    )  # type: ignore
+    async def model(self, info: Info[Context, None]) -> Optional[AgentModelSelection]:
         if self.db_record:
-            return to_gql_agent_model_selection(get_agent_session_model(self.db_record))
+            selection = get_agent_session_model(self.db_record)
+            return None if selection is None else to_gql_agent_model_selection(selection)
         (
             model_provider,
             model_name,
@@ -158,7 +167,8 @@ class AgentSession(Node):
             custom_provider_id=custom_provider_id,
             model_provider_type=model_provider_type,
         )
-        return to_gql_agent_model_selection(model_selection_from_routing(routing))
+        selection = model_selection_from_routing(routing)
+        return None if selection is None else to_gql_agent_model_selection(selection)
 
     @strawberry.field(
         description=(

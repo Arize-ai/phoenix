@@ -349,7 +349,11 @@ class _ChatRequestMixin(_ObservabilityMixin):
             "HTTP 409 and code ``agent_session_model_stale`` rather than "
             "silently running on — or switching to — an unexpected model. "
             "Change the session's model with "
-            "``PATCH .../sessions/{session_id}``."
+            "``PATCH .../sessions/{session_id}``. The one exception is a "
+            "session whose model reads as null because its custom provider "
+            "was deleted: the first request after deletion adopts the model "
+            "it asserts — clients assert their own default — and the session "
+            "persists that selection."
         ),
     )
     turn_trace_context: TurnTraceContext | None = None
@@ -548,7 +552,14 @@ class AgentSessionSummary(V1RoutesBaseModel):
 
 
 class AgentSessionData(AgentSessionSummary):
-    model: AgentModelSelection
+    model: AgentModelSelection | None = Field(
+        description=(
+            "The session's persisted model selection, or null when the custom "
+            "provider it referenced has been deleted. On null, clients should "
+            "fall back to their own default model; the session adopts the "
+            "model asserted by the next chat or compaction request."
+        ),
+    )
     is_active: bool = Field(
         description=(
             "Whether a response is currently streaming on this session, i.e. its "
@@ -588,7 +599,9 @@ class CompactAgentSessionRequest(V1RoutesBaseModel):
             "The model the client believes the session is set to. As on the "
             "chat route this is a precondition: the summary is generated with "
             "the session's persisted selection, and a mismatch is rejected "
-            "with HTTP 409 and code ``agent_session_model_stale``."
+            "with HTTP 409 and code ``agent_session_model_stale``. A session "
+            "whose model reads as null (its custom provider was deleted) "
+            "adopts the asserted model instead."
         ),
     )
 
@@ -1815,24 +1828,42 @@ async def _clear_agent_session_turn_lock(
 async def _claim_agent_session_turn_lock_for_model(
     session: AsyncSession,
     *,
-    agent_session_rowid: int,
-    session_model: AgentModelSelection,
+    agent_session: models.AgentSession,
     requested_model: AgentModelSelection,
-) -> None:
+) -> AgentModelSelection:
     """Claim the session's turn lock while enforcing the request's model
-    precondition.
+    precondition, returning the model selection the turn runs on.
 
-    Raises ``AgentSessionConflict`` on failure; the raise rolls back the
-    caller's transaction, so a claim taken before a stale-model rejection is
-    never committed.
+    A session whose custom provider was deleted has no resolvable model (its
+    provider columns are the ``ON DELETE SET NULL`` tombstone). Rather than
+    rejecting every request as stale against a model that no longer exists,
+    the first request adopts the model it asserts — clients assert their own
+    default when the session's selection reads as null — and the adoption is
+    persisted under the turn lock so concurrent clients serialize through the
+    ordinary busy/stale preconditions.
+
+    Raises ``AgentSessionConflict`` on failure; any raise out of this helper
+    unwinds the caller's transaction, so neither the claim nor the adoption
+    outlives a rejected request.
+
+    Raises ``ProviderNotFoundError`` when the adopted selection itself names a
+    provider that does not exist.
     """
     if not await _claim_agent_session_turn_lock(
         session,
-        agent_session_rowid=agent_session_rowid,
+        agent_session_rowid=agent_session.id,
     ):
         raise AgentSessionConflict("agent_session_busy")
+    session_model = get_agent_session_model(agent_session)
+    if session_model is None:
+        return await set_session_model(
+            session,
+            agent_session=agent_session,
+            model=requested_model,
+        )
     if requested_model != session_model:
         raise AgentSessionConflict("agent_session_model_stale")
+    return session_model
 
 
 async def _release_agent_session_turn_lock(
@@ -2258,6 +2289,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 if title is not None:
                     agent_session.title = title
                 if request_body.model is not UNDEFINED:
+                    # An in-flight turn holds the model object it already built
+                    # and never re-reads the row, so it is not at risk here.
+                    # Rejecting mid-turn changes keeps the row's recorded model
+                    # matching the model the active turn is running, so
+                    # is_active + model reads stay coherent while streaming.
                     if is_turn_active(
                         agent_session.heartbeat_at,
                         now=datetime.now(timezone.utc),
@@ -2466,20 +2502,21 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         request_user_id = int(phoenix_user.identity) if phoenix_user is not None else None
         db_session_factory: DbSessionFactory = request.app.state.db
 
-        async with db_session_factory() as session:
-            agent_session = await _refresh_and_load_agent_session(
-                session,
-                agent_session_id=session_id,
-                user_id=request_user_id,
-            )
-            agent_session_rowid = agent_session.id
-            session_model = get_agent_session_model(agent_session)
-            await _claim_agent_session_turn_lock_for_model(
-                session,
-                agent_session_rowid=agent_session_rowid,
-                session_model=session_model,
-                requested_model=request_body.model,
-            )
+        try:
+            async with db_session_factory() as session:
+                agent_session = await _refresh_and_load_agent_session(
+                    session,
+                    agent_session_id=session_id,
+                    user_id=request_user_id,
+                )
+                agent_session_rowid = agent_session.id
+                session_model = await _claim_agent_session_turn_lock_for_model(
+                    session,
+                    agent_session=agent_session,
+                    requested_model=request_body.model,
+                )
+        except AgentError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
         heartbeat_task = asyncio.create_task(
             _heartbeat_agent_session_turn_lock(
@@ -2641,11 +2678,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     tool_outputs=body.tool_outputs,
                 )
                 transcript_messages = merged_transcript.messages
-                session_model = get_agent_session_model(agent_session)
-                await _claim_agent_session_turn_lock_for_model(
+                session_model = await _claim_agent_session_turn_lock_for_model(
                     session,
-                    agent_session_rowid=agent_session.id,
-                    session_model=session_model,
+                    agent_session=agent_session,
                     requested_model=body.model,
                 )
                 # Persist merge rewrites under the turn lock, before the model

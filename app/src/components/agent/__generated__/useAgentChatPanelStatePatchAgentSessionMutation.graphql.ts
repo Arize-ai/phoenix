@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<888c8c4d5a5fc113d8a748ece8c67bed>>
+ * @generated SignedSource<<6db351075e25b6232f2cc2058eb8847b>>
  * @lightSyntaxTransform
  */
 
@@ -55,7 +55,7 @@ export type useAgentChatPanelStatePatchAgentSessionMutation$rawResponse = {
         readonly providerId: string;
       } | {
         readonly __typename: string;
-      };
+      } | null;
     };
   };
 };

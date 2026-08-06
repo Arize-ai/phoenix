@@ -9076,7 +9076,15 @@
             "title": "Is Ephemeral"
           },
           "model": {
-            "$ref": "#/components/schemas/AgentModelSelection"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentModelSelection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The session's persisted model selection, or null when the custom provider it referenced has been deleted. On null, clients should fall back to their own default model; the session adopts the model asserted by the next chat or compaction request."
           },
           "is_active": {
             "type": "boolean",
@@ -10155,7 +10163,7 @@
           },
           "model": {
             "$ref": "#/components/schemas/AgentModelSelection",
-            "description": "The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on \u2014 or switching to \u2014 an unexpected model. Change the session's model with ``PATCH .../sessions/{session_id}``."
+            "description": "The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on \u2014 or switching to \u2014 an unexpected model. Change the session's model with ``PATCH .../sessions/{session_id}``. The one exception is a session whose model reads as null because its custom provider was deleted: the first request after deletion adopts the model it asserts \u2014 clients assert their own default \u2014 and the session persists that selection."
           },
           "turnTraceContext": {
             "anyOf": [
@@ -10260,7 +10268,7 @@
         "properties": {
           "model": {
             "$ref": "#/components/schemas/AgentModelSelection",
-            "description": "The model the client believes the session is set to. As on the chat route this is a precondition: the summary is generated with the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale``."
+            "description": "The model the client believes the session is set to. As on the chat route this is a precondition: the summary is generated with the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale``. A session whose model reads as null (its custom provider was deleted) adopts the asserted model instead."
           }
         },
         "type": "object",

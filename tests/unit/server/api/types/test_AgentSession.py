@@ -140,10 +140,12 @@ async def test_agent_session_is_active_reflects_heartbeat_liveness(
         assert response.data["agentSession"]["isActive"] is expected, title
 
 
-async def test_agent_session_serializes_deleted_custom_provider_as_builtin_fallback(
+async def test_agent_session_serializes_deleted_custom_provider_as_null_model(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
+    """A deleted custom provider leaves the session's model unresolvable; the
+    field serializes as null so clients substitute their own default."""
     async with db() as session:
         provider = models.GenerativeModelCustomProvider(
             name="Deleted custom provider",
@@ -195,15 +197,7 @@ async def test_agent_session_serializes_deleted_custom_provider_as_builtin_fallb
     )
 
     assert not response.errors
-    assert response.data == {
-        "agentSession": {
-            "model": {
-                "__typename": "AgentBuiltinProviderModelSelection",
-                "provider": "OPENAI",
-                "modelName": "custom-model",
-            },
-        }
-    }
+    assert response.data == {"agentSession": {"model": None}}
 
 
 async def test_agent_sessions_excludes_temporary_sessions(

@@ -353,7 +353,7 @@ export function createPxiSessionClient({
             body: { model },
           }
         );
-        if (!payload) {
+        if (!payload?.data.model) {
           throw new Error(
             "Could not change the session's model because Phoenix returned no data."
           );

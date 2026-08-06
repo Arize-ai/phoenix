@@ -117,7 +117,12 @@ export type PxiSessionSummary = {
 /** A session and its canonical persisted transcript. */
 export type PxiSession = PxiSessionSummary & {
   messages: PxiMessage[];
-  model: ModelSelection;
+  /**
+   * The session's persisted model selection, or null when the custom provider
+   * it referenced has been deleted. On null the UI falls back to the CLI's
+   * own model selection; the session adopts the model the next turn asserts.
+   */
+  model: ModelSelection | null;
   /**
    * Whether another client currently holds the session's server-side lock.
    * Absent means no lock is held.

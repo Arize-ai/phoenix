@@ -1691,6 +1691,122 @@ describe("PXI app", () => {
     unmount();
   });
 
+  it("falls back to the CLI's own model when a restored session's model is null", async () => {
+    // A null persisted model is the deleted-custom-provider tombstone. The
+    // real resolver (not an injected stub) must substitute the CLI's own
+    // selection without a catalog round trip; the next send adopts it
+    // server-side.
+    const patchSessionModel = vi.fn(
+      async ({ model }: { sessionId: string; model: ModelSelection }) => model
+    );
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => {
+        throw new Error("not used");
+      },
+      listSessions: async () => [
+        {
+          id: "session-1",
+          title: "Orphaned session",
+          updatedAt: "2026-07-24T13:00:00Z",
+          isTemporary: false,
+        },
+      ],
+      getSession: async ({ sessionId }) => ({
+        id: sessionId,
+        title: "Orphaned session",
+        updatedAt: "2026-07-24T13:00:00Z",
+        isTemporary: false,
+        isActive: false,
+        messages: [],
+        model: null,
+      }),
+      patchSessionModel,
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions({ explicitModel: false })}
+        client={{ sendMessage: async () => null }}
+        sessionClient={sessionClient}
+      />
+    );
+
+    await writeInput({ stdin, input: "/sessions" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+
+    // Without explicit flags, the fallback is display-only: nothing is
+    // written, and the header shows the CLI's default selection.
+    expect(patchSessionModel).not.toHaveBeenCalled();
+    expect(stripAnsi(lastFrame() ?? "")).toContain(
+      "model: ANTHROPIC/claude-opus-5"
+    );
+    unmount();
+  });
+
+  it("writes the explicit --provider/--model onto a restored session whose model is null", async () => {
+    // Explicit flags express an intent to move the session; a null persisted
+    // model (deleted custom provider) never equals the flags, so the write
+    // must happen rather than being skipped as already-matching.
+    const patchSessionModel = vi.fn(
+      async ({ model }: { sessionId: string; model: ModelSelection }) => model
+    );
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => {
+        throw new Error("not used");
+      },
+      listSessions: async () => [
+        {
+          id: "session-1",
+          title: "Orphaned session",
+          updatedAt: "2026-07-24T13:00:00Z",
+          isTemporary: false,
+        },
+      ],
+      getSession: async ({ sessionId }) => ({
+        id: sessionId,
+        title: "Orphaned session",
+        updatedAt: "2026-07-24T13:00:00Z",
+        isTemporary: false,
+        isActive: false,
+        messages: [],
+        model: null,
+      }),
+      patchSessionModel,
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={{ sendMessage: async () => null }}
+        sessionClient={sessionClient}
+      />
+    );
+
+    await writeInput({ stdin, input: "/sessions" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+
+    expect(patchSessionModel).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      model: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-5.4",
+      },
+    });
+    expect(stripAnsi(lastFrame() ?? "")).toContain("model: OPENAI/gpt-5.4");
+    unmount();
+  });
+
   it("keeps an in-flight /model pick when a send is rejected as model-stale", async () => {
     // The 409 refetch reads server state that predates the user's own write;
     // applying it would flip the header back and announce the reverse of

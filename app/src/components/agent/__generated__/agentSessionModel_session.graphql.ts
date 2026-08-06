@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1f6dd6c281fb4008be5c70c12ce07174>>
+ * @generated SignedSource<<b8e89048641235c3755cd591b1903fe9>>
  * @lightSyntaxTransform
  */
 
@@ -23,7 +23,7 @@ export type agentSessionModel_session$data = {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
     readonly __typename: "%other";
-  };
+  } | null;
   readonly " $fragmentType": "agentSessionModel_session";
 };
 export type agentSessionModel_session$key = {

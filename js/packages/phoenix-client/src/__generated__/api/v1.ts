@@ -1797,7 +1797,8 @@ export interface components {
             updated_at: string;
             /** Is Ephemeral */
             is_ephemeral: boolean;
-            model: components["schemas"]["AgentModelSelection"];
+            /** @description The session's persisted model selection, or null when the custom provider it referenced has been deleted. On null, clients should fall back to their own default model; the session adopts the model asserted by the next chat or compaction request. */
+            model: components["schemas"]["AgentModelSelection"] | null;
             /**
              * Is Active
              * @description Whether a response is currently streaming on this session, i.e. its lock has a live (non-stale) heartbeat.
@@ -2223,7 +2224,7 @@ export interface components {
              * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
              */
             requestedSkills?: string[];
-            /** @description The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on — or switching to — an unexpected model. Change the session's model with ``PATCH .../sessions/{session_id}``. */
+            /** @description The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on — or switching to — an unexpected model. Change the session's model with ``PATCH .../sessions/{session_id}``. The one exception is a session whose model reads as null because its custom provider was deleted: the first request after deletion adopts the model it asserts — clients assert their own default — and the session persists that selection. */
             model: components["schemas"]["AgentModelSelection"];
             turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             /**
@@ -2265,7 +2266,7 @@ export interface components {
          * @description Request a model-generated checkpoint for a persisted conversation.
          */
         CompactAgentSessionRequest: {
-            /** @description The model the client believes the session is set to. As on the chat route this is a precondition: the summary is generated with the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale``. */
+            /** @description The model the client believes the session is set to. As on the chat route this is a precondition: the summary is generated with the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale``. A session whose model reads as null (its custom provider was deleted) adopts the asserted model instead. */
             model: components["schemas"]["AgentModelSelection"];
         };
         /** CompactAgentSessionResponse */

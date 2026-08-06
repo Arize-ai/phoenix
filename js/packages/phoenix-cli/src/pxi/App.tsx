@@ -172,7 +172,9 @@ export type PxiAppProps = {
   }) => PxiChatClient;
   modelLoader?: () => Promise<ModelSelection[]>;
   sessionClient?: PxiSessionClient;
-  sessionModelResolver?: (model: ModelSelection) => Promise<ModelSelection>;
+  sessionModelResolver?: (
+    model: ModelSelection | null
+  ) => Promise<ModelSelection>;
   initialMessages?: PxiMessage[];
 };
 
@@ -1055,8 +1057,14 @@ export function PxiApp({
   const resolveSessionModel = useMemo(
     () =>
       sessionModelResolver ??
-      ((model: ModelSelection) =>
-        resolveRestoredPxiModelSelection({
+      ((model: ModelSelection | null) => {
+        // A null persisted model is the deleted-custom-provider tombstone:
+        // fall back to the CLI's own selection (already preflighted at
+        // launch), which the session adopts on the next send.
+        if (model == null) {
+          return Promise.resolve(options.modelSelection);
+        }
+        return resolveRestoredPxiModelSelection({
           options,
           persistedModelSelection: model,
           onInvalidModel: ({ error }) => {
@@ -1069,7 +1077,8 @@ export function PxiApp({
               getPersistedModelWarningText({ message: error.message })
             );
           },
-        })),
+        });
+      }),
     [options, sessionModelResolver]
   );
 
@@ -1123,11 +1132,15 @@ export function PxiApp({
           // Only re-resolve when the session actually moved to a different
           // model: resolving validates against the server's model catalog,
           // and doing that on every tick would put a network round trip on
-          // the poll's steady state.
-          const hasModelChanged = !isSameModelSelection(
-            session.model,
-            activeModelSelectionRef.current
-          );
+          // the poll's steady state. A null persisted model (the session's
+          // custom provider was deleted) resolves to the CLI's own selection
+          // without a network round trip.
+          const hasModelChanged =
+            session.model == null ||
+            !isSameModelSelection(
+              session.model,
+              activeModelSelectionRef.current
+            );
           const restoredModel = hasModelChanged
             ? await resolveSessionModel(session.model)
             : activeModelSelectionRef.current;
@@ -1402,7 +1415,8 @@ export function PxiApp({
         // updated_at and reorders the session list.
         const shouldWriteExplicitModel =
           options.hasExplicitModelSelection &&
-          !isSameModelSelection(session.model, options.modelSelection);
+          (session.model == null ||
+            !isSameModelSelection(session.model, options.modelSelection));
         const restoredModel = shouldWriteExplicitModel
           ? await serverSessionClient.patchSessionModel({
               sessionId: session.id,
