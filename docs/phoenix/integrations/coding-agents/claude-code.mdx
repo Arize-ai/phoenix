@@ -81,6 +81,10 @@ The curl and local installers write credentials to `~/.arize/harness/config.json
 
 `PHOENIX_API_KEY` is optional — omit it when your Phoenix instance has no auth. On the Phoenix backend, set the project name with `PHOENIX_PROJECT` (or `PHOENIX_PROJECT_NAME`); `ARIZE_PROJECT_NAME` is Arize-only and ignored here. `ARIZE_TRACE_ENABLED` is a backend-agnostic harness setting and keeps the `ARIZE_` prefix regardless of destination.
 
+<Note>
+`~/.claude/settings.json` applies to every Claude Code session, and the Phoenix CLI and API clients read `PHOENIX_ENDPOINT` too — so anything your agent runs will talk to the Phoenix named here. Point it at the instance you want in both roles, or scope a different value to the project that needs one ([Environments](/docs/phoenix/environments)).
+</Note>
+
 ### Redaction controls
 
 Each `ARIZE_LOG_*` flag accepts `"true"` or `"false"` and defaults to `"true"`. Set to `"false"` to opt out per category:
