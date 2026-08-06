@@ -45,10 +45,7 @@ class AssistantMessageMetadataUsage(CamelBaseModel):
 
 
 class TurnTraceContext(CamelBaseModel):
-    """The trace identity a turn's spans are parented to — minted by the
-    server at the turn's first request. The server recovers it from the
-    persisted assistant message when a client-tool continuation resumes the
-    turn, and the UI uses its ids to link the message to a viewable trace."""
+    """The trace identity a turn's spans are parented to."""
 
     trace_id: str = Field(pattern=r"^[0-9a-f]{32}$")
     root_span_id: str = Field(pattern=r"^[0-9a-f]{16}$")
@@ -62,11 +59,7 @@ class AssistantMessageMetadata(CamelBaseModel):
 
     type: Literal["assistant"]
     session_id: str
-
     turn_trace_context: TurnTraceContext | None = None
-    """The trace context the turn's spans were parented to, set when any
-    tracing was active for the turn."""
-
     usage: AssistantMessageMetadataUsage | None = None
 
 
