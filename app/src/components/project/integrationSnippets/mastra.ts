@@ -15,13 +15,6 @@ const agent = new Agent({
   model: openai("gpt-4o-mini"),
 });
 
-// ArizeExporter POSTs to the endpoint exactly as given, so build the full OTLP
-// URL here. Handed a bare server URL it posts to the wrong path, and the
-// batching exporter swallows the error — every span is lost with nothing logged.
-const phoenixBaseUrl =
-  process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006";
-const phoenixTracesUrl = \`\${phoenixBaseUrl.replace(/\\/$/, "")}/v1/traces\`;
-
 const mastra = new Mastra({
   agents: { agent },
   observability: new Observability({
@@ -29,8 +22,9 @@ const mastra = new Mastra({
       arize: {
         serviceName: "${projectName}",
         exporters: [
+          // ArizeExporter POSTs to this URL as given, so it needs the OTLP path.
           new ArizeExporter({
-            endpoint: phoenixTracesUrl,
+            endpoint: \`\${process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006"}/v1/traces\`,
             projectName: "${projectName}",
           }),
         ],
