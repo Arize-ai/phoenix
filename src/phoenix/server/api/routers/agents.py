@@ -984,7 +984,7 @@ def _synthesize_client_tool_spans(
             )
 
 
-def _close_abandoned_turn_trace(
+def _close_superseded_turn_trace(
     *,
     tracer: Tracer,
     turn_trace_context: TurnTraceContext,
@@ -993,7 +993,7 @@ def _close_abandoned_turn_trace(
     session_id: str,
     user_email: str | None,
 ) -> None:
-    """Emit the deferred root span of a pending turn its user abandoned.
+    """Emit the deferred root span of a pending turn this request superseded.
 
     A turn that ends awaiting client tool outputs defers its ``pxi.turn`` root
     span until a continuation completes the turn. When the next request is a
@@ -1711,12 +1711,17 @@ class _MergedTranscript:
     """The trailing assistant message this turn continues when the request
     carried only ``toolOutputs``; None for a new user turn."""
 
-    abandoned_assistant_message: PhoenixUIMessage | None
-    """The old trailing assistant message whose pending turn this request
-    abandoned: it still had unresolved tool calls when a new user message
-    arrived, so the continuation that would have completed the turn (and
-    emitted its deferred root span) will never run. None when the tail had
-    nothing pending or the request continues the turn."""
+    superseded_assistant_message: PhoenixUIMessage | None
+    """The trailing assistant message of a turn this request superseded.
+
+    A turn that stops on unresolved client tool calls stays open: only a
+    ``toolOutputs``-only request continues it, finishing the turn and emitting
+    its deferred ``pxi.turn`` root span. A request carrying a new user message
+    starts a new turn instead, superseding the open one — its dangling calls
+    are resolved at merge time (by ``toolOutputs`` sent alongside the message,
+    or repaired as interrupted without them), but the continuation that would
+    have emitted the root span never runs. None when the request continues
+    the turn or the tail had nothing pending."""
 
 
 def _merge_messages(
@@ -1749,18 +1754,20 @@ def _merge_messages(
     if new_message is not None:
         assert new_message.role == "user", "request validation rejects non-user messages"
         # A rewritten assistant tail means it still had pending tool calls —
-        # a turn that ended awaiting outputs and is now abandoned by the new
+        # a turn that ended awaiting outputs and is now superseded by the new
         # user message instead of continued.
-        abandoned_assistant_message = (
-            messages[-1]
-            if messages and messages[-1].role == "assistant" and messages[-1].id in updated_messages
-            else None
+        last_message = messages[-1] if messages else None
+        last_message_had_pending_tool_calls = (
+            last_message is not None
+            and last_message.role == "assistant"
+            and last_message.id in updated_messages
         )
+        superseded_assistant_message = last_message if last_message_had_pending_tool_calls else None
         return _MergedTranscript(
             messages=[*messages, new_message],
             updated_messages=updated_messages,
             continued_assistant_message=None,
-            abandoned_assistant_message=abandoned_assistant_message,
+            superseded_assistant_message=superseded_assistant_message,
         )
     assert tool_outputs, "request validation requires a message, toolOutputs, or both"
     assert messages[-1].role == "assistant", "the tool-output branch guarantees an assistant tail"
@@ -1768,7 +1775,7 @@ def _merge_messages(
         messages=messages,
         updated_messages=updated_messages,
         continued_assistant_message=messages[-1],
-        abandoned_assistant_message=None,
+        superseded_assistant_message=None,
     )
 
 
@@ -2956,8 +2963,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 run_agent_stream = _run_assistant_agent_stream
 
             continued_turn_trace_context = _message_turn_trace_context(continued_assistant_message)
-            abandoned_turn_trace_context = _message_turn_trace_context(
-                merged_transcript.abandoned_assistant_message
+            superseded_turn_trace_context = _message_turn_trace_context(
+                merged_transcript.superseded_assistant_message
             )
             turn_ids = _resolve_turn_trace_ids(
                 continued_turn_trace_context, now=request_received_at
@@ -3149,13 +3156,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             received_at=request_received_at,
                             session_id=otel_session_id,
                         )
-                    if tracer is not None and abandoned_turn_trace_context is not None:
-                        # This new user turn abandoned a pending turn whose root
+                    if tracer is not None and superseded_turn_trace_context is not None:
+                        # This new user turn superseded a pending turn whose root
                         # span was deferred; close that trace out (excluding the
                         # new user message) so its spans don't stay orphaned.
-                        _close_abandoned_turn_trace(
+                        _close_superseded_turn_trace(
                             tracer=tracer,
-                            turn_trace_context=abandoned_turn_trace_context,
+                            turn_trace_context=superseded_turn_trace_context,
                             messages=transcript_messages[:-1],
                             received_at=request_received_at,
                             session_id=otel_session_id,

@@ -3161,16 +3161,16 @@ async def test_chat_turn_trace_ingestion_merges_backend_spans_into_prior_turn_tr
     assert merged_trace.end_time > _PRIOR_TURN_TIME
 
 
-async def test_new_user_message_closes_abandoned_turn_trace(
+async def test_new_user_message_closes_superseded_turn_trace(
     db: DbSessionFactory,
     app: FastAPI,
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A turn that ends awaiting client tool outputs defers its root span to
-    the continuation. When the user abandons it with a new message instead,
-    the deferred ``pxi.turn`` root and a synthesized span for the repaired
-    tool call are emitted into the abandoned trace, so its already-ingested
+    the continuation. When a new user message supersedes it instead, the
+    deferred ``pxi.turn`` root and a synthesized span for the repaired tool
+    call are emitted into the superseded trace, so its already-ingested
     child spans do not reference a root span id that never arrives."""
     await _enable_local_trace_recording(app)
     _mock_traced_test_model(monkeypatch)
