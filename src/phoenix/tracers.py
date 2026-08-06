@@ -111,17 +111,15 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
     """
     An in-memory tracer that captures spans and builds database models.
 
-    Because cumulative counts are computed based on the spans in the buffer,
-    ensure that traces are not split across multiple calls to get_db_traces.
-    It's recommended to use a separate tracer for distinct operations.
+    Scoped to one operation, and single-use: ``__enter__`` rejects a second
+    entry. Cumulative counts are computed from the spans in the buffer, so a
+    tracer spanning two operations computes them across both.
 
-    A tracer is scoped to one operation and owns everything it captured, so use
-    it as a context manager: leaving the block stops the provider's processors
-    and releases the buffered spans. Build the trace models before leaving.
-
-    Use ``async with`` from async code. With a remote exporter attached the
-    release drains the batch queue, and ``async with`` moves that off the event
-    loop.
+    Use it as a context manager. Leaving the block stops the provider's
+    processors and releases the buffered spans, so build the trace models
+    first. Use ``async with`` from async code: with a remote exporter attached
+    the release drains the batch queue, which ``async with`` moves off the
+    event loop.
 
     Example usage:
         async with Tracer(span_cost_calculator=span_cost_calculator) as tracer:
@@ -162,11 +160,9 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         # span without attribute eviction.
         span_limits = SpanLimits(max_span_attributes=100_000)
         # `shutdown_on_exit` (the SDK default) registers `atexit.register(provider.shutdown)`,
-        # which stores a bound method and so keeps the provider — and through it every
-        # buffered span, message histories included — reachable for the life of the process.
-        # That is meant for a single process-wide provider, but these are request-scoped:
-        # one per agent turn, one per experiment work item, one per playground stream.
-        # Opt out, and let each owner scope its tracer with `with`.
+        # which stores a bound method and so keeps the provider — and every span it
+        # buffered, message histories included — reachable for the life of the process.
+        # These providers are request-scoped; the owner's `with` block releases them.
         provider = TracerProvider(
             resource=resource,
             span_limits=span_limits,
@@ -310,12 +306,10 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
     def __enter__(self) -> "Tracer":
         """Claim the tracer for one block. A second claim is an error.
 
-        Reuse fails quietly otherwise, which is the worst way for it to fail:
-        the first release stops the batch processor but not
-        ``SimpleSpanProcessor``, so spans recorded afterwards reach the local
-        buffer while remote export refuses them, and the two disagree with
-        nothing raised. The flag is never cleared, so this rejects reuse after
-        the block as well as re-entry inside it.
+        Unguarded reuse diverges silently: after a release the batch processor
+        refuses spans but ``SimpleSpanProcessor`` does not, so the local buffer
+        and the remote exporter disagree. The flag is never cleared, so reuse
+        after the block is rejected as well as re-entry inside it.
         """
         if self._self_entered:
             raise RuntimeError(
@@ -328,26 +322,19 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
     def __exit__(self, *exc_info: object) -> None:
         """Stop the provider's processors, then release the captured spans.
 
-        The order matters. ``shutdown()`` runs the processors' shutdown hooks,
-        and with a remote exporter attached it also drains the batch queue — for
-        as long as the collector takes. ``SimpleSpanProcessor`` keeps filling the
-        buffer throughout, so clearing first would leave behind whatever ended
-        during the drain. Neither call is sufficient alone: ``shutdown()``
-        reaches ``_BufferedSpanExporter.shutdown()``, which returns without
-        touching the buffer.
+        Shutdown precedes the clear because it drains the batch queue, and
+        ``SimpleSpanProcessor`` keeps filling the buffer until it returns. Both
+        are needed: ``shutdown()`` reaches ``_BufferedSpanExporter.shutdown()``,
+        which leaves the buffer alone.
 
-        This does not seal the tracer. Only the batch processor refuses spans
-        afterwards; ``SimpleSpanProcessor.on_end`` has no shutdown check in SDK
-        1.43.0, so a span ending after this returns still lands in the buffer
-        unread. Nothing enforces a bound on that — the tracer is meant to go out
-        of scope with its block. Call ``get_db_traces`` before leaving.
+        Neither seals the tracer. ``SimpleSpanProcessor.on_end`` has no shutdown
+        check in SDK 1.43.0, so a span ending later still lands in the buffer
+        unread. Call ``get_db_traces`` before leaving the block.
 
-        A teardown failure is logged rather than raised, so that it cannot
-        replace the error — or the cancellation — the block is already
-        unwinding.
+        Teardown failures are logged rather than raised: the block is often
+        already unwinding an agent error or a cancellation.
 
-        Prefer ``async with`` in async code: with a remote exporter attached
-        this blocks for a whole OTLP round-trip.
+        Prefer ``async with`` in async code; this blocks on an OTLP round-trip.
         """
         try:
             self.shutdown()
@@ -359,30 +346,22 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         return self.__enter__()
 
     async def __aexit__(self, *exc_info: object) -> None:
-        """Release, on a worker thread when the release can block.
+        """Release on a worker thread, shielded.
 
-        With a remote exporter attached and anything left in the batch queue,
-        the release drains it — a full OTLP round-trip. On the event loop that
-        would stall every other request on the worker, hence the thread.
+        With a remote exporter attached the release drains the batch queue — an
+        OTLP round-trip, which on the event loop would stall every other request
+        on the worker. ``BatchProcessor.shutdown`` bounds it near 30 seconds and
+        drops what it could not send by then.
 
-        ``BatchProcessor.shutdown`` joins its worker for up to 30 seconds, which
-        waits out an export already in flight. Past that it abandons what is
-        still queued and calls the exporter's ``shutdown()``; for the OTLP HTTP
-        exporter that closes the session and sets the flag its retry loop polls,
-        so a retrying export gives up at its next checkpoint. A hung collector
-        therefore delays the caller rather than hanging it, at the cost of the
-        spans it had not sent.
+        The shield covers the anyio scope cancellation Starlette delivers on
+        client disconnect, which is the usual way an agent turn ends early;
+        unshielded, the ``await`` raises before the release runs and the tracer
+        is never torn down. A native ``asyncio.Task.cancel`` arriving while this
+        is queued for a thread-pool token still skips it — no owner combines a
+        remote exporter with native cancellation.
 
-        Shielded because the usual way an agent turn ends early is the client
-        disconnecting, which cancels this scope: an unshielded ``await`` here
-        raises before the release runs, and the tracer is never torn down at
-        all. The shield covers anyio scope cancellation, which is what Starlette
-        delivers. A native ``asyncio.Task.cancel`` arriving while this is queued
-        for a thread-pool token still skips the release — no current owner
-        combines a remote exporter with native cancellation.
-
-        There is nothing to drain without a remote exporter, so that case skips
-        the thread rather than paying for a hop it cannot use.
+        Without a remote exporter there is nothing to drain, so that path stays
+        inline.
         """
         if self._self_remote_exporter is None:
             self.__exit__()

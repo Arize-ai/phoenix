@@ -218,10 +218,9 @@ class TestEveryAgentEndpointScopesItsTracer:
 
 
 class TestPersistAgentTraces:
-    """Teardown and the remote drain both belong to the `async with` that owns
-    the tracer, so what is left to protect here is that a bookkeeping failure
-    never replaces the exception already in flight — every caller runs this
-    from a `finally`.
+    """Every caller runs this from a `finally`, so a bookkeeping failure here
+    must never replace the exception already in flight. Teardown and the remote
+    drain belong to the `async with` that owns the tracer, not to this.
     """
 
     @staticmethod
