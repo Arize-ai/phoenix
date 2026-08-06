@@ -113,7 +113,7 @@ remote_agent = agent_engines.create(
     ],
     extra_packages=["adk_agent.py"],
     env_vars={
-        "PHOENIX_COLLECTOR_ENDPOINT": "http://localhost:6006",  # Base URL of your Phoenix deployment — register() appends /v1/traces
+        "PHOENIX_COLLECTOR_ENDPOINT": "http://localhost:6006",  # Base URL of your Phoenix deployment — register() derives the OTLP target from it; no /v1/traces here
         "PHOENIX_API_KEY": "<your-phoenix-api-key>",
     },
 )

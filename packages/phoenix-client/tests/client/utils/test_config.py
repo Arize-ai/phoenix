@@ -27,12 +27,57 @@ from phoenix.client.utils.config import (
             },
             "http://localhost:6006",
         ),
+        # Inferred from the API-access variables when no collector variable is set.
+        ({"PHOENIX_ENDPOINT": "http://api:6006"}, "http://api:6006"),
+        ({"PHOENIX_BASE_URL": "http://base:6006"}, "http://base:6006"),
+        (
+            {
+                "PHOENIX_COLLECTOR_ENDPOINT": "http://collector:6006",
+                "PHOENIX_ENDPOINT": "http://api:6006",
+            },
+            "http://collector:6006",
+        ),
         ({}, None),
     ],
 )
 def test_get_env_collector_endpoint(env: dict[str, str], expected: Optional[str]) -> None:
     with patch.dict(os.environ, env, clear=True):
         assert get_env_collector_endpoint() == expected
+
+
+@pytest.mark.parametrize(
+    "env,expected",
+    [
+        ({"PHOENIX_ENDPOINT": "http://api:6006"}, "http://api:6006"),
+        ({"PHOENIX_BASE_URL": "http://base:6006"}, "http://base:6006"),
+        (
+            {
+                "PHOENIX_ENDPOINT": "http://api:6006",
+                "PHOENIX_BASE_URL": "http://base:6006",
+            },
+            "http://api:6006",
+        ),
+        (
+            {
+                "PHOENIX_BASE_URL": "http://base:6006",
+                "PHOENIX_COLLECTOR_ENDPOINT": "http://collector:6006",
+            },
+            "http://base:6006",
+        ),
+        ({"PHOENIX_COLLECTOR_ENDPOINT": "http://collector:6006"}, "http://collector:6006"),
+        # A collector value may carry the OTLP /v1/traces path; the API base
+        # URL inferred from it must not.
+        (
+            {"PHOENIX_COLLECTOR_ENDPOINT": "http://collector:6006/v1/traces"},
+            "http://collector:6006",
+        ),
+    ],
+)
+def test_get_base_url_prefers_api_access_variables(env: dict[str, str], expected: str) -> None:
+    """PHOENIX_ENDPOINT and its PHOENIX_BASE_URL alias (the name the client
+    docs use) outrank the trace-export variables for API access."""
+    with patch.dict(os.environ, env, clear=True):
+        assert get_base_url() == expected
 
 
 @pytest.mark.parametrize(
@@ -112,7 +157,22 @@ class TestEnvFileDiscovery:
         (tmp_path / ".env.phoenix").write_text("PHOENIX_COLLECTOR_ENDPOINT=http://from-file:6006\n")
         with patch.dict(os.environ, {"PHOENIX_HOST": "process-host"}, clear=True):
             assert get_base_url() == "http://process-host:6006"
-            assert get_env_collector_endpoint() is None
+            # An ambient process variable that is not a collector endpoint must
+            # not mask the file's canonical collector endpoint — trace export
+            # would silently fall back to localhost.
+            assert get_env_collector_endpoint() == "http://from-file:6006"
+
+    def test_process_endpoint_does_not_mask_file_collector_endpoint(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_COLLECTOR_ENDPOINT=http://from-file:6006\n")
+        with patch.dict(os.environ, {"PHOENIX_ENDPOINT": "http://from-process:6006"}, clear=True):
+            assert get_env_collector_endpoint() == "http://from-file:6006"
+
+    def test_process_collector_does_not_mask_file_endpoint(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_ENDPOINT=http://from-file:6006\n")
+        env = {"PHOENIX_COLLECTOR_ENDPOINT": "http://from-process:6006"}
+        with patch.dict(os.environ, env, clear=True):
+            assert get_base_url() == "http://from-file:6006"
+            assert get_env_collector_endpoint() == "http://from-process:6006"
 
     def test_process_host_suppresses_file_port(self, tmp_path: Path) -> None:
         (tmp_path / ".env.phoenix").write_text(

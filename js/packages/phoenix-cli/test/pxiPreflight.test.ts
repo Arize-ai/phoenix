@@ -283,7 +283,7 @@ describe("PXI model preflight", () => {
     expect(message).toContain("Request: http://localhost:6006/graphql");
     expect(message).toContain("Network error: fetch failed");
     expect(message).toContain("Cause: connect ECONNREFUSED 127.0.0.1:6006");
-    expect(message).toContain("pass --endpoint <url> or set PHOENIX_HOST");
+    expect(message).toContain("pass --endpoint <url> or set PHOENIX_ENDPOINT");
     expect(message).toContain("pass --skip-model-preflight");
   });
 });

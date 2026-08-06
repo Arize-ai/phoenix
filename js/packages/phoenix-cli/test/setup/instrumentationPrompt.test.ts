@@ -43,12 +43,20 @@ describe("buildInstrumentationPrompt", () => {
     );
   });
 
-  it("forbids moving the OTLP path into PHOENIX_COLLECTOR_ENDPOINT", () => {
-    // px and the Phoenix SDKs read that variable as a base URL, so a
+  it("forbids moving the OTLP path into the endpoint variables", () => {
+    // px and the Phoenix SDKs read these variables as base URLs, so a
     // suffixed value fixes one exporter at everything else's expense.
     expect(buildInstrumentationPrompt(ARGS)).toContain(
-      "Do not rewrite PHOENIX_COLLECTOR_ENDPOINT to carry"
+      "Do not rewrite PHOENIX_COLLECTOR_ENDPOINT or PHOENIX_ENDPOINT to"
     );
+  });
+
+  it("explains which endpoint variable serves traces and which serves the API", () => {
+    const prompt = buildInstrumentationPrompt(ARGS);
+    expect(prompt).toContain(
+      "PHOENIX_COLLECTOR_ENDPOINT is where traces are exported"
+    );
+    expect(prompt).toContain("PHOENIX_ENDPOINT is where API requests go");
   });
 
   it("names the project and, off the default endpoint, the endpoint too", () => {

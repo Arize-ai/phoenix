@@ -60,11 +60,11 @@ All packages respect common Phoenix environment variables for seamless configura
 
 | Variable | Description | Used By |
 |----------|-------------|---------|
-| `PHOENIX_COLLECTOR_ENDPOINT` | Trace collector URL | OTEL |
-| `PHOENIX_HOST` | Phoenix server URL | Client, CLI |
+| `PHOENIX_COLLECTOR_ENDPOINT` | Base URL traces are exported to | OTEL (inferred by Client, MCP, CLI when the API variables are unset) |
+| `PHOENIX_ENDPOINT` | Base URL for API access (canonical; alias: `PHOENIX_BASE_URL`) | Client, MCP, CLI (inferred by OTEL when the collector variable is unset) |
+| `PHOENIX_HOST` | Legacy fallback for the base URL | Client, MCP, CLI |
 | `PHOENIX_API_KEY` | API key for authentication | Client, OTEL, MCP, CLI |
 | `PHOENIX_CLIENT_HEADERS` | Custom HTTP headers (JSON) | Client, CLI |
-| `PHOENIX_BASE_URL` | Phoenix base URL | MCP |
 | `PHOENIX_PROJECT` | Project name or ID | CLI |
 
 ---

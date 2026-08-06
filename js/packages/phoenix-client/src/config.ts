@@ -47,9 +47,9 @@ export const defaultGetEnvironmentOptions = (): Partial<ClientOptions> => {
     return {};
   }
   const options = phoenixEnvironmentToClientOptions(getEnvironmentConfig());
-  // The base URL resolves as a tier group (PHOENIX_COLLECTOR_ENDPOINT first,
-  // then PHOENIX_HOST) rather than from the flat snapshot above, which reads
-  // each variable independently.
+  // The base URL resolves as a tier group (PHOENIX_ENDPOINT first, inferring
+  // from PHOENIX_COLLECTOR_ENDPOINT, then legacy PHOENIX_HOST) rather than
+  // from the flat snapshot above, which reads each variable independently.
   const baseUrl = getBaseUrlFromEnvironment();
   return baseUrl !== undefined ? { ...options, baseUrl } : options;
 };

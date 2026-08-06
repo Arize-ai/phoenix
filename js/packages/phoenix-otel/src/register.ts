@@ -1,5 +1,8 @@
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
-import { warnIfUsingFileEndpointWithCredentials } from "@arizeai/phoenix-config";
+import {
+  ENV_PHOENIX_COLLECTOR_ENDPOINT,
+  warnIfUsingFileEndpointWithCredentials,
+} from "@arizeai/phoenix-config";
 import type { DiagLogLevel } from "@opentelemetry/api";
 import {
   context,
@@ -575,7 +578,7 @@ export function getDefaultSpanProcessor({
     if (!paramsUrl && envConfig.endpoint.source?.kind === "env-file") {
       // eslint-disable-next-line no-console
       console.warn(
-        `Ignoring invalid PHOENIX_COLLECTOR_ENDPOINT value from ${envConfig.endpoint.source.filePath}: ${error instanceof Error ? error.message : "invalid URL"}.`
+        `Ignoring invalid ${envConfig.endpoint.envKey ?? ENV_PHOENIX_COLLECTOR_ENDPOINT} value from ${envConfig.endpoint.source.filePath}: ${error instanceof Error ? error.message : "invalid URL"}.`
       );
       url = ensureCollectorEndpoint("http://localhost:6006");
     } else {
@@ -617,7 +620,8 @@ export function getDefaultSpanProcessor({
     warnIfUsingFileEndpointWithCredentials({
       credentialSource,
       endpointSource: envConfig.endpoint.source,
-      endpointVariable: "PHOENIX_COLLECTOR_ENDPOINT",
+      endpointVariable:
+        envConfig.endpoint.envKey ?? ENV_PHOENIX_COLLECTOR_ENDPOINT,
     });
   }
   const configureHeaders =

@@ -37,7 +37,7 @@ export const BUILT_IN_PROVIDERS = [
 type RawPxiOptions = {
   /**
    * `--endpoint <url>`: Phoenix endpoint the session connects to. Overrides
-   * the profile and `PHOENIX_HOST`.
+   * the profile and `PHOENIX_ENDPOINT`.
    *
    * @example "https://app.phoenix.arize.com"
    */

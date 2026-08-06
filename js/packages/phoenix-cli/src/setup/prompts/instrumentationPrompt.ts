@@ -61,8 +61,8 @@ export function buildInstrumentationPrompt({
   docsMcpConfigured,
 }: InstrumentationPromptArgs): string {
   const credentialVars = authEnabled
-    ? "PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY"
-    : "PHOENIX_COLLECTOR_ENDPOINT";
+    ? "PHOENIX_COLLECTOR_ENDPOINT, PHOENIX_ENDPOINT, and PHOENIX_API_KEY"
+    : "PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_ENDPOINT";
   const endpointRule = isDefaultEndpoint
     ? ""
     : `\n   Also set the collector endpoint in code only if the quickstart says to; it is ${endpoint}.`;
@@ -97,12 +97,21 @@ Rules:
    write the API key or any secret into source code, config files, or command arguments.
 3. Configure the Phoenix project name in code: use the SDK's register call with the
    project name "${projectName}".${endpointRule}
-4. PHOENIX_COLLECTOR_ENDPOINT is the server's base URL, and the Phoenix SDKs append the OTLP
-   path to it themselves. An exporter that takes a full OTLP URL instead — @mastra/arize's
-   ArizeExporter, a bare OTLPTraceExporter — must be given ${endpoint}/v1/traces. Handed the
-   base URL it posts to the wrong path, and batching exporters swallow the delivery error, so
-   every span is lost with nothing logged. Do not rewrite PHOENIX_COLLECTOR_ENDPOINT to carry
-   the path: \`px\` and the Phoenix SDKs read that variable as a base URL.
+4. The endpoint variables are base URLs, one per concern.
+   PHOENIX_COLLECTOR_ENDPOINT is where traces are exported: register() derives the full
+   OTLP target from it (the TypeScript SDK appends /v1/traces over OTLP/HTTP; the Python
+   SDK infers the transport, HTTP or gRPC).
+   PHOENIX_ENDPOINT is where API requests go, read by the API clients and the \`px\` CLI.
+   The TypeScript SDKs and the API clients infer one from the other when only one is
+   set. The Python OTel SDK (arize-phoenix-otel) does not read PHOENIX_ENDPOINT — a
+   Python app must have PHOENIX_COLLECTOR_ENDPOINT set, or it silently exports to
+   http://localhost:6006.
+   An exporter that takes a full OTLP/HTTP URL instead — @mastra/arize's ArizeExporter, a
+   bare OTLPTraceExporter — must be given ${endpoint}/v1/traces. Handed the base URL it
+   posts to the wrong path, and batching exporters swallow the delivery error, so every
+   span is lost with nothing logged.
+   Do not rewrite PHOENIX_COLLECTOR_ENDPOINT or PHOENIX_ENDPOINT to carry the path —
+   append it only where such an exporter is constructed.
 5. Prefer auto-instrumentation packages over hand-written span wrappers. Make the smallest
    correct change.
 6. Verify your work by emitting exactly one trace: run the app briefly, or a minimal

@@ -38,7 +38,7 @@ px self update
 ## Configuration
 
 ```bash
-export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_ENDPOINT=http://localhost:6006
 export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 ```
@@ -47,7 +47,9 @@ CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variable
 
 | Variable                                 | Description                                   |
 | ---------------------------------------- | --------------------------------------------- |
-| `PHOENIX_HOST`                           | Phoenix API endpoint                          |
+| `PHOENIX_ENDPOINT`                       | Base URL for API access (canonical; alias: `PHOENIX_BASE_URL`) |
+| `PHOENIX_COLLECTOR_ENDPOINT`             | Trace-export base URL; used for API access when `PHOENIX_ENDPOINT` is unset |
+| `PHOENIX_HOST`                           | Legacy fallback for the base URL              |
 | `PHOENIX_PROJECT`                        | Project name or ID (canonical)                |
 | `PHOENIX_PROJECT_NAME`                   | Project name or ID (alias for above)          |
 | `PHOENIX_API_KEY`                        | API key (if auth is enabled)                  |
@@ -60,7 +62,7 @@ The CLI also discovers the nearest `.env.phoenix` file at or above the current
 working directory. Configuration precedence is: CLI flags, process environment,
 active profile, `.env.phoenix`, then built-in defaults. Credentials are resolved
 as one group, so a process API key is never combined with file-provided client
-headers. If a higher-priority credential is paired with `PHOENIX_HOST` from the
+headers. If a higher-priority credential is paired with an endpoint from the
 file, the CLI warns once and continues. Set
 `PHOENIX_DISCOVER_CONFIG=false` to disable discovery.
 
@@ -122,7 +124,7 @@ that powers the in-browser assistant — investigate failing traces, iterate on
 prompts, and drive Phoenix from your terminal.
 
 ```bash
-pxi                                                          # uses PHOENIX_HOST / PHOENIX_API_KEY
+pxi                                                          # uses PHOENIX_ENDPOINT / PHOENIX_API_KEY
 pxi --endpoint http://localhost:6006 --provider OPENAI --model gpt-5.4
 npx -y @arizeai/phoenix-cli pxi                              # run without installing
 ```
@@ -206,7 +208,7 @@ px setup skills                     # install coding-agent skills only
 
 Register the Phoenix **remote MCP server** (`<endpoint>/mcp`) with a coding
 agent, so the agent can search, query, and operate on your Phoenix data. The
-endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_HOST` —
+endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_ENDPOINT` —
 you never re-type it.
 
 ```bash

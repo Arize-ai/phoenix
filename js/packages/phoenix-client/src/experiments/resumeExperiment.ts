@@ -35,7 +35,11 @@ import {
   PROGRESS_PREFIX,
 } from "./logging";
 import { resumeEvaluation } from "./resumeEvaluation";
-import { cleanupOwnedTracerProvider } from "./tracing";
+import {
+  cleanupOwnedTracerProvider,
+  getTraceExportUrl,
+  MISSING_BASE_URL_MESSAGE,
+} from "./tracing";
 
 /**
  * Error thrown when task is aborted due to a failure in stopOnFirstError mode.
@@ -307,15 +311,12 @@ export async function resumeExperiment({
 
   // Get base URL for tracing and URL generation
   const baseUrl = client.config.baseUrl;
-  invariant(
-    baseUrl,
-    "Phoenix base URL not found. Please set PHOENIX_COLLECTOR_ENDPOINT (or PHOENIX_HOST) or set baseUrl on the client."
-  );
+  invariant(baseUrl, MISSING_BASE_URL_MESSAGE);
 
   // Initialize tracer (only if experiment has a project_name)
   const tracerSetup = setupTracer({
     projectName: experiment.projectName,
-    baseUrl,
+    baseUrl: getTraceExportUrl(baseUrl),
     headers: client.config.headers
       ? toObjectHeaders(client.config.headers)
       : undefined,
