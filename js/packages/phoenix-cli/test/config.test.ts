@@ -253,6 +253,51 @@ describe("Configuration", () => {
       delete process.env.PHOENIX_COLLECTOR_ENDPOINT;
     });
 
+    it("keeps the profile endpoint when only OTEL_EXPORTER_OTLP_ENDPOINT is exported", () => {
+      const settings: SettingsFile = {
+        activeProfile: "prod",
+        profiles: {
+          prod: {
+            endpoint: "https://prod.example.com",
+            apiKey: "profile-key",
+          },
+        },
+      };
+      const settingsPath = path.join(tmpDir, "px", "settings.json");
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      saveSettings(settings, { settingsPath });
+
+      // The OTel-standard variable is another trace-export setting, so it is
+      // inferred rather than canonical and ranks below the profile too.
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://ingest.example.com";
+      const config = resolveConfig({ cliOptions: {} });
+      expect(config.endpoint).toBe("https://prod.example.com");
+      delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    });
+
+    // The env-beats-profile rank is what makes PHOENIX_ENDPOINT usable for
+    // one-off redirection; a regression demoting it to `inferred` would
+    // otherwise pass unnoticed, since the other env tests use PHOENIX_HOST.
+    it("lets the canonical PHOENIX_ENDPOINT override the profile endpoint", () => {
+      const settings: SettingsFile = {
+        activeProfile: "prod",
+        profiles: {
+          prod: {
+            endpoint: "https://prod.example.com",
+            apiKey: "profile-key",
+          },
+        },
+      };
+      const settingsPath = path.join(tmpDir, "px", "settings.json");
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      saveSettings(settings, { settingsPath });
+
+      process.env.PHOENIX_ENDPOINT = "https://staging.example.com";
+      const config = resolveConfig({ cliOptions: {} });
+      expect(config.endpoint).toBe("https://staging.example.com");
+      delete process.env.PHOENIX_ENDPOINT;
+    });
+
     it("prefers a profile API key over profile OAuth tokens", () => {
       const settings: SettingsFile = {
         activeProfile: "prod",

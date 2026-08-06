@@ -749,18 +749,33 @@ export function getDefaultSpanProcessor({
  * const normalized = ensureCollectorEndpoint('https://app.phoenix.arize.com/api');
  * // Returns: 'https://app.phoenix.arize.com/api/v1/traces'
  * ```
+ *
+ * @example
+ * A doubled separator or trailing slash on the traces path is canonicalized:
+ * ```typescript
+ * const normalized = ensureCollectorEndpoint('https://app.phoenix.arize.com/v1/traces/');
+ * // Returns: 'https://app.phoenix.arize.com/v1/traces'
+ * ```
  */
 export function ensureCollectorEndpoint(url: string): string {
-  if (!url.includes("/v1/traces")) {
-    // Ensure the base URL has a trailing slash for proper path concatenation
-    // Without this, the URL constructor treats the last segment as a file and replaces it
-    const baseUrl = new URL(url);
-    if (!baseUrl.pathname.endsWith("/")) {
-      baseUrl.pathname += "/";
-    }
-    // Append v1/traces to the pathname (without leading slash to append, not replace)
-    baseUrl.pathname += "v1/traces";
-    return baseUrl.toString();
+  const collectorUrl = new URL(url);
+  const { pathname } = collectorUrl;
+  if (OTLP_TRACES_PATH_SUFFIX.test(pathname)) {
+    // Already the traces path: canonicalize a doubled separator or trailing
+    // slash so exporters hit the route directly instead of a redirect.
+    collectorUrl.pathname = `${pathname.replace(OTLP_TRACES_PATH_SUFFIX, "")}/v1/traces`;
+  } else if (!pathname.includes("/v1/traces")) {
+    // A path that merely contains the traces path — a gateway route such as
+    // `/v1/traces/tenant-a` — is left alone; appending would break it.
+    collectorUrl.pathname = `${pathname.replace(/\/+$/, "")}/v1/traces`;
   }
-  return new URL(url).toString();
+  return collectorUrl.toString();
 }
+
+/**
+ * The OTLP traces path as a suffix of a URL's path component. A repeated
+ * separator (`…//v1/traces`) and a trailing slash both match; the match is
+ * case-sensitive because URL paths are, so `/V1/traces` is treated as an
+ * ordinary path rather than silently rewritten.
+ */
+const OTLP_TRACES_PATH_SUFFIX = /\/+v1\/traces\/?$/;

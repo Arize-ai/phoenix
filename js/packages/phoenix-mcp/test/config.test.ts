@@ -5,7 +5,7 @@ import {
   clearEnvFileCache,
   resetCrossTierEndpointWarningsForTesting,
 } from "@arizeai/phoenix-config";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   DEFAULT_PHOENIX_ENDPOINT,
