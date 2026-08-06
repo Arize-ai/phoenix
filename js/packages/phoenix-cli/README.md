@@ -45,16 +45,16 @@ export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 
 CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables. For interactive local use, `px auth login` stores an OAuth session in your active profile; the session acts with the permissions of the user who logged in. API keys take precedence when both are configured.
 
-| Variable                                 | Description                                   |
-| ---------------------------------------- | --------------------------------------------- |
-| `PHOENIX_ENDPOINT`                       | Base URL for API access (canonical; alias: `PHOENIX_BASE_URL`) |
-| `PHOENIX_COLLECTOR_ENDPOINT`             | Trace-export base URL; used for API access when `PHOENIX_ENDPOINT` is unset |
-| `PHOENIX_HOST`                           | Legacy fallback for the base URL              |
-| `PHOENIX_PROJECT`                        | Project name or ID (canonical)                |
-| `PHOENIX_PROJECT_NAME`                   | Project name or ID (alias for above)          |
-| `PHOENIX_API_KEY`                        | API key (if auth is enabled)                  |
-| `PHOENIX_CLIENT_HEADERS`                 | Custom headers as JSON string                 |
-| `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Enable CLI delete commands when set to `true` |
+| Variable                                 | Description                                                                 |
+| ---------------------------------------- | --------------------------------------------------------------------------- |
+| `PHOENIX_ENDPOINT`                       | Phoenix base URL (canonical)                                                |
+| `PHOENIX_COLLECTOR_ENDPOINT`             | Trace-export base URL; `px` infers from it when `PHOENIX_ENDPOINT` is unset |
+| `PHOENIX_HOST`                           | Legacy fallback for the base URL                                            |
+| `PHOENIX_PROJECT`                        | Project name or ID (canonical)                                              |
+| `PHOENIX_PROJECT_NAME`                   | Project name or ID (alias for above)                                        |
+| `PHOENIX_API_KEY`                        | API key (if auth is enabled)                                                |
+| `PHOENIX_CLIENT_HEADERS`                 | Custom headers as JSON string                                               |
+| `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Enable CLI delete commands when set to `true`                               |
 
 Delete commands are disabled by default and require `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
 

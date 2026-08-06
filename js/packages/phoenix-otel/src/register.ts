@@ -578,7 +578,7 @@ export function getDefaultSpanProcessor({
     if (!paramsUrl && envConfig.endpoint.source?.kind === "env-file") {
       // eslint-disable-next-line no-console
       console.warn(
-        `Ignoring invalid ${envConfig.endpoint.envKey ?? ENV_PHOENIX_COLLECTOR_ENDPOINT} value from ${envConfig.endpoint.source.filePath}: ${error instanceof Error ? error.message : "invalid URL"}.`
+        `Ignoring invalid ${ENV_PHOENIX_COLLECTOR_ENDPOINT} value from ${envConfig.endpoint.source.filePath}: ${error instanceof Error ? error.message : "invalid URL"}.`
       );
       url = ensureCollectorEndpoint("http://localhost:6006");
     } else {
@@ -620,8 +620,7 @@ export function getDefaultSpanProcessor({
     warnIfUsingFileEndpointWithCredentials({
       credentialSource,
       endpointSource: envConfig.endpoint.source,
-      endpointVariable:
-        envConfig.endpoint.envKey ?? ENV_PHOENIX_COLLECTOR_ENDPOINT,
+      endpointVariable: ENV_PHOENIX_COLLECTOR_ENDPOINT,
     });
   }
   const configureHeaders =

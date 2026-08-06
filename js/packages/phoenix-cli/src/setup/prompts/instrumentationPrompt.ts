@@ -97,16 +97,14 @@ Rules:
    write the API key or any secret into source code, config files, or command arguments.
 3. Configure the Phoenix project name in code: use the SDK's register call with the
    project name "${projectName}".${endpointRule}
-4. The endpoint variables are base URLs, one per concern.
-   PHOENIX_ENDPOINT is the base URL API requests go to, read by the API clients and
-   the \`px\` CLI.
+4. The endpoint variables are base URLs, one per concern, and \`.env.phoenix\` already
+   sets both to the same value.
+   PHOENIX_ENDPOINT is canonical for everything except trace export: the API clients,
+   the \`px\` CLI, and MCP read it.
    PHOENIX_COLLECTOR_ENDPOINT is where traces are exported: register() derives the
    full OTLP target from it (the TypeScript SDK appends /v1/traces over OTLP/HTTP;
-   the Python SDK infers the transport, HTTP or gRPC).
-   The TypeScript SDKs and the API clients infer one variable from the other when
-   only one is set. The Python OTel SDK (arize-phoenix-otel) does not read
-   PHOENIX_ENDPOINT — a Python app must have PHOENIX_COLLECTOR_ENDPOINT set, or it
-   silently exports to http://localhost:6006.
+   the Python SDK infers the transport, HTTP or gRPC). The OTel SDKs read only this
+   variable, so leave it set even if you also set PHOENIX_ENDPOINT.
    An exporter that POSTs to exactly the URL it is given — @mastra/arize's
    ArizeExporter, a bare OTLPTraceExporter — needs the full OTLP/HTTP URL: build it
    in code where the exporter is constructed, appending the path to the configured

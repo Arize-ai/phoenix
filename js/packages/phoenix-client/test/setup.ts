@@ -1,12 +1,7 @@
-import {
-  clearPhoenixConnectionEnvForTesting,
-  ENV_PHOENIX_DISCOVER_CONFIG,
-} from "@arizeai/phoenix-config";
+import { isolatePhoenixEnvForTesting } from "@arizeai/phoenix-config";
 import { vi } from "vitest";
 
-process.env[ENV_PHOENIX_DISCOVER_CONFIG] = "false";
-
-clearPhoenixConnectionEnvForTesting();
+isolatePhoenixEnvForTesting();
 
 // Capability-guard tests must unmock this module to exercise real version checks.
 vi.mock("../src/utils/serverVersionUtils", () => ({

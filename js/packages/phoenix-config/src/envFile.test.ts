@@ -11,7 +11,6 @@ import {
   ENV_PHOENIX_PROJECT,
   ENV_PHOENIX_PROJECT_NAME,
   getBaseUrlFromEnvironment,
-  getCollectorEndpointFromEnvironment,
   getCredentialsFromEnvironment,
   getCredentialsFromEnvironmentWithSource,
   getIntFromEnvironment,
@@ -323,32 +322,16 @@ describe("envFile", () => {
   });
 
   describe("cross-tier canonical endpoint guard", () => {
-    it("does not let a process API variable mask the file's collector endpoint", () => {
-      writeEnvFile(
-        tempDir,
-        "PHOENIX_COLLECTOR_ENDPOINT=http://from-file:6006\n"
-      );
-      process.env[ENV_PHOENIX_ENDPOINT] = "http://from-process:6006";
-      expect(getCollectorEndpointFromEnvironment()).toBe(
-        "http://from-file:6006"
-      );
-    });
-
     it("does not let a process collector variable mask the file's API endpoint", () => {
       writeEnvFile(tempDir, "PHOENIX_ENDPOINT=http://from-file:6006\n");
       process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://from-process:6006";
       expect(getBaseUrlFromEnvironment()).toBe("http://from-file:6006");
     });
 
-    it("still lets a process collector endpoint win the collector resolution", () => {
-      writeEnvFile(
-        tempDir,
-        "PHOENIX_COLLECTOR_ENDPOINT=http://from-file:6006\n"
-      );
-      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://from-process:6006";
-      expect(getCollectorEndpointFromEnvironment()).toBe(
-        "http://from-process:6006"
-      );
+    it("still lets a process API endpoint win over the file", () => {
+      writeEnvFile(tempDir, "PHOENIX_ENDPOINT=http://from-file:6006\n");
+      process.env[ENV_PHOENIX_ENDPOINT] = "http://from-process:6006";
+      expect(getBaseUrlFromEnvironment()).toBe("http://from-process:6006");
     });
   });
 

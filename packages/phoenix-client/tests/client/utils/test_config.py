@@ -27,9 +27,11 @@ from phoenix.client.utils.config import (
             },
             "http://localhost:6006",
         ),
-        # Inferred from the API-access variables when no collector variable is set.
-        ({"PHOENIX_ENDPOINT": "http://api:6006"}, "http://api:6006"),
-        ({"PHOENIX_BASE_URL": "http://base:6006"}, "http://base:6006"),
+        # Trace export reads only the collector variables. The API-access
+        # variables deliberately do NOT infer a collector endpoint, so this SDK
+        # and arize-phoenix-otel always agree on where spans go.
+        ({"PHOENIX_ENDPOINT": "http://api:6006"}, None),
+        ({"PHOENIX_BASE_URL": "http://base:6006"}, None),
         (
             {
                 "PHOENIX_COLLECTOR_ENDPOINT": "http://collector:6006",
@@ -57,12 +59,14 @@ def test_get_env_collector_endpoint(env: dict[str, str], expected: Optional[str]
             },
             "http://api:6006",
         ),
+        # PHOENIX_BASE_URL was documented for years but never read, so a config
+        # carrying both must keep resolving to the variable that already worked.
         (
             {
                 "PHOENIX_BASE_URL": "http://base:6006",
                 "PHOENIX_COLLECTOR_ENDPOINT": "http://collector:6006",
             },
-            "http://base:6006",
+            "http://collector:6006",
         ),
         ({"PHOENIX_COLLECTOR_ENDPOINT": "http://collector:6006"}, "http://collector:6006"),
         # A collector value may carry the OTLP /v1/traces path; the API base
@@ -74,8 +78,8 @@ def test_get_env_collector_endpoint(env: dict[str, str], expected: Optional[str]
     ],
 )
 def test_get_base_url_prefers_api_access_variables(env: dict[str, str], expected: str) -> None:
-    """PHOENIX_ENDPOINT and its PHOENIX_BASE_URL alias (the name the client
-    docs use) outrank the trace-export variables for API access."""
+    """PHOENIX_ENDPOINT outranks the trace-export variables for API access,
+    which in turn outrank the undocumented PHOENIX_BASE_URL fallback."""
     with patch.dict(os.environ, env, clear=True):
         assert get_base_url() == expected
 

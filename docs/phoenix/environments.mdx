@@ -71,19 +71,21 @@ Phoenix reads its connection settings from environment variables. Two endpoint v
 
 | Variable | What it is | When to set it |
 |----------|------------|----------------|
-| `PHOENIX_COLLECTOR_ENDPOINT` | The base URL that **receives your traces** (the OTel collector). | When exporting traces to a Phoenix that isn't `http://localhost:6006`. Read by `register()` and the OTLP exporters it configures. |
-| `PHOENIX_ENDPOINT` | The base URL for **API access** — reading spans back, datasets, experiments, prompts. | When using the `px` CLI or the API clients against a remote Phoenix. |
+| `PHOENIX_ENDPOINT` | The base URL of your Phoenix, for **everything except trace export** — the API clients, the `px` CLI, and MCP. | Whenever your Phoenix isn't at `http://localhost:6006`. |
+| `PHOENIX_COLLECTOR_ENDPOINT` | The base URL that **receives your traces**. Read by `register()` and the OTLP exporters it configures. | Alongside `PHOENIX_ENDPOINT` when you are tracing. |
 | `PHOENIX_API_KEY` | The credential used to **authenticate** to a Phoenix instance that has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled. | When connecting to any authenticated deployment. A local `phoenix serve` needs none. |
 | `PHOENIX_CLIENT_HEADERS` | Extra headers (JSON) sent with every request, e.g. `api_key=...`. | Only when a deployment requires custom headers. |
 
-Usually both endpoints are the same server, so setting either one is enough: when only one is set, Phoenix tools infer the other from it. (One caveat: Python's tracing SDK reads only the trace-export variables today, so when tracing from Python set `PHOENIX_COLLECTOR_ENDPOINT` — the `.env.phoenix` written by `px setup` records both.) Set both only when trace ingest and API access genuinely live at different URLs. `PHOENIX_BASE_URL` is an accepted alias for `PHOENIX_ENDPOINT` (the name the API-client docs have historically used); `PHOENIX_ENDPOINT` wins when both are set.
+`PHOENIX_ENDPOINT` is the canonical setting for every client surface. Set both variables to the same value in the usual case where one Phoenix serves both concerns — this is what `px setup` writes into `.env.phoenix` — and to different values when trace ingest and API access genuinely live at different URLs.
 
-`PHOENIX_HOST` is **not** a client setting — on the Phoenix server it is the bind host (e.g. `0.0.0.0`, paired with `PHOENIX_PORT`). Some JS tools still accept it as a last-resort legacy fallback for the base URL, but new configuration should use the two variables above.
+If only `PHOENIX_COLLECTOR_ENDPOINT` is set, the clients and the `px` CLI infer their base URL from it, so an existing tracing-only configuration keeps working. The inference does not run the other way: the OTel SDKs read `PHOENIX_COLLECTOR_ENDPOINT` only, so `PHOENIX_ENDPOINT` alone never configures trace export.
+
+`PHOENIX_HOST` is **not** a client setting — on the Phoenix server it is the bind host (e.g. `0.0.0.0`, paired with `PHOENIX_PORT`). Some JS tools still accept it as a last-resort legacy fallback for the base URL, but new configuration should use the variables above.
 
 <Warning>
 Keep both endpoint variables **base URLs**. The `px` CLI and the API clients append their own request paths to `PHOENIX_ENDPOINT`, and `register()` derives the OTLP target from `PHOENIX_COLLECTOR_ENDPOINT` — the TypeScript SDK appends `/v1/traces` (OTLP/HTTP), while the Python SDK infers the transport, using OTLP/gRPC on port `4317` for self-hosted servers unless you pass `protocol="http/protobuf"`; a gRPC endpoint is just `host:port`.
 
-Exporters that POST to exactly the URL they are given — `@mastra/arize`'s `ArizeExporter`, a bare `OTLPTraceExporter` — need the *full* OTLP/HTTP URL. Build it in code where the exporter is constructed, the way the Mastra examples do (`` `${PHOENIX_ENDPOINT}/v1/traces` ``). When configuration must stay in the environment, a `/v1/traces`-suffixed `PHOENIX_COLLECTOR_ENDPOINT` also works: `register()` accepts it as-is, and the `px` CLI and API clients strip the suffix when they infer the API address from the collector variable.
+Exporters that POST to exactly the URL they are given — `@mastra/arize`'s `ArizeExporter`, a bare `OTLPTraceExporter` — need the *full* OTLP/HTTP URL. Build it in code where the exporter is constructed, the way the Mastra examples do (`` `${PHOENIX_COLLECTOR_ENDPOINT}/v1/traces` ``). When configuration must stay in the environment, a `/v1/traces`-suffixed `PHOENIX_COLLECTOR_ENDPOINT` also works: `register()` accepts it as-is, and the `px` CLI and API clients strip the suffix when inferring their base URL from it.
 </Warning>
 
 ### Choosing a project
