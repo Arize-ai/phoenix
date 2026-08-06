@@ -5,6 +5,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useRelayEnvironment } from "react-relay";
 
 import {
+  SESSION_ALREADY_COMPACT_ERROR_CODE,
   SESSION_BUSY_ERROR_CODE,
   SESSION_MODEL_STALE_ERROR_CODE,
   buildAgentChatApiUrl,
@@ -337,6 +338,20 @@ export function useAgentChat({
           environment: relayEnvironment,
           sessionId,
         }) ?? toAgentModelSelection(store.getState().defaultModelConfig);
+      // The queued message survives a compaction no-op: it is sent whether a
+      // checkpoint was created or the conversation was already compact.
+      const sendPendingMessage = async () => {
+        if (!pendingMessage) {
+          return;
+        }
+        store.getState().setSessionCompactionPending(sessionId, false);
+        await handleSendMessage(
+          { text: pendingMessage.text },
+          pendingMessage.requestedSkills.length > 0
+            ? { body: { requestedSkills: pendingMessage.requestedSkills } }
+            : undefined
+        );
+      };
       try {
         const response = await authFetch(buildAgentCompactApiUrl(sessionId), {
           method: "POST",
@@ -345,6 +360,23 @@ export function useAgentChat({
         });
         if (!response.ok) {
           const errorBody = await response.text().catch(() => "");
+          if (
+            response.status === 409 &&
+            isSessionAlreadyCompactConflict(errorBody)
+          ) {
+            // A benign no-op, not a failure: nothing new has finished since
+            // the latest checkpoint, or a concurrent request's checkpoint
+            // already covers it.
+            setCompactionStatus(
+              "Conversation is already compact. There are no older complete turns to compact."
+            );
+            void refetchAgentSession({
+              environment: relayEnvironment,
+              sessionId,
+            });
+            await sendPendingMessage();
+            return;
+          }
           if (response.status === 409 && isSessionBusyConflict(errorBody)) {
             // Another client's turn holds the session lock: enter
             // busy-elsewhere mode (the poll swaps in the fresh transcript
@@ -390,12 +422,10 @@ export function useAgentChat({
             getAgentCompactErrorMessage(errorBody, response.status)
           );
         }
+        // A 200 always means a checkpoint was created, and the body's data
+        // is that checkpoint message.
         const result: unknown = await response.json();
-        const data =
-          isRecord(result) && isRecord(result.data) ? result.data : null;
-        const wasCompacted =
-          data && typeof data.compacted === "boolean" ? data.compacted : false;
-        const compactionMessage = getCompactionMessageFromResponse(data);
+        const compactionMessage = getCompactionMessageFromResponse(result);
         if (
           compactionMessage &&
           !chatInstance.messages.some(
@@ -408,20 +438,7 @@ export function useAgentChat({
           environment: relayEnvironment,
           sessionId,
         });
-        if (!wasCompacted) {
-          setCompactionStatus(
-            "Conversation is already compact. There are no older complete turns to compact."
-          );
-        }
-        if (pendingMessage) {
-          store.getState().setSessionCompactionPending(sessionId, false);
-          await handleSendMessage(
-            { text: pendingMessage.text },
-            pendingMessage.requestedSkills.length > 0
-              ? { body: { requestedSkills: pendingMessage.requestedSkills } }
-              : undefined
-          );
-        }
+        await sendPendingMessage();
       } catch (error) {
         failCompaction(
           error instanceof Error
@@ -563,26 +580,32 @@ export function getCompactionBlockedReason({
 }
 
 /**
- * A lock conflict is the one failure the route answers with JSON; every other
- * failure is an `HTTPException` detail, which the server renders as plain text.
+ * Conflicts are the failures the route answers with a structured JSON body;
+ * every other failure is an `HTTPException` detail, which the server renders
+ * as plain text.
  */
-function isSessionBusyConflict(body: string): boolean {
+function isConflictWithCode(body: string, code: string): boolean {
   try {
     const parsed: unknown = JSON.parse(body);
-    return isRecord(parsed) && parsed.code === SESSION_BUSY_ERROR_CODE;
+    return isRecord(parsed) && parsed.code === code;
   } catch {
     return false;
   }
 }
 
-/** The compact route's other JSON conflict: the asserted model is out of date. */
+/** Another client's turn holds the session's lock. */
+function isSessionBusyConflict(body: string): boolean {
+  return isConflictWithCode(body, SESSION_BUSY_ERROR_CODE);
+}
+
+/** The asserted model is out of date. */
 function isSessionModelStaleConflict(body: string): boolean {
-  try {
-    const parsed: unknown = JSON.parse(body);
-    return isRecord(parsed) && parsed.code === SESSION_MODEL_STALE_ERROR_CODE;
-  } catch {
-    return false;
-  }
+  return isConflictWithCode(body, SESSION_MODEL_STALE_ERROR_CODE);
+}
+
+/** There are no complete turns to compact — a benign no-op, not a failure. */
+function isSessionAlreadyCompactConflict(body: string): boolean {
+  return isConflictWithCode(body, SESSION_ALREADY_COMPACT_ERROR_CODE);
 }
 
 function getAgentCompactErrorMessage(body: string, status: number): string {
@@ -592,10 +615,10 @@ function getAgentCompactErrorMessage(body: string, status: number): string {
 function getCompactionMessageFromResponse(
   result: unknown
 ): AgentUIMessage | null {
-  if (!isRecord(result) || !isRecord(result.compaction_message)) {
+  if (!isRecord(result) || !isRecord(result.data)) {
     return null;
   }
-  const message = result.compaction_message;
+  const message = result.data;
   if (
     typeof message.id !== "string" ||
     message.role !== "user" ||

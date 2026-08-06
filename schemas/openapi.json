@@ -8719,7 +8719,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CompactAgentSessionRequest"
+                "$ref": "#/components/schemas/CompactAgentSessionRequestBody"
               }
             }
           }
@@ -8730,7 +8730,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CompactAgentSessionResponse"
+                  "$ref": "#/components/schemas/CompactAgentSessionResponseBody"
                 }
               }
             }
@@ -9026,6 +9026,7 @@
               "agent_session_model_stale",
               "agent_session_messages_stale",
               "agent_session_tool_outputs_conflict",
+              "agent_session_already_compact",
               "agent_session_compaction_conflict"
             ],
             "title": "Code",
@@ -9049,7 +9050,7 @@
           "code"
         ],
         "title": "AgentSessionConflictError",
-        "description": "Body of every HTTP 409 returned by the agent session routes.\n\n- ``agent_session_busy``: another turn holds the session's turn lock.\n- ``agent_session_model_stale``: the request asserted a model the session\n  is no longer set to; refetch the session before retrying.\n- ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer\n  matches the persisted transcript \u2014 another client appended; refetch the\n  transcript and retry.\n- ``agent_session_tool_outputs_conflict``: the submitted ``toolOutputs`` do\n  not match the transcript's trailing assistant message (no trailing\n  assistant message to continue, an unknown ``toolCallId``, or a tool-name\n  mismatch). Unlike ``agent_session_messages_stale`` this is not a\n  concurrent-writer race but an inconsistent request; fix the client\n  rather than retrying.\n- ``agent_session_compaction_conflict``: the conversation changed while it\n  was being compacted; retry."
+        "description": "Body of every HTTP 409 returned by the agent session routes.\n\n- ``agent_session_busy``: another turn holds the session's turn lock.\n- ``agent_session_model_stale``: the request asserted a model the session\n  is no longer set to; refetch the session before retrying.\n- ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer\n  matches the persisted transcript \u2014 another client appended; refetch the\n  transcript and retry.\n- ``agent_session_tool_outputs_conflict``: the submitted ``toolOutputs`` do\n  not match the transcript's trailing assistant message (no trailing\n  assistant message to continue, an unknown ``toolCallId``, or a tool-name\n  mismatch). Unlike ``agent_session_messages_stale`` this is not a\n  concurrent-writer race but an inconsistent request; fix the client\n  rather than retrying.\n- ``agent_session_already_compact``: there are no complete turns to\n  compact \u2014 either nothing new has finished since the transcript's latest\n  checkpoint, or a concurrent request's checkpoint already covers them.\n  Not retryable; the conversation is as compact as it can get.\n- ``agent_session_compaction_conflict``: the conversation changed while it\n  was being compacted; retry."
       },
       "AgentSessionData": {
         "properties": {
@@ -10225,7 +10226,7 @@
         "title": "CodeEvaluatorContext",
         "description": "Code-evaluator create/edit form mounted in the current browser route."
       },
-      "CompactAgentSessionRequest": {
+      "CompactAgentSessionRequestBody": {
         "properties": {
           "model": {
             "$ref": "#/components/schemas/AgentModelSelection",
@@ -10236,44 +10237,21 @@
         "required": [
           "model"
         ],
-        "title": "CompactAgentSessionRequest",
+        "title": "CompactAgentSessionRequestBody",
         "description": "Request a model-generated checkpoint for a persisted conversation."
       },
-      "CompactAgentSessionResponse": {
+      "CompactAgentSessionResponseBody": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/CompactAgentSessionResponseData"
+            "$ref": "#/components/schemas/PhoenixUIMessage"
           }
         },
         "type": "object",
         "required": [
           "data"
         ],
-        "title": "CompactAgentSessionResponse"
-      },
-      "CompactAgentSessionResponseData": {
-        "properties": {
-          "compacted": {
-            "type": "boolean",
-            "title": "Compacted"
-          },
-          "compaction_message": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PhoenixUIMessage"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "compacted"
-        ],
-        "title": "CompactAgentSessionResponseData",
-        "description": "Result of compacting the older complete turns in a conversation."
+        "title": "CompactAgentSessionResponseBody",
+        "description": "The checkpoint message this request created. A 200 always means a new\ncheckpoint was persisted; every other outcome is an HTTP 409 whose body's\n``code`` says why (see ``AgentSessionConflictError``)."
       },
       "ContinuousAnnotationConfig": {
         "properties": {

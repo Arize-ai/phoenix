@@ -1763,6 +1763,10 @@ export interface components {
          *       mismatch). Unlike ``agent_session_messages_stale`` this is not a
          *       concurrent-writer race but an inconsistent request; fix the client
          *       rather than retrying.
+         *     - ``agent_session_already_compact``: there are no complete turns to
+         *       compact — either nothing new has finished since the transcript's latest
+         *       checkpoint, or a concurrent request's checkpoint already covers them.
+         *       Not retryable; the conversation is as compact as it can get.
          *     - ``agent_session_compaction_conflict``: the conversation changed while it
          *       was being compacted; retry.
          */
@@ -1772,7 +1776,7 @@ export interface components {
              * @description Machine-readable reason the request conflicted.
              * @enum {string}
              */
-            code: "agent_session_busy" | "agent_session_model_stale" | "agent_session_messages_stale" | "agent_session_tool_outputs_conflict" | "agent_session_compaction_conflict";
+            code: "agent_session_busy" | "agent_session_model_stale" | "agent_session_messages_stale" | "agent_session_tool_outputs_conflict" | "agent_session_already_compact" | "agent_session_compaction_conflict";
             /**
              * Message
              * @description Optional human-readable elaboration on the conflict.
@@ -2255,25 +2259,21 @@ export interface components {
             evaluatorNodeId?: string | null;
         };
         /**
-         * CompactAgentSessionRequest
+         * CompactAgentSessionRequestBody
          * @description Request a model-generated checkpoint for a persisted conversation.
          */
-        CompactAgentSessionRequest: {
+        CompactAgentSessionRequestBody: {
             /** @description The model the client believes the session is set to. As on the chat route this is a precondition: the summary is generated with the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale``. */
             model: components["schemas"]["AgentModelSelection"];
         };
-        /** CompactAgentSessionResponse */
-        CompactAgentSessionResponse: {
-            data: components["schemas"]["CompactAgentSessionResponseData"];
-        };
         /**
-         * CompactAgentSessionResponseData
-         * @description Result of compacting the older complete turns in a conversation.
+         * CompactAgentSessionResponseBody
+         * @description The checkpoint message this request created. A 200 always means a new
+         *     checkpoint was persisted; every other outcome is an HTTP 409 whose body's
+         *     ``code`` says why (see ``AgentSessionConflictError``).
          */
-        CompactAgentSessionResponseData: {
-            /** Compacted */
-            compacted: boolean;
-            compaction_message?: components["schemas"]["PhoenixUIMessage"] | null;
+        CompactAgentSessionResponseBody: {
+            data: components["schemas"]["PhoenixUIMessage"];
         };
         /** ContinuousAnnotationConfig */
         ContinuousAnnotationConfig: {
@@ -12110,7 +12110,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CompactAgentSessionRequest"];
+                "application/json": components["schemas"]["CompactAgentSessionRequestBody"];
             };
         };
         responses: {
@@ -12120,7 +12120,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CompactAgentSessionResponse"];
+                    "application/json": components["schemas"]["CompactAgentSessionResponseBody"];
                 };
             };
             /** @description Bad Request */

@@ -32,12 +32,21 @@ export const SESSION_MESSAGES_STALE_ERROR_CODE =
  */
 export const SESSION_MODEL_STALE_ERROR_CODE =
   "agent_session_model_stale" satisfies AgentSessionConflictCode;
+/**
+ * Error code (HTTP 409) the compact endpoint returns when there are no
+ * complete turns to compact — nothing new has finished since the transcript's
+ * latest checkpoint, or a concurrent request's checkpoint already covers
+ * them. A benign no-op, not a failure.
+ */
+export const SESSION_ALREADY_COMPACT_ERROR_CODE =
+  "agent_session_already_compact" satisfies AgentSessionConflictCode;
 
 const AGENT_SESSION_CONFLICT_CODES = [
   "agent_session_busy",
   "agent_session_model_stale",
   "agent_session_messages_stale",
   "agent_session_tool_outputs_conflict",
+  "agent_session_already_compact",
   "agent_session_compaction_conflict",
 ] as const satisfies readonly AgentSessionConflictCode[];
 

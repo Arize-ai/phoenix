@@ -14,6 +14,7 @@ class AgentSessionConflictError(TypedDict):
         "agent_session_model_stale",
         "agent_session_messages_stale",
         "agent_session_tool_outputs_conflict",
+        "agent_session_already_compact",
         "agent_session_compaction_conflict",
     ]
     message: NotRequired[str]
@@ -1823,7 +1824,7 @@ class ChatCompletion(TypedDict):
     object: NotRequired[str]
 
 
-class CompactAgentSessionRequest(TypedDict):
+class CompactAgentSessionRequestBody(TypedDict):
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
 
 
@@ -2069,9 +2070,8 @@ class ChatRequest(TypedDict):
     lastMessageId: NotRequired[str]
 
 
-class CompactAgentSessionResponseData(TypedDict):
-    compacted: bool
-    compaction_message: NotRequired[PhoenixUIMessage]
+class CompactAgentSessionResponseBody(TypedDict):
+    data: PhoenixUIMessage
 
 
 class ListAgentSessionMessagesResponseBody(TypedDict):
@@ -2128,10 +2128,6 @@ class PromptVersionData(TypedDict):
 
 class PromptVersion(PromptVersionData):
     id: str
-
-
-class CompactAgentSessionResponse(TypedDict):
-    data: CompactAgentSessionResponseData
 
 
 class CreatePromptRequestBody(TypedDict):

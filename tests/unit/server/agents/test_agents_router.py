@@ -428,9 +428,7 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     )
 
     assert compact_response.status_code == 200
-    compact_result = compact_response.json()["data"]
-    assert compact_result["compacted"] is True
-    compaction_message = compact_result["compaction_message"]
+    compaction_message = compact_response.json()["data"]
     assert compaction_message["role"] == "user"
     assert compaction_message["metadata"]["type"] == "user"
     assert compaction_message["metadata"]["isCompactionMessage"] is True
@@ -509,7 +507,7 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     )
 
     assert second_compact_response.status_code == 200
-    second_compaction_message = second_compact_response.json()["data"]["compaction_message"]
+    second_compaction_message = second_compact_response.json()["data"]
     assert second_compaction_message["id"] != compaction_message["id"]
     assert second_compaction_message["metadata"]["isCompactionMessage"] is True
     second_summary_input = str(second_summary_messages)
@@ -541,13 +539,13 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     assert "Finish" in second_projected_history
 
 
-async def test_compact_agent_session_without_a_completed_turn_is_a_noop(
+async def test_compact_agent_session_without_a_completed_turn_is_rejected_as_already_compact(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async def _unexpected_build_model(*args: object, **kwargs: object) -> FunctionModel:
-        raise AssertionError("a no-op compaction must not build a model")
+        raise AssertionError("an already-compact conversation must not build a model")
 
     monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _unexpected_build_model)
     agent_session_id = await _create_agent_session_row(
@@ -560,8 +558,8 @@ async def test_compact_agent_session_without_a_completed_turn_is_a_noop(
 
     response = await httpx_client.post(_compact_url(agent_session_id), json=_compact_body())
 
-    assert response.status_code == 200
-    assert response.json() == {"data": {"compacted": False}}
+    assert response.status_code == 409
+    assert response.json()["code"] == "agent_session_already_compact"
     async with db() as session:
         assert await session.scalar(select(models.AgentSessionSnapshot)) is None
 
@@ -654,7 +652,7 @@ async def test_compact_takes_over_a_stale_session_lock(
     response = await httpx_client.post(_compact_url(agent_session_id), json=_compact_body())
 
     assert response.status_code == 200
-    assert response.json()["data"]["compacted"] is True
+    assert response.json()["data"]["metadata"]["isCompactionMessage"] is True
     async with db() as session:
         stored = await session.scalar(select(models.AgentSession))
         assert stored is not None
@@ -717,12 +715,92 @@ async def test_chat_send_during_compaction_is_rejected_as_busy(
     compact_response = await httpx_client.post(_compact_url(agent_session_id), json=_compact_body())
 
     assert compact_response.status_code == 200
-    assert compact_response.json()["data"]["compacted"] is True
+    assert compact_response.json()["data"]["metadata"]["isCompactionMessage"] is True
     assert concurrent_sends == [(409, {"code": "agent_session_busy"})]
     async with db() as session:
         stored = await session.scalar(select(models.AgentSession))
         assert stored is not None
         assert stored.heartbeat_at is None
+
+
+async def test_compact_is_rejected_as_already_compact_when_a_concurrent_checkpoint_lands(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If another request's checkpoint is persisted while this one is
+    summarizing (possible only after a stale-lock takeover), the conversation
+    is already compact: the route answers 409 without writing a second
+    checkpoint."""
+    checkpoint = {
+        "objectives": ["Lose the race"],
+        "constraints_and_preferences": [],
+        "decisions": [],
+        "completed_work": [],
+        "active_work": [],
+        "blockers": [],
+        "next_steps": [],
+        "important_details": [],
+    }
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Racing session",
+        messages=[
+            _user_message("Hello", message_id=_message_uuid("user-1")),
+            {
+                "id": _message_uuid("assistant-1"),
+                "role": "assistant",
+                "parts": [{"type": "text", "text": "Hi there."}],
+            },
+        ],
+    )
+    global_id = GlobalID.from_id(agent_session_id)
+    foreign_checkpoint = {
+        "id": _message_uuid("foreign-compaction-1"),
+        "role": "user",
+        "metadata": {
+            "type": "user",
+            "currentDateTime": "2026-01-01T00:00:00+00:00",
+            "timeZone": "UTC",
+            "isCompactionMessage": True,
+        },
+        "parts": [{"type": "text", "text": "A concurrent request's checkpoint."}],
+    }
+
+    async def compact_function(
+        messages: list[ModelMessage], agent_info: AgentInfo
+    ) -> ModelResponse:
+        # The summarization call is in flight: another request's checkpoint
+        # lands now, so this request's summary must be discarded.
+        async with db() as session:
+            session.add(
+                models.AgentSessionMessage(
+                    agent_session_id=int(global_id.node_id),
+                    message=PhoenixUIMessage.model_validate(foreign_checkpoint),
+                )
+            )
+        return ModelResponse(
+            parts=[ToolCallPart(tool_name="conversation_checkpoint", args=checkpoint)]
+        )
+
+    _mock_turn_models(monkeypatch, FunctionModel(function=compact_function))
+
+    response = await httpx_client.post(_compact_url(agent_session_id), json=_compact_body())
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "agent_session_already_compact"
+    async with db() as session:
+        compaction_message_ids = list(
+            await session.scalars(
+                select(models.AgentSessionMessage.message_id).where(
+                    models.AgentSessionMessage.is_compaction_message
+                )
+            )
+        )
+        stored = await session.scalar(select(models.AgentSession))
+        assert stored is not None
+        assert stored.heartbeat_at is None
+    assert compaction_message_ids == [_message_uuid("foreign-compaction-1")]
 
 
 async def test_server_agent_compact_route_matches_chat_route_gating(
@@ -774,7 +852,7 @@ async def test_server_agent_compact_route_matches_chat_route_gating(
         json=_compact_body(),
     )
     assert server_response.status_code == 200
-    assert server_response.json()["data"]["compacted"] is True
+    assert server_response.json()["data"]["metadata"]["isCompactionMessage"] is True
 
     monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_BASH", "true")
     disabled_response = await httpx_client.post(

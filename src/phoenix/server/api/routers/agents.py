@@ -452,6 +452,7 @@ AgentSessionConflictCode = Literal[
     "agent_session_model_stale",
     "agent_session_messages_stale",
     "agent_session_tool_outputs_conflict",
+    "agent_session_already_compact",
     "agent_session_compaction_conflict",
 ]
 
@@ -471,6 +472,10 @@ class AgentSessionConflictError(V1RoutesBaseModel):
       mismatch). Unlike ``agent_session_messages_stale`` this is not a
       concurrent-writer race but an inconsistent request; fix the client
       rather than retrying.
+    - ``agent_session_already_compact``: there are no complete turns to
+      compact — either nothing new has finished since the transcript's latest
+      checkpoint, or a concurrent request's checkpoint already covers them.
+      Not retryable; the conversation is as compact as it can get.
     - ``agent_session_compaction_conflict``: the conversation changed while it
       was being compacted; retry.
     """
@@ -577,7 +582,7 @@ class ListAgentSessionMessagesResponseBody(PaginatedResponseBody[PhoenixUIMessag
     pass
 
 
-class CompactAgentSessionRequest(V1RoutesBaseModel):
+class CompactAgentSessionRequestBody(V1RoutesBaseModel):
     """Request a model-generated checkpoint for a persisted conversation."""
 
     model: AgentModelSelection = Field(
@@ -590,30 +595,10 @@ class CompactAgentSessionRequest(V1RoutesBaseModel):
     )
 
 
-class CompactAgentSessionResponseData(V1RoutesBaseModel):
-    """Result of compacting the older complete turns in a conversation."""
-
-    compacted: bool
-    compaction_message: PhoenixUIMessage | None = None
-
-
-class CompactAgentSessionResponse(ResponseBody[CompactAgentSessionResponseData]):
-    pass
-
-
-def _compact_agent_session_response(
-    *,
-    compacted: bool,
-    compaction_message: PhoenixUIMessage | None,
-) -> JSONResponse:
-    """Serialize a compaction result the way the route's response model would."""
-    response = CompactAgentSessionResponse(
-        data=CompactAgentSessionResponseData(
-            compacted=compacted,
-            compaction_message=compaction_message,
-        ),
-    )
-    return JSONResponse(response.model_dump(mode="json", by_alias=True, exclude_none=True))
+class CompactAgentSessionResponseBody(ResponseBody[PhoenixUIMessage]):
+    """The checkpoint message this request created. A 200 always means a new
+    checkpoint was persisted; every other outcome is an HTTP 409 whose body's
+    ``code`` says why (see ``AgentSessionConflictError``)."""
 
 
 _PydanticAIUIMessageListAdapter: TypeAdapter[list[PydanticAIUIMessage]] = TypeAdapter(
@@ -2408,7 +2393,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
     @router.post(
         "/agents/{agent_id}/sessions/{session_id}/compact",
         operation_id="compactAgentSession",
-        response_model=CompactAgentSessionResponse,
+        response_model=CompactAgentSessionResponseBody,
         response_model_exclude_none=True,
         responses=add_errors_to_responses(
             [400, 401, 403, 404, 502, 507],
@@ -2419,8 +2404,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         agent_id: str,
         session_id: str,
         request: Request,
-        request_body: CompactAgentSessionRequest,
-    ) -> JSONResponse:
+        request_body: CompactAgentSessionRequestBody,
+    ) -> CompactAgentSessionResponseBody:
         if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
         if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
@@ -2463,11 +2448,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 )
                 latest_row = message_rows[-1] if message_rows else None
                 if latest_row is None or latest_row.message.role != "assistant":
-                    return _compact_agent_session_response(
-                        compacted=False,
-                        compaction_message=(
-                            latest_compaction.message if latest_compaction is not None else None
-                        ),
+                    raise AgentSessionConflict(
+                        "agent_session_already_compact",
+                        "No complete turns have finished since the last checkpoint",
                     )
                 boundary_row = latest_row
                 messages_to_summarize = [row.message for row in message_rows]
@@ -2503,9 +2486,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 if current_compaction is not None and (
                     latest_compaction is None or current_compaction.id != latest_compaction.id
                 ):
-                    return _compact_agent_session_response(
-                        compacted=False,
-                        compaction_message=current_compaction.message,
+                    # A concurrent request's checkpoint landed while this one
+                    # was summarizing; its checkpoint already covers these
+                    # turns, so the conversation is already compact.
+                    raise AgentSessionConflict(
+                        "agent_session_already_compact",
+                        "The conversation was compacted by a concurrent request",
                     )
                 current_latest_row = current_history[-1] if current_history else None
                 if (
@@ -2526,10 +2512,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     message=compaction_message,
                 )
                 session.add(compaction_message_row)
-            return _compact_agent_session_response(
-                compacted=True,
-                compaction_message=compaction_message,
-            )
+            return CompactAgentSessionResponseBody(data=compaction_message)
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
         except CompactionError as exc:
