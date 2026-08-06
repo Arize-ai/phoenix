@@ -295,9 +295,9 @@ export const VERIFY = {
       "",
       // The failure mode that looks like success: an exporter pointed at the
       // base URL POSTs to the wrong path, and batching swallows the error.
-      "Most often the exporter is posting to the wrong URL. PHOENIX_COLLECTOR_ENDPOINT is a",
-      "base URL; an exporter that takes a full OTLP URL needs that value with /v1/traces",
-      "appended.",
+      "Most often the exporter is posting to the wrong URL. An exporter that POSTs to",
+      "exactly the URL it is given needs PHOENIX_COLLECTOR_ENDPOINT set to the full OTLP",
+      "URL, /v1/traces included.",
       "",
       `Not seeing traces? ${DOCS.troubleshooting}`,
     ].join("\n"),

@@ -22,15 +22,18 @@ First, start Phoenix:
 Then create a `.env` file that points Mastra at it:
 
 ```bash
-PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
 PHOENIX_API_KEY=your-api-key # Optional, only if auth is enabled
 PHOENIX_PROJECT_NAME=mastra-service # Optional
 ```
 
+`PHOENIX_COLLECTOR_ENDPOINT` is the URL traces are exported to. `ArizeExporter` POSTs to
+exactly the URL it is given, so the variable carries the full OTLP/HTTP traces URL — the
+Phoenix server's address with `/v1/traces` appended.
+
 ## Setup
 
-Initialize the Arize exporter inside your Mastra project. `ArizeExporter` takes the full
-OTLP/HTTP traces URL, so append `/v1/traces` to the collector endpoint when you construct it:
+Initialize the Arize exporter inside your Mastra project:
 
 ```typescript
 import { Mastra } from "@mastra/core";
@@ -45,7 +48,7 @@ export const mastra = new Mastra({
         serviceName: process.env.PHOENIX_PROJECT_NAME || "mastra-service",
         exporters: [
           new ArizeExporter({
-            endpoint: `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`,
+            endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT!,
             apiKey: process.env.PHOENIX_API_KEY,
             projectName: process.env.PHOENIX_PROJECT_NAME,
           }),
@@ -57,20 +60,13 @@ export const mastra = new Mastra({
 ```
 
 <Warning>
-  Pass the exporter the suffixed URL, not `PHOENIX_COLLECTOR_ENDPOINT` itself. `ArizeExporter`
-  POSTs to exactly the `endpoint` it is given — unlike Phoenix's own SDKs, it does not
-  append the OTLP path — so a base URL such as `http://localhost:6006` sends spans to the wrong
-  path. Mastra's batching exporter swallows the delivery error, so traces simply never appear
-  and nothing is logged.
-
-  For the same reason, do not move `/v1/traces` into `PHOENIX_COLLECTOR_ENDPOINT`. That variable
-  is [documented](/docs/phoenix/environments) as the server's base URL, and everything of
-  Phoenix's that reads it — `register()`, the `px` CLI, the API clients — builds its own
-  request paths on top of it.
+  The `/v1/traces` path matters. `ArizeExporter` — unlike Phoenix's own SDKs — does not append
+  the OTLP path itself: handed a bare server URL such as `http://localhost:6006`, every span
+  goes to the wrong path, Mastra's batching exporter swallows the delivery error, and traces
+  simply never appear. Phoenix's own tools handle the full URL fine — `register()` accepts it
+  as-is, and the `px` CLI and API clients strip the suffix when they derive the API address
+  from it (see [environment variables](/docs/phoenix/environments)).
 </Warning>
-
-Constructing `new ArizeExporter()` with no arguments reads `PHOENIX_COLLECTOR_ENDPOINT` and posts
-to it as-is, so configure the exporter explicitly as shown above.
 
 ## Create Agents and Tools
 
@@ -119,7 +115,7 @@ const mastra = new Mastra({
         serviceName: process.env.PHOENIX_PROJECT_NAME || "mastra-service",
         exporters: [
           new ArizeExporter({
-            endpoint: `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`,
+            endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT!,
             apiKey: process.env.PHOENIX_API_KEY,
             projectName: process.env.PHOENIX_PROJECT_NAME,
           }),
