@@ -302,8 +302,6 @@ CREATE TABLE public.spans (
 
 CREATE INDEX ix_cumulative_llm_token_count_total ON public.spans
     USING btree (((cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)));
-CREATE INDEX ix_latency ON public.spans
-    USING btree (((end_time - start_time)));
 CREATE INDEX ix_spans_parent_id ON public.spans
     USING btree (parent_id);
 CREATE INDEX ix_spans_session_id ON public.spans
@@ -794,6 +792,8 @@ CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
     USING btree (evaluator_id);
 CREATE INDEX ix_dataset_evaluators_project_id ON public.dataset_evaluators
     USING btree (project_id);
+CREATE INDEX ix_dataset_evaluators_user_id ON public.dataset_evaluators
+    USING btree (user_id);
 
 
 -- Table: experiments
@@ -1154,6 +1154,9 @@ CREATE TABLE public.generative_model_custom_providers (
         ON DELETE SET NULL
 );
 
+CREATE INDEX ix_generative_model_custom_providers_user_id ON public.generative_model_custom_providers
+    USING btree (user_id);
+
 
 -- Table: agent_sessions
 -- ---------------------
@@ -1455,6 +1458,11 @@ CREATE TABLE public.experiment_prompt_tasks (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_experiment_prompt_tasks_custom_provider_id ON public.experiment_prompt_tasks
+    USING btree (custom_provider_id);
+CREATE INDEX ix_experiment_prompt_tasks_prompt_version_id ON public.experiment_prompt_tasks
+    USING btree (prompt_version_id);
+
 
 -- Table: prompt_version_tags
 -- --------------------------
@@ -1715,6 +1723,9 @@ CREATE TABLE public.secrets (
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
+
+CREATE INDEX ix_secrets_user_id ON public.secrets
+    USING btree (user_id);
 
 
 -- Table: span_annotations

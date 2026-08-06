@@ -1050,7 +1050,6 @@ class Span(HasId):
             "span_id",
             sqlite_on_conflict="IGNORE",
         ),
-        Index("ix_latency", text("(end_time - start_time)")),
         Index(
             "ix_cumulative_llm_token_count_total",
             text("(cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)"),
@@ -1547,6 +1546,7 @@ class DatasetLabel(HasId):
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     user: Mapped[Optional["User"]] = relationship("User")
 
@@ -1980,6 +1980,7 @@ class ExperimentPromptTask(ExperimentJob):
     custom_provider_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("generative_model_custom_providers.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
     # Prompt definition (complex nested → JSON)
@@ -2003,6 +2004,7 @@ class ExperimentPromptTask(ExperimentJob):
     prompt_version_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("prompt_versions.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
     # Playground-specific settings (evolving, stored as JSON)
@@ -3291,6 +3293,7 @@ class DatasetEvaluators(HasId):
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="RESTRICT"),
@@ -3321,6 +3324,7 @@ class Secret(Base):
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -3357,6 +3361,7 @@ class GenerativeModelCustomProvider(HasId):
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
 
