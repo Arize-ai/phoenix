@@ -31,6 +31,17 @@ _PRICED = {
 }
 _UNCOSTED = "uncosted"
 
+# span_id -> [(token_type, is_prompt, cost, tokens, cost_per_token)]
+#
+# `untokenized` carries a detail row whose `cost_per_token` is NULL, so the element fields
+# are exercised as nullable -- they do not coalesce, because a detail row's missing value is
+# a fact about that row rather than about the span.
+_DETAILS: dict[str, list[tuple[str, bool, float, float, float | None]]] = {
+    "priced": [("input", True, 0.75, 75.0, 0.01), ("output", False, 0.25, 25.0, 0.01)],
+    "cheap": [("input", True, 0.06, 600.0, 0.0001), ("cache_read", True, 0.04, 400.0, 0.0001)],
+    "untokenized": [("input", True, 0.5, 0.0, None)],
+}
+
 
 @pytest.fixture
 async def cost_project(db: DbSessionFactory) -> None:
@@ -72,8 +83,9 @@ async def cost_project(db: DbSessionFactory) -> None:
             if span_id not in _PRICED:
                 continue
             total_cost, prompt_cost, completion_cost, total_tokens = _PRICED[span_id]
-            await session.execute(
-                insert(models.SpanCost).values(
+            span_cost_id = await session.scalar(
+                insert(models.SpanCost)
+                .values(
                     span_rowid=span_rowid,
                     trace_rowid=trace_rowid,
                     span_start_time=_TS,
@@ -84,7 +96,19 @@ async def cost_project(db: DbSessionFactory) -> None:
                     prompt_tokens=total_tokens,
                     completion_tokens=0.0,
                 )
+                .returning(models.SpanCost.id)
             )
+            for token_type, is_prompt, cost, tokens, per_token in _DETAILS[span_id]:
+                await session.execute(
+                    insert(models.SpanCostDetail).values(
+                        span_cost_id=span_cost_id,
+                        token_type=token_type,
+                        is_prompt=is_prompt,
+                        cost=cost,
+                        tokens=tokens,
+                        cost_per_token=per_token,
+                    )
+                )
 
 
 async def _matching(db: DbSessionFactory, condition: str) -> list[str]:
@@ -208,6 +232,103 @@ async def test_span_cost_join_does_not_collide_with_a_caller_join(
     async with db() as session:
         # `cheap` + `priced` + `untokenized`, i.e. every span above the threshold.
         assert await session.scalar(stmt) == pytest.approx(1.6)
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        pytest.param(
+            'any(d.token_type == "cache_read" for d in span.cost_details)',
+            ["cheap"],
+            id="any",
+        ),
+        pytest.param(
+            'sum(d.tokens for d in span.cost_details if d.token_type == "input") > 100',
+            ["cheap"],
+            id="sum-with-condition",
+        ),
+        pytest.param("max(d.cost for d in span.cost_details) > 0.5", ["priced"], id="max"),
+        pytest.param("len([d for d in span.cost_details]) == 2", ["cheap", "priced"], id="len"),
+        pytest.param(
+            'any(d.cost > 0.5 for d in span.cost_details) and name == "priced"',
+            ["priced"],
+            id="composed-with-span-column",
+        ),
+        pytest.param(
+            "any(d.cost > 0.05 for d in span.cost_details) and span.total_cost > 0.4",
+            ["priced", "untokenized"],
+            id="composed-with-a-scalar-member",
+        ),
+    ],
+)
+async def test_cost_details_comprehensions_filter_rows(
+    db: DbSessionFactory,
+    cost_project: None,
+    condition: str,
+    expected: list[str],
+) -> None:
+    assert await _matching(db, condition) == expected
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        # CPython is the reference: `all(())` is True, so a span with no detail rows
+        # satisfies every `all(...)`, and `len(())` / `sum(())` are 0 rather than NULL.
+        pytest.param(
+            "all(d.is_prompt for d in span.cost_details)",
+            ["cheap", "uncosted", "untokenized"],
+            id="all-over-empty-is-true",
+        ),
+        pytest.param("len([d for d in span.cost_details]) == 0", [_UNCOSTED], id="len-of-empty"),
+        pytest.param("sum(d.cost for d in span.cost_details) == 0", [_UNCOSTED], id="sum-of-empty"),
+        # `max(())` raises in Python; in SQL it is NULL, which reads as missing and fails
+        # every comparison in both directions.
+        pytest.param(
+            "not (max(d.cost for d in span.cost_details) > 0.5)",
+            ["cheap", "untokenized"],
+            id="max-of-empty-is-null",
+        ),
+        # An element field stays nullable, so a NULL `cost_per_token` row is no
+        # counterexample to a `>` test but is also not a match.
+        pytest.param(
+            "any(d.cost_per_token > 0.005 for d in span.cost_details)",
+            ["priced"],
+            id="null-element",
+        ),
+    ],
+)
+async def test_cost_details_empty_and_null_semantics(
+    db: DbSessionFactory,
+    cost_project: None,
+    condition: str,
+    expected: list[str],
+) -> None:
+    assert await _matching(db, condition) == expected
+
+
+async def test_cost_details_subquery_does_not_correlate_a_caller_join(
+    db: DbSessionFactory,
+    cost_project: None,
+) -> None:
+    """The comprehension's `SpanCost` join is aliased, so it cannot bind to the caller's.
+
+    Without the alias SQLAlchemy would correlate the enclosing statement's `span_costs`
+    rather than adding one to the subquery, quietly widening `any(...)` from "this span's
+    detail rows" to "any detail row at all" -- a predicate that is true for every span. The
+    caller shape is `span_cost_summary_by_project`'s.
+    """
+    stmt = (
+        select(func.count())
+        .select_from(models.Trace)
+        .join(models.SpanCost, models.Trace.id == models.SpanCost.trace_rowid)
+        .join_from(models.SpanCost, models.Span)
+    )
+    stmt = SpanFilter('any(d.token_type == "cache_read" for d in span.cost_details)')(stmt)
+    async with db() as session:
+        # Only `cheap` has a cache_read row. If the subquery correlated the caller's join,
+        # every priced span would match and this would be 3.
+        assert await session.scalar(stmt) == 1
 
 
 @pytest.mark.parametrize(

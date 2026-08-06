@@ -128,6 +128,17 @@ ACCEPTED = [
     # so no previously-bare name changed meaning.
     "attributes['span'] == 'x'",
     "total_cost > 1",
+    # `span.cost_details` iterates the per-token-type rows behind that cost, with the same
+    # comprehension vocabulary the session grain uses -- one family, one flavor.
+    "any(d.cost > 1 for d in span.cost_details)",
+    "all(d.is_prompt for d in span.cost_details)",
+    "sum(d.tokens for d in span.cost_details if d.token_type == 'input') > 1000",
+    "len([d for d in span.cost_details]) > 2",
+    "max(d.cost_per_token for d in span.cost_details) > 0.001",
+    "any(d.cost > 1 for d in span.cost_details) and span.total_cost > 5",
+    # Registered under a dotted key, so no bare name became an iterable: `cost_details` is
+    # the attribute path it always was. Pinned for the same reason `parent == 'x'` is.
+    "cost_details > 1",
 ]
 
 # Every form the spec documents as rejected, with the reason it documents.
@@ -140,6 +151,15 @@ REJECTED = [
     ("span.total_cost.foo > 1", "cannot be traversed further"),
     ("span['total_cost'] > 1", "cannot be traversed further"),
     ("span == 1", "can only be used as `span.<field>`"),
+    # Comprehensions over the root's collection member
+    ("span.cost_details > 1", "can only be iterated"),
+    ("any(d.cost > 1 for d in cost_details)", "invalid iterable `cost_details`"),
+    ("any(d.nope > 1 for d in span.cost_details)", "invalid field `d.nope`"),
+    # The reserved root cannot be shadowed by a loop variable, though Python would allow
+    # it. A legislated deviation: comparing an element field against an outer one is on the
+    # roadmap for every grain, and that construct needs the root to denote the filtered row
+    # in every scope. Rejecting is also the reversible direction under additive-only.
+    ("any(span.cost > 1 for span in span.cost_details)", "`span` is reserved"),
     # A resolved member is typed identically on both sides of the compiler, so it
     # rejects exactly as a bare column does -- the two encodings of one rule, pinned
     # against each other (`latency_ms > '100'` is the same row, below).
@@ -225,7 +245,10 @@ REJECTED = [
     # an empty eval name can never match an annotation
     ("evals[''] == 'x'", "missing eval name"),
     # calls other than the three casts
-    ("len(name) > 1", "invalid expression"),
+    # Still rejected, but by the comprehension rules rather than the call whitelist:
+    # `len` is a reduction at this grain now, so the message names what it takes instead
+    # of calling the whole expression invalid. Rejection preserved, wording improved.
+    ("len(name) > 1", r"`len\(\.\.\.\)` takes a comprehension"),
     ("name.upper() == 'X'", "invalid expression"),
     ("[x for x in name]", "invalid expression"),
     # annotation members
