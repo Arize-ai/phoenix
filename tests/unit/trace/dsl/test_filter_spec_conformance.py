@@ -139,6 +139,11 @@ ACCEPTED = [
     # Registered under a dotted key, so no bare name became an iterable: `cost_details` is
     # the attribute path it always was. Pinned for the same reason `parent == 'x'` is.
     "cost_details > 1",
+    # Annotation aliasing rewrites the source text and re-parses before translation, while
+    # the reserved root is validated against the original tree. These pin that the rewrite
+    # leaves root-rooted nodes intact, in both the scalar and the comprehension form.
+    "annotations['q'].score > 0.5 and span.total_cost > 1",
+    "annotations['q'].score > 0.5 and any(d.cost > 1 for d in span.cost_details)",
 ]
 
 # Every form the spec documents as rejected, with the reason it documents.
@@ -266,6 +271,14 @@ SCOPES = [
     ("parent_id is not None", None),
     ("parent_id is None or span_kind == 'LLM'", None),
     ("span_kind == 'LLM'", None),
+    # Scope verdicts are observable semantics (principle 8) and the UI picks metric columns
+    # from them, so the new forms are pinned too: a root predicate still binds every row it
+    # is conjoined with, and neither a reserved-root member nor a comprehension claims
+    # root-ness on its own.
+    ("parent_id is None and span.total_cost > 1", "strict"),
+    ("parent_span is None and any(d.cost > 1 for d in span.cost_details)", "orphan_aware"),
+    ("span.total_cost > 1", None),
+    ("any(d.cost > 1 for d in span.cost_details)", None),
 ]
 
 
