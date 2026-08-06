@@ -56,7 +56,16 @@ Do not assume the framework package bundles its model provider SDK. In a clean e
 
 **Directory:** `app/src/components/project/integrationSnippets/` — read existing files to match conventions.
 
-Do NOT pass `endpoint`/`url` in snippet code — the onboarding UI displays env vars (including `PHOENIX_COLLECTOR_ENDPOINT`) separately, and both `register` functions read it automatically.
+Whether a snippet passes an endpoint depends on what consumes it. Either way the value comes from `PHOENIX_COLLECTOR_ENDPOINT`, which the onboarding UI displays alongside the snippet.
+
+- **`register()`-based snippets** — do NOT pass `endpoint`/`url`. Both `register` functions read `PHOENIX_COLLECTOR_ENDPOINT` themselves and derive the OTLP target from it.
+- **Verbatim exporters** — anything that POSTs to exactly the URL it is handed, such as `@mastra/arize`'s `ArizeExporter` or a bare `OTLPTraceExporter`, MUST receive the full OTLP URL explicitly, built from the same variable:
+
+  ```typescript
+  endpoint: `${process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006"}/v1/traces`,
+  ```
+
+  These exporters do not read the environment and do not append the OTLP path. Leaving the endpoint out sends spans to the exporter's own default; giving it the bare base URL POSTs to a path that accepts nothing. Both fail silently.
 
 **Python:** Use `auto_instrument=True` — no manual instrumentor calls. SDK imports must come _after_ `register()`.
 
@@ -78,7 +87,7 @@ Test snippets **as written** — the exact code the user will see in the onboard
 
 Create a **fresh environment per integration** with only the packages from that snippet's `packages` array. This prevents false positives from cross-contamination (e.g., an installed `openinference-instrumentation-openai` producing extra traces when testing a LangChain snippet).
 
-Set `PHOENIX_COLLECTOR_ENDPOINT` and run the snippet code verbatim.
+Set `PHOENIX_COLLECTOR_ENDPOINT` to the Phoenix base URL (e.g. `http://localhost:6006`) and run the snippet code verbatim — a snippet that needs the `/v1/traces` suffix must build it itself, as above.
 
 Use a **fresh Phoenix project name per test run**. Reusing an existing project can mask failures by making old traces look like the new snippet worked.
 
