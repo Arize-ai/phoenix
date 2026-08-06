@@ -24,6 +24,7 @@ import { defaultCardProps } from "./constants";
 import { LLMInvocationParams } from "./LLMInvocationParams";
 import type { LLMIOView } from "./LLMIOViewSelect";
 import { LLMIOViewSelect, useLLMIOView } from "./LLMIOViewSelect";
+import { LLMMessagesCollapseToggle } from "./LLMMessagesCollapseToggle";
 import { LLMMessagesList } from "./LLMMessagesList";
 import { LLMPromptsList } from "./LLMPromptsList";
 import { LLMPromptTemplate } from "./LLMPromptTemplate";
@@ -162,6 +163,7 @@ export function LLMInput({
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             {isRawView && <ConnectedMarkdownModeSelect />}
+            {view === "input-messages" && <LLMMessagesCollapseToggle />}
             {views.length > 0 && (
               <LLMIOViewSelect
                 label="Input view"
