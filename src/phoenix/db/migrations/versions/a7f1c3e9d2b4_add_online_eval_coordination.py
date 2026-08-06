@@ -38,49 +38,22 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def _restore_sqlite_project_session_desc_indexes() -> None:
-    if op.get_bind().dialect.name != "sqlite":
-        return
-    for index_name, column_name in (
-        ("ix_project_sessions_project_id_start_time", "start_time"),
-        ("ix_project_sessions_project_id_end_time", "end_time"),
-    ):
-        op.drop_index(index_name, table_name="project_sessions")
-        op.execute(
-            f"CREATE INDEX {index_name} ON project_sessions (project_id, {column_name} DESC)"
-        )
-
-
 def upgrade() -> None:
-    with op.batch_alter_table("project_sessions") as batch_op:
-        batch_op.add_column(
-            sa.Column(
-                "last_span_seen_at",
-                sa.TIMESTAMP(timezone=True),
-                nullable=True,
-            )
-        )
-
-    op.execute(
-        sa.text(
-            "UPDATE project_sessions "
-            "SET last_span_seen_at = end_time "
-            "WHERE last_span_seen_at IS NULL"
-        )
+    op.add_column(
+        "project_sessions",
+        sa.Column(
+            "last_span_ingested_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=True,
+        ),
     )
-
-    with op.batch_alter_table("project_sessions") as batch_op:
-        batch_op.alter_column(
-            "last_span_seen_at",
-            existing_type=sa.TIMESTAMP(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        )
-        batch_op.create_index(
-            "ix_project_sessions_project_id_last_span_seen_at",
-            ["project_id", "last_span_seen_at"],
-        )
-    _restore_sqlite_project_session_desc_indexes()
+    op.create_index(
+        "ix_project_sessions_project_id_last_span_ingested_at",
+        "project_sessions",
+        ["project_id", "last_span_ingested_at"],
+        postgresql_where=sa.text("last_span_ingested_at IS NOT NULL"),
+        sqlite_where=sa.text("last_span_ingested_at IS NOT NULL"),
+    )
 
     op.create_table(
         "eval_work_cursors",
@@ -291,7 +264,8 @@ def downgrade() -> None:
     op.drop_table("project_evaluator_criteria")
     op.drop_table("eval_work_cursors")
 
-    with op.batch_alter_table("project_sessions") as batch_op:
-        batch_op.drop_index("ix_project_sessions_project_id_last_span_seen_at")
-        batch_op.drop_column("last_span_seen_at")
-    _restore_sqlite_project_session_desc_indexes()
+    op.drop_index(
+        "ix_project_sessions_project_id_last_span_ingested_at",
+        table_name="project_sessions",
+    )
+    op.drop_column("project_sessions", "last_span_ingested_at")

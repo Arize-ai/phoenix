@@ -275,48 +275,52 @@ async def test_project_session_liveness_schema(
         )
         conn.commit()
 
-    def _get_backfill_and_index(conn: Connection) -> tuple[datetime, list[str]]:
+    def _get_liveness_and_index(conn: Connection) -> tuple[Optional[datetime], list[str], str]:
         metadata = sa.MetaData()
         schema = _schema or None
         project_sessions = sa.Table("project_sessions", metadata, autoload_with=conn, schema=schema)
-        last_span_seen_at = conn.scalar(
-            sa.select(project_sessions.c.last_span_seen_at).where(
+        last_span_ingested_at = conn.scalar(
+            sa.select(project_sessions.c.last_span_ingested_at).where(
                 project_sessions.c.session_id == "liveness-backfill"
             )
         )
-        assert last_span_seen_at is not None
         indexes = sa.inspect(conn).get_indexes("project_sessions", schema=schema)
         index = next(
             index
             for index in indexes
-            if index["name"] == "ix_project_sessions_project_id_last_span_seen_at"
+            if index["name"] == "ix_project_sessions_project_id_last_span_ingested_at"
         )
         index_columns = index["column_names"]
         assert all(column is not None for column in index_columns)
-        return last_span_seen_at, [column for column in index_columns if column is not None]
+        where = index["dialect_options"][f"{_db_backend}_where"]
+        return (
+            last_span_ingested_at,
+            [column for column in index_columns if column is not None],
+            str(where),
+        )
 
     before = await _run_async(_engine, _get)
     assert before is not None
-    assert "last_span_seen_at" not in before["column_names"]
-    if _db_backend == "sqlite":
-        assert (
-            await _run_async(_engine, _get_sqlite_project_session_index_sql)
-            == _SQLITE_PROJECT_SESSION_DESC_INDEX_SQL
-        )
+    assert "last_span_ingested_at" not in before["column_names"]
     await _run_async(_engine, _seed)
 
     await _up(_engine, _alembic_config, _UP, _schema)
     after = await _run_async(_engine, _get)
     assert after is not None
-    assert after["column_names"] == before["column_names"] | {"last_span_seen_at"}
+    assert after["column_names"] == before["column_names"] | {"last_span_ingested_at"}
     assert after["index_names"] == before["index_names"] | {
-        "ix_project_sessions_project_id_last_span_seen_at"
+        "ix_project_sessions_project_id_last_span_ingested_at"
     }
     assert after["constraint_names"] == before["constraint_names"]
-    assert after["nullable_column_names"] == before["nullable_column_names"]
-    last_span_seen_at, index_columns = await _run_async(_engine, _get_backfill_and_index)
-    assert last_span_seen_at.replace(tzinfo=timezone.utc) == end_time
-    assert index_columns == ["project_id", "last_span_seen_at"]
+    assert after["nullable_column_names"] == before["nullable_column_names"] | {
+        "last_span_ingested_at"
+    }
+    last_span_ingested_at, index_columns, index_where = await _run_async(
+        _engine, _get_liveness_and_index
+    )
+    assert last_span_ingested_at is None
+    assert index_columns == ["project_id", "last_span_ingested_at"]
+    assert "last_span_ingested_at IS NOT NULL" in index_where
     if _db_backend == "sqlite":
         assert (
             await _run_async(_engine, _get_sqlite_project_session_index_sql)
@@ -325,8 +329,3 @@ async def test_project_session_liveness_schema(
 
     await _down(_engine, _alembic_config, _PREVIOUS, _schema)
     assert await _run_async(_engine, _get) == before
-    if _db_backend == "sqlite":
-        assert (
-            await _run_async(_engine, _get_sqlite_project_session_index_sql)
-            == _SQLITE_PROJECT_SESSION_DESC_INDEX_SQL
-        )

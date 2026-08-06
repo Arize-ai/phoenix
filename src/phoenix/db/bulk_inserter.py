@@ -201,7 +201,12 @@ class BulkInserter:
                         span_cost.span_rowid = result.span_rowid
                         span_cost.trace_rowid = result.trace_rowid
                         span_costs.append(span_cost)
-                await advance_project_session_liveness(session, project_session_rowids)
+                try:
+                    async with session.begin_nested():
+                        await advance_project_session_liveness(session, project_session_rowids)
+                except Exception as e:
+                    BULK_LOADER_EXCEPTIONS.inc()
+                    logger.exception(str(e))
             BULK_LOADER_SPAN_INSERTION_TIME.observe(perf_counter() - start)
         except Exception:
             BULK_LOADER_SPAN_EXCEPTIONS.inc()

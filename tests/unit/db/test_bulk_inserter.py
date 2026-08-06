@@ -1,8 +1,9 @@
 from asyncio import sleep
 from datetime import datetime, timedelta, timezone
 from queue import SimpleQueue
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from sqlalchemy import event, select
 from sqlalchemy.engine import Engine
 
@@ -55,7 +56,7 @@ async def test_span_batch_coalesces_session_liveness_and_ignores_duplicates(
         _context: object,
         _executemany: bool,
     ) -> None:
-        if "update project_sessions set last_span_seen_at" in statement.lower():
+        if "update project_sessions set last_span_ingested_at" in statement.lower():
             liveness_updates.append(statement)
 
     event.listen(Engine, "before_cursor_execute", _capture_liveness_update)
@@ -70,17 +71,18 @@ async def test_span_batch_coalesces_session_liveness_and_ignores_duplicates(
             select(models.ProjectSession).where(models.ProjectSession.session_id == session_id)
         )
         assert project_session is not None
-        first_seen_at = project_session.last_span_seen_at
+        first_ingested_at = project_session.last_span_ingested_at
+        assert first_ingested_at is not None
 
     inserter._spans.append((spans[0], "project"))
     await inserter._insert_spans(1)
     async with db() as session:
         duplicate_seen_at = await session.scalar(
-            select(models.ProjectSession.last_span_seen_at).where(
+            select(models.ProjectSession.last_span_ingested_at).where(
                 models.ProjectSession.session_id == session_id
             )
         )
-    assert duplicate_seen_at == first_seen_at
+    assert duplicate_seen_at == first_ingested_at
 
     await sleep(0.01)
     inserter._spans.append(
@@ -89,18 +91,17 @@ async def test_span_batch_coalesces_session_liveness_and_ignores_duplicates(
     await inserter._insert_spans(1)
     async with db() as session:
         next_seen_at = await session.scalar(
-            select(models.ProjectSession.last_span_seen_at).where(
+            select(models.ProjectSession.last_span_ingested_at).where(
                 models.ProjectSession.session_id == session_id
             )
         )
     assert next_seen_at is not None
-    assert next_seen_at > first_seen_at
+    assert next_seen_at > first_ingested_at
 
 
 async def test_session_liveness_update_is_monotonic(db: DbSessionFactory) -> None:
     initial_seen_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    newer_seen_at = initial_seen_at + timedelta(minutes=2)
-    older_seen_at = initial_seen_at + timedelta(minutes=1)
+    future_ingested_at = datetime.now(timezone.utc) + timedelta(hours=1)
     async with db() as session:
         project = models.Project(name="monotonic-liveness")
         session.add(project)
@@ -110,18 +111,51 @@ async def test_session_liveness_update_is_monotonic(db: DbSessionFactory) -> Non
             project_id=project.id,
             start_time=initial_seen_at,
             end_time=initial_seen_at,
-            last_span_seen_at=initial_seen_at,
+            last_span_ingested_at=future_ingested_at,
         )
         session.add(project_session)
         await session.flush()
         project_session_id = project_session.id
-        await advance_project_session_liveness(session, [project_session_id], seen_at=newer_seen_at)
-        await advance_project_session_liveness(session, [project_session_id], seen_at=older_seen_at)
+        await advance_project_session_liveness(session, [project_session_id])
 
     async with db() as session:
-        last_span_seen_at = await session.scalar(
-            select(models.ProjectSession.last_span_seen_at).where(
+        last_span_ingested_at = await session.scalar(
+            select(models.ProjectSession.last_span_ingested_at).where(
                 models.ProjectSession.id == project_session_id
             )
         )
-    assert last_span_seen_at == newer_seen_at
+    assert last_span_ingested_at == future_ingested_at
+
+
+async def test_session_liveness_failure_does_not_rollback_inserted_spans(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    span = _span(trace_id="2" * 32, span_id="5" * 16, session_id="savepoint-liveness")
+    liveness_update = AsyncMock(side_effect=RuntimeError("liveness update failed"))
+    monkeypatch.setattr(
+        "phoenix.db.bulk_inserter.advance_project_session_liveness",
+        liveness_update,
+    )
+    inserter = BulkInserter(
+        db,
+        event_queue=SimpleQueue(),
+        span_cost_calculator=MagicMock(),
+        initial_batch_of_spans=[(span, "project")],
+    )
+
+    await inserter._insert_spans(1)
+
+    liveness_update.assert_awaited_once()
+    async with db() as session:
+        inserted_span = await session.scalar(
+            select(models.Span).where(models.Span.span_id == span.context.span_id)
+        )
+        project_session = await session.scalar(
+            select(models.ProjectSession).where(
+                models.ProjectSession.session_id == "savepoint-liveness"
+            )
+        )
+    assert inserted_span is not None
+    assert project_session is not None
+    assert project_session.last_span_ingested_at is None

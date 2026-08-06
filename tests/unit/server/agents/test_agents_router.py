@@ -445,7 +445,7 @@ async def test_persist_db_traces_advances_session_liveness_across_turns(
         await _persist_db_traces(session=session, db_traces=[first_trace])
     async with db() as session:
         first_seen_at = await session.scalar(
-            select(models.ProjectSession.last_span_seen_at).where(
+            select(models.ProjectSession.last_span_ingested_at).where(
                 models.ProjectSession.session_id == "pxi-session-liveness"
             )
         )
@@ -467,7 +467,7 @@ async def test_persist_db_traces_advances_session_liveness_across_turns(
         await _persist_db_traces(session=session, db_traces=[second_trace])
     async with db() as session:
         second_seen_at = await session.scalar(
-            select(models.ProjectSession.last_span_seen_at).where(
+            select(models.ProjectSession.last_span_ingested_at).where(
                 models.ProjectSession.session_id == "pxi-session-liveness"
             )
         )
