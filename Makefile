@@ -321,7 +321,6 @@ clean-notebooks: ## Clean Jupyter notebook output and metadata
 	@echo -e "$(CYAN)Cleaning Jupyter notebook metadata...$(NC)"
 	@find . -type f -name "*.ipynb" \
 		-not -path "*/tutorials/evals/*" \
-		-not -path "*/tutorials/ai_evals_course/*" \
 		-exec uv run jupyter nbconvert \
 			--ClearOutputPreprocessor.enabled=True \
 			--ClearMetadataPreprocessor.enabled=True \
