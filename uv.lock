@@ -19,9 +19,10 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P3D"
 
 [options.exclude-newer-package]
+arize-phoenix-otel = "2099-12-31T00:00:00Z"
 arize-phoenix-evals = "2099-12-31T00:00:00Z"
 arize-phoenix-client = "2099-12-31T00:00:00Z"
-arize-phoenix-otel = "2099-12-31T00:00:00Z"
+arize-phoenix-sqlean = "2099-12-31T00:00:00Z"
 
 [manifest]
 members = [
@@ -487,6 +488,7 @@ dependencies = [
     { name = "arize-phoenix-client" },
     { name = "arize-phoenix-evals" },
     { name = "arize-phoenix-otel" },
+    { name = "arize-phoenix-sqlean" },
     { name = "authlib" },
     { name = "bashkit" },
     { name = "cachetools" },
@@ -529,8 +531,6 @@ dependencies = [
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "sqlalchemy", extra = ["asyncio"] },
-    { name = "sqlean-py", version = "3.49.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'win32'" },
-    { name = "sqlean-py", version = "3.50.4.5", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'win32'" },
     { name = "starlette" },
     { name = "strawberry-graphql" },
     { name = "tqdm" },
@@ -709,6 +709,7 @@ requires-dist = [
     { name = "arize-phoenix-client", editable = "packages/phoenix-client" },
     { name = "arize-phoenix-evals", editable = "packages/phoenix-evals" },
     { name = "arize-phoenix-otel", editable = "packages/phoenix-otel" },
+    { name = "arize-phoenix-sqlean" },
     { name = "asyncpg", marker = "extra == 'pg'" },
     { name = "authlib", specifier = ">=1.7.0" },
     { name = "azure-identity", marker = "extra == 'azure'", specifier = ">=1.18.0" },
@@ -767,9 +768,6 @@ requires-dist = [
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.46,<3" },
-    { name = "sqlean-py", marker = "sys_platform == 'win32'", specifier = ">=3.45.1,<3.50" },
-    { name = "sqlean-py", marker = "python_full_version < '3.14' and sys_platform != 'win32'", specifier = ">=3.45.1" },
-    { name = "sqlean-py", marker = "python_full_version >= '3.14' and sys_platform != 'win32'", specifier = ">=3.50" },
     { name = "starlette", specifier = ">=0.37.0" },
     { name = "strawberry-graphql", specifier = "==0.320.4" },
     { name = "strawberry-graphql", extras = ["opentelemetry"], marker = "extra == 'container'", specifier = "==0.320.4" },
@@ -1020,6 +1018,44 @@ requires-dist = [
     { name = "wrapt" },
 ]
 provides-extras = ["test"]
+
+[[package]]
+name = "arize-phoenix-sqlean"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/61/9d/57f4a702fc81329db31d3fb3db64fa01514a71d044311bf80f0438185728/arize_phoenix_sqlean-0.1.0.tar.gz", hash = "sha256:a7248b8530c44d1d3861c580b610bf0312eb6f675883cf4de18c35b2d9acdc98", size = 3529126, upload-time = "2026-08-06T00:13:44.109Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ef/2b/bbd4051b7b381415873931fad620d091ab53df9b790c5b7fd5aa57f9b03f/arize_phoenix_sqlean-0.1.0-cp310-cp310-macosx_10_15_x86_64.whl", hash = "sha256:662e4e82f1749d8e1381637e9ef8e5abee2499b86eb1588643dc5e19f8536204", size = 1196396, upload-time = "2026-08-06T00:12:50.045Z" },
+    { url = "https://files.pythonhosted.org/packages/07/f2/7c267030724171851cb38e4795190a6095b18af561ed2051063c766d4e08/arize_phoenix_sqlean-0.1.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:e24b1ff27f6ce41c3a224339b1bce3ea2e6699e0b5f462db550f0fbb505871d8", size = 1122130, upload-time = "2026-08-06T00:12:51.887Z" },
+    { url = "https://files.pythonhosted.org/packages/ba/e5/ee9fa735ece0a1a9b3465214b0222192de1273b8f33cdaaad4814efb6644/arize_phoenix_sqlean-0.1.0-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:68251eb081c94d7f5a2718663fdc5d987dca8fe44f084ae7af5899951e3f9d90", size = 3244100, upload-time = "2026-08-06T00:12:54.424Z" },
+    { url = "https://files.pythonhosted.org/packages/47/ff/0f2345d78252380274088c14a603adca721b8cd53b9694c04bc046b3bb72/arize_phoenix_sqlean-0.1.0-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:4683d089350fafc4763a5c65557f3e63250f5185e83702fe146d5b9f90765770", size = 3229397, upload-time = "2026-08-06T00:12:56.027Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/ad/c4fa9d262cf2770e3e34743785d4815e1027db2ba44c5bd41629bbc380ee/arize_phoenix_sqlean-0.1.0-cp310-cp310-win_amd64.whl", hash = "sha256:ccf8460711bf8a8011fb05aca85c9ed24e0a48961e51f79b6a36f8172b790867", size = 920130, upload-time = "2026-08-06T00:12:57.698Z" },
+    { url = "https://files.pythonhosted.org/packages/49/fd/6b2d40aea82d26842b4fb8eaac3edec3829c3db6e390cba0f65182c5eafc/arize_phoenix_sqlean-0.1.0-cp310-cp310-win_arm64.whl", hash = "sha256:e7fc27b5e32983806895cb004aa299733c36ce5e74a3ef7dfbfc435e9e1c27e8", size = 853791, upload-time = "2026-08-06T00:12:59.244Z" },
+    { url = "https://files.pythonhosted.org/packages/05/6f/537231578570d138d0375d72f167e9e65e8d2fca19591cb13e65ad616278/arize_phoenix_sqlean-0.1.0-cp311-cp311-macosx_10_15_x86_64.whl", hash = "sha256:fc04fe2b983e4588eacea7c0b4d4c55447f93a924c046b0ae5d6a6c1d81ce59f", size = 1196338, upload-time = "2026-08-06T00:13:00.828Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/b8/fb4c6244835a830a3d4e5de1f77b4629f5cf8dcc900abfe5f129edf9e1de/arize_phoenix_sqlean-0.1.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:e93efc2f7d60a22379bac683e873743598fde0da5f1708a517ddcea78cbf729f", size = 1122150, upload-time = "2026-08-06T00:13:02.362Z" },
+    { url = "https://files.pythonhosted.org/packages/06/4b/71a0857a4857b21afe7c8b593f60f95aae86ba210f0af105c17b94c991cb/arize_phoenix_sqlean-0.1.0-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:4e42b4e79e6819894d65ff0a282d8ddb3f80e720d6165480e3acf9f90e55d45c", size = 3252098, upload-time = "2026-08-06T00:13:04.209Z" },
+    { url = "https://files.pythonhosted.org/packages/2f/1b/2fcd33328f25dfc0450438594faa3bee411bd48cd684a1829b23985ffa66/arize_phoenix_sqlean-0.1.0-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:d6aef263f56316227f1f882a046600bf44003fb498ea2114128387a330e77cb2", size = 3236282, upload-time = "2026-08-06T00:13:05.98Z" },
+    { url = "https://files.pythonhosted.org/packages/0a/24/7928c028eb6ab4be7bca2cd103fa26c2d758727640242b9063e937298db3/arize_phoenix_sqlean-0.1.0-cp311-cp311-win_amd64.whl", hash = "sha256:df54afc5b29aa10645ba50424ea2e56bac564e34d85a1c1f50834d401021a232", size = 920139, upload-time = "2026-08-06T00:13:07.566Z" },
+    { url = "https://files.pythonhosted.org/packages/6b/fc/acb50b0bfd6d387c1f02468f612e59456280512ac3ff01060d8420fbd65e/arize_phoenix_sqlean-0.1.0-cp311-cp311-win_arm64.whl", hash = "sha256:c32eb9262a9e6d5783e59c5a807505a1c88d62b0ff1aa0a3b6977f1e1e76d5f6", size = 853790, upload-time = "2026-08-06T00:13:09.908Z" },
+    { url = "https://files.pythonhosted.org/packages/02/51/ed8cbb6457c060c8e329f13aa855da7c3d66f99fc671342667ad8d6d5e23/arize_phoenix_sqlean-0.1.0-cp312-cp312-macosx_10_15_x86_64.whl", hash = "sha256:bb838dd848841cabd2ca055aaf2625e353fd90324e560b6ac4125a9edd593d7f", size = 1197119, upload-time = "2026-08-06T00:13:11.706Z" },
+    { url = "https://files.pythonhosted.org/packages/10/28/737f96dccadddea710d05139f4e6e313a3f89982874773e43a978b7319f5/arize_phoenix_sqlean-0.1.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:c6586d84b78c990ced9c336147cfe082c6e12647824bb868af9e9b03ae52b48e", size = 1122765, upload-time = "2026-08-06T00:13:13.382Z" },
+    { url = "https://files.pythonhosted.org/packages/79/7c/0af4ac52dbb56568be10df5cec2ad824281a3b8f69f26a8171e2f322bfd0/arize_phoenix_sqlean-0.1.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:c5d735a38d6d89cce57e70b1d0deff3693591d44fd71648c719424fd44c81da9", size = 3260397, upload-time = "2026-08-06T00:13:15.547Z" },
+    { url = "https://files.pythonhosted.org/packages/4c/1e/621a84ac2991437b5a7fa1a0c4d90e1b0435deec6eb202ab5bf197146654/arize_phoenix_sqlean-0.1.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:f9a6853475fd0c52d162d0214b99557532e8c42ce6fb5eb1aefd53238cafad97", size = 3245670, upload-time = "2026-08-06T00:13:17.494Z" },
+    { url = "https://files.pythonhosted.org/packages/3e/64/1f460ba9f8219f3d3db497dd8ee51dde798c11c8760ebf47310450d5c177/arize_phoenix_sqlean-0.1.0-cp312-cp312-win_amd64.whl", hash = "sha256:dce5fa4bb09842aa4dca700bbc28aabd3f6c8c8be78030151e54c98ec0e0f3fe", size = 921509, upload-time = "2026-08-06T00:13:19.127Z" },
+    { url = "https://files.pythonhosted.org/packages/51/1c/f2aaa88d227b927890be93d17dd2ea1c6d6b61e8f113d22358895b6c481e/arize_phoenix_sqlean-0.1.0-cp312-cp312-win_arm64.whl", hash = "sha256:1cce6ef53c9cdc5e8f177ca3592075c315750fd01c3d0bedcad097d5f9ce4238", size = 854438, upload-time = "2026-08-06T00:13:20.966Z" },
+    { url = "https://files.pythonhosted.org/packages/7d/4e/b24a5d3671e653f77346b229c0edddfda4bc9a6ef62f6fd690c2f9c15f86/arize_phoenix_sqlean-0.1.0-cp313-cp313-macosx_10_15_x86_64.whl", hash = "sha256:bb8935434efd2b7da447c8dec487365daa23fadc3ac521adc1e6e1d73b801ec8", size = 1196928, upload-time = "2026-08-06T00:13:22.899Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/79/77773a573b2d39a7756372fdad5b1d118014f4dbcd23fc84b022118b10d7/arize_phoenix_sqlean-0.1.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:f80d33b2d7095ee61d0dbcc4ee34ec788f7e345861a3b22b55cb30c8e595e3f3", size = 1122484, upload-time = "2026-08-06T00:13:24.553Z" },
+    { url = "https://files.pythonhosted.org/packages/c1/dd/d9b9b2c0a7a9a0e5df71882f58a1bc69cfb1532c817d39097835bc15e94c/arize_phoenix_sqlean-0.1.0-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:4bde27c20c4f5a24640345fd187366536383dc0dcd089b822508fb9cbab4315c", size = 3258329, upload-time = "2026-08-06T00:13:26.248Z" },
+    { url = "https://files.pythonhosted.org/packages/1e/52/d1cd20f70369b5bd98289d6eb05556cfd237fe5f453f5a6fb8bd9bbeaa44/arize_phoenix_sqlean-0.1.0-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:b66238d95d6853405ab0ba8a994835992360c3c8f5704587a4c7c5c6fa81f004", size = 3243519, upload-time = "2026-08-06T00:13:28.211Z" },
+    { url = "https://files.pythonhosted.org/packages/6c/26/2f0ba2038eb850d648e08895cc3f84925764da0fc4548016c229a60d2b5d/arize_phoenix_sqlean-0.1.0-cp313-cp313-win_amd64.whl", hash = "sha256:250817990d7bea9d8a8d0ecb518d1dea14a097788e1eb5c79aff216143311ba7", size = 921324, upload-time = "2026-08-06T00:13:29.806Z" },
+    { url = "https://files.pythonhosted.org/packages/b3/6c/ff466af7f7222231bd662999f9185edc82121cb9ecfd1a19934ab564c06e/arize_phoenix_sqlean-0.1.0-cp313-cp313-win_arm64.whl", hash = "sha256:27ae24989aaaad7e96ff2489f8faaaa9f569a7ffaafdf5e6c558bdc5373ddf37", size = 854093, upload-time = "2026-08-06T00:13:31.587Z" },
+    { url = "https://files.pythonhosted.org/packages/23/50/de42cbaf9745e28baff4eef4cf8158607d1083b564303829458d9329d060/arize_phoenix_sqlean-0.1.0-cp314-cp314-macosx_10_15_x86_64.whl", hash = "sha256:13329de9986213ab041829501b90cf34c88dbd0f8ddabd3ecb14952651f8a498", size = 1196928, upload-time = "2026-08-06T00:13:33.191Z" },
+    { url = "https://files.pythonhosted.org/packages/44/47/49c8104a51cf57f42c875027fcdc38c478b3e9bf14ff39256edc7bcecd0d/arize_phoenix_sqlean-0.1.0-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:682bf9ae7abc2d9067acd3ebbf80f660438952061765da818a5949256f1f1eff", size = 1122584, upload-time = "2026-08-06T00:13:34.658Z" },
+    { url = "https://files.pythonhosted.org/packages/ac/70/83fcf53e46040fe24d2cffbcd2b200d9c99522ed0817598efb1ff81f438b/arize_phoenix_sqlean-0.1.0-cp314-cp314-manylinux_2_28_aarch64.whl", hash = "sha256:de92614a27a1bc26af4c98fb02eeede4fef1b64cfd7a3d15a791ff45743ffdd0", size = 3258060, upload-time = "2026-08-06T00:13:36.646Z" },
+    { url = "https://files.pythonhosted.org/packages/a7/7d/ab732d708f628fc60515a8363b19c562018a47f9f7273027469cb61de455/arize_phoenix_sqlean-0.1.0-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:6555874ea65263675a22a39b0cf37b37bf445bf2e1f449eba7db407a7f51f08b", size = 3243330, upload-time = "2026-08-06T00:13:38.922Z" },
+    { url = "https://files.pythonhosted.org/packages/65/fd/8b15c639c4c431fe58dee20e1e3bfe52a3508828e84687590fdea38c6c4a/arize_phoenix_sqlean-0.1.0-cp314-cp314-win_amd64.whl", hash = "sha256:3b13e1b1fdcc98108d2dcd6ae23da09a522d76b4092ebb04a3f4f0fcf2daabc0", size = 945472, upload-time = "2026-08-06T00:13:40.544Z" },
+    { url = "https://files.pythonhosted.org/packages/d6/df/a6debcfb1c09daf9f80449e9ceb462a1481f4d6f0847382b30f6b11b0d1a/arize_phoenix_sqlean-0.1.0-cp314-cp314-win_arm64.whl", hash = "sha256:095e999463423ec58a8b1648803e6b1431b46c872b2e74400849baa3923e420e", size = 878387, upload-time = "2026-08-06T00:13:42.332Z" },
+]
 
 [[package]]
 name = "arrow"
@@ -7792,64 +7828,6 @@ wheels = [
 [package.optional-dependencies]
 asyncio = [
     { name = "greenlet" },
-]
-
-[[package]]
-name = "sqlean-py"
-version = "3.49.1"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14' and sys_platform == 'win32'",
-    "python_full_version == '3.13.*' and sys_platform == 'win32'",
-    "python_full_version == '3.12.*' and sys_platform == 'win32'",
-    "python_full_version == '3.11.*' and sys_platform == 'win32'",
-    "python_full_version < '3.11' and sys_platform == 'win32'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/67/eb/ac95fab0bc4658124b4ec8fbc31fc494165ab4544606ae91b9a489907dad/sqlean_py-3.49.1.tar.gz", hash = "sha256:210d89989226b988d7d6391f837387d3b81e8cd608c997e0bd37826e395970e7", size = 3319012, upload-time = "2025-05-02T11:58:24.307Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/cf/37/2a5d95c2889b3fd6f2d7f2010469d0613b521bdfe09c02242b451187869a/sqlean_py-3.49.1-cp310-cp310-win_amd64.whl", hash = "sha256:8f9fde19199f6b93f5bbdd4429c150a3ea909f8b4c05564e706b1ac448b3f840", size = 803480, upload-time = "2025-05-02T11:57:41.642Z" },
-    { url = "https://files.pythonhosted.org/packages/c5/70/d536dff4a3025c4f8b925270d6f480342d54969f8f53b29a5c057a506012/sqlean_py-3.49.1-cp310-cp310-win_arm64.whl", hash = "sha256:788961c243992544c39f7469a92a000a3790be753e32e8d025d6175696aefaa7", size = 739171, upload-time = "2025-05-02T11:57:42.931Z" },
-    { url = "https://files.pythonhosted.org/packages/a6/ce/a41b35ecaf7825fbf63cedabfe3ee89f26b75556432ab547476c0f039650/sqlean_py-3.49.1-cp311-cp311-win_amd64.whl", hash = "sha256:7bf2e118ea3c5c16c6a0be4b80d31c9392ffee231e61f08464cc8f892e40c628", size = 803486, upload-time = "2025-05-02T11:57:50.872Z" },
-    { url = "https://files.pythonhosted.org/packages/09/dd/6dbcda7d883701eb8a6f55fc5636919b04f84ad9c9be33b3309199150dd4/sqlean_py-3.49.1-cp311-cp311-win_arm64.whl", hash = "sha256:ff575bb11a3013963e4b2edb0eaafc771e8dbe193f22151ee2c3ecc694f25eee", size = 739176, upload-time = "2025-05-02T11:57:52.08Z" },
-    { url = "https://files.pythonhosted.org/packages/e8/e5/d980bf0c5e67cfd4486b5e6d8daea6815fdac57b3d0899c23127a30283b5/sqlean_py-3.49.1-cp312-cp312-win_amd64.whl", hash = "sha256:b45ed4adb8442299019988d5e90aa1474f3ef8c71f6e8921a70705b9d971c590", size = 804506, upload-time = "2025-05-02T11:58:00.583Z" },
-    { url = "https://files.pythonhosted.org/packages/f2/d1/8828ec685022e2b86ebd717743359dd5e8eab70a9c1ebff78aa733848216/sqlean_py-3.49.1-cp312-cp312-win_arm64.whl", hash = "sha256:c2537f69879adaed22b16e840d494c440ece5b49d28a5a51094e6c8ca6a2b0a5", size = 739690, upload-time = "2025-05-02T11:58:02.262Z" },
-    { url = "https://files.pythonhosted.org/packages/c4/d6/455e75e1e540b64e230f7282ec55777e030190a486e98a2fce5d6437afa2/sqlean_py-3.49.1-cp313-cp313-win_amd64.whl", hash = "sha256:de820bdb39729044f9ed94f0addfe308b020479334146036a773f470d7594d87", size = 804300, upload-time = "2025-05-02T11:58:10.552Z" },
-    { url = "https://files.pythonhosted.org/packages/99/bf/b63830855455fd22278ddc78cc7c64dffb5e1a69c15245c18275317ae9d5/sqlean_py-3.49.1-cp313-cp313-win_arm64.whl", hash = "sha256:3c1661f2fcf4d10ec3940ef8d2146bb58260b409c9033f7a727a6962e2032b7c", size = 739448, upload-time = "2025-05-02T11:58:12.458Z" },
-]
-
-[[package]]
-name = "sqlean-py"
-version = "3.50.4.5"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14' and sys_platform != 'win32'",
-    "python_full_version == '3.13.*' and sys_platform != 'win32'",
-    "python_full_version == '3.12.*' and sys_platform != 'win32'",
-    "python_full_version == '3.11.*' and sys_platform != 'win32'",
-    "python_full_version < '3.11' and sys_platform != 'win32'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ec/61/5332f923ec20c0b3ae9b3cf05731049bd4d17714dce1dbbc69129264664e/sqlean_py-3.50.4.5.tar.gz", hash = "sha256:9764b565e7ab430ab6e9e43cb2816199c2b39926dffc93c212a52f0019278459", size = 3482387, upload-time = "2025-10-25T08:51:59.968Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/91/7d/6cd11ddc25356f75b5528d331aaea4f82f6d28f8795bbf103d232bc54638/sqlean_py-3.50.4.5-cp310-cp310-macosx_10_15_x86_64.whl", hash = "sha256:6823757790bf92198be58256e4d243cd28aa5a3188bb22709514667a136096c1", size = 1158848, upload-time = "2025-10-25T08:51:29.104Z" },
-    { url = "https://files.pythonhosted.org/packages/e6/65/4ed9a595fb056cecd23c289891a1e0de20be70cb841ec6d9787da7051bd8/sqlean_py-3.50.4.5-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:9152bd9a5056282f33724f666a71bd297d970e39a829f05fbfd0bee6897d7195", size = 1079416, upload-time = "2025-10-25T08:51:30.918Z" },
-    { url = "https://files.pythonhosted.org/packages/55/5f/b12adc8566171abc1575674dce94a487797f9d1f832717025bd71c1ec872/sqlean_py-3.50.4.5-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:077144be1fbbbf49c41e64e62c306b62ffd74dc25e9f39f9d0251ee56db7d5a1", size = 3040765, upload-time = "2025-10-25T08:51:32.644Z" },
-    { url = "https://files.pythonhosted.org/packages/d7/14/32d3c4be9636697b3e7621bc72989e0606114e79a6c887f7351f13a0e5b0/sqlean_py-3.50.4.5-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:70c4790d2d9ac4146ad3d43c597668ebeb0bced10f2d23a3dea42569b961ae89", size = 3072146, upload-time = "2025-10-25T08:51:34.446Z" },
-    { url = "https://files.pythonhosted.org/packages/0d/92/45ec96be0f09e6d1fb3e878734b43e433235949fae5aea3cd7217e4983d2/sqlean_py-3.50.4.5-cp311-cp311-macosx_10_15_x86_64.whl", hash = "sha256:3775efae4c6aac64dd29b8495518f13c129bae5692476cb8b654caf62ce43447", size = 1158758, upload-time = "2025-10-25T08:51:36.166Z" },
-    { url = "https://files.pythonhosted.org/packages/ba/bf/53bc1ca77a897a079f6af54245891e0031439e0fd1be3e4007aad53d2f8b/sqlean_py-3.50.4.5-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:80ea9019bbbfb76914934f600e376393a25bb5318f76279e07448dde2d4b986d", size = 1079340, upload-time = "2025-10-25T08:51:37.754Z" },
-    { url = "https://files.pythonhosted.org/packages/63/be/76c7a9247f777885c98d8a14ec1540b6916604500de5e964ffcd80c6f898/sqlean_py-3.50.4.5-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:501606e6cdcf72c476ff1f1416542b99134656a92c4c95897284de0fee00e07f", size = 3047754, upload-time = "2025-10-25T08:51:39.415Z" },
-    { url = "https://files.pythonhosted.org/packages/0b/9b/1fc13a8b89e214fafc498bdaaaa200fbc27bbd91a8c2f2c193773cd786d1/sqlean_py-3.50.4.5-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:2b54d55c25646bf4a161de48077cd16f17d45fadc374e960d0687278e7b916d7", size = 3081342, upload-time = "2025-10-25T08:51:40.78Z" },
-    { url = "https://files.pythonhosted.org/packages/89/bb/13f98fe18ec2b710409e7531148b971f82007a2c5cded2594e923a425b93/sqlean_py-3.50.4.5-cp312-cp312-macosx_10_15_x86_64.whl", hash = "sha256:2fc2b1949ad65c770af13a3c740cd15d57fcf7a98a07a71373fcef15e2839f0a", size = 1160085, upload-time = "2025-10-25T08:51:42.617Z" },
-    { url = "https://files.pythonhosted.org/packages/e5/90/b112f7658c3c8783b914d146223f5027cfb8571b0b40e8cd6b502f67dfe4/sqlean_py-3.50.4.5-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:2d5a62013c7483fc8ca20c6f346f7190dc184e40ac7584b32e0c3c854bebf707", size = 1079818, upload-time = "2025-10-25T08:51:43.976Z" },
-    { url = "https://files.pythonhosted.org/packages/ee/ee/f77aa5b60c906b3fff60dc08b38466ee8c17bd4e4f3a59c3af5fa8a0de1c/sqlean_py-3.50.4.5-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:95c5154b8ef576bc4775d3eac36f949c3556fbed5ef918c6652b1caee542e3a7", size = 3056956, upload-time = "2025-10-25T08:51:45.615Z" },
-    { url = "https://files.pythonhosted.org/packages/bd/9b/b0b3e5263a8ad3b25721f161af981cf0a2fa381a690017a56d9ff8f21ec2/sqlean_py-3.50.4.5-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:410ba1d4532b5b090c9696686fdd7e95484409ffb9fcd035be371bc6d8aaa18d", size = 3089352, upload-time = "2025-10-25T08:51:47.057Z" },
-    { url = "https://files.pythonhosted.org/packages/a3/9e/6dd74ea2f115c672730dbec642029e9283a95e5974b6e86dc7763c335f29/sqlean_py-3.50.4.5-cp313-cp313-macosx_10_15_x86_64.whl", hash = "sha256:89233ad3640b1442eaf2d44a07debd17e23a1bde48d15c9b77a423ce7823b6a2", size = 1159569, upload-time = "2025-10-25T08:51:48.459Z" },
-    { url = "https://files.pythonhosted.org/packages/2e/9c/95445eaf6a3bbae7fadd560cce5822ba5fbdac82e496719a0039cd9c46f9/sqlean_py-3.50.4.5-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:e63b246ceb0eb48d37abeada97b2a7695dfe79655b7a8285c001e5ad9e79711b", size = 1079676, upload-time = "2025-10-25T08:51:50.16Z" },
-    { url = "https://files.pythonhosted.org/packages/79/a2/8f001c4be191a7484e5830d97989331f3e3ffd6b991affcface3ee77c9b0/sqlean_py-3.50.4.5-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:3725a94c80a64740489aa5765f9c6d11fa428b7d557c53c2197d51305cbe70a8", size = 3054456, upload-time = "2025-10-25T08:51:51.339Z" },
-    { url = "https://files.pythonhosted.org/packages/a2/37/f02841a03d849a34371e62466bbc47b2a9557434b6508515352824d2ddf9/sqlean_py-3.50.4.5-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:05eb8d758104339c8d8ecf99238e15bbf6ba07a572f770f1a92589d487a8282c", size = 3087194, upload-time = "2025-10-25T08:51:52.623Z" },
-    { url = "https://files.pythonhosted.org/packages/3d/60/617b0bd89f444ec6d2912a6247854f571730f2c5ddf354cc83d943940611/sqlean_py-3.50.4.5-cp314-cp314-macosx_10_15_x86_64.whl", hash = "sha256:78d1436db198ed633e0d56c3aeec52a4eaf54d47ef333bf7204687993236bc20", size = 1159669, upload-time = "2025-10-25T08:51:54.439Z" },
-    { url = "https://files.pythonhosted.org/packages/82/7f/87f07ecfc01695464816dd3fab5a091de3edbabf32908ada6b951f97ab5f/sqlean_py-3.50.4.5-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:51e33489be3a4e5d88712e1f7236d378208b8604f50d6f936b4da9b20e4f8327", size = 1079738, upload-time = "2025-10-25T08:51:56.074Z" },
-    { url = "https://files.pythonhosted.org/packages/c0/97/6a7442fa3f82c39cdc8919220071906845ae225e288538821345c30f0cb3/sqlean_py-3.50.4.5-cp314-cp314-manylinux_2_28_aarch64.whl", hash = "sha256:ed29b050cbb13a4f7b80518d379f2742dfb15f079b2b237497738dfe8cdf1b59", size = 3054551, upload-time = "2025-10-25T08:51:57.247Z" },
-    { url = "https://files.pythonhosted.org/packages/fa/9c/f88179b5ac8c74c66e00d579c31133aa8bb3596d109ed06493db6d3e646e/sqlean_py-3.50.4.5-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:af6b2b4b7f6c4bc3191db8ca2551ba2fec298c8507e64baf13c1f9026199f01c", size = 3086929, upload-time = "2025-10-25T08:51:58.592Z" },
 ]
 
 [[package]]
