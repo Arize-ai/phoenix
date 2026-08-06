@@ -37,9 +37,8 @@ function loadConfigFromEnvironmentWithSources(): {
   endpointSource?: EnvironmentValueSource;
   endpointVariable?: string;
 } {
-  // PHOENIX_ENDPOINT (canonical for API access) first, inferring from
-  // PHOENIX_COLLECTOR_ENDPOINT when only that is set, then legacy
-  // PHOENIX_HOST.
+  // PHOENIX_ENDPOINT (canonical for API access) first, inferring from the
+  // trace-export variables when only those are set, then legacy PHOENIX_HOST.
   const baseUrl = getBaseUrlFromEnvironmentWithSource();
   const {
     apiKey,

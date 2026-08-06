@@ -60,7 +60,7 @@ export const defaultGetEnvironmentOptions = (): Partial<ClientOptions> => {
     getCredentialsFromEnvironment()
   );
   // The base URL resolves as a tier group (PHOENIX_ENDPOINT first, inferring
-  // from PHOENIX_COLLECTOR_ENDPOINT, then legacy PHOENIX_HOST) rather than
+  // from the trace-export variables, then legacy PHOENIX_HOST) rather than
   // variable by variable.
   const baseUrl = getBaseUrlFromEnvironment();
   return baseUrl !== undefined ? { ...options, baseUrl } : options;
