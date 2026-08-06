@@ -97,7 +97,10 @@ Always use multiple tools in sequence to provide comprehensive recommendations. 
     The eval and experiment scripts call the Phoenix API on `PHOENIX_ENDPOINT`; traces go to `PHOENIX_COLLECTOR_ENDPOINT`. Both are base URLs — `src/mastra/index.ts` appends the OTLP path in code, because Mastra's exporter POSTs to exactly the URL it is given:
 
     ```typescript
-    const phoenixTracesUrl = `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`;
+    new ArizeExporter({
+      endpoint: `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`,
+      // ...
+    })
     ```
   </Step>
 
