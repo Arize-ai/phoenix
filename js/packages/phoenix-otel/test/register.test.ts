@@ -1,7 +1,7 @@
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 import { context, trace } from "@opentelemetry/api";
 import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace-node";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { DiagLogLevel } from "../src";
 import {
@@ -9,6 +9,7 @@ import {
   detachGlobalTracerProvider,
   ensureCollectorEndpoint,
   register,
+  resetTraceExportSourceLogForTesting,
 } from "../src/register";
 
 afterEach(() => {
@@ -16,36 +17,54 @@ afterEach(() => {
 });
 
 describe("register", () => {
-  // PHOENIX_ENDPOINT is canonical for API access but is deliberately not read
-  // for trace export. Without this warning the misconfiguration is silent:
-  // spans go to localhost and the batching exporter swallows the failure.
-  test("should warn when only PHOENIX_ENDPOINT is set", () => {
+  beforeEach(() => {
+    resetTraceExportSourceLogForTesting();
+  });
+
+  // Falling back to PHOENIX_ENDPOINT sends spans to the server the user named,
+  // so it is not a misconfiguration — but where spans go is worth stating,
+  // because the batching exporter swallows delivery failures.
+  test("should note the variable when trace export falls back to PHOENIX_ENDPOINT", () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     process.env.PHOENIX_ENDPOINT = "https://phoenix.example.com";
     try {
       register({ global: false });
-      const message = warn.mock.calls.map((call) => call[0]).join("\n");
-      expect(message).toContain("PHOENIX_ENDPOINT is set");
-      expect(message).toContain("PHOENIX_COLLECTOR_ENDPOINT");
-      expect(message).toContain("http://localhost:6006");
+      const message = info.mock.calls.map((call) => call[0]).join("\n");
+      expect(message).toContain("PHOENIX_ENDPOINT");
+      expect(message).toContain("https://phoenix.example.com/v1/traces");
+      expect(warn).not.toHaveBeenCalled();
     } finally {
       delete process.env.PHOENIX_ENDPOINT;
+      info.mockRestore();
       warn.mockRestore();
     }
   });
 
-  test("should not warn when PHOENIX_COLLECTOR_ENDPOINT is also set", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  test("should stay quiet when PHOENIX_COLLECTOR_ENDPOINT supplies the endpoint", () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
     process.env.PHOENIX_ENDPOINT = "https://phoenix.example.com";
     process.env.PHOENIX_COLLECTOR_ENDPOINT = "https://phoenix.example.com";
     try {
       register({ global: false });
-      const message = warn.mock.calls.map((call) => call[0]).join("\n");
-      expect(message).not.toContain("PHOENIX_ENDPOINT is set");
+      expect(info).not.toHaveBeenCalled();
     } finally {
       delete process.env.PHOENIX_ENDPOINT;
       delete process.env.PHOENIX_COLLECTOR_ENDPOINT;
-      warn.mockRestore();
+      info.mockRestore();
+    }
+  });
+
+  test("should note the fallback variable only once", () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    process.env.PHOENIX_ENDPOINT = "https://phoenix.example.com";
+    try {
+      register({ global: false });
+      register({ global: false });
+      expect(info).toHaveBeenCalledOnce();
+    } finally {
+      delete process.env.PHOENIX_ENDPOINT;
+      info.mockRestore();
     }
   });
 
@@ -314,8 +333,28 @@ test("should export DiagLogLevel as a runtime value", () => {
 
 test.each([
   ["http://localhost:6006", "http://localhost:6006/v1/traces"],
+  ["http://localhost:6006/", "http://localhost:6006/v1/traces"],
   ["http://localhost:6006/v1/traces", "http://localhost:6006/v1/traces"],
-  ["http://localhost:6006/v1/traces/", "http://localhost:6006/v1/traces/"],
+  // A trailing slash or doubled separator is canonicalized so the exporter
+  // reaches the route directly instead of through a redirect.
+  ["http://localhost:6006/v1/traces/", "http://localhost:6006/v1/traces"],
+  ["http://localhost:6006//v1/traces", "http://localhost:6006/v1/traces"],
+  [
+    "http://localhost:6006/v1/traces?tenant=a",
+    "http://localhost:6006/v1/traces?tenant=a",
+  ],
+  // URL paths are case-sensitive, so an upper-case path is somebody's real
+  // route rather than the OTLP one.
+  [
+    "http://localhost:6006/V1/traces",
+    "http://localhost:6006/V1/traces/v1/traces",
+  ],
+  // A route that merely contains the traces path is left alone; appending
+  // would break it.
+  [
+    "https://gateway.example.com/v1/traces/tenant-a",
+    "https://gateway.example.com/v1/traces/tenant-a",
+  ],
   [
     "https://app.phoenix.arize.com/s/my-space",
     "https://app.phoenix.arize.com/s/my-space/v1/traces",
@@ -326,4 +365,6 @@ test.each([
   ],
 ])("ensureCollectorEndpoint(%0) should return %1", (url, collectorURL) => {
   expect(ensureCollectorEndpoint(url)).toBe(collectorURL);
+  // Normalization is idempotent: re-running it never moves the URL again.
+  expect(ensureCollectorEndpoint(collectorURL)).toBe(collectorURL);
 });

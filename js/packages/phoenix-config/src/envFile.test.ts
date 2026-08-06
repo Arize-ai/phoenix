@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ENV_PHOENIX_API_KEY,
+  ENV_PHOENIX_BASE_URL,
   ENV_PHOENIX_CLIENT_HEADERS,
   ENV_PHOENIX_COLLECTOR_ENDPOINT,
   ENV_PHOENIX_ENDPOINT,
@@ -17,6 +18,7 @@ import {
   getProjectFromEnvironment,
   getStrFromEnvironment,
   getStrFromEnvironmentWithSource,
+  getTraceExportEndpointFromEnvironment,
   resetCrossTierEndpointWarningsForTesting,
   warnIfUsingFileEndpointWithCredentials,
 } from "./env";
@@ -34,7 +36,7 @@ const MANAGED_ENV_KEYS = [
   ENV_PHOENIX_CLIENT_HEADERS,
   ENV_PHOENIX_COLLECTOR_ENDPOINT,
   ENV_PHOENIX_ENDPOINT,
-  "PHOENIX_BASE_URL",
+  ENV_PHOENIX_BASE_URL,
   "PHOENIX_HOST",
   ENV_PHOENIX_PROJECT,
   "PHOENIX_PROJECT_NAME",
@@ -163,9 +165,14 @@ describe("envFile", () => {
       expect(readEnvFileValue(ENV_PHOENIX_API_KEY)).toBe("file-key");
     });
 
+    // `.env.phoenix` is a Phoenix hand-off artifact, not a general dotenv
+    // loader — the same rule the Python client applies. The OTel-standard
+    // variables are still honored from the process environment; see the
+    // endpoint resolution conformance table.
     it("ignores keys without the PHOENIX_ prefix", () => {
       writeEnvFile(tempDir, "OTEL_EXPORTER_OTLP_ENDPOINT=http://x:4318\n");
       expect(readEnvFileValue("OTEL_EXPORTER_OTLP_ENDPOINT")).toBeUndefined();
+      expect(getBaseUrlFromEnvironment()).toBeUndefined();
     });
 
     it("treats an unavailable working directory as no discovered file", () => {
@@ -321,7 +328,13 @@ describe("envFile", () => {
     });
   });
 
-  describe("cross-tier canonical endpoint guard", () => {
+  /**
+   * The cross-tier section of the endpoint resolution conformance table (the
+   * process-environment rows live in `endpointConformance.test.ts`, which owns
+   * the table's documentation). Each row pins what a discovered `.env.phoenix`
+   * resolves to alongside a process environment.
+   */
+  describe("endpoint resolution conformance table: cross-tier rows", () => {
     it("does not let a process collector variable mask the file's API endpoint", () => {
       writeEnvFile(tempDir, "PHOENIX_ENDPOINT=http://from-file:6006\n");
       process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://from-process:6006";
@@ -332,6 +345,62 @@ describe("envFile", () => {
       writeEnvFile(tempDir, "PHOENIX_ENDPOINT=http://from-file:6006\n");
       process.env[ENV_PHOENIX_ENDPOINT] = "http://from-process:6006";
       expect(getBaseUrlFromEnvironment()).toBe("http://from-process:6006");
+    });
+
+    // PHOENIX_BASE_URL is a compatibility fallback, not a statement of where
+    // Phoenix lives: a stale export of it is exactly the situation `px setup`
+    // writes a file to fix, so it must not claim the tier.
+    it("does not let a process PHOENIX_BASE_URL mask the file's API endpoint", () => {
+      writeEnvFile(tempDir, "PHOENIX_ENDPOINT=http://from-file:6006\n");
+      process.env[ENV_PHOENIX_BASE_URL] = "http://from-process:6006";
+      expect(getBaseUrlFromEnvironment()).toBe("http://from-file:6006");
+    });
+
+    it("does not let a process PHOENIX_BASE_URL mask the file's collector endpoint", () => {
+      writeEnvFile(
+        tempDir,
+        "PHOENIX_COLLECTOR_ENDPOINT=http://from-file:6006\n"
+      );
+      process.env[ENV_PHOENIX_BASE_URL] = "http://from-process:6006";
+      expect(getBaseUrlFromEnvironment()).toBe("http://from-file:6006");
+    });
+
+    it("still honors a process PHOENIX_BASE_URL when the file names no endpoint", () => {
+      writeEnvFile(tempDir, "PHOENIX_API_KEY=file-key\n");
+      process.env[ENV_PHOENIX_BASE_URL] = "http://from-process:6006";
+      expect(getBaseUrlFromEnvironment()).toBe("http://from-process:6006");
+    });
+
+    it("does not let a process PHOENIX_ENDPOINT mask the file's collector endpoint for trace export", () => {
+      writeEnvFile(
+        tempDir,
+        "PHOENIX_COLLECTOR_ENDPOINT=http://from-file:6006\n"
+      );
+      process.env[ENV_PHOENIX_ENDPOINT] = "http://from-process:6006";
+      const endpoint = getTraceExportEndpointFromEnvironment();
+      expect(endpoint.value).toBe("http://from-file:6006");
+      expect(endpoint.envKey).toBe(ENV_PHOENIX_COLLECTOR_ENDPOINT);
+      expect(endpoint.source).toMatchObject({ kind: "env-file" });
+    });
+
+    it("still lets a process collector endpoint win over the file for trace export", () => {
+      writeEnvFile(
+        tempDir,
+        "PHOENIX_COLLECTOR_ENDPOINT=http://from-file:6006\n"
+      );
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://from-process:6006";
+      expect(getTraceExportEndpointFromEnvironment().value).toBe(
+        "http://from-process:6006"
+      );
+    });
+
+    it("treats an empty process value as unset so the file tier is consulted", () => {
+      writeEnvFile(tempDir, "PHOENIX_ENDPOINT=http://from-file:6006\n");
+      process.env[ENV_PHOENIX_ENDPOINT] = "";
+      expect(getBaseUrlFromEnvironment()).toBe("http://from-file:6006");
+      expect(getTraceExportEndpointFromEnvironment().value).toBe(
+        "http://from-file:6006"
+      );
     });
   });
 
