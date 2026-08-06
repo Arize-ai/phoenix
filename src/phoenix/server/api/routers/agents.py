@@ -352,7 +352,6 @@ class _ChatRequestMixin(_ObservabilityMixin):
             "``PATCH .../sessions/{session_id}``."
         ),
     )
-    turn_trace_context: TurnTraceContext | None = None
 
 
 ToolOutputUIPart = (
@@ -694,20 +693,33 @@ class _TurnTraceIds:
     started_at: datetime
 
 
+def _continued_turn_trace_context(
+    continued_assistant_message: PhoenixUIMessage | None,
+) -> TurnTraceContext | None:
+    """The turn identity a client-tool continuation resumes, recovered from
+    the persisted trailing assistant message's metadata."""
+    if continued_assistant_message is None:
+        return None
+    metadata = continued_assistant_message.metadata
+    if not isinstance(metadata, AssistantMessageMetadata):
+        return None
+    return metadata.turn_trace_context
+
+
 def _resolve_turn_trace_ids(
     turn_trace_context: TurnTraceContext | None,
     *,
     now: datetime,
 ) -> _TurnTraceIds:
-    """Adopt a valid echoed turn trace context or mint a new turn identity."""
+    """Adopt a valid continued turn trace context or mint a new turn identity."""
     if turn_trace_context is not None:
         trace_id = int(turn_trace_context.trace_id, 16)
         root_span_id = int(turn_trace_context.root_span_id, 16)
         if trace_id and root_span_id:
-            echoed_started_at = turn_trace_context.started_at
-            if echoed_started_at.tzinfo is None:
-                echoed_started_at = echoed_started_at.replace(tzinfo=timezone.utc)
-            started_at = min(max(echoed_started_at, now - timedelta(hours=24)), now)
+            continued_started_at = turn_trace_context.started_at
+            if continued_started_at.tzinfo is None:
+                continued_started_at = continued_started_at.replace(tzinfo=timezone.utc)
+            started_at = min(max(continued_started_at, now - timedelta(hours=24)), now)
             return _TurnTraceIds(
                 trace_id=trace_id,
                 root_span_id=root_span_id,
@@ -2921,7 +2933,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 adapter = assistant_adapter
                 run_agent_stream = _run_assistant_agent_stream
 
-            turn_ids = _resolve_turn_trace_ids(body.turn_trace_context, now=request_received_at)
+            continued_turn_trace_context = _continued_turn_trace_context(
+                continued_assistant_message
+            )
+            turn_ids = _resolve_turn_trace_ids(
+                continued_turn_trace_context, now=request_received_at
+            )
             parent_context = _turn_parent_context(turn_ids)
             request_parent_span_context = _get_span_context(parent_context)
             resolved_turn_trace_context = (
@@ -2930,7 +2947,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     root_span_id=format_span_id(turn_ids.root_span_id),
                     started_at=turn_ids.started_at,
                 )
-                if tracer is not None or body.turn_trace_context is not None
+                if tracer is not None or continued_turn_trace_context is not None
                 else None
             )
 
@@ -3042,7 +3059,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     )
 
                 try:
-                    if tracer is not None and body.turn_trace_context is not None:
+                    if tracer is not None and continued_turn_trace_context is not None:
                         _synthesize_client_tool_spans(
                             tracer=tracer,
                             turn_ids=turn_ids,

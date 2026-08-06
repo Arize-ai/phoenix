@@ -14,7 +14,6 @@ import { isRecord } from "@phoenix/utils/typeUtils";
 
 import type { ClientToolTimingRecorder } from "./clientToolTimings";
 import { toServerSafeUIMessages } from "./serverSafeMessages";
-import type { TurnTraceContext } from "./turnTraceContext";
 import type { AgentUIMessage } from "./types";
 
 export type AgentModelSelection = components["schemas"]["ChatRequest"]["model"];
@@ -42,8 +41,6 @@ type BuildAgentChatRequestBodyOptions = {
   contexts: AgentContext[];
   /** Provider + model selection for this turn. */
   modelSelection: AgentModelSelection;
-  /** Server-minted identity echoed on continuation requests. */
-  turnTraceContext?: TurnTraceContext | null;
   /** Browser execution timings added to completed client-tool parts. */
   toolTimings?: ClientToolTimingRecorder | null;
 };
@@ -155,7 +152,6 @@ export function buildAgentChatRequestBody({
   permissions,
   contexts,
   modelSelection,
-  turnTraceContext = null,
   toolTimings = null,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   const traceRecording = getEffectiveTraceRecordingSettings({
@@ -177,7 +173,6 @@ export function buildAgentChatRequestBody({
     editPermission: permissions.edits,
     contexts: requestContexts,
     model: modelSelection,
-    turnTraceContext: turnTraceContext ?? undefined,
   };
   const trailingMessage = messages.at(-1);
   if (!trailingMessage) {

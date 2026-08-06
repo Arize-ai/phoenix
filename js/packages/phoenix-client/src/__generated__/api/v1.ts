@@ -2232,7 +2232,6 @@ export interface components {
             requestedSkills?: string[];
             /** @description The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on — or switching to — an unexpected model. Change the session's model with ``PATCH .../sessions/{session_id}``. */
             model: components["schemas"]["AgentModelSelection"];
-            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             /**
              * Trigger
              * @default submit-message
@@ -6015,8 +6014,9 @@ export interface components {
         };
         /**
          * TurnTraceContext
-         * @description The trace context a turn's spans are parented to — echoed from the
-         *     client when it supplied one, otherwise minted by the server. Unlike
+         * @description The trace context a turn's spans are parented to — minted by the
+         *     server at the turn's first request and recovered from this persisted
+         *     metadata when a client-tool continuation resumes the turn. Unlike
          *     ``AssistantMessageMetadataTraceIds`` this is an input to span recording
          *     (it carries ``started_at`` and enforces OTel hex formats), not a pointer
          *     to an already recorded trace.

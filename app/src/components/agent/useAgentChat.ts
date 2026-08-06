@@ -266,9 +266,7 @@ export function useAgentChat({
       errorText: USER_INTERRUPT_ERROR,
     });
     if (chatInstance) {
-      const turnClientState = getTurnClientState(chatInstance);
-      turnClientState?.turnTraceContext.clear();
-      turnClientState?.toolTimings.clear();
+      getTurnClientState(chatInstance)?.toolTimings.clear();
     }
     setMessages(removeInterruptedToolInputParts);
   };

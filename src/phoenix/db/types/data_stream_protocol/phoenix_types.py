@@ -53,8 +53,9 @@ class AssistantMessageMetadataTraceIds(CamelBaseModel):
 
 
 class TurnTraceContext(CamelBaseModel):
-    """The trace context a turn's spans are parented to — echoed from the
-    client when it supplied one, otherwise minted by the server. Unlike
+    """The trace context a turn's spans are parented to — minted by the
+    server at the turn's first request and recovered from this persisted
+    metadata when a client-tool continuation resumes the turn. Unlike
     ``AssistantMessageMetadataTraceIds`` this is an input to span recording
     (it carries ``started_at`` and enforces OTel hex formats), not a pointer
     to an already recorded trace."""

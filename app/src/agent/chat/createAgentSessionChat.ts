@@ -10,11 +10,7 @@ import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTi
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
-import { createTurnTraceContextManager } from "@phoenix/agent/chat/turnTraceContext";
-import {
-  getAssistantMessageMetadata,
-  type AgentUIMessage,
-} from "@phoenix/agent/chat/types";
+import { type AgentUIMessage } from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import { authFetch } from "@phoenix/authFetch";
 import {
@@ -41,7 +37,6 @@ import {
 import { getRemovedUserMessageText } from "./removedUserMessageText";
 
 export type TurnClientState = {
-  turnTraceContext: ReturnType<typeof createTurnTraceContextManager>;
   toolTimings: ReturnType<typeof createClientToolTimingRecorder>;
 };
 
@@ -51,8 +46,8 @@ const turnClientStateByChat = new WeakMap<
 >();
 
 /**
- * Per-turn client state (trace context, client tool timings) owned by a chat
- * built with {@link createAgentSessionChat}, or undefined for other chats.
+ * Per-turn client state (client tool timings) owned by a chat built with
+ * {@link createAgentSessionChat}, or undefined for other chats.
  */
 export function getTurnClientState(
   chat: Chat<AgentUIMessage>
@@ -91,7 +86,6 @@ export function createAgentSessionChat({
   onTranscriptSynced: (tail: AgentSessionSyncState) => void;
 }): Chat<AgentUIMessage> {
   const chatApiUrl = buildAgentChatApiUrl(sessionId);
-  const turnTraceContext = createTurnTraceContextManager();
   const toolTimings = createClientToolTimingRecorder();
   // The selection the most recent send asserted, kept so a model-stale
   // rejection can distinguish another client's change from this client
@@ -101,7 +95,6 @@ export function createAgentSessionChat({
   const turnCompletionGate = createTurnCompletionGate({
     endTurn: async () => {
       store.getState().setSessionResponsePending(sessionId, false);
-      turnTraceContext.clear();
       toolTimings.clear();
     },
     finalize: () => {
@@ -141,8 +134,6 @@ export function createAgentSessionChat({
       api: chatApiUrl,
       fetch: authFetch,
       prepareSendMessagesRequest: ({ body, id, messages }) => {
-        // The gate may clear state for a stale completed turn before
-        // this request reads the active turn trace context.
         turnCompletionGate.beginTurn();
         store.getState().setSessionResponsePending(sessionId, true);
         store.getState().setSessionNotice(sessionId, null);
@@ -163,7 +154,6 @@ export function createAgentSessionChat({
             permissions: store.getState().permissions,
             contexts: selectActiveContexts(store.getState()),
             modelSelection,
-            turnTraceContext: turnTraceContext.getActive(),
             toolTimings,
           }),
         };
@@ -298,13 +288,10 @@ export function createAgentSessionChat({
       store.getState().setSessionBusyElsewhere(sessionId, true);
     },
     onFinish: ({ messages: finalMessages, message }) => {
-      turnTraceContext.captureFromMetadata(
-        getAssistantMessageMetadata(message)?.turnTraceContext
-      );
       turnCompletionGate.handleFinish({ finalMessages, message });
     },
   });
-  turnClientStateByChat.set(chat, { turnTraceContext, toolTimings });
+  turnClientStateByChat.set(chat, { toolTimings });
   return chat;
 }
 

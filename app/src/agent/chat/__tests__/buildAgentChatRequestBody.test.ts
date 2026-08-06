@@ -31,37 +31,6 @@ const agentsConfig = {
 };
 
 describe("buildAgentChatRequestBody", () => {
-  it("echoes the active turn trace context", () => {
-    const turnTraceContext = {
-      traceId: "1".repeat(32),
-      rootSpanId: "2".repeat(16),
-      startedAt: "2026-07-10T12:00:00Z",
-    };
-    const body = buildAgentChatRequestBody({
-      body: undefined,
-      id: "session-1",
-      messages: [userMessage],
-      capabilities: createDefaultAgentCapabilities(),
-      observability: {
-        storeLocalTraces: false,
-        exportRemoteTraces: false,
-        attachUserId: false,
-        acknowledgedTraceConsent: null,
-      },
-      agentsConfig,
-      permissions: { edits: "manual" },
-      contexts: [],
-      modelSelection: {
-        providerType: "builtin",
-        provider: "OPENAI",
-        modelName: "gpt-4o-mini",
-      },
-      turnTraceContext,
-    });
-
-    expect(body.turnTraceContext).toEqual(turnTraceContext);
-  });
-
   it("merges the transport body with PXI chat metadata and omits client-supplied prompt overrides", () => {
     const body = buildAgentChatRequestBody({
       body: { requestedSkills: ["debug-trace"] },

@@ -2061,7 +2061,6 @@ class ChatRequest(TypedDict):
     ]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
-    turnTraceContext: NotRequired[TurnTraceContext]
     trigger: NotRequired[str]
     message: NotRequired[PhoenixUIMessage]
     toolOutputs: NotRequired[

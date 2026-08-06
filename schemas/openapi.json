@@ -10166,16 +10166,6 @@
             "$ref": "#/components/schemas/AgentModelSelection",
             "description": "The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on \u2014 or switching to \u2014 an unexpected model. Change the session's model with ``PATCH .../sessions/{session_id}``."
           },
-          "turnTraceContext": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/TurnTraceContext"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "trigger": {
             "type": "string",
             "const": "submit-message",
@@ -19325,7 +19315,7 @@
           "startedAt"
         ],
         "title": "TurnTraceContext",
-        "description": "The trace context a turn's spans are parented to \u2014 echoed from the\nclient when it supplied one, otherwise minted by the server. Unlike\n``AssistantMessageMetadataTraceIds`` this is an input to span recording\n(it carries ``started_at`` and enforces OTel hex formats), not a pointer\nto an already recorded trace."
+        "description": "The trace context a turn's spans are parented to \u2014 minted by the\nserver at the turn's first request and recovered from this persisted\nmetadata when a client-tool continuation resumes the turn. Unlike\n``AssistantMessageMetadataTraceIds`` this is an input to span recording\n(it carries ``started_at`` and enforces OTel hex formats), not a pointer\nto an already recorded trace."
       },
       "UpdateAnnotationConfigResponseBody": {
         "properties": {

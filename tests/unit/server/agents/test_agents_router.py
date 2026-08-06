@@ -1608,12 +1608,13 @@ def _build_backend_trace(
     )
 
 
-async def test_chat_stream_metadata_uses_turn_trace_context(
+async def test_chat_stream_metadata_reuses_the_persisted_turn_trace_context(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The streamed and persisted assistant metadata use the browser's turn ids."""
+    """A client-tool continuation resumes the turn identity persisted on the
+    trailing assistant message's metadata instead of minting a new one."""
     trace_id = "931b2fbce00d0b18834637856fa72c7e"
     root_span_id = "f66a81825e150dc1"
 
@@ -1622,18 +1623,36 @@ async def test_chat_stream_metadata_uses_turn_trace_context(
 
     monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
     session_id = "11111111-1111-4111-8111-111111111111"
-    agent_session_id = await _create_agent_session_row(db)
+    assistant_tail = _assistant_message_with_pending_client_tool()
+    assistant_tail["metadata"] = {
+        "type": "assistant",
+        "sessionId": session_id,
+        "turnTraceContext": {
+            "traceId": trace_id,
+            "rootSpanId": root_span_id,
+            "startedAt": datetime.now(timezone.utc).isoformat(),
+        },
+    }
+    agent_session_id = await _create_agent_session_row(
+        db,
+        messages=[_user_message("edit the prompt"), assistant_tail],
+    )
 
     response = await httpx_client.post(
         _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
-            _user_message("hello"),
-            turnTraceContext={
-                "traceId": trace_id,
-                "rootSpanId": root_span_id,
-                "startedAt": datetime.now(timezone.utc).isoformat(),
-            },
+            None,
+            toolOutputs=[
+                {
+                    "type": "tool-edit_prompt_instance",
+                    "toolCallId": "tool-call-pending",
+                    "state": "output-available",
+                    "input": {"instanceId": 3},
+                    "output": {"ok": True},
+                }
+            ],
+            lastMessageId=assistant_tail["id"],
         ),
     )
     assert response.status_code == 200
@@ -1650,6 +1669,8 @@ async def test_chat_stream_metadata_uses_turn_trace_context(
         "traceId": trace_id,
         "rootSpanId": root_span_id,
     }
+    assert phoenix_metadata_chunks[0]["turnTraceContext"]["traceId"] == trace_id
+    assert phoenix_metadata_chunks[0]["turnTraceContext"]["rootSpanId"] == root_span_id
 
     async with db() as session:
         agent_session_rowid = await session.scalar(select(models.AgentSession.id))
@@ -1661,6 +1682,7 @@ async def test_chat_stream_metadata_uses_turn_trace_context(
         "traceId": trace_id,
         "rootSpanId": root_span_id,
     }
+    assert assistant_messages[-1]["metadata"]["turnTraceContext"]["traceId"] == trace_id
 
 
 async def test_chat_turn_without_a_message_is_rejected(
@@ -2864,9 +2886,9 @@ async def test_agents_router_is_forbidden_in_read_only_mode(
 # ---------------------------------------------------------------------------
 
 
-_BROWSER_TRACE_ID = "541221e156495558c48e177a21f84891"
-_BROWSER_ROOT_SPAN_ID = "3789d49049f9d108"
-_BROWSER_TURN_TIME = datetime(2026, 1, 1, tzinfo=timezone.utc)
+_PRIOR_TURN_TRACE_ID = "541221e156495558c48e177a21f84891"
+_PRIOR_TURN_ROOT_SPAN_ID = "3789d49049f9d108"
+_PRIOR_TURN_TIME = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
 
 async def _enable_local_trace_recording(app: FastAPI) -> None:
@@ -2875,26 +2897,27 @@ async def _enable_local_trace_recording(app: FastAPI) -> None:
     )
 
 
-async def _ingest_browser_trace(db: DbSessionFactory) -> None:
-    """Simulate the browser having already ingested the turn's root span."""
+async def _ingest_prior_turn_trace(db: DbSessionFactory) -> None:
+    """Simulate a prior request of the turn having already recorded the
+    turn's root span."""
     async with db() as session:
         project = models.Project(name=get_env_phoenix_agents_assistant_project_name())
         session.add(project)
         await session.flush()
-        browser_trace = models.Trace(
+        prior_turn_trace = models.Trace(
             project_rowid=project.id,
-            trace_id=_BROWSER_TRACE_ID,
-            start_time=_BROWSER_TURN_TIME,
-            end_time=_BROWSER_TURN_TIME,
+            trace_id=_PRIOR_TURN_TRACE_ID,
+            start_time=_PRIOR_TURN_TIME,
+            end_time=_PRIOR_TURN_TIME,
         )
-        browser_trace.spans = [
+        prior_turn_trace.spans = [
             models.Span(
-                span_id=_BROWSER_ROOT_SPAN_ID,
+                span_id=_PRIOR_TURN_ROOT_SPAN_ID,
                 parent_id=None,
                 name="pxi.turn",
                 span_kind="AGENT",
-                start_time=_BROWSER_TURN_TIME,
-                end_time=_BROWSER_TURN_TIME,
+                start_time=_PRIOR_TURN_TIME,
+                end_time=_PRIOR_TURN_TIME,
                 attributes={},
                 events=[],
                 status_code="OK",
@@ -2906,7 +2929,7 @@ async def _ingest_browser_trace(db: DbSessionFactory) -> None:
                 llm_token_count_completion=0,
             )
         ]
-        session.add(browser_trace)
+        session.add(prior_turn_trace)
 
 
 def _mock_traced_test_model(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -2925,49 +2948,98 @@ def _mock_traced_test_model(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
 
 
-async def _post_traced_chat_turn(
+def _assistant_tail_with_prior_turn_context(session_id: str) -> dict[str, Any]:
+    """A persisted assistant tail carrying the turn identity a prior traced
+    request minted, awaiting a client tool result."""
+    tail = _assistant_message_with_pending_client_tool()
+    tail["metadata"] = {
+        "type": "assistant",
+        "sessionId": session_id,
+        "turnTraceContext": {
+            "traceId": _PRIOR_TURN_TRACE_ID,
+            "rootSpanId": _PRIOR_TURN_ROOT_SPAN_ID,
+            "startedAt": _PRIOR_TURN_TIME.isoformat(),
+        },
+    }
+    return tail
+
+
+async def _post_traced_continuation_turn(
     httpx_client: httpx.AsyncClient,
     session_id: str,
     agent_session_id: str,
+    *,
+    last_message_id: str,
 ) -> httpx.Response:
     return await httpx_client.post(
         _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
-            _user_message("What datasets exist?"),
+            None,
             ingestTraces=True,
-            turnTraceContext={
-                "traceId": _BROWSER_TRACE_ID,
-                "rootSpanId": _BROWSER_ROOT_SPAN_ID,
-                "startedAt": _BROWSER_TURN_TIME.isoformat(),
-            },
+            toolOutputs=[
+                {
+                    "type": "tool-edit_prompt_instance",
+                    "toolCallId": "tool-call-pending",
+                    "state": "output-available",
+                    "input": {"instanceId": 3},
+                    "output": {"ok": True},
+                    # The client echoes the call's phoenix metadata enriched
+                    # with its execution timings; span synthesis keys off it.
+                    "callProviderMetadata": {
+                        "phoenix": {
+                            "toolExecutionEnvironment": "client",
+                            "toolInputEmittedAt": (
+                                datetime.now(timezone.utc) - timedelta(seconds=30)
+                            ).isoformat(),
+                            "clientStartedAt": (
+                                datetime.now(timezone.utc) - timedelta(seconds=20)
+                            ).isoformat(),
+                            "clientEndedAt": (
+                                datetime.now(timezone.utc) - timedelta(seconds=10)
+                            ).isoformat(),
+                        }
+                    },
+                }
+            ],
+            lastMessageId=last_message_id,
         ),
     )
 
 
-async def test_chat_turn_trace_ingestion_merges_backend_spans_into_browser_trace(
+async def test_chat_turn_trace_ingestion_merges_backend_spans_into_prior_turn_trace(
     db: DbSessionFactory,
     app: FastAPI,
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """With trace ingestion enabled and the browser's turn context propagated,
-    the turn's backend spans land in the browser's existing trace: no duplicate
-    trace row, every span in the batch persisted under the browser root, the
-    trace's time range widened, and the root's cumulative token counts updated."""
+    """With trace ingestion enabled, a client-tool continuation resumes the
+    turn identity persisted on the trailing assistant message, so its backend
+    spans land in the turn's existing trace: no duplicate trace row, every span
+    in the batch persisted under the existing root, the trace's time range
+    widened, and the root's cumulative token counts updated."""
     await _enable_local_trace_recording(app)
-    await _ingest_browser_trace(db)
+    await _ingest_prior_turn_trace(db)
     _mock_traced_test_model(monkeypatch)
     session_id = "66666666-6666-4666-8666-666666666666"
-    agent_session_id = await _create_agent_session_row(db)
+    assistant_tail = _assistant_tail_with_prior_turn_context(session_id)
+    agent_session_id = await _create_agent_session_row(
+        db,
+        messages=[_user_message("edit the prompt"), assistant_tail],
+    )
 
-    response = await _post_traced_chat_turn(httpx_client, session_id, agent_session_id)
+    response = await _post_traced_continuation_turn(
+        httpx_client,
+        session_id,
+        agent_session_id,
+        last_message_id=assistant_tail["id"],
+    )
     assert response.status_code == 200
 
     async with db() as session:
         traces = (
             await session.scalars(
-                select(models.Trace).where(models.Trace.trace_id == _BROWSER_TRACE_ID)
+                select(models.Trace).where(models.Trace.trace_id == _PRIOR_TURN_TRACE_ID)
             )
         ).all()
         assert len(traces) == 1
@@ -2976,27 +3048,31 @@ async def test_chat_turn_trace_ingestion_merges_backend_spans_into_browser_trace
             await session.scalars(
                 select(models.Span)
                 .join(models.Trace)
-                .where(models.Trace.trace_id == _BROWSER_TRACE_ID)
+                .where(models.Trace.trace_id == _PRIOR_TURN_TRACE_ID)
             )
         ).all()
 
-    backend_spans = [span for span in spans if span.span_id != _BROWSER_ROOT_SPAN_ID]
-    # The first turn records both the chat request and the session-title
-    # summarization as LLM spans; both must survive the merge (a prior
-    # regression dropped every other span in the batch).
-    assert len(backend_spans) >= 2
-    assert all(span.parent_id == _BROWSER_ROOT_SPAN_ID for span in backend_spans)
-    assert all(span.span_kind == "LLM" for span in backend_spans)
+    backend_spans = [span for span in spans if span.span_id != _PRIOR_TURN_ROOT_SPAN_ID]
+    # The continuation records the chat request and the session-title
+    # summarization as LLM spans, plus a synthesized span for the client tool
+    # result it delivered; all must survive the merge (a prior regression
+    # dropped every other span in the batch).
+    llm_spans = [span for span in backend_spans if span.span_kind == "LLM"]
+    tool_spans = [span for span in backend_spans if span.span_kind == "TOOL"]
+    assert len(llm_spans) >= 2
+    assert len(tool_spans) == 1
+    assert len(backend_spans) == len(llm_spans) + len(tool_spans)
+    assert all(span.parent_id == _PRIOR_TURN_ROOT_SPAN_ID for span in backend_spans)
 
-    browser_root_span = next(span for span in spans if span.span_id == _BROWSER_ROOT_SPAN_ID)
+    prior_turn_root_span = next(span for span in spans if span.span_id == _PRIOR_TURN_ROOT_SPAN_ID)
     total_root_tokens = (
-        browser_root_span.cumulative_llm_token_count_prompt
-        + browser_root_span.cumulative_llm_token_count_completion
+        prior_turn_root_span.cumulative_llm_token_count_prompt
+        + prior_turn_root_span.cumulative_llm_token_count_completion
     )
     assert total_root_tokens > 0
 
-    assert merged_trace.start_time == _BROWSER_TURN_TIME
-    assert merged_trace.end_time > _BROWSER_TURN_TIME
+    assert merged_trace.start_time == _PRIOR_TURN_TIME
+    assert merged_trace.end_time > _PRIOR_TURN_TIME
 
 
 async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warnings(
@@ -3005,18 +3081,27 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Merging backend spans into a browser-ingested trace groups the trace
+    """Merging backend spans into the turn's existing trace groups the trace
     under a project session keyed by the persisted agent session ID, without tripping
     SQLAlchemy's transient-object relationship warnings on autoflush."""
     await _enable_local_trace_recording(app)
-    await _ingest_browser_trace(db)
+    await _ingest_prior_turn_trace(db)
     _mock_traced_test_model(monkeypatch)
     session_id = "77777777-7777-4777-8777-777777777777"
-    agent_session_id = await _create_agent_session_row(db)
+    assistant_tail = _assistant_tail_with_prior_turn_context(session_id)
+    agent_session_id = await _create_agent_session_row(
+        db,
+        messages=[_user_message("edit the prompt"), assistant_tail],
+    )
 
     with warnings.catch_warnings():
         warnings.simplefilter("error", SAWarning)
-        response = await _post_traced_chat_turn(httpx_client, session_id, agent_session_id)
+        response = await _post_traced_continuation_turn(
+            httpx_client,
+            session_id,
+            agent_session_id,
+            last_message_id=assistant_tail["id"],
+        )
         assert response.status_code == 200
 
     async with db() as session:
@@ -3033,7 +3118,7 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
         )
         assert project_session is not None
         merged_trace = await session.scalar(
-            select(models.Trace).where(models.Trace.trace_id == _BROWSER_TRACE_ID)
+            select(models.Trace).where(models.Trace.trace_id == _PRIOR_TURN_TRACE_ID)
         )
         assert merged_trace is not None
         assert merged_trace.project_session_rowid == project_session.id
@@ -3064,8 +3149,6 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
     monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
     original_project_name = "original-assistant-project"
     changed_project_name = "changed-assistant-project"
-    first_trace_id = "8" * 32
-    second_trace_id = "a" * 32
     session_request_id = "88888888-8888-4888-8888-888888888888"
 
     monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", original_project_name)
@@ -3076,11 +3159,6 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
             session_request_id,
             _user_message("first question"),
             ingestTraces=True,
-            turnTraceContext={
-                "traceId": first_trace_id,
-                "rootSpanId": "9" * 16,
-                "startedAt": _BROWSER_TURN_TIME.isoformat(),
-            },
         ),
     )
     assert first_response.status_code == 200
@@ -3093,11 +3171,6 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
             _user_message("second question", message_id=_message_uuid("msg-user-2")),
             lastMessageId=await _last_stored_message_id(db),
             ingestTraces=True,
-            turnTraceContext={
-                "traceId": second_trace_id,
-                "rootSpanId": "b" * 16,
-                "startedAt": (_BROWSER_TURN_TIME + timedelta(minutes=1)).isoformat(),
-            },
         ),
     )
     assert second_response.status_code == 200
@@ -3107,13 +3180,9 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
         assert agent_session.project_name == original_project_name
-        traces = (
-            await session.scalars(
-                select(models.Trace).where(
-                    models.Trace.trace_id.in_([first_trace_id, second_trace_id])
-                )
-            )
-        ).all()
+        # Each user turn mints its own trace; both must land in the original
+        # project's single project session.
+        traces = (await session.scalars(select(models.Trace))).all()
         assert len(traces) == 2
         assert len({trace.project_rowid for trace in traces}) == 1
         assert len({trace.project_session_rowid for trace in traces}) == 1
