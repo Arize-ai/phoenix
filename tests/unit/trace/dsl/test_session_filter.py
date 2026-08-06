@@ -111,8 +111,7 @@ def test_session_bindings_flavor_audit() -> None:
     assert not any(name.endswith("_seconds") for name in SESSION_BINDINGS.binding_names)
     assert "first_input" in SESSION_BINDINGS.string_names
     assert "last_output" in SESSION_BINDINGS.string_names
-    # Function calls other than casts and the v1 comprehension set are rejected; the span grain
-    # keeps no iteration surface at all.
+    # Function calls other than casts and the v1 comprehension set are rejected.
     assert SESSION_BINDINGS.quantifiers == frozenset({"any", "all", "len", "max", "min", "sum"})
     assert set(SESSION_BINDINGS.iterables) == {
         "spans",
@@ -121,8 +120,16 @@ def test_session_bindings_flavor_audit() -> None:
         "span_annotations",
         "span_cost_details",
     }
-    assert not SPAN_BINDINGS.quantifiers
-    assert not SPAN_BINDINGS.iterables
+    # The span grain iterates too, and with the same comprehension vocabulary -- one family,
+    # one flavor. What differs is reachability, not spelling: its collections are registered
+    # under dotted keys, so they are reachable only through the reserved root. Registering
+    # one as a bare `cost_details` would have made that bare name an iterable and silently
+    # changed what a stored condition using it as an attribute meant.
+    assert SPAN_BINDINGS.quantifiers == SESSION_BINDINGS.quantifiers
+    assert set(SPAN_BINDINGS.iterables) == {"span.cost_details"}
+    assert all("." in key for key in SPAN_BINDINGS.iterables)
+    # The session grain, which reserves no root, keeps its bare keys.
+    assert all("." not in key for key in SESSION_BINDINGS.iterables)
     assert SESSION_BINDINGS.exists_names == frozenset({"any_input", "any_output"})
     assert "any_input" not in SESSION_BINDINGS.names
     assert "any_output" not in SESSION_BINDINGS.names
