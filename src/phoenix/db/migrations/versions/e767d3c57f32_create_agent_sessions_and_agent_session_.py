@@ -135,6 +135,11 @@ def upgrade() -> None:
         postgresql_where=sa.text("is_ephemeral IS TRUE"),
         sqlite_where=sa.text("is_ephemeral IS TRUE"),
     )
+    op.create_index(
+        "ix_agent_sessions_updated_at_id",
+        "agent_sessions",
+        ["updated_at", "id"],
+    )
 
     message = sa.Column("message", JSON_, nullable=False)
     op.create_table(
