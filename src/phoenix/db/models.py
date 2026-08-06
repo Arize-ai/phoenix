@@ -262,15 +262,11 @@ class _UIMessage(TypeDecorator[PhoenixUIMessage]):
     ) -> Optional[dict[str, Any]]:
         if value is None:
             return None
-        # exclude_unset preserves the validated wire shape exactly: explicit
-        # nulls survive (required ``Any`` fields such as a dynamic tool part's
-        # ``output`` may legally hold null, and dropping the key would make the
-        # stored JSON fail validation on read), while absent keys stay absent.
+        # exclude_unset preserves the wire shape: explicit nulls survive,
+        # absent keys stay absent.
         dumped = value.model_dump(mode="json", by_alias=True, exclude_unset=True)
-        # A message that does not survive the dump — e.g. one built server-side
-        # without its defaulted ``type`` discriminator, which can re-validate as
-        # a different part type — would poison every subsequent transcript read,
-        # so refuse it at write time instead.
+        # Refuse messages that don't round-trip; storing one would break every
+        # subsequent transcript read.
         error = (
             f"UI message {value.id!r} does not round-trip through its JSON "
             "representation and cannot be persisted"

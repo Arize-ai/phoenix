@@ -57,7 +57,7 @@ class AssistantMessageMetadata(CamelBaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    type: Literal["assistant"] = "assistant"
+    type: Literal["assistant"]
     session_id: str
     trace: AssistantMessageMetadataTraceIds | None = None
     turn_trace_context: TurnTraceContext | None = None
@@ -67,7 +67,7 @@ class AssistantMessageMetadata(CamelBaseModel):
 class UserMessageMetadata(CamelBaseModel):
     """Wire schema for metadata the browser attaches to outgoing user messages."""
 
-    type: Literal["user"] = "user"
+    type: Literal["user"]
     current_date_time: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
     time_zone: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
     is_compaction_message: bool = False
