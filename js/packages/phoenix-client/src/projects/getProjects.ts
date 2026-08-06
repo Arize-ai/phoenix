@@ -12,7 +12,7 @@ export interface GetProjectsParams extends ClientFn {
    *
    * @requires Phoenix server >= 17.16.0
    */
-  nameContains?: string | null;
+  nameContains?: string;
 }
 
 type ProjectsResponse = components["schemas"]["GetProjectsResponseBody"];
