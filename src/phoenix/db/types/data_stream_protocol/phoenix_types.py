@@ -102,6 +102,12 @@ class PhoenixUIMessage(UIMessage):
     metadata: MessageMetadata | None = None
 
     @model_validator(mode="after")
+    def _validate_metadata_matches_role(self) -> "PhoenixUIMessage":
+        if self.metadata is not None and self.metadata.type != self.role:
+            raise ValueError(f"{self.role}-role message cannot carry {self.metadata.type} metadata")
+        return self
+
+    @model_validator(mode="after")
     def _validate_phoenix_tool_call_metadata(self) -> "PhoenixUIMessage":
         for part in self.parts:
             call_provider_metadata = getattr(part, "call_provider_metadata", None)

@@ -119,6 +119,46 @@ def test_message_without_tool_metadata_passes() -> None:
     assert part.text == "hello"
 
 
+_USER_METADATA: dict[str, Any] = {
+    "type": "user",
+    "currentDateTime": "2026-07-10T12:00:00Z",
+    "timeZone": "America/Los_Angeles",
+}
+_ASSISTANT_METADATA: dict[str, Any] = {"type": "assistant", "sessionId": "session-1"}
+
+
+def _message_with_metadata(role: str, metadata: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": f"{role}-1",
+        "role": role,
+        "parts": [{"type": "text", "text": "hello"}],
+        "metadata": metadata,
+    }
+
+
+def test_user_message_with_user_metadata_passes() -> None:
+    PhoenixUIMessage.model_validate(_message_with_metadata("user", _USER_METADATA))
+
+
+def test_assistant_message_with_assistant_metadata_passes() -> None:
+    PhoenixUIMessage.model_validate(_message_with_metadata("assistant", _ASSISTANT_METADATA))
+
+
+def test_user_message_with_assistant_metadata_raises() -> None:
+    with pytest.raises(ValidationError, match="user-role message cannot carry assistant metadata"):
+        PhoenixUIMessage.model_validate(_message_with_metadata("user", _ASSISTANT_METADATA))
+
+
+def test_assistant_message_with_user_metadata_raises() -> None:
+    with pytest.raises(ValidationError, match="assistant-role message cannot carry user metadata"):
+        PhoenixUIMessage.model_validate(_message_with_metadata("assistant", _USER_METADATA))
+
+
+def test_system_message_with_metadata_raises() -> None:
+    with pytest.raises(ValidationError, match="system-role message cannot carry user metadata"):
+        PhoenixUIMessage.model_validate(_message_with_metadata("system", _USER_METADATA))
+
+
 def test_phoenix_ui_message_adapter_rejects_invalid_metadata() -> None:
     with pytest.raises(ValidationError):
         PhoenixUIMessageAdapter.validate_python(
