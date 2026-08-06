@@ -14,6 +14,7 @@ Prerequisites:
     - Phoenix running locally at http://localhost:6006
 """
 
+import os
 from random import choice, randint
 from secrets import token_hex
 
@@ -23,7 +24,9 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 # Configuration
-PHOENIX_ENDPOINT = "http://localhost:6006/v1/traces"
+_collector = (os.environ.get("PHOENIX_COLLECTOR_ENDPOINT") or "http://localhost:6006").rstrip("/")
+# The exporter POSTs to exactly this URL, so a base collector value needs the OTLP path.
+TRACES_ENDPOINT = _collector if _collector.endswith("/v1/traces") else f"{_collector}/v1/traces"
 PROJECT_NAME = "axis-label-test"
 NUM_TRACES = 25
 
@@ -51,7 +54,7 @@ MODELS_WITH_PROVIDERS = [
 
 # Setup tracer
 tracer_provider = TracerProvider(resource=Resource({"openinference.project.name": PROJECT_NAME}))
-tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(PHOENIX_ENDPOINT)))
+tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(TRACES_ENDPOINT)))
 tracer = tracer_provider.get_tracer(__name__)
 
 
@@ -78,7 +81,7 @@ def create_llm_span(model_name: str, provider: str) -> None:
 
 def main() -> None:
     print(f"Generating {NUM_TRACES} traces for project '{PROJECT_NAME}'...")
-    print(f"Sending to: {PHOENIX_ENDPOINT}")
+    print(f"Sending to: {TRACES_ENDPOINT}")
     print()
 
     # Bias toward longer model names to demonstrate the issue
