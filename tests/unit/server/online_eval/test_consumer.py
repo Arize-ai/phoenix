@@ -499,12 +499,16 @@ async def _materialize_session_unit(
         resolved = await resolve_criteria(session, criteria, evaluator)
         assert resolved is not None
         fingerprint = config_fingerprint(resolved)
+        evaluated_through = project_session.last_span_ingested_at
+        if evaluated_through is None:
+            evaluated_through = datetime.now(timezone.utc)
+            project_session.last_span_ingested_at = evaluated_through
         unit = models.EvalSessionWorkUnit(
             project_session_rowid=project_session_rowid,
             evaluator_id=evaluator_id,
             criteria_id=criteria_id,
             config_fingerprint=fingerprint,
-            evaluated_through=project_session.last_span_seen_at,
+            evaluated_through=evaluated_through,
         )
         session.add(unit)
         await session.flush()
@@ -574,7 +578,7 @@ async def test_session_publication_closes_the_scheduled_watermark(
     async with db() as session:
         project = await _add_project(session)
         project_session = await _add_project_session(session, project)
-        project_session.last_span_seen_at = scheduled_at
+        project_session.last_span_ingested_at = scheduled_at
         trace = await _add_trace(session, project, project_session)
         await _add_span(session, trace)
     evaluator_id, criteria_id = await _seed_builtin_criteria(
@@ -595,7 +599,7 @@ async def test_session_publication_closes_the_scheduled_watermark(
         assert criteria is not None
         stored_session = await session.get(models.ProjectSession, project_session.id)
         assert stored_session is not None
-        stored_session.last_span_seen_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+        stored_session.last_span_ingested_at = datetime.now(timezone.utc) - timedelta(minutes=5)
         annotation_name = criteria.name.root
 
     executor = OnlineEvalExecutor(db, decrypt=lambda value: value)
@@ -650,6 +654,13 @@ async def test_incomplete_session_hydration_expires_without_counting_attempt(
         evaluator_id,
         criteria_id,
     )
+    async with db() as session:
+        last_span_ingested_at = await session.scalar(
+            select(models.ProjectSession.last_span_ingested_at).where(
+                models.ProjectSession.id == project_session.id
+            )
+        )
+    assert last_span_ingested_at is not None
     consumer = OnlineEvalConsumer(
         db,
         decrypt=lambda value: value,
@@ -668,7 +679,7 @@ async def test_incomplete_session_hydration_expires_without_counting_attempt(
     stored = await _get_session_unit(db, unit_id)
     assert stored.status == "EXPIRED"
     assert stored.attempts == 0
-    assert stored.evaluated_through == project_session.last_span_seen_at
+    assert stored.evaluated_through == last_span_ingested_at
     assert await _session_annotations(db) == []
 
 

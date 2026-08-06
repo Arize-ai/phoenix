@@ -90,13 +90,15 @@ async def _seed_session_work_units(db: DbSessionFactory, n: int) -> tuple[int, l
         )
         session.add(criteria)
         await session.flush()
+        evaluated_through = datetime.now(timezone.utc)
+        project_session.last_span_ingested_at = evaluated_through
         units = [
             models.EvalSessionWorkUnit(
                 project_session_rowid=project_session.id,
                 evaluator_id=evaluator.id,
                 criteria_id=criteria.id,
                 config_fingerprint=f"session-fp-{i}-{token_hex(8)}",
-                evaluated_through=project_session.last_span_seen_at,
+                evaluated_through=evaluated_through,
             )
             for i in range(n)
         ]
