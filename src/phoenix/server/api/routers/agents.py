@@ -718,12 +718,7 @@ def _build_assistant_message_metadata(
     usage: RequestUsage | None,
     interrupted: bool = False,
 ) -> AssistantMessageMetadata:
-    """Build the metadata payload attached to the turn's assistant message.
-
-    ``interrupted`` is always set explicitly (never left unset) so that when an
-    interrupted message is later continued to completion, the completed turn's
-    metadata chunk deep-merges ``interrupted: false`` over the stale flag.
-    """
+    """Build the metadata payload attached to the turn's assistant message."""
     return AssistantMessageMetadata(
         type="assistant",
         session_id=session_id,
@@ -3038,11 +3033,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         )
                         if resolved_assistant_message is not None:
                             generated_assistant_message = resolved_assistant_message
-                        # The completed-turn metadata chunk never streamed, so
-                        # attach the metadata here — flagged interrupted so
-                        # clients can render the cut-off turn distinctly, and
-                        # carrying the turn trace context so the turn's trace
-                        # stays reachable from the transcript.
                         existing_metadata = generated_assistant_message.metadata
                         if isinstance(existing_metadata, AssistantMessageMetadata):
                             interrupted_metadata = existing_metadata.model_copy(
@@ -3067,12 +3057,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                 "request validation requires a message or toolOutputs, and "
                                 "the merge continues the assistant turn for toolOutputs-only"
                             )
-                            # The assistant message is persisted even when the turn was
-                            # interrupted before the model produced anything: its id is
-                            # the stream's opening message id, so persisting it keeps the
-                            # client's `lastMessageId` staleness check aligned on the next
-                            # submit, and message loading drops empty assistant messages
-                            # from the model-facing transcript.
+                            # An empty assistant message is still persisted so the
+                            # client's `lastMessageId` staleness check stays aligned on
+                            # the next submit; message loading keeps empty assistant
+                            # messages out of the model-facing transcript.
                             turn_messages = [body.message, generated_assistant_message]
                         await _persist_agent_session_turn(
                             request.app.state.db,
@@ -3175,10 +3163,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     logger.exception("Agent chat stream failed for session %s", session_id)
                     yield ErrorChunk(error_text=str(exc).strip() or type(exc).__name__)
                 except (asyncio.CancelledError, GeneratorExit) as exc:
-                    # A client disconnect — the UI stop button, a CLI interrupt,
-                    # or a dropped SSE connection — cancels this generator (or
-                    # closes it) mid-stream. Flag it so the finally persists the
-                    # partial turn before releasing the turn lock.
+                    # A client disconnect (e.g., the UI stop button, a CLI interrupt,
+                    # or a dropped SSE connection) cancels this generator (or
+                    # closes it) mid-stream.
                     stream_error = exc
                     turn_interrupted = True
                     raise
@@ -3187,12 +3174,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     raise
                 finally:
                     heartbeat_task.cancel()
-                    # Client disconnects cancel this generator, and that
-                    # cancellation can be re-delivered at every subsequent await,
-                    # so run the cleanup — partial-turn persistence, turn lock
-                    # release, and trace flushing — inside a shielded scope when
-                    # the turn was interrupted. The release helper swallows and
-                    # logs its own errors so trace flushing below still happens.
+                    # Disconnect cancellation re-fires at every await; shield so cleanup completes.
                     with anyio.CancelScope(shield=turn_interrupted):
                         if turn_interrupted and not turn_persisted:
                             await _persist_interrupted_turn()
