@@ -22,6 +22,14 @@ import { defineInstrumentation } from "eve/instrumentation";
 
 export default defineInstrumentation({
   setup: ({ agentName }) => {
+    const collectorEndpoint = (
+      process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006"
+    ).replace(/\/+$/, "");
+    // Accept either a base URL or one that already carries the OTLP path.
+    const traceUrl = collectorEndpoint.endsWith("/v1/traces")
+      ? collectorEndpoint
+      : `${collectorEndpoint}/v1/traces`;
+
     register({
       projectName: process.env.PHOENIX_PROJECT_NAME ?? agentName,
       spanProcessors: [
@@ -30,7 +38,7 @@ export default defineInstrumentation({
         // Swap in OpenInferenceBatchSpanProcessor if you prefer batching.
         new OpenInferenceSimpleSpanProcessor({
           exporter: new OTLPTraceExporter({
-            url: `${process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006"}/v1/traces`,
+            url: traceUrl,
             // Only needed when Phoenix has auth enabled.
             headers: process.env.PHOENIX_API_KEY
               ? { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` }
