@@ -92,7 +92,7 @@ For the full set of installable instrumentors, see the [OpenInference repository
 | Argument | Environment variable | Notes |
 | :--- | :--- | :--- |
 | `project_name` | `PHOENIX_PROJECT` (alias `PHOENIX_PROJECT_NAME`) | Name of the project in Phoenix. If both env vars are set, `PHOENIX_PROJECT` wins. Defaults to `"default"`. |
-| `endpoint` | `PHOENIX_COLLECTOR_ENDPOINT` | The collector endpoint. Defaults to `http://localhost:6006`. |
+| `endpoint` | `PHOENIX_COLLECTOR_ENDPOINT` | The collector endpoint. Defaults to `http://localhost:6006`, from which the transport is inferred — for a self-hosted Phoenix that means OTLP/gRPC on port `4317`, so spans go to `http://localhost:4317` unless you pass `protocol="http/protobuf"`. |
 | `api_key` | `PHOENIX_API_KEY` | Optional for local Phoenix. Required for any instance with authentication enabled — added as a Bearer token header. |
 | `headers` | `PHOENIX_CLIENT_HEADERS` | Additional headers for the OTLP request (e.g. tenant identifiers). |
 
