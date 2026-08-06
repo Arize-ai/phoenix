@@ -138,6 +138,7 @@ def _create_session_work_units_table() -> None:
         ["criteria_id"],
     )
 
+
 def upgrade() -> None:
     # project_sessions carries raw-expression DESC indexes, so add_column/drop_column are used
     # bare here: batch mode would rebuild the table by reflection and silently recreate those
