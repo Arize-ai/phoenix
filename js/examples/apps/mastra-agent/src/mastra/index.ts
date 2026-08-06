@@ -12,9 +12,10 @@ export const mastra = new Mastra({
         serviceName: process.env.PHOENIX_PROJECT_NAME || "mastra-project",
         exporters: [
           // ArizeExporter POSTs to `endpoint` exactly as given, so the OTLP
-          // path is appended here — PHOENIX_COLLECTOR_ENDPOINT is a base URL.
+          // path is appended here — PHOENIX_COLLECTOR_ENDPOINT is a base URL
+          // (a trailing slash would 404 as //v1/traces, silently dropping spans).
           new ArizeExporter({
-            endpoint: `${process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006"}/v1/traces`,
+            endpoint: `${(process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006").replace(/\/+$/, "")}/v1/traces`,
             apiKey: process.env.PHOENIX_API_KEY,
             projectName: process.env.PHOENIX_PROJECT_NAME,
           }),

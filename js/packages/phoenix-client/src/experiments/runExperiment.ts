@@ -54,7 +54,11 @@ import {
   logTaskSummary,
   PROGRESS_PREFIX,
 } from "./logging";
-import { cleanupOwnedTracerProvider } from "./tracing";
+import {
+  cleanupOwnedTracerProvider,
+  getTraceExportUrl,
+  MISSING_BASE_URL_MESSAGE,
+} from "./tracing";
 
 /**
  * Validate that a repetition is valid
@@ -270,14 +274,11 @@ export async function runExperiment({
     };
     // Initialize the tracer, now that we have a project name
     const baseUrl = client.config.baseUrl;
-    invariant(
-      baseUrl,
-      "Phoenix base URL not found. Please set PHOENIX_COLLECTOR_ENDPOINT (or PHOENIX_HOST) or set baseUrl on the client."
-    );
+    invariant(baseUrl, MISSING_BASE_URL_MESSAGE);
 
     taskProvider = register({
       projectName,
-      url: baseUrl,
+      url: getTraceExportUrl(baseUrl),
       headers: client.config.headers
         ? toObjectHeaders(client.config.headers)
         : undefined,
@@ -621,10 +622,7 @@ export async function evaluateExperiment({
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
   const baseUrl = client.config.baseUrl;
-  invariant(
-    baseUrl,
-    "Phoenix base URL not found. Please set PHOENIX_COLLECTOR_ENDPOINT (or PHOENIX_HOST) or set baseUrl on the client."
-  );
+  invariant(baseUrl, MISSING_BASE_URL_MESSAGE);
   let provider: NodeTracerProvider;
   let globalRegistration: GlobalTracerProviderRegistration | null = null;
   const ownsProvider = !paramsTracerProvider;
@@ -635,7 +633,7 @@ export async function evaluateExperiment({
   } else if (!isDryRun) {
     provider = register({
       projectName: "evaluators",
-      url: baseUrl,
+      url: getTraceExportUrl(baseUrl),
       headers: client.config.headers
         ? toObjectHeaders(client.config.headers)
         : undefined,

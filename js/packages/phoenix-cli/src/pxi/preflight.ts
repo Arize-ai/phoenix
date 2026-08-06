@@ -155,7 +155,7 @@ function formatEndpointPreflightFailure({
     "",
     "How to fix:",
     "  1. Start Phoenix and confirm the server is listening.",
-    "  2. If Phoenix is running at a different URL, pass --endpoint <url> or set PHOENIX_HOST.",
+    "  2. If Phoenix is running at a different URL, pass --endpoint <url> or set PHOENIX_ENDPOINT.",
     "  3. For remote endpoints, check VPN, proxy, firewall, and DNS settings.",
     "  4. To skip only model validation, pass --skip-model-preflight.",
   ].join("\n");
@@ -253,7 +253,7 @@ export async function fetchPxiModelPreflight({
 }): Promise<PxiModelPreflightData> {
   if (!config.endpoint) {
     throw new InvalidArgumentError(
-      "Phoenix endpoint not configured. Set PHOENIX_HOST or pass --endpoint."
+      "Phoenix endpoint not configured. Set PHOENIX_ENDPOINT or pass --endpoint."
     );
   }
   const request = buildGraphqlRequest({

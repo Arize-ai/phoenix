@@ -20,7 +20,7 @@
 export interface ConnectionOptions {
   /**
    * `--endpoint <url>`: Base URL of the Phoenix server. Overrides the active
-   * profile and `PHOENIX_HOST`; defaults to `http://localhost:6006`.
+   * profile and `PHOENIX_ENDPOINT`; defaults to `http://localhost:6006`.
    *
    * @example "https://app.phoenix.arize.com"
    */

@@ -124,6 +124,17 @@ function extractInputOutputFromSpan(span: SpanLike): {
 }
 
 async function main() {
+  // Without an endpoint the client silently falls back to http://localhost:6006,
+  // reading spans from (and writing annotations to) the wrong Phoenix.
+  if (
+    !process.env.PHOENIX_ENDPOINT &&
+    !process.env.PHOENIX_COLLECTOR_ENDPOINT
+  ) {
+    throw new Error(
+      "PHOENIX_ENDPOINT (or PHOENIX_COLLECTOR_ENDPOINT) environment variable is required"
+    );
+  }
+
   const projectName = process.env.PHOENIX_PROJECT_NAME || "mastra-project";
 
   const endTime = new Date();

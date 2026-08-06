@@ -67,16 +67,21 @@ This will start the phoenix server on port 6006. If you are running your instrum
 
 ## Configuration & environment variables
 
-Phoenix reads its connection settings from environment variables. Three of them are easy to confuse, so it's worth being precise about what each one is for:
+Phoenix reads its connection settings from environment variables. Two endpoint variables exist — one per concern — and both are **base URLs** (e.g. `http://localhost:6006`), never a full path:
 
 | Variable | What it is | When to set it |
 |----------|------------|----------------|
-| `PHOENIX_COLLECTOR_ENDPOINT` | The base URL of the Phoenix server that **receives your traces** (the OTel collector). Set the base URL only — e.g. `http://localhost:6006` or `https://your-phoenix.example.com` — not a full `/v1/traces` path. | Whenever your app and the Phoenix server are not on the same machine. This is the variable the tracing SDKs (`register()`) use. |
+| `PHOENIX_COLLECTOR_ENDPOINT` | The base URL that **receives your traces** (the OTel collector). | When exporting traces to a Phoenix that isn't `http://localhost:6006`. Read by `register()` and the OTLP exporters it configures. |
+| `PHOENIX_ENDPOINT` | The base URL for **API access** — reading spans back, datasets, experiments, prompts. | When using the `px` CLI or the API clients against a remote Phoenix. |
 | `PHOENIX_API_KEY` | The credential used to **authenticate** to a Phoenix instance that has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled. | When connecting to any authenticated deployment. A local `phoenix serve` needs none. |
 | `PHOENIX_CLIENT_HEADERS` | Extra headers (JSON) sent with every request, e.g. `api_key=...`. | Only when a deployment requires custom headers. |
 
+Usually both endpoints are the same server, so setting either one is enough: when only one is set, Phoenix tools infer the other from it. (One caveat: Python's tracing SDK reads only the trace-export variables today, so when tracing from Python set `PHOENIX_COLLECTOR_ENDPOINT` — the `.env.phoenix` written by `px setup` records both.) Set both only when trace ingest and API access genuinely live at different URLs. `PHOENIX_BASE_URL` is an accepted alias for `PHOENIX_ENDPOINT` (the name the API-client docs have historically used); `PHOENIX_ENDPOINT` wins when both are set.
+
+`PHOENIX_HOST` is **not** a client setting — on the Phoenix server it is the bind host (e.g. `0.0.0.0`, paired with `PHOENIX_PORT`). Some JS tools still accept it as a last-resort legacy fallback for the base URL, but new configuration should use the two variables above.
+
 <Warning>
-Point `PHOENIX_COLLECTOR_ENDPOINT` at the server's **base URL**, never a full endpoint path such as `.../v1/traces`. Everything of Phoenix's that reads the variable — `register()`, the `px` CLI, the API clients — treats it as a base URL and builds its own request paths on top of it, so a suffixed value ends up in the middle of the URLs those tools construct.
+Keep both endpoint variables **base URLs**, never a full endpoint path such as `.../v1/traces`. The `px` CLI and the API clients append their own request paths, and `register()` derives the OTLP target itself — the TypeScript SDK appends `/v1/traces` (OTLP/HTTP), while the Python SDK infers the transport, using OTLP/gRPC on port `4317` for self-hosted servers unless you pass `protocol="http/protobuf"`. A gRPC endpoint is just `host:port` — the `/v1/traces` path exists only in OTLP/HTTP.
 
 Some third-party exporters — `@mastra/arize`'s `ArizeExporter`, a bare `OTLPTraceExporter` — take the *full* OTLP/HTTP URL and POST to it exactly as given, rather than appending the path the way `register()` does. Append `/v1/traces` where you construct those exporters, not in the variable.
 </Warning>
@@ -98,10 +103,13 @@ Instead of exporting variables in every shell, you can drop `PHOENIX_`-prefixed 
 
 ```bash
 # .env.phoenix
-PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006  # traces are exported here
+PHOENIX_ENDPOINT=http://localhost:6006            # API requests go here
 PHOENIX_API_KEY=your-api-key
 PHOENIX_PROJECT=my-app
 ```
+
+This is the same file `px setup` writes: it records both endpoint variables (same value — one server) so trace export and API access are each explicit.
 
 A few rules worth knowing:
 

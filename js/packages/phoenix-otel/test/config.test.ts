@@ -33,10 +33,8 @@ describe("environment-derived OTel configuration", () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
+    // Connection env vars are cleared globally in test/setup.ts.
     originalEnv = { ...process.env };
-    delete process.env.PHOENIX_API_KEY;
-    delete process.env.PHOENIX_CLIENT_HEADERS;
-    delete process.env.PHOENIX_COLLECTOR_ENDPOINT;
     exporterState.options = undefined;
     clearEnvFileCache();
     resetCrossTierEndpointWarningsForTesting();

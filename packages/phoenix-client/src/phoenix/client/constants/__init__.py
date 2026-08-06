@@ -12,6 +12,12 @@ ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
 ENV_PHOENIX_HOST_ROOT_PATH = "PHOENIX_HOST_ROOT_PATH"
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
+# Canonical base URL for API access (the trace-export variable above is for
+# exporters; when only one of the two is set, the other is inferred from it).
+ENV_PHOENIX_ENDPOINT = "PHOENIX_ENDPOINT"
+# Accepted alias for ENV_PHOENIX_ENDPOINT (the name the client docs have
+# historically used). ENV_PHOENIX_ENDPOINT takes precedence when both are set.
+ENV_PHOENIX_BASE_URL = "PHOENIX_BASE_URL"
 ENV_PHOENIX_CLIENT_HEADERS = "PHOENIX_CLIENT_HEADERS"
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 # Canonical project-name variable, used in docs.

@@ -1,15 +1,19 @@
 import {
-  ENV_PHOENIX_COLLECTOR_ENDPOINT,
+  getCollectorEndpointFromEnvironmentWithSource,
   getCredentialsFromEnvironmentWithSource,
   getProjectFromEnvironment,
-  getStrFromEnvironmentWithSource,
 } from "@arizeai/phoenix-config";
 
-/** Resolves the OTel endpoint and credentials as source-aware groups. */
+/**
+ * Resolves the OTel endpoint and credentials as source-aware groups.
+ *
+ * The endpoint reads `PHOENIX_COLLECTOR_ENDPOINT` (canonical for trace
+ * export), inferring from `PHOENIX_ENDPOINT` when only that is set.
+ */
 export function getEnvConfig() {
   return {
     credentials: getCredentialsFromEnvironmentWithSource(),
-    endpoint: getStrFromEnvironmentWithSource(ENV_PHOENIX_COLLECTOR_ENDPOINT),
+    endpoint: getCollectorEndpointFromEnvironmentWithSource(),
   };
 }
 

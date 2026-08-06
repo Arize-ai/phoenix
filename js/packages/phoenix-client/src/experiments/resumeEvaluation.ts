@@ -31,7 +31,11 @@ import { getExperimentInfo } from "./getExperimentInfo.js";
 import { getExperimentEvaluators } from "./helpers";
 import { getExampleGlobalId } from "./helpers/getExampleGlobalId";
 import { logEvalResumeSummary, PROGRESS_PREFIX } from "./logging";
-import { cleanupOwnedTracerProvider } from "./tracing";
+import {
+  cleanupOwnedTracerProvider,
+  getTraceExportUrl,
+  MISSING_BASE_URL_MESSAGE,
+} from "./tracing";
 
 /**
  * Error thrown when evaluation is aborted due to a failure in stopOnFirstError mode.
@@ -323,14 +327,11 @@ export async function resumeEvaluation({
 
   // Initialize tracer (only if experiment has a project_name)
   const baseUrl = client.config.baseUrl;
-  invariant(
-    baseUrl,
-    "Phoenix base URL not found. Please set PHOENIX_COLLECTOR_ENDPOINT (or PHOENIX_HOST) or set baseUrl on the client."
-  );
+  invariant(baseUrl, MISSING_BASE_URL_MESSAGE);
 
   const tracerSetup = setupEvaluationTracer({
     projectName: experiment.projectName,
-    baseUrl,
+    baseUrl: getTraceExportUrl(baseUrl),
     headers: client.config.headers
       ? toObjectHeaders(client.config.headers)
       : undefined,

@@ -7,8 +7,11 @@ import {
   ENV_PHOENIX_API_KEY,
   ENV_PHOENIX_CLIENT_HEADERS,
   ENV_PHOENIX_COLLECTOR_ENDPOINT,
+  ENV_PHOENIX_ENDPOINT,
   ENV_PHOENIX_PROJECT,
   ENV_PHOENIX_PROJECT_NAME,
+  getBaseUrlFromEnvironment,
+  getCollectorEndpointFromEnvironment,
   getCredentialsFromEnvironment,
   getCredentialsFromEnvironmentWithSource,
   getIntFromEnvironment,
@@ -31,6 +34,9 @@ const MANAGED_ENV_KEYS = [
   ENV_PHOENIX_API_KEY,
   ENV_PHOENIX_CLIENT_HEADERS,
   ENV_PHOENIX_COLLECTOR_ENDPOINT,
+  ENV_PHOENIX_ENDPOINT,
+  "PHOENIX_BASE_URL",
+  "PHOENIX_HOST",
   ENV_PHOENIX_PROJECT,
   "PHOENIX_PROJECT_NAME",
   "PHOENIX_PORT",
@@ -313,6 +319,36 @@ describe("envFile", () => {
         `Credentials from the process environment will be sent to ${ENV_PHOENIX_COLLECTOR_ENDPOINT} set by ${filePath}.`
       );
       expect(warnSpy.mock.calls[0]?.[0]).not.toContain("secret-process-key");
+    });
+  });
+
+  describe("cross-tier canonical endpoint guard", () => {
+    it("does not let a process API variable mask the file's collector endpoint", () => {
+      writeEnvFile(
+        tempDir,
+        "PHOENIX_COLLECTOR_ENDPOINT=http://from-file:6006\n"
+      );
+      process.env[ENV_PHOENIX_ENDPOINT] = "http://from-process:6006";
+      expect(getCollectorEndpointFromEnvironment()).toBe(
+        "http://from-file:6006"
+      );
+    });
+
+    it("does not let a process collector variable mask the file's API endpoint", () => {
+      writeEnvFile(tempDir, "PHOENIX_ENDPOINT=http://from-file:6006\n");
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://from-process:6006";
+      expect(getBaseUrlFromEnvironment()).toBe("http://from-file:6006");
+    });
+
+    it("still lets a process collector endpoint win the collector resolution", () => {
+      writeEnvFile(
+        tempDir,
+        "PHOENIX_COLLECTOR_ENDPOINT=http://from-file:6006\n"
+      );
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://from-process:6006";
+      expect(getCollectorEndpointFromEnvironment()).toBe(
+        "http://from-process:6006"
+      );
     });
   });
 

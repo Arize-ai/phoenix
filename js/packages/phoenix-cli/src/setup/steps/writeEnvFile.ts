@@ -9,6 +9,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+import { connectionEnv } from "../agents/registry";
 import * as COPY from "../copy";
 import type { SetupDeps } from "../deps";
 import { ensureGitignored } from "../util/gitignoreCoverage";
@@ -27,14 +28,16 @@ function quoteEnvValue(value: string): string {
 }
 
 export function renderEnvFile(connection: Connection, isoDate: string): string {
+  // connectionEnv() owns the Connection → env-var mapping; this file only
+  // adds the header and shell quoting.
   const lines = [
     COPY.ENV_FILE.fileHeaderEnv(isoDate),
-    `PHOENIX_COLLECTOR_ENDPOINT=${quoteEnvValue(connection.endpoint)}`,
-    `PHOENIX_PROJECT_NAME=${quoteEnvValue(connection.projectName)}`,
+    "# Traces are exported to the collector endpoint; API reads/writes go to",
+    "# the endpoint. Both are base URLs, and here they are the same server.",
+    ...Object.entries(connectionEnv(connection)).map(
+      ([key, value]) => `${key}=${quoteEnvValue(value)}`
+    ),
   ];
-  if (connection.apiKey) {
-    lines.push(`PHOENIX_API_KEY=${quoteEnvValue(connection.apiKey)}`);
-  }
   return `${lines.join("\n")}\n`;
 }
 

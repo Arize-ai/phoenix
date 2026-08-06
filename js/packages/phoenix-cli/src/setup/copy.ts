@@ -135,7 +135,7 @@ export const ENDPOINT = {
   headlessNeedsEndpoint: [
     "Missing endpoint. Provide one of:",
     "  --endpoint <url>",
-    "  PHOENIX_HOST=<url> (or PHOENIX_COLLECTOR_ENDPOINT=<url>)",
+    "  PHOENIX_ENDPOINT=<url> (or PHOENIX_COLLECTOR_ENDPOINT=<url>)",
   ].join("\n"),
 } as const;
 

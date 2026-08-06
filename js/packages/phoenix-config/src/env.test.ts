@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ENV_PHOENIX_API_KEY,
   ENV_PHOENIX_CLIENT_HEADERS,
+  ENV_PHOENIX_BASE_URL,
   ENV_PHOENIX_COLLECTOR_ENDPOINT,
+  ENV_PHOENIX_ENDPOINT,
   ENV_PHOENIX_GRPC_PORT,
   ENV_PHOENIX_HOST,
   ENV_PHOENIX_LOG_LEVEL,
@@ -12,6 +14,7 @@ import {
   ENV_PHOENIX_PROJECT_NAME,
   type EnvironmentConfig,
   getBaseUrlFromEnvironment,
+  getCollectorEndpointFromEnvironment,
   getEnvironmentConfig,
   getHeadersFromEnvironment,
   getIntFromEnvironment,
@@ -107,6 +110,8 @@ describe("env", () => {
     ENV_PHOENIX_PORT,
     ENV_PHOENIX_GRPC_PORT,
     ENV_PHOENIX_HOST,
+    ENV_PHOENIX_ENDPOINT,
+    ENV_PHOENIX_BASE_URL,
     ENV_PHOENIX_CLIENT_HEADERS,
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
     ENV_PHOENIX_API_KEY,
@@ -427,14 +432,63 @@ describe("env", () => {
       expect(getBaseUrlFromEnvironment()).toBeUndefined();
     });
 
-    it("should read PHOENIX_COLLECTOR_ENDPOINT when only it is set", () => {
+    it("should read PHOENIX_ENDPOINT when only it is set", () => {
+      process.env[ENV_PHOENIX_ENDPOINT] = "http://api.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://api.local");
+    });
+
+    it("should read the PHOENIX_BASE_URL alias when only it is set", () => {
+      process.env[ENV_PHOENIX_BASE_URL] = "http://base.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://base.local");
+    });
+
+    it("should prefer PHOENIX_ENDPOINT over its PHOENIX_BASE_URL alias", () => {
+      process.env[ENV_PHOENIX_ENDPOINT] = "http://api.local";
+      process.env[ENV_PHOENIX_BASE_URL] = "http://base.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://api.local");
+    });
+
+    it("should prefer the PHOENIX_BASE_URL alias over PHOENIX_COLLECTOR_ENDPOINT", () => {
+      process.env[ENV_PHOENIX_BASE_URL] = "http://base.local";
       process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://base.local");
+    });
+
+    it("should infer from PHOENIX_COLLECTOR_ENDPOINT when only it is set", () => {
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://collector.local");
+    });
+
+    it("should strip an OTLP /v1/traces suffix when inferring from PHOENIX_COLLECTOR_ENDPOINT", () => {
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] =
+        "http://collector.local/v1/traces";
       expect(getBaseUrlFromEnvironment()).toBe("http://collector.local");
     });
 
     it("should read PHOENIX_HOST when only it is set", () => {
       process.env[ENV_PHOENIX_HOST] = "http://phoenix.local";
       expect(getBaseUrlFromEnvironment()).toBe("http://phoenix.local");
+    });
+
+    it("should build a URL from a bare PHOENIX_HOST bind host, rewriting 0.0.0.0", () => {
+      process.env[ENV_PHOENIX_HOST] = "0.0.0.0";
+      process.env[ENV_PHOENIX_PORT] = "7007";
+      expect(getBaseUrlFromEnvironment()).toBe("http://127.0.0.1:7007");
+    });
+
+    it("should default the port for a bare PHOENIX_HOST without one", () => {
+      process.env[ENV_PHOENIX_HOST] = "phoenix.internal";
+      expect(getBaseUrlFromEnvironment()).toBe("http://phoenix.internal:6006");
+    });
+
+    it("should prefer PHOENIX_ENDPOINT over the other variables without warning", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      process.env[ENV_PHOENIX_ENDPOINT] = "http://api.local";
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://api.local");
+      // API access and trace ingest may legitimately live at different URLs.
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
     });
 
     it("should prefer PHOENIX_COLLECTOR_ENDPOINT over PHOENIX_HOST", () => {
@@ -464,6 +518,42 @@ describe("env", () => {
       expect(warn.mock.calls[0]?.[0]).toContain(ENV_PHOENIX_COLLECTOR_ENDPOINT);
       expect(warn.mock.calls[0]?.[0]).toContain(ENV_PHOENIX_HOST);
       warn.mockRestore();
+    });
+  });
+
+  describe("getCollectorEndpointFromEnvironment", () => {
+    it("should return undefined when neither variable is set", () => {
+      expect(getCollectorEndpointFromEnvironment()).toBeUndefined();
+    });
+
+    it("should read PHOENIX_COLLECTOR_ENDPOINT when only it is set", () => {
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
+      expect(getCollectorEndpointFromEnvironment()).toBe(
+        "http://collector.local"
+      );
+    });
+
+    it("should infer from PHOENIX_ENDPOINT when only it is set", () => {
+      process.env[ENV_PHOENIX_ENDPOINT] = "http://api.local";
+      expect(getCollectorEndpointFromEnvironment()).toBe("http://api.local");
+    });
+
+    it("should infer from the PHOENIX_BASE_URL alias when only it is set", () => {
+      process.env[ENV_PHOENIX_BASE_URL] = "http://base.local";
+      expect(getCollectorEndpointFromEnvironment()).toBe("http://base.local");
+    });
+
+    it("should prefer PHOENIX_COLLECTOR_ENDPOINT over PHOENIX_ENDPOINT", () => {
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
+      process.env[ENV_PHOENIX_ENDPOINT] = "http://api.local";
+      expect(getCollectorEndpointFromEnvironment()).toBe(
+        "http://collector.local"
+      );
+    });
+
+    it("should not read PHOENIX_HOST", () => {
+      process.env[ENV_PHOENIX_HOST] = "http://phoenix.local";
+      expect(getCollectorEndpointFromEnvironment()).toBeUndefined();
     });
   });
 

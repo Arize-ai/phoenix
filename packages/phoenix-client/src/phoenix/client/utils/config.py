@@ -10,9 +10,11 @@ import httpx
 from phoenix.client.constants import (
     ENV_OTEL_EXPORTER_OTLP_ENDPOINT,
     ENV_PHOENIX_API_KEY,
+    ENV_PHOENIX_BASE_URL,
     ENV_PHOENIX_CLIENT_HEADERS,
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
     ENV_PHOENIX_DISCOVER_CONFIG,
+    ENV_PHOENIX_ENDPOINT,
     ENV_PHOENIX_HOST,
     ENV_PHOENIX_HOST_ROOT_PATH,
     ENV_PHOENIX_PORT,
@@ -49,9 +51,24 @@ _CREDENTIAL_ENV_KEYS = (
     ENV_PHOENIX_API_KEY,
     ENV_PHOENIX_CLIENT_HEADERS,
 )
-_SERVER_LOCATION_ENV_KEYS = (
+# Base-URL candidates for API access, in precedence order: the canonical
+# PHOENIX_ENDPOINT and its documented PHOENIX_BASE_URL alias first, then the
+# trace-export variables as inferred fallbacks. PHOENIX_HOST/PHOENIX_PORT are
+# handled separately (host:port construction, not a URL).
+_CANONICAL_API_BASE_URL_ENV_KEYS = (
+    ENV_PHOENIX_ENDPOINT,
+    ENV_PHOENIX_BASE_URL,
+)
+_COLLECTOR_ENV_KEYS = (
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
     ENV_OTEL_EXPORTER_OTLP_ENDPOINT,
+)
+_API_BASE_URL_ENV_KEYS = (
+    *_CANONICAL_API_BASE_URL_ENV_KEYS,
+    *_COLLECTOR_ENV_KEYS,
+)
+_SERVER_LOCATION_ENV_KEYS = (
+    *_API_BASE_URL_ENV_KEYS,
     ENV_PHOENIX_HOST,
     ENV_PHOENIX_PORT,
 )
@@ -221,6 +238,24 @@ def _resolve_env_tier_with_source(
     return values, _EnvSource("env-file", file_path) if values and file_path else None
 
 
+def _file_canonical_override(
+    source: Optional[_EnvSource], canonical_keys: Iterable[str]
+) -> tuple[Optional[str], Optional[str], Optional[_EnvSource]]:
+    """The cross-tier exception to whole-group tier resolution: a process value
+    merely inferred from a sibling variable must not mask the concept's
+    canonical variable declared in a discovered ``.env.phoenix``. Returns the
+    (key, value, source) of the file-tier canonical value when that exception
+    applies.
+    """
+    if source is None or source.kind != "process":
+        return None, None, None
+    file_path, file_values = _load_env_file_entry()
+    for key in canonical_keys:
+        if value := file_values.get(key):
+            return key, value, _EnvSource("env-file", file_path)
+    return None, None, None
+
+
 def _warn_if_using_file_endpoint_with_credentials(
     *,
     endpoint_key: str,
@@ -317,6 +352,16 @@ def get_env_collector_endpoint() -> Optional[str]:
     endpoint = values.get(ENV_PHOENIX_COLLECTOR_ENDPOINT) or values.get(
         ENV_OTEL_EXPORTER_OTLP_ENDPOINT
     )
+    if not endpoint:
+        _, file_endpoint, file_source = _file_canonical_override(
+            endpoint_source, (ENV_PHOENIX_COLLECTOR_ENDPOINT,)
+        )
+        if file_endpoint:
+            endpoint, endpoint_source = file_endpoint, file_source
+        else:
+            # Infer from the API-access variables: when only PHOENIX_ENDPOINT (or
+            # its alias) is set, trace export assumes the same server.
+            endpoint = values.get(ENV_PHOENIX_ENDPOINT) or values.get(ENV_PHOENIX_BASE_URL)
     if endpoint and endpoint_source is not None and endpoint_source.kind == "env-file":
         try:
             httpx.URL(endpoint)
@@ -330,12 +375,19 @@ def get_env_collector_endpoint() -> Optional[str]:
 
 def get_base_url(*, credential_source: Optional[str] = None) -> httpx.URL:
     values, endpoint_source = _resolve_env_tier_with_source(_SERVER_LOCATION_ENV_KEYS)
-    endpoint_key: Optional[str] = None
-    if endpoint := values.get(ENV_PHOENIX_COLLECTOR_ENDPOINT):
-        endpoint_key = ENV_PHOENIX_COLLECTOR_ENDPOINT
-    elif endpoint := values.get(ENV_OTEL_EXPORTER_OTLP_ENDPOINT):
-        endpoint_key = ENV_OTEL_EXPORTER_OTLP_ENDPOINT
-    elif values.get(ENV_PHOENIX_HOST):
+    endpoint_key = next((key for key in _API_BASE_URL_ENV_KEYS if values.get(key)), None)
+    endpoint = values.get(endpoint_key) if endpoint_key else None
+    if endpoint_key not in _CANONICAL_API_BASE_URL_ENV_KEYS:
+        file_key, file_endpoint, file_source = _file_canonical_override(
+            endpoint_source, _CANONICAL_API_BASE_URL_ENV_KEYS
+        )
+        if file_endpoint:
+            endpoint_key, endpoint, endpoint_source = file_key, file_endpoint, file_source
+    if endpoint and endpoint_key in _COLLECTOR_ENV_KEYS:
+        # A collector value may legitimately carry the OTLP /v1/traces path
+        # (full-URL exporters need it); the API base URL must not.
+        endpoint = re.sub(r"/+v1/traces/?$", "", endpoint) or endpoint
+    if endpoint_key is None and values.get(ENV_PHOENIX_HOST):
         endpoint_key = ENV_PHOENIX_HOST
     if credential_source is None:
         credential_values, resolved_credential_source = _resolve_env_tier_with_source(
