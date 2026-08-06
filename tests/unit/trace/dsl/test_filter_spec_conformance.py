@@ -160,10 +160,11 @@ REJECTED = [
     ("span.cost_details > 1", "can only be iterated"),
     ("any(d.cost > 1 for d in cost_details)", "invalid iterable `cost_details`"),
     ("any(d.nope > 1 for d in span.cost_details)", "invalid field `d.nope`"),
-    # The reserved root cannot be shadowed by a loop variable, though Python would allow
-    # it. A legislated deviation: comparing an element field against an outer one is on the
-    # roadmap for every grain, and that construct needs the root to denote the filtered row
-    # in every scope. Rejecting is also the reversible direction under additive-only.
+    # The reserved root cannot be shadowed by a loop variable, though Python would allow it
+    # and nothing breaks if it does. A legislated deviation kept because it is nearly free
+    # (no one needs this spelling) and reversible (additive-only lets a rejection be lifted,
+    # never a restriction added), and because `for span in span.cost_details` reads the same
+    # token two ways -- Python evaluates the outermost iterable in the enclosing scope.
     ("any(span.cost > 1 for span in span.cost_details)", "`span` is reserved"),
     # A resolved member is typed identically on both sides of the compiler, so it
     # rejects exactly as a bare column does -- the two encodings of one rule, pinned
