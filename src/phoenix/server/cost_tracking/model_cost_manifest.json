@@ -1027,6 +1027,11 @@
           "base_rate": 1e-6,
           "is_prompt": true,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1054,6 +1059,11 @@
           "base_rate": 1e-6,
           "is_prompt": true,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1081,6 +1091,11 @@
           "base_rate": 3e-7,
           "is_prompt": true,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1108,6 +1123,11 @@
           "base_rate": 5e-7,
           "is_prompt": true,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1135,6 +1155,11 @@
           "base_rate": 3e-7,
           "is_prompt": true,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1228,6 +1253,11 @@
           "base_rate": 1e-6,
           "is_prompt": true,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1357,6 +1387,11 @@
           "base_rate": 1e-6,
           "is_prompt": true,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1492,6 +1527,11 @@
           "base_rate": 5e-7,
           "is_prompt": true,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1541,6 +1581,11 @@
           "base_rate": 5e-7,
           "is_prompt": true,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1675,6 +1720,11 @@
           "base_rate": 1.5e-6,
           "is_prompt": true,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1697,6 +1747,11 @@
           "base_rate": 3e-8,
           "is_prompt": true,
           "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1741,6 +1796,11 @@
           "base_rate": 7.5e-8,
           "is_prompt": true,
           "token_type": "cache_read"
+        },
+        {
+          "base_rate": 7.5e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1768,6 +1828,11 @@
           "base_rate": 1e-6,
           "is_prompt": true,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1795,6 +1860,11 @@
           "base_rate": 1e-6,
           "is_prompt": true,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1822,6 +1892,11 @@
           "base_rate": 3e-7,
           "is_prompt": true,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1876,6 +1951,11 @@
           "base_rate": 1.5e-6,
           "is_prompt": true,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1898,6 +1978,11 @@
           "base_rate": 1e-6,
           "is_prompt": true,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -6318,6 +6403,11 @@
           "base_rate": 8e-6,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
