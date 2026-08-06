@@ -50,7 +50,7 @@ from pydantic_ai import AgentRunResult
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
-    RequestData as PydanticAIRequestData,
+    SubmitMessage as PydanticAISubmitMessage,
 )
 from pydantic_ai.ui.vercel_ai.request_types import (
     UIMessage as PydanticAIUIMessage,
@@ -96,6 +96,7 @@ from phoenix.db.types.data_stream_protocol import (
     DynamicToolInputStreamingPart,
     DynamicToolOutputAvailablePart,
     DynamicToolOutputErrorPart,
+    DynamicToolUIPart,
     PhoenixUIMessage,
     ProviderMetadata,
     TextUIPart,
@@ -108,6 +109,7 @@ from phoenix.db.types.data_stream_protocol import (
     ToolInputStreamingPart,
     ToolOutputAvailablePart,
     ToolOutputErrorPart,
+    ToolUIPart,
     TurnTraceContext,
     UIMessage,
     UIMessagePart,
@@ -359,8 +361,6 @@ ToolOutputUIPart = (
     | DynamicToolOutputAvailablePart
     | DynamicToolOutputErrorPart
 )
-"""A tool part in a terminal output state, mirroring the AI SDK's
-``addToolOutput`` states (``output-available`` / ``output-error``)."""
 
 _ToolCallCallbackProviderMetadataAdapter: TypeAdapter[ToolCallCallbackProviderMetadata] = (
     TypeAdapter(ToolCallCallbackProviderMetadata)
@@ -375,7 +375,7 @@ class ChatSubmitMessage(_ChatRequestMixin):
     message: PhoenixUIMessage | None = Field(
         default=None,
         description=(
-            "The turn's new user message to append. Omit it for a client-tool "
+            "The turn's new user message to append. May be omitted for client-tool "
             "continuation, where ``toolOutputs`` resolve the trailing "
             "assistant message's pending tool calls instead."
         ),
@@ -385,14 +385,9 @@ class ChatSubmitMessage(_ChatRequestMixin):
         description=(
             "Client-executed tool results for pending tool calls on the "
             "transcript's trailing assistant message, matched by "
-            "``toolCallId``. Mirrors the AI SDK's ``addToolOutput`` terminal "
-            "states (``output-available`` / ``output-error``). Submitted "
-            "alone they continue the assistant turn; submitted with "
-            "``message`` they resolve dangling tool calls (typically as "
-            "``output-error``) before the new user turn runs. Outputs for "
-            "already-resolved tool calls are ignored; outputs that match no "
-            "pending tool call are rejected with "
-            "``agent_session_messages_conflict``."
+            "``toolCallId``. Submitted alone they continue the assistant "
+            "turn; submitted with ``message`` they resolve dangling tool "
+            "calls before the new user turn runs."
         ),
     )
     last_message_id: str | None = Field(
@@ -412,9 +407,10 @@ class ChatSubmitMessage(_ChatRequestMixin):
         if self.message is None and not self.tool_outputs:
             raise ValueError("A chat submit request requires a message, toolOutputs, or both")
         if self.message is not None and self.message.role != "user":
-            raise ValueError(
-                "Only user messages can be submitted; resolve client tool calls via toolOutputs"
-            )
+            raise ValueError("Only user messages can be submitted")
+        tool_call_ids = [tool_output.tool_call_id for tool_output in self.tool_outputs]
+        if len(tool_call_ids) != len(set(tool_call_ids)):
+            raise ValueError("Each toolOutputs entry must have a distinct toolCallId")
         for tool_output in self.tool_outputs:
             call_provider_metadata = tool_output.call_provider_metadata
             if not isinstance(call_provider_metadata, dict):
@@ -458,7 +454,7 @@ AgentSessionConflictCode = Literal[
     "agent_session_busy",
     "agent_session_model_stale",
     "agent_session_messages_stale",
-    "agent_session_messages_conflict",
+    "agent_session_tool_outputs_conflict",
     "agent_session_compaction_conflict",
 ]
 
@@ -472,7 +468,7 @@ class AgentSessionConflictError(V1RoutesBaseModel):
     - ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer
       matches the persisted transcript — another client appended; refetch the
       transcript and retry.
-    - ``agent_session_messages_conflict``: the submitted ``toolOutputs`` do
+    - ``agent_session_tool_outputs_conflict``: the submitted ``toolOutputs`` do
       not match the transcript's trailing assistant message (no trailing
       assistant message to continue, an unknown ``toolCallId``, or a tool-name
       mismatch). Unlike ``agent_session_messages_stale`` this is not a
@@ -618,9 +614,6 @@ def _compact_agent_session_response(
     return JSONResponse(response.model_dump(mode="json", by_alias=True, exclude_none=True))
 
 
-_PydanticAIRequestDataAdapter: TypeAdapter[PydanticAIRequestData] = TypeAdapter(
-    PydanticAIRequestData
-)
 _PydanticAIUIMessageListAdapter: TypeAdapter[list[PydanticAIUIMessage]] = TypeAdapter(
     list[PydanticAIUIMessage]
 )
@@ -629,23 +622,18 @@ _PydanticAIUIMessageListAdapter: TypeAdapter[list[PydanticAIUIMessage]] = TypeAd
 def _to_pydantic_ai_request_data(
     request_data: ChatSubmitMessage,
     *,
-    messages: Sequence[PhoenixUIMessage] | None = None,
-) -> PydanticAIRequestData:
-    """Validate wire types into pydantic-ai's runtime request classes.
-
-    ``messages`` supplies the server-merged transcript for assistant chat
-    requests, whose wire shape carries a single message rather than the full
-    history pydantic-ai expects.
-    """
-    payload = request_data.model_dump(mode="json", by_alias=True, exclude_none=True)
-    payload.pop("toolOutputs", None)
-    if messages is not None:
-        payload.pop("message", None)
-        payload["messages"] = [
-            message.model_dump(mode="json", by_alias=True, exclude_none=True)
-            for message in messages
-        ]
-    return _PydanticAIRequestDataAdapter.validate_python(payload)
+    messages: Sequence[PhoenixUIMessage],
+) -> PydanticAISubmitMessage:
+    """Validate wire types into pydantic-ai's runtime request classes."""
+    return PydanticAISubmitMessage(
+        id=request_data.id,
+        messages=_PydanticAIUIMessageListAdapter.validate_python(
+            [
+                message.model_dump(mode="json", by_alias=True, exclude_none=True)
+                for message in messages
+            ]
+        ),
+    )
 
 
 def _to_pydantic_ai_messages(messages: Sequence[PhoenixUIMessage]) -> list[ModelMessage]:
@@ -1513,6 +1501,13 @@ _DYNAMIC_UNRESOLVED_TOOL_PART_TYPES = (
     DynamicToolApprovalRespondedPart,
 )
 
+_STATIC_UNRESOLVED_TOOL_PART_TYPES = (
+    ToolInputStreamingPart,
+    ToolInputAvailablePart,
+    ToolApprovalRequestedPart,
+    ToolApprovalRespondedPart,
+)
+
 _UnresolvedToolUIPart = (
     ToolInputStreamingPart
     | ToolInputAvailablePart
@@ -1525,16 +1520,17 @@ _UnresolvedToolUIPart = (
 )
 
 
-def _get_tool_execution_environment(part: UIMessagePart) -> str | None:
+def _get_tool_execution_environment(
+    part: _UnresolvedToolUIPart,
+) -> ToolExecutionEnvironment | None:
     """Read the server-stamped execution environment off a tool part, if any."""
-    call_provider_metadata = getattr(part, "call_provider_metadata", None)
-    if not isinstance(call_provider_metadata, dict):
+    if part.call_provider_metadata is None:
         return None
-    phoenix_metadata = call_provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY)
-    if not isinstance(phoenix_metadata, dict):
+    phoenix_metadata = part.call_provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY)
+    if phoenix_metadata is None:
         return None
-    environment = phoenix_metadata.get("toolExecutionEnvironment")
-    return environment if isinstance(environment, str) else None
+    metadata = _ToolCallCallbackProviderMetadataAdapter.validate_python(phoenix_metadata)
+    return metadata.tool_execution_environment
 
 
 def _interrupted_tool_error_text(part: _UnresolvedToolUIPart) -> str:
@@ -1564,16 +1560,18 @@ def _build_interrupted_tool_output(
             call_provider_metadata=part.call_provider_metadata,
             approval=part.approval,
         )
-    return ToolOutputErrorPart(
-        type=part.type,
-        tool_call_id=part.tool_call_id,
-        title=part.title,
-        input=part.input,
-        error_text=error_text,
-        provider_executed=part.provider_executed,
-        call_provider_metadata=part.call_provider_metadata,
-        approval=part.approval,
-    )
+    if isinstance(part, _STATIC_UNRESOLVED_TOOL_PART_TYPES):
+        return ToolOutputErrorPart(
+            type=part.type,
+            tool_call_id=part.tool_call_id,
+            title=part.title,
+            input=part.input,
+            error_text=error_text,
+            provider_executed=part.provider_executed,
+            call_provider_metadata=part.call_provider_metadata,
+            approval=part.approval,
+        )
+    assert_never(part)
 
 
 def _resolve_interrupted_tool_parts(message: PhoenixUIMessage) -> PhoenixUIMessage | None:
@@ -1596,56 +1594,68 @@ def _resolve_interrupted_tool_parts(message: PhoenixUIMessage) -> PhoenixUIMessa
     return message.model_copy(update={"parts": parts})
 
 
-def _tool_part_identity(part: UIMessagePart) -> tuple[str, str | None]:
-    """The (type, tool name) pair a tool output must share with its call."""
-    return (part.type, getattr(part, "tool_name", None))
+def _tool_output_matches_call(
+    call: ToolUIPart | DynamicToolUIPart,
+    output: ToolOutputUIPart,
+) -> bool:
+    """Whether a submitted output names the same tool as its persisted call."""
+    if isinstance(output, DynamicToolOutputAvailablePart | DynamicToolOutputErrorPart):
+        return isinstance(call, DynamicToolUIPart) and call.tool_name == output.tool_name
+    if isinstance(output, ToolOutputAvailablePart | ToolOutputErrorPart):
+        return isinstance(call, ToolUIPart) and call.type == output.type
+    assert_never(output)
+
+
+_ToolCallId = str
+_MessageId = str
+_PartIndex = int
+"""A tool part's position within its message's ``parts`` list."""
 
 
 def _apply_tool_outputs(
     message: PhoenixUIMessage,
     tool_outputs: Sequence[ToolOutputUIPart],
-) -> PhoenixUIMessage:
+) -> PhoenixUIMessage | None:
     """Resolve the assistant message's pending tool calls with submitted outputs.
 
     Outputs are matched by ``toolCallId``. An output for an already-resolved
     call is ignored so retried sends stay idempotent; an output that matches
     no call (or renames the tool) is an inconsistent request and conflicts.
-    Returns the input message unchanged when nothing was applied.
+    Returns the updated message, or None when no outputs were applied.
     """
-    part_indices_by_tool_call_id: dict[str, int] = {}
+    tool_calls_by_id: dict[_ToolCallId, tuple[_PartIndex, ToolUIPart | DynamicToolUIPart]] = {}
     for index, part in enumerate(message.parts):
-        tool_call_id = getattr(part, "tool_call_id", None)
-        if isinstance(tool_call_id, str):
-            part_indices_by_tool_call_id[tool_call_id] = index
+        if isinstance(part, ToolUIPart | DynamicToolUIPart):
+            tool_calls_by_id[part.tool_call_id] = (index, part)
     parts = list(message.parts)
     changed = False
     for tool_output in tool_outputs:
-        matched_index = part_indices_by_tool_call_id.get(tool_output.tool_call_id)
-        if matched_index is None:
+        matched_call = tool_calls_by_id.get(tool_output.tool_call_id)
+        if matched_call is None:
             raise _AgentSessionConflict(
-                "agent_session_messages_conflict",
+                "agent_session_tool_outputs_conflict",
                 (
                     f"Tool output {tool_output.tool_call_id!r} does not match a "
                     "tool call on the session's latest assistant message; "
                     "reload the conversation"
                 ),
             )
-        existing_part = parts[matched_index]
-        if _tool_part_identity(existing_part) != _tool_part_identity(tool_output):
+        matched_index, call_part = matched_call
+        if not _tool_output_matches_call(call_part, tool_output):
             raise _AgentSessionConflict(
-                "agent_session_messages_conflict",
+                "agent_session_tool_outputs_conflict",
                 (
                     f"Tool output {tool_output.tool_call_id!r} names a different "
                     "tool than the persisted tool call; reload the conversation"
                 ),
             )
-        if not isinstance(existing_part, _UNRESOLVED_TOOL_PART_TYPES):
+        if not isinstance(call_part, _UNRESOLVED_TOOL_PART_TYPES):
             # Already resolved (e.g. a retried send); keep the persisted result.
             continue
         parts[matched_index] = tool_output
         changed = True
     if not changed:
-        return message
+        return None
     return message.model_copy(update={"parts": parts})
 
 
@@ -1656,11 +1666,9 @@ class _MergedTranscript:
     messages: list[PhoenixUIMessage]
     """The model-facing transcript for this turn."""
 
-    updated_messages: dict[str, PhoenixUIMessage]
-    """Persisted messages rewritten by the merge — applied ``toolOutputs`` and
-    authoritative interrupted-tool repairs — keyed by message id. Persist these
-    under the turn lock before the model runs so the transcript stays accurate
-    even if the turn later fails."""
+    updated_messages: dict[_MessageId, PhoenixUIMessage]
+    """Persisted messages rewritten by the merge (applied ``toolOutputs`` and
+    interrupted-tool repairs); persist under the turn lock before the model runs."""
 
     continued_assistant_message: PhoenixUIMessage | None
     """The trailing assistant message this turn continues when the request
@@ -1673,25 +1681,12 @@ def _merge_messages(
     new_message: PhoenixUIMessage | None,
     tool_outputs: Sequence[ToolOutputUIPart] = (),
 ) -> _MergedTranscript:
-    """Merge a submit request into the persisted transcript.
-
-    - ``tool_outputs`` resolve pending tool calls on the transcript's trailing
-      assistant message — the client-tool continuation path.
-    - Any tool call still unresolved after the outputs are applied can never
-      be resolved (this request was the only mechanism that could have
-      supplied its result), so it is authoritatively rewritten as interrupted
-      (``output-error``). The rewrite applies to the whole loaded history, not
-      just the trailing message, so a transcript can't advance past a dangling
-      tool call.
-    - A **user** ``new_message`` is appended; without one the turn continues
-      the trailing assistant message.
-    """
     messages = list(old_messages)
-    updated_messages: dict[str, PhoenixUIMessage] = {}
+    updated_messages: dict[_MessageId, PhoenixUIMessage] = {}
     if tool_outputs:
         if not messages or messages[-1].role != "assistant":
             raise _AgentSessionConflict(
-                "agent_session_messages_conflict",
+                "agent_session_tool_outputs_conflict",
                 (
                     "Tool outputs were submitted but the session's latest "
                     "transcript message is not an assistant message; reload "
@@ -1699,7 +1694,7 @@ def _merge_messages(
                 ),
             )
         merged_tail = _apply_tool_outputs(messages[-1], tool_outputs)
-        if merged_tail is not messages[-1]:
+        if merged_tail is not None:
             updated_messages[merged_tail.id] = merged_tail
             messages[-1] = merged_tail
     for index, message in enumerate(messages):
@@ -1708,15 +1703,14 @@ def _merge_messages(
             updated_messages[repaired_message.id] = repaired_message
             messages[index] = repaired_message
     if new_message is not None:
-        if new_message.role != "user":
-            raise HTTPException(status_code=400, detail="Only user messages can be submitted")
+        assert new_message.role == "user", "request validation rejects non-user messages"
         return _MergedTranscript(
             messages=[*messages, new_message],
             updated_messages=updated_messages,
             continued_assistant_message=None,
         )
-    # Request validation guarantees tool_outputs is non-empty here, and the
-    # tool-output branch above guarantees the tail is an assistant message.
+    assert tool_outputs, "request validation requires a message, toolOutputs, or both"
+    assert messages[-1].role == "assistant", "the tool-output branch guarantees an assistant tail"
     return _MergedTranscript(
         messages=messages,
         updated_messages=updated_messages,
@@ -2651,10 +2645,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     )
                 ) is not None:
                     return conflict
-                # Applied tool outputs and authoritative interrupted-tool
-                # repairs are persisted under the turn lock, before the model
-                # runs, so the transcript stays accurate even if the turn
-                # later fails.
+                # Persist merge rewrites under the turn lock, before the model
+                # runs, so the transcript stays accurate even if the turn fails.
                 for message_row in session_history:
                     updated_message = merged_transcript.updated_messages.get(message_row.message_id)
                     if updated_message is not None:
@@ -3019,11 +3011,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     if continued_assistant_message is not None:
                         # Continue the trailing assistant message with the generated response.
                         turn_messages = [generated_assistant_message]
-                    elif body.message is not None:
+                    else:
                         # Persist the submitted user message and its generated response.
+                        assert body.message is not None, (
+                            "request validation requires a message or toolOutputs, and "
+                            "the merge continues the assistant turn for toolOutputs-only"
+                        )
                         turn_messages = [body.message, generated_assistant_message]
-                    else:  # pragma: no cover — request validation requires one of the two
-                        raise RuntimeError("A chat turn requires a message or tool outputs")
                     try:
                         await _persist_agent_session_turn(
                             request.app.state.db,

@@ -1972,7 +1972,7 @@ def test_merge_rejects_tool_outputs_that_match_no_tool_call() -> None:
                 ToolOutputAvailablePart.model_validate(_tool_output(toolCallId="tool-call-missing"))
             ],
         )
-    assert exc_info.value.code == "agent_session_messages_conflict"
+    assert exc_info.value.code == "agent_session_tool_outputs_conflict"
 
 
 def test_merge_rejects_tool_outputs_that_rename_the_tool() -> None:
@@ -1986,7 +1986,7 @@ def test_merge_rejects_tool_outputs_that_rename_the_tool() -> None:
             new_message=None,
             tool_outputs=[ToolOutputAvailablePart.model_validate(_tool_output(type="tool-python"))],
         )
-    assert exc_info.value.code == "agent_session_messages_conflict"
+    assert exc_info.value.code == "agent_session_tool_outputs_conflict"
 
 
 def test_merge_rejects_tool_outputs_without_a_trailing_assistant_message() -> None:
@@ -1998,7 +1998,7 @@ def test_merge_rejects_tool_outputs_without_a_trailing_assistant_message() -> No
             new_message=None,
             tool_outputs=[ToolOutputAvailablePart.model_validate(_tool_output())],
         )
-    assert exc_info.value.code == "agent_session_messages_conflict"
+    assert exc_info.value.code == "agent_session_tool_outputs_conflict"
 
 
 async def test_chat_endpoint_rejects_assistant_message_submissions(

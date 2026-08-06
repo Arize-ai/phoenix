@@ -9025,7 +9025,7 @@
               "agent_session_busy",
               "agent_session_model_stale",
               "agent_session_messages_stale",
-              "agent_session_messages_conflict",
+              "agent_session_tool_outputs_conflict",
               "agent_session_compaction_conflict"
             ],
             "title": "Code",
@@ -9049,7 +9049,7 @@
           "code"
         ],
         "title": "AgentSessionConflictError",
-        "description": "Body of every HTTP 409 returned by the agent session routes.\n\n- ``agent_session_busy``: another turn holds the session's turn lock.\n- ``agent_session_model_stale``: the request asserted a model the session\n  is no longer set to; refetch the session before retrying.\n- ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer\n  matches the persisted transcript \u2014 another client appended; refetch the\n  transcript and retry.\n- ``agent_session_messages_conflict``: the submitted ``toolOutputs`` do\n  not match the transcript's trailing assistant message (no trailing\n  assistant message to continue, an unknown ``toolCallId``, or a tool-name\n  mismatch). Unlike ``agent_session_messages_stale`` this is not a\n  concurrent-writer race but an inconsistent request; fix the client\n  rather than retrying.\n- ``agent_session_compaction_conflict``: the conversation changed while it\n  was being compacted; retry."
+        "description": "Body of every HTTP 409 returned by the agent session routes.\n\n- ``agent_session_busy``: another turn holds the session's turn lock.\n- ``agent_session_model_stale``: the request asserted a model the session\n  is no longer set to; refetch the session before retrying.\n- ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer\n  matches the persisted transcript \u2014 another client appended; refetch the\n  transcript and retry.\n- ``agent_session_tool_outputs_conflict``: the submitted ``toolOutputs`` do\n  not match the transcript's trailing assistant message (no trailing\n  assistant message to continue, an unknown ``toolCallId``, or a tool-name\n  mismatch). Unlike ``agent_session_messages_stale`` this is not a\n  concurrent-writer race but an inconsistent request; fix the client\n  rather than retrying.\n- ``agent_session_compaction_conflict``: the conversation changed while it\n  was being compacted; retry."
       },
       "AgentSessionData": {
         "properties": {
@@ -10193,7 +10193,7 @@
                 "type": "null"
               }
             ],
-            "description": "The turn's new user message to append. Omit it for a client-tool continuation, where ``toolOutputs`` resolve the trailing assistant message's pending tool calls instead."
+            "description": "The turn's new user message to append. May be omitted for client-tool continuation, where ``toolOutputs`` resolve the trailing assistant message's pending tool calls instead."
           },
           "toolOutputs": {
             "items": {
@@ -10214,7 +10214,7 @@
             },
             "type": "array",
             "title": "Tooloutputs",
-            "description": "Client-executed tool results for pending tool calls on the transcript's trailing assistant message, matched by ``toolCallId``. Mirrors the AI SDK's ``addToolOutput`` terminal states (``output-available`` / ``output-error``). Submitted alone they continue the assistant turn; submitted with ``message`` they resolve dangling tool calls (typically as ``output-error``) before the new user turn runs. Outputs for already-resolved tool calls are ignored; outputs that match no pending tool call are rejected with ``agent_session_messages_conflict``."
+            "description": "Client-executed tool results for pending tool calls on the transcript's trailing assistant message, matched by ``toolCallId``. Submitted alone they continue the assistant turn; submitted with ``message`` they resolve dangling tool calls before the new user turn runs."
           },
           "lastMessageId": {
             "anyOf": [
