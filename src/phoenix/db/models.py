@@ -3493,6 +3493,9 @@ class AgentSessionMessage(HasId):
         nullable=False,
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
 
     @property
     def is_compaction_point(self) -> bool:

@@ -1202,6 +1202,7 @@ CREATE TABLE public.agent_session_messages (
     message_id VARCHAR GENERATED ALWAYS AS (((message ->> 'id'::text))::character varying) STORED NOT NULL,
     is_compaction_message BOOLEAN GENERATED ALWAYS AS (COALESCE(((message #>> '{metadata,isCompactionMessage}'::text[]))::boolean, false)) STORED NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_session_messages PRIMARY KEY (id),
     CONSTRAINT uq_agent_session_messages_message_id
         UNIQUE (message_id),
