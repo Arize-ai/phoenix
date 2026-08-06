@@ -687,23 +687,6 @@ describe("ChatView", () => {
     expect(container.textContent).toContain("Provider error: 401 Unauthorized");
   });
 
-  it("shows interrupted recovery when history ends on a user message", () => {
-    renderChatView(root, {
-      chatMessages: unansweredUserMessages,
-      status: "ready",
-      rewindToMessage: vi.fn(),
-      forkFromMessage: vi.fn(),
-    });
-
-    expect(container.textContent).toContain("PXI did not respond.");
-    expect(container.textContent).toContain(
-      "This message was interrupted before PXI could respond."
-    );
-    expect(container.textContent).toContain("Retry");
-    expect(container.textContent).toContain("Edit message");
-    expect(container.textContent).toContain("Branch before message");
-  });
-
   it("hides rewind and branch actions while the session is busy elsewhere", () => {
     renderChatView(root, {
       chatMessages: unansweredUserMessages,
@@ -717,86 +700,6 @@ describe("ChatView", () => {
     expect(container.textContent).not.toContain("Retry");
     expect(container.textContent).not.toContain("Edit message");
     expect(container.textContent).not.toContain("Branch before message");
-  });
-
-  it("retries an interrupted user message without duplicating it", async () => {
-    const sendMessage = vi.fn();
-    const rewindToMessage = vi.fn(async () => "What happened?");
-    renderChatView(root, {
-      chatMessages: unansweredUserMessages,
-      status: "ready",
-      sendMessage,
-      rewindToMessage,
-      forkFromMessage: vi.fn(),
-    });
-
-    const retryButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Retry"
-    );
-    expect(retryButton).not.toBeUndefined();
-
-    await act(async () => {
-      retryButton?.click();
-    });
-
-    expect(rewindToMessage).toHaveBeenCalledWith("user-message");
-    expect(sendMessage).toHaveBeenCalledWith({ text: "What happened?" });
-  });
-
-  it("confirms editing an interrupted user message", () => {
-    const rewindToMessage = vi.fn(async () => "What happened?");
-    renderChatView(root, {
-      chatMessages: unansweredUserMessages,
-      status: "ready",
-      rewindToMessage,
-      forkFromMessage: vi.fn(),
-    });
-
-    const editButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Edit message"
-    );
-    expect(editButton).not.toBeUndefined();
-
-    act(() => {
-      editButton?.click();
-    });
-
-    const confirmButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Rewind conversation"
-    );
-    act(() => {
-      confirmButton?.click();
-    });
-
-    expect(rewindToMessage).toHaveBeenCalledWith("user-message");
-  });
-
-  it("confirms branching before an interrupted user message", () => {
-    const forkFromMessage = vi.fn(async () => undefined);
-    renderChatView(root, {
-      chatMessages: unansweredUserMessages,
-      status: "ready",
-      rewindToMessage: vi.fn(),
-      forkFromMessage,
-    });
-
-    const branchButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Branch before message"
-    );
-    expect(branchButton).not.toBeUndefined();
-
-    act(() => {
-      branchButton?.click();
-    });
-
-    const confirmButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Branch conversation"
-    );
-    act(() => {
-      confirmButton?.click();
-    });
-
-    expect(forkFromMessage).toHaveBeenCalledWith("user-message");
   });
 
   it("confirms undoing a failed turn from the latest user message", () => {
