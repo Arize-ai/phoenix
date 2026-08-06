@@ -104,12 +104,13 @@ pnpm inspect
 When developing, the server requires the following environment variables:
 
 - `PHOENIX_API_KEY`: Your Phoenix API key
-- `PHOENIX_ENDPOINT`: The base URL for Phoenix (falls back to
-  `PHOENIX_COLLECTOR_ENDPOINT`, then the legacy `PHOENIX_HOST`)
+- `PHOENIX_ENDPOINT`: The Phoenix base URL the server sends API requests to
 - `PHOENIX_PROJECT`: Optional default project for project-scoped tools (alias: `PHOENIX_PROJECT_NAME`)
 - `PHOENIX_CLIENT_HEADERS`: Optional JSON-encoded request headers
 
-Make sure to set these in a `.env` file. See `.env.example`.
+Make sure to set these in a `.env` file. See `.env.example`, and
+[Environments](https://arize.com/docs/phoenix/environments) for the variables
+Phoenix falls back to when `PHOENIX_ENDPOINT` is unset.
 
 At runtime the server also discovers the nearest `.env.phoenix` file at or
 above the working directory. Process environment variables and command-line
