@@ -89,6 +89,30 @@ export const coreSpanFilterCompletions: Completion[] = [
     info: "Latency (i.e. duration) in milliseconds",
   },
   {
+    label: "span.total_cost",
+    type: "variable",
+    detail: "cost of this span",
+    info: "Total cost recorded for this span. 0 when no cost is configured, never null. Also span.prompt_cost and span.completion_cost.",
+  },
+  {
+    label: "span.total_tokens",
+    type: "variable",
+    detail: "tokens of this span",
+    info: "Total tokens recorded for this span. 0 when none are recorded, never null. Also span.prompt_tokens and span.completion_tokens.",
+  },
+  {
+    label: "span.total_cost_per_token",
+    type: "variable",
+    detail: "cost rate of this span",
+    info: "Cost per token for this span. Null when the span has no cost row or no tokens, so it fails every comparison — test for it with `is None`. Also span.prompt_cost_per_token and span.completion_cost_per_token.",
+  },
+  {
+    label: "span.cost_details",
+    type: "variable",
+    detail: "per-token-type cost rows",
+    info: "The per-token-type cost rows behind this span's cost. Iterate it with any/all/len/sum/max/min — e.g. any(cost_detail.token_type == 'cache_read' for cost_detail in span.cost_details). Fields: token_type, is_prompt, cost, tokens, cost_per_token.",
+  },
+  {
     label: "metadata",
     type: "variable",
     detail: "metadata by key",
@@ -188,6 +212,15 @@ export const spanFilterSnippets: DSLFilterSnippet[] = [
   {
     label: "filter by latency",
     snippet: "latency_ms >= ${10_000}",
+  },
+  {
+    label: "filter by cost",
+    snippet: "span.total_cost > ${0.1}",
+  },
+  {
+    label: "filter by cost detail",
+    snippet:
+      "any(cost_detail.token_type == '${cache_read}' for cost_detail in span.cost_details)",
   },
   {
     label: "search input for substring",
