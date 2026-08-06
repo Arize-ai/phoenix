@@ -23,13 +23,13 @@ Then create a `.env` file that points Mastra at it:
 
 ```bash
 PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_ENDPOINT=http://localhost:6006 # Only if you also read data back via the API clients
 PHOENIX_API_KEY=your-api-key # Optional, only if auth is enabled
 PHOENIX_PROJECT_NAME=mastra-service # Optional
 ```
 
-`PHOENIX_COLLECTOR_ENDPOINT` is your Phoenix server's URL. `ArizeExporter` POSTs to exactly the URL
-it is given, so the setup below builds the full OTLP/HTTP traces URL from it in code by
-appending `/v1/traces`.
+Traces are exported to `PHOENIX_COLLECTOR_ENDPOINT`; it is a base URL, so the setup below
+appends `/v1/traces` in code — `ArizeExporter` POSTs to exactly the URL it is given.
 
 ## Setup
 
@@ -40,9 +40,8 @@ import { Mastra } from "@mastra/core";
 import { Observability } from "@mastra/observability";
 import { ArizeExporter } from "@mastra/arize";
 
-// ArizeExporter POSTs to `endpoint` exactly as given, so build the full OTLP
-// URL from the Phoenix server URL.
-const phoenixTracesUrl = `${(process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006").replace(/\/$/, "")}/v1/traces`;
+// ArizeExporter POSTs to this URL as given, so it needs the OTLP path.
+const phoenixTracesUrl = `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`;
 
 export const mastra = new Mastra({
   // ... other config (agents, workflows, etc.)
