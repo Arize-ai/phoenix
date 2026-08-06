@@ -12,11 +12,16 @@ ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
 ENV_PHOENIX_HOST_ROOT_PATH = "PHOENIX_HOST_ROOT_PATH"
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
-# Canonical base URL for API access (the trace-export variable above is for
-# exporters; when only one of the two is set, the other is inferred from it).
+# Canonical base URL for API access. When it is unset the base URL is inferred
+# from the trace-export variable above; the inference does not run the other
+# way, so this variable alone never configures trace export.
 ENV_PHOENIX_ENDPOINT = "PHOENIX_ENDPOINT"
-# Accepted alias for ENV_PHOENIX_ENDPOINT (the name the client docs have
-# historically used). ENV_PHOENIX_ENDPOINT takes precedence when both are set.
+# Undocumented compatibility fallback for the API base URL, honored *below*
+# ENV_PHOENIX_COLLECTOR_ENDPOINT. This name appeared in the client docs for
+# years but was never read by any code, so a value set from those docs silently
+# did nothing; ranking it below the collector variable lets those
+# configurations start working without retargeting anyone who set both. Do not
+# document it or use it in new configuration.
 ENV_PHOENIX_BASE_URL = "PHOENIX_BASE_URL"
 ENV_PHOENIX_CLIENT_HEADERS = "PHOENIX_CLIENT_HEADERS"
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"

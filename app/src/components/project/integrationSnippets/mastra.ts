@@ -22,8 +22,11 @@ const mastra = new Mastra({
       arize: {
         serviceName: "${projectName}",
         exporters: [
+          // ArizeExporter POSTs to \`endpoint\` exactly as given, so build the
+          // full OTLP URL from the collector base URL — handed a bare server
+          // URL it posts to the wrong path and every span is silently dropped.
           new ArizeExporter({
-            endpoint: \`\${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces\`,
+            endpoint: \`\${(process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006").replace(/\\/$/, "")}/v1/traces\`,
             projectName: "${projectName}",
           }),
         ],

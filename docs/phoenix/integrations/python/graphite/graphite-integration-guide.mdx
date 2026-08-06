@@ -96,6 +96,12 @@ export PHOENIX_ENDPOINT="localhost" # if using docker compose and ports are forw
 export PHOENIX_PORT="4317" # This will override port settings in setup_tracing()
 ```
 
+<Warning>
+Graphite's `setup_tracing()` reads `PHOENIX_ENDPOINT` as a bare **host** (paired with `PHOENIX_PORT` for gRPC). Phoenix's own SDKs read the same variable as a full **base URL** (`http://host:port`) for API access — see [Environments](/docs/phoenix/environments).
+
+If you also use `phoenix.client`, the `px` CLI, or the MCP server in this environment, a bare host here will break them. Keep the two concerns separate: pass `endpoint`/`port` directly to `setup_tracing()` instead of exporting `PHOENIX_ENDPOINT`, and let `PHOENIX_ENDPOINT` hold the full base URL Phoenix expects.
+</Warning>
+
 ### Setup Function Parameters
 
 The `setup_tracing()` function accepts the following parameters:
