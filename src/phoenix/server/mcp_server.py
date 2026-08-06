@@ -67,7 +67,7 @@ if TYPE_CHECKING:
     from fastmcp.server.http import StarletteWithLifespan
     from starlette.types import ASGIApp, Receive, Scope, Send
 
-    from phoenix.server.monty_runtime import MontyRuntime
+    from phoenix.server.monty_runtime import MontyConsumer, MontyRuntime
     from phoenix.server.types import DbSessionFactory
 
 #: Path the MCP ASGI app is mounted at on the Phoenix FastAPI app.
@@ -323,7 +323,9 @@ def _read_only(
     return build
 
 
-def _build_code_mode(runtime: "MontyRuntime") -> tuple[CodeMode, MontyPoolSandboxProvider]:
+def _build_code_mode(
+    runtime: "MontyRuntime", consumer: "MontyConsumer"
+) -> tuple[CodeMode, MontyPoolSandboxProvider]:
     """Code-mode tool surface: discovery meta-tools plus a sandboxed ``execute``.
 
     Clients see ``search``/``get_schema``/``tags``/``list_tools`` for discovery and
@@ -343,7 +345,7 @@ def _build_code_mode(runtime: "MontyRuntime") -> tuple[CodeMode, MontyPoolSandbo
     Returns:
         The transform to install and its FastMCP sandbox adapter.
     """
-    sandbox_provider = MontyPoolSandboxProvider(runtime=runtime)
+    sandbox_provider = MontyPoolSandboxProvider(runtime=runtime, consumer=consumer)
     return (
         CodeMode(
             discovery_tools=[
@@ -451,6 +453,7 @@ def build_phoenix_mcp_server(
     *,
     monty_runtime: Optional["MontyRuntime"] = None,
     code_mode: bool,
+    monty_consumer: "MontyConsumer" = "mcp",
     read_only: bool = False,
     db: "DbSessionFactory",
 ) -> tuple[FastMCP, Optional[MontyPoolSandboxProvider]]:
@@ -466,6 +469,8 @@ def build_phoenix_mcp_server(
         code_mode: Present the surface as a sandboxed ``execute`` plus discovery
             tools instead of one tool per endpoint. Mutually exclusive with group
             gating, which is installed in its place.
+        monty_consumer: Admission class the sandbox spends against under code
+            mode. Ignored when code mode is off.
         read_only: Derive tools from GET routes only.
         db: Session factory for the analytics SQL tools.
 
@@ -514,7 +519,7 @@ def build_phoenix_mcp_server(
         # hide every non-default group from ``search``/``list_tools`` with no way
         # to reveal them.
         assert monty_runtime is not None
-        transform, sandbox_provider = _build_code_mode(monty_runtime)
+        transform, sandbox_provider = _build_code_mode(monty_runtime, monty_consumer)
         mcp.add_transform(transform)
     else:
         _install_progressive_disclosure(mcp, openapi_spec, read_only=read_only)

@@ -9,6 +9,7 @@ from phoenix.server.monty_runtime import (
     DEFAULT_GUEST_MAX_MEMORY_BYTES,
     DEFAULT_GUEST_MAX_RECURSION_DEPTH,
     MontyBusy,
+    MontyConsumer,
     MontyDeadlineExceeded,
     MontyRuntime,
     MontyShuttingDown,
@@ -50,6 +51,8 @@ class MontyPoolSandboxProvider:
 
     Args:
         runtime: Application-owned shared runtime.
+        consumer: Admission class this provider spends against. Each surface
+            takes its own so neither can exhaust the pool on the other's behalf.
         limits: Per-session guest limits. Defaults to :data:`DEFAULT_LIMITS`.
         total_timeout: End-to-end deadline for one ``execute``; prompt for a block
             awaiting a tool, but one already executing runs on to its guest
@@ -60,6 +63,7 @@ class MontyPoolSandboxProvider:
         self,
         *,
         runtime: MontyRuntime,
+        consumer: MontyConsumer = "mcp",
         limits: Optional["ResourceLimits"] = None,
         total_timeout: Optional[float] = DEFAULT_TOTAL_TIMEOUT,
     ) -> None:
@@ -67,6 +71,7 @@ class MontyPoolSandboxProvider:
         # this attribute.
         self.limits: "ResourceLimits" = (DEFAULT_LIMITS if limits is None else limits).copy()
         self._runtime = runtime
+        self._consumer = consumer
         self._total_timeout = total_timeout
 
     async def run(
@@ -84,7 +89,7 @@ class MontyPoolSandboxProvider:
         try:
             return await self._runtime.run(
                 code,
-                consumer="mcp",
+                consumer=self._consumer,
                 limits=self.limits,
                 inputs=inputs,
                 external_functions=external_functions,

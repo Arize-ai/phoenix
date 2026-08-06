@@ -1,14 +1,17 @@
 <tool_group name="phoenix_rest_api">
-  <description>Read-only tools generated from Phoenix's own REST API, covering projects, spans, traces, datasets, experiments, prompts, and annotations.</description>
+  <description>Phoenix's own REST API, reached by writing Python rather than by calling one tool per endpoint. Covers projects, spans, traces, datasets, experiments, prompts, and annotations.</description>
   <when_to_use>You need Phoenix data that the tools already in front of you do not return, or you need to read across more of a resource than a single view exposes.</when_to_use>
   <discovery>
-    Only the projects tools are visible up front. Call `list_tool_groups` to see what else exists, then `enable_tool_group` to reveal a group before using its tools.
-    Reveals last for the current turn only. If a tool you enabled earlier in this conversation is no longer available, enable its group again rather than assuming it failed.
+    The endpoints are not listed up front. Use `search` to find ones relevant to the task, `tags` to browse them by domain, and `get_schema` to read the parameters of one you intend to call.
   </discovery>
+  <execution>
+    `execute` runs Python in a sandbox where `call_tool` is the only function in scope. It is a coroutine, so call it as `await call_tool(name, params)`, and `return` the value you want back. Prefer one block that loops, filters, and aggregates over many separate calls: only what you return crosses back, so summarise inside the block instead of returning whole result sets.
+    Each block is independent. Nothing carries over from an earlier `execute`, so a block cannot rely on names bound in a previous one.
+  </execution>
   <precedence>
-    These tools read the same data as the workspace tools, but they cannot change what the user is looking at. When a tool that updates the UI would answer the request, prefer it; reach here to read, to cover ground it does not, or when no such tool exists.
+    These endpoints read the same data as the workspace tools, but they cannot change what the user is looking at. When a tool that updates the UI would answer the request, prefer it; reach here to read, to cover ground it does not, or when no such tool exists.
   </precedence>
   <constraints>
-    This surface is read-only. To create or modify anything, use the workspace tools, which route the change through the user's approval.
+    This surface is read-only, so `call_tool` reaches no endpoint that writes. To create or modify anything, use the workspace tools, which route the change through the user's approval.
   </constraints>
 </tool_group>

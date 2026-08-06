@@ -18,6 +18,7 @@ from phoenix.server.bearer_auth import (
     bind_principal,
 )
 from phoenix.server.mcp_server import _v1_group_sizes, build_phoenix_mcp_server
+from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.types import (
     AccessTokenAttributes,
     AccessTokenClaims,
@@ -210,6 +211,77 @@ class TestReadOnlySurface:
         assert _v1_group_sizes(spec, read_only=True) == {"projects": 1}
 
 
+class TestCodeMode:
+    """The agent's configured surface: a sandboxed ``execute`` over the catalog."""
+
+    @staticmethod
+    def _code_mode_server(seen: list[Any]) -> tuple[Any, MontyRuntime]:
+        runtime = MontyRuntime()
+        mcp, _ = build_phoenix_mcp_server(
+            _rest_app(seen),
+            monty_runtime=runtime,
+            code_mode=True,
+            monty_consumer="agent",
+            read_only=True,
+            db=_unused_db(),
+        )
+        return mcp, runtime
+
+    async def test_surface_is_execute_plus_discovery(self) -> None:
+        mcp, runtime = self._code_mode_server([])
+        try:
+            async with PhoenixMCPToolset[None](mcp) as toolset:
+                names = {tool.name for tool in await toolset.list_tools()}
+        finally:
+            await runtime.aclose()
+
+        assert names == {"execute", "search", "get_schema", "tags", "list_tools"}
+
+    async def test_principal_reaches_v1_through_guest_code(self) -> None:
+        """Guest code calls back into the host to reach a tool, so the binding has
+        to survive a hop the direct path never takes."""
+        seen: list[Any] = []
+        mcp, runtime = self._code_mode_server(seen)
+        principal = _phoenix_user()
+        try:
+            async with PhoenixMCPToolset[None](mcp, principal=principal) as toolset:
+                result = await toolset.direct_call_tool(
+                    "execute", {"code": "return await call_tool('whoami_v1_whoami_get', {})"}
+                )
+        finally:
+            await runtime.aclose()
+
+        assert seen == [principal]
+        assert result["user_id"] == str(principal.identity)
+
+    async def test_call_tool_is_a_coroutine(self) -> None:
+        """Unawaited, it returns a coroutine rather than raising, so the mistake
+        surfaces as a nonsense result. The instructions say to await it."""
+        mcp, runtime = self._code_mode_server([])
+        try:
+            async with PhoenixMCPToolset[None](mcp) as toolset:
+                result = await toolset.direct_call_tool(
+                    "execute", {"code": "return call_tool('whoami_v1_whoami_get', {})"}
+                )
+        finally:
+            await runtime.aclose()
+
+        assert "coroutine" in str(result)
+
+    async def test_the_catalog_excludes_mutating_endpoints(self) -> None:
+        """Read-only is enforced by the route maps, so no mutating tool exists for
+        ``call_tool`` to name."""
+        mcp, runtime = self._code_mode_server([])
+        try:
+            async with PhoenixMCPToolset[None](mcp) as toolset:
+                catalog = str(await toolset.direct_call_tool("list_tools", {}))
+        finally:
+            await runtime.aclose()
+
+        assert "whoami" in catalog
+        assert "mutate" not in catalog
+
+
 class TestToolGroupVisibility:
     """Reveals are session state, and a session is one agent run."""
 
@@ -256,13 +328,14 @@ class TestToolGroupVisibility:
         assert not any("spans" in name for name in names)
 
 
-def test_the_instructions_tell_the_model_reveals_do_not_survive_the_turn() -> None:
-    """The history shows an earlier turn's reveal succeeding while its tools are
-    gone, so the instructions state the lifetime rather than leave it inferred."""
+def test_the_instructions_name_the_tools_the_surface_actually_exposes() -> None:
+    """Instructions that name a tool the surface lacks cost a failed call to
+    discover, so they are pinned against the code-mode tool names."""
     from phoenix.server.agents.prompts import AgentPrompts
 
     rendered = AgentPrompts().phoenix_mcp_tools.render()
 
-    assert "enable_tool_group" in rendered
-    assert "current turn only" in rendered
+    for tool in ("execute", "call_tool", "search", "get_schema", "tags"):
+        assert tool in rendered
+    assert "enable_tool_group" not in rendered
     assert "read-only" in rendered.lower()
