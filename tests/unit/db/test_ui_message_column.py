@@ -107,7 +107,7 @@ def test_metadata_discriminator_is_required_at_construction() -> None:
     # The Phoenix-owned metadata types drop upstream's ergonomic ``type``
     # default so a forgotten discriminator fails here instead of at persist.
     with pytest.raises(ValidationError, match="type"):
-        UserMessageMetadata(  # type: ignore[call-arg]
+        UserMessageMetadata(
             current_date_time="2026-08-05T00:00:00+00:00",
             time_zone="UTC",
         )
