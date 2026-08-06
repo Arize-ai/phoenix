@@ -56,7 +56,7 @@ We'll start by initializing the Phoenix client to connect to your deployed Phoen
 from phoenix.client import Client
 
 # Initialize client - automatically reads from environment variables:
-# PHOENIX_ENDPOINT, and PHOENIX_API_KEY if authentication is enabled
+# PHOENIX_ENDPOINT, plus PHOENIX_API_KEY if authentication is enabled
 client = Client()
 
 # Or explicitly configure for your Phoenix instance:
@@ -219,6 +219,10 @@ from phoenix.otel import register
 tracer_provider = register()
 OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
+
+`register()` takes its export target from `PHOENIX_COLLECTOR_ENDPOINT`, which is a separate
+setting from the `PHOENIX_ENDPOINT` the client reads. Set both to your Phoenix — see
+[Environments](/docs/phoenix/environments).
 
 **Run the Task and Evaluators**
 
