@@ -57,13 +57,13 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
     OPENAI_API_KEY= <ENTER YOUR OPENAI API KEY>
 
     PHOENIX_ENDPOINT=http://localhost:6006
-    PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+    PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
     PHOENIX_PROJECT_NAME=mastra-tracing-quickstart
     ```
-    Both are your Phoenix server's URL — one variable per concern. Traces are exported to `PHOENIX_COLLECTOR_ENDPOINT`; the API clients used later in this series for evals and experiments read `PHOENIX_ENDPOINT`. Set them to the same value unless trace ingest and API access live at different URLs.
+    One variable per concern. `PHOENIX_ENDPOINT` is your Phoenix server's base URL, read by the API clients used later in this series for evals and experiments. `PHOENIX_COLLECTOR_ENDPOINT` is the exact URL traces are sent to — Mastra's exporter POSTs to it verbatim, so it carries the OTLP `/v1/traces` path.
 
     <Note>
-      If you're pointing at a remote deployment, set both to that hostname (e.g. `https://phoenix.example.com`). If it has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled, also add a `PHOENIX_API_KEY` from its **Settings** page. A local `phoenix serve` needs no key.
+      If you're pointing at a remote deployment, swap `http://localhost:6006` for that hostname in both (e.g. `https://phoenix.example.com` and `https://phoenix.example.com/v1/traces`). If it has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled, also add a `PHOENIX_API_KEY` from its **Settings** page. A local `phoenix serve` needs no key.
     </Note>
 
     ### **Connect Your Project in Phoenix** 
@@ -84,8 +84,7 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
               process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart",
             exporters: [
               new ArizeExporter({
-                // ArizeExporter POSTs to this URL as given, so it needs the OTLP path.
-                endpoint: `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`,
+                endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT,
                 apiKey: process.env.PHOENIX_API_KEY,
                 projectName: process.env.PHOENIX_PROJECT_NAME,
               }),
@@ -358,8 +357,7 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
               process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart",
             exporters: [
               new ArizeExporter({
-                // ArizeExporter POSTs to this URL as given, so it needs the OTLP path.
-                endpoint: `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`,
+                endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT,
                 apiKey: process.env.PHOENIX_API_KEY,
                 projectName: process.env.PHOENIX_PROJECT_NAME,
               }),

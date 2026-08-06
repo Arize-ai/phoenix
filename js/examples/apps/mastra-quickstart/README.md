@@ -29,15 +29,15 @@ A quickstart that combines [Mastra](https://mastra.ai) (multi-agent framework) w
 
    Create a `.env` in the project root with:
    - `OPENAI_API_KEY` – used by Mastra agents and phoenix-evals
-   - `PHOENIX_COLLECTOR_ENDPOINT` – Phoenix server URL traces are exported to (e.g. `http://localhost:6006`)
-   - `PHOENIX_ENDPOINT` – Phoenix server URL the API clients read; same value unless they differ
+   - `PHOENIX_COLLECTOR_ENDPOINT` – exact URL traces are sent to (e.g. `http://localhost:6006/v1/traces`)
+   - `PHOENIX_ENDPOINT` – Phoenix server base URL the API clients read (e.g. `http://localhost:6006`)
    - `PHOENIX_API_KEY` – (optional) if your Phoenix instance requires it
    - `PHOENIX_PROJECT_NAME` – (optional) project name for traces; default is `mastra-tracing-quickstart`
 
-   The eval and experiment scripts call the Phoenix API on `PHOENIX_ENDPOINT`; traces go to
-   `PHOENIX_COLLECTOR_ENDPOINT`. Both are base URLs — `src/mastra/index.ts` appends
-   `/v1/traces` in code, because Mastra's `ArizeExporter` POSTs to exactly the URL it is
-   given.
+   The eval and experiment scripts call the Phoenix API on `PHOENIX_ENDPOINT`, the server's
+   base URL. `PHOENIX_COLLECTOR_ENDPOINT` is the exact URL traces are sent to — Mastra's
+   `ArizeExporter` POSTs to it verbatim, so it carries the OTLP `/v1/traces` path and
+   `src/mastra/index.ts` passes it straight through.
 
 ## Scripts
 
