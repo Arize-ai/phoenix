@@ -160,7 +160,7 @@ async def test_agent_session_serializes_deleted_custom_provider_as_builtin_fallb
             model_provider=ModelProvider.OPENAI,
             model_name="custom-model",
             custom_provider_id=provider.id,
-            builtin_provider=None,
+            model_provider_type="custom",
         )
         session.add(agent_session)
         await session.flush()
@@ -185,7 +185,6 @@ async def test_agent_session_serializes_deleted_custom_provider_as_builtin_fallb
                   ... on AgentBuiltinProviderModelSelection {
                     provider
                     modelName
-                    openaiApiType
                   }
                 }
               }
@@ -202,7 +201,6 @@ async def test_agent_session_serializes_deleted_custom_provider_as_builtin_fallb
                 "__typename": "AgentBuiltinProviderModelSelection",
                 "provider": "OPENAI",
                 "modelName": "custom-model",
-                "openaiApiType": "RESPONSES",
             },
         }
     }

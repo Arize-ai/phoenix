@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bd99f7c92aae7e453fb7bcd9d257c754>>
+ * @generated SignedSource<<e304065dfa7c3712a50abd32813a29ba>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,6 @@
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
-export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type CreateAgentSessionInput = {
   isEphemeral?: boolean;
   model: AgentModelSelectionInput;
@@ -29,7 +28,6 @@ export type AgentCustomProviderModelSelectionInput = {
 };
 export type AgentBuiltinProviderModelSelectionInput = {
   modelName: string;
-  openaiApiType?: OpenAIApiType;
   provider: ModelProvider;
 };
 export type useDraftSessionCreationCreateAgentSessionMutation$variables = {
@@ -172,14 +170,7 @@ v13 = {
           "name": "provider",
           "storageKey": null
         },
-        (v12/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "openaiApiType",
-          "storageKey": null
-        }
+        (v12/*:: as any*/)
       ],
       "type": "AgentBuiltinProviderModelSelection",
       "abstractKey": null
@@ -349,12 +340,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d58def5ecf154d0f05986d9a9881201a",
+    "cacheID": "a0fd7d24b668a972bf7ca669425983d9",
     "id": null,
     "metadata": {},
     "name": "useDraftSessionCreationCreateAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useDraftSessionCreationCreateAgentSessionMutation(\n  $input: CreateAgentSessionInput!\n) {\n  createAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary: isEphemeral\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      ...agentSessionModel_session\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n      openaiApiType\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
+    "text": "mutation useDraftSessionCreationCreateAgentSessionMutation(\n  $input: CreateAgentSessionInput!\n) {\n  createAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary: isEphemeral\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      ...agentSessionModel_session\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
   }
 };
 })();

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<66fb77f0fae1e4be7f4fce9c251865a1>>
+ * @generated SignedSource<<e565de80a7b379b9b7bcdc5967b5e401>>
  * @lightSyntaxTransform
  */
 
@@ -161,14 +161,7 @@ v14 = {
           "name": "provider",
           "storageKey": null
         },
-        (v13/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "openaiApiType",
-          "storageKey": null
-        }
+        (v13/*:: as any*/)
       ],
       "type": "AgentBuiltinProviderModelSelection",
       "abstractKey": null
@@ -340,12 +333,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "40223b541f3b4b108079610d8825cd1b",
+    "cacheID": "a87bffea0bb7eb44c75052208d574ebe",
     "id": null,
     "metadata": {},
     "name": "useAgentSessionHistoryBranchAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useAgentSessionHistoryBranchAgentSessionMutation(\n  $input: BranchAgentSessionInput!\n) {\n  branchAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary: isEphemeral\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n      ...agentSessionModel_session\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n      openaiApiType\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
+    "text": "mutation useAgentSessionHistoryBranchAgentSessionMutation(\n  $input: BranchAgentSessionInput!\n) {\n  branchAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary: isEphemeral\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n      ...agentSessionModel_session\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
   }
 };
 })();

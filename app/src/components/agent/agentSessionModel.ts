@@ -29,7 +29,6 @@ const agentSessionModelFragment = graphql`
       ... on AgentBuiltinProviderModelSelection {
         provider
         modelName
-        openaiApiType
       }
       ... on AgentCustomProviderModelSelection {
         providerId
@@ -98,7 +97,6 @@ export function resolvePersistedAgentModel({
   return {
     provider: model.provider,
     modelName: model.modelName,
-    openaiApiType: model.openaiApiType,
     invocationParameters: getDefaultInvocationConfig(model.provider),
   };
 }
@@ -123,13 +121,6 @@ export function toAgentModelSelection(
     providerType: "builtin",
     provider: config.provider,
     modelName: config.modelName ?? "",
-    ...((config.provider === "OPENAI" ||
-      config.provider === "AZURE_OPENAI") && {
-      openaiApiType:
-        config.openaiApiType === "CHAT_COMPLETIONS"
-          ? "chat_completions"
-          : "responses",
-    }),
   };
 }
 
@@ -147,10 +138,6 @@ export function toAgentModelSelectionInput(model: AgentModelSelection) {
     builtin: {
       provider: model.provider,
       modelName: model.modelName,
-      openaiApiType:
-        model.openaiApiType === "chat_completions"
-          ? ("CHAT_COMPLETIONS" as const)
-          : ("RESPONSES" as const),
     },
   };
 }

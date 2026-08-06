@@ -2,7 +2,6 @@ import pytest
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.types.agent_session_config import AgentBuiltinProviderConfig
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.agents.exceptions import ProviderNotFoundError
 from phoenix.server.agents.model_selection import (
@@ -42,7 +41,7 @@ async def _add_builtin_session(db: DbSessionFactory) -> int:
             title="Model persistence",
             model_provider=ModelProvider.ANTHROPIC,
             model_name="claude-opus-4-6",
-            builtin_provider=AgentBuiltinProviderConfig(),
+            model_provider_type="builtin",
         )
         session.add(agent_session)
         await session.flush()
@@ -66,7 +65,7 @@ async def test_resolve_model_routing_maps_each_selection_variant(
         assert custom_routing.model_provider is ModelProvider.OPENAI
         assert custom_routing.model_name == "custom-model"
         assert custom_routing.custom_provider_id == provider_id
-        assert custom_routing.builtin_provider is None
+        assert custom_routing.model_provider_type == "custom"
 
         builtin_routing = await resolve_model_routing(
             session,
@@ -74,15 +73,12 @@ async def test_resolve_model_routing_maps_each_selection_variant(
                 provider_type="builtin",
                 provider=ModelProvider.AZURE_OPENAI,
                 model_name="gpt-5.5",
-                openai_api_type="chat_completions",
             ),
         )
         assert builtin_routing.model_provider is ModelProvider.AZURE_OPENAI
         assert builtin_routing.model_name == "gpt-5.5"
         assert builtin_routing.custom_provider_id is None
-        assert builtin_routing.builtin_provider == AgentBuiltinProviderConfig(
-            openai_api_type="chat_completions"
-        )
+        assert builtin_routing.model_provider_type == "builtin"
 
 
 async def test_resolve_model_routing_rejects_nonexistent_custom_provider(
@@ -123,7 +119,7 @@ async def test_set_session_model_transitions_between_routing_modes(
         assert agent_session.model_provider is ModelProvider.OPENAI
         assert agent_session.model_name == "custom-model"
         assert agent_session.custom_provider_id == provider_id
-        assert agent_session.builtin_provider is None
+        assert agent_session.model_provider_type == "custom"
         assert effective == CustomProviderModelSelection(
             provider_type="custom",
             provider_id=provider_gid,
@@ -137,21 +133,17 @@ async def test_set_session_model_transitions_between_routing_modes(
                 provider_type="builtin",
                 provider=ModelProvider.AZURE_OPENAI,
                 model_name="gpt-5.5",
-                openai_api_type="chat_completions",
             ),
         )
         await session.flush()
         assert agent_session.model_provider.value == "AZURE_OPENAI"
         assert agent_session.model_name == "gpt-5.5"
         assert agent_session.custom_provider_id is None
-        assert agent_session.builtin_provider == AgentBuiltinProviderConfig(
-            openai_api_type="chat_completions"
-        )
+        assert agent_session.model_provider_type == "builtin"
         assert effective == BuiltInProviderModelSelection(
             provider_type="builtin",
             provider=ModelProvider.AZURE_OPENAI,
             model_name="gpt-5.5",
-            openai_api_type="chat_completions",
         )
 
 

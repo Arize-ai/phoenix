@@ -54,7 +54,6 @@ from typing_extensions import Self, TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
-from phoenix.db.types.agent_session_config import AgentBuiltinProviderConfig
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
@@ -189,6 +188,7 @@ GenerativeModelSDK: TypeAlias = Literal[
     "google_genai",
     "aws_bedrock",
 ]
+AgentModelProviderType: TypeAlias = Literal["builtin", "custom"]
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
 ExperimentLogCategory: TypeAlias = Literal["TASK", "EVAL", "EXPERIMENT"]
 ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
@@ -321,29 +321,6 @@ class _ModelProvider(TypeDecorator[ModelProvider]):
 
     def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[ModelProvider]:
         return None if value is None else ModelProvider(value)
-
-
-class _AgentBuiltinProviderConfig(TypeDecorator[AgentBuiltinProviderConfig]):
-    cache_ok = True
-    impl = JSON_
-
-    def process_bind_param(
-        self,
-        value: Optional[AgentBuiltinProviderConfig],
-        _: Dialect,
-    ) -> dict[str, Any]:
-        if value is None:
-            return {}
-        return value.model_dump()
-
-    def process_result_value(
-        self,
-        value: Optional[dict[str, Any]],
-        _: Dialect,
-    ) -> Optional[AgentBuiltinProviderConfig]:
-        if not value:
-            return None
-        return AgentBuiltinProviderConfig.model_validate(value)
 
 
 class _InvocationParameters(TypeDecorator[PromptInvocationParameters]):
@@ -3429,11 +3406,7 @@ class AgentSession(HasId):
         nullable=True,
         index=True,
     )
-    builtin_provider: Mapped[Optional[AgentBuiltinProviderConfig]] = mapped_column(
-        _AgentBuiltinProviderConfig,
-        nullable=False,
-        default=None,
-    )
+    model_provider_type: Mapped[AgentModelProviderType] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -3457,8 +3430,12 @@ class AgentSession(HasId):
     )
     __table_args__ = (
         CheckConstraint(
-            "custom_provider_id IS NULL OR builtin_provider = '{}'",
-            name="at_most_one_provider_set",
+            "model_provider_type IN ('builtin', 'custom')",
+            name="valid_model_provider_type",
+        ),
+        CheckConstraint(
+            "model_provider_type = 'custom' OR custom_provider_id IS NULL",
+            name="builtin_sessions_have_no_custom_provider",
         ),
         Index(
             "ix_agent_sessions_user_id_updated_at",

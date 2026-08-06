@@ -2383,7 +2383,7 @@ async def test_create_session_route_creates_a_temporary_session(
         assert agent_session.model_provider.value == "OPENAI"
         assert agent_session.model_name == "gpt-test"
         assert agent_session.custom_provider_id is None
-        assert agent_session.builtin_provider is not None
+        assert agent_session.model_provider_type == "builtin"
 
 
 async def test_create_session_route_defaults_to_a_persistent_untitled_session(
@@ -2486,7 +2486,7 @@ async def test_chat_runs_on_the_sessions_persisted_model_without_rewriting_it(
         assert agent_session.model_provider.value == "OPENAI"
         assert agent_session.model_name == "gpt-test"
         assert agent_session.custom_provider_id is None
-        assert agent_session.builtin_provider is not None
+        assert agent_session.model_provider_type == "builtin"
 
 
 async def test_patch_session_route_moves_the_session_to_the_new_model(
@@ -2783,7 +2783,7 @@ async def test_chat_rejects_a_turn_asserting_a_model_the_session_is_not_on(
         assert agent_session.model_provider.value == "OPENAI"
         assert agent_session.model_name == "gpt-test"
         assert agent_session.custom_provider_id is None
-        assert agent_session.builtin_provider is not None
+        assert agent_session.model_provider_type == "builtin"
         # The rejected send claimed the turn lock to read the model under it,
         # so it must hand the lock back rather than block the session until
         # the heartbeat goes stale.

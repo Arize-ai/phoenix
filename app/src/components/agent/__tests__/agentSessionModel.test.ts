@@ -10,21 +10,19 @@ import {
 } from "../agentSessionModel";
 
 describe("resolvePersistedAgentModel", () => {
-  it("restores a built-in selection with its persisted API type", () => {
+  it("restores a built-in selection", () => {
     expect(
       resolvePersistedAgentModel({
         model: {
           __typename: "AgentBuiltinProviderModelSelection",
           provider: "OPENAI",
           modelName: "gpt-5.5",
-          openaiApiType: "CHAT_COMPLETIONS",
         },
         customProviders: [],
       })
     ).toMatchObject({
       provider: "OPENAI",
       modelName: "gpt-5.5",
-      openaiApiType: "CHAT_COMPLETIONS",
     });
   });
 
@@ -89,14 +87,12 @@ describe("resolvePersistedAgentModel", () => {
           __typename: "AgentBuiltinProviderModelSelection",
           provider: "OPENAI",
           modelName: "free-typed-model",
-          openaiApiType: "RESPONSES",
         },
         customProviders: [],
       })
     ).toMatchObject({
       provider: "OPENAI",
       modelName: "free-typed-model",
-      openaiApiType: "RESPONSES",
     });
   });
 
@@ -118,25 +114,26 @@ describe("resolvePersistedAgentModel", () => {
 });
 
 describe("toAgentModelSelection", () => {
-  it.each(["OPENAI", "AZURE_OPENAI"] as const)(
-    "defaults built-in %s models to the Responses API",
+  it.each(["OPENAI", "AZURE_OPENAI", "ANTHROPIC"] as const)(
+    "builds a built-in %s selection from provider and model name",
     (provider) => {
       expect(
         toAgentModelSelection({
           provider,
-          modelName: "gpt-5.4",
+          modelName: "some-model",
           invocationParameters: getDefaultInvocationConfig(provider),
         })
       ).toEqual({
         providerType: "builtin",
         provider,
-        modelName: "gpt-5.4",
-        openaiApiType: "responses",
+        modelName: "some-model",
       });
     }
   );
 
-  it("preserves a configured Chat Completions API type", () => {
+  it("ignores a configured OpenAI API type", () => {
+    // The playground's ModelConfig can carry an API type, but the agent wire
+    // selection no longer exposes one — the server always uses its default.
     expect(
       toAgentModelSelection({
         provider: "OPENAI",
@@ -148,21 +145,6 @@ describe("toAgentModelSelection", () => {
       providerType: "builtin",
       provider: "OPENAI",
       modelName: "gpt-5.4",
-      openaiApiType: "chat_completions",
-    });
-  });
-
-  it("does not set an OpenAI API type for other built-in providers", () => {
-    expect(
-      toAgentModelSelection({
-        provider: "ANTHROPIC",
-        modelName: "claude-opus-4-6",
-        invocationParameters: getDefaultInvocationConfig("ANTHROPIC"),
-      })
-    ).toEqual({
-      providerType: "builtin",
-      provider: "ANTHROPIC",
-      modelName: "claude-opus-4-6",
     });
   });
 
@@ -187,7 +169,6 @@ describe("shouldNotifyModelChangedElsewhere", () => {
     providerType: "builtin",
     provider: "OPENAI",
     modelName,
-    openaiApiType: "responses",
   });
 
   it("notifies when another client moved the session's model", () => {

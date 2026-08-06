@@ -2041,8 +2041,7 @@ export interface components {
          *
          *     Credentials and connection details (base URL, Azure endpoint, AWS
          *     region) are resolved from the secret store first and the process
-         *     environment second. ``openai_api_type`` is honoured by the OpenAI and
-         *     Azure OpenAI branches; other providers ignore it.
+         *     environment second.
          */
         BuiltInProviderModelSelection: {
             /**
@@ -2053,12 +2052,6 @@ export interface components {
             provider: components["schemas"]["ModelProvider"];
             /** Modelname */
             modelName: string;
-            /**
-             * Openaiapitype
-             * @default responses
-             * @enum {string}
-             */
-            openaiApiType?: "chat_completions" | "responses";
         };
         /** CategoricalAnnotationConfig */
         CategoricalAnnotationConfig: {

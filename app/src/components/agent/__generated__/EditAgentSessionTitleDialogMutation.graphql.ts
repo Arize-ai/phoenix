@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<026b339fcafe4bb042796e63d3a88246>>
+ * @generated SignedSource<<74207101b1a6a6d07f8aac8da58816b9>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,6 @@
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
-export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type PatchAgentSessionInput = {
   id: string;
   model?: AgentModelSelectionInput | null;
@@ -29,7 +28,6 @@ export type AgentCustomProviderModelSelectionInput = {
 };
 export type AgentBuiltinProviderModelSelectionInput = {
   modelName: string;
-  openaiApiType?: OpenAIApiType;
   provider: ModelProvider;
 };
 export type EditAgentSessionTitleDialogMutation$variables = {

@@ -319,20 +319,11 @@ export function getRecommendedPxiModels({
     data.playgroundModels.some(
       (model) => model.providerKey === provider && model.name === modelName
     )
-  ).map(({ provider, modelName }) =>
-    provider === "OPENAI"
-      ? {
-          providerType: "builtin",
-          provider,
-          modelName,
-          openaiApiType: "responses",
-        }
-      : {
-          providerType: "builtin",
-          provider,
-          modelName,
-        }
-  );
+  ).map(({ provider, modelName }) => ({
+    providerType: "builtin",
+    provider,
+    modelName,
+  }));
 }
 
 /** Fetch the recommended model choices displayed by the interactive picker. */
@@ -470,11 +461,7 @@ export function isSameModelSelection(
       a.modelName === b.modelName
     );
   }
-  return (
-    a.provider === b.provider &&
-    a.modelName === b.modelName &&
-    (a.openaiApiType ?? "responses") === (b.openaiApiType ?? "responses")
-  );
+  return a.provider === b.provider && a.modelName === b.modelName;
 }
 
 /**

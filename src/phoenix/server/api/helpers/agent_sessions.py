@@ -6,8 +6,7 @@ from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
 from phoenix.db import models
-from phoenix.db.models import GenerativeModelSDK
-from phoenix.db.types.agent_session_config import AgentBuiltinProviderConfig
+from phoenix.db.models import AgentModelProviderType, GenerativeModelSDK
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.agents.exceptions import ProviderNotFoundError
 from phoenix.server.agents.model_selection import (
@@ -57,7 +56,7 @@ class AgentModelRouting(NamedTuple):
     model_provider: ModelProvider
     model_name: str
     custom_provider_id: Optional[int]
-    builtin_provider: Optional[AgentBuiltinProviderConfig]
+    model_provider_type: AgentModelProviderType
 
 
 async def get_custom_provider(
@@ -97,16 +96,14 @@ async def resolve_model_routing(
             model_provider=model_provider_from_generative_model_sdk(provider.sdk),
             model_name=model.model_name,
             custom_provider_id=provider.id,
-            builtin_provider=None,
+            model_provider_type="custom",
         )
     if isinstance(model, BuiltInProviderModelSelection):
         return AgentModelRouting(
             model_provider=model.provider,
             model_name=model.model_name,
             custom_provider_id=None,
-            builtin_provider=AgentBuiltinProviderConfig(
-                openai_api_type=model.openai_api_type,
-            ),
+            model_provider_type="builtin",
         )
     assert_never(model)
 
@@ -126,20 +123,13 @@ async def set_session_model(
     agent_session.model_provider = routing.model_provider
     agent_session.model_name = routing.model_name
     agent_session.custom_provider_id = routing.custom_provider_id
-    agent_session.builtin_provider = routing.builtin_provider
+    agent_session.model_provider_type = routing.model_provider_type
     return get_agent_session_model(agent_session)
 
 
 def model_selection_from_routing(routing: AgentModelRouting) -> AgentModelSelection:
     """Reconstruct the model selection encoded by the routing column values."""
-    if routing.builtin_provider is not None:
-        return BuiltInProviderModelSelection(
-            provider_type="builtin",
-            provider=routing.model_provider,
-            model_name=routing.model_name,
-            openai_api_type=routing.builtin_provider.openai_api_type,
-        )
-    if routing.custom_provider_id is not None:
+    if routing.model_provider_type == "custom" and routing.custom_provider_id is not None:
         return CustomProviderModelSelection(
             provider_type="custom",
             provider_id=str(
@@ -166,6 +156,6 @@ def get_agent_session_model(
             model_provider=agent_session.model_provider,
             model_name=agent_session.model_name,
             custom_provider_id=agent_session.custom_provider_id,
-            builtin_provider=agent_session.builtin_provider,
+            model_provider_type=agent_session.model_provider_type,
         )
     )

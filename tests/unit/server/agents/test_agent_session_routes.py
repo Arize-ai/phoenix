@@ -156,7 +156,6 @@ class TestGetAgentSession:
             "providerType": "builtin",
             "provider": "OPENAI",
             "modelName": "gpt-test",
-            "openaiApiType": "responses",
         }
         assert data["is_active"] is False
         assert data["last_message_id"] == _message_uuid("assistant-message")

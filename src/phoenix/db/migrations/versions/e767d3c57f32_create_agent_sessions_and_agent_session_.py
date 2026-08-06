@@ -101,7 +101,7 @@ def upgrade() -> None:
             nullable=True,
             index=True,
         ),
-        sa.Column("builtin_provider", JSON_, nullable=False),
+        sa.Column("model_provider_type", sa.String, nullable=False),
         sa.Column("is_ephemeral", sa.Boolean, nullable=False),
         sa.Column("heartbeat_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column(
@@ -118,8 +118,12 @@ def upgrade() -> None:
             onupdate=sa.func.now(),
         ),
         sa.CheckConstraint(
-            "custom_provider_id IS NULL OR builtin_provider = '{}'",
-            name="at_most_one_provider_set",
+            "model_provider_type IN ('builtin', 'custom')",
+            name="valid_model_provider_type",
+        ),
+        sa.CheckConstraint(
+            "model_provider_type = 'custom' OR custom_provider_id IS NULL",
+            name="builtin_sessions_have_no_custom_provider",
         ),
         sqlite_autoincrement=True,
     )

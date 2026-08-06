@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<547c754f7f8ece9ec83d326d2463ac60>>
+ * @generated SignedSource<<1f6dd6c281fb4008be5c70c12ce07174>>
  * @lightSyntaxTransform
  */
 
@@ -9,13 +9,11 @@
 
 import { ReaderInlineDataFragment } from 'relay-runtime';
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
-export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 import { FragmentRefs } from "relay-runtime";
 export type agentSessionModel_session$data = {
   readonly model: {
     readonly __typename: "AgentBuiltinProviderModelSelection";
     readonly modelName: string;
-    readonly openaiApiType: OpenAIApiType;
     readonly provider: ModelProvider;
   } | {
     readonly __typename: "AgentCustomProviderModelSelection";
@@ -38,6 +36,6 @@ const node: ReaderInlineDataFragment = {
   "name": "agentSessionModel_session"
 };
 
-(node as any).hash = "2f64a7c5853a228fc81892e53fe55c5e";
+(node as any).hash = "c175ed7c5f56f2a1075b6c5905e0ae79";
 
 export default node;

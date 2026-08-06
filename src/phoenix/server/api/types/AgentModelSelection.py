@@ -10,7 +10,6 @@ from phoenix.server.agents.model_selection import (
 from phoenix.server.agents.model_selection import (
     CustomProviderModelSelection,
 )
-from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 
 
 @strawberry.type
@@ -23,7 +22,6 @@ class AgentCustomProviderModelSelection:
 class AgentBuiltinProviderModelSelection:
     provider: ModelProvider
     model_name: str
-    openai_api_type: OpenAIApiType
 
 
 AgentModelSelection = Annotated[
@@ -43,5 +41,4 @@ def to_gql_agent_model_selection(
     return AgentBuiltinProviderModelSelection(
         provider=model.provider,
         model_name=model.model_name,
-        openai_api_type=OpenAIApiType(model.openai_api_type),
     )

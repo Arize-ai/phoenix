@@ -163,7 +163,7 @@ class AgentSessionMutationMixin:
                 model_provider=routing.model_provider,
                 model_name=routing.model_name,
                 custom_provider_id=routing.custom_provider_id,
-                builtin_provider=routing.builtin_provider,
+                model_provider_type=routing.model_provider_type,
             )
             session.add(agent_session)
         return CreateAgentSessionMutationPayload(
@@ -269,7 +269,7 @@ class AgentSessionMutationMixin:
                 model_provider=source_session.model_provider,
                 model_name=source_session.model_name,
                 custom_provider_id=source_session.custom_provider_id,
-                builtin_provider=source_session.builtin_provider,
+                model_provider_type=source_session.model_provider_type,
             )
             session.add(branch_session)
             await session.flush()
@@ -389,7 +389,6 @@ def _to_model_selection(input: AgentModelSelectionInput) -> AgentModelSelectionM
             provider_type="builtin",
             provider=input.builtin.provider,
             model_name=input.builtin.model_name,
-            openai_api_type=input.builtin.openai_api_type.value,
         )
     raise ValueError("Exactly one model selection must be provided.")
 
