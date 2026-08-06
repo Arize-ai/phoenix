@@ -167,15 +167,24 @@ No authentication needed. Phoenix runs at `http://localhost:6006`.
 
 ```bash
 PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_ENDPOINT=http://localhost:6006
 ```
 
 **Remote deployment:**
-Set the collector endpoint to your Phoenix URL (e.g., `https://phoenix.your-company.com`). If authentication is enabled, also set an API key from the **Settings** page of that instance (the **Hostname** field there gives you the endpoint).
+Set the endpoint variables to your Phoenix URL (e.g., `https://phoenix.your-company.com`). If authentication is enabled, also set an API key from the **Settings** page of that instance (the **Hostname** field there gives you the endpoint).
 
 ```bash
 PHOENIX_API_KEY=<api-key>          # if auth enabled
 PHOENIX_COLLECTOR_ENDPOINT=https://phoenix.your-company.com
+PHOENIX_ENDPOINT=https://phoenix.your-company.com
 ```
+
+**Write both endpoint variables.** They are read by different consumers, not duplicates of each other:
+
+- `PHOENIX_COLLECTOR_ENDPOINT` — where **traces are exported**. This is the variable this guide is about: `register()` and the OTLP exporters read it, and tracing needs nothing else.
+- `PHOENIX_ENDPOINT` — the base URL for **API access**: the Phoenix clients, the `px` CLI, and MCP. Always a plain base URL, never a request path.
+
+In the usual case one Phoenix serves both concerns, so both get the same value — give them different values only when trace ingest and API access genuinely live at different URLs. Existing setups that define only `PHOENIX_COLLECTOR_ENDPOINT` keep working: API access falls back to it when `PHOENIX_ENDPOINT` is unset. Full resolution order: https://arize.com/docs/phoenix/environments
 
 ### 4. Core setup patterns
 
