@@ -150,7 +150,7 @@ After axial coding finishes, share the Phoenix UI link with the user. The link p
 project_id=$(px project get "$PHOENIX_PROJECT" --format raw --no-progress | jq -r '.id')
 encoded=$(python3 -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))' \
   "annotations['coding_session_id'].label == '$CODING_ANNOTATION_IDENTIFIER'")
-echo "Phoenix UI: $PHOENIX_HOST/projects/$project_id/traces?filterCondition=$encoded"
+echo "Phoenix UI: $PHOENIX_ENDPOINT/projects/$project_id/traces?filterCondition=$encoded"
 ```
 
 If the user wants to discard everything this run produced (open-coding notes, axial-coding labels, and `coding_session_id` annotations on the server, plus the local sidecars), three identifier-bound deletes handle the server side and one `rm` handles the local sidecars. **Confirm before running** — destructive. Each `px <entity>-annotations delete` call requires `--all` to authorize the unbounded sweep; `--identifier` only narrows. Set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` first if not already exported:
