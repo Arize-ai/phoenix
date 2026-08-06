@@ -136,6 +136,12 @@ ACCEPTED = [
     "len([d for d in span.cost_details]) > 2",
     "max(d.cost_per_token for d in span.cost_details) > 0.001",
     "any(d.cost > 1 for d in span.cost_details) and span.total_cost > 5",
+    # A loop variable may be named after the root; inside the body it *is* that name, as
+    # in Python. The iterable stays unshadowed, because Python evaluates the outermost
+    # `for` clause's iterable in the enclosing scope -- so this one line reads the root on
+    # the right of `in` and the element everywhere else.
+    "any(span.cost > 1 for span in span.cost_details)",
+    "any(span.cost > 1 for span in span.cost_details) and span.total_cost > 5",
     # Registered under a dotted key, so no bare name became an iterable: `cost_details` is
     # the attribute path it always was. Pinned for the same reason `parent == 'x'` is.
     "cost_details > 1",
@@ -160,12 +166,9 @@ REJECTED = [
     ("span.cost_details > 1", "can only be iterated"),
     ("any(d.cost > 1 for d in cost_details)", "invalid iterable `cost_details`"),
     ("any(d.nope > 1 for d in span.cost_details)", "invalid field `d.nope`"),
-    # The reserved root cannot be shadowed by a loop variable, though Python would allow it
-    # and nothing breaks if it does. A legislated deviation kept because it is nearly free
-    # (no one needs this spelling) and reversible (additive-only lets a rejection be lifted,
-    # never a restriction added), and because `for span in span.cost_details` reads the same
-    # token two ways -- Python evaluates the outermost iterable in the enclosing scope.
-    ("any(span.cost > 1 for span in span.cost_details)", "`span` is reserved"),
+    # Unshadowed, `span.cost` is a root reference and `cost` is not a member of the root.
+    # The shadowed spelling is accepted -- see ACCEPTED.
+    ("any(span.cost > 1 for d in span.cost_details)", "invalid field `span.cost`"),
     # A resolved member is typed identically on both sides of the compiler, so it
     # rejects exactly as a bare column does -- the two encodings of one rule, pinned
     # against each other (`latency_ms > '100'` is the same row, below).

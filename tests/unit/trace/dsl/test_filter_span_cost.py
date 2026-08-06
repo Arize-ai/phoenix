@@ -259,6 +259,14 @@ async def test_span_cost_join_does_not_collide_with_a_caller_join(
             ["priced", "untokenized"],
             id="composed-with-a-scalar-member",
         ),
+        # The loop variable may shadow the root, as in Python. Same rows as the `d`
+        # spelling above, and the iterable on the right of `in` still resolves to the
+        # root -- Python evaluates the outermost iterable in the enclosing scope.
+        pytest.param(
+            'any(span.token_type == "cache_read" for span in span.cost_details)',
+            ["cheap"],
+            id="loop-variable-shadows-the-root",
+        ),
     ],
 )
 async def test_cost_details_comprehensions_filter_rows(
