@@ -1027,7 +1027,11 @@ export interface paths {
         delete: operations["deletePrompt"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update prompt metadata
+         * @description Update a prompt's description and metadata by identifier.
+         */
+        patch: operations["patchPrompt"];
         trace?: never;
     };
     "/v1/projects": {
@@ -1385,6 +1389,28 @@ export interface paths {
          * @description Permanently revoke a system API key. The key stops working immediately. Restricted to admins.
          */
         delete: operations["deleteSystemApiKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/chat/completions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * OpenAI-compatible chat completions
+         * @description Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) — callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.
+         *
+         *     **Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.
+         */
+        post: operations["createChatCompletion"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1933,6 +1959,98 @@ export interface components {
             /** Score */
             score?: number | null;
         };
+        /** ChatCompletion */
+        ChatCompletion: {
+            /** Id */
+            id: string;
+            /**
+             * Object
+             * @default chat.completion
+             * @constant
+             */
+            object?: "chat.completion";
+            /** Created */
+            created: number;
+            /** Model */
+            model: string;
+            /** Choices */
+            choices: components["schemas"]["ChatCompletionChoice"][];
+            usage: components["schemas"]["ChatCompletionUsage"];
+        };
+        /** ChatCompletionChoice */
+        ChatCompletionChoice: {
+            /**
+             * Index
+             * @default 0
+             */
+            index?: number;
+            message: components["schemas"]["ChatCompletionMessage"];
+            /** Finish Reason */
+            finish_reason: string;
+        };
+        /** ChatCompletionErrorDetail */
+        ChatCompletionErrorDetail: {
+            /** Message */
+            message: string;
+            /** Type */
+            type: string;
+            /** Param */
+            param?: string | null;
+            /** Code */
+            code?: string | null;
+        };
+        /** ChatCompletionErrorResponse */
+        ChatCompletionErrorResponse: {
+            error: components["schemas"]["ChatCompletionErrorDetail"];
+        };
+        /** ChatCompletionMessage */
+        ChatCompletionMessage: {
+            /**
+             * Role
+             * @default assistant
+             * @constant
+             */
+            role?: "assistant";
+            /** Content */
+            content: string;
+        };
+        /** ChatCompletionRequestMessage */
+        ChatCompletionRequestMessage: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "system" | "developer" | "user" | "assistant";
+            /** Content */
+            content: string | components["schemas"]["ChatCompletionTextPart"][];
+        };
+        /** ChatCompletionStreamOptions */
+        ChatCompletionStreamOptions: {
+            /**
+             * Include Usage
+             * @default false
+             */
+            include_usage?: boolean;
+        };
+        /** ChatCompletionTextPart */
+        ChatCompletionTextPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "text";
+            /** Text */
+            text: string;
+        };
+        /** ChatCompletionUsage */
+        ChatCompletionUsage: {
+            /** Prompt Tokens */
+            prompt_tokens: number;
+            /** Completion Tokens */
+            completion_tokens: number;
+            /** Total Tokens */
+            total_tokens: number;
+        };
         /**
          * ChatContext
          * @description Discriminated union of every UI-state context the agent understands.
@@ -2106,6 +2224,63 @@ export interface components {
         /** CreateApiKeyResponseBody */
         CreateApiKeyResponseBody: {
             data: components["schemas"]["CreatedApiKey"];
+        };
+        /**
+         * CreateChatCompletionRequestBody
+         * @example {
+         *       "messages": [
+         *         {
+         *           "content": "You are a helpful assistant.",
+         *           "role": "system"
+         *         },
+         *         {
+         *           "content": "Say hello.",
+         *           "role": "user"
+         *         }
+         *       ],
+         *       "model": "openai:gpt-4o"
+         *     }
+         */
+        CreateChatCompletionRequestBody: {
+            /**
+             * Model
+             * @description Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'.
+             */
+            model: string;
+            /** Messages */
+            messages: components["schemas"]["ChatCompletionRequestMessage"][];
+            /**
+             * Stream
+             * @default false
+             */
+            stream?: boolean;
+            /** Temperature */
+            temperature?: number | null;
+            /** Top P */
+            top_p?: number | null;
+            /** Max Tokens */
+            max_tokens?: number | null;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number | null;
+            /** Stop */
+            stop?: string | string[] | null;
+            /** Frequency Penalty */
+            frequency_penalty?: number | null;
+            /** Presence Penalty */
+            presence_penalty?: number | null;
+            /** Seed */
+            seed?: number | null;
+            /** N */
+            n?: number | null;
+            stream_options?: components["schemas"]["ChatCompletionStreamOptions"] | null;
+            /** Tools */
+            tools?: unknown[] | null;
+            /** Tool Choice */
+            tool_choice?: unknown | null;
+            /** Response Format */
+            response_format?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** CreateDatasetLabelRequestBody */
         CreateDatasetLabelRequestBody: {
@@ -3595,6 +3770,28 @@ export interface components {
              * @description A developer-facing human readable error message.
              */
             message?: string | null;
+        };
+        /**
+         * PatchPromptRequestBody
+         * @description Fields to update on a prompt. Omit a field to leave it unchanged.
+         */
+        PatchPromptRequestBody: {
+            /**
+             * Description
+             * @description New description for the prompt (null clears the description)
+             */
+            description?: string | null;
+            /**
+             * Metadata
+             * @description New metadata object for the prompt (replaces the existing metadata as a whole)
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        /** PatchPromptResponseBody */
+        PatchPromptResponseBody: {
+            data: components["schemas"]["Prompt"];
         };
         /**
          * PhoenixUIMessage
@@ -9475,6 +9672,60 @@ export interface operations {
             };
         };
     };
+    patchPrompt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the prompt, i.e. name or ID. */
+                prompt_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchPromptRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The updated prompt */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatchPromptResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     getProjects: {
         parameters: {
             query?: {
@@ -10670,6 +10921,66 @@ export interface operations {
                 };
                 content: {
                     "text/plain": string;
+                };
+            };
+        };
+    };
+    createChatCompletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateChatCompletionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatCompletion"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatCompletionErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatCompletionErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatCompletionErrorResponse"];
                 };
             };
         };

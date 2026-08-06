@@ -213,6 +213,7 @@ codegen-python-client: ## Generate Python client types from OpenAPI
 codegen-ts-client: ## Generate TypeScript client types from OpenAPI
 	@echo -e "$(CYAN)Generating TypeScript client types...$(NC)"
 	@cd $(JS_DIR)/packages/phoenix-client && $(PNPM) run --silent generate
+	@cd $(JS_DIR)/packages/phoenix-testing && $(PNPM) run --silent generate
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 codegen-ts-app: ## Generate TypeScript OpenAPI types for app/

@@ -52,9 +52,7 @@ dependencies = [
   "alembic>=1.3.0, <2",
   "aiosqlite>=0.22.1",
   "aioitertools",
-  "sqlean.py>=3.45.1; platform_system != 'Windows' and python_version < '3.14'",
-  "sqlean.py>=3.50; platform_system != 'Windows' and python_version >= '3.14'",  # 3.49.1 has no cp314 wheels
-  "sqlean.py>=3.45.1,<3.50; platform_system == 'Windows'",  # no Windows wheels for >=3.50; Windows + 3.14 will fail at install (no cp314 wheels exist)
+  "arize-phoenix-sqlean",
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
   "arize-phoenix-evals>=3.3.0",
@@ -383,8 +381,16 @@ venvPath = "."
 venv = ".venv"
 extraPaths = ["src"]
 pythonVersion = "3.10"
+# Restating all three defaults is required because setting exclude replaces
+# them; omitting "**/.*" makes pyright walk .venv and every other
+# dot-directory. packages/phoenix-sqlean is a vendored fork of
+# nalgeon/sqlean.py and is not held to this repo's typing standards.
+exclude = ["**/node_modules", "**/__pycache__", "**/.*", "packages/phoenix-sqlean"]
 
 [tool.ruff]
+# Apply excludes even to files passed explicitly on the command line
+# (editor/hook integrations do this), so vendored code stays untouched.
+force-exclude = true
 exclude = [
   "api_reference",
   "dist/",
@@ -401,6 +407,9 @@ exclude = [
   ".github/**/*.md",
   "AGENTS.md",
   "CLAUDE.md",
+  # Vendored fork of nalgeon/sqlean.py — keep formatting identical to upstream
+  # so diffs against the imported source stay reviewable.
+  "packages/phoenix-sqlean",
 ]
 line-length = 100
 target-version = "py310"
@@ -424,11 +433,13 @@ line-ending = "native"
 script_location = "src/phoenix/db/migrations"  # enables `uv run alembic <command>`
 
 [tool.uv]
-required-version = "==0.11.12"  # When updating this version, also update the `backend-builder` image in the Dockerfile
+required-version = "==0.11.31"  # When updating this version, also update the `backend-builder` image in the Dockerfile
 exclude-newer = "3 days"
-# Exempt our own workspace packages from the `exclude-newer` window so freshly
-# published versions are immediately resolvable.
-exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z" }
+# Exempt our own packages from the `exclude-newer` window so freshly published
+# versions are immediately resolvable. arize-phoenix-sqlean is not a workspace
+# member — it is a setup.py C extension — so it resolves from PyPI and needs
+# this to be installable at all on the day it publishes.
+exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z", arize-phoenix-sqlean = "2099-12-31T00:00:00Z" }
 # litellm 1.83.x hard-pins `openai==2.24.0` and `python-dotenv==1.0.1`, which
 # conflict with pydantic-ai (needs openai>=2.29.0) and fastmcp (needs
 # python-dotenv>=1.1.0). Override the over-restrictive pins so resolution
@@ -441,6 +452,9 @@ override-dependencies = [
 
 [tool.uv.workspace]
 members = ["packages/*"]
+# phoenix-sqlean is a vendored setup.py-based C extension (fork of
+# nalgeon/sqlean.py), not a uv-managed project.
+exclude = ["packages/phoenix-sqlean"]
 
 [tool.uv.sources]
 arize-phoenix-client = { workspace = true }

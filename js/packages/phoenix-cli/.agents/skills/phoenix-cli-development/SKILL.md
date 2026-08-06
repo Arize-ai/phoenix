@@ -96,6 +96,7 @@ Defined in `src/exitCodes.ts`. Commands MUST use the named constants and MUST NO
 | 3    | `INVALID_ARGUMENT` | Bad CLI flags, missing required args, invalid input |
 | 4    | `AUTH_REQUIRED`    | Not authenticated or insufficient permissions       |
 | 5    | `NETWORK_ERROR`    | Failed to connect to server or network request      |
+| 6    | `NOT_VERIFIED`     | Ran, but could not verify the result it produces    |
 
 ### Interactive default with non-interactive mode
 

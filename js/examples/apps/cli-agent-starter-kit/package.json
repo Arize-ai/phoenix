@@ -37,19 +37,19 @@
     "start:verbose": "VERBOSE=true node --env-file=.env dist/cli.js"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.102",
+    "@ai-sdk/anthropic": "^3.0.104",
     "@ai-sdk/anthropic-v5": "npm:@ai-sdk/anthropic@3.0.81",
-    "@ai-sdk/mcp": "^1.0.64",
-    "@arizeai/openinference-core": "^2.4.0",
+    "@ai-sdk/mcp": "^1.0.66",
+    "@arizeai/openinference-core": "^2.4.1",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
     "@clack/prompts": "^1.7.0",
-    "ai": "^6.0.235",
+    "ai": "^6.0.239",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "glob": "^13.0.6",
     "tsx": "^4.23.1"
   },

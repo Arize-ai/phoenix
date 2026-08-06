@@ -28,7 +28,7 @@ const meta: Meta = {
   argTypes: {
     size: {
       control: { type: "select" },
-      options: ["S", "M"],
+      options: ["XS", "S", "M"],
     },
     color: {
       control: { type: "select" },
@@ -67,6 +67,9 @@ export const Sizes = () => (
       gap: var(--global-dimension-size-200);
     `}
   >
+    <IconButton size="XS" aria-label="Extra small search">
+      <Icon svg={<Search />} />
+    </IconButton>
     <IconButton size="S" aria-label="Small search">
       <Icon svg={<Search />} />
     </IconButton>

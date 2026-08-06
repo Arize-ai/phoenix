@@ -986,18 +986,26 @@ const buttonCSS = (theme: Theme) => css`
   }
 `;
 
-const pxiCSS = (theme: Theme) => css`
+/**
+ * Tokens for the shared "AI is working" glow consumed by
+ * `components/ai/glow`. Surface-specific knobs stay on their components.
+ */
+const aiTokensCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
-    --pxi-conic-spin-duration: 3s;
-    --pxi-glow-bleed: 28px;
-    --pxi-glow-opacity: 0.95;
-    --pxi-glow-wipe-duration: 3000ms;
-    --pxi-glow-wipe-easing: cubic-bezier(0.4, 0.4, 0.65, 1);
-    --pxi-treatment-color-start: #9a66ff;
-    --pxi-treatment-color-middle: #3480ff;
-    --pxi-treatment-color-end: #2cd8ff;
-    --pxi-glow-box-shadow-fab-rest: ${theme === "dark"
+    --ai-conic-spin-duration: 3s;
+    --ai-glow-bleed: 28px;
+    --ai-glow-opacity: 0.95;
+    --ai-glow-wipe-duration: 3000ms;
+    --ai-glow-wipe-easing: cubic-bezier(0.4, 0.4, 0.65, 1);
+    --ai-glow-wipe-continuous-duration: 3600ms;
+    /* Negative delay so the continuous wipe starts mid-travel instead of
+       off-surface. */
+    --ai-glow-wipe-continuous-delay: -0.5s;
+    --ai-gradient-color-start: #9a66ff;
+    --ai-gradient-color-middle: #3480ff;
+    --ai-gradient-color-end: #2cd8ff;
+    --ai-glow-box-shadow-large-rest: ${theme === "dark"
       ? `
         0 0 2px 1px rgba(248, 242, 255, 0.78),
         0 0 4px 2px rgba(154, 102, 255, 0.68),
@@ -1012,7 +1020,7 @@ const pxiCSS = (theme: Theme) => css`
         0 0 14px 5px rgba(200, 150, 236, 0.23),
         0 0 20px 7px rgba(116, 212, 255, 0.17)
       `};
-    --pxi-glow-box-shadow-fab-strong: ${theme === "dark"
+    --ai-glow-box-shadow-large-strong: ${theme === "dark"
       ? `
         0 0 3px 2px rgba(250, 244, 255, 0.88),
         0 0 7px 3px rgba(160, 108, 255, 0.82),
@@ -1027,7 +1035,7 @@ const pxiCSS = (theme: Theme) => css`
         0 0 20px 7px rgba(205, 154, 238, 0.31),
         0 0 26px 9px rgba(119, 214, 255, 0.22)
       `};
-    --pxi-glow-box-shadow-rest: ${theme === "dark"
+    --ai-glow-box-shadow-rest: ${theme === "dark"
       ? `
         0 0 1px 1px rgba(248, 242, 255, 0.78),
         0 0 3px 1px rgba(154, 102, 255, 0.68),
@@ -1042,7 +1050,7 @@ const pxiCSS = (theme: Theme) => css`
         0 0 9px 3px rgba(200, 150, 236, 0.23),
         0 0 13px 4px rgba(116, 212, 255, 0.17)
       `};
-    --pxi-glow-box-shadow-strong: ${theme === "dark"
+    --ai-glow-box-shadow-strong: ${theme === "dark"
       ? `
         0 0 2px 1px rgba(250, 244, 255, 0.88),
         0 0 4px 2px rgba(160, 108, 255, 0.82),
@@ -1057,11 +1065,11 @@ const pxiCSS = (theme: Theme) => css`
         0 0 13px 4px rgba(205, 154, 238, 0.31),
         0 0 17px 6px rgba(119, 214, 255, 0.22)
       `};
-    --pxi-glow-box-shadow-contained-rest:
+    --ai-glow-box-shadow-contained-rest:
       inset 0 0 2px rgba(154, 102, 255, 0.36),
       inset 0 0 5px rgba(52, 128, 255, 0.28),
       inset 0 0 9px rgba(44, 216, 255, 0.16);
-    --pxi-glow-box-shadow-contained-strong:
+    --ai-glow-box-shadow-contained-strong:
       inset 0 0 3px rgba(154, 102, 255, 0.62),
       inset 0 0 8px rgba(52, 128, 255, 0.48),
       inset 0 0 14px rgba(44, 216, 255, 0.28);
@@ -1370,7 +1378,7 @@ export const derivedCSS = (theme: Theme) =>
     inputFieldCSS(theme),
     menuCSS(theme),
     buttonCSS(theme),
-    pxiCSS(theme),
+    aiTokensCSS(theme),
     checkboxCSS(theme),
     segmentedControlCSS(theme),
     disclosureCSS(theme),
@@ -1391,7 +1399,7 @@ export const derivedCSS = (theme: Theme) =>
   );
 
 const appGlobalStylesCSS = css`
-  @property --pxi-conic-angle {
+  @property --ai-conic-angle {
     syntax: "<angle>";
     inherits: false;
     initial-value: 45deg;

@@ -86,11 +86,11 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
     [
         (
             "parent_id is not None and 'abc' in name or span_kind == 'LLM' and span_id in ('123',)",
-            "or_(and_(parent_id != None, TextContains(name, 'abc')), and_(span_kind == 'LLM', span_id.in_(('123',))))",
+            "or_(and_(parent_id != None, CaseInsensitiveContains(name, 'abc')), and_(span_kind == 'LLM', span_id.in_(('123',))))",
         ),
         (
             "(parent_id is None or 'abc' not in name) and not (span_kind != 'LLM' or span_id not in ('123',))",
-            "and_(or_(parent_id == None, not_(TextContains(name, 'abc'))), not_(or_(span_kind != 'LLM', span_id.not_in(('123',)))))",
+            "and_(or_(parent_id == None, not_(CaseInsensitiveContains(name, 'abc'))), not_(or_(span_kind != 'LLM', span_id.not_in(('123',)))))",
         ),
         (
             "1000 < latency_ms < 2000 or status_code == 'ERROR' or 2000 <= cumulative_llm_token_count_total",
@@ -102,7 +102,7 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
         ),
         (
             "first.value in (1,) and second.value in ('2',) and '3' in third.value",
-            "and_(SafeJsonFloat(attributes[['first', 'value']]).in_((1,)), attributes[['second', 'value']].as_string().in_(('2',)), TextContains(attributes[['third', 'value']].as_string(), '3'))",
+            "and_(SafeJsonFloat(attributes[['first', 'value']]).in_((1,)), attributes[['second', 'value']].as_string().in_(('2',)), CaseInsensitiveContains(attributes[['third', 'value']].as_string(), '3'))",
         ),
         (
             "'1.0' < my.value < 2.0",
@@ -178,7 +178,7 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
         ),
         (
             "'cha' in span_kind",
-            "TextContains(span_kind, 'CHA')",
+            "CaseInsensitiveContains(span_kind, 'CHA')",
         ),
         (
             "status_code == 'error'",
@@ -194,7 +194,7 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
         ),
         (
             "'err' in status_code",
-            "TextContains(status_code, 'ERR')",
+            "CaseInsensitiveContains(status_code, 'ERR')",
         ),
         # `parent_span` root predicate: `parent_span is None` / `parent_span is not None` become
         # references to correlated EXISTS predicates bound in SpanFilter.__call__.

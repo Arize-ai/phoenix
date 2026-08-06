@@ -103,6 +103,27 @@ Most list endpoints return a shape like:
 
 When `next_cursor` is not `null`, pass it back as the `cursor` query param to fetch the next page.
 
+## Chat Completions Proxy
+
+`POST /v1/chat/completions` accepts the OpenAI wire format and proxies the call to the provider you name, resolving provider credentials on the server (secret store first, environment second) so callers never handle provider API keys.
+
+<Warning>
+Phoenix is not an AI gateway. The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.
+</Warning>
+
+Set `model` to `{provider}:{model_name}` for a built-in provider, or `custom:{provider_id}:{model_name}` for a custom provider you have stored. Pass `stream: true` for server-sent `chat.completion.chunk` events terminated by `data: [DONE]`. Tool calling is not supported.
+
+```bash
+curl --request POST \
+  --url "$PHOENIX_BASE_URL/v1/chat/completions" \
+  --header "Authorization: Bearer $PHOENIX_API_KEY" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "model": "openai:gpt-4o",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
 ## Where To Go Next
 
 <CardGroup cols={2}>

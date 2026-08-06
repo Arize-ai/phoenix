@@ -10,6 +10,7 @@ import {
   AnnotationScoreLabelToggle,
   ChartPanel,
   ChartSkeleton,
+  DeferredChartPanel,
   TimeRangeChartBrush,
   compactTimeXAxisProps,
   compactYAxisProps,
@@ -18,6 +19,7 @@ import {
   useBinTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { ErrorBoundary } from "@phoenix/components/exception";
+import { useFrozenWhileHidden } from "@phoenix/hooks/useFrozenWhileHidden";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
@@ -31,6 +33,9 @@ import type { ProjectAnnotationMetricNamesTraceQuery } from "./__generated__/Pro
 import type { ProjectAnnotationMetricsSessionQuery } from "./__generated__/ProjectAnnotationMetricsSessionQuery.graphql";
 import type { ProjectAnnotationMetricsSpanQuery } from "./__generated__/ProjectAnnotationMetricsSpanQuery.graphql";
 import type { ProjectAnnotationMetricsTraceQuery } from "./__generated__/ProjectAnnotationMetricsTraceQuery.graphql";
+import type { ProjectAnnotationMetricTimeRangeNamesSessionQuery } from "./__generated__/ProjectAnnotationMetricTimeRangeNamesSessionQuery.graphql";
+import type { ProjectAnnotationMetricTimeRangeNamesSpanQuery } from "./__generated__/ProjectAnnotationMetricTimeRangeNamesSpanQuery.graphql";
+import type { ProjectAnnotationMetricTimeRangeNamesTraceQuery } from "./__generated__/ProjectAnnotationMetricTimeRangeNamesTraceQuery.graphql";
 import type { ProjectMetricViewProps } from "./types";
 import {
   PROJECT_METRICS_CHART_SYNC_ID,
@@ -49,22 +54,13 @@ type AnnotationMetricsData = ReadonlyArray<{
   }>;
 }>;
 
-function getProjectAnnotationMetricsSeries({
-  data,
-  annotationName,
-}: {
-  data: AnnotationMetricsData;
-  annotationName?: string;
-}): AnnotationMetricsSeries[] {
+function getProjectAnnotationMetricsSeries(
+  data: AnnotationMetricsData
+): AnnotationMetricsSeries[] {
   return normalizeAnnotationMetrics({
     points: data.map((point) => ({
       x: new Date(point.timestamp).getTime(),
-      summaries:
-        annotationName == null
-          ? point.annotationSummaries
-          : point.annotationSummaries.filter(
-              (summary) => summary.name === annotationName
-            ),
+      summaries: point.annotationSummaries,
     })),
   });
 }
@@ -80,31 +76,25 @@ const annotationGridCSS = css`
 `;
 
 function ProjectAnnotationMetricsGridView({
-  annotationSeries,
-  timeRange,
-  onTimeRangeSelected,
-}: {
-  annotationSeries: AnnotationMetricsSeries[];
-  timeRange: TimeRange;
-  onTimeRangeSelected?: (timeRange: TimeRange) => void;
+  annotationNames,
+  annotationLevel,
+  ...props
+}: ProjectMetricViewProps & {
+  annotationNames: ReadonlyArray<string>;
+  annotationLevel: MetricChartTableView;
 }) {
-  const scale = useTimeBinScale({ timeRange });
-  const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const { fullTimeFormatter } = useTimeFormatters();
-  if (annotationSeries.length === 0) {
+  if (annotationNames.length === 0) {
     return null;
   }
 
   return (
     <div css={annotationGridCSS}>
-      {annotationSeries.map((series) => (
-        <ProjectAnnotationMetricsPanel
-          key={series.name}
-          series={series}
-          timeRange={timeRange}
-          timeTickFormatter={timeTickFormatter}
-          fullTimeFormatter={fullTimeFormatter}
-          onTimeRangeSelected={onTimeRangeSelected}
+      {annotationNames.map((annotationName) => (
+        <DeferredProjectAnnotationMetricPanel
+          {...props}
+          key={annotationName}
+          annotationLevel={annotationLevel}
+          annotationName={annotationName}
         />
       ))}
     </div>
@@ -178,6 +168,38 @@ type ProjectAnnotationMetricPanelProps = ProjectMetricViewProps & {
   fillHeight?: boolean;
 };
 
+function DeferredProjectAnnotationMetricPanel({
+  annotationName,
+  fillHeight = false,
+  ...props
+}: ProjectAnnotationMetricPanelProps) {
+  return (
+    <DeferredChartPanel
+      title={annotationName}
+      subtitle={PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION}
+      fillHeight={fillHeight}
+    >
+      <ProjectAnnotationMetricPanelWithFrozenTimeRange
+        {...props}
+        annotationName={annotationName}
+        fillHeight={fillHeight}
+      />
+    </DeferredChartPanel>
+  );
+}
+
+// Keep live query inputs frozen while an already-mounted chart is hidden.
+// This must render inside DeferredChartPanel's visibility context.
+function ProjectAnnotationMetricPanelWithFrozenTimeRange({
+  timeRange,
+  ...props
+}: ProjectAnnotationMetricPanelProps) {
+  const visibleTimeRange = useFrozenWhileHidden(timeRange);
+  return (
+    <ProjectAnnotationMetricPanel {...props} timeRange={visibleTimeRange} />
+  );
+}
+
 export function ProjectAnnotationMetricPanel({
   fillHeight = false,
   ...props
@@ -246,17 +268,18 @@ export function ProjectAnnotationMetricsGrid({
   return (
     <ErrorBoundary>
       <Suspense fallback={<Loading />}>
-        <ProjectAnnotationMetricsSeriesLoader
+        <ProjectAnnotationMetricNamesLoader
           {...props}
           annotationLevel={annotationLevel}
         >
-          {(annotationSeries) => (
+          {(annotationNames) => (
             <ProjectAnnotationMetricsGridView
               {...props}
-              annotationSeries={annotationSeries}
+              annotationLevel={annotationLevel}
+              annotationNames={annotationNames}
             />
           )}
-        </ProjectAnnotationMetricsSeriesLoader>
+        </ProjectAnnotationMetricNamesLoader>
       </Suspense>
     </ErrorBoundary>
   );
@@ -331,8 +354,117 @@ export function useSessionAnnotationMetricNames(
   );
 }
 
+type ProjectAnnotationMetricNamesLoaderProps = ProjectMetricViewProps & {
+  annotationLevel: MetricChartTableView;
+  children: (annotationNames: ReadonlyArray<string>) => ReactNode;
+};
+
+function ProjectAnnotationMetricNamesLoader({
+  annotationLevel,
+  ...props
+}: ProjectAnnotationMetricNamesLoaderProps) {
+  switch (annotationLevel) {
+    case "spans":
+      return <SpanAnnotationMetricNamesLoader {...props} />;
+    case "traces":
+      return <TraceAnnotationMetricNamesLoader {...props} />;
+    case "sessions":
+      return <SessionAnnotationMetricNamesLoader {...props} />;
+  }
+  return null;
+}
+
+function SpanAnnotationMetricNamesLoader({
+  children,
+  ...props
+}: Omit<ProjectAnnotationMetricNamesLoaderProps, "annotationLevel">) {
+  return children(useSpanAnnotationMetricTimeRangeNames(props));
+}
+
+function TraceAnnotationMetricNamesLoader({
+  children,
+  ...props
+}: Omit<ProjectAnnotationMetricNamesLoaderProps, "annotationLevel">) {
+  return children(useTraceAnnotationMetricTimeRangeNames(props));
+}
+
+function SessionAnnotationMetricNamesLoader({
+  children,
+  ...props
+}: Omit<ProjectAnnotationMetricNamesLoaderProps, "annotationLevel">) {
+  return children(useSessionAnnotationMetricTimeRangeNames(props));
+}
+
+function useSpanAnnotationMetricTimeRangeNames(
+  props: ProjectMetricViewProps
+): ReadonlyArray<string> {
+  const data = useLazyLoadQuery<ProjectAnnotationMetricTimeRangeNamesSpanQuery>(
+    graphql`
+      query ProjectAnnotationMetricTimeRangeNamesSpanQuery(
+        $projectId: ID!
+        $timeRange: TimeRange!
+      ) {
+        project: node(id: $projectId) {
+          ... on Project {
+            spanAnnotationMetricNames(timeRange: $timeRange)
+          }
+        }
+      }
+    `,
+    getTimeRangeQueryVariables(props),
+    useMetricQueryFetchOptions()
+  );
+  return data.project.spanAnnotationMetricNames ?? [];
+}
+
+function useTraceAnnotationMetricTimeRangeNames(
+  props: ProjectMetricViewProps
+): ReadonlyArray<string> {
+  const data =
+    useLazyLoadQuery<ProjectAnnotationMetricTimeRangeNamesTraceQuery>(
+      graphql`
+        query ProjectAnnotationMetricTimeRangeNamesTraceQuery(
+          $projectId: ID!
+          $timeRange: TimeRange!
+        ) {
+          project: node(id: $projectId) {
+            ... on Project {
+              traceAnnotationMetricNames(timeRange: $timeRange)
+            }
+          }
+        }
+      `,
+      getTimeRangeQueryVariables(props),
+      useMetricQueryFetchOptions()
+    );
+  return data.project.traceAnnotationMetricNames ?? [];
+}
+
+function useSessionAnnotationMetricTimeRangeNames(
+  props: ProjectMetricViewProps
+): ReadonlyArray<string> {
+  const data =
+    useLazyLoadQuery<ProjectAnnotationMetricTimeRangeNamesSessionQuery>(
+      graphql`
+        query ProjectAnnotationMetricTimeRangeNamesSessionQuery(
+          $projectId: ID!
+          $timeRange: TimeRange!
+        ) {
+          project: node(id: $projectId) {
+            ... on Project {
+              sessionAnnotationMetricNames(timeRange: $timeRange)
+            }
+          }
+        }
+      `,
+      getTimeRangeQueryVariables(props),
+      useMetricQueryFetchOptions()
+    );
+  return data.project.sessionAnnotationMetricNames ?? [];
+}
+
 type ProjectAnnotationMetricsQueryProps = ProjectMetricViewProps & {
-  annotationName?: string;
+  annotationName: string;
 };
 
 type ProjectAnnotationMetricsSeriesLoaderProps =
@@ -388,12 +520,14 @@ function useSpanAnnotationMetricsSeries(
     graphql`
       query ProjectAnnotationMetricsSpanQuery(
         $projectId: ID!
+        $annotationName: String!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
       ) {
         project: node(id: $projectId) {
           ... on Project {
             spanAnnotationMetricsTimeSeries(
+              annotationName: $annotationName
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
             ) {
@@ -416,10 +550,9 @@ function useSpanAnnotationMetricsSeries(
     getQueryVariables({ ...props, scale, utcOffsetMinutes }),
     useMetricQueryFetchOptions()
   );
-  return getProjectAnnotationMetricsSeries({
-    data: data.project.spanAnnotationMetricsTimeSeries?.data ?? [],
-    annotationName: props.annotationName,
-  });
+  return getProjectAnnotationMetricsSeries(
+    data.project.spanAnnotationMetricsTimeSeries?.data ?? []
+  );
 }
 
 function useTraceAnnotationMetricsSeries(
@@ -431,12 +564,14 @@ function useTraceAnnotationMetricsSeries(
     graphql`
       query ProjectAnnotationMetricsTraceQuery(
         $projectId: ID!
+        $annotationName: String!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
       ) {
         project: node(id: $projectId) {
           ... on Project {
             traceAnnotationMetricsTimeSeries(
+              annotationName: $annotationName
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
             ) {
@@ -459,10 +594,9 @@ function useTraceAnnotationMetricsSeries(
     getQueryVariables({ ...props, scale, utcOffsetMinutes }),
     useMetricQueryFetchOptions()
   );
-  return getProjectAnnotationMetricsSeries({
-    data: data.project.traceAnnotationMetricsTimeSeries?.data ?? [],
-    annotationName: props.annotationName,
-  });
+  return getProjectAnnotationMetricsSeries(
+    data.project.traceAnnotationMetricsTimeSeries?.data ?? []
+  );
 }
 
 function useSessionAnnotationMetricsSeries(
@@ -474,12 +608,14 @@ function useSessionAnnotationMetricsSeries(
     graphql`
       query ProjectAnnotationMetricsSessionQuery(
         $projectId: ID!
+        $annotationName: String!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
       ) {
         project: node(id: $projectId) {
           ... on Project {
             sessionAnnotationMetricsTimeSeries(
+              annotationName: $annotationName
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
             ) {
@@ -502,27 +638,37 @@ function useSessionAnnotationMetricsSeries(
     getQueryVariables({ ...props, scale, utcOffsetMinutes }),
     useMetricQueryFetchOptions()
   );
-  return getProjectAnnotationMetricsSeries({
-    data: data.project.sessionAnnotationMetricsTimeSeries?.data ?? [],
-    annotationName: props.annotationName,
-  });
+  return getProjectAnnotationMetricsSeries(
+    data.project.sessionAnnotationMetricsTimeSeries?.data ?? []
+  );
 }
 
 function getQueryVariables({
   projectId,
+  annotationName,
   timeRange,
   scale,
   utcOffsetMinutes,
-}: ProjectMetricViewProps & {
+}: ProjectAnnotationMetricsQueryProps & {
   scale: TimeBinScale;
   utcOffsetMinutes: number;
 }) {
+  return {
+    ...getTimeRangeQueryVariables({ projectId, timeRange }),
+    annotationName,
+    timeBinConfig: { scale, utcOffsetMinutes },
+  };
+}
+
+function getTimeRangeQueryVariables({
+  projectId,
+  timeRange,
+}: Pick<ProjectMetricViewProps, "projectId" | "timeRange">) {
   return {
     projectId,
     timeRange: {
       start: timeRange.start.toISOString(),
       end: timeRange.end.toISOString(),
     },
-    timeBinConfig: { scale, utcOffsetMinutes },
   };
 }

@@ -36,6 +36,12 @@ _POOL_RECYCLE_SECONDS = 3300
 
 
 def set_sqlite_pragma(connection: Connection, _: Any) -> None:
+    connection.create_function(
+        "text_lower",
+        1,
+        lambda value: value.lower() if isinstance(value, str) else value,
+        deterministic=True,
+    )
     cursor = connection.cursor()
     cursor.execute("PRAGMA foreign_keys = ON;")
     cursor.execute("PRAGMA journal_mode = WAL;")

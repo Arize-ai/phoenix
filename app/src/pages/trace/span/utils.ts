@@ -18,6 +18,11 @@ import type {
 } from "@phoenix/openInference/tracing/types";
 import { isAttributeMessages } from "@phoenix/openInference/tracing/types";
 import { isStringArray } from "@phoenix/typeUtils";
+import {
+  toContentPreview,
+  toRecordPreview,
+  toToolCallsPreview,
+} from "@phoenix/utils/contentPreviewUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import type {
@@ -78,6 +83,68 @@ export function getToolCalls(message: AttributeMessage): AttributeToolCall[] {
   return (message[MessageAttributePostfixes.tool_calls]
     ?.map((obj) => obj[SemanticAttributePrefixes.tool_call])
     .filter(Boolean) || []) as AttributeToolCall[];
+}
+
+/**
+ * A one-line excerpt of a message, shown in the header of its card while that
+ * card is collapsed. Follows the order the card renders in, so the preview is
+ * of what the reader would see first on expanding it, and falls through to the
+ * message's calls when it has no content of its own — an assistant turn that
+ * only calls tools would otherwise preview as nothing at all.
+ */
+export function getMessagePreview(
+  message: AttributeMessage
+): string | undefined {
+  const content = message[MessageAttributePostfixes.content];
+  const contents = message[MessageAttributePostfixes.contents];
+  const functionCallName =
+    message[MessageAttributePostfixes.function_call_name];
+  const functionCallArguments =
+    message[MessageAttributePostfixes.function_call_arguments_json];
+
+  // The message is duck-typed, so `contents` is whatever the instrumentation
+  // emitted. This runs in the card's own render, above the error boundary that
+  // guards the rendered contents, so it has to survive any shape.
+  const contentsText = (Array.isArray(contents) ? contents : [])
+    .map(
+      (content) => content?.[SemanticAttributePrefixes.message_content]?.text
+    )
+    .filter((text) => typeof text === "string" && text !== "")
+    .join(" ");
+
+  // The card renders the deprecated function call only when it has both a name
+  // and its arguments, so previewing on the name alone would advertise a card
+  // body that turns out to be empty
+  const functionCall =
+    functionCallName && functionCallArguments
+      ? [{ name: functionCallName, arguments: functionCallArguments }]
+      : [];
+
+  return (
+    toContentPreview(contentsText) ??
+    toContentPreview(content) ??
+    toToolCallsPreview(
+      getToolCalls(message).map((toolCall) => ({
+        name: toolCall.function?.name,
+        arguments: toolCall.function?.arguments,
+      }))
+    ) ??
+    toToolCallsPreview(functionCall)
+  );
+}
+
+/**
+ * A one-line excerpt of a prompt template for its card's collapsed header. The
+ * template itself first, since that is the disclosure the card opens on, and
+ * the variables it interpolates when there is no template to show.
+ */
+export function getPromptTemplatePreview(
+  promptTemplate: AttributePromptTemplate
+): string | undefined {
+  return (
+    toContentPreview(promptTemplate.template) ??
+    toRecordPreview(promptTemplate.variables)
+  );
 }
 
 /**

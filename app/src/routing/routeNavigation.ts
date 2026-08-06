@@ -29,6 +29,7 @@ const routeNavigationMetadataSchema = z
       "Person",
       "PlayCircle",
       "Scale",
+      "Sparkles",
       "Trace",
     ]),
     requiresViewer: z.boolean().optional(),

@@ -380,7 +380,7 @@ describe("AgentChatWidget", () => {
     ).toBe("true");
   });
 
-  it("keeps the thinking treatment until the active response settles", () => {
+  it("keeps the thinking glow until the active response settles", () => {
     renderWidget();
 
     act(() => {

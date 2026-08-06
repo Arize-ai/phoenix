@@ -1,0 +1,145 @@
+name: phoenix-sqlean CI
+
+# Build-and-test for the vendored arize-phoenix-sqlean C extension
+# (packages/phoenix-sqlean, a fork of nalgeon/sqlean.py). Publishing is
+# handled by the build-sqlean/publish-sqlean jobs in publish.yaml.
+#
+# Source preparation (downloading the SQLite amalgamation and sqlean
+# extension sources) runs once on Ubuntu and is handed to the build legs
+# as an artifact: the Makefile needs make/curl/unzip, which Windows
+# runners don't provide.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Filter Changes
+    runs-on: ubuntu-latest
+    outputs:
+      sqlean: ${{ steps.filter.outputs.sqlean }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        id: filter
+        with:
+          filters: |
+            sqlean:
+              - "packages/phoenix-sqlean/**"
+              - ".github/workflows/phoenix-sqlean-ci.yml"
+
+  download-sources:
+    name: Download and store sources
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.sqlean == 'true'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Download SQLite and sqlean extension sources
+        working-directory: packages/phoenix-sqlean
+        run: make prepare-src download-sqlite download-sqlean
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sqlean-sources
+          path: |
+            packages/phoenix-sqlean/MANIFEST.in
+            packages/phoenix-sqlean/Makefile
+            packages/phoenix-sqlean/README.md
+            packages/phoenix-sqlean/LICENSE
+            packages/phoenix-sqlean/THIRD_PARTY_LICENSES
+            packages/phoenix-sqlean/cibuildwheel.toml
+            packages/phoenix-sqlean/setup.cfg
+            packages/phoenix-sqlean/setup.py
+            packages/phoenix-sqlean/sqlean
+            packages/phoenix-sqlean/src
+            packages/phoenix-sqlean/sqlite
+            packages/phoenix-sqlean/tests
+
+  test:
+    name: ${{ matrix.os }} / ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    needs: [changes, download-sources]
+    if: needs.changes.outputs.sqlean == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        # Covers every OS/arch pair that publish.yaml ships a wheel for, so
+        # a build break surfaces on the PR rather than at publication time.
+        os:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - macos-latest
+          - windows-latest
+          - windows-11-arm
+        python-version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+        exclude:
+          # CPython publishes no Windows ARM64 build for 3.10, so
+          # actions/setup-python cannot provide it on windows-11-arm.
+          - os: windows-11-arm
+            python-version: "3.10"
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: sqlean-sources
+          path: pkg
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Build extension in place and run tests
+        working-directory: pkg
+        run: |
+          python -m pip install --upgrade setuptools wheel
+          python setup.py build_ext -i
+          python -m tests
+
+  # The test job compiles in place, so nothing else here runs cibuildwheel. One
+  # interpreter suffices: this covers the build, not the compiler matrix.
+  wheel:
+    name: cibuildwheel smoke test
+    needs: [changes, download-sources]
+    if: needs.changes.outputs.sqlean == 'true'
+    uses: ./.github/workflows/phoenix-sqlean-build.yml
+    with:
+      sources-artifact: sqlean-sources
+      runners: '["ubuntu-latest"]'
+      cibw-build: cp312-manylinux_x86_64
+      cibw-archs-linux: x86_64
+      emulate-aarch64: false
+
+  ci-required:
+    name: phoenix-sqlean CI Required
+    needs:
+      - changes
+      - download-sources
+      - test
+      - wheel
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all required jobs passed or were skipped
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "One or more CI jobs failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more CI jobs were cancelled"
+            exit 1
+          fi
+          echo "All CI jobs passed or were skipped"
