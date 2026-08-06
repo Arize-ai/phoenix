@@ -47,9 +47,9 @@ Open [http://localhost:6006](http://localhost:6006) to see the trace in the
 
 ## Configuration
 
-| Environment variable         | Description                                                                         | Default                 |
-| ---------------------------- | ----------------------------------------------------------------------------------- | ----------------------- |
-| `OPENAI_API_KEY`             | OpenAI API key                                                                      | required                |
-| `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix base URL for trace export; the OTLP `/v1/traces` path is appended if absent | `http://localhost:6006` |
-| `PHOENIX_API_KEY`            | Phoenix API key (if auth is enabled)                                                | none                    |
-| `PHOENIX_PROJECT_NAME`       | Phoenix project to send traces to                                                   | the agent name          |
+| Environment variable         | Description                          | Default                 |
+| ---------------------------- | ------------------------------------ | ----------------------- |
+| `OPENAI_API_KEY`             | OpenAI API key                       | required                |
+| `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix OTLP endpoint                | `http://localhost:6006` |
+| `PHOENIX_API_KEY`            | Phoenix API key (if auth is enabled) | none                    |
+| `PHOENIX_PROJECT_NAME`       | Phoenix project to send traces to    | the agent name          |

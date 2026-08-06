@@ -63,8 +63,8 @@ Connect to your Phoenix deployment with the standard client environment variable
 run the suite with pytest:
 
 ```bash
-export PHOENIX_ENDPOINT=https://your-phoenix-host   # base URL of your Phoenix
-export PHOENIX_API_KEY=...                          # if your deployment requires authentication
+export PHOENIX_ENDPOINT=...              # your Phoenix endpoint
+export PHOENIX_API_KEY=...               # if your deployment requires authentication
 pytest
 ```
 
@@ -232,11 +232,8 @@ enabling recording.
 | `PHOENIX_TEST_REPETITIONS` | `1` | Default number of repetitions for each marked test. The value must be an integer greater than or equal to 1; a malformed value raises an error so that CI never runs misconfigured. |
 | `PHOENIX_TEST_DATASET` | _(file path)_ | Names the dataset for every collected test, taking precedence over both `phoenix_dataset` and the marker's `dataset=`. When unset, each test falls back to its marker `dataset=` or, failing that, its file path. Combine it with pytest's own selection (`-m`, `-k`, or a path) to turn a subset of the suite into a named dataset per run, for example `PHOENIX_TEST_DATASET=smoke pytest -m smoke`. |
 
-The connection to Phoenix uses the standard client variables: `PHOENIX_ENDPOINT` (the base
-URL of your Phoenix, which is where the plugin sends both its API calls and its spans),
-`PHOENIX_API_KEY`, and `PHOENIX_CLIENT_HEADERS`. A suite already configured with
-`PHOENIX_COLLECTOR_ENDPOINT` keeps working — the client falls back to it. See
-[Environments](/docs/phoenix/environments) for how the endpoint variables relate.
+The connection to Phoenix uses the standard client variables:
+`PHOENIX_ENDPOINT`, `PHOENIX_API_KEY`, and `PHOENIX_CLIENT_HEADERS`.
 
 To iterate locally without recording anything to Phoenix, disable tracking:
 

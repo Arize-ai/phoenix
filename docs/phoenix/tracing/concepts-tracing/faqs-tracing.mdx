@@ -25,7 +25,7 @@ LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
 </Tab>
 
 <Tab title="Remote Phoenix">
-If you are running a remote instance of Phoenix, set `PHOENIX_COLLECTOR_ENDPOINT` to its URL before registering. Include the scheme — the value is parsed as a URL.
+If you are running a remote instance of Phoenix, set `PHOENIX_COLLECTOR_ENDPOINT` to its URL before registering. Include the scheme; the value is parsed as a URL.
 
 ```python
 import os
@@ -41,7 +41,7 @@ LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
 # run your LangChain application
 ```
 
-Given a base URL like the one above, `register()` exports over OTLP/gRPC on port `4317`. If only the HTTP port is reachable, pass `register(protocol="http/protobuf")` to export to `/v1/traces` instead. If the deployment has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled, also set `PHOENIX_API_KEY`. See [Environments](/docs/phoenix/environments) for the rest of the connection settings.
+See [Environments](/docs/phoenix/environments) for the rest of the connection settings.
 </Tab>
 </Tabs>
 

@@ -27,10 +27,8 @@ Copy `.env.example` to `.env` and fill in:
 OPENAI_API_KEY=your-openai-api-key
 TAVILY_API_KEY=your-tavily-api-key
 
-# Optional: Phoenix (defaults shown)
-# PHOENIX_COLLECTOR_ENDPOINT is where traces are exported; PHOENIX_ENDPOINT is the
-# server base URL the eval scripts call. Both accept a base URL here — register()
-# appends the OTLP /v1/traces path for you.
+# Optional: Phoenix (defaults shown). Traces are exported to
+# PHOENIX_COLLECTOR_ENDPOINT; the eval scripts call the Phoenix API on PHOENIX_ENDPOINT.
 PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
 PHOENIX_ENDPOINT=http://localhost:6006
 PHOENIX_PROJECT_NAME=langchain-travel-agent
@@ -38,9 +36,6 @@ PHOENIX_PROJECT_NAME=langchain-travel-agent
 # Optional: for custom_evals (uses Fireworks model)
 FIREWORKS_API_KEY=your-fireworks-api-key
 ```
-
-See [Environments](https://arize.com/docs/phoenix/environments) for the full list of
-Phoenix environment variables.
 
 3. **Start Phoenix** (if running locally):
 
@@ -83,8 +78,7 @@ npm run custom_evals
 ```
 
 - Uses a custom classification evaluator with a travel-plan correctness template.
-- Requires `FIREWORKS_API_KEY`. Reads spans from the Phoenix at `PHOENIX_ENDPOINT`
-  (defaults to `http://localhost:6006`).
+- Requires `PHOENIX_ENDPOINT` and `FIREWORKS_API_KEY`.
 - Evaluates the same LangGraph spans and logs annotations as `custom_correctness`.
 
 ## What to Look For in Phoenix
@@ -154,8 +148,6 @@ langchain-quickstart/
 - Or run from the Phoenix repo root: `uv run phoenix serve`
 - Evals still run and print results; only sending annotations to Phoenix fails until the server is upgraded.
 
-**Evals find no spans, or annotate the wrong Phoenix**
+**custom_evals: Set PHOENIX_ENDPOINT**
 
-- The eval scripts read from `PHOENIX_ENDPOINT`, which defaults to `http://localhost:6006`. Point it at the same Phoenix the agent traced to (e.g. `PHOENIX_ENDPOINT=https://phoenix.example.com`).
-- Confirm `PHOENIX_PROJECT_NAME` matches between the agent run and the eval run — both default to `langchain-travel-agent`.
-- For `npm run custom_evals`, also set `FIREWORKS_API_KEY` for the evaluator model.
+- Set it in `.env` (e.g. `PHOENIX_ENDPOINT=http://localhost:6006`) and ensure `FIREWORKS_API_KEY` is set for the Fireworks evaluator model.

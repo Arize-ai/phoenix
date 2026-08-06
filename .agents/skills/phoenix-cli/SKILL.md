@@ -83,13 +83,8 @@ export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if auth is enabled
 ```
 
-`PHOENIX_ENDPOINT` is the base URL for API access — the CLI, the clients, and
-MCP all read it. It never carries a request path. A repo already set up for
-tracing needs no extra configuration: when `PHOENIX_ENDPOINT` is unset the CLI
-infers the base URL from `PHOENIX_COLLECTOR_ENDPOINT`, the trace-export
-variable. Older configurations keep working; see
-[Environments](https://arize.com/docs/phoenix/environments) for the full
-resolution order.
+`PHOENIX_ENDPOINT` is the base URL for API access. When it is unset, the CLI
+infers it from `PHOENIX_COLLECTOR_ENDPOINT` (the trace-export variable).
 
 For interactive local use, `px auth login` stores an OAuth session in the selected profile; the session acts with the permissions of the user who logged in. API keys take precedence over OAuth tokens when both are configured.
 OAuth access tokens are refreshed automatically for REST, GraphQL, and PXI

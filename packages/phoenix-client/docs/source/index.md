@@ -38,8 +38,7 @@ export PHOENIX_CLIENT_HEADERS="Authorization=Bearer your-api-key,custom-header=v
 `PHOENIX_ENDPOINT` is a base URL and is the canonical setting for the client. If
 your app also exports traces, set `PHOENIX_COLLECTOR_ENDPOINT` for the OTel SDK
 — usually to the same value. When only `PHOENIX_COLLECTOR_ENDPOINT` is set, the
-client infers its base URL from it. See
-[Environments](https://arize.com/docs/phoenix/environments) for the full list.
+client infers its base URL from it.
 
 ### Client Initialization
 

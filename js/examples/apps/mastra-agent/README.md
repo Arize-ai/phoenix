@@ -40,23 +40,15 @@ PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
 PHOENIX_PROJECT_NAME=mastra-project
 ```
 
-The eval and experiment scripts call the Phoenix API on `PHOENIX_ENDPOINT`, the server's
-base URL. `PHOENIX_COLLECTOR_ENDPOINT` is the exact URL traces are sent to — Mastra's
+The eval script calls the Phoenix API on `PHOENIX_ENDPOINT`, the server's base URL.
+`PHOENIX_COLLECTOR_ENDPOINT` is the exact URL traces are sent to — Mastra's
 `ArizeExporter` POSTs to it verbatim, so it carries the OTLP `/v1/traces` path and
 `src/mastra/index.ts` passes it straight through.
 
-For a hosted or self-hosted instance with authentication enabled, point both at that
-instance — the base URL for `PHOENIX_ENDPOINT`, the same URL plus `/v1/traces` for
-`PHOENIX_COLLECTOR_ENDPOINT` — and add your API key:
-
-```bash
-PHOENIX_ENDPOINT=https://phoenix.example.com
-PHOENIX_COLLECTOR_ENDPOINT=https://phoenix.example.com/v1/traces
-PHOENIX_API_KEY=your-api-key
-```
-
-See [Environments](https://arize.com/docs/phoenix/environments) for the full list of
-Phoenix environment variables.
+If you are using an instance with authentication enabled, also set
+`PHOENIX_API_KEY=your-api-key` and point both variables at that instance:
+`PHOENIX_ENDPOINT=https://phoenix.example.com` and
+`PHOENIX_COLLECTOR_ENDPOINT=https://phoenix.example.com/v1/traces`.
 
 ## Running the Agent
 
@@ -80,10 +72,6 @@ Once you're ready to run Evals, run this from the example directory:
 npm run eval
 ```
 
-The eval script reads spans back from Phoenix and writes annotations, so it needs
-`PHOENIX_ENDPOINT` (or `PHOENIX_COLLECTOR_ENDPOINT`, which it infers the base URL from)
-to point at the same Phoenix the agent traced to.
-
 ## Project Structure
 
 ```
@@ -98,9 +86,6 @@ src/
     index.ts                   # Mastra configuration with Arize Phoenix tracing
   eval/
     evals.ts                   # Tool Correctness & Goal Completion evals
-  experiments/
-    configure-experiments.ts   # Dataset, task, and relevance evaluator
-    run-experiments.ts         # Runs the experiment against the dataset
 ```
 
 ## What's Included
