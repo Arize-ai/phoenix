@@ -8,7 +8,7 @@
  * 3. Create a dataset where each example is linked back to its source span
  *
  * Prerequisites:
- *   - Phoenix server running (default: http://localhost:6006)
+ *   - Phoenix server running (set PHOENIX_ENDPOINT; default: http://localhost:6006)
  *   - A project with LLM spans containing input/output attributes
  *
  * Usage:
@@ -21,7 +21,8 @@ import { getSpans } from "../src/spans/getSpans";
 import type { Example } from "../src/types/datasets";
 
 // Configuration
-const PHOENIX_BASE_URL = "http://localhost:6006";
+const PHOENIX_ENDPOINT =
+  process.env.PHOENIX_ENDPOINT ?? "http://localhost:6006";
 const PROJECT_NAME = "llm-dataset-example";
 const DATASET_NAME = `qa-from-spans-${Date.now()}`;
 
@@ -107,11 +108,11 @@ async function main() {
 
   const client = createClient({
     options: {
-      baseUrl: PHOENIX_BASE_URL,
+      baseUrl: PHOENIX_ENDPOINT,
     },
   });
 
-  console.log(`\nConnected to Phoenix at ${PHOENIX_BASE_URL}`);
+  console.log(`\nConnected to Phoenix at ${PHOENIX_ENDPOINT}`);
 
   try {
     // Step 1: Fetch spans from the project
@@ -186,9 +187,9 @@ async function main() {
 
     console.log("\n" + "=".repeat(60));
     console.log("Example complete!");
-    console.log(`View your dataset at: ${PHOENIX_BASE_URL}/datasets`);
+    console.log(`View your dataset at: ${PHOENIX_ENDPOINT}/datasets`);
     console.log(`  (Look for dataset: '${DATASET_NAME}')`);
-    console.log(`View your traces at: ${PHOENIX_BASE_URL}/projects`);
+    console.log(`View your traces at: ${PHOENIX_ENDPOINT}/projects`);
     console.log(`  (Look for project: '${PROJECT_NAME}')`);
     console.log("=".repeat(60));
   } catch (error) {
@@ -196,7 +197,7 @@ async function main() {
 
     if (error instanceof Error && error.message.includes("ECONNREFUSED")) {
       console.error(
-        `\nMake sure Phoenix server is running on ${PHOENIX_BASE_URL}`
+        `\nMake sure Phoenix server is running on ${PHOENIX_ENDPOINT}`
       );
     }
 
