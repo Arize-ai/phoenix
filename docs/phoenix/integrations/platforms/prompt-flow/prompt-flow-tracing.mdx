@@ -15,13 +15,14 @@ pip install promptflow
 
 Set up the OpenTelemetry endpoint to point to Phoenix and use Prompt flow's `setup_exporter_from_environ` to start tracing any further flows and LLM calls.
 
-```swift
+```python
 import os
 from opentelemetry.sdk.environment_variables import OTEL_EXPORTER_OTLP_ENDPOINT
 from promptflow.tracing._start_trace import setup_exporter_from_environ
 
-endpoint = f"{os.environ["PHOENIX_COLLECTOR_ENDPOINT]}/v1/traces" # replace with your Phoenix endpoint if self-hosting
-os.environ[OTEL_EXPORTER_OTLP_ENDPOINT] = endpoint
+# PHOENIX_COLLECTOR_ENDPOINT is the base URL of your Phoenix; the OTLP path is appended here
+base_url = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006")
+os.environ[OTEL_EXPORTER_OTLP_ENDPOINT] = f"{base_url}/v1/traces"
 setup_exporter_from_environ()
 ```
 
