@@ -1,7 +1,7 @@
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 import { context, trace } from "@opentelemetry/api";
 import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace-node";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { DiagLogLevel } from "../src";
 import {
@@ -16,6 +16,39 @@ afterEach(() => {
 });
 
 describe("register", () => {
+  // PHOENIX_ENDPOINT is canonical for API access but is deliberately not read
+  // for trace export. Without this warning the misconfiguration is silent:
+  // spans go to localhost and the batching exporter swallows the failure.
+  test("should warn when only PHOENIX_ENDPOINT is set", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    process.env.PHOENIX_ENDPOINT = "https://phoenix.example.com";
+    try {
+      register({ global: false });
+      const message = warn.mock.calls.map((call) => call[0]).join("\n");
+      expect(message).toContain("PHOENIX_ENDPOINT is set");
+      expect(message).toContain("PHOENIX_COLLECTOR_ENDPOINT");
+      expect(message).toContain("http://localhost:6006");
+    } finally {
+      delete process.env.PHOENIX_ENDPOINT;
+      warn.mockRestore();
+    }
+  });
+
+  test("should not warn when PHOENIX_COLLECTOR_ENDPOINT is also set", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    process.env.PHOENIX_ENDPOINT = "https://phoenix.example.com";
+    process.env.PHOENIX_COLLECTOR_ENDPOINT = "https://phoenix.example.com";
+    try {
+      register({ global: false });
+      const message = warn.mock.calls.map((call) => call[0]).join("\n");
+      expect(message).not.toContain("PHOENIX_ENDPOINT is set");
+    } finally {
+      delete process.env.PHOENIX_ENDPOINT;
+      delete process.env.PHOENIX_COLLECTOR_ENDPOINT;
+      warn.mockRestore();
+    }
+  });
+
   test("should register a provider and invoke custom span processor", () => {
     let onStartCalls = 0;
     const mockProcessor: SpanProcessor = {

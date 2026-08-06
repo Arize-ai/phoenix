@@ -1,6 +1,8 @@
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 import {
   ENV_PHOENIX_COLLECTOR_ENDPOINT,
+  ENV_PHOENIX_ENDPOINT,
+  getStrFromEnvironment,
   warnIfUsingFileEndpointWithCredentials,
 } from "@arizeai/phoenix-config";
 import type { DiagLogLevel } from "@opentelemetry/api";
@@ -571,6 +573,21 @@ export function getDefaultSpanProcessor({
 >): SpanProcessor {
   const envConfig = getEnvConfig();
   const configuredUrl = paramsUrl || envConfig.endpoint.value;
+  if (!configuredUrl) {
+    // PHOENIX_ENDPOINT is canonical for API access but is deliberately not read
+    // for trace export, so a user who set only it would otherwise export to
+    // localhost and lose every span with nothing logged.
+    const apiEndpoint = getStrFromEnvironment(ENV_PHOENIX_ENDPOINT);
+    if (apiEndpoint) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `${ENV_PHOENIX_ENDPOINT} is set ("${apiEndpoint}") but ${ENV_PHOENIX_COLLECTOR_ENDPOINT} is not. ` +
+          `Trace export reads ${ENV_PHOENIX_COLLECTOR_ENDPOINT} only, so spans are being sent to ` +
+          `http://localhost:6006. Set ${ENV_PHOENIX_COLLECTOR_ENDPOINT} (usually to the same value) ` +
+          `or pass \`url\` to register().`
+      );
+    }
+  }
   let url: string;
   try {
     url = ensureCollectorEndpoint(configuredUrl || "http://localhost:6006");

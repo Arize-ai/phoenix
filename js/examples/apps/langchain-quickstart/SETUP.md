@@ -35,8 +35,8 @@ Create a `.env` from `.env.example` and set at least:
 OPENAI_API_KEY=your-key-here
 TAVILY_API_KEY=your-tavily-key-here
 
-# Optional: Phoenix (defaults)
-PHOENIX_ENDPOINT=http://localhost:6006
+# Optional: Phoenix (defaults). Tracing reads PHOENIX_COLLECTOR_ENDPOINT.
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
 PHOENIX_PROJECT_NAME=langchain-travel-agent
 ```
 

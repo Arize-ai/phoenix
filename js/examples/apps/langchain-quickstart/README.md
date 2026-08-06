@@ -27,8 +27,9 @@ Copy `.env.example` to `.env` and fill in:
 OPENAI_API_KEY=your-openai-api-key
 TAVILY_API_KEY=your-tavily-api-key
 
-# Optional: Phoenix (defaults shown)
-PHOENIX_ENDPOINT=http://localhost:6006
+# Optional: Phoenix (defaults shown). Tracing reads PHOENIX_COLLECTOR_ENDPOINT;
+# the API clients fall back to it, so this one value covers both.
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
 PHOENIX_PROJECT_NAME=langchain-travel-agent
 
 # Optional: for custom_evals (uses Fireworks model)
