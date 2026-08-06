@@ -6001,10 +6001,7 @@ export interface components {
         };
         /**
          * TurnTraceContext
-         * @description The trace identity a turn's spans are parented to — minted by the
-         *     server at the turn's first request. The server recovers it from the
-         *     persisted assistant message when a client-tool continuation resumes the
-         *     turn, and the UI uses its ids to link the message to a viewable trace.
+         * @description The trace identity a turn's spans are parented to.
          */
         TurnTraceContext: {
             /** Traceid */
