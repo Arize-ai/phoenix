@@ -276,6 +276,10 @@ const chatCSS = css`
   .chat__compaction-summary {
     margin-bottom: var(--global-dimension-size-100);
     padding: 0 var(--global-dimension-size-100);
+
+    & [data-expanded="true"] {
+      overflow: hidden;
+    }
   }
 
   &.chat--empty {
