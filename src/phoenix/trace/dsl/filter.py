@@ -161,6 +161,64 @@ _PARENT_IS_NOT_NULL = "__parent_is_not_null__"
 
 _STRICT_ROOT_KEYWORD = "parent_id"
 
+
+class _RootNamespace(typing.NamedTuple):
+    """A reserved dotted root and the closed set of members it exposes.
+
+    Reserving the root is what makes a typo answerable. A bare name falls back to the
+    dynamic attribute namespace -- `totl_cost` compiles to `attributes['totl_cost']`, which
+    matches nothing and says nothing -- but nothing lies beneath a reserved root, so
+    `span.totl_cost` can be rejected by name with a suggestion instead.
+
+    That same closure is why reserving a root is a compatibility break (spec principle 6:
+    every new name is one) and why members are cheap to add afterwards -- an unknown member
+    already errors, so admitting one later cannot change what an accepted condition meant.
+    """
+
+    keyword: str
+    scalars: typing.Mapping[str, "FilterValueType"]
+    iterables: frozenset[str] = frozenset()
+
+    @property
+    def members(self) -> frozenset[str]:
+        return frozenset(self.scalars) | self.iterables
+
+    def binding(self, member: str) -> str:
+        """The internal name a resolved member translates to and is bound to at eval time.
+
+        Deliberately unspellable: it never enters `binding_names`, so it cannot be typed by
+        a user, suggested by did-you-mean, or collide with an attribute key.
+        """
+        return f"__{self.keyword}_{member}__"
+
+
+# The `span` root reads this span's own cost row. Cost lives on `span_costs`, not on
+# `spans`, so these are not columns of the filtered row -- they are bound per-instance
+# against an aliased outer join (see `SpanFilter.__call__`), which is also why they are
+# absent from `_FLOAT_NAMES` and so from `Projector`'s namespace.
+_SPAN_COST_SCALARS: typing.Mapping[str, "FilterValueType"] = MappingProxyType(
+    {
+        "total_cost": "number",
+        "prompt_cost": "number",
+        "completion_cost": "number",
+        "total_tokens": "number",
+        "prompt_tokens": "number",
+        "completion_tokens": "number",
+        "total_cost_per_token": "number",
+        "prompt_cost_per_token": "number",
+        "completion_cost_per_token": "number",
+    }
+)
+# Costs and token counts coalesce to 0, matching the session grain's rollups ("0 when no
+# cost is configured, never null") so one name means one thing across grains. Ratios do
+# not: a span with no cost row has no cost *per token* either, and coalescing would assert
+# a rate that was never recorded. Those stay NULL and so fail every comparison, which is
+# the family's rule for a missing value.
+_SPAN_COST_RATIOS: frozenset[str] = frozenset(
+    {"total_cost_per_token", "prompt_cost_per_token", "completion_cost_per_token"}
+)
+_SPAN_NAMESPACE = _RootNamespace(keyword="span", scalars=_SPAN_COST_SCALARS)
+
 # Comprehension forms: `any`/`all` yield a boolean, the rest yield a number. Each extracted
 # comprehension is replaced by a reserved name carrying the matching prefix, which is how the
 # translator types the result without a per-instance name map.
@@ -230,6 +288,11 @@ class _FilterBindings:
     # Dotted spellings accepted as shorthands for a root-span attribute key, e.g. `user.id`.
     # Under `strict_semantics` every other dotted root is rejected.
     attribute_proxies: frozenset[str] = frozenset()
+    # The grain's reserved dotted root, if it declares one. Distinct from the two dotted
+    # forms above -- a legacy alias resolves to a name that also has a bare spelling, and an
+    # attribute proxy resolves *into* the dynamic namespace; a reserved root resolves to a
+    # closed set and shadows the dynamic namespace beneath it entirely.
+    root_namespace: typing.Optional["_RootNamespace"] = None
     allow_outer_element_references: bool = False
     allow_datetime_reductions: bool = False
 
@@ -308,6 +371,7 @@ SPAN_BINDINGS = _FilterBindings(
     exists_names=frozenset(),
     supports_parent_keyword=True,
     case_insensitive_containment=True,
+    root_namespace=_SPAN_NAMESPACE,
 )
 
 
@@ -576,16 +640,22 @@ def _validate_element_access(
     )
 
 
-def _validate_comprehensions(expression: ast.Expression, bindings: _FilterBindings) -> None:
+def _validate_comprehensions(
+    expression: ast.Expression,
+    bindings: _FilterBindings,
+) -> frozenset[int]:
     """Admit comprehensions only in the shapes the compiler can build a subquery from.
 
     A comprehension has to be the sole argument of one of the sanctioned reductions, range over a
     declared iterable through a single non-async `for` with a simple loop variable, and reference
     the loop variable only through its declared fields. Grains that declare no iterables reject
     comprehensions outright, via the node-type whitelist in :func:`_validate_expression`.
+
+    Returns the identities of the nodes accepted as iterators, so a later pass can tell a
+    collection named in `for ... in` position from the same collection named anywhere else.
     """
     if not bindings.iterables:
-        return
+        return frozenset()
     iterable_slots: set[int] = set()
     annotation_accessor_slots = {
         id(node.value) for node in ast.walk(expression.body) if _is_annotation(node, bindings)
@@ -600,6 +670,16 @@ def _validate_comprehensions(expression: ast.Expression, bindings: _FilterBindin
             variable = typing.cast(ast.Name, generator.target).id
             if _scope_of(variable, scopes) is not None:
                 raise SyntaxError(f"`{variable}` is already in use as a loop variable")
+            if (namespace := bindings.root_namespace) is not None and variable == namespace.keyword:
+                # Shadowing the reserved root would make `span.<x>` mean the loop element in
+                # one scope and the filtered row in another. Structural validation walks the
+                # raw tree with no scope information, so it could not tell them apart --
+                # rejecting the name is cheaper than teaching that walk about scopes. Grains
+                # without a reserved root are unaffected, which is why the session grain can
+                # keep spelling its span loops `for span in spans`.
+                raise SyntaxError(
+                    f"`{namespace.keyword}` is reserved and cannot be a loop variable"
+                )
             scope = _ElementScope(variable, iterable, bindings.iterables[iterable])
             _validate_element_expression(comprehension.elt, kind, scope, bindings)
             for inner in (*generator.ifs, comprehension.elt):
@@ -638,6 +718,53 @@ def _validate_comprehensions(expression: ast.Expression, bindings: _FilterBindin
                 f"`{node.id}` is a collection and can only be iterated, "
                 f'e.g. `any(x.<field> == "..." for x in {node.id})`'
             )
+    return frozenset(iterable_slots)
+
+
+def _validate_root_namespace(
+    expression: ast.Expression,
+    bindings: _FilterBindings,
+    iterable_slots: typing.AbstractSet[int],
+) -> None:
+    """Check every reference rooted at the grain's reserved namespace keyword.
+
+    Runs before translation, so a rejection names what the user actually wrote. Members are
+    a closed set, which is the whole point of reserving the root: `span.totl_cost` has no
+    attribute-path fallback to absorb it and so can be answered with a suggestion.
+
+    `iterable_slots` carries the iterators :func:`_validate_comprehensions` already accepted,
+    which is how a collection member is admitted in `for ... in` position and rejected in
+    value position.
+    """
+    if (namespace := bindings.root_namespace) is None:
+        return
+    keyword = namespace.keyword
+    roots: set[int] = set()
+    for node in ast.walk(expression.body):
+        if not isinstance(node, (ast.Attribute, ast.Subscript)):
+            continue
+        if (root := _namespace_root(node, keyword)) is None:
+            continue
+        roots.add(id(root))
+        if not _is_member_access(node):
+            # `span.a.b`, `span.a['b']`, `span['a']`. `ast.walk` is breadth-first, so the
+            # outermost node is seen first and names the whole offending expression.
+            raise _namespace_traversal_error(node, namespace)
+        if (member := node.attr) in namespace.iterables:
+            if id(node) not in iterable_slots:
+                raise SyntaxError(
+                    f"`{keyword}.{member}` is a collection and can only be iterated, "
+                    f'e.g. `any(x.<field> == "..." for x in {keyword}.{member})`'
+                )
+            continue
+        if member not in namespace.scalars:
+            raise _invalid_member_error(member, namespace)
+    for node in ast.walk(expression.body):
+        if isinstance(node, ast.Name) and node.id == keyword and id(node) not in roots:
+            # A bare `span`, i.e. one that is not the root of a member access. Rejected
+            # rather than left to mean `attributes['span']`, so the root is reserved whole
+            # and the closed-set guarantee has no hole at its base.
+            raise SyntaxError(f"`{keyword}` can only be used as `{keyword}.<field>`")
 
 
 class _ComprehensionExtractor(ast.NodeTransformer):
@@ -911,6 +1038,9 @@ class _CompiledCondition(typing.NamedTuple):
     """Safe values bound by the translator (e.g. datetime literals) that must be
     present in the eval globals for the compiled expression to evaluate."""
     comprehensions: tuple["ComprehensionSpec", ...] = ()
+    namespace_members: frozenset[str] = frozenset()
+    """Reserved-root members the condition referenced. Empty unless the grain declares a
+    root namespace, and the signal a caller uses to skip that namespace's join entirely."""
 
 
 def _compile_condition(
@@ -987,6 +1117,7 @@ def _compile_condition(
         aliased_annotation_attributes,
         translator.literal_bindings,
         comprehensions,
+        frozenset(translator.namespace_members),
     )
 
 
@@ -1021,6 +1152,35 @@ def _join_annotations(
             ),
         )
     return stmt
+
+
+def _join_span_cost(
+    stmt: Select[typing.Any],
+    members: typing.AbstractSet[str],
+) -> tuple[Select[typing.Any], typing.Any, dict[str, typing.Any]]:
+    """Outer-join this span's cost row and bind the `span.` members the condition referenced.
+
+    Aliased deliberately, for the same reason the annotation relations are: callers apply a
+    span filter to statements that may already join `span_costs` for their own aggregation
+    (`span_cost_summary_by_project` does), and an unaliased join would collide with theirs.
+    The relation is at most one row per span, so the outer join cannot multiply rows.
+
+    Joined only when a member was referenced, so the conditions that ask nothing about cost
+    -- nearly all of them -- pay nothing for the namespace existing.
+    """
+    span_cost = aliased(models.SpanCost)
+    stmt = stmt.outerjoin(span_cost, onclause=span_cost.span_rowid == models.Span.id)
+    bindings: dict[str, typing.Any] = {}
+    for member in members:
+        column = getattr(span_cost, member)
+        # An absent cost row and a recorded-but-null column are the same answer to the user's
+        # question, so both coalesce; see `_SPAN_COST_RATIOS` for why ratios do not.
+        bindings[_SPAN_NAMESPACE.binding(member)] = (
+            column if member in _SPAN_COST_RATIOS else sqlalchemy.func.coalesce(column, 0)
+        )
+    # The alias is returned so a caller that nests the predicate in a subquery can correlate
+    # it, rather than have the relation re-rendered there as a cross join.
+    return stmt, span_cost, bindings
 
 
 def _eval_globals(
@@ -1062,6 +1222,7 @@ class SpanFilter:
     _aliased_annotation_attributes: dict[str, Mapped[typing.Any]] = field(init=False, repr=False)
     _literal_bindings: dict[str, typing.Any] = field(init=False, repr=False)
     _comprehensions: tuple[ComprehensionSpec, ...] = field(init=False, repr=False)
+    _namespace_members: frozenset[str] = field(init=False, repr=False)
 
     def __bool__(self) -> bool:
         return bool(self.condition)
@@ -1121,6 +1282,7 @@ class SpanFilter:
         )
         object.__setattr__(self, "_literal_bindings", compiled_condition.literal_bindings)
         object.__setattr__(self, "_comprehensions", compiled_condition.comprehensions)
+        object.__setattr__(self, "_namespace_members", compiled_condition.namespace_members)
 
     def __call__(self, select: Select[typing.Any]) -> Select[typing.Any]:
         if not self.condition:
@@ -1146,28 +1308,45 @@ class SpanFilter:
             .correlate(models.Span)
             .exists()
         )
+        stmt = select
+        extra_bindings: dict[str, typing.Any] = {
+            **self._literal_bindings,
+            _PARENT_IS_NULL: ~parent_exists,
+            _PARENT_IS_NOT_NULL: parent_exists,
+        }
+        # The cost relation is joined to the outer statement, so a predicate that reads it
+        # from inside the annotation `EXISTS` has to correlate it as well; see there.
+        correlated: list[typing.Any] = [models.Span]
+        if self._namespace_members:
+            stmt, span_cost, cost_bindings = _join_span_cost(stmt, self._namespace_members)
+            extra_bindings.update(cost_bindings)
+            correlated.append(span_cost)
         predicate = eval(
             self.compiled,
             _eval_globals(
                 SPAN_BINDINGS,
                 self._aliased_annotation_attributes,
-                {
-                    **self._literal_bindings,
-                    _PARENT_IS_NULL: ~parent_exists,
-                    _PARENT_IS_NOT_NULL: parent_exists,
-                },
+                extra_bindings,
             ),
         )
         if not self._aliased_annotation_relations:
-            return select.where(predicate)
-        return select.where(self._annotation_predicate_exists(predicate))
+            return stmt.where(predicate)
+        return stmt.where(self._annotation_predicate_exists(predicate, correlated))
 
-    def _annotation_predicate_exists(self, predicate: ColumnElement[bool]) -> ColumnElement[bool]:
+    def _annotation_predicate_exists(
+        self,
+        predicate: ColumnElement[bool],
+        correlated: typing.Sequence[typing.Any],
+    ) -> ColumnElement[bool]:
         """Evaluate annotation predicates without duplicating spans.
 
         The one-row seed preserves outer-join semantics for missing annotations.
         The correlated ``EXISTS`` prevents annotations with multiple identifiers
         from duplicating spans in the outer query.
+
+        Every relation the predicate reads off the outer statement has to be named in
+        ``correlated``: naming any of them turns auto-correlation off, so one left out
+        would be re-rendered in this subquery's own ``FROM`` as a cross join.
         """
         seed = sqlalchemy.select(literal(True).label("seed")).subquery()
         statement = sqlalchemy.select(literal(True)).select_from(seed)
@@ -1184,7 +1363,7 @@ class SpanFilter:
                     aliased_annotation.name == annotation_relation.name,
                 ),
             )
-        return statement.where(predicate).correlate(models.Span).exists()
+        return statement.where(predicate).correlate(*correlated).exists()
 
     def to_dict(self) -> dict[str, typing.Any]:
         return {"condition": self.condition}
@@ -1486,6 +1665,47 @@ def _parent_traversal_error(node: ast.expr) -> SyntaxError:
     )
 
 
+def _namespace_root(node: typing.Any, keyword: str) -> typing.Optional[ast.Name]:
+    """The reserved-root `Name` an attribute/subscript chain is rooted at, if it is one.
+
+    Mirrors `_is_parent_rooted`: the root is the base of the chain, so `span.total_cost` is
+    span-rooted while `attributes['span']['total_cost']` is not -- its root is `attributes`.
+    """
+    while isinstance(node, (ast.Attribute, ast.Subscript)):
+        node = node.value
+    return node if isinstance(node, ast.Name) and node.id == keyword else None
+
+
+def _is_member_access(node: ast.AST) -> TypeGuard[ast.Attribute]:
+    """Whether `node` is exactly one hop off a bare name, i.e. `<keyword>.<member>`."""
+    return isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name)
+
+
+def _namespace_traversal_error(node: ast.expr, namespace: _RootNamespace) -> SyntaxError:
+    return SyntaxError(
+        f"`{_ellipsize(ast.unparse(node), 80)}` is not supported: `{namespace.keyword}` "
+        f"exposes its fields directly (`{namespace.keyword}.<field>`) "
+        "and cannot be traversed further"
+    )
+
+
+def _invalid_member_error(member: str, namespace: _RootNamespace) -> SyntaxError:
+    """Reject an unknown member of a reserved root, suggesting a real one.
+
+    Possible only because the root is closed: with no attribute-path fallback beneath it, a
+    misspelling has nowhere to go, so it can be named instead of silently matching nothing.
+    """
+    keyword = namespace.keyword
+    choice, score = _find_best_match(member, namespace.members)
+    suggestion = (
+        f", did you mean `{keyword}.{choice}`?"
+        if choice and score > 0.75
+        else ", expected "
+        + _disjunction([f"{keyword}.{name}" for name in sorted(namespace.members)])
+    )
+    return SyntaxError(f"invalid field `{keyword}.{_ellipsize(member, 80)}`{suggestion}")
+
+
 def _is_none_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     return isinstance(node, ast.Constant) and node.value is None
 
@@ -1642,6 +1862,14 @@ def _get_named_filter_value_type(name: str) -> typing.Optional[FilterValueType]:
         return "number"
     if name in _DATETIME_NAMES:
         return "datetime"
+    # Reserved-root members are typed from their dotted spelling, because validation runs
+    # ahead of translation and so sees `span.total_cost`, never the internal name it
+    # resolves to. This is the language's second encoding of one rule, and the two have to
+    # agree: `span.total_cost > '100'` must reject exactly as `latency_ms > '100'` does.
+    # Reading both sides off the one namespace declaration is what keeps them from drifting.
+    keyword, _, member = name.partition(".")
+    if keyword == _SPAN_NAMESPACE.keyword:
+        return _SPAN_NAMESPACE.scalars.get(member)
     return None
 
 
@@ -2220,6 +2448,9 @@ class _FilterTranslator(_ProjectionTranslator):
         super().__init__(reserved_keywords, bindings)
         self._string_keywords = frozenset(string_keywords)
         self.literal_bindings: dict[str, typing.Any] = {}
+        self.namespace_members: set[str] = set()
+        """Reserved-root members the condition referenced, so the caller joins their table
+        only when one was actually used."""
 
     @property
     def _containment_function(self) -> str:
@@ -2242,11 +2473,32 @@ class _FilterTranslator(_ProjectionTranslator):
 
     def visit_Attribute(self, node: ast.Attribute) -> typing.Any:
         self._reject_parent_traversal(node)
+        if (resolved := self._resolve_namespace_member(node)) is not None:
+            return resolved
         return super().visit_Attribute(node)
 
     def visit_Subscript(self, node: ast.Subscript) -> typing.Any:
         self._reject_parent_traversal(node)
         return super().visit_Subscript(node)
+
+    def _resolve_namespace_member(self, node: ast.Attribute) -> typing.Optional[ast.Name]:
+        """Rewrite `<root>.<member>` to the internal name its column is bound to.
+
+        Rewriting to a bare `Name` is what keeps the reserved root free of the guard drift
+        the parent-traversal work has to solve: every downstream type check keys on syntax
+        shape, and a resolved member is the same shape as any other bound name, so casting,
+        coercion, and containment all behave as they do for `latency_ms`.
+
+        Validation has already rejected every other root-rooted shape, so a node that does
+        not resolve here is not root-rooted at all and falls through to attribute paths.
+        """
+        namespace = self._bindings.root_namespace
+        if namespace is None or not isinstance(value := node.value, ast.Name):
+            return None
+        if value.id != namespace.keyword or (member := node.attr) not in namespace.scalars:
+            return None
+        self.namespace_members.add(member)
+        return ast.Name(id=namespace.binding(member), ctx=ast.Load())
 
     def _reject_parent_traversal(self, node: ast.expr) -> None:
         # The `parent_span` keyword is fully reserved: `parent_span.<field>` traversal is
@@ -3184,7 +3436,8 @@ def _validate_expression(
     _validate_python_surface(expression.body, source)
     _validate_annotation_accessors(expression, bindings)
     _validate_exists_name_usage(expression, bindings)
-    _validate_comprehensions(expression, bindings)
+    iterable_slots = _validate_comprehensions(expression, bindings)
+    _validate_root_namespace(expression, bindings, iterable_slots)
     for i, node in enumerate(ast.walk(expression.body)):
         if i == 0:
             if (
