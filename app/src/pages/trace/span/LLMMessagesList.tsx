@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import type { AttributeMessage } from "@phoenix/openInference/tracing/types";
 
 import { LLMMessage } from "./LLMMessage";
+import { useLLMMessagesCollapse } from "./LLMMessagesCollapseContext";
 
 /**
  * A list of LLM messages (input or output).
@@ -19,6 +20,7 @@ export function LLMMessagesList({
    */
   leadingItems?: ReactNode[];
 }) {
+  const { isMessageOpen, setMessageOpen } = useLLMMessagesCollapse();
   return (
     <ul
       css={css`
@@ -34,7 +36,11 @@ export function LLMMessagesList({
       {messages.map((message, idx) => {
         return (
           <li key={idx}>
-            <LLMMessage message={message} />
+            <LLMMessage
+              message={message}
+              isOpen={isMessageOpen(idx)}
+              onOpenChange={(isOpen) => setMessageOpen(idx, isOpen)}
+            />
           </li>
         );
       })}
