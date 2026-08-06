@@ -18,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, TypeVar
 from uuid import uuid4
 
+import anyio
 from fastapi import APIRouter, Depends, HTTPException, Query
 from openinference.instrumentation import using_session, using_user
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
@@ -155,6 +156,7 @@ from phoenix.server.agents.ui_message_stream import (
 )
 from phoenix.server.agents.vercel_ui_message_stream import (
     create_streaming_ui_message_state,
+    finalize_interrupted_ui_message_state,
     process_ui_message_stream,
 )
 from phoenix.server.api.helpers.agent_sessions import (
@@ -206,6 +208,11 @@ from phoenix.tracers import (
 )
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
+
+_PYDANTIC_AI_PROVIDER_METADATA_KEY = "pydantic_ai"
+"""The ``providerMetadata`` namespace ``pydantic_ai.ui.vercel_ai`` reads and writes
+(its private ``PROVIDER_METADATA_KEY``); ``load_messages`` restores tool outcomes
+recorded under it."""
 
 _PXI_INSTRUMENTATION_SCOPE = InstrumentationScope("phoenix.server.pxi")
 
@@ -708,14 +715,21 @@ def _build_assistant_message_metadata(
     *,
     turn_trace_context: TurnTraceContext | None,
     session_id: str,
-    usage: RequestUsage,
+    usage: RequestUsage | None,
+    interrupted: bool = False,
 ) -> AssistantMessageMetadata:
-    """Build the metadata payload attached to the turn's assistant message."""
+    """Build the metadata payload attached to the turn's assistant message.
+
+    ``interrupted`` is always set explicitly (never left unset) so that when an
+    interrupted message is later continued to completion, the completed turn's
+    metadata chunk deep-merges ``interrupted: false`` over the stale flag.
+    """
     return AssistantMessageMetadata(
         type="assistant",
         session_id=session_id,
         turn_trace_context=turn_trace_context,
-        usage=_build_usage_payload(usage),
+        usage=_build_usage_payload(usage) if usage is not None else None,
+        interrupted=interrupted,
     )
 
 
@@ -1488,7 +1502,7 @@ def _get_tool_execution_environment(
     return metadata.tool_execution_environment
 
 
-def _interrupted_tool_error_text(part: _UnresolvedToolUIPart) -> str:
+def _interrupted_tool_output_text(part: _UnresolvedToolUIPart) -> str:
     environment = _get_tool_execution_environment(part)
     if environment is not None:
         return (
@@ -1499,34 +1513,57 @@ def _interrupted_tool_error_text(part: _UnresolvedToolUIPart) -> str:
     return "The tool call was interrupted before a result was produced."
 
 
+def _with_interrupted_outcome(provider_metadata: ProviderMetadata | None) -> ProviderMetadata:
+    """Record pydantic-ai's ``'interrupted'`` tool outcome in ``callProviderMetadata``.
+
+    The Vercel AI part states have no way to express an interrupted outcome, so
+    ``VercelAIAdapter`` rides it on the ``pydantic_ai`` metadata namespace of a
+    neutral ``output-available`` part; ``load_messages`` reads it back and
+    restores ``ToolReturnPart(outcome='interrupted')`` for the model-facing
+    transcript instead of degrading the outcome to a success or failure.
+    """
+    result: ProviderMetadata = deepcopy(provider_metadata) if provider_metadata else {}
+    existing_metadata: dict[str, Any] = result.get(_PYDANTIC_AI_PROVIDER_METADATA_KEY, {})
+    result[_PYDANTIC_AI_PROVIDER_METADATA_KEY] = {**existing_metadata, "outcome": "interrupted"}
+    return result
+
+
 def _build_interrupted_tool_output(
     part: _UnresolvedToolUIPart,
-) -> ToolOutputErrorPart | DynamicToolOutputErrorPart:
-    """Close out an unresolved tool part with an authoritative ``output-error``."""
-    error_text = _interrupted_tool_error_text(part)
+) -> ToolOutputAvailablePart | DynamicToolOutputAvailablePart:
+    """Close out an unresolved tool part as interrupted.
+
+    An interruption is not a tool failure, so the part is resolved as a neutral
+    ``output-available`` whose output text describes the interruption, with the
+    ``'interrupted'`` outcome recorded in the metadata channel — the same
+    representation ``VercelAIAdapter.dump_messages`` uses for a synthesized
+    interrupted return.
+    """
+    output_text = _interrupted_tool_output_text(part)
+    call_provider_metadata = _with_interrupted_outcome(part.call_provider_metadata)
     if isinstance(part, _DYNAMIC_UNRESOLVED_TOOL_PART_TYPES):
-        return DynamicToolOutputErrorPart(
-            state="output-error",
+        return DynamicToolOutputAvailablePart(
+            state="output-available",
             type="dynamic-tool",
             tool_name=part.tool_name,
             tool_call_id=part.tool_call_id,
             title=part.title,
             input=part.input,
-            error_text=error_text,
+            output=output_text,
             provider_executed=part.provider_executed,
-            call_provider_metadata=part.call_provider_metadata,
+            call_provider_metadata=call_provider_metadata,
             approval=part.approval,
         )
     if isinstance(part, _STATIC_UNRESOLVED_TOOL_PART_TYPES):
-        return ToolOutputErrorPart(
-            state="output-error",
+        return ToolOutputAvailablePart(
+            state="output-available",
             type=part.type,
             tool_call_id=part.tool_call_id,
             title=part.title,
             input=part.input,
-            error_text=error_text,
+            output=output_text,
             provider_executed=part.provider_executed,
-            call_provider_metadata=part.call_provider_metadata,
+            call_provider_metadata=call_provider_metadata,
             approval=part.approval,
         )
     assert_never(part)
@@ -2930,6 +2967,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     )
                 )
                 stream_error: BaseException | None = None
+                turn_interrupted = False
+                turn_persisted = False
                 summary_task: asyncio.Task[str | None] | None = None
                 message_state = create_streaming_ui_message_state(
                     message_id=server_message_id,
@@ -2971,6 +3010,82 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     return TranscriptPersistedChunk(
                         data=TranscriptPersistedData(message_id=turn_messages[-1].id)
                     )
+
+                async def _persist_interrupted_turn() -> None:
+                    """Best-effort persistence of a partial turn after an interruption.
+
+                    Client disconnects cancel the stream before ``_persist_turn``
+                    runs, so without this the turn would silently vanish and the
+                    client's next transcript poll would snap back to the pre-turn
+                    state. Finalize what accumulated so far — streaming
+                    text/reasoning is marked done and unresolved tool calls are
+                    closed out as interrupted — and persist it so clients can
+                    reload the transcript and resume with a follow-up message.
+                    Never raises: the client is already gone, so there is no one
+                    left to notify.
+                    """
+                    try:
+                        finalize_interrupted_ui_message_state(message_state)
+                        generated_assistant_message = PhoenixUIMessage.model_validate(
+                            message_state.message.model_dump(
+                                mode="json",
+                                by_alias=True,
+                                exclude_unset=True,
+                            )
+                        )
+                        resolved_assistant_message = _resolve_interrupted_tool_parts(
+                            generated_assistant_message
+                        )
+                        if resolved_assistant_message is not None:
+                            generated_assistant_message = resolved_assistant_message
+                        # The completed-turn metadata chunk never streamed, so
+                        # attach the metadata here — flagged interrupted so
+                        # clients can render the cut-off turn distinctly, and
+                        # carrying the turn trace context so the turn's trace
+                        # stays reachable from the transcript.
+                        existing_metadata = generated_assistant_message.metadata
+                        if isinstance(existing_metadata, AssistantMessageMetadata):
+                            interrupted_metadata = existing_metadata.model_copy(
+                                update={"interrupted": True}
+                            )
+                        else:
+                            interrupted_metadata = _build_assistant_message_metadata(
+                                session_id=otel_session_id,
+                                turn_trace_context=resolved_turn_trace_context,
+                                usage=None,
+                                interrupted=True,
+                            )
+                        generated_assistant_message = generated_assistant_message.model_copy(
+                            update={"metadata": interrupted_metadata}
+                        )
+                        if continued_assistant_message is not None:
+                            # Rewrite the trailing assistant message with everything
+                            # generated before the interruption.
+                            turn_messages = [generated_assistant_message]
+                        else:
+                            assert body.message is not None, (
+                                "request validation requires a message or toolOutputs, and "
+                                "the merge continues the assistant turn for toolOutputs-only"
+                            )
+                            # The assistant message is persisted even when the turn was
+                            # interrupted before the model produced anything: its id is
+                            # the stream's opening message id, so persisting it keeps the
+                            # client's `lastMessageId` staleness check aligned on the next
+                            # submit, and message loading drops empty assistant messages
+                            # from the model-facing transcript.
+                            turn_messages = [body.message, generated_assistant_message]
+                        await _persist_agent_session_turn(
+                            request.app.state.db,
+                            agent_session_rowid=agent_session_rowid,
+                            user_id=request_user_id,
+                            new_messages=turn_messages,
+                            bashkit_snapshot=bash_snapshot_to_persist,
+                        )
+                    except Exception:
+                        logger.exception(
+                            "Failed to persist the interrupted turn for agent session %r",
+                            str(GlobalID("AgentSession", str(agent_session_rowid))),
+                        )
 
                 try:
                     if tracer is not None and continued_turn_trace_context is not None:
@@ -3052,54 +3167,70 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             state=message_state,
                         ):
                             yield message_chunk
-                        yield await _persist_turn()
+                        transcript_persisted_chunk = await _persist_turn()
+                        turn_persisted = True
+                        yield transcript_persisted_chunk
                 except Exception as exc:
                     stream_error = exc
                     logger.exception("Agent chat stream failed for session %s", session_id)
                     yield ErrorChunk(error_text=str(exc).strip() or type(exc).__name__)
+                except (asyncio.CancelledError, GeneratorExit) as exc:
+                    # A client disconnect — the UI stop button, a CLI interrupt,
+                    # or a dropped SSE connection — cancels this generator (or
+                    # closes it) mid-stream. Flag it so the finally persists the
+                    # partial turn before releasing the turn lock.
+                    stream_error = exc
+                    turn_interrupted = True
+                    raise
                 except BaseException as exc:
                     stream_error = exc
                     raise
                 finally:
-                    # Client disconnects cancel this generator, so release the turn
-                    # lock as the finally's FIRST await; the release helper swallows
-                    # and logs its own errors so trace flushing below still happens.
                     heartbeat_task.cancel()
-                    await _release_agent_session_turn_lock(
-                        db_session_factory,
-                        agent_session_rowid=agent_session_rowid,
-                    )
-                    if summary_task is not None:
-                        if not summary_task.done():
-                            summary_task.cancel()
-                    if tracer is not None:
-                        if turn_is_terminal or stream_error is not None:
-                            _emit_turn_root_span(
-                                tracer=tracer,
-                                turn_ids=turn_ids,
-                                session_id=otel_session_id,
-                                input_text=_get_last_user_text(transcript_messages),
-                                output_text=turn_final_output_text,
-                                error_message=(
-                                    None
-                                    if stream_error is None
-                                    else (str(stream_error) or type(stream_error).__name__)
-                                ),
-                                end_time=datetime.now(timezone.utc),
-                                user_email=phoenix_user_email if attach_user_id else None,
-                            )
-                        tracer.tracer_provider.force_flush()
-                        if ingest_traces:
-                            project_id = await _ensure_project_exists(
-                                request.app.state.db, project_name
-                            )
-                            db_traces = tracer.get_db_traces(project_id=project_id)
-                            await _persist_db_traces_and_emit_event(
-                                db=request.app.state.db,
-                                event_queue=request.state.event_queue,
-                                db_traces=db_traces,
-                            )
-                        tracer.tracer_provider.shutdown()
+                    # Client disconnects cancel this generator, and that
+                    # cancellation can be re-delivered at every subsequent await,
+                    # so run the cleanup — partial-turn persistence, turn lock
+                    # release, and trace flushing — inside a shielded scope when
+                    # the turn was interrupted. The release helper swallows and
+                    # logs its own errors so trace flushing below still happens.
+                    with anyio.CancelScope(shield=turn_interrupted):
+                        if turn_interrupted and not turn_persisted:
+                            await _persist_interrupted_turn()
+                        await _release_agent_session_turn_lock(
+                            db_session_factory,
+                            agent_session_rowid=agent_session_rowid,
+                        )
+                        if summary_task is not None:
+                            if not summary_task.done():
+                                summary_task.cancel()
+                        if tracer is not None:
+                            if turn_is_terminal or stream_error is not None:
+                                _emit_turn_root_span(
+                                    tracer=tracer,
+                                    turn_ids=turn_ids,
+                                    session_id=otel_session_id,
+                                    input_text=_get_last_user_text(transcript_messages),
+                                    output_text=turn_final_output_text,
+                                    error_message=(
+                                        None
+                                        if stream_error is None
+                                        else (str(stream_error) or type(stream_error).__name__)
+                                    ),
+                                    end_time=datetime.now(timezone.utc),
+                                    user_email=phoenix_user_email if attach_user_id else None,
+                                )
+                            tracer.tracer_provider.force_flush()
+                            if ingest_traces:
+                                project_id = await _ensure_project_exists(
+                                    request.app.state.db, project_name
+                                )
+                                db_traces = tracer.get_db_traces(project_id=project_id)
+                                await _persist_db_traces_and_emit_event(
+                                    db=request.app.state.db,
+                                    event_queue=request.state.event_queue,
+                                    db_traces=db_traces,
+                                )
+                            tracer.tracer_provider.shutdown()
 
             return adapter.streaming_response(_stream_with_session())
         except BaseException:

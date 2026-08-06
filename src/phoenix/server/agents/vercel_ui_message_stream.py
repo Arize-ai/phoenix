@@ -172,6 +172,42 @@ def create_streaming_ui_message_state(
     )
 
 
+def finalize_interrupted_ui_message_state(state: StreamingUIMessageState) -> None:
+    """Close out in-flight parts after the chunk stream is interrupted mid-turn.
+
+    There is no upstream counterpart: the AI SDK leaves an aborted stream's
+    state as-is because the browser keeps its own copy. On the server this
+    state is what gets persisted, so streaming text and reasoning parts are
+    marked ``done`` with the text accumulated so far, parts that never
+    received any text are dropped, and trailing step-start markers with no
+    content after them are removed. Unresolved tool parts are left in place
+    for the caller to resolve. Safe to call more than once.
+    """
+    message = state.message
+    dropped_parts: list[UIMessagePart] = []
+    for text_part in state.active_text_parts.values():
+        if text_part.text:
+            text_part.state = "done"
+        else:
+            dropped_parts.append(text_part)
+    for reasoning_part in state.active_reasoning_parts.values():
+        if reasoning_part.text:
+            reasoning_part.state = "done"
+        else:
+            dropped_parts.append(reasoning_part)
+    if dropped_parts:
+        message.parts = [
+            part
+            for part in message.parts
+            if all(part is not dropped_part for dropped_part in dropped_parts)
+        ]
+    while message.parts and isinstance(message.parts[-1], StepStartUIPart):
+        message.parts.pop()
+    state.active_text_parts.clear()
+    state.active_reasoning_parts.clear()
+    state.partial_tool_calls.clear()
+
+
 def _noop_write() -> None:
     pass
 

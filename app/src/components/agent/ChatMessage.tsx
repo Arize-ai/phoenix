@@ -12,6 +12,7 @@ import {
   MessageCopyAction,
   MessageToolbar,
 } from "@phoenix/components/ai/message";
+import { Icon, Icons } from "@phoenix/components/core/icon";
 import { MarkdownBlock } from "@phoenix/components/markdown";
 
 import { AssistantMessageActions } from "./AssistantMessageActions";
@@ -39,6 +40,19 @@ const assistantMessageCSS = css`
   align-self: flex-start;
   max-width: 100%;
   width: 100%;
+
+  .assistant-message__interrupted {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-75);
+    color: var(--global-text-color-300);
+    font-size: var(--global-font-size-xs);
+    line-height: var(--global-line-height-xs);
+
+    &:not(:first-child) {
+      margin-top: var(--global-dimension-size-100);
+    }
+  }
 `;
 
 // ---------------------------------------------------------------------------
@@ -115,11 +129,13 @@ export function AssistantMessage({
   allowRewind?: boolean;
 }) {
   const segments = partitionMessageParts(message.parts);
+  const isInterrupted =
+    getAssistantMessageMetadata(message)?.interrupted === true;
 
   return (
     <Message from="assistant" data-pin-toolbar={pinToolbar || undefined}>
       <MessageContent>
-        <div css={assistantMessageCSS}>
+        <div css={assistantMessageCSS} className="assistant-message">
           {segments.map((segment) => {
             switch (segment.kind) {
               case "text":
@@ -148,6 +164,16 @@ export function AssistantMessage({
                 return null;
             }
           })}
+          {isInterrupted ? (
+            <div className="assistant-message__interrupted" role="status">
+              <Icon svg={<Icons.StopCircle />} />
+              <span>
+                {segments.length > 0
+                  ? "Response interrupted"
+                  : "Interrupted before a response was generated"}
+              </span>
+            </div>
+          ) : null}
         </div>
       </MessageContent>
       {showActions ? (

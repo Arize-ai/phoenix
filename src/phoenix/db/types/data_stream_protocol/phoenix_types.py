@@ -61,6 +61,10 @@ class AssistantMessageMetadata(CamelBaseModel):
     session_id: str
     turn_trace_context: TurnTraceContext | None = None
     usage: AssistantMessageMetadataUsage | None = None
+    interrupted: bool = False
+    """Whether the turn that produced this message was cut off before it
+    completed (stop button, CLI interrupt, or dropped connection). Cleared by
+    the completed turn's metadata when the message is later continued."""
 
 
 class UserMessageMetadata(CamelBaseModel):

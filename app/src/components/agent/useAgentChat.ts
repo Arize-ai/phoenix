@@ -269,7 +269,12 @@ export function useAgentChat({
     if (chatInstance) {
       getTurnClientState(chatInstance)?.toolTimings.clear();
     }
-    setMessages(removeInterruptedToolInputParts);
+    setMessages((current) =>
+      markTrailingAssistantMessageInterrupted(
+        removeInterruptedToolInputParts(current),
+        sessionId ?? ""
+      )
+    );
   };
 
   const handleSendMessage = async (...args: Parameters<typeof sendMessage>) => {
@@ -525,6 +530,27 @@ export function useAgentChat({
     rewindToMessage: (messageId: string) => Promise<string | null>;
     forkFromMessage: (messageId: string) => Promise<void>;
   };
+}
+
+/**
+ * Stamps the trailing assistant message's metadata as interrupted so the live
+ * transcript renders the same cut-off indicator it will show after a reload,
+ * when the server-persisted metadata takes over. Local-only: assistant
+ * metadata is never submitted back to the server.
+ */
+function markTrailingAssistantMessageInterrupted(
+  messages: AgentUIMessage[],
+  sessionId: string
+): AgentUIMessage[] {
+  const trailing = messages.at(-1);
+  if (!trailing || trailing.role !== "assistant") {
+    return messages;
+  }
+  const metadata =
+    trailing.metadata?.type === "assistant"
+      ? { ...trailing.metadata, interrupted: true }
+      : { type: "assistant" as const, sessionId, interrupted: true };
+  return [...messages.slice(0, -1), { ...trailing, metadata }];
 }
 
 // Pydantic will error if given tool calls without inputs, so we filter them out
