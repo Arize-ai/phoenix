@@ -661,14 +661,13 @@ class _TurnTraceIds:
     started_at: datetime
 
 
-def _continued_turn_trace_context(
-    continued_assistant_message: PhoenixUIMessage | None,
+def _message_turn_trace_context(
+    assistant_message: PhoenixUIMessage | None,
 ) -> TurnTraceContext | None:
-    """The turn identity a client-tool continuation resumes, recovered from
-    the persisted trailing assistant message's metadata."""
-    if continued_assistant_message is None:
+    """The turn identity recorded in a persisted assistant message's metadata."""
+    if assistant_message is None:
         return None
-    metadata = continued_assistant_message.metadata
+    metadata = assistant_message.metadata
     if not isinstance(metadata, AssistantMessageMetadata):
         return None
     return metadata.turn_trace_context
@@ -983,6 +982,54 @@ def _synthesize_client_tool_spans(
                     instrumentation_scope=_PXI_INSTRUMENTATION_SCOPE,
                 )
             )
+
+
+def _close_abandoned_turn_trace(
+    *,
+    tracer: Tracer,
+    turn_trace_context: TurnTraceContext,
+    messages: Sequence[PhoenixUIMessage],
+    received_at: datetime,
+    session_id: str,
+    user_email: str | None,
+) -> None:
+    """Emit the deferred root span of a pending turn its user abandoned.
+
+    A turn that ends awaiting client tool outputs defers its ``pxi.turn`` root
+    span until a continuation completes the turn. When the next request is a
+    new user message instead, that continuation never runs — without this
+    close-out the turn's already-ingested child spans reference a root span id
+    that is never written and the trace renders as orphaned spans. The tool
+    calls the turn was still waiting on were repaired at merge time, so they
+    are synthesized as spans first and the root is emitted around them.
+    """
+    turn_ids = _resolve_turn_trace_ids(turn_trace_context, now=received_at)
+    _synthesize_client_tool_spans(
+        tracer=tracer,
+        turn_ids=turn_ids,
+        messages=messages,
+        received_at=received_at,
+        session_id=session_id,
+    )
+    trailing_message = messages[-1] if messages else None
+    output_text: str | None = None
+    if trailing_message is not None and trailing_message.role == "assistant":
+        output_text = (
+            "".join(
+                part.text for part in trailing_message.parts if isinstance(part, TextUIPart)
+            ).strip()
+            or None
+        )
+    _emit_turn_root_span(
+        tracer=tracer,
+        turn_ids=turn_ids,
+        session_id=session_id,
+        input_text=_get_last_user_text(messages),
+        output_text=output_text,
+        error_message="The turn was interrupted before its tool calls completed.",
+        end_time=received_at,
+        user_email=user_email,
+    )
 
 
 async def _persist_db_traces(
@@ -1664,6 +1711,13 @@ class _MergedTranscript:
     """The trailing assistant message this turn continues when the request
     carried only ``toolOutputs``; None for a new user turn."""
 
+    abandoned_assistant_message: PhoenixUIMessage | None
+    """The old trailing assistant message whose pending turn this request
+    abandoned: it still had unresolved tool calls when a new user message
+    arrived, so the continuation that would have completed the turn (and
+    emitted its deferred root span) will never run. None when the tail had
+    nothing pending or the request continues the turn."""
+
 
 def _merge_messages(
     *,
@@ -1694,10 +1748,19 @@ def _merge_messages(
             messages[index] = repaired_message
     if new_message is not None:
         assert new_message.role == "user", "request validation rejects non-user messages"
+        # A rewritten assistant tail means it still had pending tool calls —
+        # a turn that ended awaiting outputs and is now abandoned by the new
+        # user message instead of continued.
+        abandoned_assistant_message = (
+            messages[-1]
+            if messages and messages[-1].role == "assistant" and messages[-1].id in updated_messages
+            else None
+        )
         return _MergedTranscript(
             messages=[*messages, new_message],
             updated_messages=updated_messages,
             continued_assistant_message=None,
+            abandoned_assistant_message=abandoned_assistant_message,
         )
     assert tool_outputs, "request validation requires a message, toolOutputs, or both"
     assert messages[-1].role == "assistant", "the tool-output branch guarantees an assistant tail"
@@ -1705,6 +1768,7 @@ def _merge_messages(
         messages=messages,
         updated_messages=updated_messages,
         continued_assistant_message=messages[-1],
+        abandoned_assistant_message=None,
     )
 
 
@@ -2891,8 +2955,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 adapter = assistant_adapter
                 run_agent_stream = _run_assistant_agent_stream
 
-            continued_turn_trace_context = _continued_turn_trace_context(
-                continued_assistant_message
+            continued_turn_trace_context = _message_turn_trace_context(continued_assistant_message)
+            abandoned_turn_trace_context = _message_turn_trace_context(
+                merged_transcript.abandoned_assistant_message
             )
             turn_ids = _resolve_turn_trace_ids(
                 continued_turn_trace_context, now=request_received_at
@@ -3083,6 +3148,18 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             messages=transcript_messages,
                             received_at=request_received_at,
                             session_id=otel_session_id,
+                        )
+                    if tracer is not None and abandoned_turn_trace_context is not None:
+                        # This new user turn abandoned a pending turn whose root
+                        # span was deferred; close that trace out (excluding the
+                        # new user message) so its spans don't stay orphaned.
+                        _close_abandoned_turn_trace(
+                            tracer=tracer,
+                            turn_trace_context=abandoned_turn_trace_context,
+                            messages=transcript_messages[:-1],
+                            received_at=request_received_at,
+                            session_id=otel_session_id,
+                            user_email=phoenix_user_email if attach_user_id else None,
                         )
                     if session_needs_title:
                         summary_task = asyncio.create_task(_summarize_untitled_session())

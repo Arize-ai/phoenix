@@ -3161,6 +3161,58 @@ async def test_chat_turn_trace_ingestion_merges_backend_spans_into_prior_turn_tr
     assert merged_trace.end_time > _PRIOR_TURN_TIME
 
 
+async def test_new_user_message_closes_abandoned_turn_trace(
+    db: DbSessionFactory,
+    app: FastAPI,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A turn that ends awaiting client tool outputs defers its root span to
+    the continuation. When the user abandons it with a new message instead,
+    the deferred ``pxi.turn`` root and a synthesized span for the repaired
+    tool call are emitted into the abandoned trace, so its already-ingested
+    child spans do not reference a root span id that never arrives."""
+    await _enable_local_trace_recording(app)
+    _mock_traced_test_model(monkeypatch)
+    session_id = "67676767-6767-4667-8667-676767676767"
+    assistant_tail = _assistant_tail_with_prior_turn_context(session_id)
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[_user_message("edit the prompt"), assistant_tail],
+    )
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            _user_message("never mind, new topic", message_id=_message_uuid("msg-user-2")),
+            ingestTraces=True,
+            lastMessageId=assistant_tail["id"],
+        ),
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        spans = (
+            await session.scalars(
+                select(models.Span)
+                .join(models.Trace)
+                .where(models.Trace.trace_id == _PRIOR_TURN_TRACE_ID)
+            )
+        ).all()
+
+    root = next(span for span in spans if span.parent_id is None)
+    assert root.span_id == _PRIOR_TURN_ROOT_SPAN_ID
+    assert root.name == "pxi.turn"
+    assert root.status_code == "ERROR"
+    tool_spans = [span for span in spans if span.span_kind == "TOOL"]
+    assert len(tool_spans) == 1
+    assert tool_spans[0].parent_id == _PRIOR_TURN_ROOT_SPAN_ID
+    # The repaired call was interrupted, not failed: it renders neutrally.
+    assert tool_spans[0].status_code == "OK"
+
+
 async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warnings(
     db: DbSessionFactory,
     app: FastAPI,
