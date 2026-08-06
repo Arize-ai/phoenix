@@ -1165,13 +1165,11 @@ CREATE TABLE public.agent_sessions (
     model_provider VARCHAR NOT NULL,
     model_name VARCHAR NOT NULL,
     custom_provider_id BIGINT,
-    builtin_provider JSONB NOT NULL,
     is_ephemeral BOOLEAN NOT NULL,
     heartbeat_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_sessions PRIMARY KEY (id),
-    CHECK (((custom_provider_id IS NULL) OR (builtin_provider = '{}'::jsonb))),
     CONSTRAINT fk_agent_sessions_custom_provider_id_generative_model_c_af13
         FOREIGN KEY
         (custom_provider_id)

@@ -42,7 +42,6 @@ _CREATE_MUTATION = """
           ... on AgentBuiltinProviderModelSelection {
             provider
             modelName
-            openaiApiType
           }
         }
         messages
@@ -74,7 +73,6 @@ _BRANCH_MUTATION = """
           ... on AgentBuiltinProviderModelSelection {
             provider
             modelName
-            openaiApiType
           }
         }
         messages
@@ -488,7 +486,6 @@ async def test_branch_agent_session_copies_the_truncated_transcript(
         "__typename": "AgentBuiltinProviderModelSelection",
         "provider": "OPENAI",
         "modelName": "gpt-test",
-        "openaiApiType": "RESPONSES",
     }
     branch_message_ids = [message["id"] for message in branch["messages"]]
     assert len(branch_message_ids) == 2
@@ -698,7 +695,6 @@ async def test_create_agent_session_creates_empty_owned_session(
         "__typename": "AgentBuiltinProviderModelSelection",
         "provider": "OPENAI",
         "modelName": "gpt-test",
-        "openaiApiType": "RESPONSES",
     }
     assert payload["messages"] == []
     async with db() as session:
@@ -711,7 +707,7 @@ async def test_create_agent_session_creates_empty_owned_session(
         assert agent_session.is_ephemeral is False
         assert agent_session.model_provider.value == "OPENAI"
         assert agent_session.model_name == "gpt-test"
-        assert agent_session.builtin_provider is not None
+        assert agent_session.custom_provider_id is None
         assert (await session.scalars(select(models.AgentSessionMessage))).all() == []
 
 

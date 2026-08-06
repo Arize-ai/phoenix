@@ -8,7 +8,6 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.types.agent_session_config import AgentBuiltinProviderConfig
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.agent_helpers import CanAccessAgentSession
 from phoenix.server.api.context import Context
@@ -140,24 +139,20 @@ class AgentSession(Node):
             model_provider,
             model_name,
             custom_provider_id,
-            builtin_provider,
         ) = await info.context.data_loaders.agent_session_fields.load_many(
             [
                 (self.id, models.AgentSession.model_provider),
                 (self.id, models.AgentSession.model_name),
                 (self.id, models.AgentSession.custom_provider_id),
-                (self.id, models.AgentSession.builtin_provider),
             ]
         )
         assert isinstance(model_provider, ModelProvider)
         assert isinstance(model_name, str)
         assert custom_provider_id is None or isinstance(custom_provider_id, int)
-        assert builtin_provider is None or isinstance(builtin_provider, AgentBuiltinProviderConfig)
         routing = AgentModelRouting(
             model_provider=model_provider,
             model_name=model_name,
             custom_provider_id=custom_provider_id,
-            builtin_provider=builtin_provider,
         )
         return to_gql_agent_model_selection(model_selection_from_routing(routing))
 

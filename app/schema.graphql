@@ -84,13 +84,11 @@ type AgentAssistantEnabled {
 type AgentBuiltinProviderModelSelection {
   provider: ModelProvider!
   modelName: String!
-  openaiApiType: OpenAIApiType!
 }
 
 input AgentBuiltinProviderModelSelectionInput {
   provider: ModelProvider!
   modelName: String!
-  openaiApiType: OpenAIApiType! = RESPONSES
 }
 
 type AgentCustomProviderModelSelection {

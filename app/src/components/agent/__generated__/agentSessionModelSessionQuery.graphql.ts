@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5f2419bb3b3965fbc5bcfe1ff86bcb14>>
+ * @generated SignedSource<<a99bb66ea73b807cae66205ab176783a>>
  * @lightSyntaxTransform
  */
 
@@ -84,14 +84,7 @@ v5 = [
             "name": "provider",
             "storageKey": null
           },
-          (v4/*:: as any*/),
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "openaiApiType",
-            "storageKey": null
-          }
+          (v4/*:: as any*/)
         ],
         "type": "AgentBuiltinProviderModelSelection",
         "abstractKey": null
@@ -181,12 +174,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9acd4350f116b56294bcc9f10a9ac759",
+    "cacheID": "8b4aa487112b6c2d68be979d6261d7bc",
     "id": null,
     "metadata": {},
     "name": "agentSessionModelSessionQuery",
     "operationKind": "query",
-    "text": "query agentSessionModelSessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      ...agentSessionModel_session\n    }\n    id\n  }\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n      openaiApiType\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
+    "text": "query agentSessionModelSessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      ...agentSessionModel_session\n    }\n    id\n  }\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
   }
 };
 })();

@@ -11,7 +11,6 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.types.agent_session_config import AgentBuiltinProviderConfig
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.types.node import from_global_id
 from phoenix.server.api.types.ProjectSession import ProjectSession
@@ -35,7 +34,6 @@ def _agent_session_model_kwargs() -> dict[str, Any]:
     return {
         "model_provider": ModelProvider.OPENAI,
         "model_name": "gpt-test",
-        "builtin_provider": AgentBuiltinProviderConfig(),
     }
 
 

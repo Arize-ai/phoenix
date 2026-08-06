@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<84a9c1b25c0d41d4fd060de9fcabf0aa>>
+ * @generated SignedSource<<fe067fcd1fe20a69bac534a29465c1be>>
  * @lightSyntaxTransform
  */
 
@@ -166,14 +166,7 @@ v15 = {
           "name": "provider",
           "storageKey": null
         },
-        (v14/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "openaiApiType",
-          "storageKey": null
-        }
+        (v14/*:: as any*/)
       ],
       "type": "AgentBuiltinProviderModelSelection",
       "abstractKey": null
@@ -318,12 +311,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0f5020e9f66d7d354fdcd72bb47a0cb7",
+    "cacheID": "56442597f627dab36057313fc8271f24",
     "id": null,
     "metadata": {},
     "name": "agentSessionRelaySessionQuery",
     "operationKind": "query",
-    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      isTemporary: isEphemeral\n      isActive\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      lastMessageId\n      ...agentSessionModel_session\n      messages\n    }\n    id\n  }\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n      openaiApiType\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
+    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      isTemporary: isEphemeral\n      isActive\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      lastMessageId\n      ...agentSessionModel_session\n      messages\n    }\n    id\n  }\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
   }
 };
 })();

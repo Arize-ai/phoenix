@@ -1279,7 +1279,6 @@ class BuiltInProviderModelSelection(TypedDict):
     ]
     modelName: str
     providerType: Literal["builtin"]
-    openaiApiType: NotRequired[Literal["chat_completions", "responses"]]
 
 
 class CategoricalAnnotationConfig(TypedDict):

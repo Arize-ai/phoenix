@@ -102,10 +102,6 @@ export function useAgentChatPanelState({
               __typename: "AgentBuiltinProviderModelSelection" as const,
               provider: selection.provider,
               modelName: selection.modelName,
-              openaiApiType:
-                selection.openaiApiType === "chat_completions"
-                  ? ("CHAT_COMPLETIONS" as const)
-                  : ("RESPONSES" as const),
             };
       commitModelChange({
         variables: {

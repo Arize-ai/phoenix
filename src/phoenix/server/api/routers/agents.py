@@ -2153,7 +2153,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     model_provider=routing.model_provider,
                     model_name=routing.model_name,
                     custom_provider_id=routing.custom_provider_id,
-                    builtin_provider=routing.builtin_provider,
                 )
                 session.add(agent_session)
                 await session.flush()

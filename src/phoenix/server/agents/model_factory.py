@@ -391,7 +391,7 @@ def _get_pydantic_ai_model_from_builtin_provider(
         return _build_openai_model(
             model_name=params.model_name,
             provider=openai_provider,
-            openai_api_type=params.openai_api_type,
+            openai_api_type="responses",
         )
     if params.provider == ModelProvider.AZURE_OPENAI:
         api_key = _first_credential(credentials, "AZURE_OPENAI_API_KEY")
@@ -424,7 +424,7 @@ def _get_pydantic_ai_model_from_builtin_provider(
         return _build_openai_model(
             model_name=params.model_name,
             provider=openai_provider,
-            openai_api_type=params.openai_api_type,
+            openai_api_type="responses",
         )
     if params.provider == ModelProvider.ANTHROPIC:
         from anthropic import AsyncAnthropic

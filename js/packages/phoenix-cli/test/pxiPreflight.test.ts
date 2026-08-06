@@ -107,37 +107,13 @@ function createFetch({
 describe("isSameModelSelection", () => {
   // The session poll uses this to decide whether the model actually moved.
   // A false negative would put a catalog round trip on every poll tick.
-  it("treats an omitted openaiApiType as the default", () => {
+  it("matches built-in selections on provider and model name", () => {
     expect(
       isSameModelSelection(
         { providerType: "builtin", provider: "OPENAI", modelName: "gpt-5.4" },
-        {
-          providerType: "builtin",
-          provider: "OPENAI",
-          modelName: "gpt-5.4",
-          openaiApiType: "responses",
-        }
+        { providerType: "builtin", provider: "OPENAI", modelName: "gpt-5.4" }
       )
     ).toBe(true);
-  });
-
-  it("distinguishes the OpenAI API type", () => {
-    expect(
-      isSameModelSelection(
-        {
-          providerType: "builtin",
-          provider: "OPENAI",
-          modelName: "gpt-5.4",
-          openaiApiType: "chat_completions",
-        },
-        {
-          providerType: "builtin",
-          provider: "OPENAI",
-          modelName: "gpt-5.4",
-          openaiApiType: "responses",
-        }
-      )
-    ).toBe(false);
   });
 
   it("distinguishes provider and model name", () => {
@@ -369,7 +345,6 @@ describe("PXI model preflight", () => {
         providerType: "builtin",
         provider: "OPENAI",
         modelName: "gpt-5.4",
-        openaiApiType: "responses",
       },
       {
         providerType: "builtin",

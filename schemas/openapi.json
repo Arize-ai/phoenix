@@ -9670,15 +9670,6 @@
           "modelName": {
             "type": "string",
             "title": "Modelname"
-          },
-          "openaiApiType": {
-            "type": "string",
-            "enum": [
-              "chat_completions",
-              "responses"
-            ],
-            "title": "Openaiapitype",
-            "default": "responses"
           }
         },
         "type": "object",
@@ -9688,7 +9679,7 @@
           "modelName"
         ],
         "title": "BuiltInProviderModelSelection",
-        "description": "Chat against a Phoenix built-in provider.\n\nCredentials and connection details (base URL, Azure endpoint, AWS\nregion) are resolved from the secret store first and the process\nenvironment second. ``openai_api_type`` is honoured by the OpenAI and\nAzure OpenAI branches; other providers ignore it."
+        "description": "Chat against a Phoenix built-in provider.\n\nCredentials and connection details (base URL, Azure endpoint, AWS\nregion) are resolved from the secret store first and the process\nenvironment second."
       },
       "CategoricalAnnotationConfig": {
         "properties": {

@@ -54,7 +54,6 @@ from typing_extensions import Self, TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
-from phoenix.db.types.agent_session_config import AgentBuiltinProviderConfig
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
@@ -321,29 +320,6 @@ class _ModelProvider(TypeDecorator[ModelProvider]):
 
     def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[ModelProvider]:
         return None if value is None else ModelProvider(value)
-
-
-class _AgentBuiltinProviderConfig(TypeDecorator[AgentBuiltinProviderConfig]):
-    cache_ok = True
-    impl = JSON_
-
-    def process_bind_param(
-        self,
-        value: Optional[AgentBuiltinProviderConfig],
-        _: Dialect,
-    ) -> dict[str, Any]:
-        if value is None:
-            return {}
-        return value.model_dump()
-
-    def process_result_value(
-        self,
-        value: Optional[dict[str, Any]],
-        _: Dialect,
-    ) -> Optional[AgentBuiltinProviderConfig]:
-        if not value:
-            return None
-        return AgentBuiltinProviderConfig.model_validate(value)
 
 
 class _InvocationParameters(TypeDecorator[PromptInvocationParameters]):
@@ -3425,14 +3401,11 @@ class AgentSession(HasId):
     model_provider: Mapped[ModelProvider] = mapped_column(_ModelProvider, nullable=False)
     model_name: Mapped[str] = mapped_column(String, nullable=False)
     custom_provider_id: Mapped[Optional[int]] = mapped_column(
+        # SET NULL turns a deleted custom provider's sessions into builtin
+        # selections of the model_provider and model_name columns.
         ForeignKey("generative_model_custom_providers.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
-    )
-    builtin_provider: Mapped[Optional[AgentBuiltinProviderConfig]] = mapped_column(
-        _AgentBuiltinProviderConfig,
-        nullable=False,
-        default=None,
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -3456,10 +3429,6 @@ class AgentSession(HasId):
         back_populates="agent_session",
     )
     __table_args__ = (
-        CheckConstraint(
-            "custom_provider_id IS NULL OR builtin_provider = '{}'",
-            name="at_most_one_provider_set",
-        ),
         Index(
             "ix_agent_sessions_user_id_updated_at",
             "user_id",
