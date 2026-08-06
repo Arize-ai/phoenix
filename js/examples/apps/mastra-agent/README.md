@@ -34,16 +34,16 @@ Create a `.env` file in the root directory:
 # OpenAI API Key
 OPENAI_API_KEY=your-openai-api-key-here
 
-# Phoenix Configuration
+# Phoenix Configuration — same URL, one variable per concern
+PHOENIX_ENDPOINT=http://localhost:6006
 PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
 PHOENIX_PROJECT_NAME=mastra-project
 ```
 
-`PHOENIX_COLLECTOR_ENDPOINT` is your Phoenix server's URL, read by everything here: the eval script
-calls the Phoenix API on it directly, and `src/mastra/index.ts` builds the trace-export URL
-from it by appending `/v1/traces` — Mastra's `ArizeExporter` POSTs to exactly the URL it is
-given, so handed a bare server URL it would post to the wrong path and Mastra's batching
-exporter would swallow the error, with no trace ever arriving.
+The eval script calls the Phoenix API on `PHOENIX_ENDPOINT`; traces go to
+`PHOENIX_COLLECTOR_ENDPOINT`. Both are base URLs — `src/mastra/index.ts` appends
+`/v1/traces` in code, because Mastra's `ArizeExporter` POSTs to exactly the URL it is
+given.
 
 If you are using an instance with authentication enabled, also set
 `PHOENIX_API_KEY=your-api-key` and point `PHOENIX_COLLECTOR_ENDPOINT` at that instance
