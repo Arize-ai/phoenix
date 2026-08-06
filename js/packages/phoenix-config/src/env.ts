@@ -6,6 +6,7 @@
 import { readEnvFileValueWithPath } from "@phoenix-config/env-file";
 
 import { DEFAULT_PHOENIX_PORT } from "./constants";
+import { ENV_PHOENIX_DISCOVER_CONFIG } from "./envFileParser";
 import type { Headers } from "./types";
 import { isHeaders } from "./types";
 
@@ -38,20 +39,24 @@ export const ENV_PHOENIX_HOST = "PHOENIX_HOST";
  * Environment variable name for the Phoenix API endpoint: the base URL that
  * API consumers — the `px` CLI and the API clients — send requests to.
  *
- * For where traces are *exported* to, see
- * {@link ENV_PHOENIX_COLLECTOR_ENDPOINT}; when only one of the two is set,
- * Phoenix tools infer the other from it.
+ * This is the canonical setting for every client surface. For where traces are
+ * *exported* to, see {@link ENV_PHOENIX_COLLECTOR_ENDPOINT}; when only that is
+ * set, API consumers infer their base URL from it.
  * @example
  * process.env[ENV_PHOENIX_ENDPOINT] = "http://localhost:6006";
  */
 export const ENV_PHOENIX_ENDPOINT = "PHOENIX_ENDPOINT";
 
 /**
- * Environment variable name for the Phoenix API base URL — an accepted alias
- * for {@link ENV_PHOENIX_ENDPOINT}, which takes precedence when both are set.
- * The client docs have historically used this name.
- * @example
- * process.env[ENV_PHOENIX_BASE_URL] = "http://localhost:6006";
+ * Undocumented compatibility fallback for the API base URL.
+ *
+ * This name appeared in the client docs for years but was never read by any
+ * code, so a value set from those docs silently did nothing. It is honored
+ * below {@link ENV_PHOENIX_COLLECTOR_ENDPOINT} so those configurations start
+ * working without retargeting anyone who set both. Do not document it or use
+ * it in new configuration — prefer {@link ENV_PHOENIX_ENDPOINT}.
+ *
+ * @internal
  */
 export const ENV_PHOENIX_BASE_URL = "PHOENIX_BASE_URL";
 
@@ -68,8 +73,9 @@ export const ENV_PHOENIX_CLIENT_HEADERS = "PHOENIX_CLIENT_HEADERS";
  * that traces are *exported* to, read by `register()` and the OTLP exporters
  * it configures.
  *
- * For the API-access base URL, see {@link ENV_PHOENIX_ENDPOINT}; when only one
- * of the two is set, Phoenix tools infer the other from it.
+ * The OTel SDKs read only this variable. For API access see
+ * {@link ENV_PHOENIX_ENDPOINT}, which falls back to this one when unset — the
+ * inference does not run in the other direction.
  * @example
  * process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://localhost:6006";
  */
@@ -348,30 +354,17 @@ export function resetProjectConflictWarningForTesting(): void {
  */
 const BASE_URL_ENV_KEYS = [
   ENV_PHOENIX_ENDPOINT,
-  ENV_PHOENIX_BASE_URL,
   ENV_PHOENIX_COLLECTOR_ENDPOINT,
+  ENV_PHOENIX_BASE_URL,
   ENV_PHOENIX_HOST,
 ] as const;
 
 /**
  * The variables that *deliberately* name the API-access base URL. The rest of
- * {@link BASE_URL_ENV_KEYS} are inferred fallbacks (trace-export / legacy
- * bind variables) and rank below these across tiers.
+ * {@link BASE_URL_ENV_KEYS} are inferred fallbacks (trace-export / legacy /
+ * compatibility variables) and rank below these across tiers.
  */
-const CANONICAL_BASE_URL_ENV_KEYS = [
-  ENV_PHOENIX_ENDPOINT,
-  ENV_PHOENIX_BASE_URL,
-] as const;
-
-/**
- * Environment variables that locate the trace collector, resolved as one tier
- * group. Ordered by precedence.
- */
-const COLLECTOR_ENDPOINT_ENV_KEYS = [
-  ENV_PHOENIX_COLLECTOR_ENDPOINT,
-  ENV_PHOENIX_ENDPOINT,
-  ENV_PHOENIX_BASE_URL,
-] as const;
+const CANONICAL_BASE_URL_ENV_KEYS = [ENV_PHOENIX_ENDPOINT] as const;
 
 let hasWarnedBaseUrlConflict = false;
 
@@ -399,6 +392,19 @@ export function clearPhoenixConnectionEnvForTesting(): void {
   for (const envKey of PHOENIX_CONNECTION_ENV_KEYS) {
     delete process.env[envKey];
   }
+}
+
+/**
+ * Isolates the process environment from a developer's machine for a test run:
+ * disables `.env.phoenix` discovery so a real credential file anywhere above
+ * the repo cannot leak in, and clears the connection variables their shell may
+ * export. Call once from a test-setup file, before any configuration is read.
+ *
+ * @internal
+ */
+export function isolatePhoenixEnvForTesting(): void {
+  process.env[ENV_PHOENIX_DISCOVER_CONFIG] = "false";
+  clearPhoenixConnectionEnvForTesting();
 }
 
 /**
@@ -495,17 +501,17 @@ export function getBaseUrlFromValues(
  * Precedence:
  *
  * 1. `PHOENIX_ENDPOINT` — the canonical API-access variable
- * 2. `PHOENIX_BASE_URL` — accepted alias (the name the client docs have
- *    historically used)
- * 3. `PHOENIX_COLLECTOR_ENDPOINT` — inferred: when only the trace-export
+ * 2. `PHOENIX_COLLECTOR_ENDPOINT` — inferred: when only the trace-export
  *    variable is set, API access assumes the same server
+ * 3. `PHOENIX_BASE_URL` — undocumented compatibility fallback, see
+ *    {@link ENV_PHOENIX_BASE_URL}
  * 4. `PHOENIX_HOST` — legacy; on the Phoenix server this variable is the bind
  *    host, so relying on it as a client URL is discouraged
  *
  * The variables resolve as one tier group: the `.env.phoenix` file tier is
  * consulted only when none of them is set in the process environment — except
  * that a process value merely inferred from a trace-export or legacy variable
- * yields to a canonical `PHOENIX_ENDPOINT`/`PHOENIX_BASE_URL` declared in a
+ * yields to a canonical `PHOENIX_ENDPOINT` declared in a
  * discovered `.env.phoenix`. Setting `PHOENIX_ENDPOINT` and
  * `PHOENIX_COLLECTOR_ENDPOINT` to different values is legitimate (API access
  * and trace ingest can live at different URLs) and does not warn. A differing
@@ -606,58 +612,13 @@ export function getBaseUrlFromEnvironmentWithSource(): ResolvedBaseUrlValue {
         : "inferred",
     value: normalizeBaseUrlCandidate({
       ...resolved,
-      port: readEnvValue(ENV_PHOENIX_PORT),
+      // Only the legacy bare-host branch needs the port; reading it eagerly
+      // would cost an extra tier lookup on every resolution.
+      port:
+        resolved.envKey === ENV_PHOENIX_HOST
+          ? readEnvValue(ENV_PHOENIX_PORT)
+          : undefined,
     }),
-  };
-}
-
-/**
- * Resolves the base URL that **traces are exported to** — what `register()`
- * and the OTLP exporters it configures send spans to.
- *
- * Precedence:
- *
- * 1. `PHOENIX_COLLECTOR_ENDPOINT` — the canonical trace-export variable
- * 2. `PHOENIX_ENDPOINT` (then its alias `PHOENIX_BASE_URL`) — inferred: when
- *    only an API-access variable is set, trace export assumes the same server
- *
- * The variables resolve as one tier group (file tier only when none is set in
- * the process environment) — except that a process value merely inferred from
- * an API-access variable yields to a canonical `PHOENIX_COLLECTOR_ENDPOINT`
- * declared in a discovered `.env.phoenix`. Setting trace-export and API-access
- * variables to different values is legitimate and does not warn.
- *
- * @returns The resolved collector base URL, or `undefined` if neither
- *   variable is set.
- */
-export function getCollectorEndpointFromEnvironment(): string | undefined {
-  return getCollectorEndpointFromEnvironmentWithSource().value;
-}
-
-/** Resolves the collector base URL together with the tier that supplied it. */
-export function getCollectorEndpointFromEnvironmentWithSource(): ResolvedBaseUrlValue {
-  const { source, values } = resolveEnvironmentTierWithSource(
-    COLLECTOR_ENDPOINT_ENV_KEYS
-  );
-  const resolved = findFirstSetEnvKey(COLLECTOR_ENDPOINT_ENV_KEYS, values);
-  if (!resolved) {
-    return {};
-  }
-  const override = fileCanonicalOverride({
-    source,
-    resolvedEnvKey: resolved.envKey,
-    canonicalKeys: [ENV_PHOENIX_COLLECTOR_ENDPOINT],
-  });
-  if (override) {
-    return override;
-  }
-  return {
-    source,
-    ...resolved,
-    rank:
-      resolved.envKey === ENV_PHOENIX_COLLECTOR_ENDPOINT
-        ? "canonical"
-        : "inferred",
   };
 }
 

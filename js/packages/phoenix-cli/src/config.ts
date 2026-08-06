@@ -290,9 +290,8 @@ export function resolveConfig({
   // (PHOENIX_COLLECTOR_ENDPOINT exported in the shell for app tracing, which
   // historically had no effect on px) must not out-rank an explicitly
   // configured profile — it would redirect authenticated commands and strip
-  // the profile's OAuth tokens below. Canonical (PHOENIX_ENDPOINT/
-  // PHOENIX_BASE_URL) and legacy (PHOENIX_HOST) endpoints keep their
-  // env-over-profile rank.
+  // the profile's OAuth tokens below. Canonical (PHOENIX_ENDPOINT) and legacy
+  // (PHOENIX_HOST) endpoints keep their env-over-profile rank.
   if (endpointRank === "inferred" && profileConfig.endpoint) {
     delete processEnvConfig.endpoint;
   }

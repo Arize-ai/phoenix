@@ -14,7 +14,6 @@ import {
   ENV_PHOENIX_PROJECT_NAME,
   type EnvironmentConfig,
   getBaseUrlFromEnvironment,
-  getCollectorEndpointFromEnvironment,
   getEnvironmentConfig,
   getHeadersFromEnvironment,
   getIntFromEnvironment,
@@ -437,21 +436,23 @@ describe("env", () => {
       expect(getBaseUrlFromEnvironment()).toBe("http://api.local");
     });
 
-    it("should read the PHOENIX_BASE_URL alias when only it is set", () => {
+    it("should read the undocumented PHOENIX_BASE_URL fallback when only it is set", () => {
       process.env[ENV_PHOENIX_BASE_URL] = "http://base.local";
       expect(getBaseUrlFromEnvironment()).toBe("http://base.local");
     });
 
-    it("should prefer PHOENIX_ENDPOINT over its PHOENIX_BASE_URL alias", () => {
+    it("should prefer PHOENIX_ENDPOINT over the PHOENIX_BASE_URL fallback", () => {
       process.env[ENV_PHOENIX_ENDPOINT] = "http://api.local";
       process.env[ENV_PHOENIX_BASE_URL] = "http://base.local";
       expect(getBaseUrlFromEnvironment()).toBe("http://api.local");
     });
 
-    it("should prefer the PHOENIX_BASE_URL alias over PHOENIX_COLLECTOR_ENDPOINT", () => {
+    // PHOENIX_BASE_URL was documented for years but never read, so a config
+    // carrying both must keep resolving to the variable that already worked.
+    it("should prefer PHOENIX_COLLECTOR_ENDPOINT over the PHOENIX_BASE_URL fallback", () => {
       process.env[ENV_PHOENIX_BASE_URL] = "http://base.local";
       process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
-      expect(getBaseUrlFromEnvironment()).toBe("http://base.local");
+      expect(getBaseUrlFromEnvironment()).toBe("http://collector.local");
     });
 
     it("should infer from PHOENIX_COLLECTOR_ENDPOINT when only it is set", () => {
@@ -518,42 +519,6 @@ describe("env", () => {
       expect(warn.mock.calls[0]?.[0]).toContain(ENV_PHOENIX_COLLECTOR_ENDPOINT);
       expect(warn.mock.calls[0]?.[0]).toContain(ENV_PHOENIX_HOST);
       warn.mockRestore();
-    });
-  });
-
-  describe("getCollectorEndpointFromEnvironment", () => {
-    it("should return undefined when neither variable is set", () => {
-      expect(getCollectorEndpointFromEnvironment()).toBeUndefined();
-    });
-
-    it("should read PHOENIX_COLLECTOR_ENDPOINT when only it is set", () => {
-      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
-      expect(getCollectorEndpointFromEnvironment()).toBe(
-        "http://collector.local"
-      );
-    });
-
-    it("should infer from PHOENIX_ENDPOINT when only it is set", () => {
-      process.env[ENV_PHOENIX_ENDPOINT] = "http://api.local";
-      expect(getCollectorEndpointFromEnvironment()).toBe("http://api.local");
-    });
-
-    it("should infer from the PHOENIX_BASE_URL alias when only it is set", () => {
-      process.env[ENV_PHOENIX_BASE_URL] = "http://base.local";
-      expect(getCollectorEndpointFromEnvironment()).toBe("http://base.local");
-    });
-
-    it("should prefer PHOENIX_COLLECTOR_ENDPOINT over PHOENIX_ENDPOINT", () => {
-      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
-      process.env[ENV_PHOENIX_ENDPOINT] = "http://api.local";
-      expect(getCollectorEndpointFromEnvironment()).toBe(
-        "http://collector.local"
-      );
-    });
-
-    it("should not read PHOENIX_HOST", () => {
-      process.env[ENV_PHOENIX_HOST] = "http://phoenix.local";
-      expect(getCollectorEndpointFromEnvironment()).toBeUndefined();
     });
   });
 

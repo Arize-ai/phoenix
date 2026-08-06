@@ -52,20 +52,23 @@ _CREDENTIAL_ENV_KEYS = (
     ENV_PHOENIX_CLIENT_HEADERS,
 )
 # Base-URL candidates for API access, in precedence order: the canonical
-# PHOENIX_ENDPOINT and its documented PHOENIX_BASE_URL alias first, then the
-# trace-export variables as inferred fallbacks. PHOENIX_HOST/PHOENIX_PORT are
-# handled separately (host:port construction, not a URL).
-_CANONICAL_API_BASE_URL_ENV_KEYS = (
-    ENV_PHOENIX_ENDPOINT,
-    ENV_PHOENIX_BASE_URL,
-)
+# PHOENIX_ENDPOINT first, then the trace-export variables as inferred
+# fallbacks, then PHOENIX_BASE_URL. PHOENIX_HOST/PHOENIX_PORT are handled
+# separately (host:port construction, not a URL).
+_CANONICAL_API_BASE_URL_ENV_KEYS = (ENV_PHOENIX_ENDPOINT,)
 _COLLECTOR_ENV_KEYS = (
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
     ENV_OTEL_EXPORTER_OTLP_ENDPOINT,
 )
+# Undocumented compatibility fallback. PHOENIX_BASE_URL appeared in the client
+# docs for years but was never read, so values set from those docs silently did
+# nothing. It is honored below the collector variables so those configurations
+# start working without retargeting anyone who set both.
+_LEGACY_API_BASE_URL_ENV_KEYS = (ENV_PHOENIX_BASE_URL,)
 _API_BASE_URL_ENV_KEYS = (
     *_CANONICAL_API_BASE_URL_ENV_KEYS,
     *_COLLECTOR_ENV_KEYS,
+    *_LEGACY_API_BASE_URL_ENV_KEYS,
 )
 _SERVER_LOCATION_ENV_KEYS = (
     *_API_BASE_URL_ENV_KEYS,
@@ -358,10 +361,10 @@ def get_env_collector_endpoint() -> Optional[str]:
         )
         if file_endpoint:
             endpoint, endpoint_source = file_endpoint, file_source
-        else:
-            # Infer from the API-access variables: when only PHOENIX_ENDPOINT (or
-            # its alias) is set, trace export assumes the same server.
-            endpoint = values.get(ENV_PHOENIX_ENDPOINT) or values.get(ENV_PHOENIX_BASE_URL)
+    # Inference deliberately does not run in this direction: trace export reads
+    # only the collector variables, matching arize-phoenix-otel. API consumers
+    # fall back to PHOENIX_COLLECTOR_ENDPOINT instead, so one value configures
+    # both without the two SDKs disagreeing about where spans go.
     if endpoint and endpoint_source is not None and endpoint_source.kind == "env-file":
         try:
             httpx.URL(endpoint)

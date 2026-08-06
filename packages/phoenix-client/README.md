@@ -49,19 +49,21 @@ Configure the Phoenix Client using environment variables for seamless use across
 
 ```bash
 # For local Phoenix server (default)
-export PHOENIX_BASE_URL="http://localhost:6006"
+export PHOENIX_ENDPOINT="http://localhost:6006"
 
-# Cloud Instance
-export PHOENIX_API_KEY="your-api-key"
-export PHOENIX_BASE_URL="https://app.phoenix.arize.com/s/your-space"
-
-# For custom Phoenix instances with API key authentication
-export PHOENIX_BASE_URL="https://your-phoenix-instance.com"
+# A hosted or self-hosted instance with authentication
+export PHOENIX_ENDPOINT="https://phoenix.example.com"
 export PHOENIX_API_KEY="your-api-key"
 
 # Customize headers
 export PHOENIX_CLIENT_HEADERS="Authorization=Bearer your-api-key,custom-header=value"
 ```
+
+`PHOENIX_ENDPOINT` is a base URL and is the canonical setting for the client. If
+your app also exports traces, set `PHOENIX_COLLECTOR_ENDPOINT` for the OTel SDK
+— usually to the same value. When only `PHOENIX_COLLECTOR_ENDPOINT` is set, the
+client infers its base URL from it. See
+[Environments](https://arize.com/docs/phoenix/environments) for the full list.
 
 ### Credential File Discovery (`.env.phoenix`)
 
@@ -72,7 +74,7 @@ toward the filesystem root and stopping at the first match — and reads
 
 ```bash
 # .env.phoenix
-PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_ENDPOINT=http://localhost:6006
 PHOENIX_API_KEY=your-api-key
 ```
 
@@ -81,7 +83,8 @@ never overrides anything already set. Set `PHOENIX_DISCOVER_CONFIG=false` to
 disable discovery entirely.
 
 Credentials (`PHOENIX_API_KEY` and `PHOENIX_CLIENT_HEADERS`) and server location
-(`PHOENIX_COLLECTOR_ENDPOINT`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `PHOENIX_HOST`, and
+(`PHOENIX_ENDPOINT`, `PHOENIX_COLLECTOR_ENDPOINT`,
+`OTEL_EXPORTER_OTLP_ENDPOINT`, `PHOENIX_HOST`, and
 `PHOENIX_PORT`) are each resolved as a group from one source tier. If explicit
 or process credentials are paired with an endpoint from `.env.phoenix`, the
 client warns once and continues without logging credential values.

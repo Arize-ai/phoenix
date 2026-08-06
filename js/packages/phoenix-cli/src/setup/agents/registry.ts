@@ -280,10 +280,11 @@ export function detectCodingAgents(
  */
 export function connectionEnv(connection: Connection): Record<string, string> {
   return {
-    // Both endpoint variables, mirroring `.env.phoenix`: trace export and
-    // API access respectively.
-    PHOENIX_COLLECTOR_ENDPOINT: connection.endpoint,
+    // Both endpoint variables, mirroring `.env.phoenix`. PHOENIX_ENDPOINT is
+    // canonical for the clients and the `px` CLI; OTEL reads only
+    // PHOENIX_COLLECTOR_ENDPOINT, so trace export needs it written explicitly.
     PHOENIX_ENDPOINT: connection.endpoint,
+    PHOENIX_COLLECTOR_ENDPOINT: connection.endpoint,
     PHOENIX_PROJECT_NAME: connection.projectName,
     ...(connection.apiKey ? { PHOENIX_API_KEY: connection.apiKey } : {}),
   };

@@ -57,8 +57,9 @@ describe("buildInstrumentationPrompt", () => {
       "PHOENIX_COLLECTOR_ENDPOINT is where traces are exported"
     );
     expect(prompt).toContain(
-      "PHOENIX_ENDPOINT is the base URL API requests go to"
+      "PHOENIX_ENDPOINT is canonical for everything except trace export"
     );
+    expect(prompt).toContain("The OTel SDKs read only this");
   });
 
   it("names the project and, off the default endpoint, the endpoint too", () => {

@@ -1,19 +1,22 @@
 import {
-  getCollectorEndpointFromEnvironmentWithSource,
+  ENV_PHOENIX_COLLECTOR_ENDPOINT,
   getCredentialsFromEnvironmentWithSource,
   getProjectFromEnvironment,
+  getStrFromEnvironmentWithSource,
 } from "@arizeai/phoenix-config";
 
 /**
  * Resolves the OTel endpoint and credentials as source-aware groups.
  *
- * The endpoint reads `PHOENIX_COLLECTOR_ENDPOINT` (canonical for trace
- * export), inferring from `PHOENIX_ENDPOINT` when only that is set.
+ * Trace export reads `PHOENIX_COLLECTOR_ENDPOINT` only. API consumers treat
+ * `PHOENIX_ENDPOINT` as canonical and fall back to the collector variable when
+ * it is unset; the inference deliberately does not run in this direction,
+ * which keeps trace export identical across the TypeScript and Python SDKs.
  */
 export function getEnvConfig() {
   return {
     credentials: getCredentialsFromEnvironmentWithSource(),
-    endpoint: getCollectorEndpointFromEnvironmentWithSource(),
+    endpoint: getStrFromEnvironmentWithSource(ENV_PHOENIX_COLLECTOR_ENDPOINT),
   };
 }
 

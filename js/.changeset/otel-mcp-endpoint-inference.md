@@ -3,4 +3,6 @@
 "@arizeai/phoenix-mcp": minor
 ---
 
-Resolve endpoints through the shared two-variable scheme: `PHOENIX_COLLECTOR_ENDPOINT` is where traces are exported, `PHOENIX_ENDPOINT` is where API requests go, and when only one is set the other is inferred from it. `register()` now falls back to `PHOENIX_ENDPOINT` when `PHOENIX_COLLECTOR_ENDPOINT` is unset; the MCP server resolves its base URL from `PHOENIX_ENDPOINT` first (previously only `PHOENIX_HOST`, which remains a legacy fallback).
+Resolve the MCP server's base URL from `PHOENIX_ENDPOINT`, inferring from `PHOENIX_COLLECTOR_ENDPOINT` when only that is set, then the legacy `PHOENIX_HOST` — matching the API clients and the `px` CLI. Previously the MCP server read only `PHOENIX_HOST`.
+
+`register()` is unchanged: trace export reads `PHOENIX_COLLECTOR_ENDPOINT` only, so the TypeScript and Python SDKs always agree on where spans go.

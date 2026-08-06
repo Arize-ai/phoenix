@@ -171,8 +171,8 @@ describe("buildLaunchSpec", () => {
       args: ["-p", "--force", PROMPT],
       cwd: "/repo",
       env: {
-        PHOENIX_COLLECTOR_ENDPOINT: "http://localhost:6006",
         PHOENIX_ENDPOINT: "http://localhost:6006",
+        PHOENIX_COLLECTOR_ENDPOINT: "http://localhost:6006",
         PHOENIX_PROJECT_NAME: "my-app",
         PHOENIX_API_KEY: "sk-test",
       },
