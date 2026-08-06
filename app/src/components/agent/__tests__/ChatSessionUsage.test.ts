@@ -40,7 +40,7 @@ function createAssistantMessage({
 }
 
 describe("getConversationUsage", () => {
-  it("accumulates token counts across assistant turns", () => {
+  it("uses the latest assistant turn's token counts", () => {
     const messages: AgentUIMessage[] = [
       {
         id: "older-compaction-boundary",
@@ -76,9 +76,9 @@ describe("getConversationUsage", () => {
 
     expect(getConversationUsage({ messages })).toEqual({
       tokenCount: {
-        prompt: 300,
-        completion: 50,
-        total: 350,
+        prompt: 200,
+        completion: 30,
+        total: 230,
         promptDetails: {
           cacheRead: 150,
           cacheWrite: 5,
@@ -87,7 +87,7 @@ describe("getConversationUsage", () => {
     });
   });
 
-  it("uses cache details from only the latest turn", () => {
+  it("omits cache details when the latest turn reports none", () => {
     const messages = [
       createAssistantMessage({
         id: "assistant-1",
@@ -105,9 +105,9 @@ describe("getConversationUsage", () => {
 
     expect(getConversationUsage({ messages })).toEqual({
       tokenCount: {
-        prompt: 300,
-        completion: 50,
-        total: 350,
+        prompt: 200,
+        completion: 30,
+        total: 230,
       },
     });
   });
@@ -126,7 +126,7 @@ describe("getConversationUsage", () => {
     ).toBeNull();
   });
 
-  it("accumulates only usage after the compaction boundary", () => {
+  it("uses the latest usage after a compaction boundary", () => {
     const messages: AgentUIMessage[] = [
       createAssistantMessage({
         id: "assistant-before-compaction",
@@ -170,7 +170,7 @@ describe("getConversationUsage", () => {
     });
   });
 
-  it("returns null immediately after compaction", () => {
+  it("falls back to the pre-compaction usage until the next turn reports", () => {
     const messages: AgentUIMessage[] = [
       createAssistantMessage({
         id: "assistant-before-compaction",
@@ -194,6 +194,12 @@ describe("getConversationUsage", () => {
       getConversationUsage({
         messages,
       })
-    ).toBeNull();
+    ).toEqual({
+      tokenCount: {
+        prompt: 1_000,
+        completion: 100,
+        total: 1_100,
+      },
+    });
   });
 });
