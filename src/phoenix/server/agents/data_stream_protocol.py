@@ -110,12 +110,13 @@ async def accumulate_ui_message_chunks_to_ui_messages(
                 message.metadata = _merge_metadata(message.metadata, chunk.message_metadata)
                 changed = True
         elif isinstance(chunk, StartStepChunk):
-            message.parts.append(StepStartUIPart())
+            message.parts.append(StepStartUIPart(type="step-start"))
             changed = True
         elif isinstance(chunk, TextStartChunk):
             text_part_indices_by_id[chunk.id] = len(message.parts)
             message.parts.append(
                 TextUIPart(
+                    type="text",
                     text="",
                     state="streaming",
                     provider_metadata=chunk.provider_metadata,
@@ -146,6 +147,7 @@ async def accumulate_ui_message_chunks_to_ui_messages(
             reasoning_part_indices_by_id[chunk.id] = len(message.parts)
             message.parts.append(
                 ReasoningUIPart(
+                    type="reasoning",
                     text="",
                     state="streaming",
                     provider_metadata=chunk.provider_metadata,
@@ -344,6 +346,7 @@ async def accumulate_ui_message_chunks_to_ui_messages(
         elif isinstance(chunk, SourceUrlChunk):
             message.parts.append(
                 SourceUrlUIPart(
+                    type="source-url",
                     source_id=chunk.source_id,
                     url=chunk.url,
                     title=chunk.title,
@@ -354,6 +357,7 @@ async def accumulate_ui_message_chunks_to_ui_messages(
         elif isinstance(chunk, SourceDocumentChunk):
             message.parts.append(
                 SourceDocumentUIPart(
+                    type="source-document",
                     source_id=chunk.source_id,
                     media_type=chunk.media_type,
                     title=chunk.title,
@@ -363,7 +367,9 @@ async def accumulate_ui_message_chunks_to_ui_messages(
             )
             changed = True
         elif isinstance(chunk, FileChunk):
-            message.parts.append(FileUIPart(url=chunk.url, media_type=chunk.media_type))
+            message.parts.append(
+                FileUIPart(type="file", url=chunk.url, media_type=chunk.media_type)
+            )
             changed = True
         elif isinstance(chunk, DataChunk):
             message.parts.append(DataUIPart(type=chunk.type, id=chunk.id, data=chunk.data))
@@ -390,7 +396,7 @@ def _ensure_text_part(
     if index is None:
         index = len(message.parts)
         indices_by_id[part_id] = index
-        message.parts.append(TextUIPart(text="", state="streaming"))
+        message.parts.append(TextUIPart(type="text", text="", state="streaming"))
     return index
 
 
@@ -403,7 +409,7 @@ def _ensure_reasoning_part(
     if index is None:
         index = len(message.parts)
         indices_by_id[part_id] = index
-        message.parts.append(ReasoningUIPart(text="", state="streaming"))
+        message.parts.append(ReasoningUIPart(type="reasoning", text="", state="streaming"))
     return index
 
 
@@ -445,6 +451,8 @@ def _build_tool_input_streaming_part(
 ) -> UIMessagePart:
     if dynamic:
         return DynamicToolInputStreamingPart(
+            type="dynamic-tool",
+            state="input-streaming",
             tool_name=tool_name,
             tool_call_id=tool_call_id,
             input=input_value,
@@ -452,6 +460,7 @@ def _build_tool_input_streaming_part(
             call_provider_metadata=provider_metadata,
         )
     return ToolInputStreamingPart(
+        state="input-streaming",
         type=_get_tool_type(tool_name),
         tool_call_id=tool_call_id,
         input=input_value,
@@ -471,6 +480,8 @@ def _build_tool_input_available_part(
 ) -> UIMessagePart:
     if dynamic:
         return DynamicToolInputAvailablePart(
+            type="dynamic-tool",
+            state="input-available",
             tool_name=tool_name,
             tool_call_id=tool_call_id,
             input=input_value,
@@ -478,6 +489,7 @@ def _build_tool_input_available_part(
             call_provider_metadata=provider_metadata,
         )
     return ToolInputAvailablePart(
+        state="input-available",
         type=_get_tool_type(tool_name),
         tool_call_id=tool_call_id,
         input=input_value,
@@ -500,6 +512,8 @@ def _build_tool_output_available_part(
 ) -> UIMessagePart:
     if dynamic:
         return DynamicToolOutputAvailablePart(
+            type="dynamic-tool",
+            state="output-available",
             tool_name=tool_name,
             tool_call_id=tool_call_id,
             input=input_value,
@@ -509,6 +523,7 @@ def _build_tool_output_available_part(
             preliminary=preliminary,
         )
     return ToolOutputAvailablePart(
+        state="output-available",
         type=existing_type or _get_tool_type(tool_name),
         tool_call_id=tool_call_id,
         input=input_value,
@@ -533,6 +548,8 @@ def _build_tool_output_error_part(
 ) -> UIMessagePart:
     if dynamic:
         return DynamicToolOutputErrorPart(
+            type="dynamic-tool",
+            state="output-error",
             tool_name=tool_name,
             tool_call_id=tool_call_id,
             input=input_value,
@@ -541,6 +558,7 @@ def _build_tool_output_error_part(
             call_provider_metadata=provider_metadata,
         )
     return ToolOutputErrorPart(
+        state="output-error",
         type=existing_type or _get_tool_type(tool_name),
         tool_call_id=tool_call_id,
         input=input_value,
@@ -565,6 +583,8 @@ def _build_tool_approval_requested_part(
     approval = ToolApprovalRequested(id=approval_id)
     if dynamic:
         return DynamicToolApprovalRequestedPart(
+            type="dynamic-tool",
+            state="approval-requested",
             tool_name=tool_name,
             tool_call_id=tool_call_id,
             input=input_value,
@@ -573,6 +593,7 @@ def _build_tool_approval_requested_part(
             approval=approval,
         )
     return ToolApprovalRequestedPart(
+        state="approval-requested",
         type=existing_type or _get_tool_type(tool_name),
         tool_call_id=tool_call_id,
         input=input_value,
@@ -594,6 +615,8 @@ def _build_tool_output_denied_part(
 ) -> UIMessagePart:
     if dynamic:
         return DynamicToolOutputDeniedPart(
+            type="dynamic-tool",
+            state="output-denied",
             tool_name=tool_name,
             tool_call_id=tool_call_id,
             input=input_value,
@@ -601,6 +624,7 @@ def _build_tool_output_denied_part(
             call_provider_metadata=provider_metadata,
         )
     return ToolOutputDeniedPart(
+        state="output-denied",
         type=existing_type or _get_tool_type(tool_name),
         tool_call_id=tool_call_id,
         input=input_value,

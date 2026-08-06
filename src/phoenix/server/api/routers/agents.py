@@ -755,6 +755,7 @@ def _build_assistant_message_metadata(
         )
     )
     return AssistantMessageMetadata(
+        type="assistant",
         session_id=session_id,
         trace=trace_ids,
         turn_trace_context=turn_trace_context,
@@ -1551,6 +1552,8 @@ def _build_interrupted_tool_output(
     error_text = _interrupted_tool_error_text(part)
     if isinstance(part, _DYNAMIC_UNRESOLVED_TOOL_PART_TYPES):
         return DynamicToolOutputErrorPart(
+            state="output-error",
+            type="dynamic-tool",
             tool_name=part.tool_name,
             tool_call_id=part.tool_call_id,
             title=part.title,
@@ -1562,6 +1565,7 @@ def _build_interrupted_tool_output(
         )
     if isinstance(part, _STATIC_UNRESOLVED_TOOL_PART_TYPES):
         return ToolOutputErrorPart(
+            state="output-error",
             type=part.type,
             tool_call_id=part.tool_call_id,
             title=part.title,
@@ -2099,6 +2103,7 @@ def _build_compaction_message(*, message_id: str, summary: str) -> PhoenixUIMess
         id=message_id,
         role="user",
         metadata=UserMessageMetadata(
+            type="user",
             current_date_time=datetime.now(timezone.utc).isoformat(),
             time_zone="UTC",
             is_compaction_message=True,
@@ -3005,7 +3010,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         message_state.message.model_dump(
                             mode="json",
                             by_alias=True,
-                            exclude_none=True,
+                            exclude_unset=True,
                         )
                     )
                     if continued_assistant_message is not None:

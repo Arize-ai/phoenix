@@ -1566,6 +1566,14 @@ class IncompleteExperimentRun(TypedDict):
     repetition_numbers: Sequence[int]
 
 
+class LegacyAssistantMessageMetadata(TypedDict):
+    type: Literal["assistant"]
+    sessionId: str
+    trace: NotRequired[AssistantMessageMetadataTraceIds]
+    turnTraceContext: NotRequired[TurnTraceContext]
+    usage: NotRequired[AssistantMessageMetadataUsage]
+
+
 class ListDatasetExamplesData(TypedDict):
     dataset_id: str
     version_id: str
@@ -1900,7 +1908,7 @@ class LegacyAssistantMetadataUIMessage(TypedDict):
             StepStartUIPart,
         ]
     ]
-    metadata: NotRequired[AssistantMessageMetadata]
+    metadata: NotRequired[LegacyAssistantMessageMetadata]
 
 
 class LegacyChatRegenerateMessage(TypedDict):

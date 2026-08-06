@@ -6,7 +6,7 @@ import orjson
 import sqlalchemy as sa
 import sqlalchemy.sql as sql
 from openinference.semconv.trace import RerankerAttributes, SpanAttributes
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import (
     JSON,
     NUMERIC,
@@ -260,11 +260,24 @@ class _UIMessage(TypeDecorator[PhoenixUIMessage]):
     def process_bind_param(
         self, value: Optional[PhoenixUIMessage], _: Dialect
     ) -> Optional[dict[str, Any]]:
-        return (
-            value.model_dump(mode="json", by_alias=True, exclude_none=True)
-            if value is not None
-            else None
+        if value is None:
+            return None
+        # exclude_unset preserves the wire shape: explicit nulls survive,
+        # absent keys stay absent.
+        dumped = value.model_dump(mode="json", by_alias=True, exclude_unset=True)
+        # Refuse messages that don't round-trip; storing one would break every
+        # subsequent transcript read.
+        error = (
+            f"UI message {value.id!r} does not round-trip through its JSON "
+            "representation and cannot be persisted"
         )
+        try:
+            revalidated = PhoenixUIMessageAdapter.validate_python(dumped)
+        except ValidationError as exc:
+            raise ValueError(error) from exc
+        if revalidated != value:
+            raise ValueError(error)
+        return dumped
 
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect

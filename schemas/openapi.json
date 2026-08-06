@@ -9553,8 +9553,7 @@
           "type": {
             "type": "string",
             "const": "assistant",
-            "title": "Type",
-            "default": "assistant"
+            "title": "Type"
           },
           "sessionId": {
             "type": "string",
@@ -9594,6 +9593,7 @@
         "additionalProperties": true,
         "type": "object",
         "required": [
+          "type",
           "sessionId"
         ],
         "title": "AssistantMessageMetadata",
@@ -13338,6 +13338,57 @@
         ],
         "title": "LDAPUserData"
       },
+      "LegacyAssistantMessageMetadata": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "assistant",
+            "title": "Type",
+            "default": "assistant"
+          },
+          "sessionId": {
+            "type": "string",
+            "title": "Sessionid"
+          },
+          "trace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantMessageMetadataTraceIds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "turnTraceContext": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnTraceContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantMessageMetadataUsage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "sessionId"
+        ],
+        "title": "LegacyAssistantMessageMetadata",
+        "description": "Legacy transcripts predate the ``type`` discriminator, so default it here."
+      },
       "LegacyAssistantMetadataUIMessage": {
         "properties": {
           "id": {
@@ -13356,7 +13407,7 @@
           "metadata": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/AssistantMessageMetadata"
+                "$ref": "#/components/schemas/LegacyAssistantMessageMetadata"
               },
               {
                 "type": "null"
@@ -19709,8 +19760,7 @@
           "type": {
             "type": "string",
             "const": "user",
-            "title": "Type",
-            "default": "user"
+            "title": "Type"
           },
           "currentDateTime": {
             "type": "string",
@@ -19731,6 +19781,7 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "type",
           "currentDateTime",
           "timeZone"
         ],

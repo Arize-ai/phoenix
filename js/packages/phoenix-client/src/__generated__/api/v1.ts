@@ -3453,6 +3453,25 @@ export interface components {
             auth_method: "LDAP";
         };
         /**
+         * LegacyAssistantMessageMetadata
+         * @description Legacy transcripts predate the ``type`` discriminator, so default it here.
+         */
+        LegacyAssistantMessageMetadata: {
+            /**
+             * Type
+             * @default assistant
+             * @constant
+             */
+            type?: "assistant";
+            /** Sessionid */
+            sessionId: string;
+            trace?: components["schemas"]["AssistantMessageMetadataTraceIds"] | null;
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
+            usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * LegacyAssistantMetadataUIMessage
          * @description ``UIMessage`` with ``metadata`` narrowed to ``AssistantMessageMetadata``.
          */
@@ -3464,7 +3483,7 @@ export interface components {
              * @enum {string}
              */
             role: "system" | "user" | "assistant";
-            metadata?: components["schemas"]["AssistantMessageMetadata"] | null;
+            metadata?: components["schemas"]["LegacyAssistantMessageMetadata"] | null;
             /** Parts */
             parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
