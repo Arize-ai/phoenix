@@ -1,0 +1,14 @@
+<tool_group name="phoenix_rest_api">
+  <description>Read-only tools generated from Phoenix's own REST API, covering projects, spans, traces, datasets, experiments, prompts, and annotations.</description>
+  <when_to_use>You need Phoenix data that the tools already in front of you do not return, or you need to read across more of a resource than a single view exposes.</when_to_use>
+  <discovery>
+    Only the projects tools are visible up front. Call `list_tool_groups` to see what else exists, then `enable_tool_group` to reveal a group before using its tools.
+    Reveals last for the current turn only. If a tool you enabled earlier in this conversation is no longer available, enable its group again rather than assuming it failed.
+  </discovery>
+  <precedence>
+    These tools read the same data as the workspace tools, but they cannot change what the user is looking at. When a tool that updates the UI would answer the request, prefer it; reach here to read, to cover ground it does not, or when no such tool exists.
+  </precedence>
+  <constraints>
+    This surface is read-only. To create or modify anything, use the workspace tools, which route the change through the user's approval.
+  </constraints>
+</tool_group>

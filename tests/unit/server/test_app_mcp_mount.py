@@ -253,6 +253,60 @@ async def test_mcp_server_not_mounted_by_default(
         assert not any(getattr(r, "path", None) == MCP_MOUNT_PATH for r in app.routes)
 
 
+class TestAgentMCPServerIsIndependentOfTheMount:
+    """The agent's server shares the mount's derivation but not its lifetime or
+    configuration."""
+
+    @staticmethod
+    async def _create_app(db: DbSessionFactory) -> FastAPI:
+        async with AsyncExitStack() as stack:
+            await stack.enter_async_context(patch_batched_caller())
+            await stack.enter_async_context(patch_grpc_server())
+            return create_app(
+                db=db,
+                authentication_enabled=False,
+                serve_ui=False,
+                bulk_inserter_factory=TestBulkInserter,
+            )
+        raise AssertionError("unreachable")
+
+    async def test_built_even_when_the_mount_is_disabled(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
+
+        app = await self._create_app(db)
+
+        assert app.state.mcp_http_app is None
+        assert app.state.pxi_mcp_server is not None
+
+    async def test_absent_when_the_assistant_is_disabled(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The tools follow the assistant, not the mount."""
+        monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
+        monkeypatch.setattr("phoenix.server.app.get_env_disable_agent_assistant", lambda: True)
+
+        app = await self._create_app(db)
+
+        assert app.state.pxi_mcp_server is None
+
+    async def test_surface_is_read_only(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Against the real ``/v1`` spec rather than a stand-in."""
+        monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
+
+        app = await self._create_app(db)
+        tools = await app.state.pxi_mcp_server.list_tools()
+
+        assert tools, "expected the /v1 spec to yield tools"
+        for tool in tools:
+            annotations = tool.annotations
+            assert annotations is not None, f"{tool.name} is unannotated"
+            assert annotations.readOnlyHint is True, f"{tool.name} is not read-only"
+
+
 async def test_mcp_code_mode_replaces_tool_surface(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,

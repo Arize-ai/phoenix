@@ -3347,6 +3347,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 agent = build_agent(
                     model=model,
                     docs_mcp_server=request.app.state.docs_mcp_server,
+                    phoenix_mcp_server=request.app.state.pxi_mcp_server,
+                    principal=phoenix_user,
                     enable_web_access=web_access_enabled,
                     tracer_provider=tracer_provider,
                     server_agent=subagent,
