@@ -294,17 +294,26 @@ class TestAgentMCPServerIsIndependentOfTheMount:
     async def test_surface_is_read_only(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Against the real ``/v1`` spec rather than a stand-in."""
+        """Against the real ``/v1`` spec rather than a stand-in.
+
+        Code mode hides the derived tools behind ``execute``, so this asserts on
+        the derivation the agent's server is built from. That the sandbox catalog
+        reflects it is covered in ``test_phoenix_mcp``.
+        """
+        from phoenix.server.mcp_server import build_phoenix_mcp_server
+
         monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
 
         app = await self._create_app(db)
-        tools = await app.state.pxi_mcp_server.list_tools()
+        assert app.state.pxi_mcp_server is not None
+        derived, _ = build_phoenix_mcp_server(app, code_mode=False, read_only=True, db=_unused_db())
+        tools = await derived.list_tools()
 
         assert tools, "expected the /v1 spec to yield tools"
         for tool in tools:
-            annotations = tool.annotations
-            assert annotations is not None, f"{tool.name} is unannotated"
-            assert annotations.readOnlyHint is True, f"{tool.name} is not read-only"
+            if tool.annotations is None:  # the group meta-tools carry their own
+                continue
+            assert tool.annotations.readOnlyHint is True, f"{tool.name} is not read-only"
 
 
 async def test_mcp_code_mode_replaces_tool_surface(

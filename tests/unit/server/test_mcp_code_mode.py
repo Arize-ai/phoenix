@@ -477,7 +477,7 @@ async def test_default_limits_are_not_shared_between_providers() -> None:
 def test_partial_consumer_limits_merge_with_defaults() -> None:
     runtime = MontyRuntime(consumer_limits={"mcp": 1})
 
-    assert set(runtime._consumer_slots) == {"mcp", "evaluator", "validation"}
+    assert set(runtime._consumer_slots) == {"mcp", "agent", "evaluator", "validation"}
     assert runtime._consumer_slots["mcp"]._value == 1
 
 

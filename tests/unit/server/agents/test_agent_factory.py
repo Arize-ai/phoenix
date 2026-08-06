@@ -520,6 +520,7 @@ class TestPhoenixMCPTools:
         from fastapi import FastAPI
 
         from phoenix.server.mcp_server import build_phoenix_mcp_server
+        from phoenix.server.monty_runtime import MontyRuntime
 
         app = FastAPI()
 
@@ -527,13 +528,13 @@ class TestPhoenixMCPTools:
         async def projects() -> list[str]:
             return []
 
-        # Gating installs its meta tools only when a non-default group exists.
-        @app.get("/v1/spans", tags=["spans"], summary="List spans.")
-        async def spans() -> list[str]:
-            return []
-
         server, _ = build_phoenix_mcp_server(
-            app, code_mode=False, read_only=True, db=Mock(spec=DbSessionFactory)
+            app,
+            monty_runtime=MontyRuntime(),
+            code_mode=True,
+            monty_consumer="agent",
+            read_only=True,
+            db=Mock(spec=DbSessionFactory),
         )
         return server
 
@@ -548,7 +549,7 @@ class TestPhoenixMCPTools:
 
         joined_system = "\n".join(_get_system_texts(captured_request.body))
         assert '<tool_group name="phoenix_rest_api">' not in joined_system
-        assert "enable_tool_group" not in _get_tool_names(captured_request.body)
+        assert "execute" not in _get_tool_names(captured_request.body)
 
     async def test_advertised_with_a_server(
         self,
@@ -560,8 +561,9 @@ class TestPhoenixMCPTools:
         await agent.run("hello", deps=AgentDependencies(contexts=ResolvedContexts()))
 
         tool_names = _get_tool_names(captured_request.body)
-        # The gated groups arrive behind the meta tools rather than all at once.
-        assert "enable_tool_group" in tool_names
+        # The derived endpoints arrive behind `execute`, not one tool each.
+        assert "execute" in tool_names
+        assert not any(name.startswith("projects_v1") for name in tool_names)
         assert '<tool_group name="phoenix_rest_api">' in "\n".join(
             _get_system_texts(captured_request.body)
         )
