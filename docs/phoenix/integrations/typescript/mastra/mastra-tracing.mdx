@@ -34,7 +34,9 @@ straight through.
 
 ## Setup
 
-Initialize the Arize exporter inside your Mastra project:
+Initialize the Arize exporter inside your Mastra project. Passing `endpoint` is optional —
+`ArizeExporter` reads `PHOENIX_COLLECTOR_ENDPOINT` from the environment on its own — but
+passing it explicitly keeps the wiring visible:
 
 ```typescript
 import { Mastra } from "@mastra/core";
@@ -67,9 +69,11 @@ export const mastra = new Mastra({
   simply never appear. Phoenix's own tools accept the suffixed value, stripping the path when
   they need a base URL (see [environment variables](/docs/phoenix/environments)).
 
-  One exception to keep in mind: `arize-phoenix-otel` (Python) defaults to OTLP/gRPC for
-  self-hosted servers and does not strip the path, so if a Python service reads this same
-  variable give it the bare server URL instead.
+  One case to keep in mind if a Python service shares this environment: left to infer its
+  transport, `arize-phoenix-otel`'s `register()` rewrites the port of a suffixed value to the
+  gRPC port `4317` while keeping the `/v1/traces` path, and exports to a URL that answers
+  nothing. Pass `protocol="http/protobuf"` to `register()` there, or give the Python side the
+  bare server URL.
 </Warning>
 
 ## Create Agents and Tools
