@@ -7,12 +7,14 @@ import { useMemo, useState } from "react";
 import {
   Button,
   Checkbox,
+  CompactEmptyState,
   DebouncedSearch,
   DialogTrigger,
   Icon,
   Icons,
   MenuHeader,
   Popover,
+  VisuallyHidden,
 } from "@phoenix/components";
 import { dndDragFeedbackCSS, dndRowHandleCSS } from "@phoenix/components/dnd";
 
@@ -178,15 +180,19 @@ export function ColumnSelectorMenu({
         : orderColumns({ columns, columnOrder: draftColumnOrder }),
     [columns, draftColumnOrder]
   );
+  const trimmedQuery = searchQuery.trim();
+  // Drives both the filtering below and the empty state's "no matches" vs
+  // "no columns at all" wording, so the two can't disagree.
+  const isFiltering = trimmedQuery.length > 0;
   const filteredColumns = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) {
+    if (!isFiltering) {
       return orderedColumns;
     }
+    const query = trimmedQuery.toLowerCase();
     return orderedColumns.filter((column) =>
       column.label.toLowerCase().includes(query)
     );
-  }, [orderedColumns, searchQuery]);
+  }, [orderedColumns, isFiltering, trimmedQuery]);
 
   // Reordering a filtered list is ambiguous, so it is only enabled when the
   // full list is shown
@@ -205,42 +211,66 @@ export function ColumnSelectorMenu({
         />
       </MenuHeader>
       <div css={columnSelectorBodyCSS}>
-        <ColumnOrderingProvider
-          columnOrder={orderedColumns.map((column) => column.id)}
-          onColumnOrderChange={setDraftColumnOrder}
-          onColumnOrderCommit={(columnOrder) => {
-            setDraftColumnOrder(null);
-            // A canceled or round-trip drag commits the order it started
-            // with; skip the parent update so consumers don't persist and
-            // re-render for an unchanged order.
-            const hasOrderChanged = columnOrder.some(
-              (columnId, index) => columns[index]?.id !== columnId
-            );
-            if (hasOrderChanged) {
-              onColumnOrderChange?.(columnOrder);
-            }
-          }}
-        >
-          <ul css={columnListCSS}>
-            {filteredColumns.map((column, index) => (
-              <SortableColumnRow
-                key={column.id}
-                column={column}
-                // When filtered, reordering is disabled and the index within
-                // the full order is not needed
-                index={index}
-                isVisible={isColumnVisible(columnVisibility, column.id)}
-                isReorderingDisabled={!isReorderingEnabled}
-                onVisibilityChange={(isSelected) =>
-                  onColumnVisibilityChange({
-                    ...columnVisibility,
-                    [column.id]: isSelected,
-                  })
-                }
-              />
-            ))}
-          </ul>
-        </ColumnOrderingProvider>
+        {/* The search field is a plain input, not an Autocomplete, so React
+            Aria announces nothing as the list narrows. This region is mounted
+            for the life of the menu (live regions added at the same time as
+            their content announce unreliably) and stays silent until the user
+            actually searches. */}
+        <VisuallyHidden role="status">
+          {isFiltering
+            ? `${filteredColumns.length} ${
+                filteredColumns.length === 1 ? "column" : "columns"
+              } found`
+            : ""}
+        </VisuallyHidden>
+        {filteredColumns.length === 0 ? (
+          // Without this the list renders as an empty <ul> and the popover
+          // collapses to just the search header, reading as a broken menu.
+          // The search input is not inside an Autocomplete, so the filtered
+          // state has to be passed explicitly rather than auto-detected.
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.Column />} />}
+            description="No columns"
+            isFiltered={isFiltering}
+          />
+        ) : (
+          <ColumnOrderingProvider
+            columnOrder={orderedColumns.map((column) => column.id)}
+            onColumnOrderChange={setDraftColumnOrder}
+            onColumnOrderCommit={(columnOrder) => {
+              setDraftColumnOrder(null);
+              // A canceled or round-trip drag commits the order it started
+              // with; skip the parent update so consumers don't persist and
+              // re-render for an unchanged order.
+              const hasOrderChanged = columnOrder.some(
+                (columnId, index) => columns[index]?.id !== columnId
+              );
+              if (hasOrderChanged) {
+                onColumnOrderChange?.(columnOrder);
+              }
+            }}
+          >
+            <ul css={columnListCSS}>
+              {filteredColumns.map((column, index) => (
+                <SortableColumnRow
+                  key={column.id}
+                  column={column}
+                  // When filtered, reordering is disabled and the index within
+                  // the full order is not needed
+                  index={index}
+                  isVisible={isColumnVisible(columnVisibility, column.id)}
+                  isReorderingDisabled={!isReorderingEnabled}
+                  onVisibilityChange={(isSelected) =>
+                    onColumnVisibilityChange({
+                      ...columnVisibility,
+                      [column.id]: isSelected,
+                    })
+                  }
+                />
+              ))}
+            </ul>
+          </ColumnOrderingProvider>
+        )}
         {children}
       </div>
     </div>
