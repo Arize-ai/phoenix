@@ -13715,17 +13715,10 @@
             "description": "New description for the prompt (null clears the description)"
           },
           "metadata": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "additionalProperties": true,
+            "type": "object",
             "title": "Metadata",
-            "description": "New metadata object for the prompt (replaces the existing metadata as a whole; null is rejected)"
+            "description": "New metadata object for the prompt (replaces the existing metadata as a whole)"
           }
         },
         "type": "object",

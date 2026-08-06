@@ -117,18 +117,15 @@ class PatchPromptRequestBody(V1RoutesBaseModel):
         default=UNDEFINED,
         description="New description for the prompt (null clears the description)",
     )
-    metadata: Optional[dict[str, Any]] = Field(
+    metadata: dict[str, Any] = Field(
         default=UNDEFINED,
         description=(
-            "New metadata object for the prompt (replaces the existing metadata as a "
-            "whole; null is rejected)"
+            "New metadata object for the prompt (replaces the existing metadata as a whole)"
         ),
     )
 
     @model_validator(mode="after")
     def _validate_patch(self) -> Self:
-        if self.metadata is None:
-            raise ValueError("metadata cannot be null")
         if self.description is UNDEFINED and self.metadata is UNDEFINED:
             raise ValueError("at least one field must be provided")
         return self
@@ -821,7 +818,6 @@ async def patch_prompt(
         if (description := request_body.description) is not UNDEFINED:
             prompt.description = description.strip() if description is not None else None
         if (metadata := request_body.metadata) is not UNDEFINED:
-            assert metadata is not None
             prompt.metadata_ = metadata
         data = _prompt_from_orm_prompt(prompt)
 
