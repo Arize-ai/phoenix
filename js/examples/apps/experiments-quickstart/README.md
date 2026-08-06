@@ -36,10 +36,16 @@ npm install
 Create a `.env` file in this directory:
 
 ```env
-PHOENIX_HOST=https://app.phoenix.arize.com/s/your-space
+PHOENIX_ENDPOINT=https://app.phoenix.arize.com/s/your-space
 PHOENIX_API_KEY=your-phoenix-api-key
 OPENAI_API_KEY=your-openai-api-key
 ```
+
+`PHOENIX_ENDPOINT` is your Phoenix base URL. The experiment scripts call the API on it,
+and `instrumentation.ts` passes it to `register()`, which appends the OTLP `/v1/traces`
+path for trace export. See
+[Environments](https://arize.com/docs/phoenix/environments) for the full list of Phoenix
+environment variables.
 
 ### 3. Run the Tutorial
 

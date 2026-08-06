@@ -25,9 +25,13 @@ npm install dotenv openai @arizeai/openinference-instrumentation-openai @ai-sdk/
 
 ```env
 OPENAI_API_KEY=your-openai-api-key
-PHOENIX_HOST=https://app.phoenix.arize.com/s/your-space
+PHOENIX_ENDPOINT=https://app.phoenix.arize.com/s/your-space
 PHOENIX_API_KEY=your-phoenix-api-key
 ```
+
+`PHOENIX_ENDPOINT` is your Phoenix base URL — the client reads it automatically. See
+[Environments](https://arize.com/docs/phoenix/environments) for the full list of Phoenix
+environment variables.
 
 ## Running the Demo
 
