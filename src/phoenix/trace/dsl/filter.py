@@ -791,17 +791,27 @@ def _validate_comprehensions(
             if _scope_of(variable, scopes) is not None:
                 raise SyntaxError(f"`{variable}` is already in use as a loop variable")
             if (namespace := bindings.root_namespace) is not None and variable == namespace.keyword:
-                # Python would allow the shadow; this is a deliberate deviation, for the
-                # sake of a construct the family already intends to grow. Comparing an
-                # element field against an outer field -- `any(d.cost > span.total_cost / 2
-                # for d in span.cost_details)` -- is on the roadmap for every grain. It can
-                # only exist if the root denotes the filtered row in every scope, so the
-                # root is treated as a keyword rather than a bindable name.
+                # Python would allow the shadow, so this is a deviation and owes a reason.
+                # It is *not* that shadowing breaks anything: it would simply make the
+                # filtered row unreachable inside that one comprehension, which is ordinary
+                # lexical scoping and exactly what Python does.
                 #
-                # Rejecting is also the reversible direction: under the additive-only
-                # policy a rejection can be lifted later, while a restriction added later
-                # cannot. Grains that reserve no root are unaffected, which is how the
-                # session grain keeps spelling its span loops `for span in spans`.
+                # The reason is that the restriction is nearly free and the direction is
+                # reversible. Nobody needs this spelling -- `for detail in
+                # span.cost_details` reads better regardless -- and under the additive-only
+                # policy a rejection can be lifted later while a restriction cannot be
+                # added. Cheap option value on a one-way door, and the option is real:
+                # reading an outer field inside a comprehension is on the roadmap for every
+                # grain, and keeping the root unambiguous is one less thing in its way.
+                #
+                # It also removes a genuine footgun. Python evaluates the outermost `for`
+                # clause's iterable in the *enclosing* scope, so in `for span in
+                # span.cost_details` the same token means the filtered row on the right and
+                # the loop element in the body -- a rule most people do not know they are
+                # relying on.
+                #
+                # Grains that reserve no root are unaffected, which is how the session grain
+                # keeps spelling its span loops `for span in spans`.
                 raise SyntaxError(
                     f"`{namespace.keyword}` is reserved and cannot be a loop variable"
                 )

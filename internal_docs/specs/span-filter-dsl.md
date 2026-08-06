@@ -246,11 +246,14 @@ Two shapes are rejected that Python would allow, both deliberate:
 - **Traversal past a member** (`span.total_cost.x`, `span['total_cost']`). The
   root exposes its fields directly and nothing further.
 - **Shadowing the root with a loop variable**
-  (`any(span.cost > 1 for span in span.cost_details)`). Comparing an element
-  field against an outer field is on the roadmap for every grain, and that
-  construct requires the root to denote the filtered row in every scope.
-  Rejecting is also the reversible direction: under the additive-only policy a
-  rejection can be lifted later, a restriction cannot be added.
+  (`any(span.cost > 1 for span in span.cost_details)`). Not because shadowing
+  would break anything — it would make the filtered row unreachable inside that
+  one comprehension, which is ordinary lexical scoping. The restriction is kept
+  because it is nearly free (no one needs this spelling) and reversible: under
+  the additive-only policy a rejection can be lifted later, a restriction cannot
+  be added. It also removes a footgun — Python evaluates the outermost `for`
+  clause's iterable in the *enclosing* scope, so `for span in span.cost_details`
+  reads the same token two ways in one line.
 
 **Missing values.** Cost and token members coalesce to `0`, matching the session
 grain's rollups so that one name means one thing across grains — a span with no
