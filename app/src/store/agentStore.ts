@@ -161,6 +161,37 @@ export function selectSessionNotice(
 }
 
 /**
+ * Whether a turn is in motion for this session — this client's own response
+ * is in flight (the model is thinking), or another client's turn holds the
+ * session's server lock. Surfaces use this to pause affordances (e.g. tool
+ * approval Accept/Reject) whose activation would race the running turn.
+ *
+ * Deliberately reads `chatStatusBySessionId` — the live AI SDK status that
+ * `AgentChatRuntimeContext` mirrors for every runtime chat — rather than
+ * `isResponsePendingBySessionId`. The response-pending flag stays true across
+ * the whole multi-request turn, including the gap while a client tool
+ * executes between HTTP requests: exactly the window in which the user must
+ * still be able to Accept or Reject.
+ */
+export function selectIsSessionOccupied(
+  state: Pick<
+    AgentState,
+    "chatStatusBySessionId" | "isBusyElsewhereBySessionId"
+  >,
+  sessionId: string | null | undefined
+): boolean {
+  if (!sessionId) {
+    return false;
+  }
+  const chatStatus = state.chatStatusBySessionId[sessionId];
+  return (
+    chatStatus === "submitted" ||
+    chatStatus === "streaming" ||
+    state.isBusyElsewhereBySessionId[sessionId] === true
+  );
+}
+
+/**
  * Sentinel session key for the not-yet-persisted "new chat" draft surface.
  *
  * Sessions are otherwise identified by their canonical Relay node ID. The
