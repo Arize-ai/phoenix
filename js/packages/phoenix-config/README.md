@@ -31,19 +31,19 @@ npm install @arizeai/phoenix-config
 
 ## Environment Variables
 
-| Variable                     | Constant                         | Description                                                                     |
-| ---------------------------- | -------------------------------- | ------------------------------------------------------------------------------- |
+| Variable                     | Constant                         | Description                                                                      |
+| ---------------------------- | -------------------------------- | -------------------------------------------------------------------------------- |
 | `PHOENIX_ENDPOINT`           | `ENV_PHOENIX_ENDPOINT`           | Phoenix base URL for API access — the canonical setting for every client surface |
 | `PHOENIX_COLLECTOR_ENDPOINT` | `ENV_PHOENIX_COLLECTOR_ENDPOINT` | Where traces are exported; a base URL or a full OTLP `/v1/traces` URL            |
-| `PHOENIX_API_KEY`            | `ENV_PHOENIX_API_KEY`            | API key for Phoenix authentication                                              |
-| `PHOENIX_CLIENT_HEADERS`     | `ENV_PHOENIX_CLIENT_HEADERS`     | JSON-encoded custom headers for client requests                                 |
+| `PHOENIX_API_KEY`            | `ENV_PHOENIX_API_KEY`            | API key for Phoenix authentication                                               |
+| `PHOENIX_CLIENT_HEADERS`     | `ENV_PHOENIX_CLIENT_HEADERS`     | JSON-encoded custom headers for client requests                                  |
 | `PHOENIX_HOST`               | `ENV_PHOENIX_HOST`               | Phoenix server bind host; read only as a legacy fallback for the API base URL    |
-| `PHOENIX_PORT`               | `ENV_PHOENIX_PORT`               | Phoenix HTTP port (integer)                                                     |
-| `PHOENIX_GRPC_PORT`          | `ENV_PHOENIX_GRPC_PORT`          | Phoenix gRPC port for OpenTelemetry (integer)                                   |
-| `PHOENIX_PROJECT`            | `ENV_PHOENIX_PROJECT`            | Default project name for project-scoped operations (canonical)                  |
-| `PHOENIX_PROJECT_NAME`       | `ENV_PHOENIX_PROJECT_NAME`       | Supported alias for `PHOENIX_PROJECT`                                           |
-| `PHOENIX_LOG_LEVEL`          | `ENV_PHOENIX_LOG_LEVEL`          | Log verbosity: `debug`, `info`, `warn`, `error`, or `silent`                    |
-| `PHOENIX_DISCOVER_CONFIG`    | `ENV_PHOENIX_DISCOVER_CONFIG`    | Set to `false` to disable `.env.phoenix` file discovery                         |
+| `PHOENIX_PORT`               | `ENV_PHOENIX_PORT`               | Phoenix HTTP port (integer)                                                      |
+| `PHOENIX_GRPC_PORT`          | `ENV_PHOENIX_GRPC_PORT`          | Phoenix gRPC port for OpenTelemetry (integer)                                    |
+| `PHOENIX_PROJECT`            | `ENV_PHOENIX_PROJECT`            | Default project name for project-scoped operations (canonical)                   |
+| `PHOENIX_PROJECT_NAME`       | `ENV_PHOENIX_PROJECT_NAME`       | Supported alias for `PHOENIX_PROJECT`                                            |
+| `PHOENIX_LOG_LEVEL`          | `ENV_PHOENIX_LOG_LEVEL`          | Log verbosity: `debug`, `info`, `warn`, `error`, or `silent`                     |
+| `PHOENIX_DISCOVER_CONFIG`    | `ENV_PHOENIX_DISCOVER_CONFIG`    | Set to `false` to disable `.env.phoenix` file discovery                          |
 
 `PHOENIX_ENDPOINT` and `PHOENIX_COLLECTOR_ENDPOINT` are the two variables to
 reach for: one names the server clients talk to, the other names where traces
@@ -135,13 +135,13 @@ import {
   getStrFromEnvironment,
   getIntFromEnvironment,
   getHeadersFromEnvironment,
-  ENV_PHOENIX_HOST,
+  ENV_PHOENIX_ENDPOINT,
   ENV_PHOENIX_PORT,
   ENV_PHOENIX_CLIENT_HEADERS,
 } from "@arizeai/phoenix-config";
 
 // Read a string environment variable
-const host = getStrFromEnvironment(ENV_PHOENIX_HOST);
+const endpoint = getStrFromEnvironment(ENV_PHOENIX_ENDPOINT);
 // Returns "http://localhost:6006" or undefined
 
 // Read an integer environment variable
