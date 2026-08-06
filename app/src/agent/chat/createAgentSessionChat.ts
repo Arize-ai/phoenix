@@ -10,7 +10,7 @@ import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTi
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
-import { type AgentUIMessage } from "@phoenix/agent/chat/types";
+import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import { authFetch } from "@phoenix/authFetch";
 import {
