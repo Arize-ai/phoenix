@@ -79,7 +79,7 @@ export default defineConfig({
 
 - **`include`** keeps eval suites in `*.eval.ts` files separate from unit tests.
 - **`reporters`** keeps Vitest's default output and adds the Phoenix summary block.
-- **`setupFiles`** loads `PHOENIX_HOST`, `PHOENIX_API_KEY`, and other env vars from `.env`.
+- **`setupFiles`** loads `PHOENIX_ENDPOINT`, `PHOENIX_API_KEY`, and other env vars from `.env`.
 - **`testTimeout`** is bumped because LLM calls can be slow.
 
 <Note>
@@ -608,7 +608,7 @@ px.test(
 
 | Variable | Description |
 |---|---|
-| `PHOENIX_HOST` | Phoenix base URL |
+| `PHOENIX_ENDPOINT` | Phoenix base URL |
 | `PHOENIX_API_KEY` | Bearer token for Phoenix |
 | `PHOENIX_CLIENT_HEADERS` | Optional JSON headers forwarded to the Phoenix client and tracer |
 | `PHOENIX_TEST_TRACKING` | Set to `false` to disable sync to Phoenix for the current run |
@@ -637,7 +637,7 @@ jobs:
       - run: npm ci
       - name: Run eval suite
         env:
-          PHOENIX_HOST: ${{ secrets.PHOENIX_HOST }}
+          PHOENIX_ENDPOINT: ${{ secrets.PHOENIX_ENDPOINT }}
           PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: npm run eval
@@ -660,7 +660,7 @@ jobs:
       - run: npm ci
       - name: Run eval suite
         env:
-          PHOENIX_HOST: ${{ secrets.PHOENIX_HOST }}
+          PHOENIX_ENDPOINT: ${{ secrets.PHOENIX_ENDPOINT }}
           PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: npm run eval

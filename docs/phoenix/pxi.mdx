@@ -76,12 +76,12 @@ npm install -g @arizeai/phoenix-cli
 pxi
 ```
 
-Point it at your Phoenix instance with the `PHOENIX_HOST` (and `PHOENIX_API_KEY`
+Point it at your Phoenix instance with the `PHOENIX_ENDPOINT` (and `PHOENIX_API_KEY`
 if your deployment requires auth) environment variables, or pass `--endpoint` /
 `--api-key` flags:
 
 ```bash
-export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_ENDPOINT=http://localhost:6006
 pxi
 ```
 
@@ -102,7 +102,7 @@ opens.
 
 | Flag | Effect |
 | --- | --- |
-| `--endpoint <url>` | Phoenix endpoint URL (overrides `PHOENIX_HOST`). |
+| `--endpoint <url>` | Phoenix endpoint URL (overrides `PHOENIX_ENDPOINT`). |
 | `--api-key <key>` | Phoenix API key (overrides `PHOENIX_API_KEY`). |
 | `--profile <name>` | Use a saved Phoenix CLI profile. |
 | `--provider <provider>` | Built-in model provider (e.g. `ANTHROPIC`, `OPENAI`, `GOOGLE`). |
