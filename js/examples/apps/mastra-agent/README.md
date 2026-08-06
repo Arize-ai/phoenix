@@ -40,14 +40,23 @@ PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
 PHOENIX_PROJECT_NAME=mastra-project
 ```
 
-The eval script calls the Phoenix API on `PHOENIX_ENDPOINT`, the server's base URL.
-`PHOENIX_COLLECTOR_ENDPOINT` is the exact URL traces are sent to — Mastra's
+The eval and experiment scripts call the Phoenix API on `PHOENIX_ENDPOINT`, the server's
+base URL. `PHOENIX_COLLECTOR_ENDPOINT` is the exact URL traces are sent to — Mastra's
 `ArizeExporter` POSTs to it verbatim, so it carries the OTLP `/v1/traces` path and
 `src/mastra/index.ts` passes it straight through.
 
-If you are using an instance with authentication enabled, also set
-`PHOENIX_API_KEY=your-api-key` and point `PHOENIX_COLLECTOR_ENDPOINT` at that instance
-(e.g. `https://phoenix.example.com`).
+For a hosted or self-hosted instance with authentication enabled, point both at that
+instance — the base URL for `PHOENIX_ENDPOINT`, the same URL plus `/v1/traces` for
+`PHOENIX_COLLECTOR_ENDPOINT` — and add your API key:
+
+```bash
+PHOENIX_ENDPOINT=https://phoenix.example.com
+PHOENIX_COLLECTOR_ENDPOINT=https://phoenix.example.com/v1/traces
+PHOENIX_API_KEY=your-api-key
+```
+
+See [Environments](https://arize.com/docs/phoenix/environments) for the full list of
+Phoenix environment variables.
 
 ## Running the Agent
 
@@ -65,11 +74,15 @@ Once you've run the agent, open Phoenix. You'll see all agent runs, tool calls, 
 
 ## Running Evals
 
-Once you're ready to run Evals, navigate up to the example-agent directory and run:
+Once you're ready to run Evals, run this from the example directory:
 
 ```bash
 npm run eval
 ```
+
+The eval script reads spans back from Phoenix and writes annotations, so it needs
+`PHOENIX_ENDPOINT` (or `PHOENIX_COLLECTOR_ENDPOINT`, which it infers the base URL from)
+to point at the same Phoenix the agent traced to.
 
 ## Project Structure
 
@@ -85,6 +98,9 @@ src/
     index.ts                   # Mastra configuration with Arize Phoenix tracing
   eval/
     evals.ts                   # Tool Correctness & Goal Completion evals
+  experiments/
+    configure-experiments.ts   # Dataset, task, and relevance evaluator
+    run-experiments.ts         # Runs the experiment against the dataset
 ```
 
 ## What's Included
