@@ -1187,6 +1187,8 @@ CREATE INDEX ix_agent_sessions_custom_provider_id ON public.agent_sessions
     USING btree (custom_provider_id);
 CREATE INDEX ix_agent_sessions_ephemeral_updated_at ON public.agent_sessions
     USING btree (updated_at) WHERE (is_ephemeral IS TRUE);
+CREATE INDEX ix_agent_sessions_updated_at_id ON public.agent_sessions
+    USING btree (updated_at, id);
 CREATE INDEX ix_agent_sessions_user_id_updated_at ON public.agent_sessions
     USING btree (user_id, updated_at DESC);
 
@@ -1200,6 +1202,7 @@ CREATE TABLE public.agent_session_messages (
     message_id VARCHAR GENERATED ALWAYS AS (((message ->> 'id'::text))::character varying) STORED NOT NULL,
     is_compaction_message BOOLEAN GENERATED ALWAYS AS (COALESCE(((message #>> '{metadata,isCompactionMessage}'::text[]))::boolean, false)) STORED NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_session_messages PRIMARY KEY (id),
     CONSTRAINT uq_agent_session_messages_message_id
         UNIQUE (message_id),
@@ -1211,6 +1214,8 @@ CREATE TABLE public.agent_session_messages (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_agent_session_messages_agent_session_id_id ON public.agent_session_messages
+    USING btree (agent_session_id, id);
 CREATE INDEX ix_agent_session_messages_compaction ON public.agent_session_messages
     USING btree (agent_session_id, id DESC) WHERE is_compaction_message;
 

@@ -135,6 +135,11 @@ def upgrade() -> None:
         postgresql_where=sa.text("is_ephemeral IS TRUE"),
         sqlite_where=sa.text("is_ephemeral IS TRUE"),
     )
+    op.create_index(
+        "ix_agent_sessions_updated_at_id",
+        "agent_sessions",
+        ["updated_at", "id"],
+    )
 
     message = sa.Column("message", JSON_, nullable=False)
     op.create_table(
@@ -172,11 +177,23 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
         sa.CheckConstraint(
             _uuid_format_check("message_id", _bind_dialect_name()),
             name="valid_message_id",
         ),
         sqlite_autoincrement=True,
+    )
+    op.create_index(
+        "ix_agent_session_messages_agent_session_id_id",
+        "agent_session_messages",
+        ["agent_session_id", "id"],
     )
     op.create_index(
         "ix_agent_session_messages_compaction",

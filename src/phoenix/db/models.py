@@ -3459,6 +3459,11 @@ class AgentSession(HasId):
             postgresql_where=text("is_ephemeral IS TRUE"),
             sqlite_where=text("is_ephemeral IS TRUE"),
         ),
+        Index(
+            "ix_agent_sessions_updated_at_id",
+            "updated_at",
+            "id",
+        ),
         dict(sqlite_autoincrement=True),
     )
 
@@ -3488,6 +3493,9 @@ class AgentSessionMessage(HasId):
         nullable=False,
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
 
     @property
     def is_compaction_point(self) -> bool:
@@ -3500,6 +3508,11 @@ class AgentSessionMessage(HasId):
     )
     __table_args__ = (
         CheckConstraint(matches_uuid_format("message_id"), name="valid_message_id"),
+        Index(
+            "ix_agent_session_messages_agent_session_id_id",
+            "agent_session_id",
+            "id",
+        ),
         Index(
             "ix_agent_session_messages_compaction",
             "agent_session_id",
