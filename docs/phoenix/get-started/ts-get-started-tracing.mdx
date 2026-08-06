@@ -56,18 +56,14 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
     ```
     OPENAI_API_KEY= <ENTER YOUR OPENAI API KEY>
 
-    PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
+    PHOENIX_ENDPOINT=http://localhost:6006
     PHOENIX_PROJECT_NAME=mastra-tracing-quickstart
     ```
-    `PHOENIX_COLLECTOR_ENDPOINT` is the URL traces are exported to. Mastra's `ArizeExporter` POSTs to exactly the URL it is given, so the variable carries the full OTLP/HTTP traces URL — the Phoenix server's address with `/v1/traces` appended.
+    `PHOENIX_ENDPOINT` is your Phoenix server's URL, and it is the only address you configure. Everything in this guide series reads it: the API clients used later for evals and experiments call it directly, and the tracing setup in the next step builds the trace-export URL from it in code.
 
     <Note>
-      If you're pointing at a remote deployment, set `PHOENIX_COLLECTOR_ENDPOINT` to that hostname with `/v1/traces` still appended (e.g. `https://phoenix.example.com/v1/traces`). If it has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled, also add a `PHOENIX_API_KEY` from its **Settings** page. A local `phoenix serve` needs no key.
+      If you're pointing at a remote deployment, set `PHOENIX_ENDPOINT` to that hostname (e.g. `https://phoenix.example.com`). If it has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled, also add a `PHOENIX_API_KEY` from its **Settings** page. A local `phoenix serve` needs no key.
     </Note>
-
-    <Warning>
-      The `/v1/traces` path matters. `ArizeExporter` does not add it for you: handed a bare server URL, every span goes to the wrong path, Mastra's batching exporter swallows the error, and no trace ever appears. The rest of Phoenix handles the full URL fine — `register()` accepts it as-is, and the `px` CLI and API clients strip the suffix when they derive the API address from it.
-    </Warning>
 
     ### **Connect Your Project in Phoenix** 
 
@@ -78,6 +74,11 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
     import { Observability } from "@mastra/observability";
     import { ArizeExporter } from "@mastra/arize";
 
+    // ArizeExporter POSTs to `endpoint` exactly as given, so build the full OTLP
+    // URL from the Phoenix server URL — handed a bare server URL it posts to the
+    // wrong path and every span is silently dropped.
+    const phoenixTracesUrl = `${(process.env.PHOENIX_ENDPOINT ?? "http://localhost:6006").replace(/\/$/, "")}/v1/traces`;
+
     export const mastra = new Mastra({
       agents: {},
       observability: new Observability({
@@ -87,7 +88,7 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
               process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart",
             exporters: [
               new ArizeExporter({
-                endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT!,
+                endpoint: phoenixTracesUrl,
                 apiKey: process.env.PHOENIX_API_KEY,
                 projectName: process.env.PHOENIX_PROJECT_NAME,
               }),
@@ -347,6 +348,11 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
     import { financialResearcherAgent } from "./agents/financial-researcher-agent";
     import { financialWriterAgent } from "./agents/financial-writer-agent";
 
+    // ArizeExporter POSTs to `endpoint` exactly as given, so build the full OTLP
+    // URL from the Phoenix server URL — handed a bare server URL it posts to the
+    // wrong path and every span is silently dropped.
+    const phoenixTracesUrl = `${(process.env.PHOENIX_ENDPOINT ?? "http://localhost:6006").replace(/\/$/, "")}/v1/traces`;
+
     export const mastra = new Mastra({
       agents: {
         financialOrchestratorAgent,
@@ -360,7 +366,7 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
               process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart",
             exporters: [
               new ArizeExporter({
-                endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT!,
+                endpoint: phoenixTracesUrl,
                 apiKey: process.env.PHOENIX_API_KEY,
                 projectName: process.env.PHOENIX_PROJECT_NAME,
               }),

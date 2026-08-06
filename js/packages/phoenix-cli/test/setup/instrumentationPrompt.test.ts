@@ -43,14 +43,12 @@ describe("buildInstrumentationPrompt", () => {
     );
   });
 
-  it("tells full-URL exporters to carry /v1/traces in the collector variable", () => {
+  it("tells full-URL exporters to build the OTLP URL in code, not the variable", () => {
     // ArizeExporter and bare OTLPTraceExporters POST to exactly the URL they
-    // are given, so the variable itself must carry the suffixed export URL.
+    // are given; the variables stay base URLs and code appends the path.
     const prompt = buildInstrumentationPrompt(ARGS);
-    expect(prompt).toContain(
-      "set PHOENIX_COLLECTOR_ENDPOINT to http://localhost:6006/v1/traces"
-    );
-    expect(prompt).toContain("Never suffix PHOENIX_ENDPOINT.");
+    expect(prompt).toContain("build it");
+    expect(prompt).toContain("Do not rewrite the endpoint variables to");
   });
 
   it("explains which endpoint variable serves traces and which serves the API", () => {

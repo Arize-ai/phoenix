@@ -35,20 +35,19 @@ Create a `.env` file in the root directory:
 OPENAI_API_KEY=your-openai-api-key-here
 
 # Phoenix Configuration
-PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
+PHOENIX_ENDPOINT=http://localhost:6006
 PHOENIX_PROJECT_NAME=mastra-project
 ```
 
-`PHOENIX_COLLECTOR_ENDPOINT` is the URL traces are exported to. Mastra's `ArizeExporter` POSTs
-to exactly the URL it is given, so include the `/v1/traces` path — handed a bare server URL,
-spans go to the wrong path and Mastra's batching exporter swallows the error, so no trace ever
-arrives.
+`PHOENIX_ENDPOINT` is your Phoenix server's URL, read by everything here: the eval script
+calls the Phoenix API on it directly, and `src/mastra/index.ts` builds the trace-export URL
+from it by appending `/v1/traces` — Mastra's `ArizeExporter` POSTs to exactly the URL it is
+given, so handed a bare server URL it would post to the wrong path and Mastra's batching
+exporter would swallow the error, with no trace ever arriving.
 
-If you are using Phoenix Cloud or any instance with authentication enabled, also set
-`PHOENIX_API_KEY=your-api-key` and point `PHOENIX_COLLECTOR_ENDPOINT` at that instance
-(e.g. `https://app.phoenix.arize.com/v1/traces`). The eval script reads spans back through
-`@arizeai/phoenix-client`, which resolves the same variable and strips the `/v1/traces`
-suffix when deriving the API address.
+If you are using an instance with authentication enabled, also set
+`PHOENIX_API_KEY=your-api-key` and point `PHOENIX_ENDPOINT` at that instance
+(e.g. `https://phoenix.example.com`).
 
 ## Running the Agent
 

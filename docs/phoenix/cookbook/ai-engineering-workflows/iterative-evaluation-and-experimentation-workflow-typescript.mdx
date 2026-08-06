@@ -88,12 +88,19 @@ Always use multiple tools in sequence to provide comprehensive recommendations. 
     OPENAI_API_KEY=your-openai-api-key-here
 
     # Phoenix Configuration
-    PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
+    PHOENIX_ENDPOINT=http://localhost:6006
     PHOENIX_PROJECT_NAME=mastra-project
     PHOENIX_API_KEY=your-api-key  # Only if authentication is enabled
     ```
 
-    `PHOENIX_COLLECTOR_ENDPOINT` is the URL traces are exported to — the full OTLP/HTTP traces URL, `/v1/traces` included. Mastra's `ArizeExporter` POSTs to exactly the URL it is given, so a bare server URL sends spans to the wrong path where Mastra's batching exporter swallows the error, and no trace ever arrives. Phoenix's own tools handle the full URL fine: the API clients used by the eval and experiment scripts strip the suffix when deriving the API address from it.
+    `PHOENIX_ENDPOINT` is your Phoenix server's URL, and everything in this tutorial reads it: the eval and experiment scripts call the Phoenix API on it directly, and `src/mastra/index.ts` builds the trace-export URL from it in code:
+
+    ```typescript
+    // ArizeExporter POSTs to `endpoint` exactly as given, so build the full OTLP
+    // URL from the Phoenix server URL — handed a bare server URL it posts to the
+    // wrong path and every span is silently dropped.
+    const phoenixTracesUrl = `${(process.env.PHOENIX_ENDPOINT ?? "http://localhost:6006").replace(/\/$/, "")}/v1/traces`;
+    ```
   </Step>
 
   <Step title="Run the Agent">
