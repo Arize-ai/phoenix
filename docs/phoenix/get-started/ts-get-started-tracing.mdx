@@ -56,13 +56,13 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
     ```
     OPENAI_API_KEY= <ENTER YOUR OPENAI API KEY>
 
-    PHOENIX_ENDPOINT=http://localhost:6006
+    PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
     PHOENIX_PROJECT_NAME=mastra-tracing-quickstart
     ```
-    `PHOENIX_ENDPOINT` is your Phoenix server's URL, and it is the only address you configure. Everything in this guide series reads it: the API clients used later for evals and experiments call it directly, and the tracing setup in the next step builds the trace-export URL from it in code.
+    `PHOENIX_COLLECTOR_ENDPOINT` is your Phoenix server's URL, and it is the only address you configure. Everything in this guide series reads it: the API clients used later for evals and experiments call it directly, and the tracing setup in the next step builds the trace-export URL from it in code.
 
     <Note>
-      If you're pointing at a remote deployment, set `PHOENIX_ENDPOINT` to that hostname (e.g. `https://phoenix.example.com`). If it has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled, also add a `PHOENIX_API_KEY` from its **Settings** page. A local `phoenix serve` needs no key.
+      If you're pointing at a remote deployment, set `PHOENIX_COLLECTOR_ENDPOINT` to that hostname (e.g. `https://phoenix.example.com`). If it has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled, also add a `PHOENIX_API_KEY` from its **Settings** page. A local `phoenix serve` needs no key.
     </Note>
 
     ### **Connect Your Project in Phoenix** 
@@ -77,7 +77,7 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
     // ArizeExporter POSTs to `endpoint` exactly as given, so build the full OTLP
     // URL from the Phoenix server URL — handed a bare server URL it posts to the
     // wrong path and every span is silently dropped.
-    const phoenixTracesUrl = `${(process.env.PHOENIX_ENDPOINT ?? "http://localhost:6006").replace(/\/$/, "")}/v1/traces`;
+    const phoenixTracesUrl = `${(process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006").replace(/\/$/, "")}/v1/traces`;
 
     export const mastra = new Mastra({
       agents: {},
@@ -351,7 +351,7 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
     // ArizeExporter POSTs to `endpoint` exactly as given, so build the full OTLP
     // URL from the Phoenix server URL — handed a bare server URL it posts to the
     // wrong path and every span is silently dropped.
-    const phoenixTracesUrl = `${(process.env.PHOENIX_ENDPOINT ?? "http://localhost:6006").replace(/\/$/, "")}/v1/traces`;
+    const phoenixTracesUrl = `${(process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006").replace(/\/$/, "")}/v1/traces`;
 
     export const mastra = new Mastra({
       agents: {

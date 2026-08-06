@@ -5,9 +5,9 @@ import { Observability } from "@mastra/observability";
 import { movieAgent } from "./agents/movie-agent";
 
 // ArizeExporter POSTs to `endpoint` exactly as given, so build the full OTLP
-// URL from the Phoenix server URL — handed a bare server URL it posts to the
+// URL from the collector base URL — handed a bare server URL it posts to the
 // wrong path and every span is silently dropped.
-const phoenixTracesUrl = `${(process.env.PHOENIX_ENDPOINT ?? "http://localhost:6006").replace(/\/$/, "")}/v1/traces`;
+const phoenixTracesUrl = `${(process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006").replace(/\/$/, "")}/v1/traces`;
 
 export const mastra = new Mastra({
   agents: { movieAgent },
