@@ -12,7 +12,6 @@ import {
   MessageCopyAction,
   MessageToolbar,
 } from "@phoenix/components/ai/message";
-import { Icon, Icons } from "@phoenix/components/core/icon";
 import { MarkdownBlock } from "@phoenix/components/markdown";
 
 import { AssistantMessageActions } from "./AssistantMessageActions";
@@ -41,17 +40,28 @@ const assistantMessageCSS = css`
   max-width: 100%;
   width: 100%;
 
+  /* Mirrors the chat's compaction-divider treatment so turn-level notices
+     share one visual language. */
   .assistant-message__interrupted {
     display: flex;
     align-items: center;
-    gap: var(--global-dimension-size-75);
+    gap: var(--global-dimension-size-100);
+    width: 100%;
+    margin: var(--global-dimension-size-100) 0;
     color: var(--global-text-color-300);
     font-size: var(--global-font-size-xs);
-    line-height: var(--global-line-height-xs);
+  }
 
-    &:not(:first-child) {
-      margin-top: var(--global-dimension-size-100);
-    }
+  .assistant-message__interrupted::before,
+  .assistant-message__interrupted::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background-color: var(--global-border-color-default);
+  }
+
+  .assistant-message__interrupted-label {
+    flex: none;
   }
 `;
 
@@ -166,8 +176,7 @@ export function AssistantMessage({
           })}
           {isInterrupted ? (
             <div className="assistant-message__interrupted" role="status">
-              <Icon svg={<Icons.StopCircle />} />
-              <span>
+              <span className="assistant-message__interrupted-label">
                 {segments.length > 0
                   ? "Response interrupted"
                   : "Interrupted before a response was generated"}
