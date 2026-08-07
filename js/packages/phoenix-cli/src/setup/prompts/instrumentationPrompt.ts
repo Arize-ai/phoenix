@@ -97,21 +97,13 @@ Rules:
    write the API key or any secret into source code, config files, or command arguments.
 3. Configure the Phoenix project name in code: use the SDK's register call with the
    project name "${projectName}".${endpointRule}
-4. The endpoint variables are base URLs, one per concern, and \`.env.phoenix\` already
-   sets both to the same value.
-   PHOENIX_ENDPOINT is canonical for everything except trace export: the API clients,
-   the \`px\` CLI, and MCP read it.
-   PHOENIX_COLLECTOR_ENDPOINT is where traces are exported: register() derives the
-   full OTLP target from it (the TypeScript SDK appends /v1/traces over OTLP/HTTP;
-   the Python SDK infers the transport, HTTP or gRPC). The OTel SDKs read only this
-   variable, so leave it set even if you also set PHOENIX_ENDPOINT.
-   An exporter that POSTs to exactly the URL it is given — @mastra/arize's
-   ArizeExporter, a bare OTLPTraceExporter — needs the full OTLP/HTTP URL: build it
-   in code where the exporter is constructed, appending the path to the configured
-   endpoint (${endpoint}/v1/traces here). Handed a bare server URL such an exporter
-   posts to the wrong path, and batching exporters swallow the delivery error, so
-   every span is lost with nothing logged. Do not rewrite the endpoint variables to
-   carry the path.
+4. The endpoint variables are base URLs; \`.env.phoenix\` already sets both to the same
+   value. PHOENIX_COLLECTOR_ENDPOINT is where traces are exported — register() and the
+   OTel SDKs derive the full OTLP target from it. PHOENIX_ENDPOINT serves everything
+   else. Leave both set, and do not rewrite them to carry the /v1/traces path. If you
+   must construct an exporter that posts to exactly the URL it is given, build the full
+   OTLP URL in code: ${endpoint}/v1/traces. Handed a base URL, such exporters drop
+   every span silently.
 5. Prefer auto-instrumentation packages over hand-written span wrappers. Make the smallest
    correct change.
 6. Verify your work by emitting exactly one trace: run the app briefly, or a minimal

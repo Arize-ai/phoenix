@@ -29,7 +29,6 @@ describe("buildInstrumentationPrompt", () => {
   it("spells out the OTLP traces URL for exporters taking a full URL", () => {
     const prompt = buildInstrumentationPrompt(ARGS);
     expect(prompt).toContain("http://localhost:6006/v1/traces");
-    expect(prompt).toContain("ArizeExporter");
   });
 
   it("derives the OTLP traces URL from a remote endpoint", () => {
@@ -44,11 +43,11 @@ describe("buildInstrumentationPrompt", () => {
   });
 
   it("tells full-URL exporters to build the OTLP URL in code, not the variable", () => {
-    // ArizeExporter and bare OTLPTraceExporters POST to exactly the URL they
-    // are given; the variables stay base URLs and code appends the path.
+    // Exporters that POST to exactly the URL they are given need the path in
+    // code; the variables stay base URLs.
     const prompt = buildInstrumentationPrompt(ARGS);
-    expect(prompt).toContain("build it");
-    expect(prompt).toContain("Do not rewrite the endpoint variables to");
+    expect(prompt).toContain("build the full");
+    expect(prompt).toContain("do not rewrite them to carry the /v1/traces path");
   });
 
   it("explains which endpoint variable serves traces and which serves the API", () => {
@@ -56,10 +55,7 @@ describe("buildInstrumentationPrompt", () => {
     expect(prompt).toContain(
       "PHOENIX_COLLECTOR_ENDPOINT is where traces are exported"
     );
-    expect(prompt).toContain(
-      "PHOENIX_ENDPOINT is canonical for everything except trace export"
-    );
-    expect(prompt).toContain("The OTel SDKs read only this");
+    expect(prompt).toContain("PHOENIX_ENDPOINT serves everything");
   });
 
   it("names the project and, off the default endpoint, the endpoint too", () => {
