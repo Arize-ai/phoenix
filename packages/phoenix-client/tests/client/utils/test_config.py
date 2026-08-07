@@ -27,10 +27,10 @@ from phoenix.client.utils.config import (
             },
             "http://localhost:6006",
         ),
-        # Trace export reads only the collector variables. The API-access
-        # variables deliberately do NOT infer a collector endpoint, so this SDK
-        # and arize-phoenix-otel always agree on where spans go.
-        ({"PHOENIX_ENDPOINT": "http://api:6006"}, None),
+        # PHOENIX_ENDPOINT is the last-ranked trace-export fallback, matching
+        # arize-phoenix-otel, so this SDK and trace export always agree on
+        # where spans go. PHOENIX_BASE_URL stays API-only.
+        ({"PHOENIX_ENDPOINT": "http://api:6006"}, "http://api:6006"),
         ({"PHOENIX_BASE_URL": "http://base:6006"}, None),
         (
             {

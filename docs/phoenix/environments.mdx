@@ -72,13 +72,13 @@ Phoenix reads its connection settings from environment variables. Two endpoint v
 | Variable | What it is | When to set it |
 |----------|------------|----------------|
 | `PHOENIX_COLLECTOR_ENDPOINT` | Where your **traces are exported**. Read by `register()` and the OTLP exporters it configures. Takes either a Phoenix base URL (`http://localhost:6006`) or a full OTLP trace endpoint (`http://localhost:6006/v1/traces`), depending on the exporter that reads it. | Whenever you are tracing to a Phoenix that isn't at `http://localhost:6006`. **Phoenix's OTel SDKs take their export target from this variable.** |
-| `PHOENIX_ENDPOINT` | The base URL for **everything except trace export** — the API clients, the `px` CLI, and MCP. Always a base URL (e.g. `http://localhost:6006`), never a request path. | Whenever you use those against a Phoenix that isn't at `http://localhost:6006`. Falls back to `PHOENIX_COLLECTOR_ENDPOINT`. |
+| `PHOENIX_ENDPOINT` | The Phoenix **base URL** — canonical for the API clients, the `px` CLI, and MCP. Always a base URL (e.g. `http://localhost:6006`), never a request path. Trace export also reads it as a last-resort fallback when no collector variable is set. | Whenever you use those against a Phoenix that isn't at `http://localhost:6006`. Falls back to `PHOENIX_COLLECTOR_ENDPOINT`. |
 | `PHOENIX_API_KEY` | The credential used to **authenticate** to a Phoenix instance that has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled. | When connecting to any authenticated deployment. A local `phoenix serve` needs none. |
 | `PHOENIX_CLIENT_HEADERS` | Extra headers (JSON) sent with every request, e.g. `api_key=...`. | Only when a deployment requires custom headers. |
 
-**If you set only one, set `PHOENIX_COLLECTOR_ENDPOINT`.** It configures tracing, and the clients and the `px` CLI use it for API access too — so one value covers everything. `PHOENIX_ENDPOINT` is the canonical setting for those client surfaces, and it wins when both are set, but you rarely need it on its own.
+**One value covers everything.** The fallback runs both ways: API access falls back to `PHOENIX_COLLECTOR_ENDPOINT`, and trace export falls back to `PHOENIX_ENDPOINT` (after `PHOENIX_COLLECTOR_ENDPOINT` and `OTEL_EXPORTER_OTLP_ENDPOINT`). Naming Phoenix once with either variable points every surface at it. Each variable stays canonical for its own concern and wins for that concern when both are set.
 
-The fallback does not run both ways in every SDK. API access falls back to `PHOENIX_COLLECTOR_ENDPOINT` everywhere, but Python trace export does not yet read `PHOENIX_ENDPOINT`, so setting **only** `PHOENIX_ENDPOINT` can leave Python trace export pointed at `http://localhost:6006`.
+Older releases of the Python SDKs (`arize-phoenix-otel` ≤ 0.16.1, `arize-phoenix-client` ≤ 2.13.0) did not read `PHOENIX_ENDPOINT` for trace export. If spans still land at `http://localhost:6006` with only `PHOENIX_ENDPOINT` set, upgrade — or set `PHOENIX_COLLECTOR_ENDPOINT`, which works on every version.
 
 Set both — to the same value in the usual case where one Phoenix serves both concerns, which is what `px setup` writes into `.env.phoenix`, or to different values when trace ingest and API access genuinely live at different URLs.
 

@@ -12,7 +12,7 @@ There are two endpoints that matter in Phoenix:
 
 You choose this endpoint when you set up the app. For a local `phoenix serve` the default is `http://localhost:6006`. For a remote deployment, it's available under the `Hostname` field of the **Settings** page.
 
-To set this endpoint, use the `PHOENIX_ENDPOINT` environment variable. This is used by the Phoenix client package to query traces, log annotations, and retrieve prompts.
+To set this endpoint, use the `PHOENIX_ENDPOINT` environment variable. This is used by the Phoenix client package to query traces, log annotations, and retrieve prompts. Trace export also falls back to it when `PHOENIX_COLLECTOR_ENDPOINT` is not set, so pointing `PHOENIX_ENDPOINT` at your Phoenix instance covers both concerns.
 
 ### **OTEL Tracing Endpoint**
 

@@ -383,11 +383,43 @@ def test_base_url_is_read_from_the_claimed_tier(
         assert str(get_base_url()) == expected
 
 
-def test_collector_endpoint_is_unaffected_by_api_only_variables() -> None:
-    """Trace export reads only the collector variables; API variables never infer one."""
-    env: dict[str, str] = {"PHOENIX_ENDPOINT": "http://api", "PHOENIX_BASE_URL": "http://base"}
+@pytest.mark.parametrize(
+    "env,expected",
+    [
+        # PHOENIX_ENDPOINT is the last-ranked trace-export fallback, matching
+        # arize-phoenix-otel: naming Phoenix once configures both API access
+        # and where spans go.
+        ({"PHOENIX_ENDPOINT": "http://api"}, "http://api"),
+        (
+            {"PHOENIX_ENDPOINT": "http://api", "PHOENIX_COLLECTOR_ENDPOINT": "http://col"},
+            "http://col",
+        ),
+        (
+            {"PHOENIX_ENDPOINT": "http://api", "OTEL_EXPORTER_OTLP_ENDPOINT": "http://otlp"},
+            "http://otlp",
+        ),
+        # PHOENIX_BASE_URL and PHOENIX_HOST are API-only variables and never
+        # infer a trace-export endpoint.
+        ({"PHOENIX_BASE_URL": "http://base"}, None),
+        ({"PHOENIX_HOST": "http://legacy"}, None),
+    ],
+)
+def test_collector_endpoint_falls_back_to_the_canonical_api_variable(
+    env: dict[str, str], expected: Optional[str]
+) -> None:
     with patch.dict(os.environ, env, clear=True):
-        assert config_module.get_env_collector_endpoint() is None
+        assert config_module.get_env_collector_endpoint() == expected
+
+
+def test_collector_endpoint_prefers_a_file_collector_over_a_process_api_variable(
+    tmp_path: Path,
+) -> None:
+    """A process PHOENIX_ENDPOINT is only inferred for trace export, so it must
+    not mask the canonical collector variable declared in a discovered
+    ``.env.phoenix``."""
+    (tmp_path / ".env.phoenix").write_text("PHOENIX_COLLECTOR_ENDPOINT=http://from-file\n")
+    with patch.dict(os.environ, {"PHOENIX_ENDPOINT": "http://from-process"}, clear=True):
+        assert config_module.get_env_collector_endpoint() == "http://from-file"
 
 
 def _resolved_variable(env: dict[str, str]) -> Optional[str]:

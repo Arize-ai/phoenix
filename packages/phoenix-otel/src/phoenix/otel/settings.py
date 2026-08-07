@@ -13,6 +13,10 @@ ENV_OTEL_EXPORTER_OTLP_HEADERS = "OTEL_EXPORTER_OTLP_HEADERS"
 
 # Phoenix environment variables
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
+# Canonical API-access variable. Trace export reads it as its last-ranked
+# fallback, so a configuration that names Phoenix once still exports spans
+# there instead of silently to localhost.
+ENV_PHOENIX_ENDPOINT = "PHOENIX_ENDPOINT"
 ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 # Canonical project-name variable, used in docs.
 ENV_PHOENIX_PROJECT = "PHOENIX_PROJECT"
@@ -61,6 +65,7 @@ _CREDENTIAL_ENV_KEYS = (
 _SERVER_LOCATION_ENV_KEYS = (
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
     ENV_OTEL_EXPORTER_OTLP_ENDPOINT,
+    ENV_PHOENIX_ENDPOINT,
     ENV_PHOENIX_GRPC_PORT,
 )
 
@@ -225,9 +230,33 @@ def _resolve_env_tier_with_source(
     return values, _EnvSource("env-file", file_path) if values and file_path else None
 
 
+def _resolve_trace_export_endpoint() -> Tuple[Optional[str], Optional[str], Optional[_EnvSource]]:
+    """Resolve where traces are exported, as (variable, value, source).
+
+    Only ``PHOENIX_COLLECTOR_ENDPOINT`` is canonical for this concept; the
+    OTel-standard ``OTEL_EXPORTER_OTLP_ENDPOINT`` and the API-access
+    ``PHOENIX_ENDPOINT`` are inferred fallbacks, in that order, read from the
+    tier the server-location group claimed. A process value merely inferred
+    from a sibling variable must not mask the canonical variable declared in a
+    discovered ``.env.phoenix``, so the file's ``PHOENIX_COLLECTOR_ENDPOINT``
+    is consulted before the process tier's ``PHOENIX_ENDPOINT`` fallback.
+    """
+    values, source = _resolve_env_tier_with_source(_SERVER_LOCATION_ENV_KEYS)
+    for key in (ENV_PHOENIX_COLLECTOR_ENDPOINT, ENV_OTEL_EXPORTER_OTLP_ENDPOINT):
+        if value := values.get(key):
+            return key, value, source
+    if source is not None and source.kind == "process":
+        file_path, file_values = _load_env_file_entry()
+        if (value := file_values.get(ENV_PHOENIX_COLLECTOR_ENDPOINT)) and file_path is not None:
+            return ENV_PHOENIX_COLLECTOR_ENDPOINT, value, _EnvSource("env-file", file_path)
+    if value := values.get(ENV_PHOENIX_ENDPOINT):
+        return ENV_PHOENIX_ENDPOINT, value, source
+    return None, None, source
+
+
 def warn_if_using_file_endpoint_with_credentials(*, credential_source: Optional[str]) -> None:
-    values, endpoint_source = _resolve_env_tier_with_source(_SERVER_LOCATION_ENV_KEYS)
-    if not values.get(ENV_PHOENIX_COLLECTOR_ENDPOINT):
+    endpoint_key, endpoint, endpoint_source = _resolve_trace_export_endpoint()
+    if not endpoint or endpoint_key is None:
         return
     if (
         not credential_source
@@ -236,14 +265,14 @@ def warn_if_using_file_endpoint_with_credentials(*, credential_source: Optional[
         or endpoint_source.file_path is None
     ):
         return
-    warning_key = str(endpoint_source.file_path), ENV_PHOENIX_COLLECTOR_ENDPOINT
+    warning_key = str(endpoint_source.file_path), endpoint_key
     if warning_key in _warned_cross_tier_endpoints:
         return
     _warned_cross_tier_endpoints.add(warning_key)
     logger.warning(
         "Credentials from %s will be sent to %s set by %s.",
         credential_source,
-        ENV_PHOENIX_COLLECTOR_ENDPOINT,
+        endpoint_key,
         endpoint_source.file_path,
     )
 
@@ -267,21 +296,21 @@ def get_env_collector_endpoint() -> Optional[str]:
     """
     Get the collector endpoint from environment variables.
 
-    Checks for Phoenix-specific collector endpoint first, then falls back to the
-    standard OpenTelemetry OTLP endpoint environment variable, then to a
-    ``PHOENIX_COLLECTOR_ENDPOINT`` entry in the nearest ``.env.phoenix`` file
-    (process environment variables always take precedence over the file).
+    Checks for the Phoenix-specific collector endpoint first, then falls back
+    to the standard OpenTelemetry OTLP endpoint environment variable, then to
+    the canonical ``PHOENIX_ENDPOINT`` API-access variable — so a configuration
+    that names Phoenix once exports spans there. The nearest ``.env.phoenix``
+    file supplies the ``PHOENIX_``-prefixed variables when the process
+    environment does not (process environment variables take precedence over
+    the file).
 
     Returns:
         Optional[str]: The collector endpoint URL if found, None otherwise.
     """
-    values, endpoint_source = _resolve_env_tier_with_source(_SERVER_LOCATION_ENV_KEYS)
+    endpoint_key, endpoint, endpoint_source = _resolve_trace_export_endpoint()
     credential_values, credential_source = _resolve_env_tier_with_source(_CREDENTIAL_ENV_KEYS)
     if credential_values and credential_source is not None and credential_source.kind == "process":
         warn_if_using_file_endpoint_with_credentials(credential_source="the process environment")
-    endpoint = values.get(ENV_PHOENIX_COLLECTOR_ENDPOINT) or values.get(
-        ENV_OTEL_EXPORTER_OTLP_ENDPOINT
-    )
     if endpoint and endpoint_source is not None and endpoint_source.kind == "env-file":
         try:
             parsed_endpoint = urllib.parse.urlparse(endpoint)
@@ -290,7 +319,9 @@ def get_env_collector_endpoint() -> Optional[str]:
             _ = parsed_endpoint.port
         except ValueError:
             _reject_invalid_env_value(
-                ENV_PHOENIX_COLLECTOR_ENDPOINT, endpoint, "Value must be a valid URL."
+                endpoint_key or ENV_PHOENIX_COLLECTOR_ENDPOINT,
+                endpoint,
+                "Value must be a valid URL.",
             )
             return None
     return endpoint

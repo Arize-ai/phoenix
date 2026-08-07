@@ -95,6 +95,11 @@ export PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com"
 export PHOENIX_API_KEY="your-api-key"
 ```
 
+`PHOENIX_COLLECTOR_ENDPOINT` is canonical for trace export. When it is not set,
+`register` falls back to `OTEL_EXPORTER_OTLP_ENDPOINT`, then to the
+`PHOENIX_ENDPOINT` base URL — so naming Phoenix once configures both API access
+and where spans go.
+
 When a setting is not provided by argument or environment variable, `register`
 also looks for a `.env.phoenix` file in the current working directory — walking
 up toward the filesystem root and stopping at the first match — and reads

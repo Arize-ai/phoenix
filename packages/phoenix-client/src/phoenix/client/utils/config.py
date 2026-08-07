@@ -429,10 +429,12 @@ def get_env_collector_endpoint() -> Optional[str]:
         )
         if file_endpoint:
             endpoint_key, endpoint, endpoint_source = file_key, file_endpoint, file_source
-    # Inference deliberately does not run in this direction: trace export reads
-    # only the collector variables, matching arize-phoenix-otel. API consumers
-    # fall back to PHOENIX_COLLECTOR_ENDPOINT instead, so one value configures
-    # both without the two SDKs disagreeing about where spans go.
+    # PHOENIX_ENDPOINT is the last-ranked trace-export fallback, matching
+    # arize-phoenix-otel: naming Phoenix once configures both API access and
+    # where spans go. It ranks below the canonical collector variable in a
+    # discovered ``.env.phoenix``, since it is only inferred for this concept.
+    if not endpoint and (inferred := values.get(ENV_PHOENIX_ENDPOINT)):
+        endpoint_key, endpoint = ENV_PHOENIX_ENDPOINT, inferred
     if endpoint and endpoint_source is not None and endpoint_source.kind == "env-file":
         try:
             httpx.URL(endpoint)

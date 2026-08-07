@@ -59,10 +59,11 @@ export PHOENIX_API_KEY="your-api-key"
 export PHOENIX_CLIENT_HEADERS="Authorization=Bearer your-api-key,custom-header=value"
 ```
 
-`PHOENIX_ENDPOINT` is a base URL and is the canonical setting for the client. If
-your app also exports traces, set `PHOENIX_COLLECTOR_ENDPOINT` for the OTel SDK
-— usually to the same value. When only `PHOENIX_COLLECTOR_ENDPOINT` is set, the
-client infers its base URL from it. See
+`PHOENIX_ENDPOINT` is a base URL and is the canonical setting for the client.
+The fallback runs both ways: when only `PHOENIX_COLLECTOR_ENDPOINT` is set, the
+client infers its base URL from it, and trace export falls back to
+`PHOENIX_ENDPOINT` when no collector variable is set — so naming Phoenix once
+configures both API access and where spans go. See
 [Environments](https://arize.com/docs/phoenix/environments) for the full list.
 
 ### Credential File Discovery (`.env.phoenix`)

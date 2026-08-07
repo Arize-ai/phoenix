@@ -8,4 +8,4 @@ PHOENIX_ENDPOINT="http://localhost:6006"
 # PHOENIX_API_KEY="your-api-key"
 ```
 
-`PHOENIX_ENDPOINT` is the canonical setting for the clients and the `px` CLI. If your app also exports traces, set `PHOENIX_COLLECTOR_ENDPOINT` for the OTel SDK — usually to the same value. See [Environments](/docs/phoenix/environments).
+`PHOENIX_ENDPOINT` is the canonical setting for the clients and the `px` CLI, and trace export falls back to it when no collector variable is set — so this one value usually covers everything. If traces should go somewhere else, set `PHOENIX_COLLECTOR_ENDPOINT` for the OTel SDK. See [Environments](/docs/phoenix/environments).
