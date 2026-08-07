@@ -9,8 +9,8 @@ import type { AgentCapabilities, AgentCapabilityKey } from "../capabilities";
 export type AddToolOutput = Chat<AgentUIMessage>["addToolOutput"];
 export type AppendMessagePart = (part: AgentUIMessage["parts"][number]) => void;
 
-type ToolCallProviderMetadata =
-  components["schemas"]["ToolCallProviderMetadata"];
+type PhoenixToolCallProviderMetadata =
+  components["schemas"]["PhoenixToolCallProviderMetadata"];
 
 /**
  * Minimal tool-call shape produced by the AI SDK runtime.
@@ -20,7 +20,7 @@ export type AgentToolCall = {
   toolName: string;
   input: unknown;
   providerMetadata?: {
-    phoenix?: ToolCallProviderMetadata;
+    phoenix?: PhoenixToolCallProviderMetadata;
   };
 };
 

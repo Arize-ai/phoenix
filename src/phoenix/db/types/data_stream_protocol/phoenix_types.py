@@ -8,11 +8,11 @@ from typing_extensions import assert_never
 
 from ._models import CamelBaseModel
 from .provider_metadata import (
+    PhoenixToolCallCallbackProviderMetadata,
     PydanticAIMessageMetadata,
     PydanticAIReasoningProviderMetadata,
     PydanticAITextProviderMetadata,
     PydanticAIToolCallProviderMetadata,
-    ToolCallCallbackProviderMetadata,
 )
 from .request_types import (
     DataUIPart,
@@ -37,7 +37,9 @@ _PYDANTIC_AI_PROVIDER_METADATA_KEY = "pydantic_ai"
 _KNOWN_PROVIDER_METADATA_KEYS = frozenset(
     {_PHOENIX_PROVIDER_METADATA_KEY, _PYDANTIC_AI_PROVIDER_METADATA_KEY}
 )
-_ToolCallCallbackProviderMetadataAdapter = TypeAdapter(ToolCallCallbackProviderMetadata)
+_PhoenixToolCallCallbackProviderMetadataAdapter = TypeAdapter(
+    PhoenixToolCallCallbackProviderMetadata
+)
 _PydanticAITextProviderMetadataAdapter = TypeAdapter(PydanticAITextProviderMetadata)
 _PydanticAIReasoningProviderMetadataAdapter = TypeAdapter(PydanticAIReasoningProviderMetadata)
 _PydanticAIToolCallProviderMetadataAdapter = TypeAdapter(PydanticAIToolCallProviderMetadata)
@@ -192,7 +194,7 @@ class PhoenixUIMessage(UIMessage):
             if isinstance(part, ToolUIPart | DynamicToolUIPart):
                 metadata = _phoenix_metadata(part.call_provider_metadata)
                 if metadata is not None:
-                    _ToolCallCallbackProviderMetadataAdapter.validate_python(metadata)
+                    _PhoenixToolCallCallbackProviderMetadataAdapter.validate_python(metadata)
                 if isinstance(part, _TOOL_RESULT_METADATA_PART_TYPES):
                     if _phoenix_metadata(part.result_provider_metadata) is not None:
                         raise ValueError(

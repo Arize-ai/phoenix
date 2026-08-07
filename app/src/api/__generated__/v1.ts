@@ -6641,6 +6641,52 @@ export interface components {
             errorText: string;
         };
         /**
+         * PhoenixToolCallCallbackProviderMetadata
+         * @description Shape of the ``phoenix`` namespace the browser returns in
+         *     ``callProviderMetadata`` on resolved tool parts: the server-stamped fields
+         *     plus browser-recorded execution timings.
+         */
+        PhoenixToolCallCallbackProviderMetadata: {
+            /**
+             * Toolexecutionenvironment
+             * @enum {string}
+             */
+            toolExecutionEnvironment: "client" | "server";
+            /**
+             * Toolinputemittedat
+             * @default null
+             */
+            toolInputEmittedAt?: string | null;
+            /**
+             * Clientstartedat
+             * @default null
+             */
+            clientStartedAt?: string | null;
+            /**
+             * Clientendedat
+             * @default null
+             */
+            clientEndedAt?: string | null;
+        };
+        /**
+         * PhoenixToolCallProviderMetadata
+         * @description Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI
+         *     ``providerMetadata`` on tool-call chunks (``tool-input-start`` and
+         *     ``tool-input-available``).
+         */
+        PhoenixToolCallProviderMetadata: {
+            /**
+             * Toolexecutionenvironment
+             * @enum {string}
+             */
+            toolExecutionEnvironment: "client" | "server";
+            /**
+             * Toolinputemittedat
+             * @default null
+             */
+            toolInputEmittedAt?: string | null;
+        };
+        /**
          * SessionSummaryChunk
          * @description Transient ``data-session-summary`` stream chunk: the LLM-generated
          *     session title, emitted on any turn that starts with the session still
@@ -6671,52 +6717,6 @@ export interface components {
              * @constant
              */
             transient?: true;
-        };
-        /**
-         * ToolCallCallbackProviderMetadata
-         * @description Shape of the ``phoenix`` namespace the browser returns in
-         *     ``callProviderMetadata`` on resolved tool parts: the server-stamped fields
-         *     plus browser-recorded execution timings.
-         */
-        ToolCallCallbackProviderMetadata: {
-            /**
-             * Toolexecutionenvironment
-             * @enum {string}
-             */
-            toolExecutionEnvironment: "client" | "server";
-            /**
-             * Toolinputemittedat
-             * @default null
-             */
-            toolInputEmittedAt?: string | null;
-            /**
-             * Clientstartedat
-             * @default null
-             */
-            clientStartedAt?: string | null;
-            /**
-             * Clientendedat
-             * @default null
-             */
-            clientEndedAt?: string | null;
-        };
-        /**
-         * ToolCallProviderMetadata
-         * @description Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI
-         *     ``providerMetadata`` on tool-call chunks (``tool-input-start`` and
-         *     ``tool-input-available``).
-         */
-        ToolCallProviderMetadata: {
-            /**
-             * Toolexecutionenvironment
-             * @enum {string}
-             */
-            toolExecutionEnvironment: "client" | "server";
-            /**
-             * Toolinputemittedat
-             * @default null
-             */
-            toolInputEmittedAt?: string | null;
         };
         /**
          * TranscriptPersistedChunk

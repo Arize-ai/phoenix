@@ -20861,46 +20861,7 @@
         "title": "AgentErrorData",
         "type": "object"
       },
-      "SessionSummaryChunk": {
-        "additionalProperties": false,
-        "description": "Transient ``data-session-summary`` stream chunk: the LLM-generated\nsession title, emitted on any turn that starts with the session still\nuntitled. Being transient, it reaches the client's ``onData`` callback\nbut is never appended to the message parts.\n\nSee the Vercel AI SDK data stream protocol:\n    - Data parts: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#data-parts\n    - Transient parts: https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data#transient-data-parts-ephemeral",
-        "properties": {
-          "type": {
-            "const": "data-session-summary",
-            "default": "data-session-summary",
-            "title": "Type",
-            "type": "string"
-          },
-          "id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Id"
-          },
-          "data": {
-            "title": "Data",
-            "type": "string"
-          },
-          "transient": {
-            "const": true,
-            "default": true,
-            "title": "Transient",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "data"
-        ],
-        "title": "SessionSummaryChunk",
-        "type": "object"
-      },
-      "ToolCallCallbackProviderMetadata": {
+      "PhoenixToolCallCallbackProviderMetadata": {
         "additionalProperties": false,
         "description": "Shape of the ``phoenix`` namespace the browser returns in\n``callProviderMetadata`` on resolved tool parts: the server-stamped fields\nplus browser-recorded execution timings.",
         "properties": {
@@ -20952,10 +20913,10 @@
         "required": [
           "toolExecutionEnvironment"
         ],
-        "title": "ToolCallCallbackProviderMetadata",
+        "title": "PhoenixToolCallCallbackProviderMetadata",
         "type": "object"
       },
-      "ToolCallProviderMetadata": {
+      "PhoenixToolCallProviderMetadata": {
         "additionalProperties": false,
         "description": "Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI\n``providerMetadata`` on tool-call chunks (``tool-input-start`` and\n``tool-input-available``).",
         "properties": {
@@ -20983,7 +20944,46 @@
         "required": [
           "toolExecutionEnvironment"
         ],
-        "title": "ToolCallProviderMetadata",
+        "title": "PhoenixToolCallProviderMetadata",
+        "type": "object"
+      },
+      "SessionSummaryChunk": {
+        "additionalProperties": false,
+        "description": "Transient ``data-session-summary`` stream chunk: the LLM-generated\nsession title, emitted on any turn that starts with the session still\nuntitled. Being transient, it reaches the client's ``onData`` callback\nbut is never appended to the message parts.\n\nSee the Vercel AI SDK data stream protocol:\n    - Data parts: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#data-parts\n    - Transient parts: https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data#transient-data-parts-ephemeral",
+        "properties": {
+          "type": {
+            "const": "data-session-summary",
+            "default": "data-session-summary",
+            "title": "Type",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "data": {
+            "title": "Data",
+            "type": "string"
+          },
+          "transient": {
+            "const": true,
+            "default": true,
+            "title": "Transient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SessionSummaryChunk",
         "type": "object"
       },
       "TranscriptPersistedChunk": {

@@ -11,7 +11,7 @@ from ._models import CamelBaseModel
 ToolExecutionEnvironment = Literal["client", "server"]
 
 
-class ToolCallProviderMetadata(CamelBaseModel):
+class PhoenixToolCallProviderMetadata(CamelBaseModel):
     """Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI
     ``providerMetadata`` on tool-call chunks (``tool-input-start`` and
     ``tool-input-available``)."""
@@ -24,7 +24,7 @@ class ToolCallProviderMetadata(CamelBaseModel):
     """RFC3339 server timestamp for a client tool-call chunk."""
 
 
-class ToolCallCallbackProviderMetadata(ToolCallProviderMetadata):
+class PhoenixToolCallCallbackProviderMetadata(PhoenixToolCallProviderMetadata):
     """Shape of the ``phoenix`` namespace the browser returns in
     ``callProviderMetadata`` on resolved tool parts: the server-stamped fields
     plus browser-recorded execution timings."""
