@@ -354,3 +354,53 @@ class TestRewriteAttribution:
         )
 
         assert result.envelope["rows"] is not None
+
+
+class TestDeclaredRelationsShadowingPhoenixTables:
+    """A caller CTE named after a Phoenix table is a query, not an incident.
+
+    The authorizer denied it as an admission bypass and logged it as such, so a
+    reader of the log could not tell a real bypass from this. See F1.
+    """
+
+    async def test_a_cte_named_after_a_denied_table_runs(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        db, db_path = analytics_sqlite_db
+        result = await execute_analytics_sql(
+            db,
+            ExecuteParams(sql="WITH users AS (SELECT 1 AS n) SELECT n FROM users"),
+            sqlite_db_path=db_path,
+        )
+
+        assert result.envelope["rows"] == [[1]]
+
+    async def test_the_base_table_is_unreachable_through_the_shadow(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        """The accept is gated on an unqualified read, and the qualified spelling
+        that would reach the base table never gets that far: schema-qualified
+        tables are refused at admission on this backend. So while a CTE shadows
+        a name, the table behind it cannot be named at all -- a stronger
+        guarantee than the gate alone provides."""
+        db, db_path = analytics_sqlite_db
+        with pytest.raises(AnalyticsSqlError) as exc:
+            await execute_analytics_sql(
+                db,
+                ExecuteParams(sql="WITH users AS (SELECT 1 AS n) SELECT id FROM main.users"),
+                sqlite_db_path=db_path,
+            )
+
+        assert exc.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+        assert "Schema-qualified" in exc.value.message
+
+    async def test_an_unshadowed_denied_table_is_still_denied(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        db, db_path = analytics_sqlite_db
+        with pytest.raises(AnalyticsSqlError) as exc:
+            await execute_analytics_sql(
+                db, ExecuteParams(sql="SELECT id FROM users"), sqlite_db_path=db_path
+            )
+
+        assert exc.value.code is ErrorCode.RELATION_NOT_ALLOWED
