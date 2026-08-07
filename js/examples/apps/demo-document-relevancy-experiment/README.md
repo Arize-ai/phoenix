@@ -25,7 +25,8 @@ npm install dotenv openai @arizeai/openinference-instrumentation-openai @ai-sdk/
 
 ```env
 OPENAI_API_KEY=your-openai-api-key
-PHOENIX_ENDPOINT=https://app.phoenix.arize.com/s/your-space
+PHOENIX_ENDPOINT=http://localhost:6006
+# Only needed if auth is enabled on your Phoenix instance
 PHOENIX_API_KEY=your-phoenix-api-key
 ```
 
@@ -47,6 +48,6 @@ npx tsx experiment.ts
    - Creates a dataset with space-related questions
    - Runs the `spaceKnowledgeApplication` function for each question in the dataset
    - Uses Phoenix Evals to evaluate the retrieved context using a document relevancy evaluator
-   - Sends the experiment results to Phoenix Cloud for analysis
+   - Sends the experiment results to Phoenix for analysis
 
-The experiment results will be available in your Phoenix Cloud account, where you can analyze the performance of your application and view evaluation metrics.
+The experiment results will be available in Phoenix, where you can analyze the performance of your application and view evaluation metrics.
