@@ -719,3 +719,86 @@ class TestTimestampLiterals:
             dialect=cast(DialectName, backend),
         )
         assert any("UTC" in note for note in ctx.notes), ctx.notes
+
+
+class TestOneSharedResolver:
+    """Every reference a rewrite may edit resolves the same way.
+
+    Four passes previously carried four scope models and disagreed; C1, C2, C3,
+    C5 and C6 are those disagreements. Each is pinned here against the shape
+    that produced it.
+    """
+
+    @staticmethod
+    def _rewritten(sql: str, dialect: DialectName = "sqlite") -> str:
+        read = "postgres" if dialect == "postgresql" else dialect
+        ctx = RewriteContext(allowlist=load_allowlist(), dialect=dialect, row_limit=500)
+        return rewrite(sqlglot.parse_one(sql, read=read), ctx).sql(dialect=read)
+
+    @staticmethod
+    def _outer_projection(rendered: str) -> str:
+        tree = sqlglot.parse_one(rendered, read="sqlite")
+        order = tree.args.get("order")
+        return " ".join(e.sql("sqlite") for e in tree.expressions) + (
+            " " + order.sql("sqlite") if order else ""
+        )
+
+    def test_c6_cte_reached_through_a_from_alias(self) -> None:
+        projection = self._outer_projection(
+            self._rewritten(
+                "WITH q AS (SELECT latency_ms FROM spans) SELECT AVG(t.latency_ms) FROM q t"
+            )
+        )
+
+        assert projection == "AVG(t.latency_ms)"
+
+    def test_c6_cte_reached_by_an_unqualified_name(self) -> None:
+        projection = self._outer_projection(
+            self._rewritten("WITH q AS (SELECT latency_ms FROM spans) SELECT latency_ms FROM q")
+        )
+
+        assert projection == "latency_ms"
+
+    def test_c3_derived_table_still_left_alone(self) -> None:
+        projection = self._outer_projection(
+            self._rewritten("SELECT latency_ms FROM (SELECT latency_ms FROM spans) q")
+        )
+
+        assert projection == "latency_ms"
+
+    def test_c2_order_by_binds_to_the_output_alias(self) -> None:
+        """Both engines resolve a bare ORDER BY name against the select list, so
+        substituting there returns a different row under LIMIT."""
+        rendered = self._rewritten("SELECT id, 1 AS latency_ms FROM spans ORDER BY latency_ms")
+
+        assert "ORDER BY latency_ms" in rendered
+
+    def test_a_base_table_reference_is_still_substituted(self) -> None:
+        """The guard must not close the case the pass exists for."""
+        projection = self._outer_projection(
+            self._rewritten("SELECT AVG(s.latency_ms) FROM spans s")
+        )
+
+        assert "UNIXEPOCH" in projection
+
+    def test_c1_a_cte_column_of_the_same_name_is_not_overwritten(self) -> None:
+        rendered = self._rewritten(
+            "WITH projects AS (SELECT 99 AS id, 'sentinel' AS graphql_node_id) "
+            "SELECT graphql_node_id FROM projects",
+            dialect="postgresql",
+        )
+
+        assert "ENCODE" not in rendered.upper()
+
+    def test_c5_a_query_local_timestamp_column_keeps_its_literal(self) -> None:
+        rendered = self._rewritten(
+            "WITH q AS (SELECT 'hello' AS start_time) "
+            "SELECT start_time FROM q WHERE start_time > '2026-01-01T00:00:00Z'"
+        )
+
+        assert "'2026-01-01T00:00:00Z'" in rendered
+
+    def test_a_real_timestamp_literal_is_still_normalised(self) -> None:
+        rendered = self._rewritten("SELECT id FROM spans WHERE start_time > '2026-01-01T00:00:00Z'")
+
+        assert "2026-01-01 00:00:00" in rendered

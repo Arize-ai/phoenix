@@ -200,8 +200,79 @@ def _refused_cast_target(target: exp.Expression) -> Optional[str]:
 _TIMESTAMP_COMPARISONS = (exp.EQ, exp.NEQ, exp.GT, exp.GTE, exp.LT, exp.LTE)
 
 
+def query_local_columns(root: exp.Expression) -> set[int]:
+    """``id()`` of every column reference that resolves to something query-local.
+
+    An advertised column that is not stored -- ``latency_ms``, ``graphql_node_id``
+    -- is substituted by a rewrite, and a timestamp column decides how a literal
+    beside it is spelled. All three must act only on references that mean the
+    stored thing. A reference to a CTE, a subquery, or an output alias means
+    whatever that relation projected under the name.
+
+    Four passes previously carried four answers to this question -- ``build_scope``
+    in schema qualification, a hand-built name set in the duration substitution,
+    nothing at all in the node-id substitution, and a syntactic scan for star
+    expansion -- and every disagreement between them was a defect. This is the
+    one answer.
+
+    Three ways a reference can be local, and the third is why ``build_scope`` is
+    necessary but not sufficient:
+
+    1. Qualified, where the qualifier names a derived relation. Both a CTE's own
+       name and the alias it is bound to in ``FROM`` resolve to it.
+    2. Unqualified, where a derived relation in the same scope projects the name.
+    3. Unqualified in ``ORDER BY`` or ``GROUP BY``, where the select list aliases
+       the name. Both engines resolve those against the output first, and
+       ``build_scope`` does not report them as source columns at all, so they
+       have to be walked separately.
+    """
+    scope_root = build_scope(root)
+    if scope_root is None:
+        return set()
+    local: set[int] = set()
+    for scope in scope_root.traverse():
+        derived_aliases: set[str] = set()
+        derived_projections: set[str] = set()
+        for alias, source in scope.sources.items():
+            if isinstance(source, exp.Table):
+                continue
+            derived_aliases.add(alias.lower())
+            expression = getattr(source, "expression", None)
+            if expression is not None:
+                derived_projections.update(name.lower() for name in expression.named_selects)
+        select = scope.expression if isinstance(scope.expression, exp.Select) else None
+        output_aliases = {
+            projection.alias.lower()
+            for projection in (select.expressions if select else [])
+            if isinstance(projection, exp.Alias) and projection.alias
+        }
+        for column in scope.columns:
+            table = (column.table or "").lower()
+            if table:
+                if table in derived_aliases:
+                    local.add(id(column))
+                continue
+            if (column.name or "").lower() in derived_projections:
+                local.add(id(column))
+        for clause_name in ("order", "group"):
+            clause = select.args.get(clause_name) if select else None
+            if clause is None:
+                continue
+            for column in clause.find_all(exp.Column):
+                if not column.table and (column.name or "").lower() in output_aliases:
+                    local.add(id(column))
+    return local
+
+
 def _timestamp_literals(root: exp.Expression, columns: frozenset[str]) -> list[exp.Literal]:
-    """Every string literal compared against a column that holds a timestamp."""
+    """Every string literal compared against a column that holds a timestamp.
+
+    Columns that resolve to a query-local relation are skipped: a derived
+    relation exposing a column called ``start_time`` holds whatever it projected,
+    and rewriting the literal beside it to storage format changes a comparison
+    the caller wrote against their own data.
+    """
+    local = query_local_columns(root)
     found: list[exp.Literal] = []
 
     def collect(left: Optional[exp.Expression], right: Optional[exp.Expression]) -> None:
@@ -209,6 +280,7 @@ def _timestamp_literals(root: exp.Expression, columns: frozenset[str]) -> list[e
             if (
                 isinstance(column, exp.Column)
                 and (column.name or "").casefold() in columns
+                and id(column) not in local
                 and isinstance(literal, exp.Literal)
                 and literal.is_string
             ):

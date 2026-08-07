@@ -21,7 +21,7 @@ from phoenix.server.mcp_analytics_sql.normalize import (
     parse_timestamp_literal,
     timestamp_column_names,
 )
-from phoenix.server.mcp_analytics_sql.parse import _timestamp_literals
+from phoenix.server.mcp_analytics_sql.parse import _timestamp_literals, query_local_columns
 
 logger = logging.getLogger(__name__)
 
@@ -439,22 +439,6 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     return root
 
 
-def _has_real_table_source(node: exp.Expression) -> bool:
-    """Whether the SELECT enclosing this node reads from an actual table.
-
-    An unqualified reference inside a select whose only sources are derived
-    relations cannot mean the virtual column; it means whatever that relation
-    projected under the name.
-    """
-    select = node.find_ancestor(exp.Select)
-    if select is None:
-        return True
-    for name, _alias in _star_sources(select):
-        if name:
-            return True
-    return False
-
-
 def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     """Replace the advertised ``latency_ms`` column with elapsed milliseconds.
 
@@ -486,25 +470,15 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     """
     changed = False
 
-    # Names that resolve to a query-local relation rather than to a table. A
-    # derived relation that selects latency_ms projects a real column of that
-    # name -- the substitution in its own body already aliased it -- so an outer
-    # reference is an ordinary column reference and must be left alone.
-    # Substituting it anyway rewrites the outer reference into timestamp
-    # arithmetic against a relation that projects neither timestamp, and the
-    # statement fails at the engine for using the column exactly as advertised.
-    derived = {cte.alias for cte in root.find_all(exp.CTE) if cte.alias} | {
-        sub.alias for sub in root.find_all(exp.Subquery) if sub.alias
-    }
+    # Resolved once against the tree that is about to be edited, so node
+    # identity is stable across the walk below. A reference this marks local
+    # means the column some derived relation projected under the name, not the
+    # duration this pass computes.
+    query_local = query_local_columns(root)
 
-    def replace(node: exp.Expression) -> exp.Expression:
-        nonlocal changed
-        if isinstance(node, exp.Column) and (node.name or "").lower() == "latency_ms":
+    for node in list(root.find_all(exp.Column)):
+        if (node.name or "").lower() == "latency_ms" and id(node) not in query_local:
             table_name = node.table or ""
-            if table_name and table_name in derived:
-                return node
-            if not table_name and derived and not _has_real_table_source(node):
-                return node
             start = exp.column("start_time", table=table_name or None)
             end = exp.column("end_time", table=table_name or None)
             changed = True
@@ -540,16 +514,16 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
             # caller asked for. Without it the column comes back as `?column?`
             # on Postgres and as the expression text on SQLite, so a column the
             # schema advertises never appears under its own name in any answer.
-            if isinstance(node.parent, exp.Select):
-                # alias_ is typed as returning Expr; Alias is an Expression.
-                return exp.Alias(this=milliseconds, alias=exp.to_identifier("latency_ms"))
-            return milliseconds
-        return node
+            in_select_list = isinstance(node.parent, exp.Select)
+            node.replace(
+                exp.Alias(this=milliseconds, alias=exp.to_identifier("latency_ms"))
+                if in_select_list
+                else milliseconds
+            )
 
-    new_root = root.transform(replace, copy=True)
     if changed:
         ctx.applied.append("latency_ms")
-    return new_root
+    return root
 
 
 def _qualify_schema(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
@@ -663,8 +637,18 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
 
     changed = False
 
+    # The same resolution `latency_ms` uses. This pass previously carried none
+    # at all, so a derived relation projecting the column had its outer
+    # reference rewritten into an expression over an `id` that relation does not
+    # provide, and a CTE's own literal column of that name was overwritten.
+    query_local = query_local_columns(root)
+
     def is_node_id(node: exp.Expression) -> bool:
-        return isinstance(node, exp.Column) and (node.name or "").lower() == GRAPHQL_NODE_ID_COLUMN
+        return (
+            isinstance(node, exp.Column)
+            and (node.name or "").lower() == GRAPHQL_NODE_ID_COLUMN
+            and id(node) not in query_local
+        )
 
     def type_for(node: exp.Column) -> Optional[str]:
         qualifier = (node.table or "").lower()

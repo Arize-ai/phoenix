@@ -1,12 +1,15 @@
 import pytest
 from sqlalchemy import text
 
+from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp_analytics_sql.execute import (
     ExecuteParams,
     _estimated_rows,
+    _rewrite_attribution,
     execute_analytics_sql,
 )
+from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext
 from phoenix.server.types import DbSessionFactory
 
 
@@ -280,55 +283,74 @@ class TestEstimatedRowsIsReadBelowTheLimit:
 class TestRewriteAttribution:
     """A column a rewrite introduced is not a column the caller can act on.
 
-    `latency_ms` is advertised and computed, so selecting it through a CTE
-    substitutes timestamp arithmetic against a relation that projects no
-    timestamps. The engine names a column the caller never wrote; only this
-    layer can say which rewrite wrote it. See C6 and Part 8 of the correctness
-    boundary document.
+    The shapes that used to reach this are closed by the shared resolver, so the
+    attribution is exercised directly: it is the backstop for the next rewrite
+    that substitutes an advertised column, not a description of a live defect.
+    See C6 and Part 8 of the correctness boundary document.
     """
 
     @staticmethod
-    async def _fails_with(db: DbSessionFactory, db_path: str, sql: str) -> AnalyticsSqlError:
-        with pytest.raises(AnalyticsSqlError) as exc:
-            await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
-        return exc.value
+    def _ctx(applied: list[str]) -> RewriteContext:
+        ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)
+        ctx.applied.extend(applied)
+        return ctx
 
-    async def test_names_the_rewrite_and_the_workaround(
-        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
-    ) -> None:
-        db, db_path = analytics_sqlite_db
-        error = await self._fails_with(
-            db,
-            db_path,
-            "WITH q AS (SELECT latency_ms FROM spans) SELECT AVG(t.latency_ms) FROM q t",
+    def test_names_the_rewrite_the_column_and_the_workaround(self) -> None:
+        error = _rewrite_attribution(
+            Exception("no such column: t.start_time"), self._ctx(["latency_ms"])
         )
 
+        assert error is not None
         assert error.identifiers == ("latency_ms",)
         assert "latency_ms" in error.message
         assert "start_time" in error.message
         assert "`t`" in error.message
-        # The caller is told the statement was not the problem, and given
-        # something to do about it.
         assert "another name" in error.message
         assert "defect in the rewrite" in error.message
 
-    async def test_unqualified_reference_is_attributed_too(
-        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
-    ) -> None:
-        db, db_path = analytics_sqlite_db
-        error = await self._fails_with(
-            db, db_path, "WITH q AS (SELECT latency_ms FROM spans) SELECT latency_ms FROM q"
+    def test_unqualified_column_is_attributed_too(self) -> None:
+        error = _rewrite_attribution(
+            Exception("no such column: start_time"), self._ctx(["latency_ms"])
         )
 
+        assert error is not None
         assert error.identifiers == ("latency_ms",)
 
-    async def test_an_ordinary_bad_column_is_not_blamed_on_a_rewrite(
+    def test_postgres_wording_is_recognised(self) -> None:
+        error = _rewrite_attribution(
+            Exception("column q.id does not exist"), self._ctx(["graphql_node_id"])
+        )
+
+        assert error is not None
+        assert error.identifiers == ("graphql_node_id",)
+
+    def test_a_column_no_rewrite_introduced_is_not_attributed(self) -> None:
+        assert (
+            _rewrite_attribution(
+                Exception("no such column: nonexistent"), self._ctx(["latency_ms"])
+            )
+            is None
+        )
+
+    def test_a_rewrite_that_did_not_run_is_not_blamed(self) -> None:
+        """`start_time` is a real column; without the rewrite applied, an error
+        naming it is the caller's own."""
+        assert (
+            _rewrite_attribution(Exception("no such column: t.start_time"), self._ctx([])) is None
+        )
+
+    async def test_the_shape_that_provoked_this_now_runs(
         self, analytics_sqlite_db: tuple[DbSessionFactory, str]
     ) -> None:
-        """Attribution keys on the applied rewrites, so a column the caller
-        genuinely mistyped keeps the unclassified message."""
+        """Closed by the shared resolver. Pinned so the attribution above is not
+        quietly re-covering a regression."""
         db, db_path = analytics_sqlite_db
-        error = await self._fails_with(db, db_path, "SELECT nonexistent_column FROM spans")
+        result = await execute_analytics_sql(
+            db,
+            ExecuteParams(
+                sql="WITH q AS (SELECT latency_ms FROM spans) SELECT AVG(t.latency_ms) FROM q t"
+            ),
+            sqlite_db_path=db_path,
+        )
 
-        assert error.identifiers != ("latency_ms",)
-        assert "defect in the rewrite" not in error.message
+        assert result.envelope["rows"] is not None
