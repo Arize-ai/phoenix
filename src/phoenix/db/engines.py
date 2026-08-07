@@ -12,6 +12,7 @@ import numpy as np
 import orjson
 import sqlean
 from sqlalchemy import URL, NullPool, event, make_url
+from sqlalchemy.engine import Connection as SAConnection
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlalchemy.pool import AsyncAdaptedQueuePool
 from typing_extensions import assert_never
@@ -161,6 +162,28 @@ def set_sqlite_read_pragma(connection: Connection, _: Any) -> None:
     _apply_pragmas(connection, _CONNECTION_PRAGMAS)
 
 
+def _disable_implicit_transactions(connection: Connection, _: Any) -> None:
+    """Hand transaction control to SQLAlchemy.
+
+    pysqlite opens a transaction before DML but never before SELECT, so a
+    session left to the driver runs each read in autocommit.
+    """
+    connection.isolation_level = None
+
+
+def _begin_read_transaction(connection: SAConnection) -> None:
+    """Open the transaction a read session already reads as having.
+
+    The WAL read mark is taken at the first statement and held until the
+    session closes, so every statement in it sees one snapshot rather than
+    re-snapshotting and reporting states that were never true together.
+
+    Deferred rather than `IMMEDIATE`, which takes a write lock a `mode=ro`
+    connection cannot acquire.
+    """
+    connection.exec_driver_sql("BEGIN")
+
+
 def aio_sqlite_read_engine(url: URL) -> Optional[AsyncEngine]:
     """A read-only engine giving each concurrent reader its own connection.
 
@@ -197,6 +220,8 @@ def aio_sqlite_read_engine(url: URL) -> Optional[AsyncEngine]:
         pool_pre_ping=False,
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_read_pragma)
+    event.listen(engine.sync_engine, "connect", _disable_implicit_transactions)
+    event.listen(engine.sync_engine, "begin", _begin_read_transaction)
     return engine
 
 
