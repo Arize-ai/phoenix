@@ -802,3 +802,49 @@ class TestOneSharedResolver:
         rendered = self._rewritten("SELECT id FROM spans WHERE start_time > '2026-01-01T00:00:00Z'")
 
         assert "2026-01-01 00:00:00" in rendered
+
+
+class TestJsonAccessorOrigin:
+    """`->` and `json_extract` parse to one class and do not mean one thing.
+
+    On every JSON scalar the two differ in value and in SQL type, so rewriting
+    a caller's `->` into the function answers a question they did not ask. The
+    parser records which was written; this pins that the pass reads it. See B3.
+    """
+
+    @staticmethod
+    def _rewritten(expression: str) -> str:
+        ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)
+        tree = sqlglot.parse_one(f"SELECT {expression} FROM spans", read="sqlite")
+        return rewrite(tree, ctx).sql(dialect="sqlite")
+
+    def test_the_operator_the_caller_wrote_survives(self) -> None:
+        assert "->" in self._rewritten("attributes -> '$.s'")
+
+    def test_the_function_is_still_canonicalised(self) -> None:
+        """Left alone the generator renders the function back as `->`, which is
+        the accessor swap this pass exists to prevent."""
+        assert "JSON_EXTRACT" in self._rewritten("json_extract(attributes, '$.s')").upper()
+
+    def test_the_scalar_operator_collapse_is_retained(self) -> None:
+        assert "JSON_EXTRACT" in self._rewritten("attributes ->> '$.s'").upper()
+
+    @pytest.mark.parametrize(
+        "path,arrow_value",
+        [("$.s", '"abc"'), ("$.num", "7"), ("$.o", '{"k":1}')],
+    )
+    def test_the_two_accessors_really_do_differ(self, path: str, arrow_value: str) -> None:
+        """The premise, checked against the engine rather than assumed: if these
+        agreed, conflating them would cost nothing and the fix would be moot."""
+        document = '{"s":"abc","num":7,"o":{"k":1}}'
+        connection = sqlean.connect(":memory:")
+        try:
+            arrow, function = connection.execute(
+                f"SELECT ? -> '{path}', json_extract(?, '{path}')", (document, document)
+            ).fetchone()
+        finally:
+            connection.close()
+
+        assert arrow == arrow_value
+        # Containers agree; scalars do not, which is where the swap does damage.
+        assert (arrow == function) is (path == "$.o")

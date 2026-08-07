@@ -274,6 +274,15 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
         return root
     changed = False
     for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
+        # `->` and `json_extract` parse to the same class, and rewriting both
+        # meant a caller who chose `->` deliberately got the other accessor's
+        # semantics -- a different value and a different type on every JSON
+        # scalar. The parser records which was written: the operator sets
+        # `only_json_types`, the function leaves it absent. Canonicalising is
+        # what stops the generator turning the function back into `->`, so it is
+        # still applied where the marker is missing.
+        if isinstance(node, exp.JSONExtract) and node.args.get("only_json_types") is not None:
+            continue
         keys = _json_path_keys(node.expression)
         indexed = ctx.indexed_json_accessors.get(keys) if keys else None
         if indexed is not None:
