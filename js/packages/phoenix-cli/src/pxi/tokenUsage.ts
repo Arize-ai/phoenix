@@ -1,9 +1,9 @@
-import type { AssistantMessageMetadata, PxiMessage } from "./types";
+import type { PhoenixAssistantMessageMetadata, PxiMessage } from "./types";
 
 /**
  * Token-usage helpers for the PXI status line.
  *
- * The Phoenix server attaches {@link AssistantMessageMetadata} usage to each
+ * The Phoenix server attaches {@link PhoenixAssistantMessageMetadata} usage to each
  * assistant turn. These helpers pull the most recent usage off the transcript
  * and format it for the bottom-right status line, mirroring how the web UI's
  * `ChatSessionUsage` surfaces the latest token count plus any cache activity so
@@ -11,7 +11,7 @@ import type { AssistantMessageMetadata, PxiMessage } from "./types";
  */
 
 /** The usage metadata reported for a single assistant turn. */
-export type PxiUsage = NonNullable<AssistantMessageMetadata["usage"]>;
+export type PxiUsage = NonNullable<PhoenixAssistantMessageMetadata["usage"]>;
 
 /**
  * Return the usage reported by the most recent assistant message that carries

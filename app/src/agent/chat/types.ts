@@ -2,10 +2,11 @@ import type { UIMessage } from "ai";
 
 import type { components } from "@phoenix/api/__generated__/v1";
 
-export type AssistantMessageMetadata =
-  components["schemas"]["AssistantMessageMetadata"];
+export type PhoenixAssistantMessageMetadata =
+  components["schemas"]["PhoenixAssistantMessageMetadata"];
 
-export type UserMessageMetadata = components["schemas"]["UserMessageMetadata"];
+export type PhoenixUserMessageMetadata =
+  components["schemas"]["PhoenixUserMessageMetadata"];
 
 export type AgentMessageMetadata = NonNullable<
   components["schemas"]["PhoenixUIMessage"]["metadata"]
@@ -36,7 +37,7 @@ export type AgentUIMessage = UIMessage<AgentMessageMetadata, AgentUIDataTypes>;
 /** Narrow a message's metadata to the assistant shape. */
 export function getAssistantMessageMetadata(
   message: AgentUIMessage
-): AssistantMessageMetadata | undefined {
+): PhoenixAssistantMessageMetadata | undefined {
   const phoenixMetadata = message.metadata?.phoenix;
   return phoenixMetadata?.type === "assistant" ? phoenixMetadata : undefined;
 }
