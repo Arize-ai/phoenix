@@ -35,7 +35,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.dialects.sqlite.base import SQLiteCompiler
+from sqlalchemy.dialects.sqlite.base import SQLiteCompiler, SQLiteDialect
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -202,6 +202,11 @@ class JSONB(JSON):
 def _(*args: Any, **kwargs: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     return "JSONB"
+
+
+# Without this, reflection maps "JSONB" to NUMERIC, and Alembic batch_alter_table
+# rebuilds SQLite tables from reflection -- silently redeclaring JSON columns.
+SQLiteDialect.ischema_names["JSONB"] = JSONB
 
 
 JSON_ = (
