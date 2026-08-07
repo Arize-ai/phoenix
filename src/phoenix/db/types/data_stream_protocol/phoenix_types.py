@@ -103,21 +103,18 @@ class TurnTraceContext(CamelBaseModel):
 
 
 class AssistantMessageMetadata(CamelBaseModel):
-    """Wire schema for the chat stream's ``message_metadata`` payload."""
+    """The ``phoenix`` metadata namespace of an assistant message."""
 
     type: Literal["assistant"]
     session_id: str
     turn_trace_context: TurnTraceContext | None = None
     usage: AssistantMessageMetadataUsage | None = None
     interrupted: bool = False
-    pydantic_ai: PydanticAIMessageMetadata | None = Field(
-        default=None,
-        alias="pydantic_ai",
-    )
 
 
 class UserMessageMetadata(CamelBaseModel):
-    """Wire schema for metadata the browser attaches to outgoing user messages."""
+    """The ``phoenix`` metadata namespace the browser attaches to outgoing
+    user messages."""
 
     type: Literal["user"]
     current_date_time: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
@@ -125,10 +122,20 @@ class UserMessageMetadata(CamelBaseModel):
     is_compaction_message: bool = False
 
 
-MessageMetadata = Annotated[
+PhoenixMessageMetadata = Annotated[
     AssistantMessageMetadata | UserMessageMetadata,
     Field(discriminator="type"),
 ]
+
+
+class MessageMetadata(CamelBaseModel):
+    """``UIMessage.metadata`` as a registry of namespaces."""
+
+    phoenix: PhoenixMessageMetadata | None = None
+    pydantic_ai: PydanticAIMessageMetadata | None = Field(
+        default=None,
+        alias="pydantic_ai",
+    )
 
 
 class PhoenixUIMessage(UIMessage):
@@ -138,8 +145,11 @@ class PhoenixUIMessage(UIMessage):
 
     @model_validator(mode="after")
     def _validate_metadata_matches_role(self) -> "PhoenixUIMessage":
-        if self.metadata is not None and self.metadata.type != self.role:
-            raise ValueError(f"{self.role}-role message cannot carry {self.metadata.type} metadata")
+        phoenix_metadata = self.metadata.phoenix if self.metadata is not None else None
+        if phoenix_metadata is not None and phoenix_metadata.type != self.role:
+            raise ValueError(
+                f"{self.role}-role message cannot carry {phoenix_metadata.type} metadata"
+            )
         return self
 
     @model_validator(mode="after")

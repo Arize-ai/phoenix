@@ -9657,16 +9657,6 @@
             "type": "boolean",
             "title": "Interrupted",
             "default": false
-          },
-          "pydantic_ai": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PydanticAIMessageMetadata"
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "additionalProperties": false,
@@ -9676,7 +9666,7 @@
           "sessionId"
         ],
         "title": "AssistantMessageMetadata",
-        "description": "Wire schema for the chat stream's ``message_metadata`` payload."
+        "description": "The ``phoenix`` metadata namespace of an assistant message."
       },
       "AssistantMessageMetadataUsage": {
         "properties": {
@@ -13393,16 +13383,6 @@
             "type": "boolean",
             "title": "Interrupted",
             "default": false
-          },
-          "pydantic_ai": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PydanticAIMessageMetadata"
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "additionalProperties": true,
@@ -14050,6 +14030,49 @@
           "auth_method"
         ],
         "title": "LocalUserData"
+      },
+      "MessageMetadata": {
+        "properties": {
+          "phoenix": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/AssistantMessageMetadata"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UserMessageMetadata"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "assistant": "#/components/schemas/AssistantMessageMetadata",
+                    "user": "#/components/schemas/UserMessageMetadata"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phoenix"
+          },
+          "pydantic_ai": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PydanticAIMessageMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "MessageMetadata",
+        "description": "``UIMessage.metadata`` as a registry of namespaces."
       },
       "ModelProvider": {
         "type": "string",
@@ -14784,27 +14807,12 @@
           "metadata": {
             "anyOf": [
               {
-                "oneOf": [
-                  {
-                    "$ref": "#/components/schemas/AssistantMessageMetadata"
-                  },
-                  {
-                    "$ref": "#/components/schemas/UserMessageMetadata"
-                  }
-                ],
-                "discriminator": {
-                  "propertyName": "type",
-                  "mapping": {
-                    "assistant": "#/components/schemas/AssistantMessageMetadata",
-                    "user": "#/components/schemas/UserMessageMetadata"
-                  }
-                }
+                "$ref": "#/components/schemas/MessageMetadata"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Metadata"
+            ]
           },
           "parts": {
             "items": {
@@ -19868,7 +19876,7 @@
           "timeZone"
         ],
         "title": "UserMessageMetadata",
-        "description": "Wire schema for metadata the browser attaches to outgoing user messages."
+        "description": "The ``phoenix`` metadata namespace the browser attaches to outgoing\nuser messages."
       },
       "ValidationError": {
         "properties": {

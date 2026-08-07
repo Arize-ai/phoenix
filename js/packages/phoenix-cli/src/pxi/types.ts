@@ -23,6 +23,12 @@ type SchemasV1 = componentsV1["schemas"];
  */
 export type AssistantMessageMetadata = SchemasV1["AssistantMessageMetadata"];
 
+/**
+ * `UIMessage.metadata` as a registry of namespaces: Phoenix's own fields under
+ * `phoenix`, pydantic-ai's message-level round-trip channel under `pydantic_ai`.
+ */
+export type PxiMessageMetadata = SchemasV1["MessageMetadata"];
+
 /** Transient data chunks streamed alongside assistant message content. */
 type PxiDataTypes = {
   "session-summary": SchemasV1["SessionSummaryChunk"]["data"];
@@ -30,7 +36,7 @@ type PxiDataTypes = {
 };
 
 /** A chat message (user or assistant) carrying PXI-specific metadata. */
-export type PxiMessage = UIMessage<AssistantMessageMetadata, PxiDataTypes>;
+export type PxiMessage = UIMessage<PxiMessageMetadata, PxiDataTypes>;
 
 export type BuiltInProvider = SchemasV1["ModelProvider"];
 

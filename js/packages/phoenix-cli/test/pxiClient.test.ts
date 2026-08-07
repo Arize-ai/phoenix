@@ -465,7 +465,7 @@ describe("PXI client", () => {
     const checkpoint = {
       id: "checkpoint-1",
       role: "user",
-      metadata: { type: "user", isCompactionMessage: true },
+      metadata: { phoenix: { type: "user", isCompactionMessage: true } },
       parts: [{ type: "text", text: "Summary of the conversation so far." }],
     };
     const fetchImpl = vi.fn(

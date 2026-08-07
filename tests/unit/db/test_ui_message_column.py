@@ -15,6 +15,7 @@ from pydantic import ValidationError
 
 from phoenix.db.models import _PhoenixUIMessage
 from phoenix.db.types.data_stream_protocol import (
+    MessageMetadata,
     PhoenixUIMessageAdapter,
     TextUIPart,
     ToolOutputDeniedPart,
@@ -62,9 +63,11 @@ def test_absent_optional_fields_stay_absent() -> None:
             "id": _MESSAGE_ID,
             "role": "user",
             "metadata": {
-                "type": "user",
-                "currentDateTime": "2026-08-05T00:00:00+00:00",
-                "timeZone": "UTC",
+                "phoenix": {
+                    "type": "user",
+                    "currentDateTime": "2026-08-05T00:00:00+00:00",
+                    "timeZone": "UTC",
+                }
             },
             "parts": [{"type": "text", "text": "hello"}],
         }
@@ -75,18 +78,20 @@ def test_server_built_compaction_message_round_trips() -> None:
     message = PhoenixUIMessage(
         id=_MESSAGE_ID,
         role="user",
-        metadata=UserMessageMetadata(
-            type="user",
-            current_date_time="2026-08-05T00:00:00+00:00",
-            time_zone="UTC",
-            is_compaction_message=True,
+        metadata=MessageMetadata(
+            phoenix=UserMessageMetadata(
+                type="user",
+                current_date_time="2026-08-05T00:00:00+00:00",
+                time_zone="UTC",
+                is_compaction_message=True,
+            )
         ),
         parts=[TextUIPart(type="text", text="summary")],
     )
     column_type = _PhoenixUIMessage()
     stored = column_type.process_bind_param(message, None)  # type: ignore[arg-type]
     assert stored is not None
-    assert stored["metadata"]["isCompactionMessage"] is True
+    assert stored["metadata"]["phoenix"]["isCompactionMessage"] is True
     assert column_type.process_result_value(stored, None) == message  # type: ignore[arg-type]
 
 

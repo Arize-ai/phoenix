@@ -575,7 +575,7 @@ async def test_branch_agent_session_copies_durable_compaction_points(
     copied_compaction = next(
         message
         for message in branch_messages
-        if message.get("metadata", {}).get("isCompactionMessage") is True
+        if message.get("metadata", {}).get("phoenix", {}).get("isCompactionMessage") is True
     )
     assert copied_compaction["id"] != _message_uuid("source-compaction")
     async with db() as session:

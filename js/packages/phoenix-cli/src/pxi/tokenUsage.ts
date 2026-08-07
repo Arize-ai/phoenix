@@ -26,7 +26,9 @@ export function getLatestAssistantUsage(
     if (message?.role !== "assistant") {
       continue;
     }
-    const usage = message.metadata?.usage;
+    const phoenixMetadata = message.metadata?.phoenix;
+    const usage =
+      phoenixMetadata?.type === "assistant" ? phoenixMetadata.usage : null;
     if (usage != null) {
       return usage;
     }

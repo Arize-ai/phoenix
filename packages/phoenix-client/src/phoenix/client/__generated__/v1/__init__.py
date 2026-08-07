@@ -1576,7 +1576,6 @@ class LegacyAssistantMessageMetadata(TypedDict):
     turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
     interrupted: NotRequired[bool]
-    pydantic_ai: NotRequired[PydanticAIMessageMetadata]
 
 
 class ListDatasetExamplesData(TypedDict):
@@ -1828,7 +1827,6 @@ class AssistantMessageMetadata(TypedDict):
     turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
     interrupted: NotRequired[bool]
-    pydantic_ai: NotRequired[PydanticAIMessageMetadata]
 
 
 class ChatCompletion(TypedDict):
@@ -1986,6 +1984,11 @@ class LegacyChatSubmitMessage(TypedDict):
     requestedSkills: NotRequired[Sequence[str]]
 
 
+class MessageMetadata(TypedDict):
+    phoenix: NotRequired[Union[AssistantMessageMetadata, UserMessageMetadata]]
+    pydantic_ai: NotRequired[PydanticAIMessageMetadata]
+
+
 class PatchAgentSessionRequestBody(TypedDict):
     title: NotRequired[str]
     model: NotRequired[Union[CustomProviderModelSelection, BuiltInProviderModelSelection]]
@@ -2023,7 +2026,7 @@ class PhoenixUIMessage(TypedDict):
             StepStartUIPart,
         ]
     ]
-    metadata: NotRequired[Union[AssistantMessageMetadata, UserMessageMetadata]]
+    metadata: NotRequired[MessageMetadata]
 
 
 class PromptAnthropicInvocationParameters(TypedDict):

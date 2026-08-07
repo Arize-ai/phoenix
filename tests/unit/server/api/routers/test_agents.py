@@ -444,7 +444,8 @@ class TestBuildMessageMetadataChunk:
             session_id="session-1",
             usage=RequestUsage(),
         )
-        assert chunk.message_metadata.turn_trace_context is None
+        assert chunk.message_metadata.phoenix is not None
+        assert chunk.message_metadata.phoenix.turn_trace_context is None
 
     def test_advertises_the_turn_trace_context_when_present(self) -> None:
         turn_trace_context = TurnTraceContext(
@@ -457,7 +458,8 @@ class TestBuildMessageMetadataChunk:
             session_id="session-1",
             usage=RequestUsage(),
         )
-        assert chunk.message_metadata.turn_trace_context == turn_trace_context
+        assert chunk.message_metadata.phoenix is not None
+        assert chunk.message_metadata.phoenix.turn_trace_context == turn_trace_context
 
     def test_reports_the_final_request_as_the_current_context_size(self) -> None:
         chunk = _build_message_metadata_chunk(
@@ -471,7 +473,8 @@ class TestBuildMessageMetadataChunk:
             ),
         )
 
-        usage = chunk.message_metadata.usage
+        assert chunk.message_metadata.phoenix is not None
+        usage = chunk.message_metadata.phoenix.usage
         assert usage is not None
         assert usage.tokens.prompt == 100
         assert usage.tokens.completion == 20

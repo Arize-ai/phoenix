@@ -228,12 +228,16 @@ def test_message_without_tool_metadata_passes() -> None:
     assert part.text == "hello"
 
 
-_USER_METADATA = UserMessageMetadata(
-    type="user",
-    current_date_time="2026-07-10T12:00:00Z",
-    time_zone="America/Los_Angeles",
+_USER_METADATA = MessageMetadata(
+    phoenix=UserMessageMetadata(
+        type="user",
+        current_date_time="2026-07-10T12:00:00Z",
+        time_zone="America/Los_Angeles",
+    )
 )
-_ASSISTANT_METADATA = AssistantMessageMetadata(type="assistant", session_id="session-1")
+_ASSISTANT_METADATA = MessageMetadata(
+    phoenix=AssistantMessageMetadata(type="assistant", session_id="session-1")
+)
 
 
 def _message_with_metadata(
@@ -269,6 +273,22 @@ def test_unknown_key_in_user_metadata_raises() -> None:
                 "bogusKey": True,
             }
         )
+
+
+def test_unknown_namespace_in_message_metadata_raises() -> None:
+    with pytest.raises(ValidationError):
+        MessageMetadata.model_validate({"bogusNamespace": {"anything": True}})
+
+
+def test_pydantic_ai_namespace_rides_beside_phoenix_metadata() -> None:
+    metadata = MessageMetadata.model_validate(
+        {
+            "phoenix": {"type": "assistant", "sessionId": "session-1"},
+            "pydantic_ai": {"timestamp": "2026-07-10T12:00:00Z"},
+        }
+    )
+    assert metadata.pydantic_ai is not None
+    assert metadata.pydantic_ai.timestamp is not None
 
 
 def test_assistant_message_with_assistant_metadata_passes() -> None:

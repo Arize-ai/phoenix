@@ -22,6 +22,7 @@ from pydantic_ai.ui.vercel_ai.request_types import (
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
     ErrorChunk,
+    MessageMetadataChunk,
     ToolInputAvailableChunk,
 )
 from starlette.requests import Request
@@ -40,7 +41,7 @@ from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
 from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.api.routers.agents import (
-    _build_message_metadata_chunk,
+    _build_assistant_message_metadata,
     _ensure_project_exists,
     _get_current_context_usage,
     _get_updated_provider_metadata,
@@ -243,10 +244,12 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
         )
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
-            yield _build_message_metadata_chunk(
-                turn_trace_context=None,
-                session_id=session_id,
-                usage=_get_current_context_usage(result),
+            yield MessageMetadataChunk(
+                message_metadata=_build_assistant_message_metadata(
+                    turn_trace_context=None,
+                    session_id=session_id,
+                    usage=_get_current_context_usage(result),
+                )
             )
             _log_run_complete(result)
 

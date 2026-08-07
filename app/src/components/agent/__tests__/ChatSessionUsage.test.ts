@@ -23,17 +23,19 @@ function createAssistantMessage({
     role: "assistant",
     parts: [{ type: "text", text: "response" }],
     metadata: {
-      type: "assistant",
-      sessionId: "session-1",
-      usage: {
-        tokens: {
-          prompt,
-          completion,
-          total: prompt + completion,
+      phoenix: {
+        type: "assistant",
+        sessionId: "session-1",
+        usage: {
+          tokens: {
+            prompt,
+            completion,
+            total: prompt + completion,
+          },
+          ...(hasPromptDetails
+            ? { promptDetails: { cacheRead, cacheWrite } }
+            : {}),
         },
-        ...(hasPromptDetails
-          ? { promptDetails: { cacheRead, cacheWrite } }
-          : {}),
       },
     },
   };
@@ -46,10 +48,12 @@ describe("getConversationUsage", () => {
         id: "older-compaction-boundary",
         role: "user",
         metadata: {
-          type: "user",
-          currentDateTime: "2026-01-01T00:00:00Z",
-          timeZone: "UTC",
-          isCompactionMessage: true,
+          phoenix: {
+            type: "user",
+            currentDateTime: "2026-01-01T00:00:00Z",
+            timeZone: "UTC",
+            isCompactionMessage: true,
+          },
         },
         parts: [{ type: "text", text: "older summary" }],
       },
@@ -137,10 +141,12 @@ describe("getConversationUsage", () => {
         id: "compaction-boundary",
         role: "user",
         metadata: {
-          type: "user",
-          currentDateTime: "2026-01-01T00:00:00Z",
-          timeZone: "UTC",
-          isCompactionMessage: true,
+          phoenix: {
+            type: "user",
+            currentDateTime: "2026-01-01T00:00:00Z",
+            timeZone: "UTC",
+            isCompactionMessage: true,
+          },
         },
         parts: [{ type: "text", text: "summary" }],
       },
@@ -181,10 +187,12 @@ describe("getConversationUsage", () => {
         id: "compaction-boundary",
         role: "user",
         metadata: {
-          type: "user",
-          currentDateTime: "2026-01-01T00:00:00Z",
-          timeZone: "UTC",
-          isCompactionMessage: true,
+          phoenix: {
+            type: "user",
+            currentDateTime: "2026-01-01T00:00:00Z",
+            timeZone: "UTC",
+            isCompactionMessage: true,
+          },
         },
         parts: [{ type: "text", text: "summary" }],
       },
