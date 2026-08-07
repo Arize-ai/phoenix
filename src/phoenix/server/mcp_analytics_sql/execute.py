@@ -777,13 +777,15 @@ async def _execute_postgres(
             message = str(exc).lower()
             if "statement timeout" in message or "canceling statement" in message:
                 raise AnalyticsSqlError(code=ErrorCode.TIMEOUT, message="Query timed out.") from exc
+            if (attributed := _rewrite_attribution(exc, ctx)) is not None:
+                logger.error("analytics sql: rewrite produced an unresolvable column - %s", exc)
+                raise attributed from exc
             logger.error("analytics sql: postgres execution failed - %s", exc)
             raise AnalyticsSqlError(
                 code=ErrorCode.EXECUTION_ERROR,
                 message=(
                     "The statement was accepted but the database could not run it. "
-                    "If the column names are right this is not a problem with your "
-                    "query; the server log records the underlying error. "
+                    "The server log records the underlying error. "
                     "validate_only=true reports resolution errors without executing."
                 ),
             ) from exc
@@ -799,6 +801,57 @@ async def _execute_postgres(
                 notes=notes,
             )
         )
+
+
+# Columns each rewrite writes into the statement that the caller never named.
+# When the engine cannot resolve one of these, the caller cannot act on the
+# message: the column is not in their text, and the one they did write is the
+# advertised name the rewrite replaced.
+_REWRITE_INTRODUCED_COLUMNS: dict[str, frozenset[str]] = {
+    "latency_ms": frozenset({"start_time", "end_time"}),
+    "graphql_node_id": frozenset({"id"}),
+}
+
+# `no such column: ts.start_time` on SQLite, `column ts.start_time does not
+# exist` on PostgreSQL. Both may qualify the name; the qualifier is the relation
+# the rewrite attached itself to and is worth repeating back.
+_UNRESOLVED_COLUMN = re.compile(
+    r"(?:no such column:\s*|column\s+)\"?(?:(?P<qualifier>[\w$]+)\.)?(?P<column>[\w$]+)\"?",
+    re.IGNORECASE,
+)
+
+
+def _rewrite_attribution(exc: BaseException, ctx: RewriteContext) -> Optional[AnalyticsSqlError]:
+    """Blame the rewrite that introduced an unresolvable column, when one did.
+
+    A rewrite that substitutes an advertised column for an expression over real
+    ones produces valid SQL against the table it was written for and invalid SQL
+    against a relation that projects the advertised name and nothing else. The
+    engine reports the column the rewrite wrote; only this layer knows the
+    caller never wrote it, which rewrite did, and what to write instead.
+    """
+    match = _UNRESOLVED_COLUMN.search(str(exc))
+    if match is None:
+        return None
+    column = match.group("column").lower()
+    for rewrite_name in ctx.applied:
+        if column not in _REWRITE_INTRODUCED_COLUMNS.get(rewrite_name, frozenset()):
+            continue
+        qualifier = match.group("qualifier")
+        relation = f"`{qualifier}`" if qualifier else "the relation it was selected from"
+        return AnalyticsSqlError(
+            code=ErrorCode.EXECUTION_ERROR,
+            message=(
+                f"`{rewrite_name}` is computed per row rather than stored, so selecting it "
+                f"is rewritten into an expression over `{column}`, which {relation} does not "
+                f"provide. Read `{rewrite_name}` directly from the table that has it rather "
+                f"than through a CTE or subquery, or give it another name where you "
+                f"select it and refer to that name instead. This is a defect in the "
+                f"rewrite, not in your statement."
+            ),
+            identifiers=(rewrite_name,),
+        )
+    return None
 
 
 # sqlean ships its own DB-API module rather than re-exporting the standard
@@ -936,6 +989,11 @@ async def _execute_sqlite_file(
                 message=denial.message,
                 identifiers=(denial.identifier,),
             ) from exc
+        # A column the caller never wrote, put there by a rewrite. Attributable
+        # with certainty, so it is answered rather than logged as unclassified.
+        if (attributed := _rewrite_attribution(exc, ctx)) is not None:
+            logger.error("analytics sql: rewrite produced an unresolvable column - %s", exc)
+            raise attributed from exc
         # Reached only when no denial was recorded and the message is not a
         # timeout, so the cause is unknown. `DatabaseError` is caught because an
         # authorizer refusal arrives as one, but it also covers programming and
@@ -947,8 +1005,7 @@ async def _execute_sqlite_file(
             code=ErrorCode.EXECUTION_ERROR,
             message=(
                 "The statement was accepted but the database could not run it. "
-                "If the column names are right this is not a problem with your "
-                "query; the server log records the underlying error. "
+                "The server log records the underlying error. "
                 "validate_only=true reports resolution errors without executing."
             ),
         ) from exc
