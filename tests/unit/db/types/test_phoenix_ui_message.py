@@ -87,20 +87,27 @@ def test_invalid_execution_environment_value_raises() -> None:
         _assistant_message(_tool_part({"phoenix": {"toolExecutionEnvironment": "browser"}}))
 
 
-def test_non_phoenix_provider_namespace_is_left_untouched() -> None:
-    message = _assistant_message(
-        _tool_part(
-            {
-                "phoenix": {"toolExecutionEnvironment": "client"},
-                "openai": {"cachedTokens": 10},
-            }
+def test_unknown_provider_namespace_alongside_phoenix_raises() -> None:
+    with pytest.raises(ValidationError, match="unknown provider-metadata namespaces: 'openai'"):
+        _assistant_message(
+            _tool_part(
+                {
+                    "phoenix": {"toolExecutionEnvironment": "client"},
+                    "openai": {"cachedTokens": 10},
+                }
+            )
         )
-    )
-    assert _call_provider_metadata(message)["openai"] == {"cachedTokens": 10}
+
+
+def test_unknown_provider_namespace_on_a_tool_part_raises() -> None:
+    with pytest.raises(ValidationError, match="unknown provider-metadata namespaces: 'openai'"):
+        _assistant_message(_tool_part({"openai": {"cachedTokens": 10}}))
 
 
 def test_tool_part_without_phoenix_namespace_passes() -> None:
-    message = _assistant_message(_tool_part({"openai": {"cachedTokens": 10}}))
+    message = _assistant_message(
+        _tool_part({"pydantic_ai": {"id": "toolu_1", "provider_name": "anthropic"}})
+    )
     assert "phoenix" not in _call_provider_metadata(message)
 
 
@@ -214,11 +221,11 @@ def test_pydantic_ai_namespace_on_an_untyped_part_family_raises() -> None:
         )
 
 
-def test_non_pydantic_ai_namespace_on_reasoning_part_is_left_untouched() -> None:
-    message = _assistant_message(_reasoning_part({"anthropic": {"redacted": True}}))
-    part = message.parts[0]
-    assert isinstance(part, ReasoningUIPart)
-    assert part.provider_metadata == {"anthropic": {"redacted": True}}
+def test_unknown_provider_namespace_on_a_reasoning_part_raises() -> None:
+    """Provider details ride inside the ``pydantic_ai`` namespace, so a bare
+    provider namespace has no producer and is rejected."""
+    with pytest.raises(ValidationError, match="unknown provider-metadata namespaces: 'anthropic'"):
+        _assistant_message(_reasoning_part({"anthropic": {"redacted": True}}))
 
 
 def test_message_without_tool_metadata_passes() -> None:
