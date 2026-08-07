@@ -1,3 +1,5 @@
+import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval";
+
 import {
   EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
@@ -38,6 +40,7 @@ export function bindPendingCodeEvaluatorEditActions({
             approvalSource === "auto"
               ? "Code-evaluator draft edit auto-approved."
               : "Code-evaluator draft edit applied.",
+          ...approvalOutcome({ decision: "accepted", source: approvalSource }),
         },
       });
     },
@@ -50,6 +53,7 @@ export function bindPendingCodeEvaluatorEditActions({
         output: {
           status: "rejected",
           message: "User rejected the proposed code-evaluator draft edit.",
+          ...approvalOutcome({ decision: "rejected", source: "user" }),
         },
       });
     },

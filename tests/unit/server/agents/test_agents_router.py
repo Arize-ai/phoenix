@@ -153,6 +153,78 @@ def test_synthesizes_root_and_clamped_client_tool_span() -> None:
     assert tool.attributes["tool"]["name"] == "open_page"
 
 
+def test_approval_decision_is_promoted_to_span_attributes() -> None:
+    now = datetime(2026, 7, 10, 12, tzinfo=timezone.utc)
+    turn_trace_context = TurnTraceContext(
+        trace_id="5" * 32,
+        root_span_id="6" * 16,
+        started_at=now,
+    )
+    turn_ids = _resolve_turn_trace_ids(turn_trace_context, now=now)
+    tracer = Tracer(span_cost_calculator=MagicMock())
+    messages = [
+        UIMessage.model_validate(
+            {
+                "id": "user-1",
+                "role": "user",
+                "parts": [{"type": "text", "text": "Edit the prompt"}],
+            }
+        ),
+        UIMessage.model_validate(
+            {
+                "id": "assistant-1",
+                "role": "assistant",
+                "parts": [
+                    {
+                        "type": "tool-edit_prompt_instance",
+                        "toolCallId": "call-1",
+                        "state": "output-available",
+                        "input": {"instanceId": 5},
+                        "output": {
+                            "status": "rejected",
+                            "message": "User rejected the proposed prompt edit.",
+                            "approval": {"decision": "rejected", "source": "user"},
+                        },
+                        "callProviderMetadata": {
+                            "phoenix": {
+                                "tool_execution_environment": "client",
+                                "tool_input_emitted_at": (now + timedelta(seconds=1)).isoformat(),
+                            }
+                        },
+                    },
+                    {
+                        "type": "tool-read_prompt_instance",
+                        "toolCallId": "call-2",
+                        "state": "output-available",
+                        "input": {"instanceId": 5},
+                        "output": {"revision": 3},
+                        "callProviderMetadata": {
+                            "phoenix": {
+                                "tool_execution_environment": "client",
+                                "tool_input_emitted_at": (now + timedelta(seconds=2)).isoformat(),
+                            }
+                        },
+                    },
+                ],
+            }
+        ),
+    ]
+
+    _synthesize_client_tool_spans(
+        tracer=tracer,
+        turn_ids=turn_ids,
+        messages=messages,
+        received_at=now + timedelta(seconds=5),
+        session_id="session-1",
+    )
+
+    db_traces = tracer.get_db_traces(project_id=1)
+    spans_by_name = {span.name: span for span in db_traces[0].spans}
+    gated = spans_by_name["edit_prompt_instance"].attributes
+    assert gated["pxi"]["approval"] == {"decision": "rejected", "source": "user"}
+    assert "pxi" not in spans_by_name["read_prompt_instance"].attributes
+
+
 def test_error_parts_record_exception_events() -> None:
     now = datetime(2026, 7, 10, 12, tzinfo=timezone.utc)
     turn_trace_context = TurnTraceContext(

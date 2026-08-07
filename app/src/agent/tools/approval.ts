@@ -1,6 +1,11 @@
+import {
+  approvalOutcome,
+  type ApprovalOutcome,
+  type ApprovalSource,
+} from "@phoenix/agent/shared/pendingApproval";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
-export type ApprovalSource = "user" | "auto";
+export type { ApprovalSource };
 
 export type EvaluatorSubmitResult =
   | {
@@ -41,12 +46,12 @@ type EvaluatorSubmitHost = {
 };
 
 export type EvaluatorSubmitToolOutput =
-  | {
+  | ({
       status: "saved";
       persisted: true;
       acceptedBy: ApprovalSource;
       evaluator: { id: string; name: string };
-    }
+    } & ApprovalOutcome)
   | {
       status: "awaiting_user";
       persisted: false;
@@ -98,6 +103,7 @@ export function createEvaluatorSubmitClientAction<
       persisted: true,
       acceptedBy: result.acceptedBy,
       evaluator: result.evaluator,
+      ...approvalOutcome({ decision: "accepted", source: "auto" }),
     };
     return { ok: true, output: JSON.stringify(output) };
   };

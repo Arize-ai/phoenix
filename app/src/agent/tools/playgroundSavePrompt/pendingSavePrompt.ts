@@ -1,3 +1,4 @@
+import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval";
 import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 import { SAVE_PROMPT_TOOL_NAME } from "./constants";
@@ -30,6 +31,7 @@ function buildAcceptedOutput({
       ...parsedOutput,
       approvalStatus: "accepted",
       acceptedBy: approvalSource,
+      ...approvalOutcome({ decision: "accepted", source: approvalSource }),
     };
   }
   return {
@@ -40,6 +42,7 @@ function buildAcceptedOutput({
         ? "Prompt save auto-approved."
         : "Prompt save approved.",
     output: parsedOutput,
+    ...approvalOutcome({ decision: "accepted", source: approvalSource }),
   };
 }
 
@@ -85,6 +88,7 @@ export function bindPendingSavePromptActions({
         output: {
           status: "rejected",
           message: "User rejected the proposed prompt save.",
+          ...approvalOutcome({ decision: "rejected", source: "user" }),
         },
       });
     },

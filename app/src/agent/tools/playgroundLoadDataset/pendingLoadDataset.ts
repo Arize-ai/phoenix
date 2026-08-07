@@ -1,3 +1,5 @@
+import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval";
+
 import {
   LOAD_DATASET_NAVIGATION_CANCEL_ERROR,
   LOAD_DATASET_TOOL_NAME,
@@ -75,6 +77,7 @@ export function bindPendingLoadDatasetActions({
             approvalSource === "auto"
               ? "Dataset load auto-approved."
               : "Playground switched to dataset mode.",
+          ...approvalOutcome({ decision: "accepted", source: approvalSource }),
         },
       });
     },
@@ -87,6 +90,7 @@ export function bindPendingLoadDatasetActions({
         output: {
           status: "rejected",
           message: "User rejected the proposed dataset load.",
+          ...approvalOutcome({ decision: "rejected", source: "user" }),
         },
       });
     },

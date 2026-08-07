@@ -42,7 +42,12 @@ describe("bindPendingApproval", () => {
         state: "output-available",
         tool: "some_write_tool",
         toolCallId: "call-1",
-        output: { status: "accepted", acceptedBy: "user", message: "done" },
+        output: {
+          status: "accepted",
+          acceptedBy: "user",
+          message: "done",
+          approval: { decision: "accepted", source: "user" },
+        },
       },
     ]);
   });
@@ -50,7 +55,10 @@ describe("bindPendingApproval", () => {
   it("records the approval source for an auto (bypass) accept", async () => {
     const { pending, outputs } = setup({ ok: true, output: "done" });
     await pending.accept?.({ approvalSource: "auto" });
-    expect(outputs[0].output).toMatchObject({ acceptedBy: "auto" });
+    expect(outputs[0].output).toMatchObject({
+      acceptedBy: "auto",
+      approval: { decision: "accepted", source: "auto" },
+    });
   });
 
   it("emits an error output without applying again when apply fails", async () => {
@@ -79,7 +87,11 @@ describe("bindPendingApproval", () => {
         state: "output-available",
         tool: "some_write_tool",
         toolCallId: "call-1",
-        output: { status: "rejected", message: "nothing written" },
+        output: {
+          status: "rejected",
+          message: "nothing written",
+          approval: { decision: "rejected", source: "user" },
+        },
       },
     ]);
   });
