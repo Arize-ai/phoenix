@@ -9622,52 +9622,6 @@
         ],
         "title": "AssignAnnotationConfigToProjectResponseBody"
       },
-      "AssistantMessageMetadata": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "assistant",
-            "title": "Type"
-          },
-          "sessionId": {
-            "type": "string",
-            "title": "Sessionid"
-          },
-          "turnTraceContext": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/TurnTraceContext"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "usage": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AssistantMessageMetadataUsage"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "interrupted": {
-            "type": "boolean",
-            "title": "Interrupted",
-            "default": false
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "sessionId"
-        ],
-        "title": "AssistantMessageMetadata",
-        "description": "The ``phoenix`` metadata namespace of an assistant message."
-      },
       "AssistantMessageMetadataUsage": {
         "properties": {
           "tokens": {
@@ -13498,7 +13452,7 @@
           "parts"
         ],
         "title": "LegacyAssistantMetadataUIMessage",
-        "description": "``UIMessage`` with ``metadata`` narrowed to ``AssistantMessageMetadata``."
+        "description": "``UIMessage`` with ``metadata`` narrowed to ``PhoenixAssistantMessageMetadata``."
       },
       "LegacyChatRegenerateMessage": {
         "properties": {
@@ -14038,17 +13992,17 @@
               {
                 "oneOf": [
                   {
-                    "$ref": "#/components/schemas/AssistantMessageMetadata"
+                    "$ref": "#/components/schemas/PhoenixAssistantMessageMetadata"
                   },
                   {
-                    "$ref": "#/components/schemas/UserMessageMetadata"
+                    "$ref": "#/components/schemas/PhoenixUserMessageMetadata"
                   }
                 ],
                 "discriminator": {
                   "propertyName": "type",
                   "mapping": {
-                    "assistant": "#/components/schemas/AssistantMessageMetadata",
-                    "user": "#/components/schemas/UserMessageMetadata"
+                    "assistant": "#/components/schemas/PhoenixAssistantMessageMetadata",
+                    "user": "#/components/schemas/PhoenixUserMessageMetadata"
                   }
                 }
               },
@@ -14789,6 +14743,52 @@
         ],
         "title": "PatchPromptResponseBody"
       },
+      "PhoenixAssistantMessageMetadata": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "assistant",
+            "title": "Type"
+          },
+          "sessionId": {
+            "type": "string",
+            "title": "Sessionid"
+          },
+          "turnTraceContext": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnTraceContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantMessageMetadataUsage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "interrupted": {
+            "type": "boolean",
+            "title": "Interrupted",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "sessionId"
+        ],
+        "title": "PhoenixAssistantMessageMetadata",
+        "description": "The ``phoenix`` metadata namespace of an assistant message."
+      },
       "PhoenixUIMessage": {
         "properties": {
           "id": {
@@ -14895,6 +14895,39 @@
         ],
         "title": "PhoenixUIMessage",
         "description": "``UIMessage`` with metadata narrowed to the Phoenix wire shapes."
+      },
+      "PhoenixUserMessageMetadata": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "user",
+            "title": "Type"
+          },
+          "currentDateTime": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Currentdatetime"
+          },
+          "timeZone": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Timezone"
+          },
+          "isCompactionMessage": {
+            "type": "boolean",
+            "title": "Iscompactionmessage",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "currentDateTime",
+          "timeZone"
+        ],
+        "title": "PhoenixUserMessageMetadata",
+        "description": "The ``phoenix`` metadata namespace the browser attaches to outgoing\nuser messages."
       },
       "PlaygroundBuiltinModelContext": {
         "properties": {
@@ -19844,39 +19877,6 @@
           "user"
         ],
         "title": "UserApiKey"
-      },
-      "UserMessageMetadata": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "user",
-            "title": "Type"
-          },
-          "currentDateTime": {
-            "type": "string",
-            "maxLength": 128,
-            "title": "Currentdatetime"
-          },
-          "timeZone": {
-            "type": "string",
-            "maxLength": 128,
-            "title": "Timezone"
-          },
-          "isCompactionMessage": {
-            "type": "boolean",
-            "title": "Iscompactionmessage",
-            "default": false
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "currentDateTime",
-          "timeZone"
-        ],
-        "title": "UserMessageMetadata",
-        "description": "The ``phoenix`` metadata namespace the browser attaches to outgoing\nuser messages."
       },
       "ValidationError": {
         "properties": {

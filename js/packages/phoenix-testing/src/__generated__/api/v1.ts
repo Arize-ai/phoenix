@@ -1991,26 +1991,6 @@ export interface components {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
         };
-        /**
-         * AssistantMessageMetadata
-         * @description The ``phoenix`` metadata namespace of an assistant message.
-         */
-        AssistantMessageMetadata: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "assistant";
-            /** Sessionid */
-            sessionId: string;
-            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
-            usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
-            /**
-             * Interrupted
-             * @default false
-             */
-            interrupted?: boolean;
-        };
         /** AssistantMessageMetadataUsage */
         AssistantMessageMetadataUsage: {
             tokens: components["schemas"]["AssistantMessageMetadataUsageTokens"];
@@ -3474,7 +3454,7 @@ export interface components {
         };
         /**
          * LegacyAssistantMetadataUIMessage
-         * @description ``UIMessage`` with ``metadata`` narrowed to ``AssistantMessageMetadata``.
+         * @description ``UIMessage`` with ``metadata`` narrowed to ``PhoenixAssistantMessageMetadata``.
          */
         LegacyAssistantMetadataUIMessage: {
             /** Id */
@@ -3722,7 +3702,7 @@ export interface components {
          */
         MessageMetadata: {
             /** Phoenix */
-            phoenix?: (components["schemas"]["AssistantMessageMetadata"] | components["schemas"]["UserMessageMetadata"]) | null;
+            phoenix?: (components["schemas"]["PhoenixAssistantMessageMetadata"] | components["schemas"]["PhoenixUserMessageMetadata"]) | null;
             pydantic_ai?: components["schemas"]["PydanticAIMessageMetadata"] | null;
         };
         /**
@@ -4034,6 +4014,26 @@ export interface components {
             data: components["schemas"]["Prompt"];
         };
         /**
+         * PhoenixAssistantMessageMetadata
+         * @description The ``phoenix`` metadata namespace of an assistant message.
+         */
+        PhoenixAssistantMessageMetadata: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "assistant";
+            /** Sessionid */
+            sessionId: string;
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
+            usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
+            /**
+             * Interrupted
+             * @default false
+             */
+            interrupted?: boolean;
+        };
+        /**
          * PhoenixUIMessage
          * @description ``UIMessage`` with metadata narrowed to the Phoenix wire shapes.
          */
@@ -4048,6 +4048,27 @@ export interface components {
             metadata?: components["schemas"]["MessageMetadata"] | null;
             /** Parts */
             parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
+        };
+        /**
+         * PhoenixUserMessageMetadata
+         * @description The ``phoenix`` metadata namespace the browser attaches to outgoing
+         *     user messages.
+         */
+        PhoenixUserMessageMetadata: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "user";
+            /** Currentdatetime */
+            currentDateTime: string;
+            /** Timezone */
+            timeZone: string;
+            /**
+             * Iscompactionmessage
+             * @default false
+             */
+            isCompactionMessage?: boolean;
         };
         /**
          * PlaygroundBuiltinModelContext
@@ -6240,27 +6261,6 @@ export interface components {
             /** Expires At */
             expires_at?: string | null;
             user: components["schemas"]["ApiKeyUser"];
-        };
-        /**
-         * UserMessageMetadata
-         * @description The ``phoenix`` metadata namespace the browser attaches to outgoing
-         *     user messages.
-         */
-        UserMessageMetadata: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "user";
-            /** Currentdatetime */
-            currentDateTime: string;
-            /** Timezone */
-            timeZone: string;
-            /**
-             * Iscompactionmessage
-             * @default false
-             */
-            isCompactionMessage?: boolean;
         };
         /** ValidationError */
         ValidationError: {

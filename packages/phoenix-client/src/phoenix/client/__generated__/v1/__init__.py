@@ -417,6 +417,13 @@ class PatchPromptRequestBody(TypedDict):
     metadata: NotRequired[Mapping[str, Any]]
 
 
+class PhoenixUserMessageMetadata(TypedDict):
+    type: Literal["user"]
+    currentDateTime: str
+    timeZone: str
+    isCompactionMessage: NotRequired[bool]
+
+
 class PlaygroundBuiltinModelContext(TypedDict):
     type: Literal["builtin"]
     provider: str
@@ -1071,13 +1078,6 @@ class UserApiKey(TypedDict):
     expires_at: NotRequired[str]
 
 
-class UserMessageMetadata(TypedDict):
-    type: Literal["user"]
-    currentDateTime: str
-    timeZone: str
-    isCompactionMessage: NotRequired[bool]
-
-
 class ValidationError(TypedDict):
     loc: Sequence[Union[str, int]]
     msg: str
@@ -1593,6 +1593,14 @@ class PatchPromptResponseBody(TypedDict):
     data: Prompt
 
 
+class PhoenixAssistantMessageMetadata(TypedDict):
+    type: Literal["assistant"]
+    sessionId: str
+    turnTraceContext: NotRequired[TurnTraceContext]
+    usage: NotRequired[AssistantMessageMetadataUsage]
+    interrupted: NotRequired[bool]
+
+
 class PlaygroundContext(TypedDict):
     type: Literal["playground"]
     recordExperiments: NotRequired[bool]
@@ -1821,14 +1829,6 @@ class AssignAnnotationConfigToProjectResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
 
-class AssistantMessageMetadata(TypedDict):
-    type: Literal["assistant"]
-    sessionId: str
-    turnTraceContext: NotRequired[TurnTraceContext]
-    usage: NotRequired[AssistantMessageMetadataUsage]
-    interrupted: NotRequired[bool]
-
-
 class ChatCompletion(TypedDict):
     id: str
     created: int
@@ -1985,7 +1985,7 @@ class LegacyChatSubmitMessage(TypedDict):
 
 
 class MessageMetadata(TypedDict):
-    phoenix: NotRequired[Union[AssistantMessageMetadata, UserMessageMetadata]]
+    phoenix: NotRequired[Union[PhoenixAssistantMessageMetadata, PhoenixUserMessageMetadata]]
     pydantic_ai: NotRequired[PydanticAIMessageMetadata]
 
 
