@@ -1060,18 +1060,88 @@ async def test_span_and_trace_annotations_join_distinct_relations(
     abc_project: Any,
 ) -> None:
     span_filter = SpanFilter(
-        "annotations['quality'].score >= 0.5 and "
-        "trace_annotations['quality'].score >= 0.5"
+        "annotations['quality'].score >= 0.5 and trace_annotations['quality'].score >= 0.5"
     )
-    assert sorted(
-        relation.kind for relation in span_filter._aliased_annotation_relations
-    ) == ["span", "trace"]
+    assert sorted(relation.kind for relation in span_filter._aliased_annotation_relations) == [
+        "span",
+        "trace",
+    ]
     statement = span_filter(select(models.Span.id))
     compiled = str(statement)
     assert "trace_annotations" in compiled
     assert "span_annotations" in compiled
     async with db() as session:
-        await session.execute(statement)
+        trace_rows = await session.execute(
+            select(models.Trace.trace_id, models.Trace.id).where(
+                models.Trace.trace_id.in_(["0123", "012"])
+            )
+        )
+        trace_rowids = dict(trace_rows.all())
+        span_rows = await session.execute(
+            select(models.Span.span_id, models.Span.id).where(
+                models.Span.span_id.in_(["2345", "4567", "234"])
+            )
+        )
+        span_rowids = dict(span_rows.all())
+        await session.execute(
+            insert(models.TraceAnnotation),
+            [
+                {
+                    "trace_rowid": trace_rowids["0123"],
+                    "name": "quality",
+                    "score": 0.9,
+                    "metadata_": {},
+                    "annotator_kind": "LLM",
+                    "identifier": "",
+                    "source": "APP",
+                },
+                {
+                    "trace_rowid": trace_rowids["012"],
+                    "name": "quality",
+                    "score": 0.1,
+                    "metadata_": {},
+                    "annotator_kind": "LLM",
+                    "identifier": "",
+                    "source": "APP",
+                },
+            ],
+        )
+        await session.execute(
+            insert(models.SpanAnnotation),
+            [
+                {
+                    "span_rowid": span_rowids["2345"],
+                    "name": "quality",
+                    "score": 0.9,
+                    "metadata_": {},
+                    "annotator_kind": "LLM",
+                    "identifier": "",
+                    "source": "APP",
+                },
+                {
+                    "span_rowid": span_rowids["4567"],
+                    "name": "quality",
+                    "score": 0.1,
+                    "metadata_": {},
+                    "annotator_kind": "LLM",
+                    "identifier": "",
+                    "source": "APP",
+                },
+                {
+                    "span_rowid": span_rowids["234"],
+                    "name": "quality",
+                    "score": 0.9,
+                    "metadata_": {},
+                    "annotator_kind": "LLM",
+                    "identifier": "",
+                    "source": "APP",
+                },
+            ],
+        )
+
+        matched_span_rowids = list(await session.scalars(statement))
+
+    assert matched_span_rowids == [span_rowids["2345"]]
 
 
 class TestProjectorValidationGap:

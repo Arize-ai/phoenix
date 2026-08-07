@@ -963,9 +963,7 @@ class SpanFilter:
             return select.where(predicate)
         return select.where(self._annotation_predicate_exists(predicate))
 
-    def _annotation_predicate_exists(
-        self, predicate: ColumnElement[bool]
-    ) -> ColumnElement[bool]:
+    def _annotation_predicate_exists(self, predicate: ColumnElement[bool]) -> ColumnElement[bool]:
         """Evaluate annotation predicates without duplicating spans.
 
         The one-row seed preserves outer-join semantics for missing annotations.
@@ -3325,9 +3323,7 @@ class _AnnotationExpressionAliaser(ast.NodeVisitor):
         relation = self._get_relation(node, annotation_name)
         self._add_replacement(node, relation._exists_attribute_alias)
 
-    def _get_relation(
-        self, node: ast.Subscript, annotation_name: str
-    ) -> AliasedAnnotationRelation:
+    def _get_relation(self, node: ast.Subscript, annotation_name: str) -> AliasedAnnotationRelation:
         annotation_accessor = typing.cast(ast.Name, node.value).id
         kind: AnnotationRelationKind = (
             "trace" if annotation_accessor == "trace_annotations" else "span"
@@ -3336,9 +3332,7 @@ class _AnnotationExpressionAliaser(ast.NodeVisitor):
         if (relation := self._relations_by_key.get(key)) is None:
             if kind == "trace":
                 if self._bindings is not SPAN_BINDINGS:
-                    raise SyntaxError(
-                        "`trace_annotations` is only available when filtering spans"
-                    )
+                    raise SyntaxError("`trace_annotations` is only available when filtering spans")
                 annotation_model = models.TraceAnnotation
                 table_prefix = "trace_annotation"
             else:
