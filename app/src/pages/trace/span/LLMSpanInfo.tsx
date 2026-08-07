@@ -1,6 +1,7 @@
 import { Flex } from "@phoenix/components";
 
 import { LLMInput } from "./LLMInput";
+import { LLMMessagesCollapseProvider } from "./LLMMessagesCollapseContext";
 import { LLMOutput } from "./LLMOutput";
 import type { AttributeObject, SpanInfoData } from "./types";
 import { getLLMAttributes } from "./utils";
@@ -30,17 +31,23 @@ export function LLMSpanInfo({
 
   return (
     <Flex direction="column" gap="size-200">
-      <LLMInput
-        modelName={modelName}
-        provider={provider}
-        input={input}
-        inputMessages={inputMessages}
-        toolSchemas={toolSchemas}
-        promptTemplate={promptTemplate}
-        prompts={prompts}
-        invocationParameters={invocationParameters}
-      />
-      <LLMOutput output={output} outputMessages={outputMessages} />
+      {/* the span is passed so that expanding a message in one span does not
+          decide what the next span the reader opens looks like */}
+      <LLMMessagesCollapseProvider spanId={span.id} messages={inputMessages}>
+        <LLMInput
+          modelName={modelName}
+          provider={provider}
+          input={input}
+          inputMessages={inputMessages}
+          toolSchemas={toolSchemas}
+          promptTemplate={promptTemplate}
+          prompts={prompts}
+          invocationParameters={invocationParameters}
+        />
+      </LLMMessagesCollapseProvider>
+      <LLMMessagesCollapseProvider spanId={span.id} messages={outputMessages}>
+        <LLMOutput output={output} outputMessages={outputMessages} />
+      </LLMMessagesCollapseProvider>
     </Flex>
   );
 }

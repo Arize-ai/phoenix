@@ -3,7 +3,7 @@ import { css } from "@emotion/react";
 import { Token } from "@phoenix/components";
 
 import { getAnnotationTooltipFilters } from "./annotationFilterUtils";
-import { useSpanFilters } from "./SpanFiltersContext";
+import { useSpanFilterActions } from "./SpanFiltersContext";
 
 type AnnotationTooltipFilterActionsProps = {
   className?: string;
@@ -55,7 +55,7 @@ export function AnnotationTooltipFilterActions(
 export function SpanAnnotationTooltipFilterActions(
   props: Omit<AnnotationTooltipFilterActionsProps, "onAppendFilterCondition">
 ) {
-  const { appendFilterCondition } = useSpanFilters();
+  const { appendFilterCondition } = useSpanFilterActions();
   return (
     <AnnotationTooltipFilterActions
       {...props}

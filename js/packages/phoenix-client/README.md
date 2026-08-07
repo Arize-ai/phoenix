@@ -729,6 +729,31 @@ await addSessionNote({
 });
 ```
 
+## Projects
+
+The `@arizeai/phoenix-client` package provides a `projects` export for listing projects.
+
+### Fetching Projects
+
+Use `getProjects` to list projects. Pagination is handled for you.
+
+```ts
+import { getProjects } from "@arizeai/phoenix-client/projects";
+
+// List every project
+const projects = await getProjects();
+
+for (const project of projects) {
+  console.log(`Project: ${project.name} (${project.id})`);
+}
+```
+
+Pass `nameContains` to filter by a case-insensitive substring of the project name. The filter is applied server-side and requires Phoenix server `17.16.0` or newer.
+
+```ts
+const agentProjects = await getProjects({ nameContains: "agent" });
+```
+
 ## Examples
 
 To run examples, install dependencies using `pnpm` and run:

@@ -9,6 +9,7 @@ import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps } from "./constants";
 import type { LLMIOView } from "./LLMIOViewSelect";
 import { LLMIOViewSelect, useLLMIOView } from "./LLMIOViewSelect";
+import { LLMMessagesCollapseToggle } from "./LLMMessagesCollapseToggle";
 import { LLMMessagesList } from "./LLMMessagesList";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
 import type { SpanIOValue } from "./types";
@@ -70,6 +71,9 @@ export function LLMOutput({
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             {isRawView && <ConnectedMarkdownModeSelect />}
+            {view === "output-messages" && (
+              <LLMMessagesCollapseToggle scope="output" />
+            )}
             {views.length > 0 && (
               <LLMIOViewSelect
                 label="Output view"

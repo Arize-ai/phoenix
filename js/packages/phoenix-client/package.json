@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-client",
-  "version": "7.1.1",
+  "version": "7.2.0",
   "description": "A client for the Phoenix API",
   "keywords": [
     "arize",
@@ -52,6 +52,10 @@
     "./sessions": {
       "import": "./dist/esm/sessions/index.js",
       "require": "./dist/src/sessions/index.js"
+    },
+    "./projects": {
+      "import": "./dist/esm/projects/index.js",
+      "require": "./dist/src/projects/index.js"
     },
     "./traces": {
       "import": "./dist/esm/traces/index.js",

@@ -1,0 +1,111 @@
+---
+title: "Together AI Tracing"
+description: Instrument LLM calls made using the Together AI SDK via the TogetherInstrumentor
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+[Together AI](https://www.together.ai/) provides fast inference for a wide range of open-source models. The `Together` and `AsyncTogether` chat completions clients can be instrumented using the [`openinference-instrumentation-together`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-together) package, which traces calls as OpenInference LLM spans.
+
+<Note>
+This integration requires `together >= 2.0.0`.
+</Note>
+
+## Install
+
+```bash
+pip install openinference-instrumentation-together "together>=2.0.0"
+```
+
+## Setup
+
+Set the `TOGETHER_API_KEY` environment variable to authenticate calls made using the SDK.
+
+```bash
+export TOGETHER_API_KEY=[your_key_here]
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+`auto_instrument=True` picks up the installed `openinference-instrumentation-together` package automatically. To instrument explicitly instead, call `TogetherInstrumentor().instrument(tracer_provider=tracer_provider)`.
+
+## Run Together AI
+
+A simple chat completion that is now instrumented:
+
+```python
+from together import Together
+
+client = Together()
+response = client.chat.completions.create(
+    model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    messages=[{"role": "user", "content": "Why is the sky blue?"}],
+)
+print(response.choices[0].message.content)
+```
+
+### Streaming
+
+When `stream=True`, the span stays open until the stream is fully consumed, then records the accumulated output, tool calls, and token counts from the chunks.
+
+```python
+stream = client.chat.completions.create(
+    model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    messages=[{"role": "user", "content": "Write a haiku about observability."}],
+    stream=True,
+)
+for chunk in stream:
+    if chunk.choices and chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="", flush=True)
+```
+
+### Tool calls
+
+Tools passed on the request (`llm.tools.*`) and any tool calls returned on the response (`message.tool_calls.*`) are captured on the span.
+
+```python
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_current_weather",
+            "description": "Get the current weather in a given city",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "city": {"type": "string", "description": "The city, e.g. Paris"},
+                },
+                "required": ["city"],
+            },
+        },
+    }
+]
+
+response = client.chat.completions.create(
+    model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    messages=[{"role": "user", "content": "What is the weather in Paris right now?"}],
+    tools=tools,
+)
+message = response.choices[0].message
+if message.tool_calls:
+    for tool_call in message.tool_calls:
+        print(f"tool call: {tool_call.function.name}({tool_call.function.arguments})")
+else:
+    print(message.content)
+```
+
+## Observe
+
+Now that you have tracing setup, all invocations of Together AI chat completions (sync and async, streaming and non-streaming) will be streamed to your running Phoenix for observability and evaluation.
+
+## Resources
+
+* [Example Chat Completions](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-together/examples/chat.py)
+
+* [Example Streaming](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-together/examples/chat_stream.py)
+
+* [Example Tool Calls](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-together/examples/tool_call.py)
+
+* [OpenInference package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-together)
+
+* [Working examples](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-together/examples)
