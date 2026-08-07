@@ -1,0 +1,209 @@
+---
+title: "Filter Expressions"
+description: Filter spans and sessions with Python-style filter expressions, in the UI and over the API.
+---
+
+A filter is a small **Python boolean expression** that Phoenix compiles to a database query. You
+type one into a filter bar to narrow a table, or pass one to the API to scope a result set.
+
+Phoenix has two filter dialects — one for **spans** and one for **sessions**. They share the same
+basics (the same operators, the same `annotations["name"].score` idiom, the same string and casting
+rules), but they are **two dialects, not one language**: sessions add aggregates and comprehensions
+and reject unknown names, while spans are more permissive and expose span-specific fields. Learn the
+shared basics once, then jump to the section for what you're filtering. (This language is sometimes
+called the "filter DSL.")
+
+<Note>
+Session filters are available in Phoenix **19.18.0+**. Span filters have been available since
+early releases.
+</Note>
+
+## Where filters work
+
+| Surface | Span filters | Session filters |
+| :--- | :--- | :--- |
+| UI filter bar | Yes — spans / traces table (via GraphQL) | Yes — sessions table (via GraphQL) |
+| GraphQL | `filterCondition` argument | `sessionFilterCondition` argument |
+| Python client (dataframe export) | Yes — `SpanQuery().where(...)`, sent to `POST /v1/spans` | Not yet |
+| REST list / search endpoints | Discrete query params only — no filter expression | No filter surface |
+
+The UI filter bars are **clients of the GraphQL API**, not a separate surface. On the span side, the
+Python client's `SpanQuery().where(...)` also carries a filter expression, sent to the `POST /v1/spans`
+export endpoint — so span filters are not GraphQL-only. What does **not** accept an expression is the
+newer discrete-parameter span list/search REST endpoints (the "simple filters" endpoints), which take
+fixed query params instead. Sessions have no REST or Python-client filter surface yet; broader client
+access to the expression language is tracked in
+[#15099](https://github.com/Arize-ai/phoenix/issues/15099) and
+[#15112](https://github.com/Arize-ai/phoenix/issues/15112).
+
+<Info>
+The **Experiment Compare** view has its own, separate filter language for filtering experiment
+runs. It is not the span or session filter language and is not covered here.
+</Info>
+
+## Finding field names
+
+This page teaches the **grammar** — operators, idioms, and the shape of each construct. It does not
+list every field name, because the set of names is data-dependent (your attribute keys, your
+annotation names) and is served live rather than frozen into docs:
+
+- In any **filter bar**, start typing to get a typeahead of the names available on your project,
+  grouped by kind (fields, aggregates, collections, attributes, annotations).
+- For sessions, the same vocabulary is available over GraphQL via **`sessionFilterVocabulary`**, so
+  a tool can enumerate valid names programmatically.
+- Span filters have **no equivalent served vocabulary endpoint** today — discovery for spans is the
+  filter-bar typeahead only.
+
+The typeahead is the source of truth for *which names exist*; the examples below show *how to
+combine them*.
+
+<Note>
+**About this reference.** This page is the user-facing description of the filter grammar and where it
+is accepted. The accepted grammar is pinned by Phoenix's filter engine and its conformance test
+suite — this page tracks that, it does not define it. Field names come from your project's data
+(the typeahead, and `sessionFilterVocabulary` for sessions), not from this page.
+</Note>
+
+## Span filters
+
+A span filter matches individual spans. The examples pull retriever spans, slow spans, error spans,
+and spans with particular attributes or annotations:
+
+{/* filter-example: span */}
+```python
+span_kind == 'RETRIEVER'
+latency_ms > 100
+0.5 < latency_ms < 1000
+span_kind in ['LLM', 'RETRIEVER']
+span_kind == 'LLM' and 'programming' in input.value
+```
+
+Reach into span **attributes** by name — any identifier that isn't a built-in field resolves to an
+attribute path, and `metadata[...]` is sugar for the `metadata` attribute:
+
+{/* filter-example: span */}
+```python
+attributes['llm.model_name'] == 'gpt-4o'
+llm.model_name == 'gpt-4o'
+metadata['topic'] == 'programming'
+'programming' in metadata['topic']
+```
+
+Filter on **annotations / evals** with `annotations["name"]` (the alias `evals["name"]` also works),
+reading `.score`, `.label`, or `.explanation`. A bare `annotations["name"]` is an existence check,
+and `is None` finds spans an annotation hasn't been written to yet:
+
+{/* filter-example: span */}
+```python
+annotations['correctness'].label == 'incorrect'
+annotations['hallucination'].score > 0.5
+evals['correctness'].label == 'incorrect'
+annotations['correctness'].label is None
+```
+
+Use `parent_span is None` to keep only root spans (and `is not None` for the rest):
+
+{/* filter-example: span */}
+```python
+parent_span is None
+parent_span is not None
+```
+
+Span-specific notes:
+
+- **Enum case-folding:** `span_kind` and `status_code` hold uppercase values, and a string literal
+  compared against them is upper-cased for you — `span_kind == 'llm'` and `span_kind == 'LLM'` match
+  the same spans.
+- **`int()` is accepted** (it behaves like `float()` — it does not truncate). Session filters reject
+  `int()`; both dialects accept `float()` and `str()`.
+- **Unknown names never error:** a name that isn't a field is read as an attribute path, so a typo
+  filters on an attribute that doesn't exist (matching nothing) rather than raising.
+
+The same expressions run in the spans/traces filter bar and in the Python client's
+[`SpanQuery().where(...)`](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#running-span-queries)
+export path.
+
+## Session filters
+
+A session groups the traces of one conversation. A session filter can test **aggregate properties**
+of the whole session and **reach into its components**.
+
+Aggregates roll up the session's traces and spans. Each is `0` when the session has no matching
+data, so they are safe to divide and compare:
+
+{/* filter-example: session */}
+```python
+num_traces > 5 and total_cost > 0.50
+num_traces_with_error / num_traces > 0.2
+duration_ms > 60000
+```
+
+Read session-level **annotations** and the session's **root-span** attributes and I/O. `first_input`
+and `last_output` are the session's opening input and final output as strings — use `==`, `in`, or
+`is None`. `any_input` and `any_output` are **containment-only**: they take `in` / `not in` across
+*all* of the session's inputs/outputs and never `==`:
+
+{/* filter-example: session */}
+```python
+annotations['Quality'].score <= 0.5
+annotations['Quality'].score is None
+attributes['llm.model_name'] == 'gpt-4o'
+user.id == 'u1'
+'refund' in any_input
+'refund' in first_input
+last_output is not None
+```
+
+**Comprehensions** quantify and aggregate over a session's members with real Python comprehension
+syntax. `any`/`all` ask a yes/no question; `len`/`sum`/`max`/`min` reduce to a number. Iterate over
+the session's collections — use the [typeahead or `sessionFilterVocabulary`](#finding-field-names)
+to see which collections and element fields your project exposes:
+
+{/* filter-example: session */}
+```python
+any(span.status_code == 'ERROR' for span in spans)
+all(trace.latency_ms < 30000 for trace in traces)
+len([span for span in spans if span.span_kind == 'TOOL']) > 3
+sum(detail.tokens for detail in span_cost_details if detail.token_type == 'input') > 0
+any(a.label == 'correct' for a in span_annotations)
+```
+
+A `traces` element exposes its own `spans`, so you can ask per-turn questions with one level of
+nesting:
+
+{/* filter-example: session */}
+```python
+any(len([span for span in trace.spans if span.span_kind == 'TOOL']) > 5 for trace in traces)
+```
+
+Session-specific notes:
+
+- **Strict names:** unknown names are rejected with a "did you mean" suggestion (unlike span
+  filters, which fall back to attribute paths).
+- **Loop variables only:** inside a comprehension you reference the loop variable's fields
+  (`span.latency_ms`), not bare session-level names.
+- Use the [typeahead or `sessionFilterVocabulary`](#finding-field-names) to discover the exact
+  aggregate, collection, and element-field names available on your project.
+
+## Rules that apply to both dialects
+
+- **`in` / `not in` ignore case.** Containment against text is case-insensitive on both database
+  backends: `'refund' in first_input` matches `REFUND please`. Equality (`==` / `!=`) and membership
+  in a literal list (`span_kind in ['LLM']`) stay exact.
+- **Missing values fail every comparison.** If a value is absent, comparing it against anything is
+  false in *both* directions. To target genuinely-missing values, use `is None` / `is not None`.
+- **Datetime literals need a timezone offset.** Write `start_time > '2026-07-01T00:00:00+00:00'`
+  (or a trailing `Z`). A literal without an offset is rejected, because it would mean different
+  instants in different deployments.
+- **Casts are explicit.** `float(...)` and `str(...)` convert an attribute of unknown type; there is
+  no implicit string-to-number coercion.
+- **Logical operators:** combine conditions with `and`, `or`, and `not`. The whole expression must
+  be a condition (a comparison or combination of them), not a bare value.
+
+A timezone-qualified datetime bound and an explicit cast look like this:
+
+{/* filter-example: span */}
+```python
+start_time > '2024-01-01T00:00:00Z'
+float(attributes['retry_count']) > 1
+```

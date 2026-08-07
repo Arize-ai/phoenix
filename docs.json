@@ -161,6 +161,7 @@
                     ]
                   },
                   "docs/phoenix/tracing/how-to-tracing/cost-tracking",
+                  "docs/phoenix/tracing/how-to-tracing/filter-expressions",
                   {
                     "group": "Advanced",
                     "pages": [
