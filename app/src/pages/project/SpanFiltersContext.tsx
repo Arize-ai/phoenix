@@ -2,10 +2,11 @@ import type { PropsWithChildren } from "react";
 import {
   createContext,
   startTransition,
-  useCallback,
   useContext,
   useEffect,
   useEffectEvent,
+  useMemo,
+  useRef,
   useState,
 } from "react";
 import { useSearchParams } from "react-router";
@@ -23,28 +24,82 @@ import { joinFilterConditions } from "@phoenix/utils/filterConditionUtils";
 import { validateSpanFilterCondition } from "./spanFilterValidation";
 
 /**
- * State for the on-screen span filter: the freeform filter condition
- * expression, which is the single description of what the spans page is
- * showing. Root-vs-all-spans is part of that expression (`parent_span is
- * None`) rather than a separate flag, so the agent can drive the whole view by
- * manipulating one string.
+ * Write-side operations on the span filter. Split from the filter-condition
+ * value so that consumers which only need to append or replace the condition
+ * (row cells, tooltips) don't re-render on every keystroke in the filter
+ * input — which is what would happen if these callbacks lived on the same
+ * context as the condition string.
  */
-export type SpanFiltersContextType = {
-  filterCondition: string;
+export type SpanFiltersActions = {
   setFilterCondition: (condition: string) => void;
   appendFilterCondition: (condition: string) => void;
 };
 
-export const SpanFiltersContext = createContext<SpanFiltersContextType | null>(
+/**
+ * Full context surface used by the filter field itself, which needs both the
+ * current condition string and the actions to update it. Kept as a type so
+ * `useSpanFilters` can hand back the composed view.
+ */
+export type SpanFiltersContextType = SpanFiltersActions & {
+  filterCondition: string;
+};
+
+/**
+ * The condition string is on its own context so that consumers subscribing
+ * only to the actions don't re-render when the condition changes. The filter
+ * field is the only consumer of this context in the common path.
+ */
+const SpanFilterConditionContext = createContext<string | null>(null);
+
+/**
+ * Actions are stable for the provider's lifetime — they read the current
+ * condition through a ref rather than closing over it — so a component that
+ * only calls `appendFilterCondition` never re-renders because of typing.
+ */
+const SpanFiltersActionsContext = createContext<SpanFiltersActions | null>(
   null
 );
 
-export function useSpanFilters() {
-  const context = useContext(SpanFiltersContext);
-  if (context === null) {
-    throw new Error("useSpanFilters must be used within a SpanFiltersProvider");
+/**
+ * The condition + actions together, for callers that need both (e.g. the
+ * filter field). Prefer `useSpanFilterCondition` or `useSpanFilterActions`
+ * where only one half is needed — that's what avoids per-row re-renders on
+ * every keystroke.
+ */
+export function useSpanFilters(): SpanFiltersContextType {
+  const filterCondition = useSpanFilterCondition();
+  const actions = useSpanFilterActions();
+  return { filterCondition, ...actions };
+}
+
+/**
+ * The current filter condition string. Subscribing to just this re-renders on
+ * every keystroke, so use it only where the string itself is rendered.
+ */
+export function useSpanFilterCondition(): string {
+  const value = useContext(SpanFilterConditionContext);
+  if (value === null) {
+    throw new Error(
+      "useSpanFilterCondition must be used within a SpanFiltersProvider"
+    );
   }
-  return context;
+  return value;
+}
+
+/**
+ * The write-side operations for the span filter. Identity is stable for the
+ * provider's lifetime, so this hook never causes a consumer to re-render on
+ * its own — the reference to render-per-keystroke consumers should get from
+ * the context.
+ */
+export function useSpanFilterActions(): SpanFiltersActions {
+  const value = useContext(SpanFiltersActionsContext);
+  if (value === null) {
+    throw new Error(
+      "useSpanFilterActions must be used within a SpanFiltersProvider"
+    );
+  }
+  return value;
 }
 
 /**
@@ -99,36 +154,48 @@ export function SpanFiltersProvider(
     });
   }, [urlCondition]);
 
-  const setFilterCondition = useCallback((condition: string) => {
-    startTransition(() => {
-      _setFilterCondition(condition);
-    });
-  }, []);
-  const appendFilterCondition = useCallback(
-    (condition: string) => {
-      startTransition(() => {
-        _setFilterCondition(
-          joinFilterConditions({
-            existingCondition: filterCondition,
-            nextCondition: condition,
-          })
-        );
-      });
-    },
-    [filterCondition]
+  // `appendFilterCondition` needs the current condition to join against, but
+  // closing over it would give the callback a new identity on every keystroke
+  // — which would either force all action-only consumers (row cells,
+  // tooltips) to re-render, or defeat any memoization built on top of it.
+  // Reading the latest condition through a ref keeps the callback stable
+  // while still joining against fresh state.
+  const filterConditionRef = useRef(filterCondition);
+  useEffect(() => {
+    filterConditionRef.current = filterCondition;
+  }, [filterCondition]);
+
+  const actions = useMemo<SpanFiltersActions>(
+    () => ({
+      setFilterCondition: (condition: string) => {
+        startTransition(() => {
+          _setFilterCondition(condition);
+        });
+      },
+      appendFilterCondition: (condition: string) => {
+        startTransition(() => {
+          _setFilterCondition(
+            joinFilterConditions({
+              existingCondition: filterConditionRef.current,
+              nextCondition: condition,
+            })
+          );
+        });
+      },
+    }),
+    []
   );
-  useRegisterSetSpansFilterClientAction({ setFilterCondition });
+
+  useRegisterSetSpansFilterClientAction({
+    setFilterCondition: actions.setFilterCondition,
+  });
 
   return (
-    <SpanFiltersContext.Provider
-      value={{
-        filterCondition,
-        setFilterCondition,
-        appendFilterCondition,
-      }}
-    >
-      {props.children}
-    </SpanFiltersContext.Provider>
+    <SpanFiltersActionsContext.Provider value={actions}>
+      <SpanFilterConditionContext.Provider value={filterCondition}>
+        {props.children}
+      </SpanFilterConditionContext.Provider>
+    </SpanFiltersActionsContext.Provider>
   );
 }
 
