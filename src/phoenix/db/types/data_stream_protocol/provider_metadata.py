@@ -1,12 +1,5 @@
-"""Payloads carried inside part-level Vercel AI ``providerMetadata`` in
-persisted messages: the Phoenix-owned ``phoenix`` namespace and pydantic-ai's
-``pydantic_ai`` namespace.
-
-These live in ``phoenix.db.types`` (not the router) because the namespaces they
-describe are persisted inside the parts of a ``PhoenixUIMessage`` and are
-validated there — see ``PhoenixUIMessage``'s model validators in
-``phoenix_types``.
-"""
+"""The ``phoenix`` and ``pydantic_ai`` namespaces of part-level Vercel AI
+``providerMetadata``, validated at persist time by ``PhoenixUIMessage``."""
 
 from typing import Literal
 
@@ -43,8 +36,7 @@ class ToolCallCallbackProviderMetadata(ToolCallProviderMetadata):
 
 
 PydanticAIToolPartKind = Literal["tool-search", "capability-load"]
-"""Local pin of pydantic-ai's ``ToolPartKind``; a canary test holds it equal
-to the installed package's."""
+"""Local pin of pydantic-ai's ``ToolPartKind``."""
 
 
 class _BasePydanticAIProviderMetadata(BaseModel):
