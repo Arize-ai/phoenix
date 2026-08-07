@@ -4,12 +4,21 @@ import type { CSSProperties } from "react";
 
 import { truncateSingleCSS } from "@phoenix/components/core/utility/Truncate";
 
+import { ACTIONS_COLUMN_ID, CHECKBOX_COLUMN_ID } from "./constants";
+
 /**
  * Marks a `<td>` that holds one column's value, as opposed to the cells that
  * stand in for a whole row (empty state, load more). Table bodies put it on
  * every cell they render from a column definition.
  */
 export const TABLE_DATA_CELL_CLASS = "table__cell";
+
+/**
+ * Selector for data cells that contain text and should be clipped/truncated.
+ * Selection and action cells hold focusable controls whose focus rings must
+ * not be clipped by `overflow: hidden`.
+ */
+const CLIPPED_DATA_CELL_SELECTOR = `td.${TABLE_DATA_CELL_CLASS}:not([data-column-id="${CHECKBOX_COLUMN_ID}"]):not([data-column-id="${ACTIONS_COLUMN_ID}"])`;
 
 export const tableCSS = css`
   // fixes table row sizing issues with full height cell children
@@ -166,8 +175,10 @@ export const selectableTableCSS = css(
 export const expandableRowsTableCSS = css`
   // Only data cells take a row height; the cells that stand in for a whole row
   // (empty state, load more) lay themselves out.
+  // Selection and action cells are excluded from clipping so focus rings on
+  // checkboxes and action controls remain fully visible.
   &[data-rows="collapsed"] {
-    td.${TABLE_DATA_CELL_CLASS} {
+    ${CLIPPED_DATA_CELL_SELECTOR} {
       ${truncateSingleCSS};
       // a <pre> would keep its newlines and outgrow the single line; it also
       // overflows on its own terms, so the cell's ellipsis is repeated here
@@ -179,7 +190,7 @@ export const expandableRowsTableCSS = css`
     }
   }
   &[data-rows="expanded"] {
-    td.${TABLE_DATA_CELL_CLASS} {
+    ${CLIPPED_DATA_CELL_SELECTOR} {
       vertical-align: top;
       overflow: hidden;
       // long unbroken values (ids, serialized JSON) wrap within the cell

@@ -173,6 +173,7 @@ const TableBody = <
                 <td
                   key={cell.id}
                   className={TABLE_DATA_CELL_CLASS}
+                  data-column-id={cell.column.id}
                   style={{
                     ...getCommonPinningStyles(cell.column),
                     width: `calc(var(${colSizeVar}) * 1px)`,
