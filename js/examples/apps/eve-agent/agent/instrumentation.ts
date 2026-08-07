@@ -17,18 +17,19 @@ import {
   isOpenInferenceSpan,
   OpenInferenceSimpleSpanProcessor,
 } from "@arizeai/openinference-vercel";
-import { OTLPTraceExporter, register } from "@arizeai/phoenix-otel";
+import {
+  ensureCollectorEndpoint,
+  OTLPTraceExporter,
+  register,
+} from "@arizeai/phoenix-otel";
 import { defineInstrumentation } from "eve/instrumentation";
 
 export default defineInstrumentation({
   setup: ({ agentName }) => {
-    const collectorEndpoint = (
+    // Accepts a base URL or one that already carries the OTLP /v1/traces path.
+    const traceUrl = ensureCollectorEndpoint(
       process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006"
-    ).replace(/\/+$/, "");
-    // Accept either a base URL or one that already carries the OTLP path.
-    const traceUrl = collectorEndpoint.endsWith("/v1/traces")
-      ? collectorEndpoint
-      : `${collectorEndpoint}/v1/traces`;
+    );
 
     register({
       projectName: process.env.PHOENIX_PROJECT_NAME ?? agentName,
