@@ -334,7 +334,12 @@ print(json.dumps(audit_log.model_dump(), indent=2))
 ## Observe
 
 Now that you have tracing set up, all AG2 agent chats, replies, and tool calls are streamed to
-Phoenix for observability and evaluation.
+Phoenix for observability and evaluation. Each `ConversableAgent` chat and reply appears as an
+`AGENT` span, with tool executions nested underneath as `TOOL` spans.
+
+<Frame caption="An AG2 trace in Phoenix">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ag2-example-trace.png" />
+</Frame>
 
 ## Migrating from `openinference-instrumentation-autogen`
 
