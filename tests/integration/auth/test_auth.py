@@ -1990,7 +1990,7 @@ class TestApiAccessViaCookiesOrApiKeys:
         member_client = _httpx_client(_app, member.tokens)
         admin_client = _httpx_client(_app, admin.tokens)
         member_session_response = member_client.post(
-            "v1/agents/assistant/sessions",
+            "v1/agent_sessions",
             json={
                 "title": "Member session",
                 "is_ephemeral": False,
@@ -2004,7 +2004,7 @@ class TestApiAccessViaCookiesOrApiKeys:
         member_session_response.raise_for_status()
         member_session_id = member_session_response.json()["data"]["id"]
         admin_session_response = admin_client.post(
-            "v1/agents/assistant/sessions",
+            "v1/agent_sessions",
             json={
                 "title": "Admin session",
                 "is_ephemeral": False,
@@ -2019,30 +2019,20 @@ class TestApiAccessViaCookiesOrApiKeys:
         admin_session_id = admin_session_response.json()["data"]["id"]
 
         member_api_client = _httpx_client(_app, member.create_api_key(_app))
-        list_response = member_api_client.get("v1/agents/assistant/sessions")
+        list_response = member_api_client.get("v1/agent_sessions")
 
         assert list_response.status_code == 200
         session_ids = {session["id"] for session in list_response.json()["data"]}
         assert member_session_id in session_ids
         assert admin_session_id not in session_ids
+        assert member_api_client.get(f"v1/agent_sessions/{member_session_id}").status_code == 200
+        assert member_api_client.get(f"v1/agent_sessions/{admin_session_id}").status_code == 404
         assert (
-            member_api_client.get(f"v1/agents/assistant/sessions/{member_session_id}").status_code
+            member_api_client.get(f"v1/agent_sessions/{member_session_id}/messages").status_code
             == 200
         )
         assert (
-            member_api_client.get(f"v1/agents/assistant/sessions/{admin_session_id}").status_code
-            == 404
-        )
-        assert (
-            member_api_client.get(
-                f"v1/agents/assistant/sessions/{member_session_id}/messages"
-            ).status_code
-            == 200
-        )
-        assert (
-            member_api_client.get(
-                f"v1/agents/assistant/sessions/{admin_session_id}/messages"
-            ).status_code
+            member_api_client.get(f"v1/agent_sessions/{admin_session_id}/messages").status_code
             == 404
         )
 
@@ -2056,7 +2046,7 @@ class TestApiAccessViaCookiesOrApiKeys:
         member_client = _httpx_client(_app, member.tokens)
         admin_client = _httpx_client(_app, admin.tokens)
         member_session_response = member_client.post(
-            "v1/agents/assistant/sessions",
+            "v1/agent_sessions",
             json={
                 "title": "Member session",
                 "is_ephemeral": False,
@@ -2070,7 +2060,7 @@ class TestApiAccessViaCookiesOrApiKeys:
         member_session_response.raise_for_status()
         member_session_id = member_session_response.json()["data"]["id"]
         admin_session_response = admin_client.post(
-            "v1/agents/assistant/sessions",
+            "v1/agent_sessions",
             json={
                 "title": "Admin session",
                 "is_ephemeral": False,
@@ -2241,6 +2231,7 @@ class TestVercelChatStreamRouterAuth:
         return {
             "trigger": "submit-message",
             "id": "test-msg-id",
+            "userAgent": "web",
             "message": {
                 "id": "msg-1",
                 "role": "user",
@@ -2255,7 +2246,7 @@ class TestVercelChatStreamRouterAuth:
 
     @pytest.fixture
     def _path(self) -> str:
-        return "/v1/agents/assistant/sessions/test-session-id/chat"
+        return "/v1/agent_sessions/test-session-id/chat"
 
     def test_unauthenticated_request_is_rejected(
         self,

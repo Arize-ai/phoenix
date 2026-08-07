@@ -93,8 +93,9 @@ pxi --endpoint http://localhost:6006 --provider OPENAI --model gpt-5.4
 ```
 
 <Note>
-The terminal client talks to the same `/agents/server` endpoint as the browser
-agent, so it requires a running Phoenix server with a configured model provider.
+The terminal client talks to the same `/agent_sessions` endpoints as the
+browser agent (sending `userAgent: "headless"` on its chat turns), so it
+requires a running Phoenix server with a configured model provider.
 On launch it runs a preflight check against the server's model catalog and
 credentials, surfacing configuration problems as a clean error before the chat
 opens.
