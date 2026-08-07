@@ -34,7 +34,7 @@ Create a `.env` file in the root directory:
 # OpenAI API Key
 OPENAI_API_KEY=your-openai-api-key-here
 
-# Phoenix Configuration — one variable per concern
+# Phoenix Configuration — same Phoenix, one variable per concern
 PHOENIX_ENDPOINT=http://localhost:6006
 PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
 PHOENIX_PROJECT_NAME=mastra-project

@@ -40,7 +40,7 @@ The following environment variables are used:
 - `PHOENIX_ENDPOINT` - The base URL of your Phoenix. This is the canonical setting for the client.
 - `PHOENIX_API_KEY` - The API key to use for authentication.
 - `PHOENIX_CLIENT_HEADERS` - Custom headers to add to all requests. A JSON stringified object.
-- `PHOENIX_COLLECTOR_ENDPOINT` - Read by the OTel SDK for trace export. The client falls back to it when `PHOENIX_ENDPOINT` is unset.
+- `PHOENIX_COLLECTOR_ENDPOINT` - Read by the OTel SDK for trace export, usually the same URL as `PHOENIX_ENDPOINT`. The client uses it for API access when `PHOENIX_ENDPOINT` is unset.
 
 ```bash
 PHOENIX_ENDPOINT='http://localhost:12345' PHOENIX_API_KEY='xxxxxx' pnpx tsx examples/list_datasets.ts
