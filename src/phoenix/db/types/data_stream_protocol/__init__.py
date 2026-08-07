@@ -14,6 +14,10 @@ from .phoenix_types import (
     UserMessageMetadata,
 )
 from .provider_metadata import (
+    PydanticAIReasoningProviderMetadata,
+    PydanticAITextProviderMetadata,
+    PydanticAIToolCallProviderMetadata,
+    PydanticAIToolPartKind,
     ToolCallCallbackProviderMetadata,
     ToolCallProviderMetadata,
     ToolExecutionEnvironment,
@@ -79,6 +83,10 @@ __all__ = [
     "PhoenixUIMessage",
     "PhoenixUIMessageAdapter",
     "ProviderMetadata",
+    "PydanticAIReasoningProviderMetadata",
+    "PydanticAITextProviderMetadata",
+    "PydanticAIToolCallProviderMetadata",
+    "PydanticAIToolPartKind",
     "ReasoningUIPart",
     "RegenerateMessage",
     "RequestData",

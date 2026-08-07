@@ -6,11 +6,27 @@ from typing import Annotated, Literal
 from pydantic import ConfigDict, Field, StringConstraints, TypeAdapter, model_validator
 
 from ._models import CamelBaseModel
-from .provider_metadata import ToolCallCallbackProviderMetadata
-from .request_types import DataUIPart, UIMessage
+from .provider_metadata import (
+    PydanticAIReasoningProviderMetadata,
+    PydanticAITextProviderMetadata,
+    PydanticAIToolCallProviderMetadata,
+    ToolCallCallbackProviderMetadata,
+)
+from .request_types import DataUIPart, ReasoningUIPart, TextUIPart, UIMessage
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
+_PYDANTIC_AI_PROVIDER_METADATA_KEY = "pydantic_ai"
 _ToolCallCallbackProviderMetadataAdapter = TypeAdapter(ToolCallCallbackProviderMetadata)
+_PydanticAITextProviderMetadataAdapter = TypeAdapter(PydanticAITextProviderMetadata)
+_PydanticAIReasoningProviderMetadataAdapter = TypeAdapter(PydanticAIReasoningProviderMetadata)
+_PydanticAIToolCallProviderMetadataAdapter = TypeAdapter(PydanticAIToolCallProviderMetadata)
+
+
+def _pydantic_ai_metadata(provider_metadata: object) -> object | None:
+    """The ``pydantic_ai`` namespace of a part's ``providerMetadata``, if any."""
+    if not isinstance(provider_metadata, dict):
+        return None
+    return provider_metadata.get(_PYDANTIC_AI_PROVIDER_METADATA_KEY)
 
 
 class AgentErrorData(CamelBaseModel):
@@ -100,6 +116,36 @@ class PhoenixUIMessage(UIMessage):
             if phoenix_metadata is None:
                 continue
             _ToolCallCallbackProviderMetadataAdapter.validate_python(phoenix_metadata)
+        return self
+
+    @model_validator(mode="after")
+    def _validate_pydantic_ai_provider_metadata(self) -> "PhoenixUIMessage":
+        """Strictly validate the ``pydantic_ai`` namespace wherever it appears.
+
+        Dispatches on part family so a key is only accepted where its consumer
+        reads it (e.g. ``signature`` on reasoning parts only). A namespace on a
+        part family with no schema here is rejected outright: if a new writer
+        appears, this error is the prompt to add its typed model.
+        """
+        for part in self.parts:
+            if hasattr(part, "call_provider_metadata"):
+                for attribute in ("call_provider_metadata", "result_provider_metadata"):
+                    metadata = _pydantic_ai_metadata(getattr(part, attribute, None))
+                    if metadata is not None:
+                        _PydanticAIToolCallProviderMetadataAdapter.validate_python(metadata)
+                continue
+            metadata = _pydantic_ai_metadata(getattr(part, "provider_metadata", None))
+            if metadata is None:
+                continue
+            if isinstance(part, TextUIPart):
+                _PydanticAITextProviderMetadataAdapter.validate_python(metadata)
+            elif isinstance(part, ReasoningUIPart):
+                _PydanticAIReasoningProviderMetadataAdapter.validate_python(metadata)
+            else:
+                raise ValueError(
+                    f"{part.type!r} parts have no schema for the "
+                    f"{_PYDANTIC_AI_PROVIDER_METADATA_KEY!r} provider-metadata namespace"
+                )
         return self
 
     @model_validator(mode="after")
