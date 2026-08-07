@@ -275,3 +275,60 @@ class TestEstimatedRowsIsReadBelowTheLimit:
 
     def test_a_missing_estimate_is_absent_rather_than_guessed(self) -> None:
         assert _estimated_rows([{"Plan": {"Node Type": "Seq Scan"}}]) is None
+
+
+class TestRewriteAttribution:
+    """A column a rewrite introduced is not a column the caller can act on.
+
+    `latency_ms` is advertised and computed, so selecting it through a CTE
+    substitutes timestamp arithmetic against a relation that projects no
+    timestamps. The engine names a column the caller never wrote; only this
+    layer can say which rewrite wrote it. See C6 and Part 8 of the correctness
+    boundary document.
+    """
+
+    @staticmethod
+    async def _fails_with(db: DbSessionFactory, db_path: str, sql: str) -> AnalyticsSqlError:
+        with pytest.raises(AnalyticsSqlError) as exc:
+            await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
+        return exc.value
+
+    async def test_names_the_rewrite_and_the_workaround(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        db, db_path = analytics_sqlite_db
+        error = await self._fails_with(
+            db,
+            db_path,
+            "WITH q AS (SELECT latency_ms FROM spans) SELECT AVG(t.latency_ms) FROM q t",
+        )
+
+        assert error.identifiers == ("latency_ms",)
+        assert "latency_ms" in error.message
+        assert "start_time" in error.message
+        assert "`t`" in error.message
+        # The caller is told the statement was not the problem, and given
+        # something to do about it.
+        assert "another name" in error.message
+        assert "defect in the rewrite" in error.message
+
+    async def test_unqualified_reference_is_attributed_too(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        db, db_path = analytics_sqlite_db
+        error = await self._fails_with(
+            db, db_path, "WITH q AS (SELECT latency_ms FROM spans) SELECT latency_ms FROM q"
+        )
+
+        assert error.identifiers == ("latency_ms",)
+
+    async def test_an_ordinary_bad_column_is_not_blamed_on_a_rewrite(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        """Attribution keys on the applied rewrites, so a column the caller
+        genuinely mistyped keeps the unclassified message."""
+        db, db_path = analytics_sqlite_db
+        error = await self._fails_with(db, db_path, "SELECT nonexistent_column FROM spans")
+
+        assert error.identifiers != ("latency_ms",)
+        assert "defect in the rewrite" not in error.message
