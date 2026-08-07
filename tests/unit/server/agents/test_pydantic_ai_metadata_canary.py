@@ -1,9 +1,7 @@
 """Drift canaries pinning the ``pydantic_ai`` provider-metadata namespace
-against the installed pydantic-ai: writing a turn must still produce the
-expected messages, and the expected messages — rows as written today — must
-still reload with every metadata-borne field intact. On failure at a bump:
-update the typed models, refresh ``_EXPECTED_MESSAGES``, and shim any renamed
-key for existing rows."""
+against the installed pydantic-ai — when a bump breaks one, update the typed
+models, refresh ``_EXPECTED_UI_MESSAGES``, and shim any renamed key for existing
+rows."""
 
 from collections.abc import AsyncIterator, Sequence
 from typing import Any, get_args
@@ -35,7 +33,7 @@ from phoenix.server.api.routers.agents import (
     _to_pydantic_ai_messages,
 )
 
-_EXPECTED_MESSAGES: list[dict[str, Any]] = [
+_EXPECTED_UI_MESSAGES: list[dict[str, Any]] = [
     {"id": "user-1", "role": "user", "parts": [{"type": "text", "text": "look this up"}]},
     {
         "id": "assistant-1",
@@ -118,7 +116,6 @@ _EXPECTED_MESSAGES: list[dict[str, Any]] = [
         ],
     },
 ]
-"""Persisted rows exactly as today's write pipeline produces them."""
 
 
 def test_tool_kinds_match_pydantic_ai() -> None:
@@ -229,12 +226,13 @@ async def _persist_turn() -> PhoenixUIMessage:
 async def test_writing_a_turn_produces_the_expected_messages() -> None:
     persisted = await _persist_turn()
     assert (
-        persisted.model_dump(mode="json", by_alias=True, exclude_none=True) == _EXPECTED_MESSAGES[1]
+        persisted.model_dump(mode="json", by_alias=True, exclude_none=True)
+        == _EXPECTED_UI_MESSAGES[1]
     )
 
 
 def test_expected_messages_reload_with_nothing_lost() -> None:
-    messages = [PhoenixUIMessage.model_validate(message) for message in _EXPECTED_MESSAGES]
+    messages = [PhoenixUIMessage.model_validate(message) for message in _EXPECTED_UI_MESSAGES]
     _assert_all_metadata_restored(_to_pydantic_ai_messages(messages))
 
 
