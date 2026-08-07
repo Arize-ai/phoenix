@@ -264,6 +264,7 @@
 - [Groq Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/groq/groq-tracing): Auto-instrument Groq SDK
 - [LiteLLM Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing): Auto-instrument LiteLLM unified API calls
 - [MistralAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai/mistralai-tracing): Auto-instrument MistralAI SDK
+- [Ollama Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/ollama/ollama-tracing): Instrument the Ollama Python client with openinference-instrumentation-ollama
 - [OpenRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing): Trace OpenRouter API calls
 - [OrcaRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing): Auto-instrument OrcaRouter via its OpenAI-compatible endpoint with openinference-instrumentation-openai
 - [Together AI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/together/together-tracing): Auto-instrument the Together AI Python SDK with openinference-instrumentation-together
@@ -390,6 +391,7 @@
 - [Groq Integration](https://arize.com/docs/phoenix/integrations/llm-providers/groq): Trace Groq's low-latency LPU inference calls in Phoenix
 - [LiteLLM Integration](https://arize.com/docs/phoenix/integrations/llm-providers/litellm): Trace and evaluate calls routed through LiteLLM's unified 100+ model interface
 - [MistralAI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai): Trace and evaluate Mistral open-weight model calls in Phoenix
+- [Ollama Integration](https://arize.com/docs/phoenix/integrations/llm-providers/ollama): Trace chat calls made with the local Ollama Python client in Phoenix
 - [OpenAI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/openai): Pick an OpenAI tracing or evals path across Python, Node.js, Go, and Agents SDK
 - [OpenRouter Integration](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter): Trace calls routed through OpenRouter's unified multi-model API
 - [OrcaRouter Integration](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter): Trace calls through OrcaRouter's OpenAI-compatible gateway to 200+ models
