@@ -10,6 +10,7 @@ import datetime as _dt
 import json
 import os
 import subprocess
+import time
 from typing import Any, Iterable
 
 ORG = os.environ.get("PHOENIX_PROJECT_ORG", "Arize-ai")
@@ -20,6 +21,10 @@ ROSTER_TEAM = os.environ.get("PHOENIX_ROSTER_TEAM", "oss-eng")
 # Ticket-load guardrails: everyone should be fed, nobody should be buried.
 MIN_TICKETS = int(os.environ.get("PHOENIX_MIN_TICKETS", "3"))
 MAX_TICKETS = int(os.environ.get("PHOENIX_MAX_TICKETS", "15"))
+
+# A snapshot older than this is not safe to write from: tickets closed since it
+# was taken still read as OPEN in the file.
+SNAPSHOT_MAX_AGE_MIN = int(os.environ.get("PHOENIX_SNAPSHOT_MAX_AGE_MIN", "120"))
 
 DONE = "✅  Done"
 IN_PROGRESS = "👨‍💻  In progress"
@@ -110,6 +115,29 @@ def load_snapshot(path: str) -> list[Item]:
     return items
 
 
+def snapshot_age_minutes(path: str) -> float:
+    """How long ago the snapshot file was written."""
+    return (time.time() - os.path.getmtime(path)) / 60
+
+
+def require_fresh_snapshot(path: str, max_age_min: int = SNAPSHOT_MAX_AGE_MIN) -> str | None:
+    """Return an error message if `path` is too stale to write from, else None.
+
+    A snapshot is a read cache, not a source of truth for mutations: anything
+    closed or moved since it was taken still reads as OPEN here, so writing
+    from a stale file re-opens settled work and notifies everyone watching it.
+    """
+    age = snapshot_age_minutes(path)
+    if age <= max_age_min:
+        return None
+    return (
+        f"{path} was taken {age / 60:.1f}h ago (limit {max_age_min / 60:.1f}h). "
+        f"Tickets closed since then still read as open in it, so applying "
+        f"would act on stale state. Re-run ./snapshot.sh {path}, or pass "
+        f"--stale-ok if you know the file is still accurate."
+    )
+
+
 # --------------------------------------------------------------------------
 # Sprint calendar
 # --------------------------------------------------------------------------
@@ -187,7 +215,14 @@ def sprint_calendar() -> tuple[str, str, list[Sprint], list[Sprint]]:
 def resolve_sprints(
     today: _dt.date | None = None,
 ) -> tuple[Sprint, Sprint | None, list[Sprint], str, str]:
-    """Return (current, next, completed, project_id, sprint_field_id)."""
+    """Return (current, next, past, project_id, sprint_field_id).
+
+    `past` is every iteration that has already finished — the board's own
+    completedIterations, plus any still-listed iteration that started before
+    the current one. It is the authoritative answer to "is this sprint behind
+    us?"; never infer that from "not current and not next", because a healthy
+    board also has *future* iterations defined.
+    """
     today = today or _dt.date.today()
     project_id, field_id, upcoming, completed = sprint_calendar()
     if not upcoming:
@@ -203,7 +238,21 @@ def resolve_sprints(
         current = started[-1] if started else upcoming[0]
     later = [s for s in upcoming if s.start > current.start]
     nxt = later[0] if later else None
-    return current, nxt, completed, project_id, field_id
+    past = sorted(
+        completed + [s for s in upcoming if s.start < current.start],
+        key=lambda s: s.start,
+    )
+    return current, nxt, past, project_id, field_id
+
+
+def stranded(items: Iterable[Item], past: Iterable[Sprint]) -> list[Item]:
+    """Active tickets still tagged to a sprint that has already finished.
+
+    Shared by health.py (reports them) and rollover.py (moves them) so the two
+    can never disagree about what "stranded" means.
+    """
+    past_titles = {s.title for s in past}
+    return [i for i in items if i.is_active and i.sprint in past_titles]
 
 
 # --------------------------------------------------------------------------

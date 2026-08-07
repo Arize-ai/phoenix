@@ -14,6 +14,7 @@ Options:
     --only N,N,N    restrict to specific issue numbers
     --no-comment    move tickets without posting the slip comment
     --apply         actually perform the moves
+    --stale-ok      apply even if the snapshot is older than the freshness limit
 """
 
 from __future__ import annotations
@@ -31,12 +32,18 @@ def slip_comment(from_sprint: str, to_sprint: str) -> str:
     )
 
 
-def select(items: list[B.Item], current: B.Sprint, nxt: B.Sprint, stranded: bool) -> list[B.Item]:
-    """Tickets that should move into `nxt`."""
-    known = {current.title, nxt.title}
+def select(
+    items: list[B.Item], current: B.Sprint, past: list[B.Sprint], sweep_stranded: bool
+) -> list[B.Item]:
+    """Tickets that should move into the next sprint.
+
+    Only the current sprint and — with --stranded — sprints that have actually
+    finished. Work parked on a *future* iteration is deliberate planning, not
+    slippage, and must never be pulled backwards.
+    """
     out = [i for i in items if i.is_active and i.sprint == current.title]
-    if stranded:
-        out += [i for i in items if i.is_active and i.sprint and i.sprint not in known]
+    if sweep_stranded:
+        out += B.stranded(items, past)
     # Stable, readable order.
     return sorted(out, key=lambda i: (i.sprint or "", i.number or 0))
 
@@ -48,10 +55,17 @@ def main() -> int:
     ap.add_argument("--stranded", action="store_true")
     ap.add_argument("--no-comment", action="store_true", dest="no_comment")
     ap.add_argument("--only", help="comma-separated issue numbers")
+    ap.add_argument("--stale-ok", action="store_true", dest="stale_ok")
     args = ap.parse_args()
 
     items = B.load_snapshot(args.snapshot)
-    current, nxt, _completed, project_id, field_id = B.resolve_sprints()
+    if args.apply and not args.stale_ok:
+        stale = B.require_fresh_snapshot(args.snapshot)
+        if stale:
+            print(stale, file=sys.stderr)
+            return 1
+
+    current, nxt, past, project_id, field_id = B.resolve_sprints()
     if nxt is None:
         print(
             "No next sprint exists. Create the next iteration on the Sprint "
@@ -61,7 +75,7 @@ def main() -> int:
         )
         return 1
 
-    targets = select(items, current, nxt, args.stranded)
+    targets = select(items, current, past, args.stranded)
     if args.only:
         wanted = {int(n) for n in args.only.split(",")}
         targets = [i for i in targets if i.number in wanted]
@@ -91,20 +105,36 @@ def main() -> int:
         return 0
 
     print(f"\nApplying: moving {len(targets)} tickets to {nxt.title}...")
-    moved = failed = 0
+    # The move and the comment are separate outcomes: a ticket whose comment
+    # failed has still moved, and reporting it as "failed" would send the lead
+    # back to re-roll a ticket that is already in the next sprint.
+    moved = move_failed = comment_failed = 0
     for item in targets:
         try:
             B.set_sprint(project_id, item.id, field_id, nxt.id)
-            if not args.no_comment:
-                B.comment(item.number, slip_comment(item.sprint or "no sprint", nxt.title))
-            moved += 1
-            print(f"  ✅ #{item.number}")
         except Exception as exc:  # keep going; report at the end
-            failed += 1
-            print(f"  ⚠️  #{item.number}: {exc}")
+            move_failed += 1
+            print(f"  ⚠️  #{item.number}: not moved: {exc}")
+            continue
+        moved += 1
+        if args.no_comment:
+            print(f"  ✅ #{item.number}")
+            continue
+        try:
+            B.comment(item.number, slip_comment(item.sprint or "no sprint", nxt.title))
+            print(f"  ✅ #{item.number}")
+        except Exception as exc:
+            comment_failed += 1
+            print(f"  ⚠️  #{item.number}: moved, but the slip comment failed: {exc}")
 
-    print(f"\nMoved {moved}, failed {failed}.")
-    return 1 if failed else 0
+    print(f"\nMoved {moved}, failed to move {move_failed}.")
+    if comment_failed:
+        print(
+            f"{comment_failed} of the {moved} moved tickets have no slip comment. "
+            f"Re-running will not retry them — they are in {nxt.title} now. "
+            f"Comment by hand if the record matters."
+        )
+    return 1 if (move_failed or comment_failed) else 0
 
 
 if __name__ == "__main__":

@@ -38,6 +38,7 @@ on **#45**.
 | Check nobody is starving or buried | [Ticket Load Health](#ticket-load-health) |
 | Keep roadmap epics current / flag ones needing planning | [Roadmap Health](#roadmap-health) |
 | File a roadmap epic | [Roadmap Issues](#roadmap-issues) |
+| Add an epic to the roadmap board (#45) | [Putting the Epic on the Roadmap Board](#putting-the-epic-on-the-roadmap-board) |
 | Apply the right labels | [Label Taxonomy](#label-taxonomy) |
 | Set project fields by hand | [Project Field Mechanics](#project-field-mechanics) |
 | Create a bug or feature request | [Standard Issues](#standard-issues) |
@@ -64,15 +65,21 @@ cd .agents/skills/phoenix-github/scripts
 
 **For board #42, snapshot once and run every check off that file.** The
 ProjectV2 API has no server-side field filter, so a full read is ~63 sequential
-pages. Re-taking the snapshot per check wastes minutes. Re-snapshot only after
-applying changes.
+pages. Re-taking the snapshot per check wastes minutes.
+
+A snapshot is a **read cache, not a source of truth for writes.** Anything
+closed or moved since it was taken still reads as open in the file, so
+`rollover.py --apply` refuses to run against a snapshot older than 2 hours
+(`PHOENIX_SNAPSHOT_MAX_AGE_MIN`; override with `--stale-ok` if you know the file
+is still accurate). Re-snapshot before applying, and again afterwards.
 
 Board #45 is ~75 items — one page — so `roadmap.py` just fetches it each run.
 
 Every script that writes is **dry-run by default** and takes `--apply`.
 
 Tunable via env vars: `PHOENIX_MIN_TICKETS` (3), `PHOENIX_MAX_TICKETS` (15),
-`PHOENIX_ROSTER_TEAM` (`oss-eng`), `PHOENIX_PROJECT_NUMBER` (42).
+`PHOENIX_ROSTER_TEAM` (`oss-eng`), `PHOENIX_PROJECT_NUMBER` (42),
+`PHOENIX_SNAPSHOT_MAX_AGE_MIN` (120), `PHOENIX_ISSUE_LIMIT` (5000).
 
 ---
 
@@ -126,10 +133,18 @@ Useful flags:
 | `--stranded` | Also sweep tickets left behind on already-completed sprints |
 | `--only 123,456` | Restrict to specific issue numbers |
 | `--no-comment` | Move without commenting (use for bulk cleanup of old strays) |
+| `--stale-ok` | Apply from a snapshot older than the freshness limit |
+
+**"Stranded" means a sprint that has actually finished**, taken from the board's
+own completed-iteration list. Work parked on a *future* iteration is deliberate
+planning and is never pulled backwards, no matter how many iterations exist.
 
 **Always review the dry run before `--apply`.** Rolling a sprint comments on
 every affected ticket, which notifies every assignee and watcher — it is loud
 and not worth undoing by hand.
+
+A ticket whose move succeeded but whose comment failed is reported separately:
+it is already in the next sprint, so re-running will not pick it up again.
 
 For the `--stranded` sweep specifically, prefer `--no-comment`: those tickets
 slipped many sprints ago and a fresh "slipped" notification on each is noise.
@@ -214,6 +229,8 @@ is, and how well it is broken down.
 ```bash
 ./roadmap.py                 # audit, changes nothing
 ./roadmap.py --apply         # write planning labels + backfill Status
+./roadmap.py --section planning   # one section only:
+                                  # progress | planning | freshness | fields
 ```
 
 ### What "current" means
@@ -229,7 +246,9 @@ Today that is ~14 of the 46 open epics; the rest are dated Q4 2026 and later.
 Roadmap progress lives in the **epic body checklist**, not in the Status field
 or GitHub sub-issues. Only a minority of epics use real sub-issues, so the audit
 parses `- [ ]` / `- [x]` items out of the body and counts an item as a real
-ticket when it references an issue (`#1234` or a full issue URL).
+ticket when it references an issue (`#1234` or a full issue URL). A bare number
+under 1000 does not count — the repo passed that long ago, so `Phase #2` is
+prose, not a ticket.
 
 ### Needs planning
 
@@ -267,7 +286,7 @@ this) and link them back into the parent's checklist.
 
 | Check | Meaning |
 |---|---|
-| **Quiet** | Current epic untouched for over 60 days — either dead or unreported |
+| **Quiet** | No body edit or comment on a current epic for over 60 days — either dead or unreported |
 | **Overdue** | Past its Target Date and still open — re-date it or cut scope |
 | **Complete but open** | Every checklist item ticked, issue still open — close it |
 | **Missing Status** | Status is empty; the audit proposes a value (see below) |
@@ -463,6 +482,29 @@ EOF
 > `gh issue create` does not support `--json`. Capture the issue URL from stdout
 > and extract the number with `grep -oE '[0-9]+$'`.
 
+### Putting the Epic on the Roadmap Board
+
+An epic is not done being filed until it is on **board #45** with dates. Until
+then `roadmap.py` cannot see it, so it is never audited or flagged.
+
+```bash
+NODE_ID=$(gh api repos/Arize-ai/phoenix/issues/{number} --jq '.node_id')
+
+ITEM_ID=$(gh api graphql -f query='
+  mutation($project: ID!, $content: ID!) {
+    addProjectV2ItemById(input: {projectId: $project, contentId: $content}) {
+      item { id }
+    }
+  }' \
+  -f project="PVT_kwDOA5FfSM4AJaRo" \
+  -f content="$NODE_ID" \
+  --jq '.data.addProjectV2ItemById.item.id')
+```
+
+Then set Start Date and Target Date on that `$ITEM_ID` with
+[Set a Date Field](#set-a-date-field-board-45). Both are board-#45 field IDs and
+only work with an item ID from board #45.
+
 ---
 
 ## Project Field Mechanics
@@ -512,9 +554,15 @@ for current epics but never writes it.
 
 ### Add an Issue to a Board
 
+Pass the project ID of the board you mean: **#42** for sprint work,
+**#45** for roadmap epics. The returned `$ITEM_ID` is scoped to that board —
+using it against the other one fails.
+
 ```bash
 NODE_ID=$(gh api repos/Arize-ai/phoenix/issues/{number} --jq '.node_id')
 
+# Sprint board #42: PVT_kwDOA5FfSM4AIM-T
+# Roadmap board #45: PVT_kwDOA5FfSM4AJaRo
 ITEM_ID=$(gh api graphql -f query='
   mutation($project: ID!, $content: ID!) {
     addProjectV2ItemById(input: {projectId: $project, contentId: $content}) {

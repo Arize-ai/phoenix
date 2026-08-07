@@ -14,6 +14,12 @@ NUM="${PHOENIX_PROJECT_NUMBER:-42}"
 
 echo "Snapshotting $ORG project #$NUM -> $OUT (this takes ~60-90s)..." >&2
 
+# Write to a sibling temp file and move it into place only on success: a
+# rate-limited walk halfway through must not destroy the snapshot you were
+# already working from.
+TMP="$(mktemp "${OUT}.XXXXXX")"
+trap 'rm -f "$TMP"' EXIT
+
 gh api graphql --paginate --slurp \
   -F org="$ORG" -F num="$NUM" \
   -f query='
@@ -42,6 +48,8 @@ query($org: String!, $num: Int!, $endCursor: String) {
       }
     }
   }
-}' > "$OUT"
+}' > "$TMP"
+
+mv "$TMP" "$OUT"
 
 echo "Wrote $OUT ($(wc -c < "$OUT" | tr -d ' ') bytes)" >&2
