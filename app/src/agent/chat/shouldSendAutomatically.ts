@@ -23,8 +23,6 @@ import {
 import { getUnresolvedToolCalls } from "./interruptToolCalls";
 
 export const USER_INTERRUPT_ERROR = "The user has interrupted this tool call.";
-export const SYSTEM_INTERRUPT_ERROR =
-  "This tool call has been interrupted by unexpected system conditions.";
 
 // The AI SDK auto-continues after completed tool calls; suppress that when the last result is a local lifecycle cleanup, not model input.
 export function shouldSendAutomaticallyAfterToolOutput({
@@ -35,9 +33,6 @@ export function shouldSendAutomaticallyAfterToolOutput({
   // If tool calls were marked interrupted on message send or stream stop, do not
   // trigger another message send event.
   if (hasInterruptedToolCall({ messages, errorText: USER_INTERRUPT_ERROR })) {
-    return false;
-  }
-  if (hasInterruptedToolCall({ messages, errorText: SYSTEM_INTERRUPT_ERROR })) {
     return false;
   }
   if (hasApprovalNavigationCancel(messages)) {

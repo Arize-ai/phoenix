@@ -19,10 +19,7 @@ import {
 } from "@phoenix/agent/chat/createAgentSessionChat";
 import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
 import { cleanupPendingToolState } from "@phoenix/agent/chat/pendingToolStateCleanup";
-import {
-  SYSTEM_INTERRUPT_ERROR,
-  USER_INTERRUPT_ERROR,
-} from "@phoenix/agent/chat/shouldSendAutomatically";
+import { USER_INTERRUPT_ERROR } from "@phoenix/agent/chat/shouldSendAutomatically";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { buildUserMessageMetadata } from "@phoenix/agent/chat/userMessageMetadata";
 import type {
@@ -290,7 +287,7 @@ export function useAgentChat({
     const latestMessages = chatInstance?.messages ?? messages;
     await addInterruptedToolOutputs({
       messages: latestMessages,
-      errorText: SYSTEM_INTERRUPT_ERROR,
+      errorText: USER_INTERRUPT_ERROR,
     });
     setMessages(removeInterruptedToolInputParts);
 
