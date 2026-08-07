@@ -269,6 +269,7 @@
 
 ### Python Frameworks
 
+- [AG2 Tracing](https://arize.com/docs/phoenix/integrations/python/ag2/ag2-tracing): Auto-instrument AG2 multi-agent applications
 - [Agno Tracing](https://arize.com/docs/phoenix/integrations/python/agno/agno-tracing): Auto-instrument Agno agent workflows
 - [AgentSpec Tracing](https://arize.com/docs/phoenix/integrations/python/agentspec/agentspec-tracing): Auto-instrument AgentSpec agents
 - [AutoGen Tracing](https://arize.com/docs/phoenix/integrations/python/autogen/autogen-tracing): Auto-instrument AutoGen conversations
