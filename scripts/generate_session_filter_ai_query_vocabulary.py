@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-"""Generate the static session-filter vocabulary used by AI query."""
 
 import argparse
 import json

@@ -11,7 +11,6 @@ export type AIQueryEvalModel = {
   simulates: string;
   /** The `filter_correct` pass rate the correctness suites must reach to pass. */
   minPassRate: number;
-  /** The `filter_correct` pass rate the session correctness suite must reach. */
   sessionMinPassRate: number;
   /**
    * The `intent_captured` pass rate the intent suite must reach to pass.

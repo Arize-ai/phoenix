@@ -16,6 +16,7 @@ import {
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import {
+  getSessionFilterLoopVariable,
   sessionFilterAIQueryDSL,
   sessionFilterSnippets,
   type SessionFilterVocabularyTerm,
@@ -45,33 +46,12 @@ const vocabularyCategorySections: Record<string, CompletionSection> = {
 const elementFieldsSection: CompletionSection = { name: "Fields", rank: 1 };
 
 /**
- * The loop variable each collection's inserted comprehensions (and served
- * descriptions) use — `any(span… for span in spans)`, `any(trace… for trace
- * in traces)`. Whole words, not letters. A collection the map doesn't know
- * falls back to its singular.
- */
-const canonicalLoopVariables: Partial<Record<string, string>> = {
-  spans: "span",
-  traces: "trace",
-  session_annotations: "annotation",
-  span_annotations: "annotation",
-  span_cost_details: "cost_detail",
-};
-
-function getLoopVariable(iterableName: string): string {
-  return (
-    canonicalLoopVariables[iterableName] ??
-    (iterableName.endsWith("s") ? iterableName.slice(0, -1) : "item")
-  );
-}
-
-/**
  * The example predicate a collection's inserted comprehension starts with, as
  * a selected tab-through placeholder. It must be *valid* — an inserted
  * condition that errors until a blank is filled reads as broken, not as an
  * invitation to edit — and each references its collection's loop variable
- * from `canonicalLoopVariables`. A collection the map doesn't know falls back
- * to a bare `condition` placeholder.
+ * from `getSessionFilterLoopVariable`. A collection the map doesn't know
+ * falls back to a bare `condition` placeholder.
  */
 const examplePredicates: Partial<Record<string, string>> = {
   spans: "span.latency_ms > 1_000",
@@ -108,7 +88,7 @@ function getCompletionOption(term: SessionFilterVocabularyTerm): Completion {
 function getIterableScaffoldCompletion(
   term: SessionFilterVocabularyTerm
 ): Completion {
-  const loopVariable = getLoopVariable(term.name);
+  const loopVariable = getSessionFilterLoopVariable(term.name);
   const predicate = getExamplePredicate(term.name);
   return snippetCompletion(
     `any(\${${predicate}} for ${loopVariable} in ${term.name})`,
@@ -132,7 +112,7 @@ function getIterableBodyCompletion(
   term: SessionFilterVocabularyTerm,
   call: DSLFilterComprehensionCall
 ): Completion {
-  const loopVariable = getLoopVariable(term.name);
+  const loopVariable = getSessionFilterLoopVariable(term.name);
   const predicate = getExamplePredicate(term.name);
   const body = `\${${predicate}} for ${loopVariable} in ${term.name}`;
   const needsListBrackets = call.functionName === "len" && !call.isListForm;
