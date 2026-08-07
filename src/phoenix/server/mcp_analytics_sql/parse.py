@@ -131,6 +131,62 @@ _STAR_MODIFIERS = {
 }
 
 
+def _check_double_quoted_timestamp_operands(
+    root: exp.Expression, *, allowlist: Allowlist
+) -> Optional[AdmissionResult]:
+    """Refuse a double-quoted operand compared against a timestamp column.
+
+    SQLite reads a double-quoted token as an identifier, and falls back to
+    treating it as a string only when nothing resolves. So
+    ``start_time > "2026-01-01T00:00:00Z"`` parses as a column reference, which
+    means it is not a literal, which means the naive-literal refusal and the
+    storage-format rewrite both look straight past it -- and the comparison then
+    runs against a string in the wrong format, matching nothing.
+
+    Narrow on purpose. The general rule, refusing any double-quoted identifier
+    that resolves to no known column, is a larger change with its own blast
+    radius; this closes the case where the misreading is silent and the column
+    it sits beside is the one the surface is built around.
+    """
+    columns = timestamp_column_names(allowlist.tables)
+    if not columns:
+        return None
+    local = query_local_columns(root)
+
+    def offender(
+        column: Optional[exp.Expression], operand: Optional[exp.Expression]
+    ) -> Optional[str]:
+        if not isinstance(column, exp.Column) or (column.name or "").casefold() not in columns:
+            return None
+        if id(column) in local:
+            return None
+        if not isinstance(operand, exp.Column) or operand.table:
+            return None
+        identifier = operand.this
+        if isinstance(identifier, exp.Identifier) and identifier.quoted:
+            return str(identifier.this)
+        return None
+
+    for node in root.walk():
+        candidates: list[tuple[Optional[exp.Expression], Optional[exp.Expression]]] = []
+        if isinstance(node, _TIMESTAMP_COMPARISONS):
+            candidates = [(node.this, node.expression), (node.expression, node.this)]
+        elif isinstance(node, exp.Between):
+            candidates = [(node.this, node.args.get("low")), (node.this, node.args.get("high"))]
+        elif isinstance(node, exp.In):
+            candidates = [(node.this, member) for member in node.expressions]
+        for column, operand in candidates:
+            text = offender(column, operand)
+            if text is not None:
+                return AdmissionResult(
+                    AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                    f'`"{text}"` is read as a column name here, not as a timestamp, '
+                    "because double quotes name identifiers. Use single quotes for the "
+                    f"value: '{text}'.",
+                )
+    return None
+
+
 def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
     """Refuse shapes that survive admission and lose meaning before execution.
 
@@ -349,6 +405,15 @@ def _timestamp_literals(root: exp.Expression, columns: frozenset[str]) -> list[e
         elif isinstance(node, exp.Between):
             collect(node.this, node.args.get("low"))
             collect(node.this, node.args.get("high"))
+        elif isinstance(node, exp.In):
+            # Every member, and only against the left operand -- `IN` is a
+            # comparison spelled as a list, so a literal in it is decided the
+            # same way one beside `=` is. Uncovered until now, so a caller
+            # listing instants got neither the naive-literal refusal nor the
+            # storage-format rewrite, and the comparison quietly matched nothing
+            # on SQLite.
+            for member in node.expressions:
+                collect(node.this, member)
     return found
 
 
@@ -651,6 +716,7 @@ def admit(root: exp.Expression, *, allowlist: Allowlist, dialect: DialectName) -
     failure = (
         _check_node_classes(root)
         or _check_lossy_shapes(root)
+        or _check_double_quoted_timestamp_operands(root, allowlist=allowlist)
         or _check_functions(root, allowlist=allowlist, dialect=dialect)
         or _check_base_tables(root, allowlist=allowlist)
         or _check_hidden_columns(root, allowlist=allowlist)
