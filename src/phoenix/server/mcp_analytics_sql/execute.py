@@ -568,6 +568,8 @@ async def execute_analytics_sql(
         # which is usually blank.
         logger.debug("analytics sql: %s caller   %s", call_id, " ".join(params.sql.split()))
         logger.debug("analytics sql: %s executed %s", call_id, rendered)
+        ctx.caller_sql = params.sql
+        ctx.executed_sql = rendered
 
         started = time.monotonic()
         if dialect == "postgresql":
@@ -1115,6 +1117,12 @@ def _success_envelope(
         "backend_validated": backend_validated,
         "notes": list(ctx.notes) + (notes or []),
     }
+    # Included only when the text changed, which is the only case it carries
+    # information -- and omitting it otherwise keeps a one-row answer small.
+    # `rewrites` cannot stand in for this: the generator re-cases, re-spaces,
+    # drops comments and respells literals without any pass being recorded.
+    if ctx.executed_sql and ctx.executed_sql != ctx.caller_sql:
+        envelope["applied"]["executed"] = ctx.executed_sql
     if estimated_rows is not None:
         envelope["estimated_rows"] = estimated_rows
     return envelope

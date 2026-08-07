@@ -848,3 +848,59 @@ class TestJsonAccessorOrigin:
         assert arrow == arrow_value
         # Containers agree; scalars do not, which is where the swap does damage.
         assert (arrow == function) is (path == "$.o")
+
+
+class TestUncastJsonOrderingNote:
+    """`max` over a numeric JSON path answers with the wrong row, silently.
+
+    Both backends return text from a JSON extraction, so ordering compares
+    character by character. `SUM` and `AVG` coerce and are unaffected, which is
+    why the failure is easy to miss. See D6.
+    """
+
+    @staticmethod
+    def _noted(sql: str, dialect: DialectName = "sqlite") -> bool:
+        read = "postgres" if dialect == "postgresql" else dialect
+        ctx = RewriteContext(allowlist=load_allowlist(), dialect=dialect, row_limit=500)
+        rewrite(sqlglot.parse_one(sql, read=read), ctx)
+        return any("character by character" in note for note in ctx.notes)
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT MAX(attributes ->> '$.n') FROM spans",
+            "SELECT MIN(attributes ->> '$.n') FROM spans",
+            "SELECT id FROM spans ORDER BY attributes ->> '$.n'",
+        ],
+    )
+    def test_order_sensitive_positions_are_noted(self, sql: str) -> None:
+        assert self._noted(sql)
+
+    def test_the_postgres_path_operator_is_noted_too(self) -> None:
+        assert self._noted("SELECT MAX(attributes #>> '{a,b}') FROM spans", dialect="postgresql")
+
+    def test_a_cast_extraction_is_not_noted(self) -> None:
+        assert not self._noted("SELECT MAX(CAST(attributes ->> '$.n' AS REAL)) FROM spans")
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            # Coerces, so text ordering never decides the answer.
+            "SELECT SUM(attributes ->> '$.n') FROM spans",
+            "SELECT MAX(id) FROM spans",
+        ],
+    )
+    def test_positions_where_ordering_does_not_decide_are_quiet(self, sql: str) -> None:
+        assert not self._noted(sql)
+
+    def test_the_note_survives_canonicalisation(self) -> None:
+        """The canonicalisation pass rebuilds `->>` as an Anonymous json_extract
+        call, so a check that knows only the operator classes sees nothing on
+        exactly the statements this exists for."""
+        ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)
+        tree = sqlglot.parse_one("SELECT MAX(attributes ->> '$.n') FROM spans", read="sqlite")
+
+        rendered = rewrite(tree, ctx).sql(dialect="sqlite")
+
+        assert "JSON_EXTRACT" in rendered.upper()
+        assert any("character by character" in note for note in ctx.notes)

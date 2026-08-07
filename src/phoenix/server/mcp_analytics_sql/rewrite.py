@@ -45,6 +45,71 @@ class RewriteContext:
     # authorizer has no other way to tell such a name from a table nobody
     # allowlisted.
     introduced_relations: set[str] = field(default_factory=set)
+    # What the caller sent and what the engine was given. Carried here because
+    # this is the object that reaches the envelope. `applied` names the passes
+    # that fired, which is not the same claim: a statement can be re-cased,
+    # re-spaced, stripped of comments and have its literals respelled by the
+    # generator alone, with no pass recorded and the text still changed.
+    caller_sql: str = ""
+    executed_sql: str = ""
+
+
+_JSON_TEXT_ORDERING_NOTE = (
+    "A JSON value was ordered or compared without a cast. Both backends return "
+    "text from a JSON extraction, so MIN, MAX and ORDER BY compare character by "
+    "character -- 1017066 sorts below 149740. Cast the extraction to the type "
+    "you mean, as in `CAST(attributes ->> '$.n' AS REAL)`, if the path holds a "
+    "number."
+)
+
+#: Positions where text ordering gives a different answer rather than a slower
+#: one. `SUM` and `AVG` coerce, so they are absent deliberately.
+_ORDER_SENSITIVE = (exp.Min, exp.Max, exp.Ordered)
+
+_JSON_EXTRACTIONS = (
+    exp.JSONExtract,
+    exp.JSONExtractScalar,
+    exp.JSONBExtract,
+    exp.JSONBExtractScalar,
+)
+
+
+def _is_json_extraction(node: exp.Expression) -> bool:
+    """Both spellings, because canonicalisation has already run.
+
+    That pass rebuilds `->>` as an `Anonymous` call to `json_extract`, so a
+    check that knows only the operator classes sees nothing on exactly the
+    statements it was written for.
+    """
+    if isinstance(node, _JSON_EXTRACTIONS):
+        return True
+    return isinstance(node, exp.Anonymous) and str(node.this).lower() in {
+        "json_extract",
+        "jsonb_extract_path_text",
+    }
+
+
+def _note_uncast_json_ordering(root: exp.Expression, ctx: RewriteContext) -> None:
+    """Say so when a JSON read is ordered as text.
+
+    Engine semantics, not a defect of ours and not a rendering problem, so there
+    is nothing to rewrite: on PostgreSQL `#>>` and `->>` are defined to return
+    text, and on SQLite the accessors that return a value give whatever the
+    document held. Either way `max` over a numeric path answers with the wrong
+    row and reports nothing.
+
+    A note rather than a refusal. Text ordering is the correct answer when the
+    path holds text, and the surface cannot tell which without knowing the
+    document -- so refusing would block a legitimate query to prevent a
+    plausible mistake.
+    """
+    for node in root.find_all(*_ORDER_SENSITIVE):
+        target = node.this
+        if isinstance(target, exp.Cast):
+            continue
+        if _is_json_extraction(target) and _JSON_TEXT_ORDERING_NOTE not in ctx.notes:
+            ctx.notes.append(_JSON_TEXT_ORDERING_NOTE)
+            return
 
 
 def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
@@ -55,6 +120,8 @@ def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     root = _canonicalize_json_extract(root, ctx)
     root = _qualify_schema(root, ctx)
     root = _inject_limit(root, ctx)
+    # After canonicalisation, so it sees the accessors that will actually run.
+    _note_uncast_json_ordering(root, ctx)
     _record_introduced_relations(root, ctx)
     _assert_rewrites_preserved_policy(root, ctx)
     return root
