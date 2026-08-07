@@ -2047,6 +2047,7 @@ class PromptMessage(TypedDict):
 
 
 class ChatRequest(TypedDict):
+    userAgent: Literal["web", "headless"]
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     id: str
     ingestTraces: NotRequired[bool]

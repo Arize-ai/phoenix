@@ -258,7 +258,7 @@ def _get_updated_provider_metadata(
 class _CamelBaseModel(BaseModel):
     """Base model with camelCase aliases.
 
-    The wire casing under ``/agents`` is deliberately split: the chat route's
+    The wire casing under ``/agent_sessions`` is deliberately split: the chat route's
     request body and stream chunks extend this class because they follow the
     Vercel AI SDK data stream protocol, which dictates camelCase, while the
     session CRUD payloads extend ``V1RoutesBaseModel`` and keep the REST API's
@@ -331,6 +331,11 @@ class _ObservabilityMixin(_CamelBaseModel):
     )
 
 
+UserAgent = Literal["web", "headless"]
+"""Which Phoenix user agent is driving a chat turn: ``web`` for the browser
+assistant, ``headless`` for terminal and scripted clients."""
+
+
 class _ChatRequestMixin(_ObservabilityMixin):
     """Phoenix-specific extensions added to Vercel AI request messages."""
 
@@ -338,6 +343,13 @@ class _ChatRequestMixin(_ObservabilityMixin):
         protected_namespaces=(),  # allow ``model`` field; pydantic reserves ``model_*``
     )
 
+    user_agent: UserAgent = Field(
+        description=(
+            "Which Phoenix user agent is driving the turn: ``web`` for the "
+            "browser assistant, ``headless`` for terminal and scripted "
+            "clients. Selects the agent configuration the turn runs on."
+        ),
+    )
     contexts: list[ChatContext] = Field(default_factory=list)
     edit_permission: Literal["manual", "bypass"] = "manual"
     requested_skills: list[str] = Field(
@@ -357,7 +369,7 @@ class _ChatRequestMixin(_ObservabilityMixin):
             "HTTP 409 and code ``agent_session_model_stale`` rather than "
             "silently running on — or switching to — an unexpected model. "
             "Change the session's model with "
-            "``PATCH .../sessions/{session_id}``."
+            "``PATCH .../agent_sessions/{session_id}``."
         ),
     )
 
@@ -660,9 +672,6 @@ def _to_pydantic_ai_messages(messages: Sequence[PhoenixUIMessage]) -> list[Model
 
 
 logger = logging.getLogger(__name__)
-
-_ASSISTANT_AGENT_ID = "assistant"
-_SERVER_AGENT_ID = "server"
 
 
 _AsyncGeneratorType = TypeVar("_AsyncGeneratorType")
@@ -2254,7 +2263,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
     router = APIRouter(prefix="/v1", tags=["chat"], dependencies=dependencies)
 
     @router.post(
-        "/agents/{agent_id}/sessions",
+        "/agent_sessions",
         operation_id="createAgentSession",
         status_code=201,
         response_model_by_alias=True,
@@ -2262,15 +2271,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         responses=add_errors_to_responses([400, 401, 403, 404, 422, 507]),
     )
     async def create_session(
-        agent_id: str,
         request: Request,
         request_body: CreateAgentSessionRequestBody,
     ) -> CreateAgentSessionResponseBody:
         """Create a persisted agent session owned by the requesting user."""
-        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
-            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
-        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
-            raise HTTPException(status_code=403, detail="Server agent is disabled")
         try:
             title = validate_agent_session_title(request_body.title, allow_empty=True)
         except ValueError as exc:
@@ -2301,7 +2305,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         )
 
     @router.patch(
-        "/agents/{agent_id}/sessions/{session_id}",
+        "/agent_sessions/{session_id}",
         operation_id="patchAgentSession",
         response_model=PatchAgentSessionResponseBody,
         response_model_by_alias=True,
@@ -2312,16 +2316,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         ),
     )
     async def patch_session(
-        agent_id: str,
         session_id: str,
         request: Request,
         request_body: PatchAgentSessionRequestBody,
     ) -> PatchAgentSessionResponseBody:
         """Update a persisted session's mutable fields."""
-        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
-            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
-        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
-            raise HTTPException(status_code=403, detail="Server agent is disabled")
         if request_body.title is UNDEFINED and request_body.model is UNDEFINED:
             raise HTTPException(status_code=422, detail="No fields to update")
         title: str | None = None
@@ -2364,7 +2363,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         return PatchAgentSessionResponseBody(data=data)
 
     @router.get(
-        "/agents/{agent_id}/sessions",
+        "/agent_sessions",
         operation_id="listAgentSessions",
         response_model_by_alias=True,
         response_model_exclude_unset=True,
@@ -2372,16 +2371,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         responses=add_errors_to_responses([401, 403, 404, 422]),
     )
     async def list_sessions(
-        agent_id: str,
         request: Request,
         cursor: str | None = Query(default=None, description="Opaque pagination cursor."),
         limit: int = Query(default=20, gt=0, le=100),
     ) -> ListAgentSessionsResponseBody:
         """List the viewer's persisted sessions, most recently active first."""
-        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
-            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
-        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
-            raise HTTPException(status_code=403, detail="Server agent is disabled")
         statement = select(models.AgentSession).where(models.AgentSession.is_ephemeral.is_(False))
         if (user_id := _get_request_user_id(request)) is not None:
             statement = statement.where(models.AgentSession.user_id == user_id)
@@ -2419,22 +2413,17 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         )
 
     @router.get(
-        "/agents/{agent_id}/sessions/{session_id}",
+        "/agent_sessions/{session_id}",
         operation_id="getAgentSession",
         response_model_by_alias=True,
         response_model_exclude_unset=True,
         responses=add_errors_to_responses([401, 403, 404]),
     )
     async def get_session(
-        agent_id: str,
         session_id: str,
         request: Request,
     ) -> GetAgentSessionResponseBody:
         """Retrieve an owned session's metadata."""
-        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
-            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
-        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
-            raise HTTPException(status_code=403, detail="Server agent is disabled")
         try:
             session_rowid = from_global_id_with_expected_type(
                 GlobalID.from_id(session_id), models.AgentSession.__name__
@@ -2470,7 +2459,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         )
 
     @router.get(
-        "/agents/{agent_id}/sessions/{session_id}/messages",
+        "/agent_sessions/{session_id}/messages",
         operation_id="listAgentSessionMessages",
         response_model_by_alias=True,
         response_model_exclude_unset=True,
@@ -2479,17 +2468,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         responses=add_errors_to_responses([401, 403, 404, 422]),
     )
     async def list_session_messages(
-        agent_id: str,
         session_id: str,
         request: Request,
         cursor: str | None = Query(default=None, description="Opaque pagination cursor."),
         limit: int = Query(default=100, gt=0, le=1000),
     ) -> ListAgentSessionMessagesResponseBody:
         """Page through an owned session's persisted transcript, oldest first."""
-        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
-            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
-        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
-            raise HTTPException(status_code=403, detail="Server agent is disabled")
         try:
             session_rowid = from_global_id_with_expected_type(
                 GlobalID.from_id(session_id), models.AgentSession.__name__
@@ -2525,7 +2509,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         )
 
     @router.post(
-        "/agents/{agent_id}/sessions/{session_id}/compact",
+        "/agent_sessions/{session_id}/compact",
         operation_id="compactAgentSession",
         response_model=CompactAgentSessionResponseBody,
         response_model_exclude_none=True,
@@ -2535,15 +2519,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         ),
     )
     async def compact_agent_session(
-        agent_id: str,
         session_id: str,
         request: Request,
         request_body: CompactAgentSessionRequestBody,
     ) -> CompactAgentSessionResponseBody:
-        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
-            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
-        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
-            raise HTTPException(status_code=403, detail="Server agent is disabled")
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
         request_user_id = int(phoenix_user.identity) if phoenix_user is not None else None
@@ -2661,7 +2640,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             )
 
     @router.post(
-        "/agents/{agent_id}/sessions/{session_id}/chat",
+        "/agent_sessions/{session_id}/chat",
         operation_id="agentSessionChat",
         responses=add_errors_to_responses(
             [400, 401, 403, 404, 507],
@@ -2669,15 +2648,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         ),
     )
     async def chat(
-        agent_id: str,
         session_id: str,
         request: Request,
         request_body: ChatRequest,
     ) -> Response:
-        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
-            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
-        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
-            raise HTTPException(status_code=403, detail="Server agent is disabled")
+        if request_body.user_agent == "headless" and get_env_phoenix_agents_disable_bash():
+            raise HTTPException(status_code=403, detail="Headless agent is disabled")
         body = request_body
         db_session_factory: DbSessionFactory = request.app.state.db
         request_received_at = datetime.now(timezone.utc)
@@ -2759,7 +2735,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 tracer_provider = tracer.tracer_provider if tracer is not None else None
                 sandbox_availability = SandboxAvailability()
                 model_provider_availability = ModelProviderAvailability()
-                agent_supports_availability_gate = agent_id == _ASSISTANT_AGENT_ID
+                agent_supports_availability_gate = body.user_agent == "web"
                 async with request.app.state.db() as session:
                     if agent_supports_availability_gate:
                         if _contexts_need_sandbox_availability(resolved_contexts):
@@ -2827,7 +2803,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 [Callable[[AgentRunResult[Any]], AsyncIterator[BaseChunk]]],
                 AsyncIterator[BaseChunk],
             ]
-            if agent_id == _SERVER_AGENT_ID:
+            if body.user_agent == "headless":
                 server_agent = build_server_agent(
                     model=model,
                     schema=request.app.state.graphql_schema,

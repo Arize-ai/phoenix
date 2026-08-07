@@ -59,7 +59,7 @@ class TestListAgentSessions:
             is_ephemeral=True,
         )
 
-        response = await httpx_client.get("/v1/agents/assistant/sessions")
+        response = await httpx_client.get("/v1/agent_sessions")
 
         assert response.status_code == 200
         assert response.json() == {
@@ -97,14 +97,14 @@ class TestListAgentSessions:
             for offset in range(3)
         ]
 
-        first_response = await httpx_client.get("/v1/agents/assistant/sessions?limit=2")
+        first_response = await httpx_client.get("/v1/agent_sessions?limit=2")
         assert first_response.status_code == 200
         first_page = first_response.json()
         assert [item["title"] for item in first_page["data"]] == ["Session 0", "Session 1"]
         assert first_page["next_cursor"]
 
         second_response = await httpx_client.get(
-            "/v1/agents/assistant/sessions",
+            "/v1/agent_sessions",
             params={"limit": 2, "cursor": first_page["next_cursor"]},
         )
         assert second_response.status_code == 200
@@ -114,7 +114,7 @@ class TestListAgentSessions:
         assert second_response.json()["next_cursor"] is None
 
     async def test_rejects_invalid_cursor(self, httpx_client: httpx.AsyncClient) -> None:
-        response = await httpx_client.get("/v1/agents/assistant/sessions?cursor=invalid")
+        response = await httpx_client.get("/v1/agent_sessions?cursor=invalid")
         assert response.status_code == 422
 
 
@@ -145,7 +145,7 @@ class TestGetAgentSession:
         )
         session_id = str(GlobalID("AgentSession", str(agent_session.id)))
 
-        response = await httpx_client.get(f"/v1/agents/assistant/sessions/{session_id}")
+        response = await httpx_client.get(f"/v1/agent_sessions/{session_id}")
 
         assert response.status_code == 200
         data = response.json()["data"]
@@ -170,7 +170,7 @@ class TestGetAgentSession:
         agent_session = await _insert_agent_session(db, title="Empty", updated_at=now)
         session_id = str(GlobalID("AgentSession", str(agent_session.id)))
 
-        response = await httpx_client.get(f"/v1/agents/assistant/sessions/{session_id}")
+        response = await httpx_client.get(f"/v1/agent_sessions/{session_id}")
 
         assert response.status_code == 200
         data = response.json()["data"]
@@ -191,7 +191,7 @@ class TestGetAgentSession:
         )
         session_id = str(GlobalID("AgentSession", str(agent_session.id)))
 
-        response = await httpx_client.get(f"/v1/agents/assistant/sessions/{session_id}")
+        response = await httpx_client.get(f"/v1/agent_sessions/{session_id}")
 
         assert response.status_code == 200
         assert response.json()["data"]["is_ephemeral"] is True
@@ -217,13 +217,13 @@ class TestGetAgentSession:
         )
         session_id = str(GlobalID("AgentSession", str(agent_session.id)))
 
-        response = await httpx_client.get(f"/v1/agents/assistant/sessions/{session_id}")
+        response = await httpx_client.get(f"/v1/agent_sessions/{session_id}")
 
         assert response.status_code == 200
         assert response.json()["data"]["is_ephemeral"] is True
 
     async def test_rejects_invalid_id(self, httpx_client: httpx.AsyncClient) -> None:
-        response = await httpx_client.get("/v1/agents/assistant/sessions/invalid")
+        response = await httpx_client.get("/v1/agent_sessions/invalid")
         assert response.status_code == 404
 
 
@@ -252,7 +252,7 @@ class TestListAgentSessionMessages:
         )
         session_id = str(GlobalID("AgentSession", str(agent_session.id)))
 
-        response = await httpx_client.get(f"/v1/agents/assistant/sessions/{session_id}/messages")
+        response = await httpx_client.get(f"/v1/agent_sessions/{session_id}/messages")
 
         assert response.status_code == 200
         payload = response.json()
@@ -292,7 +292,7 @@ class TestListAgentSessionMessages:
             if cursor is not None:
                 params["cursor"] = cursor
             response = await httpx_client.get(
-                f"/v1/agents/assistant/sessions/{session_id}/messages",
+                f"/v1/agent_sessions/{session_id}/messages",
                 params=params,
             )
             assert response.status_code == 200
@@ -314,13 +314,13 @@ class TestListAgentSessionMessages:
         )
         session_id = str(GlobalID("AgentSession", str(agent_session.id)))
 
-        response = await httpx_client.get(f"/v1/agents/assistant/sessions/{session_id}/messages")
+        response = await httpx_client.get(f"/v1/agent_sessions/{session_id}/messages")
 
         assert response.status_code == 200
         assert response.json() == {"data": [], "next_cursor": None}
 
     async def test_rejects_invalid_session_id(self, httpx_client: httpx.AsyncClient) -> None:
-        response = await httpx_client.get("/v1/agents/assistant/sessions/invalid/messages")
+        response = await httpx_client.get("/v1/agent_sessions/invalid/messages")
         assert response.status_code == 404
 
     async def test_rejects_invalid_cursor(
@@ -334,25 +334,11 @@ class TestListAgentSessionMessages:
         session_id = str(GlobalID("AgentSession", str(agent_session.id)))
 
         response = await httpx_client.get(
-            f"/v1/agents/assistant/sessions/{session_id}/messages",
+            f"/v1/agent_sessions/{session_id}/messages",
             params={"cursor": "invalid"},
         )
 
         assert response.status_code == 422
-
-    async def test_rejects_unknown_agent(
-        self,
-        httpx_client: httpx.AsyncClient,
-        db: DbSessionFactory,
-    ) -> None:
-        agent_session = await _insert_agent_session(
-            db, title="Conversation", updated_at=datetime.now(timezone.utc)
-        )
-        session_id = str(GlobalID("AgentSession", str(agent_session.id)))
-
-        response = await httpx_client.get(f"/v1/agents/nonexistent/sessions/{session_id}/messages")
-
-        assert response.status_code == 404
 
     async def test_returns_not_found_for_nonexistent_session(
         self,
@@ -360,6 +346,6 @@ class TestListAgentSessionMessages:
     ) -> None:
         session_id = str(GlobalID("AgentSession", "1000000"))
 
-        response = await httpx_client.get(f"/v1/agents/assistant/sessions/{session_id}/messages")
+        response = await httpx_client.get(f"/v1/agent_sessions/{session_id}/messages")
 
         assert response.status_code == 404
