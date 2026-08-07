@@ -98,6 +98,7 @@ from phoenix.db.types.data_stream_protocol import (
     DynamicToolUIPart,
     PhoenixUIMessage,
     ProviderMetadata,
+    PydanticAIToolCallProviderMetadata,
     TextUIPart,
     ToolApprovalRequestedPart,
     ToolApprovalRespondedPart,
@@ -1555,7 +1556,9 @@ def _interrupted_tool_output_text(part: _UnresolvedToolUIPart) -> str:
     return "The tool call was interrupted before a result was produced."
 
 
-def _with_interrupted_outcome(provider_metadata: ProviderMetadata | None) -> ProviderMetadata:
+def _metadata_with_interrupted_outcome(
+    provider_metadata: ProviderMetadata | None,
+) -> ProviderMetadata:
     """Record pydantic-ai's ``'interrupted'`` tool outcome in ``callProviderMetadata``.
 
     The Vercel AI part states have no way to express an interrupted outcome, so
@@ -1565,8 +1568,11 @@ def _with_interrupted_outcome(provider_metadata: ProviderMetadata | None) -> Pro
     transcript instead of degrading the outcome to a success or failure.
     """
     result: ProviderMetadata = deepcopy(provider_metadata) if provider_metadata else {}
-    existing_metadata: dict[str, Any] = result.get(_PYDANTIC_AI_PROVIDER_METADATA_KEY, {})
-    result[_PYDANTIC_AI_PROVIDER_METADATA_KEY] = {**existing_metadata, "outcome": "interrupted"}
+    metadata = PydanticAIToolCallProviderMetadata.model_validate(
+        result.get(_PYDANTIC_AI_PROVIDER_METADATA_KEY, {})
+    )
+    metadata.outcome = "interrupted"
+    result[_PYDANTIC_AI_PROVIDER_METADATA_KEY] = metadata.model_dump(exclude_none=True)
     return result
 
 
@@ -1582,7 +1588,7 @@ def _build_interrupted_tool_output(
     interrupted return.
     """
     output_text = _interrupted_tool_output_text(part)
-    call_provider_metadata = _with_interrupted_outcome(part.call_provider_metadata)
+    call_provider_metadata = _metadata_with_interrupted_outcome(part.call_provider_metadata)
     if isinstance(part, _DYNAMIC_UNRESOLVED_TOOL_PART_TYPES):
         return DynamicToolOutputAvailablePart(
             state="output-available",

@@ -1,13 +1,10 @@
-"""Phoenix-specific payloads carried under the ``phoenix`` namespace of Vercel
-AI ``providerMetadata`` on tool-call parts.
+"""The ``phoenix`` and ``pydantic_ai`` namespaces of part-level Vercel AI
+``providerMetadata``, validated at persist time by ``PhoenixUIMessage``."""
 
-These live in ``phoenix.db.types`` (not the router) because the ``phoenix``
-namespace they describe is persisted inside every tool part of a
-``PhoenixUIMessage`` and is validated there — see ``PhoenixUIMessage``'s model
-validator in ``phoenix_types``.
-"""
-
+from datetime import datetime
 from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, JsonValue
 
 from ._models import CamelBaseModel
 
@@ -37,3 +34,60 @@ class ToolCallCallbackProviderMetadata(ToolCallProviderMetadata):
 
     client_ended_at: str | None = None
     """RFC3339 browser timestamp taken when client tool execution ended."""
+
+
+PydanticAIToolPartKind = Literal["tool-search", "capability-load"]
+"""Local pin of pydantic-ai's ``ToolPartKind``."""
+
+
+class PydanticAIMessageMetadata(BaseModel):
+    """Local pin of pydantic-ai's message-level ``pydantic_ai`` metadata
+    namespace (its private ``_PydanticAIMessageMetadata``), merged into the
+    assistant metadata by the stream's metadata chunk."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    timestamp: datetime | None = None
+    """Round-trip channel for ``ModelResponse.timestamp`` — the only field
+    upstream dumps and restores."""
+
+
+class _BasePydanticAIProviderMetadata(BaseModel):
+    """Common keys of the ``pydantic_ai`` namespace of part-level
+    ``providerMetadata`` — pydantic-ai's unversioned round-trip channel for
+    ``ModelMessage`` fields the Vercel part shapes can't express"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str | None = None
+    """Provider part id of the originating ``ModelResponsePart``."""
+
+    provider_name: str | None = None
+    """Producing provider; Anthropic replays thinking blocks only when this
+    matches the requesting model."""
+
+    provider_details: dict[str, JsonValue] | None = None
+    """Opaque provider details restored verbatim."""
+
+
+class PydanticAITextProviderMetadata(_BasePydanticAIProviderMetadata):
+    """The ``pydantic_ai`` namespace on a persisted text part."""
+
+
+class PydanticAIReasoningProviderMetadata(_BasePydanticAIProviderMetadata):
+    """The ``pydantic_ai`` namespace on a persisted reasoning part."""
+
+    signature: str | None = None
+    """Thinking signature, required to replay Anthropic extended thinking on
+    tool-use turns; redacted thinking is stored here in its entirety."""
+
+
+class PydanticAIToolCallProviderMetadata(_BasePydanticAIProviderMetadata):
+    """The ``pydantic_ai`` namespace in a persisted tool part's
+    ``callProviderMetadata``."""
+
+    tool_kind: PydanticAIToolPartKind | None = None
+    """pydantic-ai's typed-subclass discriminator for the tool part."""
+
+    outcome: Literal["interrupted"] | None = None
+    """The one tool outcome the Vercel part states can't express."""
