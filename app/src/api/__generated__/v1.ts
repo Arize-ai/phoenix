@@ -3453,9 +3453,6 @@ export interface components {
         /**
          * LegacyAssistantMessageMetadata
          * @description Legacy transcripts predate the ``type`` discriminator, so default it here.
-         *
-         *     Unknown keys are tolerated: this route parses transcripts old clients kept
-         *     locally, and nothing it accepts is persisted.
          */
         LegacyAssistantMessageMetadata: {
             /**

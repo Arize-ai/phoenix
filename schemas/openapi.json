@@ -13411,7 +13411,7 @@
           "sessionId"
         ],
         "title": "LegacyAssistantMessageMetadata",
-        "description": "Legacy transcripts predate the ``type`` discriminator, so default it here.\n\nUnknown keys are tolerated: this route parses transcripts old clients kept\nlocally, and nothing it accepts is persisted."
+        "description": "Legacy transcripts predate the ``type`` discriminator, so default it here."
       },
       "LegacyAssistantMetadataUIMessage": {
         "properties": {
