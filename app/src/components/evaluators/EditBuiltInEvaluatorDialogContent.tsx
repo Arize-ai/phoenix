@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Alert } from "@phoenix/components/core/alert";
 import { Button } from "@phoenix/components/core/button";
 import {
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -60,6 +61,7 @@ export const EditBuiltInEvaluatorDialogContent = ({
           >
             {mode === "create" ? "Create" : "Update"}
           </Button>
+          <DialogCloseButton />
         </DialogTitleExtra>
       </DialogHeader>
       <fieldset

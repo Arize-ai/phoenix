@@ -13,6 +13,7 @@ import { OverlayTriggerStateContext } from "react-aria-components";
 import { flushSync } from "react-dom";
 
 import { useAppFrameOverlay } from "./AppFrameOverlayContext";
+import { DrawerContext } from "./DrawerContext";
 import type { ModalSize } from "./Modal";
 import { centeredModalCSS, modalBackdropCSS } from "./Modal";
 
@@ -255,9 +256,15 @@ function ViewportModalOverlayInner({
             state: scopedState,
           }}
         >
-          <FocusScope autoFocus restoreFocus>
-            {children}
-          </FocusScope>
+          {/* The overlay portals out of any drawer subtree, so descendants
+              are not "in a drawer" regardless of where the trigger lives.
+              Without this reset, a modal launched from a drawer renders the
+              drawer's collapse-chevron close icon instead of the standard ×. */}
+          <DrawerContext.Provider value={false}>
+            <FocusScope autoFocus restoreFocus>
+              {children}
+            </FocusScope>
+          </DrawerContext.Provider>
         </ViewportModalContext.Provider>
       </OverlayTriggerStateContext.Provider>
     </div>

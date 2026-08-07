@@ -53,6 +53,7 @@ import {
 } from "@phoenix/components";
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import {
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -517,6 +518,7 @@ export const EditCodeEvaluatorDialogContent = ({
           >
             {mode === "create" ? "Create" : "Update"}
           </Button>
+          <DialogCloseButton />
         </DialogTitleExtra>
       </DialogHeader>
 
