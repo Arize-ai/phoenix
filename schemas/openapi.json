@@ -9652,6 +9652,11 @@
                 "type": "null"
               }
             ]
+          },
+          "interrupted": {
+            "type": "boolean",
+            "title": "Interrupted",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -13373,6 +13378,11 @@
                 "type": "null"
               }
             ]
+          },
+          "interrupted": {
+            "type": "boolean",
+            "title": "Interrupted",
+            "default": false
           }
         },
         "additionalProperties": true,

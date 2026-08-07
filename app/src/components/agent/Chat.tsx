@@ -66,7 +66,6 @@ import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
 } from "./ElicitationDraftContext";
-import { InterruptedChatMessage } from "./InterruptedChatMessage";
 import {
   MessageRewindConfirmation,
   type MessageRewindMode,
@@ -277,6 +276,10 @@ const chatCSS = css`
   .chat__compaction-summary {
     margin-bottom: var(--global-dimension-size-100);
     padding: 0 var(--global-dimension-size-100);
+
+    & [data-expanded="true"] {
+      overflow: hidden;
+    }
   }
 
   &.chat--empty {
@@ -594,13 +597,6 @@ export function ChatView({
     status,
     messages,
   });
-  const latestMessage = messages.at(-1);
-  const shouldShowInterruptedMessage =
-    status === "ready" &&
-    !error &&
-    !isBusyElsewhere &&
-    latestMessage?.role === "user" &&
-    !isCompactionMessage(latestMessage);
   const resolvedElicitationDraft =
     pendingElicitation &&
     elicitationDraft?.toolCallId !== pendingElicitation.toolCallId
@@ -734,8 +730,6 @@ export function ChatView({
     }
   };
 
-  const handleRetryInterruptedMessage = () => retryUserMessage(latestMessage);
-
   const handleRetryFailedMessage = () =>
     retryUserMessage(messages.findLast((message) => message.role === "user"));
 
@@ -845,14 +839,6 @@ export function ChatView({
                   </ChatCompactionStatus>
                 ) : null}
                 {(showThinkingIndicator || isBusyElsewhere) && <Loading />}
-                {shouldShowInterruptedMessage ? (
-                  <InterruptedChatMessage
-                    latestUserMessageId={latestMessage.id}
-                    canFork
-                    onRetry={handleRetryInterruptedMessage}
-                    onRewind={onRewindRequest}
-                  />
-                ) : null}
                 {error && sessionNotice == null && (
                   <ChatErrorMessage
                     error={error}

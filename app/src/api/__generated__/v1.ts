@@ -2005,6 +2005,11 @@ export interface components {
             sessionId: string;
             turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
+            /**
+             * Interrupted
+             * @default false
+             */
+            interrupted?: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -3461,6 +3466,11 @@ export interface components {
             sessionId: string;
             turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
+            /**
+             * Interrupted
+             * @default false
+             */
+            interrupted?: boolean;
         } & {
             [key: string]: unknown;
         };

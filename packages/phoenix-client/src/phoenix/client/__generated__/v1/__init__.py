@@ -1571,6 +1571,7 @@ class LegacyAssistantMessageMetadata(TypedDict):
     sessionId: str
     turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
+    interrupted: NotRequired[bool]
 
 
 class ListDatasetExamplesData(TypedDict):
@@ -1821,6 +1822,7 @@ class AssistantMessageMetadata(TypedDict):
     sessionId: str
     turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
+    interrupted: NotRequired[bool]
 
 
 class ChatCompletion(TypedDict):

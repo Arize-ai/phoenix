@@ -2,13 +2,12 @@ import { useMemo } from "react";
 
 import {
   getAssistantMessageMetadata,
-  isCompactionMessage,
   type AgentUIMessage,
 } from "@phoenix/agent/chat/types";
 import { ChatTokenUsage } from "@phoenix/components/ai/token-usage";
 
 type ChatSessionUsageProps = {
-  /** The session's current transcript; token usage is accumulated across assistant turns. */
+  /** The session's current transcript; usage comes from the latest assistant turn. */
   messages: AgentUIMessage[];
 };
 
@@ -31,24 +30,19 @@ export type AgentSessionUsage = {
 };
 
 /**
- * Accumulate token usage after an optional message boundary while retaining
- * cache details from only the latest assistant turn that reported usage.
+ * Return the usage from the most recent assistant turn that reported any.
+ *
+ * The server attaches the usage of the turn's final model request to each
+ * assistant message, so the latest report reflects the tokens currently held
+ * in context — i.e. what will be carried into the next turn.
  */
 export function getConversationUsage({
   messages,
 }: {
   messages: AgentUIMessage[];
 }): AgentSessionUsage | null {
-  let prompt = 0;
-  let completion = 0;
-  let total = 0;
-  let promptDetails: AgentSessionUsage["tokenCount"]["promptDetails"];
-  let hasUsage = false;
-
-  const boundaryIndex = messages.findLastIndex(isCompactionMessage);
-  const activeMessages = messages.slice(boundaryIndex + 1);
-
-  for (const message of activeMessages) {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index];
     if (message?.role !== "assistant") {
       continue;
     }
@@ -56,25 +50,16 @@ export function getConversationUsage({
     if (usage == null) {
       continue;
     }
-    hasUsage = true;
-    prompt += usage.tokens.prompt;
-    completion += usage.tokens.completion;
-    total += usage.tokens.total;
-    promptDetails = usage.promptDetails ?? undefined;
+    return {
+      tokenCount: {
+        prompt: usage.tokens.prompt,
+        completion: usage.tokens.completion,
+        total: usage.tokens.total,
+        ...(usage.promptDetails ? { promptDetails: usage.promptDetails } : {}),
+      },
+    } satisfies AgentSessionUsage;
   }
-
-  if (!hasUsage) {
-    return null;
-  }
-
-  return {
-    tokenCount: {
-      prompt,
-      completion,
-      total,
-      ...(promptDetails ? { promptDetails } : {}),
-    },
-  } satisfies AgentSessionUsage;
+  return null;
 }
 
 export const ChatSessionUsage = ({ messages }: ChatSessionUsageProps) => {

@@ -4,9 +4,10 @@ Tests cover both router-level helpers and observable behavior through the
 public chat route. The LLM is the only mocked seam in behavioral tests.
 """
 
+import asyncio
 import json
 import warnings
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, MutableMapping
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from unittest.mock import MagicMock
@@ -38,6 +39,7 @@ from pydantic_ai.usage import RequestUsage
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.types import ASGIApp
 from strawberry.relay import GlobalID
 
 from phoenix.config import get_env_phoenix_agents_assistant_project_name
@@ -66,6 +68,7 @@ from phoenix.server.api.routers.agents import (
     _persist_db_traces,
     _resolve_turn_trace_ids,
     _synthesize_client_tool_spans,
+    _to_pydantic_ai_messages,
     _turn_parent_context,
 )
 from phoenix.server.authorization import insufficient_storage_message
@@ -1191,13 +1194,17 @@ async def test_user_turn_persists_interrupted_repair_for_dangling_client_tool(
     assert response.status_code == 200
 
     repaired_part = await _load_pending_tool_part(db)
-    assert repaired_part["state"] == "output-error"
-    assert "interrupted" in repaired_part["errorText"]
-    assert "client environment" in repaired_part["errorText"]
+    # Interruption is not a tool failure: the repair resolves the call as
+    # neutral output describing the interruption, not as an error.
+    assert repaired_part["state"] == "output-available"
+    assert "interrupted" in repaired_part["output"]
+    assert "client environment" in repaired_part["output"]
     # The original call's input and server-stamped metadata survive the repair.
     assert repaired_part["input"] == {"instanceId": 3}
     phoenix_metadata = repaired_part["callProviderMetadata"]["phoenix"]
     assert phoenix_metadata["toolExecutionEnvironment"] == "client"
+    # pydantic-ai reads the outcome back from its metadata namespace on load.
+    assert repaired_part["callProviderMetadata"]["pydantic_ai"]["outcome"] == "interrupted"
 
 
 async def test_user_turn_applies_submitted_tool_output_error_resolutions(
@@ -1977,11 +1984,42 @@ def test_merge_appends_user_message_and_repairs_unresolved_tool_calls() -> None:
     repaired = merged.updated_messages[_message_uuid("assistant-1")]
     assert merged.messages[1] is repaired
     parts = _parts_by_tool_call_id(repaired)
-    assert parts["tool-call-unresolved"].state == "output-error"
-    assert "interrupted" in parts["tool-call-unresolved"].error_text
-    assert parts["tool-call-streaming"].state == "output-error"
+    assert parts["tool-call-unresolved"].state == "output-available"
+    assert "interrupted" in parts["tool-call-unresolved"].output
+    interrupted_metadata = parts["tool-call-unresolved"].call_provider_metadata
+    assert interrupted_metadata["pydantic_ai"]["outcome"] == "interrupted"
+    assert parts["tool-call-streaming"].state == "output-available"
+    # The genuinely completed call is left untouched — no interrupted outcome.
     assert parts["tool-call-done"].state == "output-available"
     assert parts["tool-call-done"].output == {"stdout": "/"}
+    assert parts["tool-call-done"].call_provider_metadata is None
+
+
+def test_repaired_interrupted_tools_load_with_interrupted_outcome() -> None:
+    """Pin the contract with pydantic-ai's loader: a repaired interrupted call
+    round-trips to ``ToolReturnPart(outcome='interrupted')`` — neutral, not a
+    failure — while genuinely completed calls stay ``'success'``."""
+    persisted = _validated_messages(
+        [_user_message("run a command"), _assistant_message_with_tool_states()]
+    )
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=PhoenixUIMessage.model_validate(
+            _user_message("never mind", message_id=_message_uuid("msg-user-2"))
+        ),
+    )
+
+    loaded = _to_pydantic_ai_messages(merged.messages)
+
+    tool_returns = {
+        part.tool_call_id: part
+        for message in loaded
+        for part in message.parts
+        if isinstance(part, ToolReturnPart)
+    }
+    assert tool_returns["tool-call-unresolved"].outcome == "interrupted"
+    assert tool_returns["tool-call-streaming"].outcome == "interrupted"
+    assert tool_returns["tool-call-done"].outcome == "success"
 
 
 def test_merge_applies_tool_outputs_to_the_trailing_assistant_message() -> None:
@@ -2004,8 +2042,10 @@ def test_merge_applies_tool_outputs_to_the_trailing_assistant_message() -> None:
     assert parts["tool-call-unresolved"].state == "output-available"
     assert parts["tool-call-unresolved"].output == {"stdout": "README.md"}
     # The streaming call the outputs did not cover can never be resolved, so
-    # it is authoritatively closed out before the turn continues.
-    assert parts["tool-call-streaming"].state == "output-error"
+    # it is authoritatively closed out as interrupted before the turn continues.
+    assert parts["tool-call-streaming"].state == "output-available"
+    streaming_metadata = parts["tool-call-streaming"].call_provider_metadata
+    assert streaming_metadata["pydantic_ai"]["outcome"] == "interrupted"
 
 
 def test_merge_ignores_tool_outputs_for_already_resolved_tool_calls() -> None:
@@ -3330,3 +3370,108 @@ async def test_transcript_write_failure_is_reported_as_an_unsaved_turn(
     # The raw driver text is not what the user reads.
     assert "database or disk is full" not in error_chunk["errorText"]
     assert "data-transcript-persisted" not in response.text
+
+
+async def test_client_disconnect_persists_partial_turn(
+    db: DbSessionFactory,
+    asgi_app: ASGIApp,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Interrupting a streaming turn — the UI stop button, a CLI interrupt, or
+    a dropped SSE connection — persists the partial turn and releases the turn
+    lock, so clients can reload the transcript and resume with a follow-up
+    message instead of snapping back to the pre-turn state."""
+
+    async def stream_function(
+        messages: list[ModelMessage],
+        agent_info: AgentInfo,
+    ) -> AsyncIterator[str | DeltaToolCalls]:
+        yield "partial "
+        yield "answer"
+        # Stream forever: only the client's disconnect ends this turn.
+        await asyncio.Event().wait()
+
+    def function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
+        raise AssertionError("the interrupted turn never completes a non-streamed call")
+
+    _mock_turn_models(
+        monkeypatch,
+        FunctionModel(function=function, stream_function=stream_function),
+    )
+    session_id = "17171717-1717-4717-8717-171717171717"
+    agent_session_id = await _create_agent_session_row(db, title="Already titled")
+    request_body = json.dumps(
+        _chat_body(session_id, _user_message("interrupt me", message_id=_message_uuid("stop-1")))
+    ).encode()
+
+    # Drive the ASGI app directly: httpx's ASGI transport cannot emit the
+    # mid-stream `http.disconnect` that a stop button or Ctrl-C produces.
+    disconnected = asyncio.Event()
+    request_sent = False
+
+    async def receive() -> dict[str, Any]:
+        nonlocal request_sent
+        if not request_sent:
+            request_sent = True
+            return {"type": "http.request", "body": request_body, "more_body": False}
+        await disconnected.wait()
+        return {"type": "http.disconnect"}
+
+    streamed = bytearray()
+
+    async def send(message: MutableMapping[str, Any]) -> None:
+        if message["type"] == "http.response.body":
+            streamed.extend(message.get("body", b""))
+            if b'"text-delta"' in streamed:
+                # The client saw some of the reply; hang up mid-stream.
+                disconnected.set()
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": _chat_url(agent_session_id),
+        "raw_path": _chat_url(agent_session_id).encode(),
+        "query_string": b"",
+        "root_path": "",
+        "headers": [
+            (b"host", b"test"),
+            (b"accept", b"text/event-stream"),
+            (b"content-type", b"application/json"),
+            (b"content-length", str(len(request_body)).encode()),
+        ],
+        "client": ("testclient", 50000),
+        "server": ("test", 80),
+        "state": {},
+    }
+    await asyncio.wait_for(asgi_app(scope, receive, send), timeout=30)
+
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        # The interrupted turn released its lock, so a follow-up can claim it.
+        assert agent_session.heartbeat_at is None
+        messages = await _load_session_messages(session, agent_session.id)
+
+    assert [message["role"] for message in messages] == ["user", "assistant"]
+    assistant_message = messages[-1]
+    text_parts = [part for part in assistant_message["parts"] if part["type"] == "text"]
+    assert len(text_parts) == 1
+    # The text streamed before the disconnect is kept and finalized.
+    assert text_parts[0]["text"].startswith("partial")
+    assert text_parts[0]["state"] == "done"
+    # The persisted message is flagged interrupted so clients can render the
+    # cut-off turn distinctly (including when no parts streamed at all).
+    assert assistant_message["metadata"]["type"] == "assistant"
+    assert assistant_message["metadata"]["interrupted"] is True
+    # The persisted transcript round-trips through submit validation for resume.
+    for message in messages:
+        PhoenixUIMessage.model_validate(message)
+    # The assistant message keeps the stream's opening message id, so the
+    # client's next send passes the `lastMessageId` staleness check.
+    chunks = _stream_chunks(streamed.decode())
+    start_chunk = next(chunk for chunk in chunks if chunk.get("type") == "start")
+    assert assistant_message["id"] == start_chunk["messageId"]
+    assert await _last_stored_message_id(db) == assistant_message["id"]
