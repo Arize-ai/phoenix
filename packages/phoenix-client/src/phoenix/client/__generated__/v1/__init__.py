@@ -712,6 +712,10 @@ class PromptXAIInvocationParametersContent(TypedDict):
     extra_body: NotRequired[Mapping[str, Any]]
 
 
+class PydanticAIMessageMetadata(TypedDict):
+    timestamp: NotRequired[str]
+
+
 class ReasoningUIPart(TypedDict):
     type: Literal["reasoning"]
     text: str
@@ -1572,6 +1576,7 @@ class LegacyAssistantMessageMetadata(TypedDict):
     turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
     interrupted: NotRequired[bool]
+    pydantic_ai: NotRequired[PydanticAIMessageMetadata]
 
 
 class ListDatasetExamplesData(TypedDict):
@@ -1823,6 +1828,7 @@ class AssistantMessageMetadata(TypedDict):
     turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
     interrupted: NotRequired[bool]
+    pydantic_ai: NotRequired[PydanticAIMessageMetadata]
 
 
 class ChatCompletion(TypedDict):

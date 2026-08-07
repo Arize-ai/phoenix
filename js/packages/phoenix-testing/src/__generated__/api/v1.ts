@@ -2010,8 +2010,7 @@ export interface components {
              * @default false
              */
             interrupted?: boolean;
-        } & {
-            [key: string]: unknown;
+            pydantic_ai?: components["schemas"]["PydanticAIMessageMetadata"] | null;
         };
         /** AssistantMessageMetadataUsage */
         AssistantMessageMetadataUsage: {
@@ -3471,6 +3470,7 @@ export interface components {
              * @default false
              */
             interrupted?: boolean;
+            pydantic_ai?: components["schemas"]["PydanticAIMessageMetadata"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -4985,6 +4985,16 @@ export interface components {
             extra_body?: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * PydanticAIMessageMetadata
+         * @description Local pin of pydantic-ai's message-level ``pydantic_ai`` metadata
+         *     namespace (its private ``_PydanticAIMessageMetadata``), merged into the
+         *     assistant metadata by the stream's metadata chunk.
+         */
+        PydanticAIMessageMetadata: {
+            /** Timestamp */
+            timestamp?: string | null;
         };
         /**
          * ReasoningUIPart

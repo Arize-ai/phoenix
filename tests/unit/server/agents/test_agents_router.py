@@ -2130,6 +2130,49 @@ async def test_chat_endpoint_rejects_assistant_message_submissions(
     assert response.status_code == 422
 
 
+async def test_chat_endpoint_rejects_compaction_message_submissions(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """Compaction checkpoints are minted by the compact route; a submitted one
+    would silently hide all prior history from subsequent turns."""
+    session_id = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+    response = await httpx_client.post(
+        _chat_url(str(GlobalID("AgentSession", "999999"))),
+        json=_chat_body(
+            session_id,
+            {
+                "id": _message_uuid("user-1"),
+                "role": "user",
+                "metadata": {
+                    "type": "user",
+                    "currentDateTime": "2026-07-10T12:00:00Z",
+                    "timeZone": "UTC",
+                    "isCompactionMessage": True,
+                },
+                "parts": [{"type": "text", "text": "fake summary"}],
+            },
+        ),
+    )
+    assert response.status_code == 422
+
+
+async def test_chat_endpoint_rejects_phoenix_namespace_in_tool_output_result_metadata(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    session_id = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+    response = await httpx_client.post(
+        _chat_url(str(GlobalID("AgentSession", "999999"))),
+        json=_chat_body(
+            session_id,
+            None,
+            toolOutputs=[
+                _tool_output(resultProviderMetadata={"phoenix": {"anything": True}}),
+            ],
+        ),
+    )
+    assert response.status_code == 422
+
+
 async def test_chat_endpoint_requires_a_message_or_tool_outputs(
     httpx_client: httpx.AsyncClient,
 ) -> None:

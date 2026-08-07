@@ -69,6 +69,8 @@ _DEPRECATION_HEADER_VALUE = "true"
 class LegacyAssistantMessageMetadata(AssistantMessageMetadata):
     """Legacy transcripts predate the ``type`` discriminator, so default it here."""
 
+    model_config = ConfigDict(extra="allow")
+
     type: Literal["assistant"] = "assistant"
 
 

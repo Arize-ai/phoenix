@@ -9657,9 +9657,19 @@
             "type": "boolean",
             "title": "Interrupted",
             "default": false
+          },
+          "pydantic_ai": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PydanticAIMessageMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
-        "additionalProperties": true,
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
@@ -13383,6 +13393,16 @@
             "type": "boolean",
             "title": "Interrupted",
             "default": false
+          },
+          "pydantic_ai": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PydanticAIMessageMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": true,
@@ -17178,6 +17198,26 @@
         "additionalProperties": false,
         "type": "object",
         "title": "PromptXAIInvocationParametersContent"
+      },
+      "PydanticAIMessageMetadata": {
+        "properties": {
+          "timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PydanticAIMessageMetadata",
+        "description": "Local pin of pydantic-ai's message-level ``pydantic_ai`` metadata\nnamespace (its private ``_PydanticAIMessageMetadata``), merged into the\nassistant metadata by the stream's metadata chunk."
       },
       "ReasoningUIPart": {
         "properties": {
