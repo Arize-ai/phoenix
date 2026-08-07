@@ -132,6 +132,21 @@ class TestTracer:
         assert project_session.end_time == returned_trace.end_time
         assert project_session.last_span_ingested_at is not None
 
+        # the session is persisted by cascade from the trace, so read it back
+        # from a separate session to confirm the timestamp reaches the database
+        async with db() as session:
+            session.add_all(returned_traces)
+            await session.flush()
+
+        async with db() as session:
+            persisted_project_session = await session.scalar(
+                select(models.ProjectSession).where(
+                    models.ProjectSession.session_id == "session-abc"
+                )
+            )
+        assert persisted_project_session is not None
+        assert persisted_project_session.last_span_ingested_at is not None
+
     @pytest.mark.asyncio
     async def test_get_db_traces_leaves_project_session_unset_without_session_id(
         self, db: DbSessionFactory, project: models.Project, tracer: Tracer
