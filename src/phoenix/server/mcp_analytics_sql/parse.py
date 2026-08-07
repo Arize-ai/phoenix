@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Optional
 
 from sqlglot import exp, parse
-from sqlglot.errors import ParseError, SqlglotError
+from sqlglot.errors import ErrorLevel, ParseError, SqlglotError, UnsupportedError
 from sqlglot.optimizer.scope import build_scope
 
 from phoenix.server.mcp_analytics_sql.allowlist import (
@@ -116,6 +116,63 @@ _REFUSED_NODE_CLASSES: dict[type[exp.Expr], str] = {
         "to read a JSON value."
     ),
 }
+
+
+#: Star modifiers, and what each one would have meant. The star expansion pass
+#: rebuilds the projection from the manifest and carries none of them, so the
+#: statement runs over every column and the exclusion the caller asked for is
+#: gone. Strict rendering does not catch it: the loss happens in a pass of ours,
+#: before the generator sees anything.
+_STAR_MODIFIERS = {
+    "except_": "EXCEPT",
+    "replace": "REPLACE",
+    "rename": "RENAME",
+    "ilike": "ILIKE",
+}
+
+
+def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
+    """Refuse shapes that survive admission and lose meaning before execution.
+
+    Each of these renders without complaint into something that means less than
+    it said, so nothing downstream can notice. Refusing is the only honest
+    answer available while the loss is real; two of the three become
+    unnecessary once the causes are fixed, and are marked accordingly.
+    """
+    for star in root.find_all(exp.Star):
+        for arg, spelling in _STAR_MODIFIERS.items():
+            if star.args.get(arg):
+                return AdmissionResult(
+                    AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                    f"`* {spelling} (...)` is not supported: the star is expanded from the "
+                    "schema and the modifier would be dropped, returning every column "
+                    "instead. Name the columns you want.",
+                )
+    for options in root.find_all(exp.LimitOptions):
+        # Carried on the options node under `FETCH`, not on `Limit`. Rendered as
+        # a plain LIMIT on SQLite, which drops the ties and returns an arbitrary
+        # subset of the tied rows -- a different answer, silently.
+        if options.args.get("with_ties"):
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "`WITH TIES` is not supported: it is dropped when the statement is "
+                "prepared, which silently returns an arbitrary subset of the tied "
+                "rows. Rank explicitly with a window function instead.",
+            )
+    for literal in root.find_all(exp.HexString):
+        # The parse is lossy: `0x1f` and `x'1f'` are both valid SQLite, mean an
+        # integer and a blob respectively, and produce one identical node. So
+        # this refuses the blob spelling too, which is the price of not
+        # answering an integer comparison with a blob. Withdrawable once the
+        # tokenizer records which was written.
+        del literal
+        return AdmissionResult(
+            AdmissionOutcome.UNSUPPORTED_SYNTAX,
+            "Hexadecimal literals are not supported: `0x1f` and `x'1f'` parse "
+            "identically here, so an integer written in hex would be executed as a "
+            "blob. Write the value in decimal.",
+        )
+    return None
 
 
 def _check_node_classes(root: exp.Expression) -> Optional[AdmissionResult]:
@@ -593,6 +650,7 @@ def admit(root: exp.Expression, *, allowlist: Allowlist, dialect: DialectName) -
 
     failure = (
         _check_node_classes(root)
+        or _check_lossy_shapes(root)
         or _check_functions(root, allowlist=allowlist, dialect=dialect)
         or _check_base_tables(root, allowlist=allowlist)
         or _check_hidden_columns(root, allowlist=allowlist)
@@ -604,7 +662,32 @@ def admit(root: exp.Expression, *, allowlist: Allowlist, dialect: DialectName) -
 
 
 def render(root: exp.Expression, *, dialect: DialectName) -> str:
-    return root.sql(dialect=sqlglot_read_dialect(dialect), comments=False)
+    """Render the admitted tree, refusing rather than degrading.
+
+    sqlglot warns and emits what it can when the target cannot express a node,
+    which is right for a transpiler -- partial output beats refusing to
+    translate -- and wrong here. This function authors the statement the engine
+    runs, so a clause dropped on the way out is a statement that was admitted
+    with one meaning and executed with another, and the caller is told nothing.
+
+    Raising instead turns every such case into an ordinary refusal, including
+    ones nobody has catalogued yet. What it does not catch is a node the
+    generator can express incorrectly; those are refused at admission.
+    """
+    try:
+        return root.sql(
+            dialect=sqlglot_read_dialect(dialect),
+            comments=False,
+            unsupported_level=ErrorLevel.RAISE,
+        )
+    except UnsupportedError as exc:
+        # The message names the construct, and it is the only description of the
+        # gap that exists -- there is no catalogue of what each generator cannot
+        # express.
+        raise AnalyticsSqlError(
+            code=ErrorCode.UNSUPPORTED_SYNTAX,
+            message=f"This statement cannot be expressed for {dialect}: {exc}",
+        ) from exc
 
 
 def admit_sql(

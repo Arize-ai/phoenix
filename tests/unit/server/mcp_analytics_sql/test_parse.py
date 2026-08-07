@@ -595,3 +595,57 @@ def test_a_refusal_names_the_spelling_that_works(
     with pytest.raises(AnalyticsSqlError) as caught:
         admit_sql(refused, allowlist=load_allowlist(), dialect=cast(DialectName, dialect))
     assert suggested in caught.value.message
+
+
+class TestLossyShapesAreRefused:
+    """Shapes that render without complaint into something meaning less.
+
+    Strict rendering catches a generator that cannot express a node. It does not
+    catch a node the generator expresses as something else, nor one a pass of
+    ours drops before the generator sees it. Those are refused here. See item 4.
+    """
+
+    @staticmethod
+    def _admit(sql: str) -> AdmissionResult:
+        return try_parse_and_admit(sql, dialect="sqlite")
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT * EXCEPT (id) FROM spans",
+            "SELECT * REPLACE (id AS x) FROM spans",
+        ],
+    )
+    def test_star_modifiers_are_refused(self, sql: str) -> None:
+        """The star is rebuilt from the manifest, so the modifier is dropped and
+        every column comes back -- the opposite of what was asked."""
+        result = self._admit(sql)
+
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert "Name the columns you want" in result.detail
+
+    def test_with_ties_is_refused(self) -> None:
+        result = self._admit("SELECT id FROM spans ORDER BY id FETCH FIRST 5 ROWS WITH TIES")
+
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert "WITH TIES" in result.detail
+
+    def test_hex_literals_are_refused(self) -> None:
+        """`0x1f` and `x'1f'` collapse to one node, so an integer written in hex
+        would execute as a blob. Refuses the blob spelling too, deliberately."""
+        result = self._admit("SELECT id FROM spans WHERE id = 0x1f")
+
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert "decimal" in result.detail
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT * FROM spans",
+            "SELECT id FROM spans ORDER BY id FETCH FIRST 5 ROWS ONLY",
+            "SELECT id FROM spans ORDER BY id LIMIT 5",
+            "SELECT id FROM spans WHERE id = 31",
+        ],
+    )
+    def test_the_ordinary_spellings_still_admit(self, sql: str) -> None:
+        assert self._admit(sql).outcome is AdmissionOutcome.ADMIT
