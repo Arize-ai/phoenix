@@ -147,7 +147,7 @@ px.describe("text-to-sql", () => { /* tests log token_f1, valid_sql, latency_ms 
 
 | Variable | Purpose |
 |---|---|
-| `PHOENIX_ENDPOINT` | Phoenix base URL. Falls back to `PHOENIX_COLLECTOR_ENDPOINT` |
+| `PHOENIX_ENDPOINT` | Phoenix base URL — usually the same URL as `PHOENIX_COLLECTOR_ENDPOINT`, which is used when this is unset |
 | `PHOENIX_API_KEY` | Bearer token |
 | `PHOENIX_CLIENT_HEADERS` | Optional JSON headers |
 | `PHOENIX_TEST_TRACKING` | `false` disables sync (dry run) |

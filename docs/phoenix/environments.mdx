@@ -67,7 +67,7 @@ This will start the phoenix server on port 6006. If you are running your instrum
 
 ## Configuration & environment variables
 
-Phoenix reads its connection settings from environment variables. Two endpoint variables exist — one per concern:
+Phoenix reads its connection settings from environment variables. Two endpoint variables exist — one per concern, usually holding the same URL:
 
 | Variable | What it is | When to set it |
 |----------|------------|----------------|
@@ -76,7 +76,7 @@ Phoenix reads its connection settings from environment variables. Two endpoint v
 | `PHOENIX_API_KEY` | The credential used to **authenticate** to a Phoenix instance that has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled. | When connecting to any authenticated deployment. A local `phoenix serve` needs none. |
 | `PHOENIX_CLIENT_HEADERS` | Extra headers (JSON) sent with every request, e.g. `api_key=...`. | Only when a deployment requires custom headers. |
 
-**If you set only one, set `PHOENIX_COLLECTOR_ENDPOINT`.** It configures tracing, and the clients and the `px` CLI fall back to it for API access — so one value covers everything. `PHOENIX_ENDPOINT` is the canonical setting for those client surfaces, and it wins when both are set, but the fallback means you rarely need it on its own.
+**If you set only one, set `PHOENIX_COLLECTOR_ENDPOINT`.** It configures tracing, and the clients and the `px` CLI use it for API access too — so one value covers everything. `PHOENIX_ENDPOINT` is the canonical setting for those client surfaces, and it wins when both are set, but you rarely need it on its own.
 
 The fallback does not run both ways in every SDK. API access falls back to `PHOENIX_COLLECTOR_ENDPOINT` everywhere, but Python trace export does not yet read `PHOENIX_ENDPOINT`, so setting **only** `PHOENIX_ENDPOINT` can leave Python trace export pointed at `http://localhost:6006`.
 
