@@ -34,6 +34,9 @@ from .request_types import (
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
 _PYDANTIC_AI_PROVIDER_METADATA_KEY = "pydantic_ai"
+_KNOWN_PROVIDER_METADATA_KEYS = frozenset(
+    {_PHOENIX_PROVIDER_METADATA_KEY, _PYDANTIC_AI_PROVIDER_METADATA_KEY}
+)
 _ToolCallCallbackProviderMetadataAdapter = TypeAdapter(ToolCallCallbackProviderMetadata)
 _PydanticAITextProviderMetadataAdapter = TypeAdapter(PydanticAITextProviderMetadata)
 _PydanticAIReasoningProviderMetadataAdapter = TypeAdapter(PydanticAIReasoningProviderMetadata)
@@ -150,6 +153,36 @@ class PhoenixUIMessage(UIMessage):
             raise ValueError(
                 f"{self.role}-role message cannot carry {phoenix_metadata.type} metadata"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_provider_metadata_namespaces(self) -> "PhoenixUIMessage":
+        """Reject provider-metadata namespaces outside the known registry."""
+        for part in self.parts:
+            provider_metadata_values: list[ProviderMetadata | None] = []
+            if isinstance(part, ToolUIPart | DynamicToolUIPart):
+                provider_metadata_values.append(part.call_provider_metadata)
+                if isinstance(part, _TOOL_RESULT_METADATA_PART_TYPES):
+                    provider_metadata_values.append(part.result_provider_metadata)
+            elif isinstance(
+                part,
+                TextUIPart | ReasoningUIPart | FileUIPart | SourceUrlUIPart | SourceDocumentUIPart,
+            ):
+                provider_metadata_values.append(part.provider_metadata)
+            elif isinstance(part, StepStartUIPart | DataUIPart):
+                assert not hasattr(part, "provider_metadata")
+                assert not hasattr(part, "call_provider_metadata")
+            else:
+                assert_never(part)
+            for provider_metadata in provider_metadata_values:
+                if not isinstance(provider_metadata, dict):
+                    continue
+                unknown_keys = sorted(set(provider_metadata) - _KNOWN_PROVIDER_METADATA_KEYS)
+                if unknown_keys:
+                    raise ValueError(
+                        f"{part.type!r} parts cannot carry unknown provider-metadata "
+                        f"namespaces: {', '.join(map(repr, unknown_keys))}"
+                    )
         return self
 
     @model_validator(mode="after")
