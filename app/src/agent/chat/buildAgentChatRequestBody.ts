@@ -13,7 +13,6 @@ import {
 import { isRecord } from "@phoenix/utils/typeUtils";
 
 import type { ClientToolTimingRecorder } from "./clientToolTimings";
-import { getUnresolvedToolCalls } from "./interruptToolCalls";
 import { toServerSafeUIMessages } from "./serverSafeMessages";
 import type { AgentUIMessage } from "./types";
 
@@ -182,18 +181,6 @@ export function buildAgentChatRequestBody({
   if (trailingMessage.role === "assistant") {
     // Client-tool continuation: the server owns the assistant message, so
     // only the resolved client tool outputs are sent, not the message itself.
-    // Defense-in-depth behind the auto-send gate: a continuation must never
-    // carry a partial set of outputs while other tool calls on the same
-    // assistant message still await approval or execution.
-    const unresolvedToolCalls = getUnresolvedToolCalls(messages);
-    if (unresolvedToolCalls.length > 0) {
-      const unresolvedToolNames = unresolvedToolCalls
-        .map((toolCall) => toolCall.tool)
-        .join(", ");
-      throw new Error(
-        `A chat continuation requires all tool calls to be resolved before sending; still pending: ${unresolvedToolNames}`
-      );
-    }
     const [enrichedAssistant] = enrichMessagesWithClientToolTimings({
       messages: [trailingMessage],
       toolTimings,

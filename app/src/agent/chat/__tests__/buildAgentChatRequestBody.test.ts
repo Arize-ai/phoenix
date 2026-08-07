@@ -398,65 +398,6 @@ describe("buildAgentChatRequestBody", () => {
     expect(body.lastMessageId).toBe("assistant-1");
   });
 
-  it("refuses a continuation while a sibling tool call is still unresolved", () => {
-    const partiallyResolvedAssistant: AgentUIMessage = {
-      id: "assistant-1",
-      role: "assistant",
-      parts: [
-        {
-          type: "tool-edit_prompt",
-          toolCallId: "call-1",
-          state: "output-available",
-          input: {},
-          output: { ok: true },
-          callProviderMetadata: {
-            phoenix: {
-              toolExecutionEnvironment: "client",
-              toolInputEmittedAt: "2026-07-10T12:00:00Z",
-            },
-          },
-        },
-        {
-          type: "tool-edit_prompt",
-          toolCallId: "call-2",
-          state: "input-available",
-          input: {},
-          callProviderMetadata: {
-            phoenix: {
-              toolExecutionEnvironment: "client",
-              toolInputEmittedAt: "2026-07-10T12:00:00Z",
-            },
-          },
-        },
-      ],
-    };
-
-    expect(() =>
-      buildAgentChatRequestBody({
-        body: undefined,
-        id: "session-1",
-        messages: [userMessage, partiallyResolvedAssistant],
-        capabilities: createDefaultAgentCapabilities(),
-        observability: {
-          storeLocalTraces: false,
-          exportRemoteTraces: false,
-          attachUserId: false,
-          acknowledgedTraceConsent: null,
-        },
-        agentsConfig,
-        permissions: { edits: "manual" },
-        contexts: [],
-        modelSelection: {
-          providerType: "builtin",
-          provider: "OPENAI",
-          modelName: "gpt-4o-mini",
-        },
-      })
-    ).toThrowError(
-      "A chat continuation requires all tool calls to be resolved before sending; still pending: edit_prompt"
-    );
-  });
-
   it("attaches interrupted client tool outputs to a superseding user message", () => {
     const interruptedAssistant: AgentUIMessage = {
       id: "assistant-1",
