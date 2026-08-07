@@ -48,6 +48,7 @@ from pydantic import (
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult
 from pydantic_ai.messages import ModelMessage
+from pydantic_ai.ui import SSE_CONTENT_TYPE
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
     SubmitMessage as PydanticAISubmitMessage,
@@ -58,6 +59,7 @@ from pydantic_ai.ui.vercel_ai.request_types import (
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
     DataChunk,
+    DoneChunk,
     ErrorChunk,
     FinishChunk,
     MessageMetadataChunk,
@@ -71,7 +73,7 @@ from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import JSONResponse, Response, StreamingResponse
 from strawberry.relay import GlobalID
 from typing_extensions import TypeIs, assert_never
 
@@ -217,6 +219,9 @@ _PYDANTIC_AI_PROVIDER_METADATA_KEY = "pydantic_ai"
 recorded under it."""
 
 _PXI_INSTRUMENTATION_SCOPE = InstrumentationScope("phoenix.server.pxi")
+
+_VERCEL_AI_SDK_VERSION: Literal[7] = 7
+"""The Vercel AI SDK version the chat route targets when encoding stream chunks."""
 
 register_openapi_schema(PhoenixToolCallProviderMetadata)
 register_openapi_schema(PhoenixToolCallCallbackProviderMetadata)
@@ -1753,6 +1758,13 @@ class _MergedTranscript:
     have emitted the root span never runs. None when the request continues
     the turn or the tail had nothing pending."""
 
+    awaiting_tool_outputs: bool = False
+    """True when a ``toolOutputs``-only request resolved only some of the
+    trailing assistant message's pending tool calls. The unanswered calls keep
+    their pending states (no interrupted repair), the applied outputs are
+    persisted, and the turn yields back to the client for the remaining
+    outputs instead of running the model."""
+
 
 def _merge_messages(
     *,
@@ -1776,6 +1788,21 @@ def _merge_messages(
         if merged_tail is not None:
             updated_messages[merged_tail.id] = merged_tail
             messages[-1] = merged_tail
+        if new_message is None and any(
+            isinstance(part, _UNRESOLVED_TOOL_PART_TYPES) for part in messages[-1].parts
+        ):
+            # A partial submission: the continuation resolved only some of the
+            # tail's pending tool calls. Leave the unanswered calls in their
+            # pending states — repairing them as interrupted would discard
+            # results the client still intends to submit — and skip all
+            # repairs, since the model does not run until the tail resolves.
+            return _MergedTranscript(
+                messages=messages,
+                updated_messages=updated_messages,
+                continued_assistant_message=messages[-1],
+                superseded_assistant_message=None,
+                awaiting_tool_outputs=True,
+            )
     for index, message in enumerate(messages):
         repaired_message = _resolve_interrupted_tool_parts(message)
         if repaired_message is not None:
@@ -1806,6 +1833,64 @@ def _merge_messages(
         updated_messages=updated_messages,
         continued_assistant_message=messages[-1],
         superseded_assistant_message=None,
+    )
+
+
+_VERCEL_AI_DATA_STREAM_HEADERS = {"x-vercel-ai-ui-message-stream": "v1"}
+"""The Vercel AI data stream protocol marker header, matching the headers
+``VercelAIEventStream`` stamps on the normal turn response.
+
+See https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#data-stream-protocol
+"""
+
+
+def _awaiting_tool_outputs_response(
+    db: DbSessionFactory,
+    *,
+    agent_session_rowid: int,
+    assistant_message_id: str,
+) -> StreamingResponse:
+    """Yield the turn back to a client whose ``toolOutputs`` were partially applied.
+
+    The submitted outputs are already persisted under the turn lock, but the
+    trailing assistant message still has pending tool calls, so the model does
+    not run. The response is a minimal, well-formed message stream — ``start``
+    with the continued assistant message id (the same id a normal continuation
+    streams), the transient ``data-transcript-persisted`` acknowledgement the
+    client's transcript-persistence coordinator waits on, then
+    ``finish``/``[DONE]`` — encoded exactly like the adapter-built stream. The
+    turn lock is released when the stream closes, mirroring the normal turn's
+    cleanup, so the client can submit the remaining outputs in a follow-up
+    request.
+    """
+    chunks: tuple[BaseChunk, ...] = (
+        StartChunk(message_id=assistant_message_id),
+        TranscriptPersistedChunk(data=TranscriptPersistedData(message_id=assistant_message_id)),
+        FinishChunk(),
+        DoneChunk(),
+    )
+
+    async def _stream() -> AsyncIterator[str]:
+        stream_interrupted = False
+        try:
+            for chunk in chunks:
+                yield f"data: {chunk.encode(_VERCEL_AI_SDK_VERSION)}\n\n"
+        except (asyncio.CancelledError, GeneratorExit):
+            # Disconnect cancellation re-fires at every await; shield the
+            # release below so cleanup completes.
+            stream_interrupted = True
+            raise
+        finally:
+            with anyio.CancelScope(shield=stream_interrupted):
+                await _release_agent_session_turn_lock(
+                    db,
+                    agent_session_rowid=agent_session_rowid,
+                )
+
+    return StreamingResponse(
+        _stream(),
+        headers=_VERCEL_AI_DATA_STREAM_HEADERS,
+        media_type=SSE_CONTENT_TYPE,
     )
 
 
@@ -2746,6 +2831,20 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
         try:
+            if merged_transcript.awaiting_tool_outputs:
+                # The submitted outputs resolved only some of the tail's pending
+                # tool calls: the applied outputs are persisted above, and the
+                # model does not run until a follow-up continuation resolves the
+                # rest, so yield the turn back to the client.
+                awaiting_assistant_message = merged_transcript.continued_assistant_message
+                assert awaiting_assistant_message is not None, (
+                    "a transcript awaiting tool outputs continues its trailing assistant message"
+                )
+                return _awaiting_tool_outputs_response(
+                    db_session_factory,
+                    agent_session_rowid=agent_session_rowid,
+                    assistant_message_id=awaiting_assistant_message.id,
+                )
             try:
                 tracer = (
                     Tracer(
@@ -2855,7 +2954,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         body, messages=model_transcript_messages
                     ),
                     accept=request.headers.get("accept"),
-                    sdk_version=7,
+                    sdk_version=_VERCEL_AI_SDK_VERSION,
                     server_message_id=server_message_id,
                 )
 
@@ -2963,7 +3062,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             body, messages=model_transcript_messages
                         ),
                         accept=request.headers.get("accept"),
-                        sdk_version=7,
+                        sdk_version=_VERCEL_AI_SDK_VERSION,
                         server_message_id=server_message_id,
                     )
                 )

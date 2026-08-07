@@ -313,6 +313,36 @@ def _client_tool_model() -> FunctionModel:
     return FunctionModel(function=function, stream_function=stream_function)
 
 
+def _two_client_tool_model() -> FunctionModel:
+    """Request two client tools, then finish after both results are submitted."""
+
+    async def stream_function(
+        messages: list[ModelMessage],
+        agent_info: AgentInfo,
+    ) -> AsyncIterator[str | DeltaToolCalls]:
+        # Unlike the single-call double above, resolved calls load as
+        # alternating call/return messages, so count returns across the
+        # whole history rather than just the trailing message.
+        tool_result_count = sum(
+            1
+            for message in messages
+            for part in message.parts
+            if isinstance(part, ToolReturnPart) and part.tool_name == "list_datasets"
+        )
+        if tool_result_count >= 2:
+            yield "done"
+        else:
+            yield {
+                1: DeltaToolCall(name="list_datasets", json_args="{}"),
+                2: DeltaToolCall(name="list_datasets", json_args="{}"),
+            }
+
+    def function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
+        return ModelResponse(parts=[])
+
+    return FunctionModel(function=function, stream_function=stream_function)
+
+
 def _mock_turn_models(monkeypatch: pytest.MonkeyPatch, *turn_models: FunctionModel) -> None:
     """Serve one scripted model per chat turn, in order."""
     remaining_models = iter(turn_models)
@@ -1124,6 +1154,126 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
     assert any(
         isinstance(part, TextUIPart) and part.text == "done"
         for part in persisted_assistant.message.parts
+    )
+
+
+async def test_partial_tool_outputs_persist_and_yield_without_running_the_model(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_id = "49494949-4949-4449-8449-494949494949"
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+    )
+    build_model_calls = 0
+    remaining_models = iter([_two_client_tool_model(), _two_client_tool_model()])
+
+    async def _fake_build_model(*args: object, **kwargs: object) -> FunctionModel:
+        nonlocal build_model_calls
+        build_model_calls += 1
+        return next(remaining_models)
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+
+    first_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(session_id, _user_message("list my datasets twice")),
+    )
+    assert first_response.status_code == 200
+    first_start = next(
+        chunk for chunk in _stream_chunks(first_response.text) if chunk["type"] == "start"
+    )
+    assistant_message_id = first_start["messageId"]
+    assert build_model_calls == 1
+
+    async with db() as session:
+        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
+        assert agent_session_rowid is not None
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+    pending_parts = [
+        part for part in stored_messages[-1]["parts"] if part["type"] == "tool-list_datasets"
+    ]
+    assert len(pending_parts) == 2
+    assert all(part["state"] == "input-available" for part in pending_parts)
+    answered_call, unanswered_call = pending_parts
+
+    def _tool_output_for(pending_part: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "type": "tool-list_datasets",
+            "toolCallId": pending_part["toolCallId"],
+            "state": "output-available",
+            "input": pending_part.get("input"),
+            "output": {"datasets": []},
+        }
+
+    partial_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            None,
+            toolOutputs=[_tool_output_for(answered_call)],
+            lastMessageId=assistant_message_id,
+        ),
+    )
+    assert partial_response.status_code == 200
+    # A minimal stream: no model output, just the persistence acknowledgement
+    # bracketed by a well-formed start/finish for the continued message.
+    partial_chunks = _stream_chunks(partial_response.text)
+    assert [chunk["type"] for chunk in partial_chunks] == [
+        "start",
+        "data-transcript-persisted",
+        "finish",
+    ]
+    assert partial_chunks[0]["messageId"] == assistant_message_id
+    assert partial_chunks[1]["data"]["messageId"] == assistant_message_id
+    assert "data: [DONE]" in partial_response.text
+    assert build_model_calls == 1
+
+    async with db() as session:
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+    assert len(stored_messages) == 2
+    persisted_parts_by_call_id = {
+        part["toolCallId"]: part
+        for part in stored_messages[-1]["parts"]
+        if part["type"] == "tool-list_datasets"
+    }
+    applied_part = persisted_parts_by_call_id[answered_call["toolCallId"]]
+    assert applied_part["state"] == "output-available"
+    assert applied_part["output"] == {"datasets": []}
+    # The unanswered call is untouched — still pending, not repaired.
+    assert persisted_parts_by_call_id[unanswered_call["toolCallId"]] == unanswered_call
+
+    final_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            None,
+            toolOutputs=[_tool_output_for(unanswered_call)],
+            lastMessageId=assistant_message_id,
+        ),
+    )
+    assert final_response.status_code == 200
+    # With every pending call resolved, the continuation runs the model.
+    assert build_model_calls == 2
+    final_acknowledgement = next(
+        chunk
+        for chunk in _stream_chunks(final_response.text)
+        if chunk["type"] == "data-transcript-persisted"
+    )
+    assert final_acknowledgement["data"]["messageId"] == assistant_message_id
+
+    async with db() as session:
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+    final_assistant_message = stored_messages[-1]
+    final_tool_parts = [
+        part for part in final_assistant_message["parts"] if part["type"] == "tool-list_datasets"
+    ]
+    assert all(part["state"] == "output-available" for part in final_tool_parts)
+    assert any(
+        part["type"] == "text" and part["text"] == "done"
+        for part in final_assistant_message["parts"]
     )
 
 
@@ -2037,9 +2187,15 @@ def test_merge_applies_tool_outputs_to_the_trailing_assistant_message() -> None:
     merged = _merge_messages(
         old_messages=persisted,
         new_message=None,
-        tool_outputs=[ToolOutputAvailablePart.model_validate(_tool_output())],
+        tool_outputs=[
+            ToolOutputAvailablePart.model_validate(_tool_output()),
+            ToolOutputAvailablePart.model_validate(
+                _tool_output(toolCallId="tool-call-streaming", output={"stdout": "streamed"})
+            ),
+        ],
     )
 
+    assert not merged.awaiting_tool_outputs
     continued = merged.continued_assistant_message
     assert continued is not None
     assert continued.id == _message_uuid("assistant-1")
@@ -2048,8 +2204,66 @@ def test_merge_applies_tool_outputs_to_the_trailing_assistant_message() -> None:
     parts = _parts_by_tool_call_id(continued)
     assert parts["tool-call-unresolved"].state == "output-available"
     assert parts["tool-call-unresolved"].output == {"stdout": "README.md"}
-    # The streaming call the outputs did not cover can never be resolved, so
-    # it is authoritatively closed out as interrupted before the turn continues.
+    assert parts["tool-call-streaming"].state == "output-available"
+    assert parts["tool-call-streaming"].output == {"stdout": "streamed"}
+    # All pending calls were resolved by the submitted outputs, so nothing was
+    # repaired as interrupted and the turn continues into the model run.
+    for part in parts.values():
+        metadata = part.call_provider_metadata or {}
+        assert "pydantic_ai" not in metadata
+
+
+def test_merge_partially_applies_tool_outputs_and_keeps_unanswered_calls_pending() -> None:
+    persisted = _validated_messages(
+        [_user_message("run a command"), _assistant_message_with_tool_states()]
+    )
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=None,
+        tool_outputs=[ToolOutputAvailablePart.model_validate(_tool_output())],
+    )
+
+    assert merged.awaiting_tool_outputs
+    assert merged.superseded_assistant_message is None
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    assert continued.id == _message_uuid("assistant-1")
+    assert merged.messages[-1] is continued
+    assert set(merged.updated_messages) == {_message_uuid("assistant-1")}
+    parts = _parts_by_tool_call_id(continued)
+    assert parts["tool-call-unresolved"].state == "output-available"
+    assert parts["tool-call-unresolved"].output == {"stdout": "README.md"}
+    # The call the outputs did not cover keeps its pending state instead of
+    # being repaired as interrupted: the client submits its output later.
+    assert parts["tool-call-streaming"].state == "input-streaming"
+    assert parts["tool-call-done"].output == {"stdout": "/"}
+
+
+def test_merge_with_a_new_user_message_repairs_calls_partial_outputs_left_pending() -> None:
+    persisted = _validated_messages(
+        [_user_message("run a command"), _assistant_message_with_tool_states()]
+    )
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=PhoenixUIMessage.model_validate(
+            _user_message("never mind", message_id=_message_uuid("msg-user-2"))
+        ),
+        tool_outputs=[ToolOutputAvailablePart.model_validate(_tool_output())],
+    )
+
+    # A new user message supersedes the open turn, so the calls the outputs
+    # did not cover are authoritatively closed out as interrupted — today's
+    # repair semantics, unchanged by partial application.
+    assert not merged.awaiting_tool_outputs
+    assert merged.continued_assistant_message is None
+    superseded = merged.superseded_assistant_message
+    assert superseded is not None
+    assert superseded.id == _message_uuid("assistant-1")
+    parts = _parts_by_tool_call_id(superseded)
+    assert parts["tool-call-unresolved"].state == "output-available"
+    assert parts["tool-call-unresolved"].output == {"stdout": "README.md"}
     assert parts["tool-call-streaming"].state == "output-available"
     streaming_metadata = parts["tool-call-streaming"].call_provider_metadata
     assert streaming_metadata["pydantic_ai"]["outcome"] == "interrupted"
