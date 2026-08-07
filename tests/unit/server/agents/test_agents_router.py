@@ -433,8 +433,8 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     assert compact_response.status_code == 200
     compaction_message = compact_response.json()["data"]
     assert compaction_message["role"] == "user"
-    assert compaction_message["metadata"]["type"] == "user"
-    assert compaction_message["metadata"]["isCompactionMessage"] is True
+    assert compaction_message["metadata"]["phoenix"]["type"] == "user"
+    assert compaction_message["metadata"]["phoenix"]["isCompactionMessage"] is True
     assert (
         compaction_message["parts"][0]["text"]
         == """The following summarizes the conversation with the user so far. Use it as historical context, not as a new user request. Use the latest state described below when responding to subsequent user messages.
@@ -512,7 +512,7 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     assert second_compact_response.status_code == 200
     second_compaction_message = second_compact_response.json()["data"]
     assert second_compaction_message["id"] != compaction_message["id"]
-    assert second_compaction_message["metadata"]["isCompactionMessage"] is True
+    assert second_compaction_message["metadata"]["phoenix"]["isCompactionMessage"] is True
     second_summary_input = str(second_summary_messages)
     assert "Investigate the trace" in second_summary_input
     assert "Continue" in second_summary_input
@@ -655,7 +655,7 @@ async def test_compact_takes_over_a_stale_session_lock(
     response = await httpx_client.post(_compact_url(agent_session_id), json=_compact_body())
 
     assert response.status_code == 200
-    assert response.json()["data"]["metadata"]["isCompactionMessage"] is True
+    assert response.json()["data"]["metadata"]["phoenix"]["isCompactionMessage"] is True
     async with db() as session:
         stored = await session.scalar(select(models.AgentSession))
         assert stored is not None
@@ -718,7 +718,7 @@ async def test_chat_send_during_compaction_is_rejected_as_busy(
     compact_response = await httpx_client.post(_compact_url(agent_session_id), json=_compact_body())
 
     assert compact_response.status_code == 200
-    assert compact_response.json()["data"]["metadata"]["isCompactionMessage"] is True
+    assert compact_response.json()["data"]["metadata"]["phoenix"]["isCompactionMessage"] is True
     assert concurrent_sends == [(409, {"code": "agent_session_busy"})]
     async with db() as session:
         stored = await session.scalar(select(models.AgentSession))
@@ -762,10 +762,12 @@ async def test_compact_is_rejected_as_already_compact_when_a_concurrent_checkpoi
         "id": _message_uuid("foreign-compaction-1"),
         "role": "user",
         "metadata": {
-            "type": "user",
-            "currentDateTime": "2026-01-01T00:00:00+00:00",
-            "timeZone": "UTC",
-            "isCompactionMessage": True,
+            "phoenix": {
+                "type": "user",
+                "currentDateTime": "2026-01-01T00:00:00+00:00",
+                "timeZone": "UTC",
+                "isCompactionMessage": True,
+            }
         },
         "parts": [{"type": "text", "text": "A concurrent request's checkpoint."}],
     }
@@ -855,7 +857,7 @@ async def test_server_agent_compact_route_matches_chat_route_gating(
         json=_compact_body(),
     )
     assert server_response.status_code == 200
-    assert server_response.json()["data"]["metadata"]["isCompactionMessage"] is True
+    assert server_response.json()["data"]["metadata"]["phoenix"]["isCompactionMessage"] is True
 
     monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_BASH", "true")
     disabled_response = await httpx_client.post(
@@ -934,7 +936,7 @@ async def test_chat_turn_persists_session_transcript(
     start_chunks = [chunk for chunk in chunks if chunk.get("type") == "start"]
     assert start_chunks
     assert start_chunks[-1]["messageId"] == assistant_messages[-1]["id"]
-    metadata = assistant_messages[-1]["metadata"]
+    metadata = assistant_messages[-1]["metadata"]["phoenix"]
     assert metadata["sessionId"] == persisted_session_id
     assert metadata["usage"]["tokens"]["total"] > 0
     # Resuming a session sends the persisted transcript back through the chat
@@ -967,10 +969,10 @@ async def test_chat_turn_persists_session_transcript(
     second_metadata_chunks = [
         chunk["messageMetadata"]
         for chunk in _stream_chunks(second_response.text)
-        if chunk.get("type") == "message-metadata" and "sessionId" in chunk["messageMetadata"]
+        if chunk.get("type") == "message-metadata" and "phoenix" in chunk["messageMetadata"]
     ]
     assert len(second_metadata_chunks) == 1
-    assert second_metadata_chunks[0]["sessionId"] == persisted_session_id
+    assert second_metadata_chunks[0]["phoenix"]["sessionId"] == persisted_session_id
     async with db() as session:
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
@@ -1275,7 +1277,8 @@ def test_turn_trace_context_is_clamped_and_used_for_metadata() -> None:
         usage=RequestUsage(),
     ).message_metadata
     assert metadata is not None
-    assert metadata.turn_trace_context == turn_trace_context
+    assert metadata.phoenix is not None
+    assert metadata.phoenix.turn_trace_context == turn_trace_context
 
 
 def test_zero_turn_ids_are_replaced() -> None:
@@ -1687,13 +1690,15 @@ async def test_chat_stream_metadata_reuses_the_persisted_turn_trace_context(
     session_id = "11111111-1111-4111-8111-111111111111"
     assistant_tail = _assistant_message_with_pending_client_tool()
     assistant_tail["metadata"] = {
-        "type": "assistant",
-        "sessionId": session_id,
-        "turnTraceContext": {
-            "traceId": trace_id,
-            "rootSpanId": root_span_id,
-            "startedAt": datetime.now(timezone.utc).isoformat(),
-        },
+        "phoenix": {
+            "type": "assistant",
+            "sessionId": session_id,
+            "turnTraceContext": {
+                "traceId": trace_id,
+                "rootSpanId": root_span_id,
+                "startedAt": datetime.now(timezone.utc).isoformat(),
+            },
+        }
     }
     agent_session_id = await _create_agent_session_row(
         db,
@@ -1724,11 +1729,11 @@ async def test_chat_stream_metadata_reuses_the_persisted_turn_trace_context(
     phoenix_metadata_chunks = [
         chunk["messageMetadata"]
         for chunk in _stream_chunks(response.text)
-        if chunk.get("type") == "message-metadata" and "sessionId" in chunk["messageMetadata"]
+        if chunk.get("type") == "message-metadata" and "phoenix" in chunk["messageMetadata"]
     ]
     assert len(phoenix_metadata_chunks) == 1
-    assert phoenix_metadata_chunks[0]["turnTraceContext"]["traceId"] == trace_id
-    assert phoenix_metadata_chunks[0]["turnTraceContext"]["rootSpanId"] == root_span_id
+    assert phoenix_metadata_chunks[0]["phoenix"]["turnTraceContext"]["traceId"] == trace_id
+    assert phoenix_metadata_chunks[0]["phoenix"]["turnTraceContext"]["rootSpanId"] == root_span_id
 
     async with db() as session:
         agent_session_rowid = await session.scalar(select(models.AgentSession.id))
@@ -1736,7 +1741,7 @@ async def test_chat_stream_metadata_reuses_the_persisted_turn_trace_context(
         stored_messages = await _load_session_messages(session, agent_session_rowid)
     assistant_messages = [message for message in stored_messages if message["role"] == "assistant"]
     assert assistant_messages
-    persisted_turn_trace_context = assistant_messages[-1]["metadata"]["turnTraceContext"]
+    persisted_turn_trace_context = assistant_messages[-1]["metadata"]["phoenix"]["turnTraceContext"]
     assert persisted_turn_trace_context["traceId"] == trace_id
     assert persisted_turn_trace_context["rootSpanId"] == root_span_id
 
@@ -1863,10 +1868,12 @@ async def test_follow_up_send_from_a_compaction_message_passes_the_stale_check(
                 "id": _message_uuid("compaction-1"),
                 "role": "user",
                 "metadata": {
-                    "type": "user",
-                    "currentDateTime": "2026-01-01T00:00:00Z",
-                    "timeZone": "UTC",
-                    "isCompactionMessage": True,
+                    "phoenix": {
+                        "type": "user",
+                        "currentDateTime": "2026-01-01T00:00:00Z",
+                        "timeZone": "UTC",
+                        "isCompactionMessage": True,
+                    }
                 },
                 "parts": [{"type": "text", "text": "Summary of the conversation so far."}],
             },
@@ -2144,10 +2151,12 @@ async def test_chat_endpoint_rejects_compaction_message_submissions(
                 "id": _message_uuid("user-1"),
                 "role": "user",
                 "metadata": {
-                    "type": "user",
-                    "currentDateTime": "2026-07-10T12:00:00Z",
-                    "timeZone": "UTC",
-                    "isCompactionMessage": True,
+                    "phoenix": {
+                        "type": "user",
+                        "currentDateTime": "2026-07-10T12:00:00Z",
+                        "timeZone": "UTC",
+                        "isCompactionMessage": True,
+                    }
                 },
                 "parts": [{"type": "text", "text": "fake summary"}],
             },
@@ -3082,13 +3091,15 @@ def _assistant_tail_with_prior_turn_context(session_id: str) -> dict[str, Any]:
     request minted, awaiting a client tool result."""
     tail = _assistant_message_with_pending_client_tool()
     tail["metadata"] = {
-        "type": "assistant",
-        "sessionId": session_id,
-        "turnTraceContext": {
-            "traceId": _PRIOR_TURN_TRACE_ID,
-            "rootSpanId": _PRIOR_TURN_ROOT_SPAN_ID,
-            "startedAt": _PRIOR_TURN_TIME.isoformat(),
-        },
+        "phoenix": {
+            "type": "assistant",
+            "sessionId": session_id,
+            "turnTraceContext": {
+                "traceId": _PRIOR_TURN_TRACE_ID,
+                "rootSpanId": _PRIOR_TURN_ROOT_SPAN_ID,
+                "startedAt": _PRIOR_TURN_TIME.isoformat(),
+            },
+        }
     }
     return tail
 
@@ -3559,8 +3570,8 @@ async def test_client_disconnect_persists_partial_turn(
     assert text_parts[0]["state"] == "done"
     # The persisted message is flagged interrupted so clients can render the
     # cut-off turn distinctly (including when no parts streamed at all).
-    assert assistant_message["metadata"]["type"] == "assistant"
-    assert assistant_message["metadata"]["interrupted"] is True
+    assert assistant_message["metadata"]["phoenix"]["type"] == "assistant"
+    assert assistant_message["metadata"]["phoenix"]["interrupted"] is True
     # The persisted transcript round-trips through submit validation for resume.
     for message in messages:
         PhoenixUIMessage.model_validate(message)

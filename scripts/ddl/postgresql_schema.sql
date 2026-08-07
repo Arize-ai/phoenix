@@ -1201,7 +1201,7 @@ CREATE TABLE public.agent_session_messages (
     agent_session_id BIGINT NOT NULL,
     message JSONB NOT NULL,
     message_id VARCHAR GENERATED ALWAYS AS (((message ->> 'id'::text))::character varying) STORED NOT NULL,
-    is_compaction_message BOOLEAN GENERATED ALWAYS AS (COALESCE(((message #>> '{metadata,isCompactionMessage}'::text[]))::boolean, false)) STORED NOT NULL,
+    is_compaction_message BOOLEAN GENERATED ALWAYS AS (COALESCE(((message #>> '{metadata,phoenix,isCompactionMessage}'::text[]))::boolean, false)) STORED NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_session_messages PRIMARY KEY (id),

@@ -29,8 +29,9 @@ def test_build_compaction_message_creates_a_marked_user_message() -> None:
     )
 
     assert message.role == "user"
-    assert isinstance(message.metadata, UserMessageMetadata)
-    assert message.metadata.is_compaction_message
+    assert message.metadata is not None
+    assert isinstance(message.metadata.phoenix, UserMessageMetadata)
+    assert message.metadata.phoenix.is_compaction_message
     assert "\n".join(part.text for part in message.parts if isinstance(part, TextUIPart)) == (
         '{"objectives":["continue"]}'
     )

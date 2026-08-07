@@ -32,12 +32,18 @@ describe("getLatestAssistantUsage", () => {
   it("returns the usage from the most recent assistant message that has it", () => {
     const messages: PxiMessage[] = [
       assistantMessage("assistant-1", {
-        sessionId: "s",
-        usage: { tokens: { prompt: 1, completion: 1, total: 2 } },
+        phoenix: {
+          type: "assistant",
+          sessionId: "s",
+          usage: { tokens: { prompt: 1, completion: 1, total: 2 } },
+        },
       }),
       assistantMessage("assistant-2", {
-        sessionId: "s",
-        usage: { tokens: { prompt: 10, completion: 5, total: 15 } },
+        phoenix: {
+          type: "assistant",
+          sessionId: "s",
+          usage: { tokens: { prompt: 10, completion: 5, total: 15 } },
+        },
       }),
     ];
     expect(getLatestAssistantUsage(messages)?.tokens.total).toBe(15);
@@ -46,8 +52,11 @@ describe("getLatestAssistantUsage", () => {
   it("skips a trailing assistant message without usage and falls back to an earlier one", () => {
     const messages: PxiMessage[] = [
       assistantMessage("assistant-1", {
-        sessionId: "s",
-        usage: { tokens: { prompt: 10, completion: 5, total: 15 } },
+        phoenix: {
+          type: "assistant",
+          sessionId: "s",
+          usage: { tokens: { prompt: 10, completion: 5, total: 15 } },
+        },
       }),
       assistantMessage("assistant-2"),
     ];

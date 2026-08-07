@@ -185,9 +185,11 @@ const PHOENIX_CASES: ExtractedCase[] = [
       {
         type: "message-metadata",
         messageMetadata: {
-          type: "assistant",
-          sessionId: "session-1",
-          usage: { requests: 1 },
+          phoenix: {
+            type: "assistant",
+            sessionId: "session-1",
+            usage: { requests: 1 },
+          },
         },
       },
     ],

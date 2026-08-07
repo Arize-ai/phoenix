@@ -1993,7 +1993,7 @@ export interface components {
         };
         /**
          * AssistantMessageMetadata
-         * @description Wire schema for the chat stream's ``message_metadata`` payload.
+         * @description The ``phoenix`` metadata namespace of an assistant message.
          */
         AssistantMessageMetadata: {
             /**
@@ -2010,7 +2010,6 @@ export interface components {
              * @default false
              */
             interrupted?: boolean;
-            pydantic_ai?: components["schemas"]["PydanticAIMessageMetadata"] | null;
         };
         /** AssistantMessageMetadataUsage */
         AssistantMessageMetadataUsage: {
@@ -3470,7 +3469,6 @@ export interface components {
              * @default false
              */
             interrupted?: boolean;
-            pydantic_ai?: components["schemas"]["PydanticAIMessageMetadata"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -3717,6 +3715,15 @@ export interface components {
             auth_method: "LOCAL";
             /** Password */
             password?: string;
+        };
+        /**
+         * MessageMetadata
+         * @description ``UIMessage.metadata`` as a registry of namespaces.
+         */
+        MessageMetadata: {
+            /** Phoenix */
+            phoenix?: (components["schemas"]["AssistantMessageMetadata"] | components["schemas"]["UserMessageMetadata"]) | null;
+            pydantic_ai?: components["schemas"]["PydanticAIMessageMetadata"] | null;
         };
         /**
          * ModelProvider
@@ -4038,8 +4045,7 @@ export interface components {
              * @enum {string}
              */
             role: "system" | "user" | "assistant";
-            /** Metadata */
-            metadata?: (components["schemas"]["AssistantMessageMetadata"] | components["schemas"]["UserMessageMetadata"]) | null;
+            metadata?: components["schemas"]["MessageMetadata"] | null;
             /** Parts */
             parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
@@ -6237,7 +6243,8 @@ export interface components {
         };
         /**
          * UserMessageMetadata
-         * @description Wire schema for metadata the browser attaches to outgoing user messages.
+         * @description The ``phoenix`` metadata namespace the browser attaches to outgoing
+         *     user messages.
          */
         UserMessageMetadata: {
             /**

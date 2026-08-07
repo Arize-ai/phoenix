@@ -499,10 +499,12 @@ describe("ChatView", () => {
       id: "compaction-message",
       role: "user",
       metadata: {
-        type: "user",
-        currentDateTime: "2026-01-01T00:00:00Z",
-        timeZone: "UTC",
-        isCompactionMessage: true,
+        phoenix: {
+          type: "user",
+          currentDateTime: "2026-01-01T00:00:00Z",
+          timeZone: "UTC",
+          isCompactionMessage: true,
+        },
       },
       parts: [
         {
@@ -554,10 +556,12 @@ describe("ChatView", () => {
           id: `compaction-${index}`,
           role: "user",
           metadata: {
-            type: "user",
-            currentDateTime: "2026-01-01T00:00:00Z",
-            timeZone: "UTC",
-            isCompactionMessage: true,
+            phoenix: {
+              type: "user",
+              currentDateTime: "2026-01-01T00:00:00Z",
+              timeZone: "UTC",
+              isCompactionMessage: true,
+            },
           },
           parts: [{ type: "text", text: summary }],
         }) as AgentUIMessage
@@ -585,10 +589,12 @@ describe("ChatView", () => {
       id: "compaction-message",
       role: "user",
       metadata: {
-        type: "user",
-        currentDateTime: "2026-01-01T00:00:00Z",
-        timeZone: "UTC",
-        isCompactionMessage: true,
+        phoenix: {
+          type: "user",
+          currentDateTime: "2026-01-01T00:00:00Z",
+          timeZone: "UTC",
+          isCompactionMessage: true,
+        },
       },
       parts: [{ type: "text", text: '{"objectives":[]}' }],
     } as AgentUIMessage;

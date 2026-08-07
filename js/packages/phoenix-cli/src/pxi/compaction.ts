@@ -6,7 +6,7 @@ import type { PxiMessage } from "./types";
  * Compacting a session persists a checkpoint message that summarizes every
  * prior turn; the server then loads model history from the latest checkpoint
  * onward. On the wire a checkpoint is an ordinary user-role message flagged by
- * `metadata.isCompactionMessage`, so the transcript renders it distinctly
+ * `metadata.phoenix.isCompactionMessage`, so the transcript renders it distinctly
  * rather than as something the user typed.
  */
 
@@ -16,12 +16,12 @@ export function isCompactionMessage({
 }: {
   message: PxiMessage;
 }): boolean {
-  // Read defensively: PxiMessage types metadata for assistant messages, so a
-  // user-role checkpoint's metadata arrives untyped.
-  const metadata = message.metadata as
-    | { isCompactionMessage?: unknown }
-    | undefined;
-  return message.role === "user" && metadata?.isCompactionMessage === true;
+  const phoenixMetadata = message.metadata?.phoenix;
+  return (
+    message.role === "user" &&
+    phoenixMetadata?.type === "user" &&
+    phoenixMetadata.isCompactionMessage === true
+  );
 }
 
 /** The checkpoint's summary text — the concatenated text parts. */

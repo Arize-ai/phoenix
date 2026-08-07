@@ -294,10 +294,12 @@ describe("buildAgentChatRequestBody", () => {
       id: "compaction-1",
       role: "user",
       metadata: {
-        type: "user",
-        currentDateTime: "2026-01-01T00:00:00Z",
-        timeZone: "UTC",
-        isCompactionMessage: true,
+        phoenix: {
+          type: "user",
+          currentDateTime: "2026-01-01T00:00:00Z",
+          timeZone: "UTC",
+          isCompactionMessage: true,
+        },
       },
       parts: [{ type: "text", text: "Summary of the conversation so far." }],
     };
