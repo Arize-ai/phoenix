@@ -49,11 +49,10 @@ to the installed package's."""
 
 class _BasePydanticAIProviderMetadata(BaseModel):
     """Common keys of the ``pydantic_ai`` namespace of part-level
-    ``providerMetadata``: pydantic-ai's round-trip channel for ``ModelMessage``
-    fields the Vercel part shapes can't express. The keys are an unversioned
-    wire convention of the installed release (snake_case, unlike the
-    ``phoenix`` namespace); ``extra="forbid"`` turns upstream drift into a
-    validation failure caught by the canary tests at the dependency bump."""
+    ``providerMetadata`` — pydantic-ai's unversioned round-trip channel for
+    ``ModelMessage`` fields the Vercel part shapes can't express — typed with
+    ``extra="forbid"`` so upstream drift fails validation instead of
+    corrupting replays."""
 
     model_config = ConfigDict(extra="forbid")
 
