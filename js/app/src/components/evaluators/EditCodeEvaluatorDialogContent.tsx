@@ -1279,6 +1279,9 @@ const editorPanelCSS = css`
   padding-top: var(--global-dimension-size-100);
   box-sizing: border-box;
   overflow-y: auto;
+  // keep trackpad overscroll from chaining to the dialog and
+  // dragging the header/footer with it
+  overscroll-behavior: contain;
   gap: var(--global-dimension-size-150);
 `;
 
@@ -1305,6 +1308,9 @@ const sidebarScrollAreaCSS = css`
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  // keep trackpad overscroll from chaining to the dialog and
+  // dragging the header/footer with it
+  overscroll-behavior: contain;
 `;
 
 // The "Sandbox Config" region is pinned to the bottom of the panel and stays
@@ -1314,6 +1320,7 @@ const sidebarFooterCSS = css`
   flex: 0 0 auto;
   max-height: 50%;
   overflow-y: auto;
+  overscroll-behavior: contain;
   border-top: 1px solid var(--global-border-color-default);
 `;
 

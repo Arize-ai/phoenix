@@ -62,6 +62,9 @@ export const EditBuiltInEvaluatorDialogContent = ({
           min-height: 0;
           gap: var(--global-dimension-size-200);
           overflow: auto;
+          // keep trackpad overscroll from chaining to the dialog and
+          // dragging the header/footer with it
+          overscroll-behavior: contain;
         `}
       >
         {showValidationError && (

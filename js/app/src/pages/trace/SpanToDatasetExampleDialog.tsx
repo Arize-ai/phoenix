@@ -152,6 +152,9 @@ export function SpanToDatasetExampleDialog({
           <div
             css={css`
               overflow-y: auto;
+              // keep trackpad overscroll from chaining to the dialog and
+              // dragging the header/footer with it
+              overscroll-behavior: contain;
               padding: var(--global-dimension-size-400);
               /* Make widths configurable */
               .dataset-picker {
@@ -284,9 +287,7 @@ export function SpanToDatasetExampleDialog({
                 close();
               }}
               leadingVisual={
-                <Icon
-                  svg={isCommitting ? <Icons.Loading /> : <Icons.Plus />}
-                />
+                <Icon svg={isCommitting ? <Icons.Loading /> : <Icons.Plus />} />
               }
             >
               Add Example

@@ -175,4 +175,7 @@ export const EvaluatorForm = () => {
 const panelStyle = {
   height: "100%",
   overflowY: "auto",
+  // keep trackpad overscroll from chaining to the dialog and
+  // dragging the header/footer with it
+  overscrollBehavior: "contain",
 } as const;
