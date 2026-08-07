@@ -67,7 +67,13 @@ _DEPRECATION_HEADER_VALUE = "true"
 
 
 class LegacyAssistantMessageMetadata(AssistantMessageMetadata):
-    """Legacy transcripts predate the ``type`` discriminator, so default it here."""
+    """Legacy transcripts predate the ``type`` discriminator, so default it here.
+
+    Unknown keys are tolerated: this route parses transcripts old clients kept
+    locally, and nothing it accepts is persisted.
+    """
+
+    model_config = ConfigDict(extra="allow")
 
     type: Literal["assistant"] = "assistant"
 

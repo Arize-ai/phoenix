@@ -104,6 +104,38 @@ def test_tool_part_without_phoenix_namespace_passes() -> None:
     assert "phoenix" not in _call_provider_metadata(message)
 
 
+def test_phoenix_namespace_in_result_provider_metadata_raises() -> None:
+    """Phoenix only stamps ``callProviderMetadata``; there is no result-side schema."""
+    with pytest.raises(ValidationError, match="no schema"):
+        _assistant_message(
+            ToolOutputAvailablePart(
+                type="tool-open_page",
+                tool_call_id="call-1",
+                state="output-available",
+                input={"url": "/traces"},
+                output={"ok": True},
+                result_provider_metadata={"phoenix": {"anything": True}},
+            )
+        )
+
+
+def test_phoenix_namespace_on_a_text_part_raises() -> None:
+    with pytest.raises(ValidationError, match="no schema"):
+        _assistant_message(_text_part({"phoenix": {"anything": True}}))
+
+
+def test_phoenix_namespace_on_a_file_part_raises() -> None:
+    with pytest.raises(ValidationError, match="no schema"):
+        _assistant_message(
+            FileUIPart(
+                type="file",
+                url="data:text/plain;base64,aGk=",
+                media_type="text/plain",
+                provider_metadata={"phoenix": {"anything": True}},
+            )
+        )
+
+
 _REASONING_PYDANTIC_AI_METADATA: dict[str, Any] = {
     "id": "think_1",
     "signature": "sig==",
@@ -218,6 +250,25 @@ def _message_with_metadata(
 
 def test_user_message_with_user_metadata_passes() -> None:
     _message_with_metadata("user", _USER_METADATA)
+
+
+def test_unknown_key_in_assistant_metadata_raises() -> None:
+    with pytest.raises(ValidationError):
+        AssistantMessageMetadata.model_validate(
+            {"type": "assistant", "sessionId": "session-1", "bogusKey": True}
+        )
+
+
+def test_unknown_key_in_user_metadata_raises() -> None:
+    with pytest.raises(ValidationError):
+        UserMessageMetadata.model_validate(
+            {
+                "type": "user",
+                "currentDateTime": "2026-07-10T12:00:00Z",
+                "timeZone": "UTC",
+                "bogusKey": True,
+            }
+        )
 
 
 def test_assistant_message_with_assistant_metadata_passes() -> None:
