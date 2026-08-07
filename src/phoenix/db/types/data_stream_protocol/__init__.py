@@ -14,6 +14,7 @@ from .phoenix_types import (
     UserMessageMetadata,
 )
 from .provider_metadata import (
+    PydanticAIMessageMetadata,
     PydanticAIReasoningProviderMetadata,
     PydanticAITextProviderMetadata,
     PydanticAIToolCallProviderMetadata,
@@ -83,6 +84,7 @@ __all__ = [
     "PhoenixUIMessage",
     "PhoenixUIMessageAdapter",
     "ProviderMetadata",
+    "PydanticAIMessageMetadata",
     "PydanticAIReasoningProviderMetadata",
     "PydanticAITextProviderMetadata",
     "PydanticAIToolCallProviderMetadata",

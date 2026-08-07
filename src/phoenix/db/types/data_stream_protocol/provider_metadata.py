@@ -1,6 +1,7 @@
 """The ``phoenix`` and ``pydantic_ai`` namespaces of part-level Vercel AI
 ``providerMetadata``, validated at persist time by ``PhoenixUIMessage``."""
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, JsonValue
@@ -37,6 +38,18 @@ class ToolCallCallbackProviderMetadata(ToolCallProviderMetadata):
 
 PydanticAIToolPartKind = Literal["tool-search", "capability-load"]
 """Local pin of pydantic-ai's ``ToolPartKind``."""
+
+
+class PydanticAIMessageMetadata(BaseModel):
+    """Local pin of pydantic-ai's message-level ``pydantic_ai`` metadata
+    namespace (its private ``_PydanticAIMessageMetadata``), merged into the
+    assistant metadata by the stream's metadata chunk."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    timestamp: datetime | None = None
+    """Round-trip channel for ``ModelResponse.timestamp`` — the only field
+    upstream dumps and restores."""
 
 
 class _BasePydanticAIProviderMetadata(BaseModel):
