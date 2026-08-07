@@ -1,0 +1,153 @@
+---
+title: "Filter Query Language"
+description: "Reference for the filter condition syntax used to search spans in the Phoenix UI and the export API."
+---
+
+Phoenix filters spans with a small expression language. You write a **filter condition** — a single Boolean expression that looks like Python — and Phoenix keeps every span for which it evaluates to true. The same syntax powers both the trace/span **search bar in the Phoenix UI** and the `where(...)` clause of a [`SpanQuery`](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans) when exporting data.
+
+```python
+query = SpanQuery().where(
+    "span_kind == 'LLM' and latency_ms > 1000"
+)
+```
+
+<Note>
+A filter condition is a Boolean expression, not arbitrary Python. Only the fields, operators, and forms documented on this page are supported — function calls, imports, attribute access outside the listed keywords, and comparisons across more than the shown types raise a syntax error.
+</Note>
+
+## Fields
+
+Reference a span's properties by name. Fields are grouped by the type of value they hold, which determines the operators that make sense for them.
+
+### String fields
+
+| Field | Description |
+| :--- | :--- |
+| `span_id` | The span's ID. |
+| `trace_id` | The ID of the trace the span belongs to. |
+| `parent_id` | The `span_id` of the span's parent (empty for root spans). |
+| `span_kind` | The OpenInference span kind, e.g. `LLM`, `CHAIN`, `RETRIEVER`, `TOOL`, `AGENT`. |
+| `name` | The span's name. |
+| `status_code` | The span's status, e.g. `OK`, `ERROR`, `UNSET`. |
+| `status_message` | The status message (often the error text on failed spans). |
+
+<Note>
+`span_kind` and `status_code` comparisons are **case-insensitive** — Phoenix uppercases the string before matching, so `span_kind == 'llm'` and `span_kind == 'LLM'` are equivalent.
+</Note>
+
+### Numeric fields
+
+| Field | Description |
+| :--- | :--- |
+| `latency_ms` | The span's duration in milliseconds. |
+| `cumulative_llm_token_count_prompt` | Prompt tokens for this span and all its descendants. |
+| `cumulative_llm_token_count_completion` | Completion tokens for this span and all its descendants. |
+| `cumulative_llm_token_count_total` | Total tokens for this span and all its descendants. |
+
+### Time fields
+
+| Field | Description |
+| :--- | :--- |
+| `start_time` | When the span started. |
+| `end_time` | When the span ended. |
+
+### Attributes
+
+`attributes` holds the span's OpenInference attributes. Reference a nested value with dotted or bracketed paths — for example `llm.model_name`, `input.value`, or `metadata["topic"]`. The common `llm.token_count.*` paths are treated as numbers; other attribute values are compared as strings unless compared against `True`/`False` (in which case they are treated as Booleans).
+
+```python
+"llm.model_name == 'gpt-4o'"
+"metadata['topic'] == 'programming'"
+"llm.token_count.total > 1000"
+```
+
+### Evaluation and annotation results
+
+Filter by the `score`, `label`, or `explanation` of an evaluation or annotation. Name the evaluation as an indexer on the `evals` (or equivalently `annotations`) keyword:
+
+```python
+"evals['correctness'].label == 'incorrect'"
+"annotations['hallucination'].score < 0.5"
+```
+
+See [how to run evaluations](/docs/phoenix/evaluation/running-pre-tested-evals) and [how to ingest results back into Phoenix](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations).
+
+## Operators
+
+### Comparison
+
+`==`, `!=`, `<`, `<=`, `>`, `>=` compare a field to a value. Comparisons can be chained the way they are in Python:
+
+```python
+"latency_ms >= 100"
+"name != 'healthcheck'"
+"1000 < cumulative_llm_token_count_total <= 5000"
+```
+
+### Boolean logic
+
+Combine conditions with `and`, `or`, and `not`. Use parentheses to group:
+
+```python
+"span_kind == 'LLM' and (status_code == 'ERROR' or latency_ms > 5000)"
+"not (span_kind == 'INTERNAL')"
+```
+
+### Membership and substrings
+
+`in` and `not in` behave two ways depending on the right-hand side:
+
+- **Substring match** when the right side is a string field or attribute. `'error' in status_message` keeps spans whose `status_message` contains `error`.
+- **Set membership** when the right side is a list or tuple. `span_kind in ['LLM', 'CHAIN']` keeps spans matching any listed value.
+
+```python
+"'programming' in input.value"
+"span_kind in ['LLM', 'RETRIEVER']"
+"'timeout' not in status_message"
+```
+
+### `None` checks
+
+Use `is None` / `is not None` (or `== None` / `!= None`) to test for the presence of a value:
+
+```python
+"llm.model_name is not None"
+```
+
+## Root spans
+
+The reserved `parent_span` keyword filters by whether a span has a parent. It supports only comparison to `None`:
+
+```python
+"parent_span is None"      # root spans (no parent, or an orphaned parent reference)
+"parent_span is not None"  # non-root spans
+```
+
+`parent_span is None` treats a span as a root when it has no parent **or** its parent is absent from the queried data (an orphan). For a stricter definition — only spans with no parent pointer at all — compare `parent_id` directly:
+
+```python
+"parent_id is None"        # strict root spans only
+```
+
+## Examples
+
+```python
+# Slow LLM calls
+"span_kind == 'LLM' and latency_ms > 3000"
+
+# Failed retrievals mentioning a topic
+"span_kind == 'RETRIEVER' and status_code == 'ERROR' and 'index' in status_message"
+
+# Expensive traces
+"cumulative_llm_token_count_total > 10000"
+
+# Spans a judge marked incorrect
+"evals['correctness'].label == 'incorrect'"
+
+# Root spans for a specific model
+"parent_span is None and llm.model_name == 'gpt-4o'"
+```
+
+<Tip>
+In the Phoenix UI, type a condition directly into the trace/span search bar; Phoenix validates it as you type and highlights the location of any syntax error. In code, pass the same string to `SpanQuery().where(...)`.
+</Tip>
