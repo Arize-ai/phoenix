@@ -656,6 +656,13 @@
             "icon": "python",
             "pages": [
               {
+                "group": "AG2",
+                "pages": [
+                  "docs/phoenix/integrations/python/ag2",
+                  "docs/phoenix/integrations/python/ag2/ag2-tracing"
+                ]
+              },
+              {
                 "group": "Agent Spec",
                 "pages": [
                   "docs/phoenix/integrations/python/agentspec",
