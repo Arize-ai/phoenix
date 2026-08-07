@@ -3,11 +3,12 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import ConfigDict, Field, StringConstraints, TypeAdapter, model_validator
+from pydantic import Field, StringConstraints, TypeAdapter, model_validator
 from typing_extensions import assert_never
 
 from ._models import CamelBaseModel
 from .provider_metadata import (
+    PydanticAIMessageMetadata,
     PydanticAIReasoningProviderMetadata,
     PydanticAITextProviderMetadata,
     PydanticAIToolCallProviderMetadata,
@@ -55,6 +56,13 @@ def _pydantic_ai_metadata(provider_metadata: object) -> object | None:
     return provider_metadata.get(_PYDANTIC_AI_PROVIDER_METADATA_KEY)
 
 
+def _phoenix_metadata(provider_metadata: object) -> object | None:
+    """The ``phoenix`` namespace of a part's ``providerMetadata``, if any."""
+    if not isinstance(provider_metadata, dict):
+        return None
+    return provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY)
+
+
 class AgentErrorData(CamelBaseModel):
     """Payload of the durable ``data-error`` part persisted for protocol errors."""
 
@@ -97,13 +105,15 @@ class TurnTraceContext(CamelBaseModel):
 class AssistantMessageMetadata(CamelBaseModel):
     """Wire schema for the chat stream's ``message_metadata`` payload."""
 
-    model_config = ConfigDict(extra="allow")
-
     type: Literal["assistant"]
     session_id: str
     turn_trace_context: TurnTraceContext | None = None
     usage: AssistantMessageMetadataUsage | None = None
     interrupted: bool = False
+    pydantic_ai: PydanticAIMessageMetadata | None = Field(
+        default=None,
+        alias="pydantic_ai",
+    )
 
 
 class UserMessageMetadata(CamelBaseModel):
@@ -133,15 +143,33 @@ class PhoenixUIMessage(UIMessage):
         return self
 
     @model_validator(mode="after")
-    def _validate_phoenix_tool_call_metadata(self) -> "PhoenixUIMessage":
+    def _validate_phoenix_provider_metadata(self) -> "PhoenixUIMessage":
+        """Strictly validate the ``phoenix`` namespace wherever it appears."""
         for part in self.parts:
-            call_provider_metadata = getattr(part, "call_provider_metadata", None)
-            if not isinstance(call_provider_metadata, dict):
-                continue
-            phoenix_metadata = call_provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY)
-            if phoenix_metadata is None:
-                continue
-            _ToolCallCallbackProviderMetadataAdapter.validate_python(phoenix_metadata)
+            if isinstance(part, ToolUIPart | DynamicToolUIPart):
+                metadata = _phoenix_metadata(part.call_provider_metadata)
+                if metadata is not None:
+                    _ToolCallCallbackProviderMetadataAdapter.validate_python(metadata)
+                if isinstance(part, _TOOL_RESULT_METADATA_PART_TYPES):
+                    if _phoenix_metadata(part.result_provider_metadata) is not None:
+                        raise ValueError(
+                            "resultProviderMetadata has no schema for the "
+                            f"{_PHOENIX_PROVIDER_METADATA_KEY!r} provider-metadata namespace"
+                        )
+            elif isinstance(
+                part,
+                TextUIPart | ReasoningUIPart | FileUIPart | SourceUrlUIPart | SourceDocumentUIPart,
+            ):
+                if _phoenix_metadata(part.provider_metadata) is not None:
+                    raise ValueError(
+                        f"{part.type!r} parts have no schema for the "
+                        f"{_PHOENIX_PROVIDER_METADATA_KEY!r} provider-metadata namespace"
+                    )
+            elif isinstance(part, StepStartUIPart | DataUIPart):
+                assert not hasattr(part, "provider_metadata")
+                assert not hasattr(part, "call_provider_metadata")
+            else:
+                assert_never(part)
         return self
 
     @model_validator(mode="after")

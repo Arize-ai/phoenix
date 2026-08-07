@@ -413,16 +413,32 @@ class ChatSubmitMessage(_ChatRequestMixin):
             raise ValueError("A chat submit request requires a message, toolOutputs, or both")
         if self.message is not None and self.message.role != "user":
             raise ValueError("Only user messages can be submitted")
+        if (
+            self.message is not None
+            and isinstance(self.message.metadata, UserMessageMetadata)
+            and self.message.metadata.is_compaction_message
+        ):
+            raise ValueError(
+                "Compaction checkpoints are created by the compact route and cannot be submitted"
+            )
         tool_call_ids = [tool_output.tool_call_id for tool_output in self.tool_outputs]
         if len(tool_call_ids) != len(set(tool_call_ids)):
             raise ValueError("Each toolOutputs entry must have a distinct toolCallId")
         for tool_output in self.tool_outputs:
             call_provider_metadata = tool_output.call_provider_metadata
-            if not isinstance(call_provider_metadata, dict):
-                continue
-            phoenix_metadata = call_provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY)
-            if phoenix_metadata is not None:
-                _ToolCallCallbackProviderMetadataAdapter.validate_python(phoenix_metadata)
+            if isinstance(call_provider_metadata, dict):
+                phoenix_metadata = call_provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY)
+                if phoenix_metadata is not None:
+                    _ToolCallCallbackProviderMetadataAdapter.validate_python(phoenix_metadata)
+            result_provider_metadata = tool_output.result_provider_metadata
+            if (
+                isinstance(result_provider_metadata, dict)
+                and result_provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY) is not None
+            ):
+                raise ValueError(
+                    "toolOutputs resultProviderMetadata has no schema for the "
+                    f"{_PHOENIX_PROVIDER_METADATA_KEY!r} namespace"
+                )
         return self
 
 
