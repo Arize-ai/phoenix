@@ -807,6 +807,10 @@ class ProjectSession(HasId):
     )
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    last_span_ingested_at: Mapped[Optional[datetime]] = mapped_column(
+        UtcTimeStamp,
+        nullable=True,
+    )
     traces: Mapped[list["Trace"]] = relationship(
         "Trace",
         back_populates="project_session",
@@ -822,6 +826,13 @@ class ProjectSession(HasId):
             "ix_project_sessions_project_id_end_time",
             "project_id",
             text("end_time DESC"),
+        ),
+        Index(
+            "ix_project_sessions_project_id_last_span_ingested_at",
+            "project_id",
+            "last_span_ingested_at",
+            postgresql_where=column("last_span_ingested_at").is_not(None),
+            sqlite_where=column("last_span_ingested_at").is_not(None),
         ),
     )
 
