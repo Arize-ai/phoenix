@@ -585,6 +585,13 @@
                 ]
               },
               {
+                "group": "Together AI",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/together",
+                  "docs/phoenix/integrations/llm-providers/together/together-tracing"
+                ]
+              },
+              {
                 "group": "VertexAI",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/vertexai",
