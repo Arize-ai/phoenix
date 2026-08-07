@@ -339,3 +339,35 @@ def test_the_instructions_name_the_tools_the_surface_actually_exposes() -> None:
         assert tool in rendered
     assert "enable_tool_group" not in rendered
     assert "read-only" in rendered.lower()
+
+
+async def test_the_instructions_account_for_every_directly_named_catalog_tool() -> None:
+    """A tool the agent is never told about is one it will deny having.
+
+    Custom tools registered on the server land in the catalog without reaching
+    the instructions, and the derived REST tools are found through `search`
+    rather than named. So the rule is narrower than "mention everything": each
+    tool that is not REST-derived must be named here.
+    """
+    from phoenix.server.agents.prompts import AgentPrompts
+
+    rendered = AgentPrompts().phoenix_mcp_tools.render()
+    runtime = MontyRuntime()
+    mcp, _ = build_phoenix_mcp_server(
+        _rest_app([]),
+        monty_runtime=runtime,
+        code_mode=True,
+        monty_consumer="agent",
+        read_only=True,
+        db=_unused_db(),
+    )
+    try:
+        async with PhoenixMCPToolset[None](mcp) as toolset:
+            catalog = str(await toolset.direct_call_tool("list_tools", {}))
+    finally:
+        await runtime.aclose()
+
+    custom = {name for name in ("describeSqlSchema", "executeSql") if name in catalog}
+    assert custom, "expected the analytics SQL tools in the catalog"
+    for name in custom:
+        assert name in rendered, f"{name} is reachable but the instructions never name it"

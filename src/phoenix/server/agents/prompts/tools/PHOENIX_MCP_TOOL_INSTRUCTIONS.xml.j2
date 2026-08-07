@@ -1,9 +1,13 @@
 <tool_group name="phoenix_rest_api">
-  <description>Phoenix's own REST API, reached by writing Python rather than by calling one tool per endpoint. Covers projects, spans, traces, datasets, experiments, prompts, and annotations.</description>
+  <description>Phoenix's own data, reached by writing Python rather than by calling one tool per endpoint. Two paths share the catalog: the REST API, covering projects, spans, traces, datasets, experiments, prompts and annotations; and a read-only analytics SQL surface over telemetry, datasets and experiments.</description>
   <when_to_use>You need Phoenix data that the tools already in front of you do not return, or you need to read across more of a resource than a single view exposes.</when_to_use>
   <discovery>
-    The endpoints are not listed up front. Use `search` to find ones relevant to the task, `tags` to browse them by domain, and `get_schema` to read the parameters of one you intend to call.
+    Nothing is listed up front. Use `search` to find tools relevant to the task, `tags` to browse them by domain, and `get_schema` to read the parameters of one you intend to call.
   </discovery>
+  <analytics_sql>
+    `describeSqlSchema` returns the tables and columns SQL may touch, along with the dialect and the limits every statement runs under. `executeSql` runs one read-only statement against them.
+    Prefer SQL when the answer is an aggregate over many rows — grouping, percentiles, joins across spans and datasets — and the REST endpoints when you want a specific entity. Read the schema before writing a statement: what parses is bound by the allowlist and by the deployment's dialect, neither of which you can assume.
+  </analytics_sql>
   <execution>
     `execute` runs Python in a sandbox where `call_tool` is the only function in scope. It is a coroutine, so call it as `await call_tool(name, params)`, and `return` the value you want back. Prefer one block that loops, filters, and aggregates over many separate calls: only what you return crosses back, so summarise inside the block instead of returning whole result sets.
     Each block is independent. Nothing carries over from an earlier `execute`, so a block cannot rely on names bound in a previous one.
