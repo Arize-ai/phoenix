@@ -38,6 +38,7 @@ NC := \033[0m # No Color
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	codegen-prompts sync-models schema-ddl check-graphql-permissions gen-otel-models \
+	gen-session-filter-ai-query-vocabulary check-session-filter-ai-query-vocabulary \
 	gh-comment-watch \
 	harbor-stage-environments harbor-publish-fixtures harbor-oracle harbor-run harbor-view \
 	clean clean-all
@@ -101,6 +102,8 @@ help: ## Show this help message
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
 	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL (use ARGS= for arguments)"
 	@echo -e "  gen-otel-models        - Generate OTel GenAI semconv Pydantic models"
+	@echo -e "  gen-session-filter-ai-query-vocabulary   - Generate the session AI query vocabulary"
+	@echo -e "  check-session-filter-ai-query-vocabulary - Check the session AI query vocabulary for drift"
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
@@ -292,7 +295,7 @@ typecheck-ts: ## Type check TypeScript packages (js/)
 	@echo -e "$(CYAN)Type checking TypeScript packages...$(NC)"
 	@cd $(JS_DIR) && $(PNPM) run --silent -r typecheck
 
-typecheck: typecheck-python typecheck-frontend typecheck-ts ## Type check all code (Python + frontend + TypeScript)
+typecheck: check-session-filter-ai-query-vocabulary typecheck-python typecheck-frontend typecheck-ts ## Type check all code (Python + frontend + TypeScript)
 	@echo -e "$(GREEN)✓ Type checking complete$(NC)"
 
 #=============================================================================
@@ -366,6 +369,12 @@ build-ts: ## Build TypeScript packages
 
 build: build-python build-frontend build-ts ## Build everything (Python + frontend + TypeScript packages)
 	@echo -e "$(GREEN)✓ Build complete$(NC)"
+
+gen-session-filter-ai-query-vocabulary: ## Generate the session AI query vocabulary
+	@$(UV) run python scripts/generate_session_filter_ai_query_vocabulary.py
+
+check-session-filter-ai-query-vocabulary: ## Check the session AI query vocabulary for drift
+	@$(UV) run python scripts/generate_session_filter_ai_query_vocabulary.py --check
 
 #=============================================================================
 # Utilities
