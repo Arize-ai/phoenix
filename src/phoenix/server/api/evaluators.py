@@ -540,6 +540,7 @@ class BuiltInEvaluator(BaseEvaluator):
     # It should be lowercase snake_case and should NEVER change once an evaluator
     # is released to ensure stable references.
     _key: str
+    implementation_version: str
     # Class-level attributes that define the evaluator's identity
     # These satisfy the abstract properties from the BaseEvaluator ABC
     name: str
@@ -620,6 +621,9 @@ T = TypeVar("T", bound=BuiltInEvaluator)
 
 
 def register_builtin_evaluator(cls: type[T]) -> type[T]:
+    implementation_version = getattr(cls, "implementation_version", None)
+    if not isinstance(implementation_version, str) or not implementation_version.strip():
+        raise ValueError(f"{cls.__name__}.implementation_version must be a non-empty string")
     _BUILTIN_EVALUATORS[cls.name] = cls
     _BUILTIN_EVALUATORS_BY_KEY[cls._key] = cls
     return cls
@@ -1162,6 +1166,7 @@ def create_llm_evaluator_from_inline(
 @register_builtin_evaluator
 class ContainsEvaluator(BuiltInEvaluator):
     _key = "contains"
+    implementation_version = "1"
     name = "contains"
     description = (
         "Evaluates whether the text contains any (or all) of the specified comma-separated words"
@@ -1418,6 +1423,7 @@ class ContainsEvaluator(BuiltInEvaluator):
 @register_builtin_evaluator
 class ExactMatchEvaluator(BuiltInEvaluator):
     _key = "exact_match"
+    implementation_version = "1"
     name = "exact_match"
     description = "Evaluates whether the actual text exactly matches the expected text"
     metadata = {"type": "string_matching"}
@@ -1617,6 +1623,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
 @register_builtin_evaluator
 class RegexEvaluator(BuiltInEvaluator):
     _key = "regex"
+    implementation_version = "1"
     name = "regex"
     description = "Evaluates whether the text matches a regex pattern"
     metadata = {"type": "pattern_matching"}
@@ -1849,6 +1856,7 @@ def levenshtein_distance(s1: str, s2: str) -> int:
 @register_builtin_evaluator
 class LevenshteinDistanceEvaluator(BuiltInEvaluator):
     _key = "levenshtein_distance"
+    implementation_version = "1"
     name = "levenshtein_distance"
     description = "Calculates the Levenshtein (edit) distance between two strings"
     metadata = {"type": "string_distance"}
@@ -2069,6 +2077,7 @@ def json_diff_count(expected: Any, actual: Any) -> int:
 @register_builtin_evaluator
 class JSONDistanceEvaluator(BuiltInEvaluator):
     _key = "json_distance"
+    implementation_version = "1"
     name = "json_distance"
     description = "Compares two JSON structures and returns the number of differences"
     metadata = {"type": "json_comparison"}
