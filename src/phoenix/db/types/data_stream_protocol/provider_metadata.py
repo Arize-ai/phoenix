@@ -107,7 +107,11 @@ class PydanticAIToolCallProviderMetadata(_BasePydanticAIProviderMetadata):
     so e.g. tool-search calls replay as their typed part classes."""
 
     outcome: Literal["interrupted"] | None = None
-    """Written by Phoenix, not pydantic-ai: marks a tool call that was cut off
-    before producing a result. The Vercel part states cannot express an
-    interrupted outcome, so it rides here and ``load_messages`` restores
-    ``ToolReturnPart(outcome='interrupted')`` instead of a success."""
+    """Marks a tool call that was cut off before producing a result. The
+    Vercel part states cannot express an interrupted outcome, so pydantic-ai's
+    ``dump_messages`` rides it here and ``load_messages`` restores
+    ``ToolReturnPart(outcome='interrupted')`` instead of a success. In
+    Phoenix's pipeline the only writer is the interrupted-turn repair
+    (mimicking that dump convention): persisted rows come from the live event
+    stream, which never emits the key — an interrupted run has no return part
+    to dump."""
