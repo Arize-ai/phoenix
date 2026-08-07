@@ -19,6 +19,7 @@ from phoenix.db.insertion.helpers import (
     get_sqlstate,
     should_calculate_span_cost,
 )
+from phoenix.db.insertion.project_session import advance_project_session_liveness
 from phoenix.db.insertion.session_annotation import SessionAnnotationQueueInserter
 from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.db.insertion.span_annotation import SpanAnnotationQueueInserter
@@ -294,6 +295,7 @@ class BulkInserter:
         failed_spans = 0
         commit_may_have_started = False
         phase = "connect"
+        project_session_rowids: set[int] = set()
         try:
             start = perf_counter()
             async with self._db() as session:
@@ -337,7 +339,15 @@ class BulkInserter:
                     if result is None:
                         continue
                     project_ids.add(result.project_rowid)
+                    if result.project_session_rowid is not None:
+                        project_session_rowids.add(result.project_session_rowid)
                     inserted_spans.append(_InsertedSpan(span, result, cost))
+                try:
+                    async with session.begin_nested():
+                        await advance_project_session_liveness(session, project_session_rowids)
+                except Exception as e:
+                    BULK_LOADER_EXCEPTIONS.inc()
+                    logger.exception(str(e))
                 # Costs commit with their spans, so a replayed batch replays its costs.
                 phase = "insert_costs"
                 await self._insert_span_costs(session, inserted_spans)

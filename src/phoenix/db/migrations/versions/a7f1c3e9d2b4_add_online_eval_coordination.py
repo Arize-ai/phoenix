@@ -39,6 +39,22 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    op.add_column(
+        "project_sessions",
+        sa.Column(
+            "last_span_ingested_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=True,
+        ),
+    )
+    op.create_index(
+        "ix_project_sessions_project_id_last_span_ingested_at",
+        "project_sessions",
+        ["project_id", "last_span_ingested_at"],
+        postgresql_where=sa.text("last_span_ingested_at IS NOT NULL"),
+        sqlite_where=sa.text("last_span_ingested_at IS NOT NULL"),
+    )
+
     op.create_table(
         "eval_work_cursors",
         sa.Column(
@@ -247,3 +263,9 @@ def downgrade() -> None:
     )
     op.drop_table("project_evaluator_criteria")
     op.drop_table("eval_work_cursors")
+
+    op.drop_index(
+        "ix_project_sessions_project_id_last_span_ingested_at",
+        table_name="project_sessions",
+    )
+    op.drop_column("project_sessions", "last_span_ingested_at")
