@@ -179,8 +179,9 @@ CPython
 ~~~~~~~
 
 Parts of the SQLite wrapper are derived from CPython's sqlite3 module. They
-have been modified to compile against the bundled SQLite amalgamation and to
-initialize the bundled sqlean extensions.
+have been modified to compile against the bundled SQLite amalgamation, to
+initialize the bundled sqlean extensions, and to fix memory-safety and
+correctness bugs (individual files carry a modification notice).
 
 PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2
 --------------------------------------------
