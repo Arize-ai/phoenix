@@ -98,6 +98,7 @@ from phoenix.db.types.data_stream_protocol import (
     DynamicToolUIPart,
     PhoenixUIMessage,
     ProviderMetadata,
+    PydanticAIToolCallProviderMetadata,
     TextUIPart,
     ToolApprovalRequestedPart,
     ToolApprovalRespondedPart,
@@ -1565,8 +1566,11 @@ def _with_interrupted_outcome(provider_metadata: ProviderMetadata | None) -> Pro
     transcript instead of degrading the outcome to a success or failure.
     """
     result: ProviderMetadata = deepcopy(provider_metadata) if provider_metadata else {}
-    existing_metadata: dict[str, Any] = result.get(_PYDANTIC_AI_PROVIDER_METADATA_KEY, {})
-    result[_PYDANTIC_AI_PROVIDER_METADATA_KEY] = {**existing_metadata, "outcome": "interrupted"}
+    metadata = PydanticAIToolCallProviderMetadata.model_validate(
+        result.get(_PYDANTIC_AI_PROVIDER_METADATA_KEY, {})
+    )
+    metadata.outcome = "interrupted"
+    result[_PYDANTIC_AI_PROVIDER_METADATA_KEY] = metadata.model_dump(exclude_none=True)
     return result
 
 

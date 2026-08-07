@@ -106,6 +106,129 @@ def test_tool_part_without_phoenix_namespace_passes() -> None:
     assert "phoenix" not in _call_provider_metadata(message)
 
 
+def _message_with_part(part: dict[str, Any]) -> dict[str, Any]:
+    return {"id": "assistant-1", "role": "assistant", "parts": [part]}
+
+
+def _reasoning_part(pydantic_ai_metadata: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "type": "reasoning",
+        "text": "thinking...",
+        "state": "done",
+        "providerMetadata": {"pydantic_ai": pydantic_ai_metadata},
+    }
+
+
+def _text_part(pydantic_ai_metadata: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "type": "text",
+        "text": "hello",
+        "state": "done",
+        "providerMetadata": {"pydantic_ai": pydantic_ai_metadata},
+    }
+
+
+_REASONING_PYDANTIC_AI_METADATA: dict[str, Any] = {
+    "id": "think_1",
+    "signature": "sig==",
+    "provider_name": "anthropic",
+    "provider_details": {"k": "v"},
+}
+
+
+def test_reasoning_pydantic_ai_metadata_is_accepted_without_coercion() -> None:
+    message = PhoenixUIMessage.model_validate(
+        _message_with_part(_reasoning_part(_REASONING_PYDANTIC_AI_METADATA))
+    )
+    part = message.parts[0]
+    assert getattr(part, "provider_metadata") == {"pydantic_ai": _REASONING_PYDANTIC_AI_METADATA}
+
+
+def test_text_pydantic_ai_metadata_is_accepted() -> None:
+    PhoenixUIMessage.model_validate(
+        _message_with_part(
+            _text_part({"id": "txt_1", "provider_name": "anthropic", "provider_details": {}})
+        )
+    )
+
+
+def test_signature_on_a_text_part_raises() -> None:
+    """``signature`` is a reasoning-part key; on text it has no consumer."""
+    with pytest.raises(ValidationError):
+        PhoenixUIMessage.model_validate(_message_with_part(_text_part({"signature": "sig=="})))
+
+
+def test_unknown_key_in_pydantic_ai_namespace_raises() -> None:
+    with pytest.raises(ValidationError):
+        PhoenixUIMessage.model_validate(
+            _message_with_part(_reasoning_part({"signature": "sig==", "bogus_key": 1}))
+        )
+
+
+def test_wrong_typed_signature_raises() -> None:
+    with pytest.raises(ValidationError):
+        PhoenixUIMessage.model_validate(_message_with_part(_reasoning_part({"signature": 123})))
+
+
+def test_tool_pydantic_ai_metadata_is_accepted() -> None:
+    PhoenixUIMessage.model_validate(
+        _message_with_call_provider_metadata(
+            {
+                "pydantic_ai": {
+                    "id": "toolu_1",
+                    "provider_name": "anthropic",
+                    "tool_kind": "tool-search",
+                    "outcome": "interrupted",
+                }
+            }
+        )
+    )
+
+
+def test_unknown_tool_kind_raises() -> None:
+    with pytest.raises(ValidationError):
+        PhoenixUIMessage.model_validate(
+            _message_with_call_provider_metadata({"pydantic_ai": {"tool_kind": "bogus"}})
+        )
+
+
+def test_non_interrupted_outcome_raises() -> None:
+    """``interrupted`` is the only outcome that ever rides the metadata
+    channel; the others have dedicated part states."""
+    with pytest.raises(ValidationError):
+        PhoenixUIMessage.model_validate(
+            _message_with_call_provider_metadata({"pydantic_ai": {"outcome": "success"}})
+        )
+
+
+def test_pydantic_ai_namespace_on_an_untyped_part_family_raises() -> None:
+    with pytest.raises(ValidationError, match="no schema"):
+        PhoenixUIMessage.model_validate(
+            _message_with_part(
+                {
+                    "type": "file",
+                    "url": "data:text/plain;base64,aGk=",
+                    "mediaType": "text/plain",
+                    "providerMetadata": {"pydantic_ai": {"file_id": "f_1"}},
+                }
+            )
+        )
+
+
+def test_non_pydantic_ai_namespace_on_reasoning_part_is_left_untouched() -> None:
+    message = PhoenixUIMessage.model_validate(
+        _message_with_part(
+            {
+                "type": "reasoning",
+                "text": "thinking...",
+                "state": "done",
+                "providerMetadata": {"anthropic": {"redacted": True}},
+            }
+        )
+    )
+    assert getattr(message.parts[0], "provider_metadata") == {"anthropic": {"redacted": True}}
+
+
 def test_message_without_tool_metadata_passes() -> None:
     message = PhoenixUIMessage.model_validate(
         {
