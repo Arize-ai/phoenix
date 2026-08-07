@@ -1,9 +1,9 @@
 """Drift canaries pinning the ``pydantic_ai`` provider-metadata namespace
-against the installed pydantic-ai: the write side asserts the streamed shape
-still matches the golden fixture, the read side asserts the fixture — rows as
-written today — still restores every metadata-borne field through
-``load_messages``. On failure at a bump: update the typed models, regenerate
-the fixture, and shim any renamed key for existing rows."""
+against the installed pydantic-ai: writing a turn must still produce the
+expected messages, and the expected messages — rows as written today — must
+still reload with every metadata-borne field intact. On failure at a bump:
+update the typed models, refresh ``_EXPECTED_MESSAGES``, and shim any renamed
+key for existing rows."""
 
 from collections.abc import AsyncIterator, Sequence
 from typing import Any, get_args
@@ -35,7 +35,7 @@ from phoenix.server.api.routers.agents import (
     _to_pydantic_ai_messages,
 )
 
-_GOLDEN_MESSAGES: list[dict[str, Any]] = [
+_EXPECTED_MESSAGES: list[dict[str, Any]] = [
     {"id": "user-1", "role": "user", "parts": [{"type": "text", "text": "look this up"}]},
     {
         "id": "assistant-1",
@@ -121,7 +121,7 @@ _GOLDEN_MESSAGES: list[dict[str, Any]] = [
 """Persisted rows exactly as today's write pipeline produces them."""
 
 
-def test_tool_kind_vocabulary_matches_installed_pydantic_ai() -> None:
+def test_tool_kinds_match_pydantic_ai() -> None:
     assert set(get_args(PydanticAIToolPartKind)) == set(get_args(ToolPartKind))
 
 
@@ -182,7 +182,7 @@ _UNRESOLVED_CALL = ToolCallPart(
 )
 
 
-async def _write_pipeline_message() -> PhoenixUIMessage:
+async def _persist_turn() -> PhoenixUIMessage:
     """Persist a turn as production does: installed event stream -> reducer ->
     validation -> repair (the final call is left unresolved to exercise it)."""
     event_stream = VercelAIEventStream(run_input=SubmitMessage(id="run", messages=[]))
@@ -226,19 +226,19 @@ async def _write_pipeline_message() -> PhoenixUIMessage:
     return repaired
 
 
-async def test_write_pipeline_still_produces_the_golden_dialect() -> None:
-    persisted = await _write_pipeline_message()
+async def test_writing_a_turn_produces_the_expected_messages() -> None:
+    persisted = await _persist_turn()
     assert (
-        persisted.model_dump(mode="json", by_alias=True, exclude_none=True) == _GOLDEN_MESSAGES[1]
+        persisted.model_dump(mode="json", by_alias=True, exclude_none=True) == _EXPECTED_MESSAGES[1]
     )
 
 
-def test_golden_fixture_loads_with_full_fidelity() -> None:
-    messages = [PhoenixUIMessage.model_validate(message) for message in _GOLDEN_MESSAGES]
-    _assert_full_fidelity(_to_pydantic_ai_messages(messages))
+def test_expected_messages_reload_with_nothing_lost() -> None:
+    messages = [PhoenixUIMessage.model_validate(message) for message in _EXPECTED_MESSAGES]
+    _assert_all_metadata_restored(_to_pydantic_ai_messages(messages))
 
 
-def _assert_full_fidelity(loaded: Sequence[ModelMessage]) -> None:
+def _assert_all_metadata_restored(loaded: Sequence[ModelMessage]) -> None:
     parts = [part for message in loaded for part in message.parts]
 
     thinking = next(part for part in parts if isinstance(part, ThinkingPart))
