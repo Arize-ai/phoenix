@@ -1,10 +1,14 @@
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from typing import Optional
 
+import sqlalchemy as sa
 from alembic.config import Config
 from sqlalchemy import Connection
 from sqlalchemy.ext.asyncio import AsyncEngine
 from typing_extensions import assert_never, override
+
+from phoenix.db.helpers import truncate_name
 
 from . import (
     _DBBackend,
@@ -17,7 +21,36 @@ from . import (
 )
 
 _DOWN = "d4e5f6a7b8c9"
+_PREVIOUS = "c9d0e1f2a3b4"
 _UP = "a7f1c3e9d2b4"
+_SQLITE_PROJECT_SESSION_DESC_INDEX_SQL = {
+    "ix_project_sessions_project_id_end_time": (
+        "CREATE INDEX ix_project_sessions_project_id_end_time "
+        "ON project_sessions (project_id, end_time DESC)"
+    ),
+    "ix_project_sessions_project_id_start_time": (
+        "CREATE INDEX ix_project_sessions_project_id_start_time "
+        "ON project_sessions (project_id, start_time DESC)"
+    ),
+}
+
+
+def _get_sqlite_project_session_index_sql(conn: Connection) -> dict[str, str]:
+    rows = conn.execute(
+        sa.text(
+            "SELECT name, sql FROM sqlite_master "
+            "WHERE type = 'index' "
+            "AND name IN ("
+            "'ix_project_sessions_project_id_start_time', "
+            "'ix_project_sessions_project_id_end_time'"
+            ")"
+        )
+    ).all()
+    return {name: sql for name, sql in rows if sql is not None}
+
+
+def _constraint_name(name: str, db_backend: _DBBackend) -> str:
+    return truncate_name(name) if db_backend == "postgresql" else name
 
 
 class _OnlineEvalSchemaTest(ABC):
@@ -207,3 +240,92 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
                 ["claimed_at", "claimed_by", "error", "cooldown_until"]
             ),
         )
+
+
+async def test_project_session_liveness_schema(
+    _engine: AsyncEngine,
+    _alembic_config: Config,
+    _db_backend: _DBBackend,
+    _schema: str,
+) -> None:
+    await _verify_clean_state(_engine, _schema)
+    await _up(_engine, _alembic_config, _PREVIOUS, _schema)
+    end_time = datetime(2026, 1, 2, tzinfo=timezone.utc)
+
+    def _get(conn: Connection) -> Optional[_TableSchemaInfo]:
+        return _get_table_schema_info(conn, "project_sessions", _db_backend, _schema)
+
+    def _seed(conn: Connection) -> None:
+        metadata = sa.MetaData()
+        schema = _schema or None
+        projects = sa.Table("projects", metadata, autoload_with=conn, schema=schema)
+        project_sessions = sa.Table("project_sessions", metadata, autoload_with=conn, schema=schema)
+        inserted_primary_key = conn.execute(
+            projects.insert().values(name="liveness-backfill")
+        ).inserted_primary_key
+        assert inserted_primary_key is not None
+        project_id = inserted_primary_key[0]
+        conn.execute(
+            project_sessions.insert().values(
+                session_id="liveness-backfill",
+                project_id=project_id,
+                start_time=end_time,
+                end_time=end_time,
+            )
+        )
+        conn.commit()
+
+    def _get_liveness_and_index(conn: Connection) -> tuple[Optional[datetime], list[str], str]:
+        metadata = sa.MetaData()
+        schema = _schema or None
+        project_sessions = sa.Table("project_sessions", metadata, autoload_with=conn, schema=schema)
+        last_span_ingested_at = conn.scalar(
+            sa.select(project_sessions.c.last_span_ingested_at).where(
+                project_sessions.c.session_id == "liveness-backfill"
+            )
+        )
+        indexes = sa.inspect(conn).get_indexes("project_sessions", schema=schema)
+        index = next(
+            index
+            for index in indexes
+            if index["name"] == "ix_project_sessions_project_id_last_span_ingested_at"
+        )
+        index_columns = index["column_names"]
+        assert all(column is not None for column in index_columns)
+        where = index["dialect_options"][f"{_db_backend}_where"]
+        return (
+            last_span_ingested_at,
+            [column for column in index_columns if column is not None],
+            str(where),
+        )
+
+    before = await _run_async(_engine, _get)
+    assert before is not None
+    assert "last_span_ingested_at" not in before["column_names"]
+    await _run_async(_engine, _seed)
+
+    await _up(_engine, _alembic_config, _UP, _schema)
+    after = await _run_async(_engine, _get)
+    assert after is not None
+    assert after["column_names"] == before["column_names"] | {"last_span_ingested_at"}
+    assert after["index_names"] == before["index_names"] | {
+        "ix_project_sessions_project_id_last_span_ingested_at"
+    }
+    assert after["constraint_names"] == before["constraint_names"]
+    assert after["nullable_column_names"] == before["nullable_column_names"] | {
+        "last_span_ingested_at"
+    }
+    last_span_ingested_at, index_columns, index_where = await _run_async(
+        _engine, _get_liveness_and_index
+    )
+    assert last_span_ingested_at is None
+    assert index_columns == ["project_id", "last_span_ingested_at"]
+    assert "last_span_ingested_at IS NOT NULL" in index_where
+    if _db_backend == "sqlite":
+        assert (
+            await _run_async(_engine, _get_sqlite_project_session_index_sql)
+            == _SQLITE_PROJECT_SESSION_DESC_INDEX_SQL
+        )
+
+    await _down(_engine, _alembic_config, _PREVIOUS, _schema)
+    assert await _run_async(_engine, _get) == before
