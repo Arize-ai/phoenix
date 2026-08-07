@@ -288,6 +288,7 @@ class Tracer(_TracerBase):
                         project_id=project_id,
                         start_time=db_trace.start_time,
                         end_time=db_trace.end_time,
+                        last_span_ingested_at=datetime.now(timezone.utc),
                     )
                     project_sessions_by_session_id[trace_session_id] = project_session
                 else:

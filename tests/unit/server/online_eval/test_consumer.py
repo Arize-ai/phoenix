@@ -364,15 +364,19 @@ async def _seed_code_criteria(
 
 async def _seed_builtin_criteria(db: DbSessionFactory, project_id: int) -> tuple[int, int]:
     async with db() as session:
-        evaluator = models.BuiltinEvaluator(
-            name=Identifier(root=f"eval-{token_hex(4)}"),
-            kind="BUILTIN",
-            key=token_hex(8),
-            input_schema={},
-            output_configs=[],
+        evaluator = await session.scalar(
+            select(models.BuiltinEvaluator).where(models.BuiltinEvaluator.key == "contains")
         )
-        session.add(evaluator)
-        await session.flush()
+        if evaluator is None:
+            evaluator = models.BuiltinEvaluator(
+                name=Identifier(root="contains"),
+                kind="BUILTIN",
+                key="contains",
+                input_schema={},
+                output_configs=[],
+            )
+            session.add(evaluator)
+            await session.flush()
         criteria = models.ProjectEvaluatorCriteria(
             project_id=project_id,
             evaluator_id=evaluator.id,

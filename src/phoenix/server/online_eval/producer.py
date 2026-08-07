@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from typing import Any, Optional
+from typing import Any, Optional, Sequence
 
 from sqlalchemy import Select, and_, delete, exists, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,7 +34,9 @@ from phoenix.config import (
     get_env_online_eval_retention_seconds,
 )
 from phoenix.db import models
+from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.online_eval.db_coordinator import (
     STALE_FINGERPRINT_ERROR,
     work_unit_lease_lapsed,
@@ -69,43 +71,115 @@ async def resolve_criteria(
     criteria: models.ProjectEvaluatorCriteria,
     evaluator: models.Evaluator,
 ) -> Optional[ResolvedCriteria]:
-    """Resolve one criteria row's fingerprint inputs, pinning mutable pointers to
+    """Resolve one criteria row through the shared bulk-resolution path."""
+    return (await resolve_criteria_bulk(session, [(criteria, evaluator)]))[0]
+
+
+async def resolve_criteria_bulk(
+    session: AsyncSession,
+    criteria_evaluators: Sequence[tuple[models.ProjectEvaluatorCriteria, models.Evaluator]],
+) -> list[Optional[ResolvedCriteria]]:
+    """Resolve criteria fingerprint inputs in bulk, pinning mutable pointers to
     immutable version identities: the tagged (or latest) PromptVersion id for LLM
-    evaluators, the latest CodeEvaluatorVersion id for CODE, and (key, synced_at)
-    for BUILTIN. Returns None when no version is resolvable.
+    evaluators, the latest CodeEvaluatorVersion id for CODE, and
+    (key, synced_at, implementation_version) for BUILTIN. Each unresolved row
+    produces None.
 
     The consumer's staleness guard must recompute fingerprints through this same
     function — an independent resolution recipe re-materializes the backlog.
     """
-    version_ref: Any
-    input_mapping: Any = None
-    sandbox_config_id: Optional[int] = None
-    if isinstance(evaluator, models.LLMEvaluator):
-        if evaluator.prompt_version_tag_id is not None:
-            version_ref = await session.scalar(
-                select(models.PromptVersionTag.prompt_version_id).where(
-                    models.PromptVersionTag.id == evaluator.prompt_version_tag_id
+    tagged_llm_evaluators: dict[int, models.LLMEvaluator] = {}
+    latest_llm_evaluators: dict[int, models.LLMEvaluator] = {}
+    code_evaluators: dict[int, models.CodeEvaluator] = {}
+    for _, evaluator in criteria_evaluators:
+        if isinstance(evaluator, models.LLMEvaluator):
+            if evaluator.prompt_version_tag_id is not None:
+                tagged_llm_evaluators[evaluator.id] = evaluator
+            else:
+                latest_llm_evaluators[evaluator.id] = evaluator
+        elif isinstance(evaluator, models.CodeEvaluator):
+            code_evaluators[evaluator.id] = evaluator
+
+    tagged_prompt_version_ids: dict[int, int] = {}
+    prompt_version_tag_ids = {
+        evaluator.prompt_version_tag_id
+        for evaluator in tagged_llm_evaluators.values()
+        if evaluator.prompt_version_tag_id is not None
+    }
+    if prompt_version_tag_ids:
+        tagged_prompt_version_ids = dict(
+            (
+                await session.execute(
+                    select(
+                        models.PromptVersionTag.id,
+                        models.PromptVersionTag.prompt_version_id,
+                    ).where(models.PromptVersionTag.id.in_(prompt_version_tag_ids))
                 )
             )
-        else:
-            version_ref = await session.scalar(
-                select(models.PromptVersion.id)
-                .where(models.PromptVersion.prompt_id == evaluator.prompt_id)
-                .order_by(models.PromptVersion.id.desc())
-                .limit(1)
-            )
-    elif isinstance(evaluator, models.CodeEvaluator):
-        version_ref = await session.scalar(
-            select(models.CodeEvaluatorVersion.id)
-            .where(models.CodeEvaluatorVersion.code_evaluator_id == evaluator.id)
-            .order_by(models.CodeEvaluatorVersion.id.desc())
-            .limit(1)
+            .tuples()
+            .all()
         )
+
+    latest_prompt_version_ids: dict[int, int] = {}
+    prompt_ids = {evaluator.prompt_id for evaluator in latest_llm_evaluators.values()}
+    if prompt_ids:
+        latest_prompt_version_ids = dict(
+            (
+                await session.execute(
+                    select(
+                        models.PromptVersion.prompt_id,
+                        func.max(models.PromptVersion.id),
+                    )
+                    .where(models.PromptVersion.prompt_id.in_(prompt_ids))
+                    .group_by(models.PromptVersion.prompt_id)
+                )
+            )
+            .tuples()
+            .all()
+        )
+
+    latest_code_versions = await latest_code_evaluator_versions_by_evaluator_id(
+        list(code_evaluators),
+        session,
+    )
+
+    resolved: list[Optional[ResolvedCriteria]] = []
+    for criteria, evaluator in criteria_evaluators:
+        version_ref: Any
+        if isinstance(evaluator, models.LLMEvaluator):
+            if evaluator.prompt_version_tag_id is not None:
+                version_ref = tagged_prompt_version_ids.get(evaluator.prompt_version_tag_id)
+            else:
+                version_ref = latest_prompt_version_ids.get(evaluator.prompt_id)
+        elif isinstance(evaluator, models.CodeEvaluator):
+            version = latest_code_versions.get(evaluator.id)
+            version_ref = version.id if version is not None else None
+        elif isinstance(evaluator, models.BuiltinEvaluator):
+            evaluator_class = get_builtin_evaluator_by_key(evaluator.key)
+            if evaluator_class is None:
+                resolved.append(None)
+                continue
+            version_ref = [
+                evaluator.key,
+                evaluator.synced_at.isoformat(),
+                evaluator_class.implementation_version,
+            ]
+        else:
+            resolved.append(None)
+            continue
+        resolved.append(_resolved_criteria(criteria, evaluator, version_ref))
+    return resolved
+
+
+def _resolved_criteria(
+    criteria: models.ProjectEvaluatorCriteria,
+    evaluator: models.LLMEvaluator | models.CodeEvaluator | models.BuiltinEvaluator,
+    version_ref: Any,
+) -> Optional[ResolvedCriteria]:
+    input_mapping: Any = None
+    sandbox_config_id: Optional[int] = None
+    if isinstance(evaluator, models.CodeEvaluator):
         sandbox_config_id = evaluator.sandbox_config_id
-    elif isinstance(evaluator, models.BuiltinEvaluator):
-        version_ref = [evaluator.key, evaluator.synced_at.isoformat()]
-    else:
-        return None
     if version_ref is None:
         return None
     effective_input_mapping = criteria.input_mapping
@@ -262,7 +336,10 @@ class OnlineEvalProducer(DaemonTask):
             if budget > 0 and frontier is not None:
                 await self._renew_lease(datetime.now(timezone.utc))
                 advanced, budget = await self._materialize_and_advance(
-                    active, produced_through_id, frontier, budget
+                    active,
+                    produced_through_id,
+                    frontier,
+                    budget,
                 )
                 if advanced:
                     produced_through_id = frontier
@@ -447,21 +524,23 @@ class OnlineEvalProducer(DaemonTask):
         # see an empty queue and keep materializing into the outage. Exhausted
         # ERROR rows are terminal (awaiting the reaper) and excluded.
         async with self._db() as session:
-            outstanding_count = (
-                await session.scalar(
-                    select(func.count())
-                    .select_from(models.EvalWorkUnit)
-                    .where(
-                        or_(
-                            models.EvalWorkUnit.status.in_(("PENDING", "RUNNING")),
-                            and_(
-                                models.EvalWorkUnit.status == "ERROR",
-                                models.EvalWorkUnit.attempts < MAX_ATTEMPTS,
-                            ),
-                        )
+            outstanding = (
+                select(1)
+                .select_from(models.EvalWorkUnit)
+                .where(
+                    or_(
+                        models.EvalWorkUnit.status.in_(("PENDING", "RUNNING")),
+                        and_(
+                            models.EvalWorkUnit.status == "ERROR",
+                            models.EvalWorkUnit.attempts < MAX_ATTEMPTS,
+                        ),
                     )
                 )
-                or 0
+                .limit(self._max_outstanding)
+                .subquery()
+            )
+            outstanding_count = (
+                await session.scalar(select(func.count()).select_from(outstanding)) or 0
             )
         budget = max(0, self._max_outstanding - outstanding_count)
         if budget == 0:
@@ -503,12 +582,17 @@ class OnlineEvalProducer(DaemonTask):
                     )
                 )
             ).all()
-            for criteria, evaluator in rows:
+            criteria_evaluators = [(criteria, evaluator) for criteria, evaluator in rows]
+            resolved_criteria = await resolve_criteria_bulk(session, criteria_evaluators)
+            for (criteria, evaluator), resolved in zip(
+                criteria_evaluators,
+                resolved_criteria,
+                strict=True,
+            ):
                 # NOT wrapped in a per-criteria except: an unexpected exception
                 # here (e.g. a transient DB error on a version lookup) must
                 # abort the tick so the cursor cannot advance past a window
                 # this criteria never scanned. See the docstring's skip policy.
-                resolved = await resolve_criteria(session, criteria, evaluator)
                 if resolved is None:
                     logger.warning(
                         f"Skipping criteria {criteria.id}: "
