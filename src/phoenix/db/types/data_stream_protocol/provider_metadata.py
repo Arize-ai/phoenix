@@ -8,9 +8,9 @@ validated there — see ``PhoenixUIMessage``'s model validators in
 ``phoenix_types``.
 """
 
-from typing import Any, Literal
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, JsonValue
 
 from ._models import CamelBaseModel
 
@@ -50,9 +50,7 @@ to the installed package's."""
 class _BasePydanticAIProviderMetadata(BaseModel):
     """Common keys of the ``pydantic_ai`` namespace of part-level
     ``providerMetadata`` — pydantic-ai's unversioned round-trip channel for
-    ``ModelMessage`` fields the Vercel part shapes can't express — typed with
-    ``extra="forbid"`` so upstream drift fails validation instead of
-    corrupting replays."""
+    ``ModelMessage`` fields the Vercel part shapes can't express"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -63,7 +61,7 @@ class _BasePydanticAIProviderMetadata(BaseModel):
     """Producing provider; Anthropic replays thinking blocks only when this
     matches the requesting model."""
 
-    provider_details: dict[str, Any] | None = None
+    provider_details: dict[str, JsonValue] | None = None
     """Opaque provider details restored verbatim."""
 
 
@@ -89,5 +87,4 @@ class PydanticAIToolCallProviderMetadata(_BasePydanticAIProviderMetadata):
     outcome: Literal["interrupted"] | None = None
     """The one tool outcome the Vercel part states can't express;
     ``load_messages`` restores ``ToolReturnPart(outcome='interrupted')`` from
-    it. Written here only by Phoenix's interrupted-turn repair — the live
-    event stream never emits the key."""
+    it."""
