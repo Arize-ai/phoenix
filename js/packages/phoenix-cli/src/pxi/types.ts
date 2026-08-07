@@ -21,7 +21,8 @@ type SchemasV1 = componentsV1["schemas"];
  * token usage. Fields are nullable because tracing and usage reporting are
  * optional and may be disabled server-side.
  */
-export type AssistantMessageMetadata = SchemasV1["AssistantMessageMetadata"];
+export type PhoenixAssistantMessageMetadata =
+  SchemasV1["PhoenixAssistantMessageMetadata"];
 
 /**
  * `UIMessage.metadata` as a registry of namespaces: Phoenix's own fields under
