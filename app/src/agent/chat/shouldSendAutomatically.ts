@@ -20,6 +20,7 @@ import {
   REMOVE_PROMPT_INSTANCE_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 
+import { isResolvedClientToolOutputPart } from "./chatUtils";
 import { getUnresolvedToolCalls } from "./interruptToolCalls";
 
 export const USER_INTERRUPT_ERROR = "The user has interrupted this tool call.";
@@ -27,8 +28,18 @@ export const USER_INTERRUPT_ERROR = "The user has interrupted this tool call.";
 // The AI SDK auto-continues after completed tool calls; suppress that when the last result is a local lifecycle cleanup, not model input.
 export function shouldSendAutomaticallyAfterToolOutput({
   messages,
+  isToolOutputSubmitted,
 }: {
   messages: UIMessage[];
+  /**
+   * Whether a resolved client tool output already reached the server in an
+   * earlier request of this turn. When provided, each newly resolved output
+   * triggers a send even while sibling tool calls are still pending — the
+   * server persists the partial outputs and yields the turn back. Without it
+   * partial sends are disabled (they would re-trigger forever), and the turn
+   * only continues once every tool call resolves.
+   */
+  isToolOutputSubmitted?: (toolCallId: string) => boolean;
 }): boolean {
   // If tool calls were marked interrupted on message send or stream stop, do not
   // trigger another message send event.
@@ -38,7 +49,13 @@ export function shouldSendAutomaticallyAfterToolOutput({
   if (hasApprovalNavigationCancel(messages)) {
     return false;
   }
-  return lastAssistantMessageIsCompleteWithToolCalls({ messages });
+  if (lastAssistantMessageIsCompleteWithToolCalls({ messages })) {
+    return true;
+  }
+  if (!isToolOutputSubmitted) {
+    return false;
+  }
+  return hasUnsubmittedClientToolOutput({ messages, isToolOutputSubmitted });
 }
 
 export function shouldKeepTurnOpenForPendingToolOutput({
@@ -50,6 +67,30 @@ export function shouldKeepTurnOpenForPendingToolOutput({
 }): boolean {
   return (
     !shouldSendAutomatically && getUnresolvedToolCalls(messages).length > 0
+  );
+}
+
+/**
+ * Whether the trailing assistant message holds a resolved client tool output
+ * the server has not yet persisted — the trigger for flushing partial outputs
+ * (e.g. the first of several approvals) to the chat route while sibling calls
+ * are still pending.
+ */
+function hasUnsubmittedClientToolOutput({
+  messages,
+  isToolOutputSubmitted,
+}: {
+  messages: UIMessage[];
+  isToolOutputSubmitted: (toolCallId: string) => boolean;
+}): boolean {
+  const message = messages[messages.length - 1];
+  if (!message || message.role !== "assistant") {
+    return false;
+  }
+  return message.parts.some(
+    (part) =>
+      isResolvedClientToolOutputPart(part) &&
+      !isToolOutputSubmitted(part.toolCallId)
   );
 }
 

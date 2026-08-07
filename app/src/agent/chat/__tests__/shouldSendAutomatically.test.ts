@@ -21,6 +21,10 @@ function createMessage(message: UIMessage): UIMessage {
   return message;
 }
 
+const CLIENT_EXECUTION_METADATA = {
+  phoenix: { toolExecutionEnvironment: "client" },
+};
+
 describe("shouldSendAutomaticallyAfterToolOutput", () => {
   it("continues after ordinary completed tool calls", () => {
     const messages = [
@@ -140,6 +144,124 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
     ];
 
     expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(false);
+  });
+});
+
+describe("shouldSendAutomaticallyAfterToolOutput with partial outputs", () => {
+  const partiallyResolvedMessages = [
+    createMessage({
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        {
+          type: `tool-${READ_PROMPT_TOOL_NAME}`,
+          toolCallId: "tool-call-1",
+          state: "output-available",
+          input: {},
+          output: { status: "accepted" },
+          callProviderMetadata: CLIENT_EXECUTION_METADATA,
+        },
+        {
+          type: `tool-${READ_PROMPT_TOOL_NAME}`,
+          toolCallId: "tool-call-2",
+          state: "input-available",
+          input: {},
+          callProviderMetadata: CLIENT_EXECUTION_METADATA,
+        },
+      ],
+    }),
+  ];
+
+  it("flushes a newly resolved output while sibling calls are pending", () => {
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages: partiallyResolvedMessages,
+        isToolOutputSubmitted: () => false,
+      })
+    ).toBe(true);
+  });
+
+  it("does not re-flush outputs the server already persisted", () => {
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages: partiallyResolvedMessages,
+        isToolOutputSubmitted: (toolCallId) => toolCallId === "tool-call-1",
+      })
+    ).toBe(false);
+  });
+
+  it("does not flush partial outputs without submission tracking", () => {
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages: partiallyResolvedMessages,
+      })
+    ).toBe(false);
+  });
+
+  it("ignores resolved server-executed tool calls", () => {
+    const messages = [
+      createMessage({
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: `tool-${READ_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-1",
+            state: "output-available",
+            input: {},
+            output: "done",
+            providerExecuted: true,
+          },
+          {
+            type: `tool-${READ_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-2",
+            state: "input-available",
+            input: {},
+            callProviderMetadata: CLIENT_EXECUTION_METADATA,
+          },
+        ],
+      }),
+    ];
+
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        isToolOutputSubmitted: () => false,
+      })
+    ).toBe(false);
+  });
+
+  it("keeps user-interrupt suppression ahead of partial flushes", () => {
+    const messages = [
+      createMessage({
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: `tool-${READ_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-1",
+            state: "output-error",
+            input: {},
+            errorText: USER_INTERRUPT_ERROR,
+            callProviderMetadata: CLIENT_EXECUTION_METADATA,
+          },
+          {
+            type: `tool-${READ_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-2",
+            state: "input-available",
+            input: {},
+            callProviderMetadata: CLIENT_EXECUTION_METADATA,
+          },
+        ],
+      }),
+    ];
+
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        isToolOutputSubmitted: () => false,
+      })
+    ).toBe(false);
   });
 });
 

@@ -8,6 +8,8 @@ import {
 } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
+import { shouldSendAutomaticallyAfterToolOutput } from "@phoenix/agent/chat/shouldSendAutomatically";
+import { createSubmittedToolOutputTracker } from "@phoenix/agent/chat/submittedToolOutputs";
 import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
@@ -92,11 +94,21 @@ export function createAgentSessionChat({
   // racing its own in-flight change.
   let lastAssertedModelSelection: AgentModelSelection | null = null;
   const transcriptPersistence = createTranscriptPersistenceCoordinator();
+  const submittedToolOutputs = createSubmittedToolOutputTracker();
   const turnCompletionGate = createTurnCompletionGate({
     endTurn: async () => {
       store.getState().setSessionResponsePending(sessionId, false);
       toolTimings.clear();
+      submittedToolOutputs.clear();
     },
+    // Flush each newly resolved client tool output (e.g. the first of several
+    // approvals) to the chat route as soon as it lands: the server partially
+    // applies the outputs and yields the turn back until the rest resolve.
+    getShouldSendAutomatically: (messages) =>
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        isToolOutputSubmitted: submittedToolOutputs.isSubmitted,
+      }),
     finalize: () => {
       // The server persisted the turn's transcript (and possibly a
       // summarized title); refetch the canonical session record so Relay
@@ -143,20 +155,24 @@ export function createAgentSessionChat({
             sessionId,
           }) ?? toAgentModelSelection(store.getState().defaultModelConfig);
         lastAssertedModelSelection = modelSelection;
-        return {
-          body: buildAgentChatRequestBody({
-            body,
-            id,
-            messages,
-            capabilities: store.getState().capabilities,
-            observability: store.getState().observability,
-            agentsConfig: store.getState().agentsConfig,
-            permissions: store.getState().permissions,
-            contexts: selectActiveContexts(store.getState()),
-            modelSelection,
-            toolTimings,
-          }),
-        };
+        const requestBody = buildAgentChatRequestBody({
+          body,
+          id,
+          messages,
+          capabilities: store.getState().capabilities,
+          observability: store.getState().observability,
+          agentsConfig: store.getState().agentsConfig,
+          permissions: store.getState().permissions,
+          contexts: selectActiveContexts(store.getState()),
+          modelSelection,
+          toolTimings,
+        });
+        submittedToolOutputs.recordRequest(
+          (requestBody.toolOutputs ?? []).map(
+            (toolOutput) => toolOutput.toolCallId
+          )
+        );
+        return { body: requestBody };
       },
     }),
     // Tool execution must target the runtime-owned chat instance so
@@ -200,6 +216,9 @@ export function createAgentSessionChat({
         });
       } else if (dataPart.type === "data-transcript-persisted") {
         transcriptPersistence.acknowledge(dataPart.data);
+        // The acknowledgement confirms the server persisted the request's
+        // merged transcript, including any toolOutputs the request carried.
+        submittedToolOutputs.commitInFlight();
       }
     },
     sendAutomaticallyWhen: async ({ messages }) => {
@@ -218,6 +237,7 @@ export function createAgentSessionChat({
     },
     onError: (error) => {
       transcriptPersistence.cancelPendingWaiters();
+      submittedToolOutputs.discardInFlight();
       turnCompletionGate.fail(error);
       const conflictCode = parseAgentSessionConflictCode(error.message);
       const isBusyRejection = conflictCode === SESSION_BUSY_ERROR_CODE;
