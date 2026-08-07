@@ -70,3 +70,7 @@
 {"sql": "SELECT jsonb_agg(attributes) AS v FROM spans", "dialect": "postgresql", "expect": "admit", "note": "aggregation into one document; amplifies like group_concat and is bounded by the per-cell byte cap and the statement deadline"}
 {"sql": "SELECT attributes #- '{a}' AS v FROM spans", "dialect": "postgresql", "expect": "admit", "note": "path removal in operator form; output is smaller than input"}
 {"sql": "SELECT json_remove(attributes, '$.a') AS v FROM spans", "dialect": "sqlite", "expect": "admit", "note": "the SQLite counterpart of the #- operator, parsed as a node class"}
+{"sql": "SELECT no_such_column FROM spans", "expect": "column_not_allowed", "note": "the column policy is an allowlist: a name the manifest does not offer is refused, not merely one on a hidden list"}
+{"sql": "SELECT latency_ms FROM spans", "expect": "admit", "note": "a virtual column is advertised and not stored, so the allowlist must offer it despite its absence from the manifest columns"}
+{"sql": "SELECT key FROM spans, json_each(spans.attributes)", "dialect": "sqlite", "expect": "admit", "note": "a table-valued function offers names the manifest never declared, so an unqualified reference beside one cannot be attributed to a base table"}
+{"sql": "SELECT s.* FROM spans s", "expect": "admit", "note": "a star is expanded from the manifest by a later pass and is not a column reference"}

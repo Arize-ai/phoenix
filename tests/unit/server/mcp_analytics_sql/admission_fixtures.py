@@ -37,6 +37,10 @@ def minimal_admission_allowlist() -> Allowlist:
             grain="",
             columns=real[name].columns,
             hidden_columns=real[name].hidden_columns,
+            # Advertised and not stored, so absent from `columns`. Dropping them
+            # here made the column policy refuse `latency_ms`, which is a column
+            # the schema teaches -- the fixture's omission, not the policy's.
+            virtual_columns=real[name].virtual_columns,
         )
         for name in _TEST_TABLES
     }
