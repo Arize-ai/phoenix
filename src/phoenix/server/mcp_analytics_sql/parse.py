@@ -581,8 +581,10 @@ def _check_hidden_columns(
         for spec in allowlist.table_specs.values()
         for column in spec.hidden_columns
     }
-    if not hidden_anywhere:
-        return None
+    # A CTE column, a subquery projection or an output alias is the caller's own
+    # name for their own value, and resolving it against a base table's schema
+    # refuses a statement that never touched one.
+    local = query_local_columns(root)
     try:
         scope_root = build_scope(root)
     except SqlglotError as exc:
@@ -684,22 +686,69 @@ def _check_hidden_columns(
                     "you want.",
                 )
 
+        # A source in this scope that is not an allowlisted table -- a
+        # table-valued function, a derived relation -- can offer names the
+        # manifest has never heard of, and an unqualified reference could have
+        # come from it. `json_each(attributes)` projecting `key` is the shape
+        # that matters, and it is one the schema teaches.
+        foreign_source = any(
+            not (isinstance(source, exp.Table) and source.name in allowlist.table_specs)
+            for source in scope.sources.values()
+        )
         for column in scope.expression.find_all(exp.Column):
-            name = column.name.casefold()
-            if name not in hidden_anywhere:
+            if id(column) in local or isinstance(column.this, exp.Star):
                 continue
+            name = column.name.casefold()
             qualifier = column.table or ""
             if qualifier:
                 candidates = [by_reference[qualifier]] if qualifier in by_reference else []
+            elif foreign_source:
+                continue
             else:
                 candidates = list(dict.fromkeys(by_reference.values()))
+            if not candidates:
+                continue
+            # An allowlist, not a hidden-column denylist. The two agree on every
+            # column the manifest knows about, and differ on one it does not:
+            # under a denylist a column that exists and is described nowhere is
+            # readable, so the schema stops being the description of the surface
+            # the moment the two drift.
+            #
+            # Safe to invert because the drift is already impossible to ship:
+            # the manifest is asserted equal to the ORM's columns, table by
+            # table. This makes the runtime enforce what that assertion checks,
+            # rather than trusting it to have been run.
+            #
+            # Unqualified references are checked against every allowlisted table
+            # in scope and refused if *no* candidate offers the name, which is
+            # the conservative direction: a name that resolves nowhere is a
+            # mistake, and one that resolves somewhere is admitted.
+            if any(_offers_column(allowlist, table_name, name) for table_name in candidates):
+                continue
             for table_name in candidates:
                 folded = {c.casefold() for c in allowlist.table_specs[table_name].hidden_columns}
                 if name in folded:
                     return AdmissionResult(
                         AdmissionOutcome.COLUMN_NOT_ALLOWED, f"{table_name}.{name}"
                     )
+            return AdmissionResult(
+                AdmissionOutcome.COLUMN_NOT_ALLOWED,
+                f"{candidates[0]}.{name}",
+            )
     return None
+
+
+def _offers_column(allowlist: Allowlist, table_name: str, folded_name: str) -> bool:
+    """Whether the schema shows this column for this table.
+
+    Virtual columns are advertised and not stored, so they are offered here and
+    absent from the manifest's column list; a check that reads only the latter
+    refuses the columns the surface exists to provide.
+    """
+    spec = allowlist.table_specs[table_name]
+    if folded_name in {column.name.casefold() for column in spec.columns}:
+        return folded_name not in {hidden.casefold() for hidden in spec.hidden_columns}
+    return folded_name in {virtual.casefold() for virtual in spec.virtual_columns}
 
 
 def admit(root: exp.Expression, *, allowlist: Allowlist, dialect: DialectName) -> exp.Expression:
