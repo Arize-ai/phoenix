@@ -39,6 +39,7 @@ export default defineConfig(() => {
   // Uncomment below to visualize the bundle size after running the build command also uncomment import { visualizer } from "rollup-plugin-visualizer";
   // plugins.push(visualizer());
   return {
+    base: "./",
     root: resolve(__dirname, "src"),
     plugins,
     publicDir: resolve(__dirname, "static"),
