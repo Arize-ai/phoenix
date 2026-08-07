@@ -77,6 +77,4 @@ class PydanticAIToolCallProviderMetadata(_BasePydanticAIProviderMetadata):
     """pydantic-ai's typed-subclass discriminator for the tool part."""
 
     outcome: Literal["interrupted"] | None = None
-    """The one tool outcome the Vercel part states can't express;
-    ``load_messages`` restores ``ToolReturnPart(outcome='interrupted')`` from
-    it."""
+    """The one tool outcome the Vercel part states can't express."""
