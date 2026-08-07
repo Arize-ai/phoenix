@@ -5,9 +5,7 @@ written today — still restores every metadata-borne field through
 ``load_messages``. On failure at a bump: update the typed models, regenerate
 the fixture, and shim any renamed key for existing rows."""
 
-import json
 from collections.abc import AsyncIterator, Sequence
-from pathlib import Path
 from typing import Any, get_args
 
 from pydantic_ai.messages import (
@@ -37,7 +35,90 @@ from phoenix.server.api.routers.agents import (
     _to_pydantic_ai_messages,
 )
 
-_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "pydantic_ai_provider_metadata.json"
+_GOLDEN_MESSAGES: list[dict[str, Any]] = [
+    {"id": "user-1", "role": "user", "parts": [{"type": "text", "text": "look this up"}]},
+    {
+        "id": "assistant-1",
+        "role": "assistant",
+        "parts": [
+            {
+                "type": "reasoning",
+                "text": "I should search the web and the toolbox.",
+                "state": "done",
+                "providerMetadata": {
+                    "pydantic_ai": {
+                        "id": "think_1",
+                        "signature": "c2lnbmF0dXJl",
+                        "provider_name": "anthropic",
+                        "provider_details": {"cache_hint": "ephemeral"},
+                    }
+                },
+            },
+            {
+                "type": "tool-web_search",
+                "toolCallId": "srvtoolu_1",
+                "state": "output-available",
+                "input": {"query": "phoenix observability"},
+                "output": {"results": []},
+                "providerExecuted": True,
+                "callProviderMetadata": {
+                    "pydantic_ai": {"id": "srvtoolu_1", "provider_name": "anthropic"}
+                },
+            },
+            {
+                "type": "tool-search_tools",
+                "toolCallId": "toolu_search",
+                "state": "output-available",
+                "input": {"queries": ["dataset tools"]},
+                "output": {"discovered_tools": []},
+                "callProviderMetadata": {
+                    "pydantic_ai": {
+                        "id": "toolu_search",
+                        "provider_name": "anthropic",
+                        "tool_kind": "tool-search",
+                    }
+                },
+            },
+            {
+                "type": "tool-run_project_query",
+                "toolCallId": "toolu_1",
+                "state": "output-available",
+                "input": {"project": "default"},
+                "output": {"rows": 3},
+                "callProviderMetadata": {
+                    "pydantic_ai": {"id": "toolu_1", "provider_name": "anthropic"}
+                },
+            },
+            {
+                "type": "text",
+                "text": "Here is what I found.",
+                "state": "done",
+                "providerMetadata": {
+                    "pydantic_ai": {
+                        "id": "txt_1",
+                        "provider_name": "anthropic",
+                        "provider_details": {"stop_reason": "end_turn"},
+                    }
+                },
+            },
+            {
+                "type": "tool-run_project_query",
+                "toolCallId": "toolu_2",
+                "state": "output-available",
+                "input": {"project": "slow"},
+                "output": "The tool call was interrupted before a result was produced.",
+                "callProviderMetadata": {
+                    "pydantic_ai": {
+                        "id": "toolu_2",
+                        "provider_name": "anthropic",
+                        "outcome": "interrupted",
+                    }
+                },
+            },
+        ],
+    },
+]
+"""Persisted rows exactly as today's write pipeline produces them."""
 
 
 def test_tool_kind_vocabulary_matches_installed_pydantic_ai() -> None:
@@ -145,22 +226,15 @@ async def _write_pipeline_message() -> PhoenixUIMessage:
     return repaired
 
 
-def _fixture_messages() -> list[dict[str, Any]]:
-    messages = json.loads(_FIXTURE_PATH.read_text())
-    assert isinstance(messages, list)
-    return messages
-
-
 async def test_write_pipeline_still_produces_the_golden_dialect() -> None:
     persisted = await _write_pipeline_message()
     assert (
-        persisted.model_dump(mode="json", by_alias=True, exclude_none=True)
-        == _fixture_messages()[1]
+        persisted.model_dump(mode="json", by_alias=True, exclude_none=True) == _GOLDEN_MESSAGES[1]
     )
 
 
 def test_golden_fixture_loads_with_full_fidelity() -> None:
-    messages = [PhoenixUIMessage.model_validate(message) for message in _fixture_messages()]
+    messages = [PhoenixUIMessage.model_validate(message) for message in _GOLDEN_MESSAGES]
     _assert_full_fidelity(_to_pydantic_ai_messages(messages))
 
 
