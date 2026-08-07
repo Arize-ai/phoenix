@@ -12,8 +12,8 @@ export type TurnFinish = {
 /**
  * Coordinates when one PXI logical turn is complete.
  *
- * A turn is finalized (messages mirrored to the durable store and the active
- * server turn trace context cleared) only when all of the following hold:
+ * A turn is finalized (messages mirrored to the durable store and per-turn
+ * client state cleared) only when all of the following hold:
  * 1. the AI SDK reported `onFinish` for the last HTTP response,
  * 2. no further automatic sends or pending client tool outputs will extend
  *    the turn (the "terminal send decision").

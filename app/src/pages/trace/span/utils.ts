@@ -301,11 +301,23 @@ export function getToolAttributes(
   spanAttributes: AttributeObject
 ): ToolSpanAttributes {
   const toolAttributes = spanAttributes[SemanticAttributePrefixes.tool] || {};
+  // Ingestion parses `tool.parameters` JSON strings into an object (see
+  // JSON_STRING_ATTRIBUTES server-side), so despite the generated type the
+  // schema reaches the client as either shape; rendering and copying expect
+  // the JSON text, and an object child inside <pre> crashes React.
+  const rawParameters: unknown =
+    toolAttributes[ToolAttributePostfixes.parameters];
+  const parameters =
+    typeof rawParameters === "string"
+      ? rawParameters
+      : rawParameters != null
+        ? JSON.stringify(rawParameters, null, 2)
+        : undefined;
   return {
     hasToolAttributes: Object.keys(toolAttributes).length > 0,
     name: toolAttributes[ToolAttributePostfixes.name],
     description: toolAttributes[ToolAttributePostfixes.description],
-    parameters: toolAttributes[ToolAttributePostfixes.parameters],
+    parameters,
   };
 }
 

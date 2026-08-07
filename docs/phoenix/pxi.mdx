@@ -130,8 +130,19 @@ client and never sent to the model.
 | Command | Effect |
 | --- | --- |
 | `/help` | List the available slash commands. |
-| `/clear` | Clear the conversation history and start a fresh session. |
+| `/clear` | Clear the conversation history and start a fresh session (alias for `/new`). |
+| `/new` | Start a new persisted session. |
+| `/temporary` | Start a new temporary session. |
+| `/sessions` | Browse and restore persisted sessions. |
+| `/model` | Switch models for this session. |
+| `/compact` | Compact older conversation context into a checkpoint summary. Text after the command (e.g. `/compact keep going`) is sent as a follow-up message once compaction finishes. |
 | `/exit` | Exit the terminal client. |
+
+`/compact` asks the model to summarize every completed turn into a durable
+checkpoint; later turns load history from the checkpoint onward, freeing
+context for long-running sessions. Compaction is rejected while the session is
+in use elsewhere (for example, a turn streaming in the browser) — the chat
+shows the busy indicator and refreshes when the other turn completes.
 
 ## Status line
 

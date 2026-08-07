@@ -2,7 +2,7 @@ import {
   persistPxiExperiment,
   PXI_EXPERIMENT_EXAMPLES,
 } from "./experimentPersistence";
-import { expect, test } from "./fixtures";
+import { expect, test, waitForPersistedAssistantTurn } from "./fixtures";
 import { getRequiredJudgeApiKeyEnv } from "./judge";
 import { assertPxiOutcome, evaluatePxiOutcome } from "./outcome";
 
@@ -78,48 +78,17 @@ test.describe("PXI ingest traces smoke", () => {
     await pxi.acknowledgeConsent();
 
     // Drive the chat turn directly without going through the harness's
-    // askAndWait, which depends on assistant-message traceId metadata that
-    // the new chat route does not yet emit. Wait for the assistant turn to
-    // finish by polling localStorage for the latest assistant message.
+    // askAndWait. Wait for the assistant turn to finish by polling the
+    // server-persisted session for the latest assistant message.
     const startedAt = Date.now();
     await page.getByLabel("Message input").fill(USER_PROMPT);
     await page.getByRole("button", { name: "Send message" }).click();
 
-    const assistantTextHandle = await page.waitForFunction(
-      () => {
-        const stored = localStorage.getItem("arize-phoenix-assistant");
-        if (!stored) return null;
-        const parsed = JSON.parse(stored) as {
-          state?: {
-            activeSessionId?: string | null;
-            sessionMap?: Record<
-              string,
-              { messages?: Array<{ role?: string; parts?: unknown[] }> }
-            >;
-          };
-        };
-        const sid = parsed.state?.activeSessionId;
-        if (!sid) return null;
-        const msgs = parsed.state?.sessionMap?.[sid]?.messages ?? [];
-        const lastAssistant = [...msgs]
-          .reverse()
-          .find((m) => m.role === "assistant");
-        if (!lastAssistant) return null;
-        const text = (lastAssistant.parts ?? [])
-          .map((part) => {
-            if (typeof part !== "object" || part === null) return "";
-            const p = part as { type?: unknown; text?: unknown };
-            return p.type === "text" && typeof p.text === "string"
-              ? p.text
-              : "";
-          })
-          .join("");
-        return text || null;
-      },
-      undefined,
-      { timeout: 60_000 }
-    );
-    const assistantText = (await assistantTextHandle.jsonValue()) as string;
+    const { assistantText } = await waitForPersistedAssistantTurn({
+      request,
+      requireTraceId: false,
+      timeoutMs: 60_000,
+    });
     const durationMs = Date.now() - startedAt;
     // Bracket the trace lookup by the wall-clock window of this test run so
     // we don't pick up traces from prior runs accumulated in the project.
