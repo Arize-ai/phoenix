@@ -51,9 +51,17 @@ _READ_MAX_OVERFLOW = 8
 # Settings scoped to one connection. Safe anywhere: none touches the file.
 _CONNECTION_PRAGMAS = (
     "PRAGMA foreign_keys = ON;",
-    "PRAGMA cache_size = -32000;",
     "PRAGMA busy_timeout = 10000;",
 )
+
+# Page cache, in KiB when negative. SQLite has no shared buffer pool, so each
+# connection holds its own and the read pool multiplies it.
+#
+# The writer's is larger because the cache also holds dirty pages until commit,
+# which sustained ingest depends on. Readers keep SQLite's default: a read
+# holds no dirty pages, and its misses fall through to the OS page cache.
+_WRITER_CACHE_PRAGMAS = ("PRAGMA cache_size = -32000;",)
+_READER_CACHE_PRAGMAS = ("PRAGMA cache_size = -2000;",)
 
 # Properties of the database file. `journal_mode` writes to its header, so a
 # read-only connection cannot set these; it inherits what the writer left, and
@@ -74,7 +82,7 @@ def _apply_pragmas(connection: Connection, statements: tuple[str, ...]) -> None:
 
 
 def set_sqlite_pragma(connection: Connection, _: Any) -> None:
-    _apply_pragmas(connection, _CONNECTION_PRAGMAS + _DATABASE_PRAGMAS)
+    _apply_pragmas(connection, _CONNECTION_PRAGMAS + _WRITER_CACHE_PRAGMAS + _DATABASE_PRAGMAS)
 
 
 def get_printable_db_url(connection_str: str) -> str:
@@ -154,12 +162,12 @@ def sqlite_connection_factory(
 
 
 def set_sqlite_read_pragma(connection: Connection, _: Any) -> None:
-    """The connection-scoped subset, for connections that cannot write.
+    """Connection settings for the read pool.
 
     A `mode=ro` connection fails on `PRAGMA journal_mode = WAL`, so a read
     engine inherits the journal mode the writer set and cannot set it itself.
     """
-    _apply_pragmas(connection, _CONNECTION_PRAGMAS)
+    _apply_pragmas(connection, _CONNECTION_PRAGMAS + _READER_CACHE_PRAGMAS)
 
 
 def _disable_implicit_transactions(connection: Connection, _: Any) -> None:
