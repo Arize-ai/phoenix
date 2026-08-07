@@ -8,21 +8,61 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Optional
 
+#: What each lossy conversion costs, keyed by the name recorded for it. Stated
+#: because the conversion is invisible in the result: an exact decimal and the
+#: binary float nearest to it are both just numbers in JSON, and replaced bytes
+#: are just a string.
+LOSSY_CONVERSION_NOTES: dict[str, str] = {
+    "decimal_to_float": (
+        "An exact decimal was returned as a binary floating-point number, which "
+        "cannot represent every decimal value. Cost and token columns are stored "
+        "exactly; compute sums and comparisons in SQL rather than on these values."
+    ),
+    "non_finite_to_null": (
+        "A non-finite number (infinity or NaN) was returned as null, because JSON "
+        "has no way to write one."
+    ),
+    "undecodable_bytes": (
+        "A value held bytes that are not valid UTF-8. The invalid sequences were "
+        "replaced, so that column's text is not what is stored."
+    ),
+}
 
-def normalize_row_values(values: list[Any]) -> list[Any]:
-    return [_normalize_value(value) for value in values]
+
+def normalize_row_values(values: list[Any], applied: Optional[set[str]] = None) -> list[Any]:
+    """Convert driver values to JSON-representable ones, recording what that cost.
+
+    Every conversion below is a narrowing, and each produces a value that looks
+    ordinary in the result -- so without `applied` the caller cannot tell a
+    replaced byte sequence from text that really contains a replacement
+    character, or an exact decimal from the float nearest it.
+    """
+    return [_normalize_value(value, applied) for value in values]
 
 
-def _normalize_value(value: Any) -> Any:
+def _normalize_value(value: Any, applied: Optional[set[str]] = None) -> Any:
+    def record(name: str) -> None:
+        if applied is not None:
+            applied.add(name)
+
     if value is None:
         return None
     if isinstance(value, float):
         if not math.isfinite(value):
+            record("non_finite_to_null")
             return None
         return value
     if isinstance(value, Decimal):
         f = float(value)
-        return None if not math.isfinite(f) else f
+        if not math.isfinite(f):
+            record("non_finite_to_null")
+            return None
+        # Only when it actually lost something. Most decimals a caller sees are
+        # exactly representable, and a note on every one of those trains the
+        # reader to skip the field.
+        if Decimal(repr(f)) != value:
+            record("decimal_to_float")
+        return f
     if isinstance(value, datetime):
         if value.tzinfo is None:
             value = value.replace(tzinfo=timezone.utc)
@@ -32,7 +72,10 @@ def _normalize_value(value: Any) -> Any:
     if isinstance(value, (dict, list)):
         return json.loads(json.dumps(value, default=str))
     if isinstance(value, bytes):
-        return value.decode("utf-8", errors="replace")
+        decoded = value.decode("utf-8", errors="replace")
+        if decoded.encode("utf-8", errors="replace") != value:
+            record("undecodable_bytes")
+        return decoded
     return value
 
 

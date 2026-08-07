@@ -37,7 +37,10 @@ from phoenix.server.mcp_analytics_sql.catalog import (
     resolve_pg_schema,
 )
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
-from phoenix.server.mcp_analytics_sql.normalize import normalize_row_values
+from phoenix.server.mcp_analytics_sql.normalize import (
+    LOSSY_CONVERSION_NOTES,
+    normalize_row_values,
+)
 from phoenix.server.mcp_analytics_sql.parse import admit, parse_sql, render
 from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
 from phoenix.server.types import DbSessionFactory
@@ -936,9 +939,10 @@ async def _execute_sqlite_file(
             rows: list[list[Any]] = []
             partial = False
             notes: list[str] = []
+            lossy: set[str] = set()
             total_bytes = 0
             for row in cursor:
-                normalized = normalize_row_values(list(row))
+                normalized = normalize_row_values(list(row), lossy)
                 encoded = json.dumps(normalized, default=str).encode("utf-8")
                 if len(encoded) > BYTE_LIMIT:
                     raise AnalyticsSqlError(
@@ -961,6 +965,9 @@ async def _execute_sqlite_file(
                     partial = True
                     notes.append("row_limit reached")
                     break
+            # Each conversion produces a value that looks ordinary, so the
+            # only place the narrowing can be seen is here.
+            notes.extend(LOSSY_CONVERSION_NOTES[name] for name in sorted(lossy))
             return columns, rows, partial, notes, True
         finally:
             cancelled.set()
@@ -1048,11 +1055,12 @@ async def _consume_stream(
     rows: list[list[Any]] = []
     partial = False
     notes: list[str] = []
+    lossy: set[str] = set()
     total_bytes = 0
     async for row in result:
         if not columns:
             columns = list(row._fields) if hasattr(row, "_fields") else list(row.keys())
-        values = normalize_row_values(list(row))
+        values = normalize_row_values(list(row), lossy)
         encoded = json.dumps(values, default=str).encode("utf-8")
         if len(encoded) > BYTE_LIMIT:
             raise AnalyticsSqlError(
@@ -1079,6 +1087,7 @@ async def _consume_stream(
             partial = True
             notes.append("row_limit reached")
             break
+    notes.extend(LOSSY_CONVERSION_NOTES[name] for name in sorted(lossy))
     return columns, rows, partial, notes
 
 

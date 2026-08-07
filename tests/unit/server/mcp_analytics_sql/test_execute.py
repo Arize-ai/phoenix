@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import pytest
 from sqlalchemy import text
 
@@ -8,6 +10,10 @@ from phoenix.server.mcp_analytics_sql.execute import (
     _estimated_rows,
     _rewrite_attribution,
     execute_analytics_sql,
+)
+from phoenix.server.mcp_analytics_sql.normalize import (
+    LOSSY_CONVERSION_NOTES,
+    normalize_row_values,
 )
 from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext
 from phoenix.server.types import DbSessionFactory
@@ -438,3 +444,59 @@ class TestEnvelopeReportsTheExecutedStatement:
 
         if result.envelope["applied"].get("executed") is not None:
             assert result.envelope["applied"]["executed"] != sql
+
+
+class TestLossyNormalisationIsReported:
+    """Every conversion in the result path narrows, and each looks ordinary.
+
+    An exact decimal and the float nearest it are both just numbers in JSON, and
+    replaced bytes are just a string, so the envelope is the only place the
+    narrowing can be seen. See C4.
+    """
+
+    def test_an_exactly_representable_decimal_is_not_flagged(self) -> None:
+        """A note on every decimal trains the reader to skip the field."""
+        applied: set[str] = set()
+
+        assert normalize_row_values([Decimal("1.5")], applied) == [1.5]
+        assert applied == set()
+
+    def test_a_decimal_that_loses_precision_is_flagged(self) -> None:
+        applied: set[str] = set()
+
+        normalize_row_values([Decimal("9007199254740993")], applied)
+
+        assert "decimal_to_float" in applied
+        assert "Cost" in LOSSY_CONVERSION_NOTES["decimal_to_float"]
+
+    def test_a_non_finite_float_is_flagged(self) -> None:
+        applied: set[str] = set()
+
+        assert normalize_row_values([float("inf")], applied) == [None]
+        assert "non_finite_to_null" in applied
+
+    def test_undecodable_bytes_are_flagged(self) -> None:
+        applied: set[str] = set()
+
+        normalize_row_values([b"\xff\xfe"], applied)
+
+        assert "undecodable_bytes" in applied
+
+    def test_valid_utf8_bytes_are_not_flagged(self) -> None:
+        applied: set[str] = set()
+
+        assert normalize_row_values([b"hello"], applied) == ["hello"]
+        assert applied == set()
+
+    async def test_the_note_reaches_the_envelope(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        db, db_path = analytics_sqlite_db
+        result = await execute_analytics_sql(
+            db,
+            ExecuteParams(sql="SELECT 9e999 AS x FROM projects"),
+            sqlite_db_path=db_path,
+        )
+
+        assert result.envelope["rows"] == [[None]]
+        assert any("non-finite" in note for note in result.envelope["notes"])
