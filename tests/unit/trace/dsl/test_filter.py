@@ -1076,13 +1076,13 @@ async def test_span_and_trace_annotations_join_distinct_relations(
                 models.Trace.trace_id.in_(["0123", "012"])
             )
         )
-        trace_rowids = dict(trace_rows.all())
+        trace_rowids: dict[str, int] = dict(trace_rows.tuples().all())
         span_rows = await session.execute(
             select(models.Span.span_id, models.Span.id).where(
                 models.Span.span_id.in_(["2345", "4567", "234"])
             )
         )
-        span_rowids = dict(span_rows.all())
+        span_rowids: dict[str, int] = dict(span_rows.tuples().all())
         await session.execute(
             insert(models.TraceAnnotation),
             [

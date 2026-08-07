@@ -800,6 +800,7 @@ def _join_annotations(
     """
     for annotation_relation in aliased_annotation_relations:
         aliased_annotation = annotation_relation.table
+        entity_id: sqlalchemy.SQLColumnExpression[typing.Any]
         if annotation_relation.kind == "trace":
             annotation_foreign_key = aliased_annotation.trace_rowid
             entity_id = models.Span.trace_rowid
