@@ -1,25 +1,9 @@
-"""Drift canaries for the ``pydantic_ai`` provider-metadata namespace.
-
-The namespace is pydantic-ai's round-trip channel for ``ModelMessage`` data the
-Vercel part shapes can't express (thinking signatures, interrupted tool
-outcomes, tool-kind claims, provider part ids). Its keys are an unversioned
-wire convention of the installed pydantic-ai release, and persisted rows
-outlive the release that wrote them — so these tests pin both sides of the
-contract against the installed package:
-
-- the write side streams real parts through the installed ``VercelAIEventStream``
-  and asserts the persisted result still matches the golden fixture;
-- the read side loads the golden fixture — rows exactly as written today —
-  through the installed ``load_messages`` and asserts every metadata-borne
-  field is restored.
-
-A pydantic-ai bump that renames, adds, or drops a key fails here, in the bump
-PR, instead of silently corrupting session replays in production. When a test
-fails at a bump: update the typed models in
-``phoenix.db.types.data_stream_protocol.provider_metadata``, regenerate the
-fixture with the new writer, and — because old rows still carry the previous
-dialect — add a load-time compat shim for any renamed key before shipping.
-"""
+"""Drift canaries pinning the ``pydantic_ai`` provider-metadata namespace
+against the installed pydantic-ai: the write side asserts the streamed shape
+still matches the golden fixture, the read side asserts the fixture — rows as
+written today — still restores every metadata-borne field through
+``load_messages``. On failure at a bump: update the typed models, regenerate
+the fixture, and shim any renamed key for existing rows."""
 
 import json
 from collections.abc import AsyncIterator, Sequence
@@ -57,9 +41,6 @@ _FIXTURE_PATH = Path(__file__).parent / "fixtures" / "pydantic_ai_provider_metad
 
 
 def test_tool_kind_vocabulary_matches_installed_pydantic_ai() -> None:
-    """Phoenix pins the ``tool_kind`` vocabulary locally so persisted rows
-    validate without importing pydantic-ai; hold the pin to the installed
-    package's ``ToolPartKind``."""
     assert set(get_args(PydanticAIToolPartKind)) == set(get_args(ToolPartKind))
 
 
@@ -121,12 +102,8 @@ _UNRESOLVED_CALL = ToolCallPart(
 
 
 async def _write_pipeline_message() -> PhoenixUIMessage:
-    """Persist a turn the way production does: installed event stream ->
-    Phoenix reducer -> strict validation -> interrupted-tool repair.
-
-    The final tool call is deliberately left unresolved so the repair path
-    (and its ``outcome: 'interrupted'`` claim) is exercised.
-    """
+    """Persist a turn as production does: installed event stream -> reducer ->
+    validation -> repair (the final call is left unresolved to exercise it)."""
     event_stream = VercelAIEventStream(run_input=SubmitMessage(id="run", messages=[]))
 
     async def collect(chunk_iterator: AsyncIterator[BaseChunk]) -> list[BaseChunk]:
@@ -175,9 +152,6 @@ def _fixture_messages() -> list[dict[str, Any]]:
 
 
 async def test_write_pipeline_still_produces_the_golden_dialect() -> None:
-    """Write-side canary: if the installed event stream starts stamping
-    different keys (rename, addition, removal), the persisted shape diverges
-    from the fixture and this fails at the dependency bump."""
     persisted = await _write_pipeline_message()
     assert (
         persisted.model_dump(mode="json", by_alias=True, exclude_none=True)
@@ -186,10 +160,6 @@ async def test_write_pipeline_still_produces_the_golden_dialect() -> None:
 
 
 def test_golden_fixture_loads_with_full_fidelity() -> None:
-    """Read-side canary: rows written with today's dialect must keep restoring
-    every metadata-borne field through the installed ``load_messages``, even
-    after the writer moves on — persisted rows outlive the release that wrote
-    them."""
     messages = [PhoenixUIMessage.model_validate(message) for message in _fixture_messages()]
     _assert_full_fidelity(_to_pydantic_ai_messages(messages))
 
