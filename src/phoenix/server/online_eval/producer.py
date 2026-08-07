@@ -13,6 +13,8 @@ that became visible after their window was scanned.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import logging
 import time
 from dataclasses import dataclass
@@ -37,6 +39,7 @@ from phoenix.db import models
 from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
+from phoenix.server.online_eval.coordinator import LEASE_ATTEMPTS_EXHAUSTED_ERROR
 from phoenix.server.online_eval.db_coordinator import (
     STALE_FINGERPRINT_ERROR,
     work_unit_lease_lapsed,
@@ -60,6 +63,7 @@ _INSERT_BATCH_SIZE = 1000
 _WORK_UNIT_UNIQUE_BY = ("span_rowid", "evaluator_id", "config_fingerprint")
 _CONSUMER_GROUP = "default"
 _PENDING_TTL_EXCEEDED_ERROR = "pending ttl exceeded"
+_SANDBOX_RUNTIME_POLICY_VERSION = "1"
 
 
 class _CursorLeaseLost(Exception):
@@ -142,6 +146,28 @@ async def resolve_criteria_bulk(
         list(code_evaluators),
         session,
     )
+    sandbox_runtime_fingerprints: dict[int, str] = {}
+    sandbox_config_ids = {
+        evaluator.sandbox_config_id
+        for evaluator in code_evaluators.values()
+        if evaluator.sandbox_config_id is not None
+    }
+    if sandbox_config_ids:
+        sandbox_rows = (
+            await session.execute(
+                select(models.SandboxConfig, models.SandboxProvider)
+                .join(
+                    models.SandboxProvider,
+                    models.SandboxProvider.backend_type == models.SandboxConfig.backend_type,
+                )
+                .where(models.SandboxConfig.id.in_(sandbox_config_ids))
+            )
+        ).all()
+        sandbox_runtime_fingerprints = {
+            sandbox_config.id: _sandbox_runtime_fingerprint(sandbox_config, provider)
+            for sandbox_config, provider in sandbox_rows
+            if sandbox_config.enabled and provider.enabled
+        }
 
     resolved: list[Optional[ResolvedCriteria]] = []
     for criteria, evaluator in criteria_evaluators:
@@ -153,7 +179,16 @@ async def resolve_criteria_bulk(
                 version_ref = latest_prompt_version_ids.get(evaluator.prompt_id)
         elif isinstance(evaluator, models.CodeEvaluator):
             version = latest_code_versions.get(evaluator.id)
-            version_ref = version.id if version is not None else None
+            runtime_fingerprint = (
+                sandbox_runtime_fingerprints.get(evaluator.sandbox_config_id)
+                if evaluator.sandbox_config_id is not None
+                else None
+            )
+            version_ref = (
+                [version.id, runtime_fingerprint]
+                if version is not None and runtime_fingerprint is not None
+                else None
+            )
         elif isinstance(evaluator, models.BuiltinEvaluator):
             evaluator_class = get_builtin_evaluator_by_key(evaluator.key)
             if evaluator_class is None:
@@ -169,6 +204,24 @@ async def resolve_criteria_bulk(
             continue
         resolved.append(_resolved_criteria(criteria, evaluator, version_ref))
     return resolved
+
+
+def _sandbox_runtime_fingerprint(
+    sandbox_config: models.SandboxConfig,
+    provider: models.SandboxProvider,
+) -> str:
+    payload = {
+        "policy_version": _SANDBOX_RUNTIME_POLICY_VERSION,
+        "backend_type": sandbox_config.backend_type,
+        "language": sandbox_config.language,
+        "config": sandbox_config.config,
+        "timeout": sandbox_config.timeout,
+        "config_updated_at": sandbox_config.updated_at.isoformat(),
+        "provider_config": provider.config,
+        "provider_updated_at": provider.updated_at.isoformat(),
+    }
+    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
 def _resolved_criteria(
@@ -300,15 +353,20 @@ class OnlineEvalProducer(DaemonTask):
     async def _tick(self) -> None:
         try:
             now = datetime.now(timezone.utc)
-            cursor = await self._acquire_cursor(now)
+            mutations_allowed = not self._db.should_not_insert_or_update
+            cursor = await self._acquire_cursor(now, allow_insert=mutations_allowed)
             if cursor is None:
+                return
+            if not mutations_allowed:
+                await self._reap(now, cursor.produced_through_id, mutations_allowed=False)
+                await self._renew_lease(datetime.now(timezone.utc))
                 return
             cursor = await self._clamp_cursor(cursor)
             if cursor is None:
                 return
             produced_through_id = cursor.produced_through_id
 
-            await self._reap(now, produced_through_id)
+            await self._reap(now, produced_through_id, mutations_allowed=True)
             await self._renew_lease(datetime.now(timezone.utc))
 
             observed_high_water_id = cursor.observed_high_water_id
@@ -357,7 +415,12 @@ class OnlineEvalProducer(DaemonTask):
         except _CursorLeaseLost:
             logger.warning("Online-eval producer tick aborted after losing its lease")
 
-    async def _acquire_cursor(self, now: datetime) -> Optional[models.EvalWorkCursor]:
+    async def _acquire_cursor(
+        self,
+        now: datetime,
+        *,
+        allow_insert: bool = True,
+    ) -> Optional[models.EvalWorkCursor]:
         stale = now - timedelta(seconds=CURSOR_LEASE_TTL_SECONDS)
         for _ in range(2):
             async with self._db() as session:
@@ -386,6 +449,8 @@ class OnlineEvalProducer(DaemonTask):
                     )
                 )
                 if row_exists is not None:
+                    break
+                if not allow_insert:
                     break
                 produced_through_id = await session.scalar(select(func.max(models.Span.id))) or 0
                 await session.execute(
@@ -461,29 +526,36 @@ class OnlineEvalProducer(DaemonTask):
             self._lease_held = False
             raise _CursorLeaseLost
 
-    async def _reap(self, now: datetime, produced_through_id: int) -> None:
+    async def _reap(
+        self,
+        now: datetime,
+        produced_through_id: int,
+        *,
+        mutations_allowed: bool = True,
+    ) -> None:
         retention_cutoff = now - timedelta(seconds=self._retention_seconds)
         # Terminal rows inside the backstop lookback window are never deleted,
         # regardless of age — they must remain to block backstop resurrection.
         reap_floor = produced_through_id - self._backstop_lookback_span_ids
         async with self._db() as session:
-            await session.execute(
-                update(models.EvalWorkUnit)
-                .where(
-                    models.EvalWorkUnit.status == "RUNNING",
-                    models.EvalWorkUnit.attempts >= MAX_ATTEMPTS - 1,
-                    work_unit_lease_lapsed(now),
+            if mutations_allowed:
+                await session.execute(
+                    update(models.EvalWorkUnit)
+                    .where(
+                        models.EvalWorkUnit.status == "RUNNING",
+                        models.EvalWorkUnit.attempts >= MAX_ATTEMPTS - 1,
+                        work_unit_lease_lapsed(now),
+                    )
+                    .values(
+                        status="ERROR",
+                        attempts=MAX_ATTEMPTS,
+                        error=func.coalesce(
+                            models.EvalWorkUnit.error,
+                            LEASE_ATTEMPTS_EXHAUSTED_ERROR,
+                        ),
+                    )
                 )
-                .values(
-                    status="ERROR",
-                    attempts=MAX_ATTEMPTS,
-                    error=func.coalesce(
-                        models.EvalWorkUnit.error,
-                        "lease lapsed with attempts exhausted",
-                    ),
-                )
-            )
-            if self._pending_ttl_seconds > 0:
+            if mutations_allowed and self._pending_ttl_seconds > 0:
                 pending_cutoff = now - timedelta(seconds=self._pending_ttl_seconds)
                 await session.execute(
                     update(models.EvalWorkUnit)

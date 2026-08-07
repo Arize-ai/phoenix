@@ -31,9 +31,8 @@ class ResolvedCriteria:
 
     ``version_ref`` must name an immutable version, never a mutable pointer: the
     concrete ``PromptVersion.id`` for LLM evaluators (resolving the tag), the current
-    ``CodeEvaluatorVersion.id`` for CODE, and ``(key, synced_at ISO string)`` for
-    BUILTIN. Every field must be JSON-serializable — pass the stored column form of
-    ``output_configs`` / ``input_mapping``, not model objects.
+    code version plus sandbox-runtime fingerprint for CODE, and the key, sync timestamp,
+    and implementation version for BUILTIN. Every field must be JSON-serializable.
     """
 
     criteria_id: int
@@ -75,11 +74,7 @@ def config_fingerprint(resolved: ResolvedCriteria) -> str:
 
 
 def annotation_identifier(fingerprint: str) -> str:
-    """Identifier keying the idempotent annotation write for a work unit.
-
-    Collides re-runs of the same (span, evaluator, config) on the annotation table's
-    (name, span_rowid, identifier) unique constraint.
-    """
+    """Identifier keying the idempotent annotation write for a work unit."""
     return _IDENTIFIER_PREFIX + fingerprint[:_IDENTIFIER_FINGERPRINT_CHARS]
 
 

@@ -34,6 +34,8 @@ from phoenix.config import get_env_enable_prometheus, get_env_online_eval_max_se
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.online_eval.coordinator import LEASE_ATTEMPTS_EXHAUSTED_ERROR
+from phoenix.server.online_eval.db_coordinator import work_unit_lease_lapsed
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, config_fingerprint
 from phoenix.server.online_eval.producer import resolve_criteria
 from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
@@ -142,14 +144,20 @@ class SessionEvalSweeper(DaemonTask):
             await self._release_lease()
 
     async def _tick(self) -> None:
-        cursor_id = await self._acquire_cursor()
+        mutations_allowed = not self._db.should_not_insert_or_update
+        cursor_id = await self._acquire_cursor(allow_insert=mutations_allowed)
         if cursor_id is None:
             return
-        if not await self._materialize_and_renew(cursor_id):
+        renewed = (
+            await self._materialize_and_renew(cursor_id)
+            if mutations_allowed
+            else await self._renew_cursor(cursor_id)
+        )
+        if not renewed:
             self._lease_held = False
             logger.warning("Session evaluation sweeper lost its lease")
 
-    async def _acquire_cursor(self) -> Optional[int]:
+    async def _acquire_cursor(self, *, allow_insert: bool = True) -> Optional[int]:
         for _ in range(2):
             async with self._db() as session:
                 database_now = await self._database_now(session)
@@ -180,6 +188,8 @@ class SessionEvalSweeper(DaemonTask):
                 )
                 if row_exists is not None:
                     break
+                if not allow_insert:
+                    break
                 await session.execute(
                     insert_on_conflict(
                         {
@@ -195,6 +205,20 @@ class SessionEvalSweeper(DaemonTask):
                 )
         self._lease_held = False
         return None
+
+    async def _renew_cursor(self, cursor_id: int) -> bool:
+        async with self._db() as session:
+            renewed_at = await self._database_now(session)
+            renewed = await session.scalar(
+                update(models.EvalWorkCursor)
+                .where(
+                    models.EvalWorkCursor.id == cursor_id,
+                    models.EvalWorkCursor.claimed_by == self._sweeper_id,
+                )
+                .values(claimed_at=renewed_at)
+                .returning(models.EvalWorkCursor.id)
+            )
+        return renewed is not None
 
     async def _materialize_and_renew(self, cursor_id: int) -> bool:
         started_at = time.monotonic()
@@ -277,6 +301,22 @@ class SessionEvalSweeper(DaemonTask):
         return criteria_rows
 
     async def _sweep(self, session: AsyncSession, database_now: datetime) -> int:
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(
+                models.EvalSessionWorkUnit.status == "RUNNING",
+                models.EvalSessionWorkUnit.attempts >= MAX_ATTEMPTS - 1,
+                work_unit_lease_lapsed(database_now, models.EvalSessionWorkUnit),
+            )
+            .values(
+                status="ERROR",
+                attempts=MAX_ATTEMPTS,
+                error=func.coalesce(
+                    models.EvalSessionWorkUnit.error,
+                    LEASE_ATTEMPTS_EXHAUSTED_ERROR,
+                ),
+            )
+        )
         criteria = await self._load_criteria(session)
         work_budget = await self._admission_budget(session)
         eligible_pairs, eligible_pair_count = await self._load_eligible_pairs(

@@ -13,8 +13,9 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
+from enum import Enum
 from secrets import token_hex
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable, Optional, TypeVar
 
 import httpx
 from sqlalchemy import select
@@ -28,7 +29,14 @@ from phoenix.server.online_eval.coordinator import (
     EvalWorkCoordinator,
 )
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
-from phoenix.server.online_eval.executor import HydratedWorkUnit, OnlineEvalExecutor
+from phoenix.server.online_eval.executor import (
+    ConfigurationSnapshotOutcome,
+    HydratedConfigurationSnapshot,
+    HydratedWorkUnit,
+    HydrationFailure,
+    OnlineEvalExecutor,
+    OnlineEvalStoragePaused,
+)
 from phoenix.server.prometheus import (
     ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS,
     ONLINE_EVAL_EXPIRED_WORK_UNITS,
@@ -38,11 +46,17 @@ from phoenix.server.prometheus import (
     ONLINE_EVAL_PENDING_WORK_UNITS,
     ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS,
     ONLINE_EVAL_RUNNING_WORK_UNITS,
+    ONLINE_EVAL_SESSION_EXHAUSTED_ERROR_WORK_UNITS,
+    ONLINE_EVAL_SESSION_OLDEST_PENDING_AGE_SECONDS,
+    ONLINE_EVAL_SESSION_PENDING_WORK_UNITS,
+    ONLINE_EVAL_SESSION_RETRYABLE_ERROR_WORK_UNITS,
+    ONLINE_EVAL_SESSION_RUNNING_WORK_UNITS,
 )
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.types import CanPutItem, DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
+_T = TypeVar("_T")
 
 TICK_INTERVAL_SECONDS = 5.0
 CLAIM_BATCH_SIZE = 10
@@ -55,8 +69,27 @@ _TRANSIENT_HTTP_STATUS_CODES = frozenset({408, 429})
 _TRANSITION_RETRY_DELAYS_SECONDS = (1.0, 2.0, 4.0)
 
 
+class ExecutionTimeoutCause(str, Enum):
+    PROVIDER_DEADLINE_EXCEEDED = "PROVIDER_DEADLINE_EXCEEDED"
+    EVALUATOR_DEADLINE_EXCEEDED = "EVALUATOR_DEADLINE_EXCEEDED"
+
+
 class EvalExecutionTimeout(Exception):
     """An online evaluation exceeded its per-unit execution deadline."""
+
+    def __init__(
+        self,
+        *,
+        cause: ExecutionTimeoutCause,
+        deadline_seconds: float,
+    ) -> None:
+        self.cause = cause
+        self.deadline_seconds = deadline_seconds
+        super().__init__(f"{cause.value}: exceeded {deadline_seconds:g}s deadline")
+
+    @property
+    def count_attempt(self) -> bool:
+        return self.cause is ExecutionTimeoutCause.EVALUATOR_DEADLINE_EXCEEDED
 
 
 async def _cancel_and_await(task: asyncio.Task[None]) -> None:
@@ -104,6 +137,60 @@ def is_transient_error(exc: BaseException) -> bool:
     return False
 
 
+def _exception_chain(exc: BaseException) -> list[BaseException]:
+    chain: list[BaseException] = []
+    seen: set[int] = set()
+    node: Optional[BaseException] = exc
+    while node is not None and id(node) not in seen:
+        seen.add(id(node))
+        chain.append(node)
+        if node.__cause__ is not None:
+            node = node.__cause__
+        elif node.__suppress_context__:
+            node = None
+        else:
+            node = node.__context__
+    return chain
+
+
+def _terminal_error(exc: BaseException) -> Optional[tuple[str, str]]:
+    for node in _exception_chain(exc):
+        code = getattr(node, "online_eval_terminal_code", None)
+        if isinstance(code, str):
+            return code, str(node)
+    return None
+
+
+def _typed_failure_policy(exc: BaseException) -> Optional[tuple[bool, str]]:
+    for node in _exception_chain(exc):
+        count_attempt = getattr(node, "online_eval_count_attempt", None)
+        code = getattr(node, "online_eval_error_code", None)
+        if isinstance(count_attempt, bool) and isinstance(code, str):
+            detail = str(node)
+            return count_attempt, detail if detail.startswith(f"{code}:") else f"{code}: {detail}"
+    return None
+
+
+def _is_provider_transient_error(
+    hydrated: Optional[HydratedWorkUnit],
+    exc: BaseException,
+) -> bool:
+    if hydrated is None or hydrated.evaluator_kind != "LLM":
+        return False
+    llm_client = getattr(hydrated.evaluator, "llm_client", None)
+    if llm_client is None:
+        return False
+    for node in _exception_chain(exc):
+        if not isinstance(node, Exception):
+            continue
+        try:
+            if llm_client.is_rate_limit_error(node) or llm_client.is_transient_error(node):
+                return True
+        except Exception:
+            continue
+    return False
+
+
 class OnlineEvalConsumer(DaemonTask):
     """Per-replica daemon claiming and executing online-eval work units."""
 
@@ -115,13 +202,19 @@ class OnlineEvalConsumer(DaemonTask):
         sandbox_session_manager: Optional[SandboxSessionManager] = None,
         event_queue: Optional[CanPutItem[DmlEvent]] = None,
         coordinator: Optional[EvalWorkCoordinator] = None,
+        evaluation_target: models.EvaluationTarget = "SPAN",
         tick_interval_seconds: float = TICK_INTERVAL_SECONDS,
         claim_batch_size: int = CLAIM_BATCH_SIZE,
         execution_deadline_seconds: float = EXECUTION_DEADLINE_SECONDS,
+        max_concurrency: int = CLAIM_BATCH_SIZE,
+        evaluator_semaphore: Optional[asyncio.Semaphore] = None,
+        db_semaphore: Optional[asyncio.Semaphore] = None,
     ) -> None:
         super().__init__()
         self._db = db
-        self._evaluation_target: models.EvaluationTarget = "SPAN"
+        if evaluation_target not in ("SPAN", "SESSION"):
+            raise ValueError("Online evaluation consumers support SPAN and SESSION targets")
+        self._evaluation_target = evaluation_target
         self._coordinator: EvalWorkCoordinator = coordinator or DbEvalWorkCoordinator(
             db, evaluation_target=self._evaluation_target
         )
@@ -130,11 +223,16 @@ class OnlineEvalConsumer(DaemonTask):
             decrypt=decrypt,
             sandbox_session_manager=sandbox_session_manager,
             event_queue=event_queue,
+            execution_deadline_seconds=execution_deadline_seconds,
+            db_semaphore=db_semaphore,
         )
         self._consumer_id = f"consumer-{token_hex(8)}"
         self._tick_interval_seconds = tick_interval_seconds
         self._claim_batch_size = claim_batch_size
         self._execution_deadline_seconds = execution_deadline_seconds
+        self._consumer_semaphore = asyncio.Semaphore(max_concurrency)
+        self._evaluator_semaphore = evaluator_semaphore or asyncio.Semaphore(max_concurrency)
+        self._db_semaphore = db_semaphore
         self._pending_tasks: set[asyncio.Task[None]] = set()
         self._publish_metrics = get_env_enable_prometheus()
         self._last_ingest_sample: Optional[tuple[int, datetime]] = None
@@ -153,7 +251,19 @@ class OnlineEvalConsumer(DaemonTask):
             await asyncio.sleep(self._tick_interval_seconds)
 
     async def _publish_queue_metrics(self) -> None:
+        await self._run_db(self._publish_queue_metrics_with_slot)
+
+    async def _publish_queue_metrics_with_slot(self) -> None:
         lag = await self._coordinator.lag()
+        if self._evaluation_target == "SESSION":
+            ONLINE_EVAL_SESSION_PENDING_WORK_UNITS.set(lag.pending_count)
+            ONLINE_EVAL_SESSION_RUNNING_WORK_UNITS.set(lag.running_count)
+            ONLINE_EVAL_SESSION_RETRYABLE_ERROR_WORK_UNITS.set(lag.retryable_error_count)
+            ONLINE_EVAL_SESSION_EXHAUSTED_ERROR_WORK_UNITS.set(lag.exhausted_error_count)
+            ONLINE_EVAL_SESSION_OLDEST_PENDING_AGE_SECONDS.set(
+                lag.oldest_pending_age_seconds or 0.0
+            )
+            return
         ONLINE_EVAL_PENDING_WORK_UNITS.set(lag.pending_count)
         ONLINE_EVAL_RUNNING_WORK_UNITS.set(lag.running_count)
         ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS.set(lag.retryable_error_count)
@@ -195,13 +305,21 @@ class OnlineEvalConsumer(DaemonTask):
         await super().stop()
 
     async def _cycle(self) -> None:
-        units = await self._coordinator.claim(
-            claimed_by=self._consumer_id,
-            limit=self._claim_batch_size,
+        if self._db.should_not_insert_or_update:
+            return
+        units = await self._run_db(
+            lambda: self._coordinator.claim(
+                claimed_by=self._consumer_id,
+                limit=self._claim_batch_size,
+            )
         )
         if not units:
             return
-        tasks = [asyncio.create_task(self._process_unit(unit)) for unit in units]
+        configurations = await self._executor.hydrate_configuration_snapshots(units)
+        tasks = [
+            asyncio.create_task(self._process_unit_with_limit(unit, configuration))
+            for unit, configuration in zip(units, configurations, strict=True)
+        ]
         for task in tasks:
             self._pending_tasks.add(task)
             task.add_done_callback(self._pending_tasks.discard)
@@ -212,13 +330,47 @@ class OnlineEvalConsumer(DaemonTask):
             if not task.cancelled() and (exc := task.exception()) is not None:
                 logger.error("Online-eval work unit task failed", exc_info=exc)
 
-    async def _process_unit(self, unit: ClaimedWorkUnit) -> None:
+    async def _run_db(self, operation: Callable[[], Awaitable[_T]]) -> _T:
+        if self._db_semaphore is None:
+            return await operation()
+        async with self._db_semaphore:
+            return await operation()
+
+    async def _process_unit_with_limit(
+        self,
+        unit: ClaimedWorkUnit,
+        configuration: Optional[ConfigurationSnapshotOutcome] = None,
+    ) -> None:
+        async with self._consumer_semaphore:
+            await self._process_unit(unit, configuration)
+
+    async def _process_unit(
+        self,
+        unit: ClaimedWorkUnit,
+        configuration: Optional[ConfigurationSnapshotOutcome] = None,
+    ) -> None:
+        hydrated_work_unit: Optional[HydratedWorkUnit] = None
         try:
-            hydrated = await self._executor.hydrate(unit)
-            if hydrated is None:
-                expired = await self._coordinator.expire(
+            if configuration is None:
+                hydrated = await self._executor.hydrate(unit)
+            elif isinstance(configuration, Exception):
+                raise configuration
+            elif isinstance(configuration, HydratedConfigurationSnapshot):
+                hydrated = self._executor.hydrate_from_snapshot(configuration)
+            else:
+                hydrated = configuration
+            if isinstance(hydrated, HydrationFailure):
+                error = hydrated.reason.value
+                if hydrated.detail:
+                    error = f"{error}: {hydrated.detail}"
+                expired = await self._retry_transition(
+                    action="expire",
                     work_unit_id=unit.work_unit_id,
-                    claimed_by=self._consumer_id,
+                    transition=lambda: self._coordinator.expire(
+                        work_unit_id=unit.work_unit_id,
+                        claimed_by=self._consumer_id,
+                        error=error,
+                    ),
                 )
                 if not expired:
                     logger.warning(
@@ -226,12 +378,82 @@ class OnlineEvalConsumer(DaemonTask):
                         "claim was lost"
                     )
                 return
-            await self._evaluate_with_heartbeat(unit, hydrated)
+            hydrated_work_unit = hydrated
+            async with self._evaluator_semaphore:
+                await self._evaluate_with_heartbeat(unit, hydrated)
+        except asyncio.CancelledError:
+            try:
+                released = await asyncio.shield(
+                    self._run_db(
+                        lambda: self._coordinator.release(
+                            work_unit_id=unit.work_unit_id,
+                            claimed_by=self._consumer_id,
+                        )
+                    )
+                )
+                if not released:
+                    logger.warning(
+                        f"Online-eval work unit {unit.work_unit_id} could not be released after "
+                        "its claim was lost"
+                    )
+            except Exception:
+                logger.exception(
+                    f"Failed to release cancelled online-eval work unit {unit.work_unit_id}; "
+                    "leaving the row for lease-lapse reclaim"
+                )
+            raise
+        except OnlineEvalStoragePaused:
+            released = await self._retry_transition(
+                action="pause",
+                work_unit_id=unit.work_unit_id,
+                transition=lambda: self._coordinator.release(
+                    work_unit_id=unit.work_unit_id,
+                    claimed_by=self._consumer_id,
+                ),
+            )
+            if not released:
+                logger.warning(
+                    f"Online-eval work unit {unit.work_unit_id} could not pause after its "
+                    "claim was lost"
+                )
         except Exception as exc:
-            transient = is_transient_error(exc)
+            if terminal_error := _terminal_error(exc):
+                code, detail = terminal_error
+                logger.error(
+                    f"Online-eval work unit {unit.work_unit_id} reached terminal state {code}",
+                    exc_info=exc,
+                )
+                expired = await self._retry_transition(
+                    action="record terminal failure",
+                    work_unit_id=unit.work_unit_id,
+                    transition=lambda: self._coordinator.expire(
+                        work_unit_id=unit.work_unit_id,
+                        claimed_by=self._consumer_id,
+                        error=f"{code}: {detail}",
+                    ),
+                )
+                if not expired:
+                    logger.warning(
+                        f"Online-eval work unit {unit.work_unit_id} terminal failure was not "
+                        "recorded after its claim was lost"
+                    )
+                return
+            timeout = exc if isinstance(exc, EvalExecutionTimeout) else None
+            typed_policy = _typed_failure_policy(exc)
+            if timeout is not None:
+                count_attempt = timeout.count_attempt
+                error = str(timeout)
+            elif typed_policy is not None:
+                count_attempt, error = typed_policy
+            else:
+                count_attempt = not (
+                    _is_provider_transient_error(hydrated_work_unit, exc) or is_transient_error(exc)
+                )
+                error = str(exc)
+            transient = not count_attempt
             logger.exception(
                 f"Online-eval work unit {unit.work_unit_id} failed "
-                f"({'transient — will retry without counting an attempt' if transient else 'counting an attempt'})"  # noqa: E501
+                f"({'counting an attempt' if count_attempt else 'will retry without counting an attempt'})"  # noqa: E501
             )
             # Transient failures cool down flat and don't count attempts (an
             # outage retries until it heals); everything else backs off
@@ -240,7 +462,6 @@ class OnlineEvalConsumer(DaemonTask):
                 ERROR_COOLDOWN_SECONDS if transient else ERROR_COOLDOWN_SECONDS * (2**unit.attempts)
             )
             cooldown_until = datetime.now(timezone.utc) + timedelta(seconds=cooldown_seconds)
-            error = str(exc)
             failed = await self._retry_transition(
                 action="record failure",
                 work_unit_id=unit.work_unit_id,
@@ -249,7 +470,7 @@ class OnlineEvalConsumer(DaemonTask):
                     claimed_by=self._consumer_id,
                     error=error,
                     cooldown_until=cooldown_until,
-                    count_attempt=not transient,
+                    count_attempt=count_attempt,
                 ),
             )
             if failed is False:
@@ -278,25 +499,38 @@ class OnlineEvalConsumer(DaemonTask):
         action: str,
         work_unit_id: int,
         transition: Callable[[], Awaitable[bool]],
-    ) -> Optional[bool]:
-        for delay_seconds in _TRANSITION_RETRY_DELAYS_SECONDS:
+    ) -> bool:
+        retry_index = 0
+        while True:
             try:
-                return await transition()
+                return await self._run_db(transition)
             except Exception:
+                delay_seconds = _TRANSITION_RETRY_DELAYS_SECONDS[
+                    min(retry_index, len(_TRANSITION_RETRY_DELAYS_SECONDS) - 1)
+                ]
+                retry_index += 1
                 logger.warning(
                     f"Failed to {action} for online-eval work unit {work_unit_id}; "
                     f"retrying in {delay_seconds:g}s",
                     exc_info=True,
                 )
+                try:
+                    heartbeat_succeeded = await self._run_db(
+                        lambda: self._coordinator.heartbeat(
+                            work_unit_id=work_unit_id,
+                            claimed_by=self._consumer_id,
+                        )
+                    )
+                except Exception:
+                    logger.warning(
+                        f"Failed to heartbeat online-eval work unit {work_unit_id} while "
+                        f"retrying {action}",
+                        exc_info=True,
+                    )
+                else:
+                    if not heartbeat_succeeded:
+                        return False
                 await asyncio.sleep(delay_seconds)
-        try:
-            return await transition()
-        except Exception:
-            logger.exception(
-                f"Failed to {action} for online-eval work unit {work_unit_id} after "
-                "3 retries; leaving the row for lease-lapse reclaim"
-            )
-            return None
 
     async def _evaluate_with_heartbeat(
         self,
@@ -312,7 +546,12 @@ class OnlineEvalConsumer(DaemonTask):
                 if remaining_seconds <= 0:
                     await _cancel_and_await(eval_task)
                     raise EvalExecutionTimeout(
-                        f"evaluation exceeded {self._execution_deadline_seconds:g}s deadline"
+                        cause=(
+                            ExecutionTimeoutCause.PROVIDER_DEADLINE_EXCEEDED
+                            if hydrated.evaluator_kind == "LLM"
+                            else ExecutionTimeoutCause.EVALUATOR_DEADLINE_EXCEEDED
+                        ),
+                        deadline_seconds=self._execution_deadline_seconds,
                     ) from None
                 done, _ = await asyncio.wait(
                     {eval_task},
@@ -323,7 +562,12 @@ class OnlineEvalConsumer(DaemonTask):
                 if asyncio.get_running_loop().time() >= deadline_at:
                     await _cancel_and_await(eval_task)
                     raise EvalExecutionTimeout(
-                        f"evaluation exceeded {self._execution_deadline_seconds:g}s deadline"
+                        cause=(
+                            ExecutionTimeoutCause.PROVIDER_DEADLINE_EXCEEDED
+                            if hydrated.evaluator_kind == "LLM"
+                            else ExecutionTimeoutCause.EVALUATOR_DEADLINE_EXCEEDED
+                        ),
+                        deadline_seconds=self._execution_deadline_seconds,
                     ) from None
                 # A lost claim does not cancel the eval: the result is still
                 # valid under this unit's identifier and the write dedupes
@@ -331,9 +575,11 @@ class OnlineEvalConsumer(DaemonTask):
                 if not heartbeat_enabled:
                     continue
                 try:
-                    heartbeat_succeeded = await self._coordinator.heartbeat(
-                        work_unit_id=unit.work_unit_id,
-                        claimed_by=self._consumer_id,
+                    heartbeat_succeeded = await self._run_db(
+                        lambda: self._coordinator.heartbeat(
+                            work_unit_id=unit.work_unit_id,
+                            claimed_by=self._consumer_id,
+                        )
                     )
                     if not heartbeat_succeeded:
                         logger.warning(

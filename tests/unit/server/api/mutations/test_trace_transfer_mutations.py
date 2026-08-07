@@ -206,6 +206,32 @@ class TestTraceTransferMutationMixin:
             assert trace1.project_rowid == source_project_id
             assert other_trace.project_rowid == other_project_id
 
+    async def test_transfer_trace_attached_to_session_is_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        trace_transfer_fixture: dict[str, int],
+        db: DbSessionFactory,
+    ) -> None:
+        source_project_id = trace_transfer_fixture["source_project_id"]
+        dest_project_id = trace_transfer_fixture["dest_project_id"]
+        attached_trace_id = trace_transfer_fixture["attached_trace_id"]
+
+        result = await gql_client.execute(
+            self.TRANSFER_TRACES_MUTATION,
+            variables={
+                "traceIds": [str(GlobalID("Trace", str(attached_trace_id)))],
+                "projectId": str(GlobalID("Project", str(dest_project_id))),
+            },
+        )
+
+        assert result.errors
+        assert "Cannot transfer traces attached to a session" in result.errors[0].message
+        async with db() as session:
+            trace = await session.get(models.Trace, attached_trace_id)
+            assert trace is not None
+            assert trace.project_rowid == source_project_id
+            assert trace.project_session_rowid is not None
+
     async def test_transfer_traces_fails_with_empty_trace_list(
         self,
         gql_client: AsyncGraphQLClient,
@@ -259,7 +285,6 @@ async def trace_transfer_fixture(db: DbSessionFactory) -> dict[str, int]:
             .values(
                 trace_id="test-trace-id-1",
                 project_rowid=source_project_id,
-                project_session_rowid=session_id,
                 start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
             )
@@ -331,7 +356,6 @@ async def trace_transfer_fixture(db: DbSessionFactory) -> dict[str, int]:
             .values(
                 trace_id="test-trace-id-2",
                 project_rowid=source_project_id,
-                project_session_rowid=session_id,
                 start_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:02:00.000+00:00"),
             )
@@ -410,6 +434,19 @@ async def trace_transfer_fixture(db: DbSessionFactory) -> dict[str, int]:
         )
         assert other_trace_id is not None
 
+        attached_trace_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="test-trace-id-attached",
+                project_rowid=source_project_id,
+                project_session_rowid=session_id,
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+            )
+            .returning(models.Trace.id)
+        )
+        assert attached_trace_id is not None
+
         return {
             "source_project_id": source_project_id,
             "dest_project_id": dest_project_id,
@@ -417,4 +454,5 @@ async def trace_transfer_fixture(db: DbSessionFactory) -> dict[str, int]:
             "trace1_id": trace1_id,
             "trace2_id": trace2_id,
             "other_trace_id": other_trace_id,
+            "attached_trace_id": attached_trace_id,
         }

@@ -396,6 +396,16 @@ The maximum number of work units an online-eval consumer claims per tick. Togeth
 PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS this bounds per-replica evaluation
 throughput at claim_batch_size / tick_interval evaluations per second. Defaults to 10.
 """
+ENV_PHOENIX_ONLINE_EVAL_SPAN_CONSUMER_CONCURRENCY = "PHOENIX_ONLINE_EVAL_SPAN_CONSUMER_CONCURRENCY"
+"""Maximum concurrent work-unit tasks in the span consumer. Defaults to 10."""
+ENV_PHOENIX_ONLINE_EVAL_SESSION_CONSUMER_CONCURRENCY = (
+    "PHOENIX_ONLINE_EVAL_SESSION_CONSUMER_CONCURRENCY"
+)
+"""Maximum concurrent work-unit tasks in the session consumer. Defaults to 10."""
+ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY"
+"""Maximum aggregate evaluator executions across online-eval consumers. Defaults to 10."""
+ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY"
+"""Maximum aggregate online-eval consumer DB phases. Defaults to 5."""
 ENV_PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS = (
     "PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS"
 )
@@ -403,6 +413,21 @@ ENV_PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS = (
 Seconds an online-eval consumer sleeps between claim cycles. Together with
 PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE this bounds per-replica evaluation throughput.
 Defaults to 5.0.
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES = "PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES"
+"""
+The maximum UTF-8 byte size of the default transcript supplied to session evaluators.
+Defaults to 32768.
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES = "PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES"
+"""
+The maximum aggregate UTF-8 byte size of rendered messages sent by an online LLM evaluator.
+Defaults to 65536.
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES = "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES"
+"""
+The maximum UTF-8 byte size of a rendered session code-evaluator payload.
+Defaults to 65536.
 """
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
@@ -3529,6 +3554,32 @@ def get_env_online_eval_claim_batch_size() -> int:
     return batch_size
 
 
+def _online_eval_positive_int(name: str, default: int) -> int:
+    value = _int_val(name, default)
+    if value < 1:
+        raise ValueError(
+            f"Invalid value for environment variable {name}: "
+            f"{value}. Value must be a positive integer."
+        )
+    return value
+
+
+def get_env_online_eval_span_consumer_concurrency() -> int:
+    return _online_eval_positive_int(ENV_PHOENIX_ONLINE_EVAL_SPAN_CONSUMER_CONCURRENCY, 10)
+
+
+def get_env_online_eval_session_consumer_concurrency() -> int:
+    return _online_eval_positive_int(ENV_PHOENIX_ONLINE_EVAL_SESSION_CONSUMER_CONCURRENCY, 10)
+
+
+def get_env_online_eval_max_evaluator_concurrency() -> int:
+    return _online_eval_positive_int(ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, 10)
+
+
+def get_env_online_eval_max_db_concurrency() -> int:
+    return _online_eval_positive_int(ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY, 5)
+
+
 def get_env_online_eval_consumer_tick_interval_seconds() -> float:
     """
     Gets the value of the PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS
@@ -3542,6 +3593,46 @@ def get_env_online_eval_consumer_tick_interval_seconds() -> float:
             f"{seconds}. Value must be a finite positive number."
         )
     return seconds
+
+
+def get_env_online_eval_max_transcript_bytes() -> int:
+    """Get the session transcript cap, whose minimum is 256 UTF-8 bytes.
+
+    The cap bounds only the rendered ``input`` string. Structured ``turns`` values used
+    by explicit mappings are not truncated.
+    """
+    max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES, 32_768)
+    if max_bytes < 256:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES}: "
+            f"{max_bytes}. Value must be an integer of at least 256."
+        )
+    return max_bytes
+
+
+def get_env_online_eval_max_llm_message_bytes() -> int:
+    """Get the rendered online-eval LLM message cap."""
+    max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES, 65_536)
+    if max_bytes < 1_024:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES}: "
+            f"{max_bytes}. Value must be an integer of at least 1024."
+        )
+    return max_bytes
+
+
+def get_env_online_eval_max_sandbox_payload_bytes() -> int:
+    """Get the session sandbox payload cap, whose minimum is 1024 UTF-8 bytes."""
+    max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES, 65_536)
+    if max_bytes < 1_024:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES}: "
+            f"{max_bytes}. Value must be an integer of at least 1024."
+        )
+    return max_bytes
 
 
 def get_env_client_headers() -> dict[str, str]:

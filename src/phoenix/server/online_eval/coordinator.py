@@ -1,13 +1,14 @@
-"""Consumer-side coordination seam for online-eval work distribution over the
-``eval_work_units`` table: claim/heartbeat/complete/fail transitions plus queue-lag
-observability. Producer-side operations (cursor lease, watermark advance, work-row
-materialization) are not part of this interface.
+"""Consumer-side coordination seam for online-eval work distribution: claim,
+heartbeat, completion, failure, expiration, and queue-lag observability. Producer-side
+operations (cursor lease, watermark advance, and work-row materialization) are not part
+of this interface.
 
 Work-unit lifecycle:
 
     PENDING --claim--> RUNNING --complete--> DONE
                        RUNNING --fail-----> ERROR
                        RUNNING --expire---> EXPIRED
+                       RUNNING --release--> PENDING
     RUNNING (lease lapsed) --> reclaimable
     ERROR (cooldown elapsed, attempts remain) --> retried
 """
@@ -19,18 +20,20 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Protocol
 
+from phoenix.db import models
+
 LEASE_TTL_SECONDS = 90
 HEARTBEAT_INTERVAL_SECONDS = 30
+LEASE_ATTEMPTS_EXHAUSTED_ERROR = "lease lapsed with attempts exhausted"
 
 
 @dataclass(frozen=True)
 class ClaimedWorkUnit:
-    """A leased work unit. ``identifier`` keys the annotation write so re-runs of the
-    same (span, evaluator, config) collide on the annotation unique constraint;
-    ``lease_expires_at`` is the claim time plus ``LEASE_TTL_SECONDS``."""
+    """A leased work unit with an idempotent annotation identifier."""
 
     work_unit_id: int
-    span_rowid: int
+    evaluation_target: models.EvaluationTarget
+    target_rowid: int
     evaluator_id: int
     criteria_id: int
     config_fingerprint: str
@@ -114,10 +117,18 @@ class EvalWorkCoordinator(Protocol):
         *,
         work_unit_id: int,
         claimed_by: str,
+        error: str,
     ) -> bool:
-        """Transition a claimed unit RUNNING -> EXPIRED. Terminal: for work that must
-        never run (stale config fingerprint, missing or disabled criteria), unlike the
-        retryable ERROR from ``fail``. Returns False if the claim was lost."""
+        """Transition a claimed unit RUNNING -> EXPIRED with a stable terminal reason."""
+        ...
+
+    async def release(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+    ) -> bool:
+        """Return a still-owned RUNNING unit to PENDING without incrementing attempts."""
         ...
 
     async def lag(self) -> QueueLag:

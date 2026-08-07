@@ -6,10 +6,14 @@ import pytest
 from sqlalchemy import func, select, update
 
 from phoenix.db import models
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.evaluators import ContainsEvaluator
 from phoenix.server.online_eval import producer as producer_module
-from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS
+from phoenix.server.online_eval.coordinator import (
+    LEASE_ATTEMPTS_EXHAUSTED_ERROR,
+    LEASE_TTL_SECONDS,
+)
 from phoenix.server.online_eval.db_coordinator import (
     STALE_FINGERPRINT_ERROR,
     DbEvalWorkCoordinator,
@@ -67,6 +71,49 @@ async def _seed_criteria(
         session.add(criteria)
         await session.flush()
         return evaluator.id, criteria.id
+
+
+async def _seed_code_criteria(
+    db: DbSessionFactory,
+    project_id: int,
+) -> tuple[int, int, int]:
+    async with db() as session:
+        if await session.get(models.Language, "PYTHON") is None:
+            session.add(models.Language(name="PYTHON"))
+        if await session.get(models.SandboxProvider, "WASM") is None:
+            session.add(models.SandboxProvider(backend_type="WASM", enabled=True, config={}))
+        await session.flush()
+        sandbox_config = models.SandboxConfig(
+            backend_type="WASM",
+            language="PYTHON",
+            name=Identifier(root=f"sandbox-{token_hex(4)}"),
+            description=None,
+            config={},
+            timeout=30,
+        )
+        evaluator = models.CodeEvaluator(
+            name=Identifier(root=f"code-{token_hex(4)}"),
+            description=None,
+            kind="CODE",
+            language="PYTHON",
+            sandbox_config=sandbox_config,
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+            output_configs=[],
+            versions=[models.CodeEvaluatorVersion(source_code="def evaluate(): return 1")],
+        )
+        session.add(evaluator)
+        await session.flush()
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=project_id,
+            evaluator_id=evaluator.id,
+            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            filter_condition="",
+            sampling_rate=1.0,
+            evaluation_target="SPAN",
+        )
+        session.add(criteria)
+        await session.flush()
+        return evaluator.id, criteria.id, sandbox_config.id
 
 
 async def _seed_cursor(
@@ -129,6 +176,32 @@ async def test_cold_start_initializes_cursor_at_current_high_water(
     assert cursor.produced_through_id == spans[-1].id
     assert cursor.claimed_by == producer._producer_id
     assert await _work_unit_span_rowids(db) == []
+
+
+async def test_storage_pause_skips_materialization_and_cursor_advance(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    await _seed_criteria(db, project.id)
+    cursor_id = await _seed_cursor(
+        db,
+        produced_through_id=0,
+        observed_high_water_id=span.id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+    producer = OnlineEvalProducer(db)
+    db.should_not_insert_or_update = True
+
+    try:
+        await producer._tick()
+    finally:
+        db.should_not_insert_or_update = False
+
+    assert await _work_unit_span_rowids(db) == []
+    assert (await _get_cursor(db, cursor_id)).produced_through_id == 0
 
 
 async def test_tick_materializes_matching_spans_and_advances_watermark(
@@ -254,6 +327,51 @@ async def test_unregistered_builtin_cannot_resolve_criteria(
             evaluation_target="SPAN",
         )
         session.add(criteria)
+        await session.flush()
+
+        assert await resolve_criteria(session, criteria, evaluator) is None
+
+
+async def test_sandbox_runtime_changes_code_criteria_fingerprint(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+    evaluator_id, criteria_id, sandbox_config_id = await _seed_code_criteria(db, project.id)
+
+    async with db() as session:
+        evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        sandbox_config = await session.get(models.SandboxConfig, sandbox_config_id)
+        assert evaluator is not None
+        assert criteria is not None
+        assert sandbox_config is not None
+        first = await resolve_criteria(session, criteria, evaluator)
+        assert first is not None
+        sandbox_config.timeout += 1
+        sandbox_config.updated_at = _now() + timedelta(seconds=1)
+        await session.flush()
+        second = await resolve_criteria(session, criteria, evaluator)
+        assert second is not None
+
+    assert config_fingerprint(first) != config_fingerprint(second)
+
+
+async def test_disabled_sandbox_runtime_does_not_resolve_code_criteria(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+    evaluator_id, criteria_id, sandbox_config_id = await _seed_code_criteria(db, project.id)
+
+    async with db() as session:
+        evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        sandbox_config = await session.get(models.SandboxConfig, sandbox_config_id)
+        assert evaluator is not None
+        assert criteria is not None
+        assert sandbox_config is not None
+        sandbox_config.enabled = False
         await session.flush()
 
         assert await resolve_criteria(session, criteria, evaluator) is None
@@ -552,6 +670,7 @@ async def test_stale_fingerprint_rows_are_resurrected_when_config_reverts(
         assert await coordinator.expire(
             work_unit_id=unit.work_unit_id,
             claimed_by="consumer",
+            error=STALE_FINGERPRINT_ERROR,
         )
 
     async with db() as session:
@@ -824,7 +943,7 @@ async def test_reaper_terminalizes_only_lapsed_exhausted_running_work(
     assert lapsed_row is not None
     assert lapsed_row.status == "ERROR"
     assert lapsed_row.attempts == MAX_ATTEMPTS
-    assert lapsed_row.error == "lease lapsed with attempts exhausted"
+    assert lapsed_row.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
     assert failed_lapsed_row is not None
     assert failed_lapsed_row.status == "ERROR"
     assert failed_lapsed_row.attempts == MAX_ATTEMPTS
