@@ -102,7 +102,7 @@ class TurnTraceContext(CamelBaseModel):
     started_at: datetime
 
 
-class AssistantMessageMetadata(CamelBaseModel):
+class PhoenixAssistantMessageMetadata(CamelBaseModel):
     """The ``phoenix`` metadata namespace of an assistant message."""
 
     type: Literal["assistant"]
@@ -112,7 +112,7 @@ class AssistantMessageMetadata(CamelBaseModel):
     interrupted: bool = False
 
 
-class UserMessageMetadata(CamelBaseModel):
+class PhoenixUserMessageMetadata(CamelBaseModel):
     """The ``phoenix`` metadata namespace the browser attaches to outgoing
     user messages."""
 
@@ -123,7 +123,7 @@ class UserMessageMetadata(CamelBaseModel):
 
 
 PhoenixMessageMetadata = Annotated[
-    AssistantMessageMetadata | UserMessageMetadata,
+    PhoenixAssistantMessageMetadata | PhoenixUserMessageMetadata,
     Field(discriminator="type"),
 ]
 

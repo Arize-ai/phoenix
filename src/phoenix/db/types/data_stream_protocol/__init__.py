@@ -4,15 +4,15 @@ from pydantic import TypeAdapter
 
 from .phoenix_types import (
     AgentErrorData,
-    AssistantMessageMetadata,
     AssistantMessageMetadataUsage,
     AssistantMessageMetadataUsageCacheTokenDetails,
     AssistantMessageMetadataUsageTokens,
     MessageMetadata,
+    PhoenixAssistantMessageMetadata,
     PhoenixMessageMetadata,
     PhoenixUIMessage,
+    PhoenixUserMessageMetadata,
     TurnTraceContext,
-    UserMessageMetadata,
 )
 from .provider_metadata import (
     PydanticAIMessageMetadata,
@@ -65,7 +65,6 @@ PhoenixUIMessageAdapter = TypeAdapter(PhoenixUIMessage)
 
 __all__ = [
     "AgentErrorData",
-    "AssistantMessageMetadata",
     "AssistantMessageMetadataUsage",
     "AssistantMessageMetadataUsageCacheTokenDetails",
     "AssistantMessageMetadataUsageTokens",
@@ -82,9 +81,11 @@ __all__ = [
     "FileUIPart",
     "JSONValue",
     "MessageMetadata",
+    "PhoenixAssistantMessageMetadata",
     "PhoenixMessageMetadata",
     "PhoenixUIMessage",
     "PhoenixUIMessageAdapter",
+    "PhoenixUserMessageMetadata",
     "ProviderMetadata",
     "PydanticAIMessageMetadata",
     "PydanticAIReasoningProviderMetadata",
@@ -116,5 +117,4 @@ __all__ = [
     "TurnTraceContext",
     "UIMessage",
     "UIMessagePart",
-    "UserMessageMetadata",
 ]

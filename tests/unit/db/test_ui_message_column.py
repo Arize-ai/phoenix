@@ -17,9 +17,9 @@ from phoenix.db.models import _PhoenixUIMessage
 from phoenix.db.types.data_stream_protocol import (
     MessageMetadata,
     PhoenixUIMessageAdapter,
+    PhoenixUserMessageMetadata,
     TextUIPart,
     ToolOutputDeniedPart,
-    UserMessageMetadata,
 )
 from phoenix.db.types.data_stream_protocol.phoenix_types import PhoenixUIMessage
 
@@ -79,7 +79,7 @@ def test_server_built_compaction_message_round_trips() -> None:
         id=_MESSAGE_ID,
         role="user",
         metadata=MessageMetadata(
-            phoenix=UserMessageMetadata(
+            phoenix=PhoenixUserMessageMetadata(
                 type="user",
                 current_date_time="2026-08-05T00:00:00+00:00",
                 time_zone="UTC",
@@ -112,7 +112,7 @@ def test_metadata_discriminator_is_required_at_construction() -> None:
     # The Phoenix-owned metadata types drop upstream's ergonomic ``type``
     # default so a forgotten discriminator fails here instead of at persist.
     with pytest.raises(ValidationError, match="type"):
-        UserMessageMetadata(
+        PhoenixUserMessageMetadata(
             current_date_time="2026-08-05T00:00:00+00:00",
             time_zone="UTC",
         )
