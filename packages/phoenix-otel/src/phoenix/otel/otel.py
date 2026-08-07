@@ -85,8 +85,9 @@ def register(
 
     Args:
         endpoint (str, optional): The collector endpoint to which spans will be exported. If not
-            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used. The
-            export protocol will be inferred from the endpoint.
+            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used, falling
+            back to `OTEL_EXPORTER_OTLP_ENDPOINT` and then `PHOENIX_ENDPOINT`. The export protocol
+            will be inferred from the endpoint.
         project_name (str, optional): The name of the project to which spans will be associated. If
             not provided, the `PHOENIX_PROJECT_NAME` environment variable will be used.
         batch (bool): If True, spans will be processed using a BatchSpanprocessor. If False, spans
@@ -207,7 +208,8 @@ class TracerProvider(_TracerProvider):
     Args:
         endpoint (str, optional): The collector endpoint to which spans will be exported. If
             specified, a default SpanProcessor will be created and added to this TracerProvider.
-            If not provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be
+            If not provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable (falling
+            back to `OTEL_EXPORTER_OTLP_ENDPOINT`, then `PHOENIX_ENDPOINT`) will be
             used to infer which collector endpoint to use, defaults to the gRPC endpoint. When
             specifying the endpoint, the transport method (HTTP or gRPC) will be inferred from the
             URL.
@@ -390,7 +392,8 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
         span_exporter (SpanExporter, optional): The `SpanExporter` to which ended spans will be
             passed.
         endpoint (str, optional): The collector endpoint to which spans will be exported. If not
-            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used to
+            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable (falling back to
+            `OTEL_EXPORTER_OTLP_ENDPOINT`, then `PHOENIX_ENDPOINT`) will be used to
             infer which collector endpoint to use, defaults to the gRPC endpoint. When specifying
             the endpoint, the transport method (HTTP or gRPC) will be inferred from the URL.
         headers (dict, optional): Optional headers to include in the request to the collector.
@@ -470,7 +473,8 @@ class BatchSpanProcessor(_BatchSpanProcessor):
         span_exporter (SpanExporter, optional): The `SpanExporter` to which ended spans will be
             passed.
         endpoint (str, optional): The collector endpoint to which spans will be exported. If not
-            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used to
+            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable (falling back to
+            `OTEL_EXPORTER_OTLP_ENDPOINT`, then `PHOENIX_ENDPOINT`) will be used to
             infer which collector endpoint to use, defaults to the gRPC endpoint. When specifying
             the endpoint, the transport method (HTTP or gRPC) will be inferred from the URL.
         headers (dict, optional): Optional headers to include in the request to the collector.
@@ -547,7 +551,8 @@ class HTTPSpanExporter(_HTTPSpanExporter):
 
     Args:
         endpoint (str, optional): OpenTelemetry Collector receiver endpoint. If not provided, the
-            `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used to infer which
+            `PHOENIX_COLLECTOR_ENDPOINT` environment variable (falling back to
+            `OTEL_EXPORTER_OTLP_ENDPOINT`, then `PHOENIX_ENDPOINT`) will be used to infer which
             collector endpoint to use, defaults to the HTTP endpoint.
         headers: Headers to send when exporting. If not provided, the `PHOENIX_CLIENT_HEADERS`
             or `OTEL_EXPORTER_OTLP_HEADERS` environment variables will be used.
@@ -625,7 +630,8 @@ class GRPCSpanExporter(_GRPCSpanExporter):
 
     Args:
         endpoint (str, optional): OpenTelemetry Collector receiver endpoint. If not provided, the
-            `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used to infer which
+            `PHOENIX_COLLECTOR_ENDPOINT` environment variable (falling back to
+            `OTEL_EXPORTER_OTLP_ENDPOINT`, then `PHOENIX_ENDPOINT`) will be used to infer which
             collector endpoint to use, defaults to the gRPC endpoint.
         insecure: Connection type
         credentials: Credentials object for server authentication

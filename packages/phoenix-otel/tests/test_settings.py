@@ -30,6 +30,29 @@ from phoenix.otel.settings import (
             },
             "http://localhost:6006",
         ),
+        # PHOENIX_ENDPOINT is the canonical API-access variable, read as the
+        # last-ranked trace-export fallback: naming Phoenix once exports spans
+        # there instead of silently to localhost.
+        ({"PHOENIX_ENDPOINT": "http://api:6006"}, "http://api:6006"),
+        (
+            {
+                "PHOENIX_COLLECTOR_ENDPOINT": "http://col:6006",
+                "PHOENIX_ENDPOINT": "http://api:6006",
+            },
+            "http://col:6006",
+        ),
+        (
+            {
+                "OTEL_EXPORTER_OTLP_ENDPOINT": "http://otlp:4318",
+                "PHOENIX_ENDPOINT": "http://api:6006",
+            },
+            "http://otlp:4318",
+        ),
+        # An empty value counts as unset for the chain rather than resolving.
+        (
+            {"PHOENIX_COLLECTOR_ENDPOINT": "", "PHOENIX_ENDPOINT": "http://api:6006"},
+            "http://api:6006",
+        ),
         ({}, None),
     ],
 )
@@ -139,6 +162,19 @@ class TestEnvFileDiscovery:
         with patch.dict(os.environ, env, clear=True):
             assert get_env_collector_endpoint() == "http://from-otel:4318"
 
+    def test_file_endpoint_variable_used_when_env_unset(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_ENDPOINT=http://from-file:6006\n")
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_collector_endpoint() == "http://from-file:6006"
+
+    def test_file_collector_beats_process_endpoint_fallback(self, tmp_path: Path) -> None:
+        """A process PHOENIX_ENDPOINT is only an inferred trace-export fallback,
+        so it must not mask the canonical collector variable declared in a
+        discovered ``.env.phoenix``."""
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_COLLECTOR_ENDPOINT=http://from-file:6006\n")
+        with patch.dict(os.environ, {"PHOENIX_ENDPOINT": "http://from-process:6006"}, clear=True):
+            assert get_env_collector_endpoint() == "http://from-file:6006"
+
     def test_process_project_alias_beats_file_canonical(self, tmp_path: Path) -> None:
         (tmp_path / ".env.phoenix").write_text("PHOENIX_PROJECT=file-project\n")
         with patch.dict(os.environ, {"PHOENIX_PROJECT_NAME": "process-project"}, clear=True):
@@ -187,6 +223,22 @@ class TestEnvFileDiscovery:
         ]
         assert "secret-process-key" not in warnings[0]
 
+    def test_credential_warning_names_the_file_endpoint_variable(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        env_file = tmp_path / ".env.phoenix"
+        env_file.write_text("PHOENIX_ENDPOINT=http://file-host:6006\n")
+        env_file.chmod(0o600)
+        with patch.dict(os.environ, {"PHOENIX_API_KEY": "secret-process-key"}, clear=True):
+            with caplog.at_level("WARNING"):
+                assert get_env_collector_endpoint() == "http://file-host:6006"
+
+        warnings = [record.message for record in caplog.records if record.levelname == "WARNING"]
+        assert warnings == [
+            "Credentials from the process environment will be sent to "
+            f"PHOENIX_ENDPOINT set by {env_file}."
+        ]
+
     def test_invalid_file_grpc_port_falls_back_to_default(self, tmp_path: Path) -> None:
         (tmp_path / ".env.phoenix").write_text("PHOENIX_GRPC_PORT=not-a-port\n")
         with patch.dict(os.environ, {}, clear=True):
@@ -202,6 +254,17 @@ class TestEnvFileDiscovery:
         assert any(
             "Ignoring invalid PHOENIX_COLLECTOR_ENDPOINT" in record.message
             for record in caplog.records
+        )
+
+    def test_invalid_file_endpoint_warning_names_the_resolved_variable(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_ENDPOINT=http://x:bad\n")
+        with patch.dict(os.environ, {}, clear=True):
+            with caplog.at_level("WARNING"):
+                assert get_env_collector_endpoint() is None
+        assert any(
+            "Ignoring invalid PHOENIX_ENDPOINT" in record.message for record in caplog.records
         )
 
     def test_unavailable_working_directory_skips_discovery(

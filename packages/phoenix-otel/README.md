@@ -45,6 +45,7 @@ Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-awar
 These defaults are aware of environment variables you may have set to configure Phoenix:
 
 - `PHOENIX_COLLECTOR_ENDPOINT`
+- `PHOENIX_ENDPOINT`
 - `PHOENIX_PROJECT_NAME`
 - `PHOENIX_CLIENT_HEADERS`
 - `PHOENIX_API_KEY`
@@ -178,6 +179,7 @@ def weather(location):
 | Variable                     | Description          | Example                                      |
 | ---------------------------- | -------------------- | -------------------------------------------- |
 | `PHOENIX_COLLECTOR_ENDPOINT` | Where to send traces | `https://app.phoenix.arize.com/s/your-space` |
+| `PHOENIX_ENDPOINT`           | Phoenix base URL, used for traces when no collector variable is set | `https://app.phoenix.arize.com/s/your-space` |
 | `PHOENIX_PROJECT_NAME`       | Project name         | `my-llm-app`                                 |
 | `PHOENIX_API_KEY`            | Authentication key   | `your-api-key`                               |
 | `PHOENIX_CLIENT_HEADERS`     | Custom headers       | `Authorization=Bearer token`                 |
@@ -203,8 +205,9 @@ disable discovery entirely.
 
 Credentials (`PHOENIX_API_KEY`, `PHOENIX_CLIENT_HEADERS`, and
 `OTEL_EXPORTER_OTLP_HEADERS`) and server location
-(`PHOENIX_COLLECTOR_ENDPOINT`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and
-`PHOENIX_GRPC_PORT`) are each resolved as a group from one source tier. This
+(`PHOENIX_COLLECTOR_ENDPOINT`, `OTEL_EXPORTER_OTLP_ENDPOINT`,
+`PHOENIX_ENDPOINT`, and `PHOENIX_GRPC_PORT`) are each resolved as a group from
+one source tier. This
 prevents a file-only gRPC port from rewriting a process-provided endpoint. If
 explicit or process credentials are paired with an endpoint from
 `.env.phoenix`, Phoenix OTel warns once and continues without logging credential

@@ -239,6 +239,7 @@ tracer_provider = TracerProvider(
 The package recognizes these Phoenix-specific environment variables for automatic configuration:
 
 - `PHOENIX_COLLECTOR_ENDPOINT`: Collector endpoint URL (e.g., `https://your-phoenix.com:6006`)
+- `PHOENIX_ENDPOINT`: Phoenix base URL; used for trace export when no collector variable is set
 - `PHOENIX_PROJECT_NAME`: Project name for spans (e.g., `my-llm-app`)
 - `PHOENIX_API_KEY`: User or system key
 - `PHOENIX_GRPC_PORT`: gRPC port override (defaults to 4317)
