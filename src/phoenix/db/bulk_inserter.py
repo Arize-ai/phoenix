@@ -18,6 +18,7 @@ from phoenix.db.insertion.helpers import (
     DataManipulationEvent,
     should_calculate_span_cost,
 )
+from phoenix.db.insertion.project_session import advance_project_session_liveness
 from phoenix.db.insertion.session_annotation import SessionAnnotationQueueInserter
 from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.db.insertion.span_annotation import SpanAnnotationQueueInserter
@@ -158,6 +159,7 @@ class BulkInserter:
         if not num_spans_to_insert or not self._spans:
             return
         project_ids = set()
+        project_session_rowids: set[int] = set()
         span_costs: list[models.SpanCost] = []
         try:
             start = perf_counter()
@@ -179,6 +181,8 @@ class BulkInserter:
                     if result is None:
                         continue
                     project_ids.add(result.project_rowid)
+                    if result.project_session_rowid is not None:
+                        project_session_rowids.add(result.project_session_rowid)
                     try:
                         if not should_calculate_span_cost(span.attributes):
                             continue
@@ -197,6 +201,12 @@ class BulkInserter:
                         span_cost.span_rowid = result.span_rowid
                         span_cost.trace_rowid = result.trace_rowid
                         span_costs.append(span_cost)
+                try:
+                    async with session.begin_nested():
+                        await advance_project_session_liveness(session, project_session_rowids)
+                except Exception as e:
+                    BULK_LOADER_EXCEPTIONS.inc()
+                    logger.exception(str(e))
             BULK_LOADER_SPAN_INSERTION_TIME.observe(perf_counter() - start)
         except Exception:
             BULK_LOADER_SPAN_EXCEPTIONS.inc()
