@@ -231,6 +231,61 @@ def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
     return None
 
 
+#: Structural classes a SELECT may contain. Everything the parser can build
+#: that is neither an `exp.Func` (its own allowlist) nor a table source (its
+#: own check) falls here, and until this existed the seam between those two
+#: policies was governed by a five-entry denylist -- so a class nobody had
+#: considered was admitted by default. Three defects were found in that seam in
+#: one night, none of them by a check.
+#:
+#: Derived from evidence rather than from opinion: every entry is a class
+#: produced by parsing a statement this surface already ships, tests or teaches
+#: -- the admission corpus, the schema's worked examples, the liveness suite,
+#: and a battery covering the ordinary analytics grammar (predicates, CASE,
+#: windows, joins, set operations, grouping, JSON and timestamp comparisons).
+#:
+#: It is therefore a floor, not a survey. The parser defines several hundred
+#: structural classes and this names sixty-odd; a legitimate construct nobody
+#: has written yet will be refused. That is the deliberate trade -- a refusal
+#: names itself and can be lifted by adding a line, while the previous default
+#: admitted whatever nobody had thought about.
+_ALLOWED_STRUCTURAL_CLASSES: frozenset[str] = frozenset(
+    """
+    Add Alias All Any Between Block CTE Column Copy Credentials DPipe DataType
+    Distinct Div Dot Drop EQ Escape Except Fetch Filter From GT GTE Glob Group
+    Having Identifier In Intersect Into Is JSONKeyValue JSONPath JSONPathKey
+    JSONPathRoot Join LT LTE Lateral Like Limit LimitOptions Literal Lock Mod Mul
+    NEQ Neg Not Null ObjectIdentifier Offset Order Ordered Paren Select Star Sub
+    Subquery Table TableAlias Union Var Where Window WindowSpec With WithinGroup
+    """.split()
+)
+
+
+def _check_structural_policy(root: exp.Expression) -> Optional[AdmissionResult]:
+    """Refuse structural classes that nothing has decided about.
+
+    Functions and table sources are checked elsewhere and are skipped here.
+    What remains is the seam, and the answer for an unlisted class is no --
+    which is the whole change: the question used to be "is this one of the five
+    we refuse", and it is now "is this one we have accepted".
+    """
+    for node in root.walk():
+        if isinstance(node, exp.Func):
+            continue
+        name = type(node).__name__
+        if name in _ALLOWED_STRUCTURAL_CLASSES:
+            continue
+        if name in {cls.__name__ for cls in _REFUSED_NODE_CLASSES}:
+            continue  # a dedicated message says more; let that check answer
+        return AdmissionResult(
+            AdmissionOutcome.UNSUPPORTED_SYNTAX,
+            f"This statement uses a construct ({name}) that is not part of the "
+            "permitted grammar for analytics SQL. Rewrite it using the forms "
+            "describeSqlSchema demonstrates, or report it if it belongs here.",
+        )
+    return None
+
+
 def _check_node_classes(root: exp.Expression) -> Optional[AdmissionResult]:
     for node in root.walk():
         message = _REFUSED_NODE_CLASSES.get(type(node))
@@ -764,7 +819,12 @@ def admit(root: exp.Expression, *, allowlist: Allowlist, dialect: DialectName) -
 
     failure = (
         _check_node_classes(root)
+        # Before the structural policy, which would otherwise answer these with
+        # its generic message. A caller told `HexString` is not in the grammar
+        # learns nothing; the lossy-shape refusals name the hazard and the
+        # spelling that works.
         or _check_lossy_shapes(root)
+        or _check_structural_policy(root)
         or _check_double_quoted_timestamp_operands(root, allowlist=allowlist)
         or _check_functions(root, allowlist=allowlist, dialect=dialect)
         or _check_base_tables(root, allowlist=allowlist)

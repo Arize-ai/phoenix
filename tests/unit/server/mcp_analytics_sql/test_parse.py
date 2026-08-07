@@ -701,3 +701,68 @@ class TestTimestampComparisonCoverage:
     )
     def test_legitimate_comparisons_still_admit(self, sql: str) -> None:
         assert self._admit(sql).outcome is AdmissionOutcome.ADMIT
+
+
+class TestStructuralPolicyIsDefaultDeny:
+    """The seam between the function and table allowlists now has an answer.
+
+    Everything the parser can build that is neither a function nor a table
+    source used to be governed by a five-entry denylist, so a class nobody had
+    considered was admitted. Three defects were found there in one night, none
+    of them by a check. See D1.
+    """
+
+    @staticmethod
+    def _admit(sql: str, dialect: DialectName = "postgresql") -> AdmissionResult:
+        return try_parse_and_admit(sql, dialect=dialect)
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT id FROM spans WHERE id <> 1",
+            "SELECT id FROM spans WHERE id >= 1 AND id <= 9",
+            "SELECT CASE WHEN id > 1 THEN 'a' ELSE 'b' END FROM spans",
+            "SELECT CASE id WHEN 1 THEN 'a' ELSE 'b' END FROM spans",
+            "SELECT DISTINCT name, span_kind FROM spans",
+            "SELECT name, COUNT(*) AS c FROM spans GROUP BY name HAVING COUNT(*) > 2",
+            "SELECT SUM(id) OVER (PARTITION BY name ORDER BY id ROWS 3 PRECEDING) FROM spans",
+            "SELECT id FROM spans WHERE id NOT IN (SELECT id FROM traces)",
+            "SELECT id FROM spans WHERE EXISTS (SELECT 1 FROM traces t WHERE t.id = 1)",
+            "WITH a AS (SELECT id FROM spans), b AS (SELECT id FROM a) SELECT id FROM b",
+            "SELECT id FROM spans UNION ALL SELECT id FROM traces ORDER BY id",
+            "SELECT COALESCE(t.id, 0) FROM spans s LEFT JOIN traces t ON s.trace_rowid = t.id",
+            "SELECT name || '!' FROM spans",
+            "SELECT CAST(id AS REAL) / 2 FROM spans",
+            "SELECT id FROM spans ORDER BY name NULLS LAST",
+            "SELECT id FROM spans ORDER BY id FETCH FIRST 5 ROWS ONLY",
+        ],
+    )
+    def test_the_ordinary_analytics_grammar_still_admits(self, sql: str) -> None:
+        """The allowlist is a floor derived from evidence, so the constructs it
+        was derived from must keep working -- on both backends."""
+        for dialect in ("postgresql", "sqlite"):
+            result = self._admit(sql, cast(DialectName, dialect))
+            assert "not part of the permitted grammar" not in result.detail, f"{dialect}: {sql}"
+
+    @pytest.mark.parametrize(
+        "sql,construct",
+        [
+            ("SELECT start_time AT TIME ZONE 'UTC' FROM spans", "AtTimeZone"),
+            ("SELECT (ARRAY[1,2])[1] FROM spans", "Bracket"),
+        ],
+    )
+    def test_an_unconsidered_construct_is_refused(self, sql: str, construct: str) -> None:
+        """Both were admitted before, decided by nothing."""
+        result = self._admit(sql)
+
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert construct in result.detail
+
+    def test_a_lossy_shape_keeps_its_own_message(self) -> None:
+        """The structural policy runs after the lossy-shape checks, which name
+        the hazard and a spelling that works. Told only that `HexString` is not
+        in the grammar, a caller learns nothing."""
+        result = self._admit("SELECT id FROM spans WHERE id = 0x1f", cast(DialectName, "sqlite"))
+
+        assert "decimal" in result.detail
+        assert "not part of the permitted grammar" not in result.detail
