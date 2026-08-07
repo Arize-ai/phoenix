@@ -171,6 +171,7 @@ const TableBody = <T extends { id: string }>({
                 <td
                   key={cell.id}
                   className={TABLE_DATA_CELL_CLASS}
+                  data-column-id={cell.column.id}
                   style={{
                     width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
                     maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
