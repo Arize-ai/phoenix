@@ -853,6 +853,14 @@
     <lastmod>2026-06-02T15:33:22+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/cohere</loc>
+    <lastmod>2026-08-07T22:40:57+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/cohere/cohere-tracing</loc>
+    <lastmod>2026-08-07T22:40:57+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -889,6 +897,14 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/ollama</loc>
+    <lastmod>2026-08-07T22:40:57+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/ollama/ollama-tracing</loc>
+    <lastmod>2026-08-07T22:40:57+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/openai</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -923,6 +939,14 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing</loc>
     <lastmod>2026-07-08T22:09:50+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/together</loc>
+    <lastmod>2026-08-07T22:40:57+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/together/together-tracing</loc>
+    <lastmod>2026-08-07T22:40:57+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/vertexai</loc>
@@ -991,6 +1015,14 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/typescript/vercel/eve-tracing</loc>
     <lastmod>2026-07-06T16:57:24+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/ag2</loc>
+    <lastmod>2026-08-07T22:40:57+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/ag2/ag2-tracing</loc>
+    <lastmod>2026-08-07T22:40:57+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/python/agentspec</loc>
