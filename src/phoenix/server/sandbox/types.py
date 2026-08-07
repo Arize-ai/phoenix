@@ -402,15 +402,6 @@ class TenkiDeployment(_BaseModel):
             "SaaS (``https://api.tenki.cloud``) if unset."
         ),
     )
-    project_id: Optional[str] = Field(
-        default=None,
-        title="Tenki Project ID",
-        description=(
-            "Tenki project that new sandboxes are created in. Leave empty to auto-resolve "
-            "the first project the API key can see; set it to pin a specific project when "
-            "the key spans more than one."
-        ),
-    )
 
     @field_validator("api_url", mode="after")
     @classmethod
@@ -488,7 +479,7 @@ class DaytonaCredentials(_BaseModel):
 class TenkiCredentials(_BaseModel):
     TENKI_API_KEY: SecretStr = Field(
         title="Tenki API Key",
-        description="API key (``tk_...``) for the Tenki Sandbox service.",
+        description="API key (``tk_...``) for the Tenki Cloud service.",
     )
 
 

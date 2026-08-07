@@ -4286,12 +4286,10 @@ input TenkiConfigInput {
 
 type TenkiDeploymentData {
   apiUrl: String
-  projectId: String
 }
 
 input TenkiDeploymentInput {
   apiUrl: String = null
-  projectId: String = null
 }
 
 type TestGenerativeModelCustomProviderCredentialsResult {

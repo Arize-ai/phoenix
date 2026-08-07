@@ -15,7 +15,6 @@ _CANONICAL_API_KEY = "TENKI_API_KEY"
 _CREDS = TenkiCredentials(TENKI_API_KEY=SecretStr("tk_test"))
 _EMPTY_CREDS = TenkiCredentials(TENKI_API_KEY=SecretStr(""))
 _DEPLOY = TenkiDeployment()
-_PINNED = "proj_pinned"
 
 
 def _make_command_result(
@@ -25,7 +24,7 @@ def _make_command_result(
     stderr: str = "",
     exit_code: int = 0,
 ) -> MagicMock:
-    """Stand-in for ``tenki_sandbox.CommandResult``.
+    """Stand-in for ``tenki.CommandResult``.
 
     The real class isn't importable when the ``tenki`` extra is absent (the
     unit-test CI job is one such environment), so tests use a mock exposing the
@@ -40,38 +39,16 @@ def _make_command_result(
     return result
 
 
-def _make_identity(project_id: str | None = "proj_resolved") -> MagicMock:
-    """Stand-in for the ``who_am_i`` ``Identity``: workspaces → projects.
-
-    ``project_id=None`` yields a workspace with no projects (the
-    unresolvable-key case).
-    """
-    workspace = MagicMock()
-    if project_id is None:
-        workspace.projects = []
-    else:
-        project = MagicMock()
-        project.id = project_id
-        workspace.projects = [project]
-    identity = MagicMock()
-    identity.workspaces = [workspace]
-    return identity
-
-
-def _make_mock_client(
-    exec_result: Any = None,
-    resolved_project_id: str = "proj_resolved",
-) -> MagicMock:
+def _make_mock_client(exec_result: Any = None) -> MagicMock:
     """Build a mock ``AsyncClient`` whose ``create`` yields a usable sandbox.
 
     The sandbox exposes an ``exec`` coroutine and ``close_if_open``; the client
-    exposes ``who_am_i`` (identity resolution), ``create``, and ``close``.
+    exposes ``create`` and ``close``.
     """
     sandbox = MagicMock()
     sandbox.exec = AsyncMock(return_value=exec_result or _make_command_result())
     sandbox.close_if_open = AsyncMock()
     client = MagicMock()
-    client.who_am_i = AsyncMock(return_value=_make_identity(resolved_project_id))
     client.create = AsyncMock(return_value=sandbox)
     client.list = AsyncMock(return_value=[])  # reap-by-tag finds no orphans by default
     client.close = AsyncMock()
@@ -81,25 +58,20 @@ def _make_mock_client(
 # --- _create_kwargs -------------------------------------------------------
 
 
-def test_create_kwargs_includes_project_id() -> None:
-    backend = TenkiSandboxBackend(api_key=_API_KEY)
-    assert backend._create_kwargs("proj_x", None, "tag")["project_id"] == "proj_x"
-
-
 def test_create_kwargs_defaults_to_allow_outbound_true() -> None:
     backend = TenkiSandboxBackend(api_key=_API_KEY)
-    assert backend._create_kwargs("p", None, "tag")["allow_outbound"] is True
+    assert backend._create_kwargs(None, "tag")["allow_outbound"] is True
 
 
 @pytest.mark.parametrize("allow", [True, False])
 def test_create_kwargs_forwards_allow_internet_access(allow: bool) -> None:
     backend = TenkiSandboxBackend(api_key=_API_KEY, allow_internet_access=allow)
-    assert backend._create_kwargs("p", None, "tag")["allow_outbound"] is allow
+    assert backend._create_kwargs(None, "tag")["allow_outbound"] is allow
 
 
 def test_create_kwargs_tags_the_sandbox() -> None:
     backend = TenkiSandboxBackend(api_key=_API_KEY)
-    assert backend._create_kwargs("p", None, "phoenix-exec:abc")["tags"] == ["phoenix-exec:abc"]
+    assert backend._create_kwargs(None, "phoenix-exec:abc")["tags"] == ["phoenix-exec:abc"]
 
 
 def test_max_duration_derives_from_timeout() -> None:
@@ -107,10 +79,10 @@ def test_max_duration_derives_from_timeout() -> None:
     max_duration = timeout + headroom; a fixed default applies when unset."""
     backend = TenkiSandboxBackend(api_key=_API_KEY)
     # 900s eval → cap comfortably above it (was hardcoded 600, which truncated).
-    assert backend._create_kwargs("p", 900, "tag")["max_duration"] > 900
-    assert backend._create_kwargs("p", 900, "tag")["max_duration"] == 900 + 300
+    assert backend._create_kwargs(900, "tag")["max_duration"] > 900
+    assert backend._create_kwargs(900, "tag")["max_duration"] == 900 + 300
     # No timeout → fixed default.
-    assert backend._create_kwargs("p", None, "tag")["max_duration"] == 600
+    assert backend._create_kwargs(None, "tag")["max_duration"] == 600
 
 
 def test_create_kwargs_stays_on_stable_features() -> None:
@@ -119,70 +91,9 @@ def test_create_kwargs_stays_on_stable_features() -> None:
     change the guest runtime our ``python3``/pip argv depends on and pull the
     integration off Tenki's stable surface."""
     backend = TenkiSandboxBackend(api_key=_API_KEY)
-    kwargs = backend._create_kwargs("p", None, "tag")
+    kwargs = backend._create_kwargs(None, "tag")
     for forbidden in ("image", "snapshot_id", "volumes", "sticky"):
         assert forbidden not in kwargs
-
-
-# --- project resolution ---------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_resolve_project_id_from_identity() -> None:
-    client = _make_mock_client(resolved_project_id="proj_from_key")
-    backend = TenkiSandboxBackend(api_key=_API_KEY)
-    assert await backend._resolve_project_id(client) == "proj_from_key"
-    client.who_am_i.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_resolve_project_id_is_cached() -> None:
-    client = _make_mock_client()
-    backend = TenkiSandboxBackend(api_key=_API_KEY)
-    await backend._resolve_project_id(client)
-    await backend._resolve_project_id(client)
-    client.who_am_i.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_resolve_project_id_concurrent_calls_resolve_once() -> None:
-    """A batch whose first calls race must fire who_am_i() exactly once
-    (the resolution lock + re-check guarantees it)."""
-    import asyncio
-
-    calls = 0
-
-    async def _slow_who_am_i() -> Any:
-        nonlocal calls
-        calls += 1
-        await asyncio.sleep(0.01)  # widen the race window before the cache fills
-        return _make_identity("proj_x")
-
-    client = MagicMock()
-    client.who_am_i = AsyncMock(side_effect=_slow_who_am_i)
-    backend = TenkiSandboxBackend(api_key=_API_KEY)
-
-    results = await asyncio.gather(*(backend._resolve_project_id(client) for _ in range(5)))
-
-    assert results == ["proj_x"] * 5
-    assert calls == 1
-
-
-@pytest.mark.asyncio
-async def test_resolve_project_id_skips_who_am_i_when_pinned() -> None:
-    client = _make_mock_client()
-    backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
-    assert await backend._resolve_project_id(client) == _PINNED
-    client.who_am_i.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_resolve_project_id_raises_when_key_has_no_project() -> None:
-    client = MagicMock()
-    client.who_am_i = AsyncMock(return_value=_make_identity(project_id=None))
-    backend = TenkiSandboxBackend(api_key=_API_KEY)
-    with pytest.raises(RuntimeError, match="no workspace/project"):
-        await backend._resolve_project_id(client)
 
 
 # --- execute --------------------------------------------------------------
@@ -191,7 +102,7 @@ async def test_resolve_project_id_raises_when_key_has_no_project() -> None:
 @pytest.mark.asyncio
 async def test_execute_runs_code_via_python_argv() -> None:
     client = _make_mock_client()
-    backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY)
     with patch.object(backend, "_get_client", return_value=client):
         await backend.execute("print('hi')", session_key="s1")
     sandbox = client.create.return_value
@@ -200,18 +111,22 @@ async def test_execute_runs_code_via_python_argv() -> None:
 
 
 @pytest.mark.asyncio
-async def test_execute_creates_in_resolved_project() -> None:
-    client = _make_mock_client(resolved_project_id="proj_from_key")
-    backend = TenkiSandboxBackend(api_key=_API_KEY)  # no pinned project
+async def test_execute_sends_no_routing_argument() -> None:
+    """The workspace is resolved server-side from the API key, so create()
+    must carry no routing argument — passing one is now a TypeError."""
+    client = _make_mock_client()
+    backend = TenkiSandboxBackend(api_key=_API_KEY)
     with patch.object(backend, "_get_client", return_value=client):
         await backend.execute("noop", session_key="s1")
-    assert client.create.call_args.kwargs["project_id"] == "proj_from_key"
+    kwargs = client.create.call_args.kwargs
+    assert "project_id" not in kwargs
+    assert "workspace_id" not in kwargs
 
 
 @pytest.mark.asyncio
 async def test_execute_forwards_user_env_and_timeout() -> None:
     client = _make_mock_client()
-    backend = TenkiSandboxBackend(api_key=_API_KEY, user_env={"CI": "1"}, project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY, user_env={"CI": "1"})
     with patch.object(backend, "_get_client", return_value=client):
         await backend.execute("noop", session_key="s1", timeout=5)
     kwargs = client.create.return_value.exec.call_args.kwargs
@@ -223,7 +138,7 @@ async def test_execute_forwards_user_env_and_timeout() -> None:
 @pytest.mark.parametrize("allow", [True, False])
 async def test_execute_forwards_allow_internet_access(allow: bool) -> None:
     client = _make_mock_client()
-    backend = TenkiSandboxBackend(api_key=_API_KEY, allow_internet_access=allow, project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY, allow_internet_access=allow)
     with patch.object(backend, "_get_client", return_value=client):
         await backend.execute("noop", session_key="s1")
     assert client.create.call_args.kwargs["allow_outbound"] is allow
@@ -232,7 +147,7 @@ async def test_execute_forwards_allow_internet_access(allow: bool) -> None:
 @pytest.mark.asyncio
 async def test_execute_tears_down_sandbox_and_client() -> None:
     client = _make_mock_client()
-    backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY)
     with patch.object(backend, "_get_client", return_value=client):
         await backend.execute("noop", session_key="s1")
     client.create.return_value.close_if_open.assert_awaited_once()
@@ -250,7 +165,7 @@ async def test_execute_reaps_orphan_when_create_fails() -> None:
     orphan = MagicMock()
     orphan.close_if_open = AsyncMock()
     client.list = AsyncMock(return_value=[orphan])
-    backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY)
     with patch.object(backend, "_get_client", return_value=client):
         result = await backend.execute("noop", session_key="s1")
     assert result.error is not None
@@ -265,7 +180,7 @@ async def test_execute_tag_within_tenki_length_limit() -> None:
     """Regression guard: Tenki rejects tags over 32 chars. The per-execution
     reap tag passed to create() must stay within that limit."""
     client = _make_mock_client()
-    backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY)
     with patch.object(backend, "_get_client", return_value=client):
         await backend.execute("noop", session_key="s1")
     tag = client.create.await_args.kwargs["tags"][0]
@@ -281,7 +196,7 @@ async def test_execute_reaps_orphan_when_create_cancelled() -> None:
     orphan = MagicMock()
     orphan.close_if_open = AsyncMock()
     client.list = AsyncMock(return_value=[orphan])
-    backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY)
     with patch.object(backend, "_get_client", return_value=client):
         with pytest.raises(asyncio.CancelledError):
             await backend.execute("noop", session_key="s1")
@@ -316,7 +231,7 @@ async def test_execute_caps_concurrency() -> None:
     client = _make_mock_client()
     client.create = AsyncMock(side_effect=_tracking_create)
 
-    backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY)
     with patch.object(backend, "_get_client", return_value=client):
         await asyncio.gather(*(backend.execute("noop", session_key="s") for _ in range(cap * 3)))
 
@@ -328,7 +243,7 @@ async def test_execute_caps_concurrency() -> None:
 async def test_execute_tears_down_even_when_exec_raises() -> None:
     client = _make_mock_client()
     client.create.return_value.exec = AsyncMock(side_effect=RuntimeError("boom"))
-    backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY)
     with patch.object(backend, "_get_client", return_value=client):
         result = await backend.execute("noop", session_key="s1")
     assert result.error == "boom"
@@ -341,7 +256,7 @@ async def test_execute_installs_packages_before_running_code() -> None:
     """Regression guard: a missing install call silently drops
     dependencies.packages for every Tenki evaluation."""
     client = _make_mock_client()
-    backend = TenkiSandboxBackend(api_key=_API_KEY, packages=["cowsay"], project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY, packages=["cowsay"])
     with patch.object(backend, "_get_client", return_value=client):
         await backend.execute("print('hi')", session_key="s1")
     calls = client.create.return_value.exec.call_args_list
@@ -360,7 +275,7 @@ async def test_execute_installs_packages_before_running_code() -> None:
 @pytest.mark.asyncio
 async def test_execute_without_packages_skips_install() -> None:
     client = _make_mock_client()
-    backend = TenkiSandboxBackend(api_key=_API_KEY, packages=None, project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY, packages=None)
     with patch.object(backend, "_get_client", return_value=client):
         await backend.execute("print('hi')", session_key="s1")
     client.create.return_value.exec.assert_awaited_once()
@@ -372,7 +287,7 @@ async def test_package_specs_pass_through_to_exec_unmodified() -> None:
     metacharacters (``>=``, ``[extras]``) must reach pip as-is."""
     client = _make_mock_client()
     specs = ["numpy>=1.0", "requests[security]", "pandas==2.1.0"]
-    backend = TenkiSandboxBackend(api_key=_API_KEY, packages=specs, project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY, packages=specs)
     with patch.object(backend, "_get_client", return_value=client):
         await backend.execute("noop", session_key="s1")
     install_args = client.create.return_value.exec.call_args_list[0].args
@@ -385,7 +300,7 @@ async def test_pip_install_failure_surfaces_as_error() -> None:
     client.create.return_value.exec = AsyncMock(
         return_value=_make_command_result(ok=False, stderr="No matching distribution", exit_code=1)
     )
-    backend = TenkiSandboxBackend(api_key=_API_KEY, packages=["bad-pkg"], project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY, packages=["bad-pkg"])
     with patch.object(backend, "_get_client", return_value=client):
         result = await backend.execute("print('hi')", session_key="s1")
     assert result.error is not None
@@ -397,7 +312,7 @@ async def test_execute_maps_nonzero_exit_to_error() -> None:
     client = _make_mock_client(
         exec_result=_make_command_result(ok=False, stdout="", stderr="Traceback: boom", exit_code=1)
     )
-    backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY)
     with patch.object(backend, "_get_client", return_value=client):
         result = await backend.execute("raise SystemExit(1)", session_key="s1")
     assert result.error == "Traceback: boom"
@@ -409,7 +324,7 @@ async def test_execute_success_has_no_error() -> None:
     client = _make_mock_client(
         exec_result=_make_command_result(ok=True, stdout="hi\n", exit_code=0)
     )
-    backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY)
     with patch.object(backend, "_get_client", return_value=client):
         result = await backend.execute("print('hi')", session_key="s1")
     assert result.stdout == "hi\n"
@@ -427,7 +342,7 @@ async def test_execute_strips_ansi_from_all_fields() -> None:
             exit_code=1,
         )
     )
-    backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY)
     with patch.object(backend, "_get_client", return_value=client):
         result = await backend.execute("noop", session_key="s1")
     assert result.stdout == "ok"
@@ -439,7 +354,7 @@ async def test_execute_strips_ansi_from_all_fields() -> None:
 async def test_execute_wraps_create_exception() -> None:
     client = _make_mock_client()
     client.create = AsyncMock(side_effect=RuntimeError("\x1b[31mprovider error\x1b[0m"))
-    backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
+    backend = TenkiSandboxBackend(api_key=_API_KEY)
     with patch.object(backend, "_get_client", return_value=client):
         result = await backend.execute("noop", session_key="s1")
     assert result.error == "provider error"
@@ -468,7 +383,7 @@ def test_build_backend_translates_internet_access_to_allow_flag(
         credentials=_CREDS,
         deployment=_DEPLOY,
     )
-    assert backend._create_kwargs("p", None, "tag")["allow_outbound"] is expected
+    assert backend._create_kwargs(None, "tag")["allow_outbound"] is expected
 
 
 @pytest.mark.parametrize(
@@ -493,10 +408,9 @@ def test_build_backend_forwards_deployment_routing() -> None:
     backend: TenkiSandboxBackend = adapter.build_backend(  # type: ignore[assignment]
         TenkiConfig(language="PYTHON"),
         credentials=_CREDS,
-        deployment=TenkiDeployment(api_url="https://api.example.com", project_id="proj_x"),
+        deployment=TenkiDeployment(api_url="https://api.example.com"),
     )
     assert backend._api_url == "https://api.example.com"
-    assert backend._project_id == "proj_x"
 
 
 def test_build_backend_requires_api_key() -> None:

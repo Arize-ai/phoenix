@@ -269,12 +269,9 @@ class E2BDeploymentInput:
 @strawberry.input
 class TenkiDeploymentInput:
     api_url: Optional[str] = None
-    project_id: Optional[str] = None
 
     def to_orm(self) -> TenkiDeployment:
-        return TenkiDeployment.model_validate(
-            {"api_url": self.api_url, "project_id": self.project_id}
-        )
+        return TenkiDeployment.model_validate({"api_url": self.api_url})
 
 
 @strawberry.input(one_of=True)

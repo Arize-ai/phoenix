@@ -22,6 +22,7 @@ from .types import (
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
+    SandboxRuntimeContext,
     TenkiConfig,
     TenkiCredentials,
     TenkiDeployment,
@@ -29,7 +30,7 @@ from .types import (
 )
 
 if TYPE_CHECKING:
-    from tenki_sandbox import AsyncClient, AsyncSandbox, CommandResult
+    from tenki import AsyncClient, AsyncSandbox, CommandResult
 
 logger = logging.getLogger(__name__)
 
@@ -92,58 +93,22 @@ class TenkiSandboxBackend(BaseNoSessionBackend):
         allow_internet_access: bool = True,
         packages: Optional[Sequence[str]] = None,
         api_url: Optional[str] = None,
-        project_id: Optional[str] = None,
     ) -> None:
         self._api_key = api_key
         self._user_env: dict[str, str] = dict(user_env or {})
         self._allow_internet_access = allow_internet_access
         self._packages: list[str] = list(packages) if packages else []
         self._api_url = api_url
-        # ``project_id`` is required by the create RPC. When unset we resolve it
-        # once from the API key's identity (first workspace with a project) and
-        # cache it here — mirroring the auto-resolution other Tenki SDKs do.
-        self._project_id = project_id
-        self._resolved_project_id: Optional[str] = project_id
-        # Serializes the one-time who_am_i() resolution so a concurrent first
-        # batch fires the lookup once rather than once per in-flight call.
-        self._project_id_lock = asyncio.Lock()
         self.secret_values = compose_secret_values(user_env, self._api_key)
 
     def _get_client(self) -> AsyncClient:
         """Build an ``AsyncClient``; tests patch this to avoid the tenki extra."""
-        from tenki_sandbox import AsyncClient
+        from tenki import AsyncClient
 
         client_kwargs: dict[str, Any] = {"auth_token": self._api_key.get_secret_value()}
         if self._api_url is not None:
             client_kwargs["base_url"] = self._api_url
         return AsyncClient(**client_kwargs)
-
-    async def _resolve_project_id(self, client: AsyncClient) -> str:
-        """Return the pinned project, else the first project the key can see.
-
-        The create RPC rejects a missing ``project_id`` ("project_id is
-        required"), and the Python SDK does not auto-resolve it, so we do:
-        ``who_am_i`` → first workspace that has a project. The lookup is cached
-        and guarded by a lock, so a batch of evaluations pays the round-trip
-        exactly once even if the first calls run concurrently.
-        """
-        if self._resolved_project_id is not None:
-            return self._resolved_project_id
-        async with self._project_id_lock:
-            # Re-check under the lock: a concurrent caller may have resolved it
-            # while we waited to acquire.
-            if self._resolved_project_id is not None:
-                return self._resolved_project_id
-            identity = await client.who_am_i()
-            for workspace in identity.workspaces:
-                if workspace.projects:
-                    self._resolved_project_id = workspace.projects[0].id
-                    return self._resolved_project_id
-            raise RuntimeError(
-                "Tenki API key resolves to no workspace/project. Use an API key "
-                "scoped to a workspace that has a project, or pin one via the Tenki "
-                "provider's deployment config (project_id)."
-            )
 
     def _max_duration(self, timeout: Optional[int]) -> int:
         """Total sandbox lifetime cap, derived from the evaluation timeout.
@@ -157,19 +122,20 @@ class TenkiSandboxBackend(BaseNoSessionBackend):
             return int(timeout) + _LIFETIME_HEADROOM_SECONDS
         return _DEFAULT_MAX_DURATION_SECONDS
 
-    def _create_kwargs(self, project_id: str, timeout: Optional[int], tag: str) -> dict[str, Any]:
+    def _create_kwargs(self, timeout: Optional[int], tag: str) -> dict[str, Any]:
         """Build kwargs for ``AsyncClient.create()``.
 
-        Omitting ``image`` selects Tenki's stock guest image, which has
-        ``python3`` and ``pip`` on PATH — the runtime our generated ``exec``
-        and pip-install argv rely on. ``allow_outbound`` gates egress; we never
-        request ``sticky``/``snapshot_id``/``volumes`` so the sandbox stays
-        ephemeral and on stable features only. ``tags`` carries a unique
-        per-execution marker so ``_reap`` can find a VM that ``create()``
-        created remotely but was interrupted before returning a handle.
+        The sandbox's workspace is resolved server-side from the API key, so no
+        routing argument is passed. Omitting ``image`` selects Tenki's stock
+        guest image, which has ``python3`` and ``pip`` on PATH — the runtime our
+        generated ``exec`` and pip-install argv rely on. ``allow_outbound``
+        gates egress; we never request ``sticky``/``snapshot_id``/``volumes`` so
+        the sandbox stays ephemeral and on stable features only. ``tags``
+        carries a unique per-execution marker so ``_reap`` can find a VM that
+        ``create()`` created remotely but was interrupted before returning a
+        handle.
         """
         return {
-            "project_id": project_id,
             "wait": True,
             "timeout": _CREATE_TIMEOUT_SECONDS,
             "allow_outbound": self._allow_internet_access,
@@ -222,12 +188,9 @@ class TenkiSandboxBackend(BaseNoSessionBackend):
                 # The sandbox's data plane rides the client's channel, so the
                 # client must outlive the exec; both are torn down in finally.
                 try:
-                    project_id = await self._resolve_project_id(client)
                     sandbox: Optional[AsyncSandbox] = None
                     try:
-                        sandbox = await client.create(
-                            **self._create_kwargs(project_id, timeout, tag)
-                        )
+                        sandbox = await client.create(**self._create_kwargs(timeout, tag))
                         await self._install_packages(sandbox)
                         # Pass the source via argv (``python3 -c <code>``) rather
                         # than a shell string so arbitrary code needs no escaping.
@@ -322,7 +285,7 @@ class TenkiAdapter(SandboxAdapter[TenkiConfig, TenkiCredentials, TenkiDeployment
 
     @classmethod
     def probe_dependencies(cls) -> None:
-        import tenki_sandbox  # noqa: F401
+        import tenki  # noqa: F401
 
     def build_backend(
         self,
@@ -331,6 +294,7 @@ class TenkiAdapter(SandboxAdapter[TenkiConfig, TenkiCredentials, TenkiDeployment
         credentials: TenkiCredentials,
         deployment: TenkiDeployment,
         user_env: Optional[Mapping[str, str]] = None,
+        runtime: Optional[SandboxRuntimeContext] = None,
     ) -> SandboxBackend:
         # Fail-closed: an empty api_key would let the SDK silently fall back to
         # TENKI_AUTH_TOKEN / TENKI_API_KEY in the process env, bypassing
@@ -354,5 +318,4 @@ class TenkiAdapter(SandboxAdapter[TenkiConfig, TenkiCredentials, TenkiDeployment
             allow_internet_access=allow_internet_access,
             packages=packages or None,
             api_url=deployment.api_url,
-            project_id=deployment.project_id,
         )

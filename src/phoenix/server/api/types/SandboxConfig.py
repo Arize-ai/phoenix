@@ -212,9 +212,8 @@ class E2BDeploymentData:
 
 @strawberry.type
 class TenkiDeploymentData:
-    # None values mean "fall back to Tenki's hosted SaaS / key auto-resolution".
+    # None means "fall back to Tenki's hosted SaaS".
     api_url: Optional[str]
-    project_id: Optional[str]
 
 
 SandboxDeployment = Annotated[
@@ -311,7 +310,7 @@ def _deployment_from_stored(stored: Any) -> Optional[SandboxDeployment]:
     if isinstance(dep, E2BDeployment):
         return E2BDeploymentData(domain=dep.domain, api_url=dep.api_url)
     if isinstance(dep, TenkiDeployment):
-        return TenkiDeploymentData(api_url=dep.api_url, project_id=dep.project_id)
+        return TenkiDeploymentData(api_url=dep.api_url)
     return None
 
 

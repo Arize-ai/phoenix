@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eb9def51c1623b1813ef1587ee813166>>
+ * @generated SignedSource<<b766554b526483d4894024648f32f8a7>>
  * @lightSyntaxTransform
  */
 
@@ -37,7 +37,6 @@ export type E2BDeploymentInput = {
 };
 export type TenkiDeploymentInput = {
   apiUrl?: string | null;
-  projectId?: string | null;
 };
 export type SandboxProvidersCardProviderEnabledSwitchMutation$variables = {
   input: UpdateSandboxProviderInput;

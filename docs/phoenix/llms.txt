@@ -406,7 +406,7 @@
 - [Daytona Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/daytona): Configure Daytona credentials and snapshot settings for hosted code evaluation
 - [Vercel Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/vercel): Configure Vercel team and project credentials for hosted code evaluation
 - [Modal Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/modal): Configure Modal token and workspace for hosted Python code evaluation
-- [Tenki Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/tenki): Configure Tenki API key and project for hosted microVM Python code evaluation
+- [Tenki Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/tenki): Configure the Tenki API key for hosted microVM Python code evaluation
 
 ## Concepts
 
