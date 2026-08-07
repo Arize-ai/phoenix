@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import argparse
 import random
 import time
 import uuid
@@ -7,59 +10,82 @@ import pandas as pd
 from phoenix.client import Client
 from phoenix.client.experiments import create_evaluator
 
-phoenix_client = Client()
+try:
+    from ._shared import add_common_arguments, clamp_score, examples, probability
+except ImportError:  # Support direct execution from this directory.
+    from _shared import add_common_arguments, clamp_score, examples, probability
 
-examples = []
-for i in range(300):
-    examples.append(
-        {
-            "question": f"Question {i + 1}: What is the meaning of life?",
-            "answer": f"Answer {i + 1}: The meaning of life is {42 + i}.",
-            "metadata": {
-                "topic": f"topic_{i % 10}",
-                "difficulty": random.choice(["easy", "medium", "hard"]),
-            },
-        }
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Seed a large experiment for pagination and mixed-result UI testing."
+    )
+    add_common_arguments(parser, default_examples=300)
+    parser.add_argument("--experiment-name", default="pagination-fixture")
+    parser.add_argument("--evaluator-error-rate", type=probability, default=0.15)
+    parser.add_argument(
+        "--max-latency",
+        type=float,
+        default=0.1,
+        help="Maximum simulated task latency in seconds (default: 0.1).",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    if args.max_latency < 0:
+        raise ValueError("--max-latency must be non-negative")
+    rng = random.Random(args.seed)
+    dataset_rows = examples(args.examples, rng)
+    dataset_name = args.dataset_name or f"pagination-experiment-{uuid.uuid4()}"
+    if args.dry_run:
+        print(f"dataset={dataset_name}")
+        print(f"examples={len(dataset_rows)}")
+        print(f"experiment={args.experiment_name}")
+        print("dry_run=true")
+        return 0
+
+    client = Client(base_url=args.endpoint)
+    dataset = client.datasets.create_dataset(
+        name=dataset_name,
+        dataframe=pd.DataFrame(dataset_rows),
+        input_keys=["question"],
+        output_keys=["answer"],
+        metadata_keys=["metadata"],
     )
 
-df = pd.DataFrame(examples)
+    def answer_question(input: dict[str, Any], expected: dict[str, Any]) -> str:
+        time.sleep(rng.uniform(0, args.max_latency))
+        return str(expected["answer"])
 
-dataset_name = "multipage-experiment-dataset-" + str(uuid.uuid4())
-dataset = phoenix_client.datasets.create_dataset(
-    name=dataset_name,
-    dataframe=df,
-    input_keys=["question"],
-    output_keys=["answer"],
-    metadata_keys=["metadata"],
-)
+    @create_evaluator(name="quality", kind="code")
+    def quality(
+        input: dict[str, Any],
+        output: str,
+        expected: dict[str, Any],
+        metadata: dict[str, Any],
+    ) -> float:
+        difficulty = metadata.get("difficulty", "medium")
+        bias = {"easy": 0.86, "medium": 0.72, "hard": 0.58}.get(difficulty, 0.7)
+        return clamp_score(rng.gauss(bias, 0.1))
+
+    @create_evaluator(name="groundedness", kind="code")
+    def groundedness(input: dict[str, Any], output: str, expected: dict[str, Any]) -> float:
+        if rng.random() < args.evaluator_error_rate:
+            raise RuntimeError("Synthetic evaluator timeout")
+        return clamp_score(rng.gauss(0.74, 0.12))
+
+    experiment = client.experiments.run_experiment(
+        dataset=dataset,
+        task=answer_question,
+        experiment_name=args.experiment_name,
+        evaluators=[quality, groundedness],
+    )
+    print(f"dataset={dataset_name}")
+    print(f"experiment={experiment}")
+    return 0
 
 
-def dummy_task(input: dict[str, Any]) -> str:
-    question = input["question"]
-    time.sleep(random.uniform(0, 0.1))  # random latency
-    return f"Dummy response to: {question}"
-
-
-@create_evaluator(kind="code")
-def random_score(input: dict[str, Any], output: str, expected: dict[str, Any]) -> float:
-    return random.random()
-
-
-@create_evaluator(kind="code")
-def random_score_with_bias(input: dict[str, Any], output: str, expected: dict[str, Any]) -> float:
-    if random.random() < 0.5:
-        raise RuntimeError("Stochastic evaluator error occurred.")
-    question_num = int(input["question"].split()[1].rstrip(":"))
-    base_score = 0.5 + (question_num % 10) * 0.05  # Bias towards 0.5-1.0
-    return min(1.0, base_score + random.uniform(-0.2, 0.2))
-
-
-experiment = phoenix_client.experiments.run_experiment(
-    dataset=dataset,
-    task=dummy_task,
-    experiment_name="dummy-experiment",
-    evaluators=[
-        random_score,
-        random_score_with_bias,
-    ],
-)
+if __name__ == "__main__":
+    raise SystemExit(main())

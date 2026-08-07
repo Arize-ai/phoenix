@@ -10,6 +10,15 @@ PNPM := pnpm
 UV := uv
 NODE := node
 
+# Synthetic data generation
+DATAGEN_SCENARIO ?= mixed
+DATAGEN_ENDPOINT ?= $(or $(PHOENIX_COLLECTOR_ENDPOINT),http://localhost:6006)
+DATAGEN_PROJECT ?= $(PHOENIX_PROJECT)
+DATAGEN_SEED ?= 42
+DATAGEN_ARGS ?=
+DATAGEN_EXPERIMENT ?= generate_baseline_metrics_data.py
+DATAGEN_PROJECT_ARG = $(if $(strip $(DATAGEN_PROJECT)),--project-name "$(DATAGEN_PROJECT)")
+
 # Directories
 APP_DIR := app
 JS_DIR := js
@@ -38,6 +47,7 @@ NC := \033[0m # No Color
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	codegen-prompts sync-models schema-ddl check-graphql-permissions gen-otel-models \
+	seed seed-all seed-help seed-experiments \
 	gh-comment-watch \
 	harbor-stage-environments harbor-publish-fixtures harbor-oracle harbor-run harbor-view \
 	clean clean-all
@@ -97,6 +107,10 @@ help: ## Show this help message
 	@echo -e "  check-graphql-permissions - Ensure GraphQL mutations have permission classes"
 	@echo -e ""
 	@echo -e "$(GREEN)Utilities:$(NC)"
+	@echo -e "  $(YELLOW)seed$(NC)                  - Seed Phoenix with realistic traces (configure with DATAGEN_* variables)"
+	@echo -e "  seed-help             - Show options for DATAGEN_SCENARIO (default: mixed)"
+	@echo -e "  seed-all              - Seed traces, datasets, and experiments in one go"
+	@echo -e "  seed-experiments      - Seed datasets and experiments (DATAGEN_EXPERIMENT=<script>)"
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
 	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL (use ARGS= for arguments)"
@@ -371,6 +385,35 @@ build: build-python build-frontend build-ts ## Build everything (Python + fronte
 # Utilities
 #=============================================================================
 
+seed: ## Seed Phoenix with realistic synthetic traces
+	@echo -e "$(CYAN)Seeding Phoenix with the $(DATAGEN_SCENARIO) scenario...$(NC)"
+	@echo -e "  endpoint: $(DATAGEN_ENDPOINT)"
+	@echo -e "  project:  $(or $(DATAGEN_PROJECT),scenario default)"
+	@echo -e "  seed:     $(DATAGEN_SEED)"
+	@$(UV) run python -m scripts.generate_spans "$(DATAGEN_SCENARIO)" \
+		--endpoint "$(DATAGEN_ENDPOINT)" \
+		--seed "$(DATAGEN_SEED)" \
+		$(DATAGEN_PROJECT_ARG) \
+		$(DATAGEN_ARGS)
+	@echo -e "$(GREEN)✓ Phoenix seed data generated$(NC)"
+
+seed-help: ## Show options for the selected datagen scenario
+	@$(UV) run python -m scripts.generate_spans "$(DATAGEN_SCENARIO)" --help
+
+seed-all: ## Seed Phoenix with traces, datasets, and experiments
+	@$(MAKE) --no-print-directory seed DATAGEN_SCENARIO=all
+	@$(MAKE) --no-print-directory seed-experiments
+	@echo -e "$(GREEN)✓ Phoenix seeded with traces, datasets, and experiments$(NC)"
+
+seed-experiments: ## Seed Phoenix with datasets and experiments
+	@echo -e "$(CYAN)Seeding Phoenix with the $(DATAGEN_EXPERIMENT) experiment fixture...$(NC)"
+	@echo -e "  endpoint: $(DATAGEN_ENDPOINT)"
+	@echo -e "  seed:     $(DATAGEN_SEED)"
+	@$(UV) run python scripts/experiments/$(DATAGEN_EXPERIMENT) \
+		--endpoint "$(DATAGEN_ENDPOINT)" \
+		--seed "$(DATAGEN_SEED)" \
+		$(DATAGEN_ARGS)
+	@echo -e "$(GREEN)✓ Phoenix experiment data generated$(NC)"
 
 codegen-prompts: ## Generate prompts code from YAML files
 	@echo -e "$(CYAN)Generating prompts code...$(NC)"

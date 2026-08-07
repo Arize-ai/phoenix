@@ -1,161 +1,160 @@
-from io import StringIO
-from random import randint, sample
-from secrets import token_hex
+from __future__ import annotations
 
-import numpy as np
-import pandas as pd
-from faker import Faker
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+import argparse
 
-fake = Faker()
+try:
+    from ._shared import Generator, add_common_arguments, llm_attributes, positive_int
+except ImportError:  # Support direct execution from this directory.
+    from _shared import Generator, add_common_arguments, llm_attributes, positive_int
 
-endpoint = "http://localhost:6006/v1/traces"
-
-tracer_provider = TracerProvider(resource=Resource({"openinference.project.name": "DEEPLY_NESTED"}))
-tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
-tracer = tracer_provider.get_tracer(__name__)
-
-
-# Convert the tab-delimited string into a DataFrame
-model_provider_data = """
-claude-3-5-sonnet-latest,anthropic
-gemini-pro,google
-gpt-4o,openai
-"""
-
-df = pd.read_csv(StringIO(model_provider_data.strip()), names=["model_name", "provider"], dtype=str)
+QUESTIONS = (
+    "Summarize the account activity and identify the next action.",
+    "Which retrieved facts best answer the customer's question?",
+    "Explain the observed metric change in one paragraph.",
+)
+ANSWERS = (
+    "The account is healthy; the next action is to confirm the pending renewal.",
+    "The product policy and the latest account note provide the strongest evidence.",
+    "Traffic increased during business hours while latency remained stable.",
+)
 
 
-def random_split(total: int, n: int = 5, alpha: float = 1.0) -> list[int]:
-    """
-    Generate n random numbers that sum to total using Dirichlet distribution.
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Generate one deeply nested trace for tree-view and query stress testing."
+    )
+    add_common_arguments(parser, default_project="deeply-nested")
+    parser.add_argument(
+        "--branches",
+        type=positive_int,
+        default=3,
+        help="Chains hanging off the root span (default: 3).",
+    )
+    parser.add_argument(
+        "--children-per-level",
+        type=positive_int,
+        default=3,
+        help="Children each chain span spawns at the next level (default: 3).",
+    )
+    parser.add_argument(
+        "--depth",
+        type=positive_int,
+        default=5,
+        help="Levels of chain nesting beneath each branch (default: 5).",
+    )
+    parser.add_argument(
+        "--max-llm-spans-per-chain",
+        type=positive_int,
+        default=2,
+        help="Maximum LLM children attached to each chain span (default: 2).",
+    )
+    parser.add_argument(
+        "--max-spans",
+        type=positive_int,
+        default=100_000,
+        help="Safety limit for the worst-case generated span count (default: 100000).",
+    )
+    return parser
 
-    Args:
-        total (int): The total sum that the generated numbers should add up to
-        n (int, optional): Number of random numbers to generate. Defaults to 5.
-        alpha (float, optional): Concentration parameter for Dirichlet distribution.
-            Higher values make the distribution more uniform. Defaults to 1.0.
 
-    Returns:
-        numpy.ndarray: Array of n integers that sum to total
-    """
-    # Generate proportions
-    proportions = np.random.dirichlet([alpha] * n)
-
-    # Scale and take floor
-    scaled = proportions * total
-    numbers = np.floor(scaled).astype(int)
-
-    # Distribute the remainder
-    remainder = total - np.sum(numbers)
-
-    # Add 1 to the positions with largest fractional parts
-    fractional_parts = scaled - numbers
-    indices = np.argsort(fractional_parts)[-remainder:]
-    numbers[indices] += 1
-
-    return numbers.tolist()
+def _chain_span_count(branches: int, children: int, depth: int) -> int:
+    return 1 + branches * sum(children**level for level in range(depth))
 
 
-def llm_span() -> None:
-    """
-    Generate a synthetic LLM span with random token counts and model information.
-
-    Creates a span with the following attributes:
-    - openinference.span.kind: Set to "LLM"
-    - llm.token_count.prompt: Random number between 1000-10000
-    - llm.token_count.completion: Random number between 1000-10000
-    - llm.token_count.total: Sum of prompt and completion tokens
-    - llm.token_count.prompt_details.*: Random split of prompt tokens for various details
-    - llm.token_count.completion_details.*: Random split of completion tokens for various details
-    - llm.provider: Random provider from the model list
-    - llm.model_name: Random model name from the model list
-    """
-    with tracer.start_as_current_span(token_hex(6)) as span:
-        span.set_attribute("openinference.span.kind", "LLM")
-        upperbound = 10 ** sample(range(2, 9), k=1)[0]
-        prompt, completion = randint(10, upperbound), randint(10, upperbound)
-        span.set_attribute("llm.token_count.prompt", prompt)
-        span.set_attribute("llm.token_count.completion", completion)
-        span.set_attribute("llm.token_count.total", prompt + completion)
-        for prefix, (total, subtotals) in {
-            "prompt_details": (
-                prompt,
-                ["audio", "video", "image", "document", "cached_read", "cache_write"],
+def _generate_llm_spans(generator: Generator, maximum: int, *, at_least_one: bool) -> None:
+    minimum = 1 if at_least_one else 0
+    for index in range(generator.rng.randint(minimum, maximum)):
+        prompt_index = generator.rng.randrange(len(QUESTIONS))
+        with generator.span(
+            f"llm-answer-{index + 1}",
+            "LLM",
+            attributes=llm_attributes(
+                generator.rng,
+                input_value=QUESTIONS[prompt_index],
+                output_value=ANSWERS[prompt_index],
             ),
-            "completion_details": (
-                completion,
-                ["audio", "video", "image", "document", "reasoning"],
-            ),
-        }.items():
-            if not (keys := sample(subtotals, k=randint(0, len(subtotals)))):
-                continue
-            for key, value in zip(keys, random_split(total, n=len(keys) + 1)):
-                span.set_attribute(f"llm.token_count.{prefix}.{key}", value)
-        row = df.sample(1).iloc[0]
-        span.set_attribute("llm.provider", str(row.provider))
-        span.set_attribute("llm.model_name", str(row.model_name))
-        span.set_attribute("output.value", fake.sentence())
-        span.set_attribute("input.value", fake.sentence())
+        ):
+            pass
 
 
-def create_nested_spans(depth: int, max_depth: int, spans_per_level: int) -> None:
-    """
-    Recursively create nested spans to achieve deep nesting with many spans.
+def _generate_level(
+    generator: Generator,
+    *,
+    level: int,
+    depth: int,
+    children: int,
+    max_llm_spans: int,
+) -> None:
+    for child_index in range(children):
+        with generator.span(
+            f"chain-level-{level}-child-{child_index + 1}",
+            "CHAIN",
+            attributes={"synthetic.depth": level},
+        ):
+            _generate_llm_spans(
+                generator,
+                max_llm_spans,
+                at_least_one=level == depth,
+            )
+            if level < depth:
+                _generate_level(
+                    generator,
+                    level=level + 1,
+                    depth=depth,
+                    children=children,
+                    max_llm_spans=max_llm_spans,
+                )
 
-    Args:
-        depth: Current nesting depth
-        max_depth: Maximum depth to nest
-        spans_per_level: Number of child spans to create at each level
-    """
-    if depth >= max_depth:
-        # At max depth, create LLM spans
-        for _ in range(randint(1, 3)):
-            llm_span()
-        return
 
-    # Create child spans at this level
-    for _ in range(spans_per_level):
-        with tracer.start_as_current_span(token_hex(6)) as span:
-            span.set_attribute("openinference.span.kind", "CHAIN")
-            span.set_attribute("depth", depth)
+def generate(args: argparse.Namespace) -> Generator:
+    chain_spans = _chain_span_count(args.branches, args.children_per_level, args.depth)
+    worst_case_spans = chain_spans * (args.max_llm_spans_per_chain + 1)
+    if worst_case_spans > args.max_spans:
+        raise ValueError(
+            "requested topology can generate "
+            f"{worst_case_spans:,} spans, above --max-spans={args.max_spans:,}"
+        )
 
-            # Create some LLM spans at this level
-            for _ in range(randint(0, 2)):
-                llm_span()
+    generator = Generator.from_args(args)
+    try:
+        with generator.span(
+            "deeply-nested-request",
+            "CHAIN",
+            attributes={"session.id": f"nested-session-{args.seed}"},
+            root=True,
+        ):
+            for branch_index in range(args.branches):
+                with generator.span(
+                    f"branch-{branch_index + 1}",
+                    "CHAIN",
+                    attributes={"synthetic.branch": branch_index + 1},
+                ):
+                    _generate_llm_spans(
+                        generator,
+                        args.max_llm_spans_per_chain,
+                        at_least_one=True,
+                    )
+                    if args.depth > 1:
+                        _generate_level(
+                            generator,
+                            level=2,
+                            depth=args.depth,
+                            children=args.children_per_level,
+                            max_llm_spans=args.max_llm_spans_per_chain,
+                        )
+    except BaseException:
+        generator.close()
+        raise
+    return generator
 
-            # Recursively create nested spans
-            create_nested_spans(depth + 1, max_depth, spans_per_level)
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    generator = generate(args)
+    generator.close()
+    generator.print_summary()
+    return 0
 
 
-# Create a root span with deeply nested children
-with tracer.start_as_current_span("deeply_nested_root") as root_span:
-    root_span.set_attribute("openinference.span.kind", "CHAIN")
-    root_span.set_attribute("session.id", randint(1, 10))
-
-    # Create multiple branches of deeply nested spans
-    # This will create 100s of spans:
-    # 5 branches * 4 children per level * 8 levels = 5 * 4^8 = ~327k spans
-    # But we'll limit it to create a reasonable number:
-    # 5 branches * 3 children * 6 levels = ~3645 spans
-    # For 100s of spans, we'll use: 3 branches * 3 children * 5 levels = ~729 spans
-    num_branches = 3
-    children_per_level = 3
-    max_depth = 5
-
-    for _ in range(num_branches):
-        with tracer.start_as_current_span(token_hex(6)) as branch_span:
-            branch_span.set_attribute("openinference.span.kind", "CHAIN")
-            branch_span.set_attribute("branch", _)
-
-            # Create some LLM spans at the branch level
-            for _ in range(randint(1, 3)):
-                llm_span()
-
-            # Create deeply nested structure
-            create_nested_spans(depth=1, max_depth=max_depth, spans_per_level=children_per_level)
-
-tracer_provider.force_flush()
+if __name__ == "__main__":
+    raise SystemExit(main())

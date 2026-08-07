@@ -7,7 +7,7 @@
  * 3. Each annotation has:
  *    - Random name from the provided list
  *    - Random label: either "YES" or "NO"
- *    - Random score: an integer between -100,000,000 and 100,000,000
+ *    - Random score between 0 and 1
  *    - Detailed metadata JSON object with model parameters and context
  *    - Random annotator kind: either "HUMAN" or "LLM"
  *    - Multi-paragraph explanation text
@@ -68,7 +68,7 @@ SELECT
     END,
     CASE
         WHEN s.score_missing THEN NULL
-        ELSE floor(random() * 200000001 - 100000000)::int
+        ELSE random()
     END,
     CASE
         WHEN s.metadata_missing THEN '{}'::jsonb

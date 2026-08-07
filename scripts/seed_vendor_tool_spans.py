@@ -13,6 +13,7 @@ Usage:
         python scripts/seed_vendor_tool_spans.py
 """
 
+import argparse
 import asyncio
 import json
 from datetime import datetime, timedelta, timezone
@@ -526,19 +527,62 @@ SPANS_DATA: list[SpanData] = [
 ]
 
 
-async def main() -> None:
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be at least 1")
+    return parsed
+
+
+def _timestamp(value: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must be an ISO 8601 timestamp") from error
+    if parsed.tzinfo is None:
+        raise argparse.ArgumentTypeError("must include a UTC offset")
+    return parsed.astimezone(timezone.utc)
+
+
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--project-name", default="default")
+    parser.add_argument("--repeat", type=_positive_int, default=1)
+    parser.add_argument(
+        "--start-time",
+        type=_timestamp,
+        help="First trace timestamp (default: current time).",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate and summarize fixtures without writing to the database.",
+    )
+    return parser.parse_args(argv)
+
+
+async def seed(args: argparse.Namespace) -> None:
+    if args.dry_run:
+        print(f"project={args.project_name}")
+        print(f"vendor_fixtures={len(SPANS_DATA)}")
+        print(f"spans={len(SPANS_DATA) * args.repeat}")
+        print("dry_run=true")
+        return
+
     connection_str = get_env_database_connection_str()
     engine = create_engine(connection_str, migrate=False)
 
     async with engine.begin() as conn:
-        result = await conn.execute(select(Project.id).where(Project.name == "default"))
+        result = await conn.execute(select(Project.id).where(Project.name == args.project_name))
         project_id = result.scalar_one_or_none()
         if project_id is None:
-            raise SystemExit("No project named 'default' found")
+            raise SystemExit(f"No project named {args.project_name!r} found")
 
         inserted_span_ids: list[tuple[int, str, str, str]] = []
-        for span_data in SPANS_DATA:
-            start_time = datetime.now(timezone.utc)
+        first_start_time = args.start_time or datetime.now(timezone.utc)
+        fixtures = SPANS_DATA * args.repeat
+        for fixture_index, span_data in enumerate(fixtures):
+            start_time = first_start_time + timedelta(seconds=fixture_index)
             end_time = start_time + span_data["duration"]
 
             trace_id = token_hex(16)
@@ -603,9 +647,14 @@ async def main() -> None:
             else:
                 print(f"  MISSING  id={db_id} span_id={span_id} name={name}")
 
-    print(f"\nDone. {len(SPANS_DATA)} spans inserted.")
+    print(f"\nDone. {len(inserted_span_ids)} spans inserted.")
     await engine.dispose()
 
 
+def main(argv: list[str] | None = None) -> int:
+    asyncio.run(seed(_parse_args(argv)))
+    return 0
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    raise SystemExit(main())

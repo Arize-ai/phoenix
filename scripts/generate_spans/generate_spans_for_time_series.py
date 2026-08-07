@@ -1,253 +1,301 @@
 # /// script
 # dependencies = [
-#   "pandas",
 #   "arize-phoenix-client",
 #   "opentelemetry-sdk",
 #   "opentelemetry-exporter-otlp",
 # ]
 # ///
+from __future__ import annotations
+
+import argparse
+from collections import Counter
 from datetime import datetime, timedelta, timezone
-from io import StringIO
-from random import choice, randint, random, sample
-from secrets import token_hex
-from typing import Iterator, Optional, cast
+from typing import Iterator
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-import numpy as np
-import pandas as pd
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.trace import StatusCode, format_span_id
-from phoenix.client import Client
+from opentelemetry.trace import Span, StatusCode
 
-endpoint = "http://localhost:6006/v1/traces"
-
-tracer_provider = TracerProvider(resource=Resource({"openinference.project.name": "TIME_SERIES"}))
-tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
-tracer = tracer_provider.get_tracer(__name__)
-
-client = Client(base_url="http://localhost:6006")
-
-# Convert the tab-delimited string into a DataFrame
-model_provider_data = """
-gpt-4.1,openai
-gemini-2.5-pro,google
-"""
-
-df = pd.read_csv(StringIO(model_provider_data.strip()), names=["model_name", "provider"], dtype=str)
-
-
-def random_split(total: int, n: int = 5, alpha: float = 1.0) -> list[int]:
-    """
-    Generate n random numbers that sum to total using Dirichlet distribution.
-
-    Args:
-        total (int): The total sum that the generated numbers should add up to
-        n (int, optional): Number of random numbers to generate. Defaults to 5.
-        alpha (float, optional): Concentration parameter for Dirichlet distribution.
-            Higher values make the distribution more uniform. Defaults to 1.0.
-
-    Returns:
-        numpy.ndarray: Array of n integers that sum to total
-    """
-    # Generate proportions
-    proportions = np.random.dirichlet([alpha] * n)
-
-    # Scale and take floor
-    scaled = proportions * total
-    numbers = np.floor(scaled).astype(int)
-
-    # Distribute the remainder
-    remainder = total - np.sum(numbers)
-
-    # Add 1 to the positions with the largest fractional parts
-    fractional_parts = scaled - numbers
-    indices = np.argsort(fractional_parts)[-remainder:]
-    numbers[indices] += 1
-
-    return cast(list[int], numbers.tolist())
+try:
+    from ._shared import (
+        Annotations,
+        Generator,
+        add_common_arguments,
+        duration_for,
+        llm_attributes,
+        ns,
+        poisson,
+        positive_int,
+        probability,
+        random_status,
+        utc_now,
+    )
+except ImportError:  # Support direct execution from this directory.
+    from _shared import (
+        Annotations,
+        Generator,
+        add_common_arguments,
+        duration_for,
+        llm_attributes,
+        ns,
+        poisson,
+        positive_int,
+        probability,
+        random_status,
+        utc_now,
+    )
 
 
-def llm_span(start_time: int, end_time: int) -> ReadableSpan:
-    """
-    Generate a synthetic LLM span with random token counts and model information.
-
-    Creates a span with the following attributes:
-    - openinference.span.kind: Set to "LLM"
-    - llm.token_count.prompt: Random number between 1000-10000
-    - llm.token_count.completion: Random number between 1000-10000
-    - llm.token_count.total: Sum of prompt and completion tokens
-    - llm.token_count.prompt_details.*: Random split of prompt tokens for various details
-    - llm.token_count.completion_details.*: Random split of completion tokens for various details
-    - llm.provider: Random provider from the model list
-    - llm.model_name: Random model name from the model list
-    """
-    with tracer.start_as_current_span(
-        token_hex(6), start_time=start_time, end_on_exit=False
-    ) as span:
-        span.set_attribute("openinference.span.kind", "LLM")
-        upperbound = 10 ** sample(range(2, 9), k=1)[0]
-        prompt, completion = randint(10, upperbound), randint(10, upperbound)
-        span.set_attribute("llm.token_count.prompt", prompt)
-        span.set_attribute("llm.token_count.completion", completion)
-        span.set_attribute("llm.token_count.total", prompt + completion)
-        for prefix, (total, subtotals) in {
-            "prompt_details": (
-                prompt,
-                ["audio", "video", "image", "document", "cached_read", "cache_write"],
-            ),
-            "completion_details": (
-                completion,
-                ["audio", "video", "image", "document", "reasoning"],
-            ),
-        }.items():
-            if not (keys := sample(subtotals, k=randint(0, len(subtotals)))):
-                continue
-            for key, value in zip(keys, random_split(total, n=len(keys) + 1)):
-                span.set_attribute(f"llm.token_count.{prefix}.{key}", value)
-        row = df.sample(1).iloc[0]
-        span.set_attribute("llm.provider", str(row.provider))
-        span.set_attribute("llm.model_name", str(row.model_name))
-    if random() < 0.15:
-        span.set_status(StatusCode.UNSET)
-    elif random() < 0.2:
-        span.set_status(StatusCode.ERROR)
-    else:
-        span.set_status(StatusCode.OK)
-    span.end(end_time=end_time)
-    return span
+# Real instrumentation records why a span failed. An ERROR with no message and no recorded
+# exception renders as a red span with no explanation, which is both unrealistic and useless
+# for judging how the UI presents failures.
+FAILURE_REASONS = (
+    "upstream model returned 429 after 3 retries",
+    "request exceeded the 30s deadline",
+    "connection reset by the model provider",
+    "response failed schema validation",
+)
 
 
-def tool_span(start_time: int, end_time: int) -> ReadableSpan:
-    with tracer.start_as_current_span(
-        token_hex(6), start_time=start_time, end_on_exit=False
-    ) as span:
-        span.set_attribute("openinference.span.kind", "TOOL")
+def non_negative_float(value: str) -> float:
+    parsed = float(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be at least 0")
+    return parsed
 
-    if random() < 0.15:
-        span.set_status(StatusCode.UNSET)
-    elif random() < 0.2:
-        span.set_status(StatusCode.ERROR)
-    else:
-        span.set_status(StatusCode.OK)
-    span.end(end_time=end_time)
-    return span
+
+def timezone_name(value: str) -> str:
+    try:
+        ZoneInfo(value)
+    except ZoneInfoNotFoundError as error:
+        raise argparse.ArgumentTypeError(f"unknown IANA timezone: {value}") from error
+    return value
+
+
+def timestamp(value: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must be an ISO 8601 timestamp") from error
+    if parsed.tzinfo is None:
+        raise argparse.ArgumentTypeError("must include a UTC offset")
+    return parsed.astimezone(timezone.utc)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Generate a realistic business-traffic time series with span annotations."
+    )
+    add_common_arguments(parser, default_project="time-series")
+    parser.add_argument(
+        "--days",
+        type=positive_int,
+        default=14,
+        help="Days of history to backfill, ending at --end-time (default: 14).",
+    )
+    parser.add_argument(
+        "--end-time",
+        type=timestamp,
+        help="Exclusive ISO 8601 end timestamp (default: current time).",
+    )
+    parser.add_argument(
+        "--timezone",
+        type=timezone_name,
+        default="UTC",
+        help="IANA timezone used for traffic patterns (default: UTC).",
+    )
+    parser.add_argument(
+        "--business-rate",
+        type=non_negative_float,
+        default=20.0,
+        help="Mean traces per hour on weekday business hours, 09-17 (default: 20).",
+    )
+    parser.add_argument(
+        "--evening-rate",
+        type=non_negative_float,
+        default=3.0,
+        help="Mean traces per hour on weekday evenings, 17-23 (default: 3).",
+    )
+    parser.add_argument(
+        "--night-rate",
+        type=non_negative_float,
+        default=0.5,
+        help="Mean traces per hour overnight, 23-09 (default: 0.5).",
+    )
+    parser.add_argument(
+        "--weekend-rate",
+        type=non_negative_float,
+        default=2.0,
+        help="Mean traces per hour all day at weekends (default: 2).",
+    )
+    parser.add_argument(
+        "--sessions",
+        type=positive_int,
+        default=10,
+        help="Number of distinct session ids traces are spread across (default: 10).",
+    )
+    parser.add_argument(
+        "--error-rate",
+        type=probability,
+        default=0.12,
+        help="Probability that a generated child span has error status (default: 0.12).",
+    )
+    parser.add_argument(
+        "--annotation-rate",
+        type=probability,
+        default=1.0,
+        help="Fraction of root spans receiving evaluation annotations (default: 1.0).",
+    )
+    parser.add_argument(
+        "--max-traces",
+        type=positive_int,
+        default=100_000,
+        help="Safety limit for sampled traffic (default: 100000).",
+    )
+    return parser
+
+
+def _traffic_rate(local_time: datetime, args: argparse.Namespace) -> float:
+    if local_time.weekday() >= 5:
+        return args.weekend_rate
+    if 9 <= local_time.hour < 17:
+        return args.business_rate
+    if 17 <= local_time.hour < 23:
+        return args.evening_rate
+    return args.night_rate
 
 
 def generate_timestamps(
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
-    rates: Optional[dict[str, float]] = None,
-    local_tz: Optional[timezone] = None,
+    generator: Generator,
+    args: argparse.Namespace,
+    *,
+    end_time: datetime,
 ) -> Iterator[datetime]:
-    """
-    Generate random timestamps with different rates based on local time periods.
-
-    Creates timestamps with different rates for:
-    - Business hours (9 AM - 5 PM local weekdays): Higher rate
-    - Evening hours (5 PM - 11 PM local weekdays): Medium rate
-    - Night hours (11 PM - 9 AM local weekdays): Low rate
-    - Weekend hours (local weekends): Low rate throughout
-
-    Args:
-        start_time: Start of time range in UTC. Defaults to 90 days ago.
-        end_time: End of time range in UTC. Defaults to now.
-        rates: Dictionary with hourly event rates:
-            - "business": Events per hour during business hours (default: 20)
-            - "evening": Events per hour during evening hours (default: 3)
-            - "night": Events per hour during night hours (default: 0.5)
-            - "weekend": Events per hour during weekends (default: 2)
-        local_tz: Local timezone for determining business hours.
-                  Defaults to system timezone.
-
-    Yields:
-        UTC datetime objects in chronological order.
-    """
-    if not start_time:
-        start_time = datetime.now(timezone.utc) - timedelta(days=14)
-    if not end_time:
-        end_time = datetime.now(timezone.utc)
-    if rates is None:
-        rates = {"business": 20, "evening": 3, "night": 0.5, "weekend": 2}
-    if local_tz is None:
-        # Use system timezone as default
-        local_tz = datetime.now().astimezone().tzinfo
-
-    current = start_time.astimezone(local_tz).replace(minute=0, second=0, microsecond=0)
-
+    local_timezone = ZoneInfo(args.timezone)
+    start_time = end_time - timedelta(days=args.days)
+    current = start_time.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    generated = 0
     while current < end_time:
-        # Convert to local time to determine time period
-        is_weekend = current.weekday() >= 5
-        hour = current.hour
-
-        if is_weekend:
-            rate = rates["weekend"]
-        elif 9 <= hour < 17:  # Business hours (local time)
-            rate = rates["business"]
-        elif 17 <= hour < 23:  # Evening hours (local time)
-            rate = rates["evening"]
-        else:  # Night hours (23-24 and 0-9, local time)
-            rate = rates["night"]
-
-        # Generate events for this hour
-        if n := np.random.poisson(rate):
-            # Generate random timestamps within this hour
-            times = current.timestamp() + np.random.uniform(0, 3600, n)
-            for t in sorted(times):
-                yield datetime.fromtimestamp(t, timezone.utc)
-
+        local_time = current.astimezone(local_timezone)
+        count = poisson(generator.rng, _traffic_rate(local_time, args))
+        offsets = sorted(generator.rng.uniform(0, 3_600) for _ in range(count))
+        for offset in offsets:
+            timestamp_utc = current + timedelta(seconds=offset)
+            if start_time <= timestamp_utc < end_time:
+                generated += 1
+                if generated > args.max_traces:
+                    raise ValueError(
+                        f"sampled traffic exceeds --max-traces={args.max_traces:,}; "
+                        "lower the rates or shorten --days"
+                    )
+                yield timestamp_utc
         current += timedelta(hours=1)
 
 
-spans = []
-
-for t in sorted(generate_timestamps(), reverse=True):
-    start_time = int(t.timestamp() * 1e9)
-    end_time = start_time + randint(10_000_000, 10_000_000_000)
-    with tracer.start_as_current_span(
-        token_hex(6),
-        start_time=start_time,
-        end_on_exit=False,
-        attributes={"session.id": choice(range(10))},
-    ) as root_span:
-        # Generate 1-3 LLM spans
-        num_llm_spans = randint(1, 3)
-        for _ in range(num_llm_spans):
-            llm_span(start_time, end_time)
-
-        # Generate 0-2 tool spans
-        if random() < 0.7:
-            num_tool_spans = randint(1, 2)
-            for _ in range(num_tool_spans):
-                tool_span(start_time, end_time)
-    root_span.end(end_time=end_time)
-    spans.append(root_span)
-    span_id = format_span_id(root_span.get_span_context().span_id)
-    score = np.random.beta(2, 5)
-    client.spans.add_span_annotation(
-        span_id=span_id,
-        annotation_name="helpfulness",
-        score=score,
-        label="helpful" if score > 0.5 else "not helpful",
+def _add_annotations(annotations: Annotations, span: Span, generator: Generator) -> None:
+    helpfulness = generator.rng.betavariate(2.5, 3.5)
+    relevance = generator.rng.betavariate(5.0, 2.0)
+    annotations.add(
+        span,
+        "helpfulness",
+        score=helpfulness,
+        label="helpful" if helpfulness >= 0.5 else "not helpful",
     )
-    score = np.random.beta(5, 2)
-    client.spans.add_span_annotation(
-        span_id=span_id,
-        annotation_name="relevant",
-        score=score,
-        label="relevant" if score > 0.5 else "not relevant",
+    annotations.add(
+        span,
+        "relevance",
+        score=relevance,
+        label="relevant" if relevance >= 0.5 else "not relevant",
     )
 
-# use pandas to summarize count group by calendar day
-local_tz = datetime.now().astimezone().tzinfo
-t = pd.Series([pd.to_datetime(span.start_time, unit="ns") for span in spans])
 
-# Convert UTC to local timezone before grouping by date
-t_local = t.dt.tz_localize("UTC").dt.tz_convert(local_tz)
+def generate(
+    args: argparse.Namespace,
+) -> tuple[Generator, Annotations, Counter[str], datetime]:
+    generator = Generator.from_args(args)
+    annotations = Annotations(
+        endpoint=args.endpoint,
+        dry_run=args.dry_run,
+        enabled=args.annotation_rate > 0,
+    )
+    end_time = args.end_time or utc_now()
+    daily_counts: Counter[str] = Counter()
+    try:
+        for timestamp in generate_timestamps(generator, args, end_time=end_time):
+            child_count = generator.rng.randint(1, 3)
+            has_tool = generator.rng.random() < 0.7
+            # Build the children first so the request's duration follows from how much the
+            # model actually generated. Drawing the root duration independently and slicing it
+            # into fractions makes latency and token count uncorrelated, and any scatter of
+            # the two pure noise.
+            children: list[tuple[str, dict[str, object], float]] = []
+            for index in range(child_count):
+                attributes = llm_attributes(generator.rng)
+                completion = int(attributes.get("llm.token_count.completion", 0))
+                children.append(
+                    (f"llm-call-{index + 1}", attributes, duration_for(generator.rng, completion))
+                )
+            if has_tool:
+                children.append(
+                    (
+                        "account-lookup",
+                        {"tool.name": "account_lookup"},
+                        generator.rng.uniform(0.05, 0.4),
+                    )
+                )
+            gaps = [generator.rng.uniform(0.01, 0.08) for _ in children]
+            duration_seconds = sum(d for _, _, d in children) + sum(gaps) + 0.05
+            root_end = timestamp + timedelta(seconds=duration_seconds)
+            root_start_ns = ns(timestamp)
+            root_end_ns = ns(root_end)
+            with generator.span(
+                "assistant-request",
+                "CHAIN",
+                attributes={"session.id": f"session-{generator.rng.randrange(args.sessions) + 1}"},
+                start_time=root_start_ns,
+                end_time=root_end_ns,
+                root=True,
+            ) as root:
+                cursor = timestamp
+                for (child_name, attributes, child_duration), gap in zip(children, gaps):
+                    cursor += timedelta(seconds=gap)
+                    status = random_status(generator.rng, error_rate=args.error_rate)
+                    reason = (
+                        generator.rng.choice(FAILURE_REASONS)
+                        if status is StatusCode.ERROR
+                        else None
+                    )
+                    with generator.span(
+                        child_name,
+                        "TOOL" if child_name == "account-lookup" else "LLM",
+                        attributes=attributes,
+                        start_time=ns(cursor),
+                        end_time=ns(cursor + timedelta(seconds=child_duration)),
+                        status=status,
+                        status_message=reason,
+                    ):
+                        pass
+                    cursor += timedelta(seconds=child_duration)
+            daily_counts[timestamp.astimezone(ZoneInfo(args.timezone)).date().isoformat()] += 1
+            if generator.rng.random() < args.annotation_rate:
+                _add_annotations(annotations, root, generator)
+        annotations.flush()
+    except BaseException:
+        generator.close()
+        raise
+    return generator, annotations, daily_counts, end_time - timedelta(days=args.days)
 
-# Set pandas to display all rows without truncation
-pd.set_option("display.max_rows", None)
-print(t_local.dt.date.value_counts().sort_index())
 
-tracer_provider.force_flush()
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    generator, annotations, daily_counts, start_time = generate(args)
+    generator.close()
+    generator.print_summary(started_at=start_time)
+    print(f"annotations={annotations.count}")
+    print("daily_trace_counts=")
+    for day, count in sorted(daily_counts.items()):
+        print(f"  {day}: {count}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
