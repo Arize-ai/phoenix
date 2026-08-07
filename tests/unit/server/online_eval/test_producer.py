@@ -7,6 +7,7 @@ from sqlalchemy import func, select, update
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.api.evaluators import ContainsEvaluator
 from phoenix.server.online_eval import producer as producer_module
 from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS
 from phoenix.server.online_eval.db_coordinator import (
@@ -42,15 +43,19 @@ async def _seed_criteria(
     """Create a builtin evaluator and a criteria row, returning
     (evaluator_id, criteria_id)."""
     async with db() as session:
-        evaluator = models.BuiltinEvaluator(
-            name=Identifier(root=f"eval-{token_hex(4)}"),
-            kind="BUILTIN",
-            key=token_hex(8),
-            input_schema={},
-            output_configs=[],
+        evaluator = await session.scalar(
+            select(models.BuiltinEvaluator).where(models.BuiltinEvaluator.key == "contains")
         )
-        session.add(evaluator)
-        await session.flush()
+        if evaluator is None:
+            evaluator = models.BuiltinEvaluator(
+                name=Identifier(root="contains"),
+                kind="BUILTIN",
+                key="contains",
+                input_schema={},
+                output_configs=[],
+            )
+            session.add(evaluator)
+            await session.flush()
         criteria = models.ProjectEvaluatorCriteria(
             project_id=project_id,
             evaluator_id=evaluator.id,
@@ -187,6 +192,96 @@ async def test_tick_materializes_matching_spans_and_advances_watermark(
         )
     await producer._tick()
     assert len(await _work_unit_span_rowids(db)) == len(llm_spans)
+
+
+async def test_builtin_implementation_version_changes_fingerprint(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root="contains"),
+            kind="BUILTIN",
+            key="contains",
+            input_schema={},
+            output_configs=[],
+            synced_at=_now(),
+        )
+        session.add(evaluator)
+        await session.flush()
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(root="criteria"),
+            filter_condition="",
+            sampling_rate=1.0,
+            evaluation_target="SPAN",
+        )
+        session.add(criteria)
+        await session.flush()
+
+        first = await resolve_criteria(session, criteria, evaluator)
+        assert first is not None
+        monkeypatch.setattr(ContainsEvaluator, "implementation_version", "2")
+        second = await resolve_criteria(session, criteria, evaluator)
+        assert second is not None
+
+    assert config_fingerprint(first) != config_fingerprint(second)
+
+
+async def test_unregistered_builtin_cannot_resolve_criteria(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root="unregistered"),
+            kind="BUILTIN",
+            key="unregistered",
+            input_schema={},
+            output_configs=[],
+            synced_at=_now(),
+        )
+        session.add(evaluator)
+        await session.flush()
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(root="criteria"),
+            filter_condition="",
+            sampling_rate=1.0,
+            evaluation_target="SPAN",
+        )
+        session.add(criteria)
+        await session.flush()
+
+        assert await resolve_criteria(session, criteria, evaluator) is None
+
+
+async def test_active_criteria_are_bulk_resolved_once(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_id = project.id
+    for _ in range(3):
+        await _seed_criteria(db, project_id)
+
+    call_sizes: list[int] = []
+    resolve_bulk = producer_module.resolve_criteria_bulk
+
+    async def _counting_resolver(*args: Any, **kwargs: Any) -> Any:
+        call_sizes.append(len(args[1]))
+        return await resolve_bulk(*args, **kwargs)
+
+    monkeypatch.setattr(producer_module, "resolve_criteria_bulk", _counting_resolver)
+
+    active = await OnlineEvalProducer(db)._load_active_criteria()
+
+    assert len(active) == 3
+    assert call_sizes == [3]
 
 
 @pytest.mark.parametrize("evaluation_target", ["TRACE", "SESSION"])
@@ -830,6 +925,39 @@ async def test_admission_budget_counts_nonterminal_backlog(db: DbSessionFactory)
     assert await producer._admission_budget() == 0
 
 
+@pytest.mark.parametrize(
+    ("outstanding_count", "expected_budget"),
+    [(2, 1), (3, 0), (4, 0)],
+)
+async def test_admission_budget_count_is_bounded_at_ceiling(
+    db: DbSessionFactory,
+    outstanding_count: int,
+    expected_budget: int,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_criteria(db, project.id)
+    async with db() as session:
+        session.add_all(
+            [
+                models.EvalWorkUnit(
+                    span_rowid=span.id,
+                    evaluator_id=evaluator_id,
+                    criteria_id=criteria_id,
+                    config_fingerprint=f"fp-{token_hex(8)}",
+                )
+                for _ in range(outstanding_count)
+            ]
+        )
+
+    producer = OnlineEvalProducer(db)
+    producer._max_outstanding = 3
+
+    assert await producer._admission_budget() == expected_budget
+
+
 async def test_unexpected_criteria_load_error_fails_closed(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
@@ -851,7 +979,7 @@ async def test_unexpected_criteria_load_error_fails_closed(
     async def _transient_boom(*args: Any, **kwargs: Any) -> None:
         raise RuntimeError("transient version-lookup failure")
 
-    monkeypatch.setattr(producer_module, "resolve_criteria", _transient_boom)
+    monkeypatch.setattr(producer_module, "resolve_criteria_bulk", _transient_boom)
 
     producer = OnlineEvalProducer(db)
     with pytest.raises(RuntimeError, match="transient version-lookup failure"):
@@ -872,7 +1000,7 @@ async def test_uncompilable_filter_is_skipped_without_stalling(db: DbSessionFact
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
     good_evaluator_id, _ = await _seed_criteria(db, project.id)
-    bad_evaluator_id, _ = await _seed_criteria(db, project.id, filter_condition="span_kind ==")
+    _, bad_criteria_id = await _seed_criteria(db, project.id, filter_condition="span_kind ==")
     cursor_id = await _seed_cursor(
         db,
         observed_high_water_id=span.id,
@@ -885,7 +1013,7 @@ async def test_uncompilable_filter_is_skipped_without_stalling(db: DbSessionFact
     async with db() as session:
         units = list(await session.scalars(select(models.EvalWorkUnit)))
     assert {unit.evaluator_id for unit in units} == {good_evaluator_id}
-    assert bad_evaluator_id not in {unit.evaluator_id for unit in units}
+    assert bad_criteria_id not in {unit.criteria_id for unit in units}
     cursor = await _get_cursor(db, cursor_id)
     assert cursor.produced_through_id == span.id
 
