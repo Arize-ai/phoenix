@@ -385,6 +385,11 @@ ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING"
 The outstanding work-unit count above which the online-eval producer stops materializing
 new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Defaults to 10000.
 """
+ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING"
+"""
+The outstanding session work-unit count above which the session sweeper stops materializing
+new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Defaults to 10000.
+"""
 ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE = "PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE"
 """
 The maximum number of work units an online-eval consumer claims per tick. Together with
@@ -3489,6 +3494,22 @@ def get_env_online_eval_max_outstanding() -> int:
     if max_outstanding <= 0:
         raise ValueError(
             f"Invalid value for environment variable {ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING}: "
+            f"{max_outstanding}. Value must be a positive integer."
+        )
+    return max_outstanding
+
+
+def get_env_online_eval_max_session_outstanding() -> int:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING environment variable.
+
+    Counts PENDING + RUNNING + retryable ERROR (non-terminal work).
+    """
+    max_outstanding = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING, 10_000)
+    if max_outstanding <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING}: "
             f"{max_outstanding}. Value must be a positive integer."
         )
     return max_outstanding
