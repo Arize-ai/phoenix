@@ -138,6 +138,13 @@ export const ADD_SESSION_NOTE_IDENTIFIER: ParameterRequirement = {
   minServerVersion: [15, 5, 0],
 };
 
+export const PATCH_PROMPT: RouteRequirement = {
+  kind: "route",
+  method: "PATCH",
+  path: "/v1/prompts/{prompt_identifier}",
+  minServerVersion: [19, 18, 0],
+};
+
 /**
  * Aggregate list of every known capability requirement.
  *
@@ -161,4 +168,5 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   ADD_TRACE_NOTE_IDENTIFIER,
   ADD_SPAN_NOTE_IDENTIFIER,
   ADD_SESSION_NOTE_IDENTIFIER,
+  PATCH_PROMPT,
 ] as const;
