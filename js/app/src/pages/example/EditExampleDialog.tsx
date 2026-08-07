@@ -11,6 +11,7 @@ import {
   Dialog,
   DialogCloseButton,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitleExtra,
   FieldError,
@@ -116,23 +117,6 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
           <DialogHeader>
             <TitleWithID title="Edit Example" id={exampleId} />
             <DialogTitleExtra>
-              <Button
-                variant="primary"
-                size="S"
-                isDisabled={!isValid || isCommitting}
-                leadingVisual={
-                  <Icon
-                    svg={isCommitting ? <Icons.Loading /> : <Icons.Save />}
-                  />
-                }
-                onPress={() =>
-                  handleSubmit((updatedExample) =>
-                    onSubmit(updatedExample, close)
-                  )()
-                }
-              >
-                Save Changes
-              </Button>
               <DialogCloseButton />
             </DialogTitleExtra>
           </DialogHeader>
@@ -264,6 +248,25 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
               </View>
             </Flex>
           </div>
+          <DialogFooter>
+            <Button
+              variant="primary"
+              size="S"
+              isDisabled={!isValid || isCommitting}
+              leadingVisual={
+                <Icon
+                  svg={isCommitting ? <Icons.Loading /> : <Icons.Save />}
+                />
+              }
+              onPress={() =>
+                handleSubmit((updatedExample) =>
+                  onSubmit(updatedExample, close)
+                )()
+              }
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
         </DialogContent>
       )}
     </Dialog>
