@@ -1,8 +1,10 @@
 import logging
 import sqlite3
 from pathlib import Path
+from typing import Any
 
 import pytest
+import sqlean
 
 from phoenix.server.mcp_analytics_sql.execute import _sqlite_authorizer
 
@@ -109,3 +111,62 @@ def test_table_level_reads_are_judged_before_the_transient_accept(sql: str, allo
     finally:
         conn.close()
     assert permitted is allowed
+
+
+class TestProvenance:
+    """The authorizer decided on a table *name*, which the caller can choose.
+
+    A read of an allowlisted table and a read through a database object merely
+    named after one were the same event, because the fifth authorizer argument
+    -- the view or trigger responsible for the access -- was discarded. See F2.
+    """
+
+    @staticmethod
+    def _connection(denials: list) -> Any:
+        connection = sqlean.connect(":memory:")
+        connection.execute("CREATE TABLE spans (id INTEGER, secret TEXT)")
+        connection.execute("INSERT INTO spans VALUES (1, 'hidden-value')")
+        connection.execute("CREATE TEMP VIEW shadow AS SELECT id, secret FROM spans")
+        connection.set_authorizer(
+            _sqlite_authorizer(
+                allow_tables=frozenset({"spans"}),
+                allowed_functions=frozenset({"count"}),
+                denials=denials,
+                introduced_relations=frozenset({"t"}),
+            )
+        )
+        return connection
+
+    def test_a_direct_read_of_an_allowlisted_table_is_permitted(self) -> None:
+        connection = self._connection([])
+        try:
+            assert connection.execute("SELECT secret FROM spans").fetchall() == [("hidden-value",)]
+        finally:
+            connection.close()
+
+    def test_a_relation_the_statement_declared_is_permitted(self) -> None:
+        """A CTE reports its own name as the provenance of the underlying read,
+        so the rule has to admit the ones admission already saw."""
+        connection = self._connection([])
+        try:
+            rows = connection.execute(
+                "WITH t AS (SELECT id FROM spans) SELECT id FROM t"
+            ).fetchall()
+            assert rows == [(1,)]
+        finally:
+            connection.close()
+
+    def test_a_read_through_an_undeclared_view_is_denied(self) -> None:
+        """The object is in the database rather than the statement, so admission
+        never approved it, and this callback cannot see what it selects."""
+        denials: list = []
+        connection = self._connection(denials)
+        try:
+            with pytest.raises(Exception):
+                connection.execute("SELECT secret FROM shadow").fetchall()
+        finally:
+            connection.close()
+
+        assert denials
+        assert denials[-1].identifier == "shadow"
+        assert "did not declare" in denials[-1].message
