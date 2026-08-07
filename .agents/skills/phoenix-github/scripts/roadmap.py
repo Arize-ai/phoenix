@@ -12,9 +12,9 @@ file needed, unlike the sprint board.
     ./roadmap.py --apply         # apply the proposed labels and Status values
 
 Options:
-    --section   current | planning | status | dates   (default: all)
+    --section   progress | planning | freshness | fields   (default: all)
     --apply     write the `needs planning` label and inferred Status values
-    --json      machine-readable output
+    --json      machine-readable output (combines with --apply)
 """
 
 from __future__ import annotations
@@ -35,13 +35,25 @@ NEEDS_PLANNING = "needs planning"
 MIN_LINKED_RATIO = 0.5
 # A current epic untouched for this long has gone quiet.
 STALE_DAYS = 60
+# The repo passed issue #1000 years ago, so a bare low number in a bullet
+# ("Phase #2", "the #1 code path") is prose, not a ticket reference.
+MIN_ISSUE_NUMBER = 1000
 
 OK = "✅"
 WARN = "⚠️"
 NONE = "➖"
 
 _CHECKBOX = re.compile(r"^\s*[-*]\s*\[( |x|X)\]\s*(.+?)\s*$", re.M)
-_ISSUE_REF = re.compile(r"#\d+|https://github\.com/[\w.-]+/[\w.-]+/issues/\d+")
+_ISSUE_REF = re.compile(r"#(\d+)\b|https://github\.com/[\w.-]+/[\w.-]+/issues/(\d+)")
+
+
+def _links_to_issue(text: str) -> bool:
+    """True when a checklist bullet references a real ticket."""
+    for bare, url in _ISSUE_REF.findall(text):
+        if url or int(bare) >= MIN_ISSUE_NUMBER:
+            return True
+    return False
+
 
 _QUERY = """
 query($org: String!, $num: Int!, $endCursor: String) {
@@ -72,7 +84,9 @@ query($org: String!, $num: Int!, $endCursor: String) {
           }
           content {
             ... on Issue {
-              number title url state updatedAt body
+              number title url state body
+              createdAt lastEditedAt
+              comments(last: 1) { nodes { createdAt } }
               labels(first: 30) { nodes { name } }
             }
           }
@@ -98,9 +112,13 @@ class Epic:
         self.initiative: str | None = (node.get("initiative") or {}).get("name")
         self.start: dt.date | None = _date(node.get("start"))
         self.target: dt.date | None = _date(node.get("target"))
-        self.updated: dt.date = dt.datetime.fromisoformat(
-            c["updatedAt"].replace("Z", "+00:00")
-        ).date()
+        # Staleness is measured from *human* activity — the body being edited
+        # (which is how a checklist gets ticked) or someone commenting. Not
+        # `updatedAt`: a label write bumps that, so `--apply` would reset the
+        # clock on exactly the neglected epics it just flagged.
+        touched = [_ts(c.get("createdAt")), _ts(c.get("lastEditedAt"))]
+        touched += [_ts(n.get("createdAt")) for n in (c.get("comments") or {}).get("nodes", [])]
+        self.updated: dt.date = max(d for d in touched if d is not None)
 
         boxes = _CHECKBOX.findall(self.body)
         self.checklist_total = len(boxes)
@@ -110,7 +128,7 @@ class Epic:
         # own history would flag well-run epics as under-planned.
         remaining = [text for mark, text in boxes if mark.lower() != "x"]
         self.open_total = len(remaining)
-        self.open_linked = sum(1 for text in remaining if _ISSUE_REF.search(text))
+        self.open_linked = sum(1 for text in remaining if _links_to_issue(text))
 
     @property
     def is_open(self) -> bool:
@@ -157,6 +175,12 @@ def _date(raw: dict | None) -> dt.date | None:
     if not raw or not raw.get("date"):
         return None
     return dt.date.fromisoformat(raw["date"])
+
+
+def _ts(raw: str | None) -> dt.date | None:
+    if not raw:
+        return None
+    return dt.datetime.fromisoformat(raw.replace("Z", "+00:00")).date()
 
 
 def fetch() -> tuple[list[Epic], dict]:
@@ -215,19 +239,15 @@ def _row(e: Epic, extra: str = "") -> str:
     return f"      #{e.number:<6} {e.title[:52]:<52} {extra}"
 
 
-def report(a: dict, meta: dict, today: dt.date) -> None:
-    cur = a["current"]
-    print(
-        f"\n=== ROADMAP #{ROADMAP_NUMBER} ===  {len(cur)} current epics "
-        f"(started and open) as of {today}"
-    )
-
+def report_progress(a: dict, today: dt.date) -> None:
     print("\n-- PROGRESS --")
-    for e in sorted(cur, key=lambda x: x.number):
+    for e in sorted(a["current"], key=lambda x: x.number):
         flag = f" {WARN} needs planning" if e.needs_planning else ""
         quiet = f" {WARN} quiet {(today - e.updated).days}d" if e in a["quiet"] else ""
         print(f"      #{e.number:<6} {e.title[:44]:<44} {e.progress:>14}{flag}{quiet}")
 
+
+def report_planning(a: dict) -> None:
     print("\n-- SPECIFICITY --")
     np = a["needs_planning"]
     mark = OK if not np else WARN
@@ -251,6 +271,8 @@ def report(a: dict, meta: dict, today: dt.date) -> None:
             f"planned; label should be removed"
         )
 
+
+def report_freshness(a: dict, today: dt.date) -> None:
     print("\n-- FRESHNESS --")
     for key, label in [
         ("quiet", f"current epics untouched for over {STALE_DAYS} days"),
@@ -268,6 +290,8 @@ def report(a: dict, meta: dict, today: dt.date) -> None:
             else:
                 print(_row(e, e.progress))
 
+
+def report_fields(a: dict, meta: dict, today: dt.date) -> None:
     print("\n-- FIELD COVERAGE --")
     ms, ws = a["missing_status"], a["wrong_status"]
     print(
@@ -290,9 +314,28 @@ def report(a: dict, meta: dict, today: dt.date) -> None:
 
     mi = a["missing_initiative"]
     print(
-        f"\n  {NONE} {len(mi)}/{len(cur)} current epics with no Initiative "
+        f"\n  {NONE} {len(mi)}/{len(a['current'])} current epics with no Initiative "
         f"(options: {', '.join(meta['initiative_options'])})"
     )
+
+
+# Section name → what it prints. `--section` picks one; the default runs all.
+SECTIONS = {
+    "progress": lambda a, meta, today: report_progress(a, today),
+    "planning": lambda a, meta, today: report_planning(a),
+    "freshness": lambda a, meta, today: report_freshness(a, today),
+    "fields": lambda a, meta, today: report_fields(a, meta, today),
+}
+
+
+def report(a: dict, meta: dict, today: dt.date, section: str | None = None) -> None:
+    print(
+        f"\n=== ROADMAP #{ROADMAP_NUMBER} ===  {len(a['current'])} current epics "
+        f"(started and open) as of {today}"
+    )
+    for name, render in SECTIONS.items():
+        if section in (None, name):
+            render(a, meta, today)
 
 
 _SET_SELECT = """
@@ -305,7 +348,7 @@ mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
 """
 
 
-def ensure_label() -> None:
+def ensure_label(log) -> None:
     existing = B.gh_json(
         "label",
         "list",
@@ -320,7 +363,7 @@ def ensure_label() -> None:
     )
     if NEEDS_PLANNING in existing:
         return
-    print(f"  Creating label `{NEEDS_PLANNING}` on {B.REPO}...")
+    log(f"  Creating label `{NEEDS_PLANNING}` on {B.REPO}...")
     B.gh(
         "label",
         "create",
@@ -334,32 +377,34 @@ def ensure_label() -> None:
     )
 
 
-def apply(a: dict, meta: dict, today: dt.date) -> int:
+def apply(a: dict, meta: dict, today: dt.date, log=print) -> int:
+    """Write the audit's proposals. `log` goes to stderr under --json so the
+    JSON document on stdout stays parseable."""
     failed = 0
     if a["unflagged"] or a["stale_flag"]:
-        ensure_label()
+        ensure_label(log)
 
     for e in a["unflagged"]:
         try:
             B.gh("issue", "edit", str(e.number), "--repo", B.REPO, "--add-label", NEEDS_PLANNING)
-            print(f"  {OK} #{e.number} labelled `{NEEDS_PLANNING}`")
+            log(f"  {OK} #{e.number} labelled `{NEEDS_PLANNING}`")
         except Exception as exc:
             failed += 1
-            print(f"  {WARN} #{e.number}: {exc}")
+            log(f"  {WARN} #{e.number}: {exc}")
 
     for e in a["stale_flag"]:
         try:
             B.gh("issue", "edit", str(e.number), "--repo", B.REPO, "--remove-label", NEEDS_PLANNING)
-            print(f"  {OK} #{e.number} planning label cleared")
+            log(f"  {OK} #{e.number} planning label cleared")
         except Exception as exc:
             failed += 1
-            print(f"  {WARN} #{e.number}: {exc}")
+            log(f"  {WARN} #{e.number}: {exc}")
 
     for e in a["missing_status"]:
         want = e.inferred_status(today)
         option = meta["status_options"].get(want)
         if not option:
-            print(f"  {WARN} #{e.number}: no Status option named {want!r}")
+            log(f"  {WARN} #{e.number}: no Status option named {want!r}")
             failed += 1
             continue
         try:
@@ -377,10 +422,10 @@ def apply(a: dict, meta: dict, today: dt.date) -> int:
                 "-f",
                 f"query={_SET_SELECT}",
             )
-            print(f"  {OK} #{e.number} Status → {want}")
+            log(f"  {OK} #{e.number} Status → {want}")
         except Exception as exc:
             failed += 1
-            print(f"  {WARN} #{e.number}: {exc}")
+            log(f"  {WARN} #{e.number}: {exc}")
 
     return failed
 
@@ -389,43 +434,45 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--json", action="store_true", dest="as_json")
-    ap.add_argument("--section", choices=["current", "planning", "status", "dates"])
+    ap.add_argument("--section", choices=sorted(SECTIONS))
     args = ap.parse_args()
 
     today = dt.date.today()
     epics, meta = fetch()
     a = audit(epics, today)
 
-    if args.as_json:
-        print(
-            json.dumps(
-                {
-                    k: [e.number for e in v] if k != "current" else [e.number for e in v]
-                    for k, v in a.items()
-                },
-                indent=2,
-            )
-        )
-        return 0
+    # Under --json, progress chatter goes to stderr so stdout stays one JSON
+    # document — but --apply still applies.
+    def log(msg: str) -> None:
+        print(msg, file=sys.stderr if args.as_json else sys.stdout)
 
-    report(a, meta, today)
+    if not args.as_json:
+        report(a, meta, today, args.section)
 
     pending = len(a["unflagged"]) + len(a["stale_flag"]) + len(a["missing_status"])
-    if not args.apply:
+    failed = 0
+    if args.apply and pending:
+        log(f"\nApplying {pending} changes...")
+        failed = apply(a, meta, today, log)
+        log(f"\nDone. {pending - failed} applied, {failed} failed.\n")
+    elif args.apply:
+        log("\nNothing to apply.\n")
+
+    if args.as_json:
+        out = {k: [e.number for e in v] for k, v in a.items()}
+        out["applied"] = {
+            "requested": pending if args.apply else 0,
+            "failed": failed,
+            "dry_run": not args.apply,
+        }
+        print(json.dumps(out, indent=2))
+    elif not args.apply:
         print(
             f"\nDRY RUN — nothing changed. --apply would write "
             f"{len(a['unflagged'])} planning labels, clear {len(a['stale_flag'])}, "
             f"and set {len(a['missing_status'])} Status values.\n"
         )
-        return 0
 
-    if not pending:
-        print("\nNothing to apply.\n")
-        return 0
-
-    print(f"\nApplying {pending} changes...")
-    failed = apply(a, meta, today)
-    print(f"\nDone. {pending - failed} applied, {failed} failed.\n")
     return 1 if failed else 0
 
 
