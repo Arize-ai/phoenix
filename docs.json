@@ -561,6 +561,13 @@
                 ]
               },
               {
+                "group": "Ollama",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/ollama",
+                  "docs/phoenix/integrations/llm-providers/ollama/ollama-tracing"
+                ]
+              },
+              {
                 "group": "OpenAI",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/openai",
