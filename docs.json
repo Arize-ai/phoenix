@@ -532,6 +532,13 @@
                 ]
               },
               {
+                "group": "Cohere",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/cohere",
+                  "docs/phoenix/integrations/llm-providers/cohere/cohere-tracing"
+                ]
+              },
+              {
                 "group": "Google",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/google-gen-ai",

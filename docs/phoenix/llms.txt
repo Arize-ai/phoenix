@@ -260,6 +260,7 @@
 - [Amazon Bedrock SDK JS](https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-sdk-js): Instrument Bedrock SDK in TypeScript
 - [Google GenAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing): Auto-instrument Google GenAI SDK
 - [Gemini Go SDK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk): Instrument google.golang.org/genai using OTel GenAI semantic conventions (Phoenix ingests gen_ai.* attributes)
+- [Cohere Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/cohere/cohere-tracing): Auto-instrument Cohere v2 Python client (chat and chat_stream) with openinference-instrumentation-cohere
 - [Groq Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/groq/groq-tracing): Auto-instrument Groq SDK
 - [LiteLLM Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing): Auto-instrument LiteLLM unified API calls
 - [MistralAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai/mistralai-tracing): Auto-instrument MistralAI SDK
