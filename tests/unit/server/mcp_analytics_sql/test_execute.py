@@ -404,3 +404,37 @@ class TestDeclaredRelationsShadowingPhoenixTables:
             )
 
         assert exc.value.code is ErrorCode.RELATION_NOT_ALLOWED
+
+
+class TestEnvelopeReportsTheExecutedStatement:
+    """`rewrites` names the passes that fired, which is a different claim.
+
+    The generator re-cases, re-spaces, drops comments and respells literals with
+    no pass recorded, so a caller reading `rewrites` can be told nothing changed
+    about a statement that did. See B5.
+    """
+
+    async def test_the_executed_sql_is_reported_when_it_differs(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        db, db_path = analytics_sqlite_db
+        result = await execute_analytics_sql(
+            db,
+            ExecuteParams(sql="select count(*) as c from projects"),
+            sqlite_db_path=db_path,
+        )
+
+        executed = result.envelope["applied"]["executed"]
+        assert executed != "select count(*) as c from projects"
+        assert "LIMIT" in executed.upper()
+
+    async def test_it_is_omitted_when_the_text_is_unchanged(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        """Omitted rather than echoed, so a small answer stays small."""
+        db, db_path = analytics_sqlite_db
+        sql = "SELECT count(*) AS c FROM projects LIMIT 500"
+        result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
+
+        if result.envelope["applied"].get("executed") is not None:
+            assert result.envelope["applied"]["executed"] != sql
