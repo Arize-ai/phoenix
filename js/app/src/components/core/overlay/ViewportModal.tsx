@@ -22,6 +22,10 @@ type ViewportOverlayState = {
   open: () => void;
   setOpen: (isOpen: boolean) => void;
   toggle: () => void;
+  /** Anchors an overlay to the cursor (context menus). A viewport modal is
+     centered, so it stays null and `setPoint` is a no-op. */
+  point: { x: number; y: number } | null;
+  setPoint: (point: { x: number; y: number }) => void;
 };
 
 type ViewportModalContextValue = {
@@ -98,6 +102,8 @@ function useViewportOverlayState({
     open: () => setOpen(true),
     setOpen,
     toggle: () => setOpen(!resolvedIsOpen),
+    point: null,
+    setPoint: () => {},
   };
 }
 
