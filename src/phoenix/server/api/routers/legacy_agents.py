@@ -33,7 +33,7 @@ from phoenix.config import (
     get_env_phoenix_agents_disable_bash,
     get_env_phoenix_agents_web_access_enabled,
 )
-from phoenix.db.types.data_stream_protocol import AssistantMessageMetadata
+from phoenix.db.types.data_stream_protocol import PhoenixAssistantMessageMetadata
 from phoenix.server.agents.context import ChatContext, resolve_contexts
 from phoenix.server.agents.exceptions import AgentError
 from phoenix.server.agents.model_factory import build_model
@@ -41,7 +41,7 @@ from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
 from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.api.routers.agents import (
-    _build_assistant_message_metadata,
+    _build_phoenix_assistant_message_metadata,
     _ensure_project_exists,
     _get_current_context_usage,
     _get_updated_provider_metadata,
@@ -67,7 +67,7 @@ _DEPRECATION_HEADER = "Deprecation"
 _DEPRECATION_HEADER_VALUE = "true"
 
 
-class LegacyAssistantMessageMetadata(AssistantMessageMetadata):
+class LegacyAssistantMessageMetadata(PhoenixAssistantMessageMetadata):
     """Legacy transcripts predate the ``type`` discriminator, so default it here."""
 
     model_config = ConfigDict(extra="allow")
@@ -76,7 +76,7 @@ class LegacyAssistantMessageMetadata(AssistantMessageMetadata):
 
 
 class LegacyAssistantMetadataUIMessage(UIMessage):
-    """``UIMessage`` with ``metadata`` narrowed to ``AssistantMessageMetadata``."""
+    """``UIMessage`` with ``metadata`` narrowed to ``PhoenixAssistantMessageMetadata``."""
 
     metadata: LegacyAssistantMessageMetadata | None = None
 
@@ -245,7 +245,7 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
             yield MessageMetadataChunk(
-                message_metadata=_build_assistant_message_metadata(
+                message_metadata=_build_phoenix_assistant_message_metadata(
                     turn_trace_context=None,
                     session_id=session_id,
                     usage=_get_current_context_usage(result),
