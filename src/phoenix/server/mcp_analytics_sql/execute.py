@@ -317,9 +317,23 @@ def _sqlite_authorizer(
         arg1: Optional[str],
         arg2: Optional[str],
         dbname: Optional[str],
-        trigger: Optional[str],
+        via: Optional[str],
     ) -> int:
-        _ = trigger
+        # `via` is SQLite's fifth authorizer argument: the innermost view or
+        # trigger on whose behalf the access happens, and the only provenance
+        # this callback gets. It was discarded, so a read of `spans` and a read
+        # of something merely *named* `spans` were the same event.
+        #
+        # Measured, because the values are not obvious:
+        #
+        #   SELECT secret FROM spans          ('spans','secret','main',None)
+        #   SELECT count(*) FROM spans        ('spans','',      None,  None)
+        #   WITH t AS (...) SELECT id FROM t  ('spans','id',    'main','t')
+        #   SELECT name FROM v_spans          ('spans','id',    'main','v_spans')
+        #                                     ('v_spans','name','temp',None)
+        #
+        # So a direct base-table read is distinguishable from one reached
+        # through a relation, and the relation names itself.
 
         # Every denial here is a disagreement between admission and the engine,
         # because admission has already checked the caller's tables against the
@@ -356,6 +370,23 @@ def _sqlite_authorizer(
 
         if action == sqlite3.SQLITE_READ:
             table = arg1 or ""
+            # Reached through a relation the statement never declared, which
+            # means a view or trigger standing in the database. Admission
+            # approved a set of tables; it approved no indirection, and this
+            # callback cannot see what the object selects -- so a view named
+            # after an allowlisted table reads as that table and passes.
+            #
+            # Denied rather than resolved, because resolving it needs the view's
+            # definition and there is nothing here to read it with. If curated
+            # views are ever introduced, this is where their names belong: the
+            # rule becomes "this view and no other" rather than "no view".
+            if via is not None and via not in introduced_relations:
+                return deny(
+                    ErrorCode.RELATION_NOT_ALLOWED,
+                    via,
+                    f"read reached through {via!r}, which this statement did not declare",
+                    kind="bypass",
+                )
             # Order matters here, and it did not used to. A table-level read --
             # what `count(*)` emits, since it names no column -- presents with
             # no database attached, exactly like a transient table. So the
