@@ -47,7 +47,9 @@ describe("buildInstrumentationPrompt", () => {
     // code; the variables stay base URLs.
     const prompt = buildInstrumentationPrompt(ARGS);
     expect(prompt).toContain("build the full");
-    expect(prompt).toContain("do not rewrite them to carry the /v1/traces path");
+    expect(prompt).toContain(
+      "do not rewrite them to carry the /v1/traces path"
+    );
   });
 
   it("explains which endpoint variable serves traces and which serves the API", () => {
