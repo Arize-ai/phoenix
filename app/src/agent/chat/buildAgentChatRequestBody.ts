@@ -53,7 +53,7 @@ type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequest"];
  * generated wire contract so a server-side rename fails compilation here.
  */
 type ClientToolTimingMetadata = Pick<
-  components["schemas"]["ToolCallCallbackProviderMetadata"],
+  components["schemas"]["PhoenixToolCallCallbackProviderMetadata"],
   "clientStartedAt" | "clientEndedAt"
 >;
 

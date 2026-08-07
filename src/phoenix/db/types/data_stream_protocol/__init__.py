@@ -15,13 +15,13 @@ from .phoenix_types import (
     TurnTraceContext,
 )
 from .provider_metadata import (
+    PhoenixToolCallCallbackProviderMetadata,
+    PhoenixToolCallProviderMetadata,
     PydanticAIMessageMetadata,
     PydanticAIReasoningProviderMetadata,
     PydanticAITextProviderMetadata,
     PydanticAIToolCallProviderMetadata,
     PydanticAIToolPartKind,
-    ToolCallCallbackProviderMetadata,
-    ToolCallProviderMetadata,
     ToolExecutionEnvironment,
 )
 from .request_types import (
@@ -105,8 +105,8 @@ __all__ = [
     "ToolApprovalRequestedPart",
     "ToolApprovalResponded",
     "ToolApprovalRespondedPart",
-    "ToolCallCallbackProviderMetadata",
-    "ToolCallProviderMetadata",
+    "PhoenixToolCallCallbackProviderMetadata",
+    "PhoenixToolCallProviderMetadata",
     "ToolExecutionEnvironment",
     "ToolInputAvailablePart",
     "ToolInputStreamingPart",
