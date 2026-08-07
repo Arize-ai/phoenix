@@ -58,7 +58,7 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
     if engine:
         version = f" {engine.version}" if engine.version else ""
         extensions = engine.extensions
-        loaded = f"; sqlean extensions: {', '.join(extensions)}" if extensions else ""
+        loaded = f"; sqlean extensions loaded: {', '.join(extensions)}" if extensions else ""
         lines.append(f"-- backend: {engine.name}{version}{loaded}")
     if dialect == "sqlite":
         lines.append(
