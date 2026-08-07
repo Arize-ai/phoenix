@@ -6,6 +6,7 @@ import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDra
 import { Alert } from "@phoenix/components/core/alert";
 import { Button } from "@phoenix/components/core/button";
 import {
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -84,6 +85,7 @@ export const EditLLMEvaluatorDialogContent = ({
           >
             {mode === "create" ? "Create" : "Update"}
           </Button>
+          <DialogCloseButton />
         </DialogTitleExtra>
       </DialogHeader>
       <fieldset
