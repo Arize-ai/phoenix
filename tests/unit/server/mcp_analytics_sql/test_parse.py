@@ -36,6 +36,7 @@ from phoenix.server.mcp_analytics_sql.parse import (
     admit_sql,
     try_parse_and_admit,
 )
+from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
 from tests.unit.server.mcp_analytics_sql.admission_fixtures import minimal_admission_allowlist
 
 CORPUS_PATH = Path(__file__).parent / "admission_corpus.jsonl"
@@ -648,4 +649,55 @@ class TestLossyShapesAreRefused:
         ],
     )
     def test_the_ordinary_spellings_still_admit(self, sql: str) -> None:
+        assert self._admit(sql).outcome is AdmissionOutcome.ADMIT
+
+
+class TestTimestampComparisonCoverage:
+    """Every spelling of a comparison against a timestamp column, not some.
+
+    A literal beside `=` was refused when naive and rewritten to storage format
+    when aware. The same literal inside `IN` got neither, and a double-quoted
+    one was not seen as a literal at all. See D4 and D5.
+    """
+
+    @staticmethod
+    def _admit(sql: str) -> AdmissionResult:
+        return try_parse_and_admit(sql, dialect="sqlite")
+
+    def test_a_naive_literal_in_an_in_list_is_refused(self) -> None:
+        result = self._admit("SELECT id FROM spans WHERE start_time IN ('2026-01-01T10:30:00')")
+
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert "time of day" in result.detail
+
+    def test_an_aware_literal_in_an_in_list_is_rewritten(self) -> None:
+        """Left alone it compares an ISO `T` against a stored space, which
+        matches nothing and reports nothing."""
+        ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)
+        tree = parse_one(
+            "SELECT id FROM spans WHERE start_time IN ('2026-01-01T00:00:00Z')", read="sqlite"
+        )
+
+        rendered = rewrite(tree, ctx).sql(dialect="sqlite")
+
+        assert "2026-01-01 00:00:00" in rendered
+        assert "timestamp_literals" in ctx.applied
+
+    def test_a_double_quoted_operand_is_refused(self) -> None:
+        """SQLite reads it as an identifier, so it is not a literal and every
+        check above looks past it."""
+        result = self._admit('SELECT id FROM spans WHERE start_time > "2026-01-01T00:00:00Z"')
+
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert "double quotes name identifiers" in result.detail
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT id FROM spans WHERE start_time > end_time",
+            "SELECT id FROM spans WHERE start_time > '2026-01-01T00:00:00Z'",
+            "SELECT id FROM spans WHERE start_time IN ('2026-01-01T00:00:00Z')",
+        ],
+    )
+    def test_legitimate_comparisons_still_admit(self, sql: str) -> None:
         assert self._admit(sql).outcome is AdmissionOutcome.ADMIT
