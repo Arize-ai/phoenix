@@ -85,7 +85,6 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.types.data_stream_protocol import (
-    AssistantMessageMetadata,
     AssistantMessageMetadataUsage,
     AssistantMessageMetadataUsageCacheTokenDetails,
     AssistantMessageMetadataUsageTokens,
@@ -96,7 +95,10 @@ from phoenix.db.types.data_stream_protocol import (
     DynamicToolOutputAvailablePart,
     DynamicToolOutputErrorPart,
     DynamicToolUIPart,
+    MessageMetadata,
+    PhoenixAssistantMessageMetadata,
     PhoenixUIMessage,
+    PhoenixUserMessageMetadata,
     ProviderMetadata,
     PydanticAIToolCallProviderMetadata,
     TextUIPart,
@@ -113,7 +115,6 @@ from phoenix.db.types.data_stream_protocol import (
     TurnTraceContext,
     UIMessage,
     UIMessagePart,
-    UserMessageMetadata,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.agents.agent_factory import build_agent
@@ -305,11 +306,12 @@ def _resolve_browser_clock(messages: Sequence[PhoenixUIMessage]) -> AppContext |
     for message in reversed(messages):
         if message.role != "user":
             continue
-        if isinstance(message.metadata, UserMessageMetadata):
+        phoenix_metadata = message.metadata.phoenix if message.metadata is not None else None
+        if isinstance(phoenix_metadata, PhoenixUserMessageMetadata):
             return AppContext(
                 type="app",
-                current_date_time=message.metadata.current_date_time,
-                time_zone=message.metadata.time_zone,
+                current_date_time=phoenix_metadata.current_date_time,
+                time_zone=phoenix_metadata.time_zone,
             )
     return None
 
@@ -415,8 +417,9 @@ class ChatSubmitMessage(_ChatRequestMixin):
             raise ValueError("Only user messages can be submitted")
         if (
             self.message is not None
-            and isinstance(self.message.metadata, UserMessageMetadata)
-            and self.message.metadata.is_compaction_message
+            and self.message.metadata is not None
+            and isinstance(self.message.metadata.phoenix, PhoenixUserMessageMetadata)
+            and self.message.metadata.phoenix.is_compaction_message
         ):
             raise ValueError(
                 "Compaction checkpoints are created by the compact route and cannot be submitted"
@@ -685,9 +688,10 @@ def _message_turn_trace_context(
     if assistant_message is None:
         return None
     metadata = assistant_message.metadata
-    if not isinstance(metadata, AssistantMessageMetadata):
+    phoenix_metadata = metadata.phoenix if metadata is not None else None
+    if not isinstance(phoenix_metadata, PhoenixAssistantMessageMetadata):
         return None
-    return metadata.turn_trace_context
+    return phoenix_metadata.turn_trace_context
 
 
 def _resolve_turn_trace_ids(
@@ -727,15 +731,15 @@ def _turn_parent_context(ids: _TurnTraceIds) -> Context:
     return trace_api.set_span_in_context(NonRecordingSpan(span_context), Context())
 
 
-def _build_assistant_message_metadata(
+def _build_phoenix_assistant_message_metadata(
     *,
     turn_trace_context: TurnTraceContext | None,
     session_id: str,
     usage: RequestUsage | None,
     interrupted: bool = False,
-) -> AssistantMessageMetadata:
+) -> PhoenixAssistantMessageMetadata:
     """Build the metadata payload attached to the turn's assistant message."""
-    return AssistantMessageMetadata(
+    return PhoenixAssistantMessageMetadata(
         type="assistant",
         session_id=session_id,
         turn_trace_context=turn_trace_context,
@@ -752,10 +756,12 @@ def _build_message_metadata_chunk(
 ) -> MessageMetadataChunk:
     """Build the `MessageMetadataChunk` emitted at the end of an agent turn."""
     return MessageMetadataChunk(
-        message_metadata=_build_assistant_message_metadata(
-            session_id=session_id,
-            turn_trace_context=turn_trace_context,
-            usage=usage,
+        message_metadata=MessageMetadata(
+            phoenix=_build_phoenix_assistant_message_metadata(
+                session_id=session_id,
+                turn_trace_context=turn_trace_context,
+                usage=usage,
+            )
         )
     )
 
@@ -2180,11 +2186,13 @@ def _build_compaction_message(*, message_id: str, summary: str) -> PhoenixUIMess
     return PhoenixUIMessage(
         id=message_id,
         role="user",
-        metadata=UserMessageMetadata(
-            type="user",
-            current_date_time=datetime.now(timezone.utc).isoformat(),
-            time_zone="UTC",
-            is_compaction_message=True,
+        metadata=MessageMetadata(
+            phoenix=PhoenixUserMessageMetadata(
+                type="user",
+                current_date_time=datetime.now(timezone.utc).isoformat(),
+                time_zone="UTC",
+                is_compaction_message=True,
+            )
         ),
         parts=[TextUIPart(type="text", text=summary)],
     )
@@ -3128,16 +3136,29 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         if resolved_assistant_message is not None:
                             generated_assistant_message = resolved_assistant_message
                         existing_metadata = generated_assistant_message.metadata
-                        if isinstance(existing_metadata, AssistantMessageMetadata):
+                        if existing_metadata is not None and isinstance(
+                            existing_metadata.phoenix, PhoenixAssistantMessageMetadata
+                        ):
                             interrupted_metadata = existing_metadata.model_copy(
-                                update={"interrupted": True}
+                                update={
+                                    "phoenix": existing_metadata.phoenix.model_copy(
+                                        update={"interrupted": True}
+                                    )
+                                }
                             )
                         else:
-                            interrupted_metadata = _build_assistant_message_metadata(
-                                session_id=otel_session_id,
-                                turn_trace_context=resolved_turn_trace_context,
-                                usage=None,
-                                interrupted=True,
+                            interrupted_metadata = MessageMetadata(
+                                phoenix=_build_phoenix_assistant_message_metadata(
+                                    session_id=otel_session_id,
+                                    turn_trace_context=resolved_turn_trace_context,
+                                    usage=None,
+                                    interrupted=True,
+                                ),
+                                pydantic_ai=(
+                                    existing_metadata.pydantic_ai
+                                    if existing_metadata is not None
+                                    else None
+                                ),
                             )
                         generated_assistant_message = generated_assistant_message.model_copy(
                             update={"metadata": interrupted_metadata}

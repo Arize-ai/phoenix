@@ -2,12 +2,13 @@ import type { UIMessage } from "ai";
 
 import type { components } from "@phoenix/api/__generated__/v1";
 
-export type AssistantMessageMetadata =
-  components["schemas"]["AssistantMessageMetadata"];
+export type PhoenixAssistantMessageMetadata =
+  components["schemas"]["PhoenixAssistantMessageMetadata"];
 
-export type UserMessageMetadata = components["schemas"]["UserMessageMetadata"];
+export type PhoenixUserMessageMetadata =
+  components["schemas"]["PhoenixUserMessageMetadata"];
 
-type AgentMessageMetadata = NonNullable<
+export type AgentMessageMetadata = NonNullable<
   components["schemas"]["PhoenixUIMessage"]["metadata"]
 >;
 
@@ -36,17 +37,18 @@ export type AgentUIMessage = UIMessage<AgentMessageMetadata, AgentUIDataTypes>;
 /** Narrow a message's metadata to the assistant shape. */
 export function getAssistantMessageMetadata(
   message: AgentUIMessage
-): AssistantMessageMetadata | undefined {
-  const metadata = message.metadata;
-  return metadata?.type === "assistant" ? metadata : undefined;
+): PhoenixAssistantMessageMetadata | undefined {
+  const phoenixMetadata = message.metadata?.phoenix;
+  return phoenixMetadata?.type === "assistant" ? phoenixMetadata : undefined;
 }
 
 /** Whether a user-role transcript message is a durable compaction point. */
 export function isCompactionMessage(message: AgentUIMessage): boolean {
+  const phoenixMetadata = message.metadata?.phoenix;
   return (
     message.role === "user" &&
-    message.metadata?.type === "user" &&
-    message.metadata.isCompactionMessage === true
+    phoenixMetadata?.type === "user" &&
+    phoenixMetadata.isCompactionMessage === true
   );
 }
 

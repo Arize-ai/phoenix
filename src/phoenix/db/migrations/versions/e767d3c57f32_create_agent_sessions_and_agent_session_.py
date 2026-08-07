@@ -159,7 +159,7 @@ def upgrade() -> None:
             sa.Boolean,
             sa.Computed(
                 sa.func.coalesce(
-                    message[["metadata", "isCompactionMessage"]].as_boolean(),
+                    message[["metadata", "phoenix", "isCompactionMessage"]].as_boolean(),
                     sa.false(),
                 ),
                 persisted=True,

@@ -21,7 +21,14 @@ type SchemasV1 = componentsV1["schemas"];
  * token usage. Fields are nullable because tracing and usage reporting are
  * optional and may be disabled server-side.
  */
-export type AssistantMessageMetadata = SchemasV1["AssistantMessageMetadata"];
+export type PhoenixAssistantMessageMetadata =
+  SchemasV1["PhoenixAssistantMessageMetadata"];
+
+/**
+ * `UIMessage.metadata` as a registry of namespaces: Phoenix's own fields under
+ * `phoenix`, pydantic-ai's message-level round-trip channel under `pydantic_ai`.
+ */
+export type PxiMessageMetadata = SchemasV1["MessageMetadata"];
 
 /** Transient data chunks streamed alongside assistant message content. */
 type PxiDataTypes = {
@@ -30,7 +37,7 @@ type PxiDataTypes = {
 };
 
 /** A chat message (user or assistant) carrying PXI-specific metadata. */
-export type PxiMessage = UIMessage<AssistantMessageMetadata, PxiDataTypes>;
+export type PxiMessage = UIMessage<PxiMessageMetadata, PxiDataTypes>;
 
 export type BuiltInProvider = SchemasV1["ModelProvider"];
 

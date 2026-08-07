@@ -546,10 +546,11 @@ function markTrailingAssistantMessageInterrupted(
   if (!trailing || trailing.role !== "assistant") {
     return messages;
   }
-  const metadata =
-    trailing.metadata?.type === "assistant"
-      ? { ...trailing.metadata, interrupted: true }
+  const phoenixMetadata =
+    trailing.metadata?.phoenix?.type === "assistant"
+      ? { ...trailing.metadata.phoenix, interrupted: true }
       : { type: "assistant" as const, sessionId, interrupted: true };
+  const metadata = { ...trailing.metadata, phoenix: phoenixMetadata };
   return [...messages.slice(0, -1), { ...trailing, metadata }];
 }
 
@@ -643,8 +644,9 @@ function getCompactionMessageFromResponse(
     message.role !== "user" ||
     !Array.isArray(message.parts) ||
     !isRecord(message.metadata) ||
-    message.metadata.type !== "user" ||
-    message.metadata.isCompactionMessage !== true
+    !isRecord(message.metadata.phoenix) ||
+    message.metadata.phoenix.type !== "user" ||
+    message.metadata.phoenix.isCompactionMessage !== true
   ) {
     return null;
   }

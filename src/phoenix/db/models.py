@@ -3471,7 +3471,7 @@ class AgentSessionMessage(HasId):
         Boolean,
         sa.Computed(
             func.coalesce(
-                message[["metadata", "isCompactionMessage"]].as_boolean(),
+                message[["metadata", "phoenix", "isCompactionMessage"]].as_boolean(),
                 sa.false(),
             ),
             persisted=True,

@@ -9622,62 +9622,6 @@
         ],
         "title": "AssignAnnotationConfigToProjectResponseBody"
       },
-      "AssistantMessageMetadata": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "assistant",
-            "title": "Type"
-          },
-          "sessionId": {
-            "type": "string",
-            "title": "Sessionid"
-          },
-          "turnTraceContext": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/TurnTraceContext"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "usage": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AssistantMessageMetadataUsage"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "interrupted": {
-            "type": "boolean",
-            "title": "Interrupted",
-            "default": false
-          },
-          "pydantic_ai": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PydanticAIMessageMetadata"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "sessionId"
-        ],
-        "title": "AssistantMessageMetadata",
-        "description": "Wire schema for the chat stream's ``message_metadata`` payload."
-      },
       "AssistantMessageMetadataUsage": {
         "properties": {
           "tokens": {
@@ -13393,16 +13337,6 @@
             "type": "boolean",
             "title": "Interrupted",
             "default": false
-          },
-          "pydantic_ai": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PydanticAIMessageMetadata"
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "additionalProperties": true,
@@ -13518,7 +13452,7 @@
           "parts"
         ],
         "title": "LegacyAssistantMetadataUIMessage",
-        "description": "``UIMessage`` with ``metadata`` narrowed to ``AssistantMessageMetadata``."
+        "description": "``UIMessage`` with ``metadata`` narrowed to ``PhoenixAssistantMessageMetadata``."
       },
       "LegacyChatRegenerateMessage": {
         "properties": {
@@ -14050,6 +13984,49 @@
           "auth_method"
         ],
         "title": "LocalUserData"
+      },
+      "MessageMetadata": {
+        "properties": {
+          "phoenix": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PhoenixAssistantMessageMetadata"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PhoenixUserMessageMetadata"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "assistant": "#/components/schemas/PhoenixAssistantMessageMetadata",
+                    "user": "#/components/schemas/PhoenixUserMessageMetadata"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phoenix"
+          },
+          "pydantic_ai": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PydanticAIMessageMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "MessageMetadata",
+        "description": "``UIMessage.metadata`` as a registry of namespaces."
       },
       "ModelProvider": {
         "type": "string",
@@ -14766,6 +14743,52 @@
         ],
         "title": "PatchPromptResponseBody"
       },
+      "PhoenixAssistantMessageMetadata": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "assistant",
+            "title": "Type"
+          },
+          "sessionId": {
+            "type": "string",
+            "title": "Sessionid"
+          },
+          "turnTraceContext": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnTraceContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantMessageMetadataUsage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "interrupted": {
+            "type": "boolean",
+            "title": "Interrupted",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "sessionId"
+        ],
+        "title": "PhoenixAssistantMessageMetadata",
+        "description": "The ``phoenix`` metadata namespace of an assistant message."
+      },
       "PhoenixUIMessage": {
         "properties": {
           "id": {
@@ -14784,27 +14807,12 @@
           "metadata": {
             "anyOf": [
               {
-                "oneOf": [
-                  {
-                    "$ref": "#/components/schemas/AssistantMessageMetadata"
-                  },
-                  {
-                    "$ref": "#/components/schemas/UserMessageMetadata"
-                  }
-                ],
-                "discriminator": {
-                  "propertyName": "type",
-                  "mapping": {
-                    "assistant": "#/components/schemas/AssistantMessageMetadata",
-                    "user": "#/components/schemas/UserMessageMetadata"
-                  }
-                }
+                "$ref": "#/components/schemas/MessageMetadata"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Metadata"
+            ]
           },
           "parts": {
             "items": {
@@ -14887,6 +14895,39 @@
         ],
         "title": "PhoenixUIMessage",
         "description": "``UIMessage`` with metadata narrowed to the Phoenix wire shapes."
+      },
+      "PhoenixUserMessageMetadata": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "user",
+            "title": "Type"
+          },
+          "currentDateTime": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Currentdatetime"
+          },
+          "timeZone": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Timezone"
+          },
+          "isCompactionMessage": {
+            "type": "boolean",
+            "title": "Iscompactionmessage",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "currentDateTime",
+          "timeZone"
+        ],
+        "title": "PhoenixUserMessageMetadata",
+        "description": "The ``phoenix`` metadata namespace the browser attaches to outgoing\nuser messages."
       },
       "PlaygroundBuiltinModelContext": {
         "properties": {
@@ -19836,39 +19877,6 @@
           "user"
         ],
         "title": "UserApiKey"
-      },
-      "UserMessageMetadata": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "user",
-            "title": "Type"
-          },
-          "currentDateTime": {
-            "type": "string",
-            "maxLength": 128,
-            "title": "Currentdatetime"
-          },
-          "timeZone": {
-            "type": "string",
-            "maxLength": 128,
-            "title": "Timezone"
-          },
-          "isCompactionMessage": {
-            "type": "boolean",
-            "title": "Iscompactionmessage",
-            "default": false
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "currentDateTime",
-          "timeZone"
-        ],
-        "title": "UserMessageMetadata",
-        "description": "Wire schema for metadata the browser attaches to outgoing user messages."
       },
       "ValidationError": {
         "properties": {

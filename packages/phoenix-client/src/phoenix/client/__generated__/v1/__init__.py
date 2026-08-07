@@ -417,6 +417,13 @@ class PatchPromptRequestBody(TypedDict):
     metadata: NotRequired[Mapping[str, Any]]
 
 
+class PhoenixUserMessageMetadata(TypedDict):
+    type: Literal["user"]
+    currentDateTime: str
+    timeZone: str
+    isCompactionMessage: NotRequired[bool]
+
+
 class PlaygroundBuiltinModelContext(TypedDict):
     type: Literal["builtin"]
     provider: str
@@ -1071,13 +1078,6 @@ class UserApiKey(TypedDict):
     expires_at: NotRequired[str]
 
 
-class UserMessageMetadata(TypedDict):
-    type: Literal["user"]
-    currentDateTime: str
-    timeZone: str
-    isCompactionMessage: NotRequired[bool]
-
-
 class ValidationError(TypedDict):
     loc: Sequence[Union[str, int]]
     msg: str
@@ -1576,7 +1576,6 @@ class LegacyAssistantMessageMetadata(TypedDict):
     turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
     interrupted: NotRequired[bool]
-    pydantic_ai: NotRequired[PydanticAIMessageMetadata]
 
 
 class ListDatasetExamplesData(TypedDict):
@@ -1592,6 +1591,14 @@ class ListDatasetExamplesResponseBody(TypedDict):
 
 class PatchPromptResponseBody(TypedDict):
     data: Prompt
+
+
+class PhoenixAssistantMessageMetadata(TypedDict):
+    type: Literal["assistant"]
+    sessionId: str
+    turnTraceContext: NotRequired[TurnTraceContext]
+    usage: NotRequired[AssistantMessageMetadataUsage]
+    interrupted: NotRequired[bool]
 
 
 class PlaygroundContext(TypedDict):
@@ -1822,15 +1829,6 @@ class AssignAnnotationConfigToProjectResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
 
-class AssistantMessageMetadata(TypedDict):
-    type: Literal["assistant"]
-    sessionId: str
-    turnTraceContext: NotRequired[TurnTraceContext]
-    usage: NotRequired[AssistantMessageMetadataUsage]
-    interrupted: NotRequired[bool]
-    pydantic_ai: NotRequired[PydanticAIMessageMetadata]
-
-
 class ChatCompletion(TypedDict):
     id: str
     created: int
@@ -1986,6 +1984,11 @@ class LegacyChatSubmitMessage(TypedDict):
     requestedSkills: NotRequired[Sequence[str]]
 
 
+class MessageMetadata(TypedDict):
+    phoenix: NotRequired[Union[PhoenixAssistantMessageMetadata, PhoenixUserMessageMetadata]]
+    pydantic_ai: NotRequired[PydanticAIMessageMetadata]
+
+
 class PatchAgentSessionRequestBody(TypedDict):
     title: NotRequired[str]
     model: NotRequired[Union[CustomProviderModelSelection, BuiltInProviderModelSelection]]
@@ -2023,7 +2026,7 @@ class PhoenixUIMessage(TypedDict):
             StepStartUIPart,
         ]
     ]
-    metadata: NotRequired[Union[AssistantMessageMetadata, UserMessageMetadata]]
+    metadata: NotRequired[MessageMetadata]
 
 
 class PromptAnthropicInvocationParameters(TypedDict):

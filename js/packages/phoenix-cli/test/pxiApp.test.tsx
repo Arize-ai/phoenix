@@ -2204,11 +2204,13 @@ describe("PXI app", () => {
       role: "assistant",
       parts: [{ type: "text", text: "Done.", state: "done" }],
       metadata: {
-        type: "assistant",
-        sessionId: "session-1",
-        usage: {
-          tokens: { prompt: 12000, completion: 345, total: 12345 },
-          promptDetails: { cacheRead: 8000, cacheWrite: 200 },
+        phoenix: {
+          type: "assistant",
+          sessionId: "session-1",
+          usage: {
+            tokens: { prompt: 12000, completion: 345, total: 12345 },
+            promptDetails: { cacheRead: 8000, cacheWrite: 200 },
+          },
         },
       },
     };
@@ -2276,7 +2278,7 @@ describe("PXI /compact command", () => {
     id: "checkpoint-1",
     role: "user",
     metadata: {
-      isCompactionMessage: true,
+      phoenix: { type: "user", isCompactionMessage: true },
     } as unknown as PxiMessage["metadata"],
     parts: [{ type: "text", text: "Summary of the conversation so far." }],
   };
