@@ -2762,13 +2762,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             if (browser_clock := _resolve_browser_clock(transcript_messages)) is not None:
                 resolved_contexts.app = browser_clock
 
-            logger.info(
-                "agent model: %s.%s settings=%r",
-                type(model).__module__,
-                type(model).__qualname__,
-                getattr(model, "settings", None),
-            )
-
             web_access_enabled = (
                 resolved_contexts.web_access is not None
                 and resolved_contexts.web_access.enabled
