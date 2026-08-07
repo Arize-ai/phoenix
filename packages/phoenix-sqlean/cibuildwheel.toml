@@ -17,7 +17,7 @@ test-requires = ["setuptools==83.0.0"]
 test-command = "python -m tests"
 
 [tool.cibuildwheel.linux]
-archs = ["x86_64", "aarch64"]
+archs = ["auto"]
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]
