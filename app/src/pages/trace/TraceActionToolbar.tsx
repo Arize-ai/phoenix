@@ -1,6 +1,6 @@
 import { graphql, useFragment, useMutation } from "react-relay";
 
-import { MessageCopyAction } from "@phoenix/components/agent/MessageCopyAction";
+import { MessageCopyAction } from "@phoenix/components/ai/message/MessageCopyAction";
 import {
   FeedbackActionToolbar,
   type FeedbackValue,
@@ -111,6 +111,9 @@ export function TraceActionToolbar({
       onAnnotate={onAnnotate}
       selectedFeedback={selectedFeedback}
       isSubmittingFeedback={isSubmittingFeedback}
+      trailingActions={
+        copyText != null ? <MessageCopyAction text={copyText} /> : null
+      }
       onFeedback={({ feedback }) => {
         if (isSubmittingFeedback) {
           return;
@@ -136,8 +139,6 @@ export function TraceActionToolbar({
           },
         });
       }}
-    >
-      {copyText != null ? <MessageCopyAction text={copyText} /> : null}
-    </FeedbackActionToolbar>
+    />
   );
 }

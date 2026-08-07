@@ -32,8 +32,8 @@ import {
   Truncate,
   View,
 } from "@phoenix/components";
-import { MessageCopyAction } from "@phoenix/components/agent/MessageCopyAction";
 import { MessageActions } from "@phoenix/components/ai/message/MessageActions";
+import { MessageCopyAction } from "@phoenix/components/ai/message/MessageCopyAction";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
@@ -352,7 +352,8 @@ function SessionTurnDetail({
 }: RootSpanProps & { traceId: string; index: number }) {
   const user = getUserFromRootSpanAttributes(rootSpan.attributes);
   const inputLabel = user != null ? `USER: ${user}` : "INPUT";
-  const inputValue = rootSpan.input?.value ?? "";
+  const inputText = rootSpan.input?.value ?? "";
+  const hasInputText = Boolean(inputText.trim());
 
   return (
     <Flex direction="column" gap="size-200">
@@ -377,9 +378,9 @@ function SessionTurnDetail({
           gap="size-100"
         >
           <RootSpanStartTime rootSpan={rootSpan} />
-          {inputValue.trim().length > 0 ? (
+          {hasInputText ? (
             <MessageActions aria-label="Input message actions">
-              <MessageCopyAction text={inputValue} />
+              <MessageCopyAction text={inputText} />
             </MessageActions>
           ) : null}
         </Flex>
