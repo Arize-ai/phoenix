@@ -103,7 +103,7 @@ Configure where to send your traces:
 **Environment Variables** (Recommended):
 
 ```bash
-export PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com/s/your-space"
+export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"
 export PHOENIX_PROJECT_NAME="my-project"
 ```
 
@@ -135,7 +135,7 @@ tracer_provider = register(
     auto_instrument=True,  # Auto-trace AI/ML libraries
     batch=True,  # Background batching for performance
     api_key="your-api-key",  # Authentication
-    endpoint="https://app.phoenix.arize.com/s/your-space",
+    endpoint="https://your-phoenix-instance.com",
 )
 ```
 
@@ -177,7 +177,7 @@ def weather(location):
 
 | Variable                     | Description          | Example                                      |
 | ---------------------------- | -------------------- | -------------------------------------------- |
-| `PHOENIX_COLLECTOR_ENDPOINT` | Where to send traces | `https://app.phoenix.arize.com/s/your-space` |
+| `PHOENIX_COLLECTOR_ENDPOINT` | Where to send traces | `https://your-phoenix-instance.com`          |
 | `PHOENIX_PROJECT_NAME`       | Project name         | `my-llm-app`                                 |
 | `PHOENIX_API_KEY`            | Authentication key   | `your-api-key`                               |
 | `PHOENIX_CLIENT_HEADERS`     | Custom headers       | `Authorization=Bearer token`                 |

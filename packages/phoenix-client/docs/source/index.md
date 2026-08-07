@@ -52,8 +52,8 @@ client = Client()
 
 client = Client(base_url="http://localhost:6006")  # Local Phoenix server
 
-# Cloud instance with API key
-client = Client(base_url="https://app.phoenix.arize.com/s/your-space", api_key="your-api-key")
+# Remote instance with API key
+client = Client(base_url="https://your-phoenix-instance.com", api_key="your-api-key")
 
 # Custom authentication headers
 client = Client(
@@ -64,7 +64,7 @@ client = Client(
 async_client = AsyncClient()
 async_client = AsyncClient(base_url="http://localhost:6006")
 async_client = AsyncClient(
-    base_url="https://app.phoenix.arize.com/s/your-space", api_key="your-api-key"
+    base_url="https://your-phoenix-instance.com", api_key="your-api-key"
 )
 ```
 
