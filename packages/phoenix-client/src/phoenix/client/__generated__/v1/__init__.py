@@ -1205,23 +1205,23 @@ class AgentErrorData(TypedDict):
     errorText: str
 
 
-class SessionSummaryChunk(TypedDict):
-    type: Literal["data-session-summary"]
-    data: str
-    id: NotRequired[str]
-    transient: NotRequired[bool]
-
-
-class ToolCallCallbackProviderMetadata(TypedDict):
+class PhoenixToolCallCallbackProviderMetadata(TypedDict):
     toolExecutionEnvironment: Literal["client", "server"]
     toolInputEmittedAt: NotRequired[str]
     clientStartedAt: NotRequired[str]
     clientEndedAt: NotRequired[str]
 
 
-class ToolCallProviderMetadata(TypedDict):
+class PhoenixToolCallProviderMetadata(TypedDict):
     toolExecutionEnvironment: Literal["client", "server"]
     toolInputEmittedAt: NotRequired[str]
+
+
+class SessionSummaryChunk(TypedDict):
+    type: Literal["data-session-summary"]
+    data: str
+    id: NotRequired[str]
+    transient: NotRequired[bool]
 
 
 class TranscriptPersistedData(TypedDict):

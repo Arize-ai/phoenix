@@ -97,6 +97,8 @@ from phoenix.db.types.data_stream_protocol import (
     DynamicToolUIPart,
     MessageMetadata,
     PhoenixAssistantMessageMetadata,
+    PhoenixToolCallCallbackProviderMetadata,
+    PhoenixToolCallProviderMetadata,
     PhoenixUIMessage,
     PhoenixUserMessageMetadata,
     ProviderMetadata,
@@ -104,8 +106,6 @@ from phoenix.db.types.data_stream_protocol import (
     TextUIPart,
     ToolApprovalRequestedPart,
     ToolApprovalRespondedPart,
-    ToolCallCallbackProviderMetadata,
-    ToolCallProviderMetadata,
     ToolExecutionEnvironment,
     ToolInputAvailablePart,
     ToolInputStreamingPart,
@@ -218,8 +218,8 @@ recorded under it."""
 
 _PXI_INSTRUMENTATION_SCOPE = InstrumentationScope("phoenix.server.pxi")
 
-register_openapi_schema(ToolCallProviderMetadata)
-register_openapi_schema(ToolCallCallbackProviderMetadata)
+register_openapi_schema(PhoenixToolCallProviderMetadata)
+register_openapi_schema(PhoenixToolCallCallbackProviderMetadata)
 register_openapi_schema(AgentErrorChunk)
 
 
@@ -241,7 +241,7 @@ def _get_updated_provider_metadata(
     tool_execution_environment: ToolExecutionEnvironment = (
         "client" if get_external_tool_definition(tool_name) is not None else "server"
     )
-    new_tool_call_metadata = ToolCallProviderMetadata(
+    new_tool_call_metadata = PhoenixToolCallProviderMetadata(
         tool_execution_environment=tool_execution_environment,
         tool_input_emitted_at=(
             emitted_at.isoformat() if tool_execution_environment == "client" else None
@@ -369,9 +369,9 @@ ToolOutputUIPart = (
     | DynamicToolOutputErrorPart
 )
 
-_ToolCallCallbackProviderMetadataAdapter: TypeAdapter[ToolCallCallbackProviderMetadata] = (
-    TypeAdapter(ToolCallCallbackProviderMetadata)
-)
+_PhoenixToolCallCallbackProviderMetadataAdapter: TypeAdapter[
+    PhoenixToolCallCallbackProviderMetadata
+] = TypeAdapter(PhoenixToolCallCallbackProviderMetadata)
 
 
 class ChatSubmitMessage(_ChatRequestMixin):
@@ -432,7 +432,9 @@ class ChatSubmitMessage(_ChatRequestMixin):
             if isinstance(call_provider_metadata, dict):
                 phoenix_metadata = call_provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY)
                 if phoenix_metadata is not None:
-                    _ToolCallCallbackProviderMetadataAdapter.validate_python(phoenix_metadata)
+                    _PhoenixToolCallCallbackProviderMetadataAdapter.validate_python(
+                        phoenix_metadata
+                    )
             result_provider_metadata = tool_output.result_provider_metadata
             if (
                 isinstance(result_provider_metadata, dict)
@@ -885,7 +887,7 @@ def _emit_turn_root_span(
 @dataclass
 class _ClientToolTimings:
     """Usable timestamps recovered from an echoed ``phoenix`` tool-call
-    namespace (wire contract: ``ToolCallCallbackProviderMetadata``)."""
+    namespace (wire contract: ``PhoenixToolCallCallbackProviderMetadata``)."""
 
     emitted_at: datetime
     client_started_at: datetime | None
@@ -1563,7 +1565,7 @@ def _get_tool_execution_environment(
     phoenix_metadata = part.call_provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY)
     if phoenix_metadata is None:
         return None
-    metadata = _ToolCallCallbackProviderMetadataAdapter.validate_python(phoenix_metadata)
+    metadata = _PhoenixToolCallCallbackProviderMetadataAdapter.validate_python(phoenix_metadata)
     return metadata.tool_execution_environment
 
 
