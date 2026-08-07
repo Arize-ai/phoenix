@@ -22,7 +22,10 @@ import {
   spanFilterAIQueryDSL,
   spanFilterSnippets,
 } from "./spanFilterDSL";
-import { useSpanFilters } from "./SpanFiltersContext";
+import {
+  useSpanFilterActions,
+  useSpanFilterCondition,
+} from "./SpanFiltersContext";
 import {
   openInferenceAttributeCompletions,
   openInferenceAttributeValueCompletionSource,
@@ -114,7 +117,8 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     placeholder = "filter condition (e.x. span_kind == 'LLM')",
   } = props;
   const [isConditionValid, setIsConditionValid] = useState<boolean>(true);
-  const { filterCondition, setFilterCondition } = useSpanFilters();
+  const filterCondition = useSpanFilterCondition();
+  const { setFilterCondition } = useSpanFilterActions();
   const deferredFilterCondition = useDeferredValue(filterCondition);
 
   const projectId = useTracingContext((state) => state.projectId);
