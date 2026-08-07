@@ -116,9 +116,7 @@ client = Client(
 # Asynchronous client (same configuration options)
 async_client = AsyncClient()
 async_client = AsyncClient(base_url="http://localhost:6006")
-async_client = AsyncClient(
-    base_url="https://your-phoenix-instance.com", api_key="your-api-key"
-)
+async_client = AsyncClient(base_url="https://your-phoenix-instance.com", api_key="your-api-key")
 ```
 
 ## Resources
