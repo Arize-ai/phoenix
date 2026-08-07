@@ -173,9 +173,8 @@ class PhoenixUIMessage(UIMessage):
                         f"{_PYDANTIC_AI_PROVIDER_METADATA_KEY!r} provider-metadata namespace"
                     )
             elif isinstance(part, StepStartUIPart | DataUIPart):
-                # These declare no provider-metadata fields, and extra="forbid"
-                # keeps clients from smuggling any in — nothing to validate.
-                pass
+                assert not hasattr(part, "provider_metadata")
+                assert not hasattr(part, "call_provider_metadata")
             else:
                 assert_never(part)
         return self
