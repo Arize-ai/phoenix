@@ -369,6 +369,20 @@ def _sqlite_authorizer(
                     "reading the database catalog is not permitted; "
                     "use describeSqlSchema to discover tables and columns",
                 )
+            # A relation this statement declared, read without a database name.
+            # Ahead of the table check because the two collide: a caller CTE
+            # named after a Phoenix table is a legitimate query, and denying it
+            # here refused the statement and logged it as an admission bypass --
+            # a security incident that never happened.
+            #
+            # The gate is what keeps this from weakening the check. It is not
+            # that base-table reads carry a database name; a bare table-level
+            # read, which `count(*)` emits, carries None like any transient.
+            # It is that while a CTE named `X` is in scope, the only way to name
+            # the base table is `main.X`, and a qualified read does carry
+            # 'main'. So `main.users` is denied exactly as before.
+            if dbname is None and table in introduced_relations:
+                return sqlite3.SQLITE_OK
             # A real table that is not allowlisted is refused however the read
             # presents, with or without a database name.
             if table in _phoenix_table_names() and table not in allow_tables:
@@ -384,12 +398,6 @@ def _sqlite_authorizer(
             # in, not from storage, so the table allowlist has nothing to say
             # about it; whether the function is permitted was already decided.
             if table in SQLITE_TABLE_VALUED_FUNCTIONS:
-                return sqlite3.SQLITE_OK
-            # A CTE or derived table declared by this same statement. The
-            # wrappers applied before execution create such aliases themselves,
-            # so without this a statement is refused for a relation the rewrite
-            # invented.
-            if table in introduced_relations:
                 return sqlite3.SQLITE_OK
             # Anything else with no database attached is a result the engine
             # built for itself, reachable only from rows this statement already
