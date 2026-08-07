@@ -122,6 +122,136 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
     expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(false);
   });
 
+  it("does not continue while a sibling client tool call still awaits feedback", () => {
+    const messages = [
+      createMessage({
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-1",
+            state: "output-available",
+            input: {},
+            output: "done",
+            callProviderMetadata: {
+              phoenix: { toolExecutionEnvironment: "client" },
+            },
+          },
+          {
+            type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-2",
+            state: "input-available",
+            input: {},
+            callProviderMetadata: {
+              phoenix: { toolExecutionEnvironment: "client" },
+            },
+          },
+        ],
+      }),
+    ];
+
+    const shouldSendAutomatically = shouldSendAutomaticallyAfterToolOutput({
+      messages,
+    });
+
+    expect(shouldSendAutomatically).toBe(false);
+    // The keep-open decision must agree with the send gate: an unresolved
+    // sibling both suppresses the send and holds the turn open.
+    expect(
+      shouldKeepTurnOpenForPendingToolOutput({
+        messages,
+        shouldSendAutomatically,
+      })
+    ).toBe(true);
+  });
+
+  it("continues once every sibling client tool call is resolved", () => {
+    const messages = [
+      createMessage({
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-1",
+            state: "output-available",
+            input: {},
+            output: "done",
+            callProviderMetadata: {
+              phoenix: { toolExecutionEnvironment: "client" },
+            },
+          },
+          {
+            type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-2",
+            state: "output-available",
+            input: {},
+            output: "also done",
+            callProviderMetadata: {
+              phoenix: { toolExecutionEnvironment: "client" },
+            },
+          },
+        ],
+      }),
+    ];
+
+    const shouldSendAutomatically = shouldSendAutomaticallyAfterToolOutput({
+      messages,
+    });
+
+    expect(shouldSendAutomatically).toBe(true);
+    expect(
+      shouldKeepTurnOpenForPendingToolOutput({
+        messages,
+        shouldSendAutomatically,
+      })
+    ).toBe(false);
+  });
+
+  it("does not continue when the unresolved tool call precedes a later step-start", () => {
+    // The AI SDK's completeness helper only inspects parts after the last
+    // step-start, so an unresolved call before it is invisible to the SDK.
+    // The PXI gate must still suppress the send.
+    const messages = [
+      createMessage({
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-1",
+            state: "input-available",
+            input: {},
+            callProviderMetadata: {
+              phoenix: { toolExecutionEnvironment: "client" },
+            },
+          },
+          { type: "step-start" },
+          {
+            type: `tool-${READ_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-2",
+            state: "output-available",
+            input: {},
+            output: "done",
+          },
+        ],
+      }),
+    ];
+
+    const shouldSendAutomatically = shouldSendAutomaticallyAfterToolOutput({
+      messages,
+    });
+
+    expect(shouldSendAutomatically).toBe(false);
+    expect(
+      shouldKeepTurnOpenForPendingToolOutput({
+        messages,
+        shouldSendAutomatically,
+      })
+    ).toBe(true);
+  });
+
   it("does not continue after navigation-cancelled edit_code_evaluator_draft", () => {
     const messages = [
       createMessage({

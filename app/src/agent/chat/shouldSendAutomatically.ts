@@ -38,9 +38,23 @@ export function shouldSendAutomaticallyAfterToolOutput({
   if (hasApprovalNavigationCancel(messages)) {
     return false;
   }
+  // The SDK completeness helper only inspects tool parts after the last
+  // `step-start` and treats a narrower set of states as terminal, so it can
+  // miss unresolved approvals or client tools elsewhere in the trailing
+  // assistant message. Never auto-send while any tool call is unresolved.
+  if (getUnresolvedToolCalls(messages).length > 0) {
+    return false;
+  }
   return lastAssistantMessageIsCompleteWithToolCalls({ messages });
 }
 
+/**
+ * Whether the turn must stay open because tool calls on the trailing
+ * assistant message still await feedback. Uses the same
+ * `getUnresolvedToolCalls` predicate as the auto-send gate above, so the two
+ * cannot disagree: any unresolved call both suppresses the send and keeps
+ * the turn open.
+ */
 export function shouldKeepTurnOpenForPendingToolOutput({
   messages,
   shouldSendAutomatically,
