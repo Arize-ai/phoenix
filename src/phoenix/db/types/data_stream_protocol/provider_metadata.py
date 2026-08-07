@@ -43,45 +43,29 @@ class ToolCallCallbackProviderMetadata(ToolCallProviderMetadata):
 
 
 PydanticAIToolPartKind = Literal["tool-search", "capability-load"]
-"""Phoenix's pin of pydantic-ai's ``ToolPartKind`` vocabulary.
-
-Defined locally so persisted rows validate without importing pydantic-ai, and
-held equal to the installed package's ``ToolPartKind`` by a canary test — a
-vocabulary change at a dependency bump fails that test, not a production
-persist.
-"""
+"""Local pin of pydantic-ai's ``ToolPartKind``; a canary test holds it equal
+to the installed package's."""
 
 
 class _BasePydanticAIProviderMetadata(BaseModel):
-    """Common keys of the ``pydantic_ai`` namespace of part-level Vercel AI
-    ``providerMetadata`` in persisted messages.
-
-    The namespace is pydantic-ai's round-trip channel for ``ModelMessage``
-    fields the Vercel part shapes cannot express: its event stream stamps these
-    keys while streaming a response, Phoenix persists them verbatim, and
-    ``VercelAIAdapter.load_messages`` reads them back to rebuild the
-    model-facing history. The keys are an unversioned wire convention of the
-    installed pydantic-ai release, not a public API. Unlike the camelCase
-    ``phoenix`` namespace above, this dialect is snake_case on the wire.
-
-    ``extra="forbid"`` makes drift loud: a key this schema doesn't know cannot
-    be persisted, so an upstream rename or addition fails at the dependency
-    bump (via the canary tests, which stream through the installed writer)
-    instead of silently corrupting replays.
-    """
+    """Common keys of the ``pydantic_ai`` namespace of part-level
+    ``providerMetadata``: pydantic-ai's round-trip channel for ``ModelMessage``
+    fields the Vercel part shapes can't express. The keys are an unversioned
+    wire convention of the installed release (snake_case, unlike the
+    ``phoenix`` namespace); ``extra="forbid"`` turns upstream drift into a
+    validation failure caught by the canary tests at the dependency bump."""
 
     model_config = ConfigDict(extra="forbid")
 
     id: str | None = None
-    """The originating ``ModelResponsePart``'s provider part id, restored for
-    replay fidelity (e.g. provider caching and citation matching)."""
+    """Provider part id of the originating ``ModelResponsePart``."""
 
     provider_name: str | None = None
-    """Which provider produced the part. Anthropic thinking blocks are only
-    replayed as thinking when this matches the requesting model's system."""
+    """Producing provider; Anthropic replays thinking blocks only when this
+    matches the requesting model."""
 
     provider_details: dict[str, Any] | None = None
-    """Opaque provider-specific details restored verbatim onto the part."""
+    """Opaque provider details restored verbatim."""
 
 
 class PydanticAITextProviderMetadata(_BasePydanticAIProviderMetadata):
@@ -92,10 +76,8 @@ class PydanticAIReasoningProviderMetadata(_BasePydanticAIProviderMetadata):
     """The ``pydantic_ai`` namespace on a persisted reasoning part."""
 
     signature: str | None = None
-    """The provider's thinking signature, required to replay Anthropic
-    extended thinking: without it the thinking block is inlined as plain text,
-    which the API rejects on tool-use turns. Redacted thinking is stored here
-    in its entirety."""
+    """Thinking signature, required to replay Anthropic extended thinking on
+    tool-use turns; redacted thinking is stored here in its entirety."""
 
 
 class PydanticAIToolCallProviderMetadata(_BasePydanticAIProviderMetadata):
@@ -103,15 +85,10 @@ class PydanticAIToolCallProviderMetadata(_BasePydanticAIProviderMetadata):
     ``callProviderMetadata``."""
 
     tool_kind: PydanticAIToolPartKind | None = None
-    """pydantic-ai's typed-subclass discriminator for the tool part, restored
-    so e.g. tool-search calls replay as their typed part classes."""
+    """pydantic-ai's typed-subclass discriminator for the tool part."""
 
     outcome: Literal["interrupted"] | None = None
-    """Marks a tool call that was cut off before producing a result. The
-    Vercel part states cannot express an interrupted outcome, so pydantic-ai's
-    ``dump_messages`` rides it here and ``load_messages`` restores
-    ``ToolReturnPart(outcome='interrupted')`` instead of a success. In
-    Phoenix's pipeline the only writer is the interrupted-turn repair
-    (mimicking that dump convention): persisted rows come from the live event
-    stream, which never emits the key — an interrupted run has no return part
-    to dump."""
+    """The one tool outcome the Vercel part states can't express;
+    ``load_messages`` restores ``ToolReturnPart(outcome='interrupted')`` from
+    it. Written here only by Phoenix's interrupted-turn repair — the live
+    event stream never emits the key."""

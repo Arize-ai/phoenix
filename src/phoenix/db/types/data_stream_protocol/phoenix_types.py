@@ -45,8 +45,7 @@ _TOOL_RESULT_METADATA_PART_TYPES = (
     | DynamicToolOutputAvailablePart
     | DynamicToolOutputErrorPart
 )
-"""The tool part states that carry Phoenix's added ``result_provider_metadata``
-field alongside the standard ``call_provider_metadata``."""
+"""Tool part states carrying Phoenix's added ``result_provider_metadata``."""
 
 
 def _pydantic_ai_metadata(provider_metadata: object) -> object | None:
@@ -147,13 +146,7 @@ class PhoenixUIMessage(UIMessage):
 
     @model_validator(mode="after")
     def _validate_pydantic_ai_provider_metadata(self) -> "PhoenixUIMessage":
-        """Strictly validate the ``pydantic_ai`` namespace wherever it appears.
-
-        Dispatches on part family so a key is only accepted where its consumer
-        reads it (e.g. ``signature`` on reasoning parts only). A namespace on a
-        part family with no schema here is rejected outright: if a new writer
-        appears, this error is the prompt to add its typed model.
-        """
+        """Strictly validate the ``pydantic_ai`` namespace wherever it appears."""
         for part in self.parts:
             if isinstance(part, ToolUIPart | DynamicToolUIPart):
                 provider_metadata_values: list[ProviderMetadata | None] = [
