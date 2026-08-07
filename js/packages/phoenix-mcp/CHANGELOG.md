@@ -1,5 +1,17 @@
 # @arizeai/phoenix-mcp
 
+## 4.3.0
+
+### Minor Changes
+
+- e90ba00: Resolve the MCP server's base URL from `PHOENIX_ENDPOINT`, inferring from the trace-export variables `PHOENIX_COLLECTOR_ENDPOINT` and `OTEL_EXPORTER_OTLP_ENDPOINT` when only those are set, then the legacy `PHOENIX_HOST` — matching the API clients and the `px` CLI. Previously the MCP server read only `PHOENIX_HOST`.
+
+### Patch Changes
+
+- Updated dependencies [d04f0fc]
+  - @arizeai/phoenix-config@0.5.0
+  - @arizeai/phoenix-client@7.3.0
+
 ## 4.2.8
 
 ### Patch Changes
