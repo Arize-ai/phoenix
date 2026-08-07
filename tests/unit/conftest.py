@@ -288,12 +288,12 @@ def _serialized(
 
     Tests bind every session to one `AsyncConnection` held open under a
     transaction and savepoint, so a test rolls back wholesale. Concurrent
-    sessions then interleave transaction boundaries on a connection none of
-    them owns, and a rollback takes out a savepoint another still needs.
+    sessions would then interleave transaction boundaries on a connection none
+    of them owns, and one rollback would remove a savepoint another still
+    needs.
 
-    Production shares nothing -- its pool hands out a connection per checkout --
-    so this belongs with the fixture that creates the sharing rather than in
-    application code carrying it solely for this harness.
+    Production shares nothing: its pool hands out a connection per checkout, so
+    the serialisation belongs to the fixture that creates the sharing.
     """
     lock = asyncio.Lock()
 

@@ -637,22 +637,17 @@ class TestCodeEvaluatorSandboxMutationIds:
         """Sandboxed validation must run outside the metadata transaction.
 
         `_validate_code_evaluator_sandbox_config` reads the config in a short
-        `async with db()` block, closes it, and only then calls the adapter. That
-        ordering is load-bearing rather than stylistic: validation waits on
-        sandbox worker capacity, and SQLite serves every writer from one
-        connection, so holding the session across the call stalls all other
-        writes in the process for as long as the sandbox is busy. Moving the
-        call inside the block reintroduces that without changing any result.
-
-        An earlier version asserted `db.lock` was free at this point. That lock
-        no longer exists, and its removal deleted the only check on an ordering
-        the source still depends on -- the comment above the call is otherwise
-        the sole thing defending it.
+        `async with db()` block, closes it, and only then calls the adapter.
+        Validation waits on sandbox worker capacity, and SQLite serves every
+        writer from one connection, so holding the session across that call
+        stalls every other write in the process until the sandbox frees up.
+        Moving the call inside the block reintroduces the stall without
+        changing any result.
 
         Opening a second session from inside the adapter is what makes this
-        discriminate: the SQLite fixture serialises sessions on a lock of its
-        own, so a session still held by the mutation blocks this one until the
-        timeout. That is the same shape as the production hazard.
+        discriminate: the SQLite fixture serialises sessions, so a session the
+        mutation still holds blocks this one until the timeout, which is the
+        same shape as the production hazard.
         """
         config = await _create_monty_config(db)
         adapter = sandbox_module.SANDBOX_ADAPTERS.get("MONTY")

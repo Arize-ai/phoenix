@@ -38,13 +38,12 @@ logger = logging.getLogger(__name__)
 _POOL_RECYCLE_SECONDS = 3300
 
 # Reader connections kept open, and so also aiosqlite worker threads. WAL
-# imposes no reader limit; this bounds threads. Untuned -- 8 saturated the
-# benchmark below, but Phoenix's real concurrent-read profile is unmeasured.
+# imposes no reader limit; this bounds threads.
 _READ_POOL_SIZE = 8
 
-# Extra connections opened past the pool when every reader is busy, closed again
-# on return. They absorb a burst without holding threads for the process
-# lifetime; past them callers wait (see pool_timeout below) rather than fail.
+# Extra connections opened past the pool when every reader is busy, closed
+# again on return: they absorb a burst without holding threads for the process
+# lifetime. Past them, callers wait rather than fail.
 _READ_MAX_OVERFLOW = 8
 
 
@@ -56,8 +55,8 @@ _CONNECTION_PRAGMAS = (
 )
 
 # Properties of the database file. `journal_mode` writes to its header, so a
-# read-only connection cannot set these and inherits whatever the writer left --
-# which makes the writer opening first load-bearing rather than incidental.
+# read-only connection cannot set these; it inherits what the writer left, and
+# the writer must therefore connect first.
 _DATABASE_PRAGMAS = (
     "PRAGMA journal_mode = WAL;",
     "PRAGMA synchronous = OFF;",
@@ -121,21 +120,20 @@ def sqlite_connection_factory(
     sqlean rather than the standard library: Phoenix's extensions are loaded
     there, so a stdlib connection would offer a different set of functions.
 
-    `mode` is fixed when the file is opened and cannot be imposed afterwards, so
-    it is the only place read-only-ness can be established -- `ro` refuses
-    writes beneath every layer of application code, which no amount of careful
-    calling can match.
+    `mode` is fixed when the file is opened and cannot be imposed afterwards,
+    so it is the only place read-only-ness can be established; `ro` refuses
+    writes beneath every layer of application code.
 
-    It defaults to `rwc` because connections open lazily: an engine built before
-    migrations run may still connect first, and `rw` against a database that
-    does not exist yet fails outright. Use `rw` only where the file is known to
-    be there.
+    It defaults to `rwc` because connections open lazily: an engine built
+    before migrations run may still connect first, and `rw` against a database
+    that does not exist yet fails. Use `rw` only where the file is known to
+    exist.
     """
 
     def connect() -> aiosqlite.Connection:
-        # `mode` is a URI query parameter, so it only means anything when the
-        # target is parsed as a URI. Appending it to a plain path would make the
-        # filename literally contain "?mode=rw" rather than open read-write.
+        # `mode` is a URI query parameter, so it only applies when the target is
+        # parsed as a URI. Appended to a plain path it becomes part of the
+        # filename instead.
         if uri:
             separator = "&" if "?" in database else "?"
             target = f"file:{database}{separator}mode={mode}"
@@ -158,8 +156,7 @@ def set_sqlite_read_pragma(connection: Connection, _: Any) -> None:
     """The connection-scoped subset, for connections that cannot write.
 
     A `mode=ro` connection fails on `PRAGMA journal_mode = WAL`, so a read
-    engine opened against a database whose WAL was never initialised cannot
-    initialise it -- it can only inherit.
+    engine inherits the journal mode the writer set and cannot set it itself.
     """
     _apply_pragmas(connection, _CONNECTION_PRAGMAS)
 
@@ -167,31 +164,26 @@ def set_sqlite_read_pragma(connection: Connection, _: Any) -> None:
 def aio_sqlite_read_engine(url: URL) -> Optional[AsyncEngine]:
     """A read-only engine giving each concurrent reader its own connection.
 
-    The primary engine shares one connection across every session, so reads run
-    serialised behind the lock that keeps their transactions from interleaving
-    (see `DbSessionFactory.read`). Here each session owns its connection, so
-    there is nothing to serialise and no lock to take.
+    The primary engine serves every session from a single pooled connection, so
+    reads routed there queue behind each other and behind writes. Here each
+    session owns its connection and concurrent reads proceed in parallel.
 
-    `mode=ro` is the second reason to route reads here rather than widen the
-    primary pool: writes are refused by the engine, not by convention.
+    `mode=ro` also means writes are refused by the engine rather than by
+    convention.
 
-    None for in-memory databases -- a second connection to `:memory:` is a
-    different, empty database, and one developer has no concurrency to win.
+    None for in-memory databases: a second connection to `:memory:` opens a
+    different, empty database.
     """
     if (url.database or ":memory:").startswith(":memory:"):
         return None
     database = url.render_as_string().partition("///")[-1]
 
-    # Persistent connections, not one per checkout: each open spawns an aiosqlite
-    # worker thread, which dominates a short read. Measured at 8 concurrent,
-    # 200 reads ran at 490/s per-checkout against 3,879/s pooled.
+    # Persistent connections, not one per checkout: each open spawns an
+    # aiosqlite worker thread, whose cost dominates a short read.
     #
-    # pool_timeout=None so a caller past the pool waits rather than fails.
-    # Reads previously queued on an asyncio.Lock, which has no timeout, so
-    # rejecting them here would narrow the contract that already exists --
-    # a burst would start returning errors where it used to return answers
-    # slowly. Waiting keeps that policy; the cost is that a connection held
-    # indefinitely stalls its waiters, which was equally true of the lock.
+    # pool_timeout=None so a caller past the pool waits rather than fails: a
+    # burst is answered slowly instead of rejected. The cost is that a
+    # connection held indefinitely stalls its waiters.
     #
     # pre_ping is off because the target is a local file, with no network for
     # a connection to go stale across.
@@ -259,24 +251,22 @@ def aio_sqlite_engine(
         echo=log_to_stdout,
         json_serializer=_dumps,
         # rwc, not rw. Connections are lazy, so this engine can open before the
-        # migration engine has created the file -- and a `rw` connection to a
-        # database that does not exist yet fails rather than waiting for it.
+        # migration engine has created the file, and `rw` against a database
+        # that does not exist yet fails.
         async_creator=sqlite_connection_factory(database, mode="rwc"),
-        # One connection, checked out exclusively. StaticPool also holds one
-        # but hands it to every caller at once, and aiosqlite serialises
-        # statements rather than transactions -- so concurrent sessions
-        # interleaved their BEGIN/COMMIT spans and one session's commit landed
-        # another's uncommitted work. Checkout expresses that exclusion where
-        # the resource is; it previously lived in a lock callers had to pass.
+        # One connection, checked out exclusively. Not StaticPool, which also
+        # holds one connection but hands it to every caller at once: aiosqlite
+        # serialises statements rather than transactions, so concurrent
+        # sessions would interleave their BEGIN/COMMIT spans. Exclusive
+        # checkout is what keeps a session's transaction its own.
         #
         # poolclass is explicit because the SQLite dialect otherwise defaults
         # :memory: to StaticPool and rejects the sizing arguments.
         poolclass=AsyncAdaptedQueuePool,
         pool_size=1,
         max_overflow=0,
-        # None, matching the lock this replaces: writes queue indefinitely and
-        # none are rejected. The 30s default would turn slow-under-contention
-        # into fails-under-contention.
+        # Writers queue indefinitely rather than being rejected. The 30s
+        # default would turn slow-under-contention into fails-under-contention.
         pool_timeout=None,
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
@@ -312,13 +302,13 @@ def _init_memory_models(engine: AsyncEngine) -> None:
       task on the caller's loop would not run it until the caller next
       yields — the engine could be queried before its tables exist. So
       a short-lived helper thread runs the coroutine on its own fresh
-      loop, and we block on ``join()``. Blocking the caller's loop is
+      loop, and the caller blocks on ``join()``. Blocking that loop is
       acceptable: this happens once, at engine creation, and creating
       tables in an in-memory database is fast.
 
-    In both cases the StaticPool's single aiosqlite connection is
-    created on an event loop that is closed by the time the application
-    uses the engine on its own loop. That is safe because aiosqlite
+    In both cases the pool's single aiosqlite connection is created on
+    an event loop that is closed by the time the application uses the
+    engine on its own loop. That is safe because aiosqlite
     does not bind a connection to the loop it was created on: each
     operation creates a fresh future on whatever loop is current at
     call time, and the actual SQLite work runs on aiosqlite's dedicated
