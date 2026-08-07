@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Annotated, Literal
 
 from pydantic import ConfigDict, Field, StringConstraints, TypeAdapter, model_validator
+from typing_extensions import assert_never
 
 from ._models import CamelBaseModel
 from .provider_metadata import (
@@ -12,7 +13,23 @@ from .provider_metadata import (
     PydanticAIToolCallProviderMetadata,
     ToolCallCallbackProviderMetadata,
 )
-from .request_types import DataUIPart, ReasoningUIPart, TextUIPart, UIMessage
+from .request_types import (
+    DataUIPart,
+    DynamicToolOutputAvailablePart,
+    DynamicToolOutputErrorPart,
+    DynamicToolUIPart,
+    FileUIPart,
+    ProviderMetadata,
+    ReasoningUIPart,
+    SourceDocumentUIPart,
+    SourceUrlUIPart,
+    StepStartUIPart,
+    TextUIPart,
+    ToolOutputAvailablePart,
+    ToolOutputErrorPart,
+    ToolUIPart,
+    UIMessage,
+)
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
 _PYDANTIC_AI_PROVIDER_METADATA_KEY = "pydantic_ai"
@@ -20,6 +37,16 @@ _ToolCallCallbackProviderMetadataAdapter = TypeAdapter(ToolCallCallbackProviderM
 _PydanticAITextProviderMetadataAdapter = TypeAdapter(PydanticAITextProviderMetadata)
 _PydanticAIReasoningProviderMetadataAdapter = TypeAdapter(PydanticAIReasoningProviderMetadata)
 _PydanticAIToolCallProviderMetadataAdapter = TypeAdapter(PydanticAIToolCallProviderMetadata)
+
+
+_TOOL_RESULT_METADATA_PART_TYPES = (
+    ToolOutputAvailablePart
+    | ToolOutputErrorPart
+    | DynamicToolOutputAvailablePart
+    | DynamicToolOutputErrorPart
+)
+"""The tool part states that carry Phoenix's added ``result_provider_metadata``
+field alongside the standard ``call_provider_metadata``."""
 
 
 def _pydantic_ai_metadata(provider_metadata: object) -> object | None:
@@ -128,24 +155,34 @@ class PhoenixUIMessage(UIMessage):
         appears, this error is the prompt to add its typed model.
         """
         for part in self.parts:
-            if hasattr(part, "call_provider_metadata"):
-                for attribute in ("call_provider_metadata", "result_provider_metadata"):
-                    metadata = _pydantic_ai_metadata(getattr(part, attribute, None))
+            if isinstance(part, ToolUIPart | DynamicToolUIPart):
+                provider_metadata_values: list[ProviderMetadata | None] = [
+                    part.call_provider_metadata
+                ]
+                if isinstance(part, _TOOL_RESULT_METADATA_PART_TYPES):
+                    provider_metadata_values.append(part.result_provider_metadata)
+                for provider_metadata in provider_metadata_values:
+                    metadata = _pydantic_ai_metadata(provider_metadata)
                     if metadata is not None:
                         _PydanticAIToolCallProviderMetadataAdapter.validate_python(metadata)
-                continue
-            metadata = _pydantic_ai_metadata(getattr(part, "provider_metadata", None))
-            if metadata is None:
-                continue
-            if isinstance(part, TextUIPart):
-                _PydanticAITextProviderMetadataAdapter.validate_python(metadata)
+            elif isinstance(part, TextUIPart):
+                metadata = _pydantic_ai_metadata(part.provider_metadata)
+                if metadata is not None:
+                    _PydanticAITextProviderMetadataAdapter.validate_python(metadata)
             elif isinstance(part, ReasoningUIPart):
-                _PydanticAIReasoningProviderMetadataAdapter.validate_python(metadata)
+                metadata = _pydantic_ai_metadata(part.provider_metadata)
+                if metadata is not None:
+                    _PydanticAIReasoningProviderMetadataAdapter.validate_python(metadata)
+            elif isinstance(part, FileUIPart | SourceUrlUIPart | SourceDocumentUIPart):
+                if _pydantic_ai_metadata(part.provider_metadata) is not None:
+                    raise ValueError(
+                        f"{part.type!r} parts have no schema for the "
+                        f"{_PYDANTIC_AI_PROVIDER_METADATA_KEY!r} provider-metadata namespace"
+                    )
+            elif isinstance(part, StepStartUIPart | DataUIPart):
+                pass
             else:
-                raise ValueError(
-                    f"{part.type!r} parts have no schema for the "
-                    f"{_PYDANTIC_AI_PROVIDER_METADATA_KEY!r} provider-metadata namespace"
-                )
+                assert_never(part)
         return self
 
     @model_validator(mode="after")
