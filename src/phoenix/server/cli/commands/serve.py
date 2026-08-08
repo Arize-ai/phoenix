@@ -55,7 +55,7 @@ from phoenix.config import (
     get_pids_path,
 )
 from phoenix.db import get_printable_db_url
-from phoenix.db.engines import create_engine
+from phoenix.db.engines import aio_sqlite_read_engine, create_engine, get_async_db_url
 from phoenix.db.insertion.types import AnnotationPrecursor
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.agents.config import AgentsEnvConfig
@@ -450,6 +450,17 @@ def _create_db_session_factory(
     shutdown_callbacks.append(primary_engine.dispose)
 
     read_db = None
+    if primary_engine.dialect.name == "sqlite":
+        # Lets reads run concurrently instead of queueing behind the writer's
+        # single connection; None for in-memory. See aio_sqlite_read_engine.
+        sqlite_read_engine = aio_sqlite_read_engine(
+            get_async_db_url(db_connection_str), log_to_stdout=log_to_stdout
+        )
+        if sqlite_read_engine is not None:
+            shutdown_callbacks.extend(instrument_engine_if_enabled(sqlite_read_engine))
+            shutdown_callbacks.append(sqlite_read_engine.dispose)
+            read_db = _db(sqlite_read_engine)
+            logger.info("Read-only SQLite engine created")
     if read_replica_connection_str and primary_engine.dialect.name == "postgresql":
         replica_engine = create_engine(
             connection_str=read_replica_connection_str,
