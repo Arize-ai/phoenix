@@ -187,6 +187,11 @@ Session-specific notes:
 
 ## Rules that apply to both dialects
 
+- **Operators.** Compare with `==` `!=` `<` `<=` `>` `>=` (chained comparisons like
+  `0.5 < latency_ms < 1000` work); combine conditions with `and` / `or` / `not`; test membership
+  with `in` / `not in`; check for missing values with `is None` / `is not None`; and do arithmetic
+  on numeric fields with `+` `-` `*` `/` `%` (e.g. `num_traces_with_error / num_traces`,
+  `total_cost - prompt_cost`). The whole expression must be a condition, not a bare value.
 - **`in` / `not in` ignore case.** Containment against text is case-insensitive on both database
   backends: `'refund' in first_input` matches `REFUND please`. Equality (`==` / `!=`) and membership
   in a literal list (`span_kind in ['LLM']`) stay exact.
@@ -195,10 +200,11 @@ Session-specific notes:
 - **Datetime literals need a timezone offset.** Write `start_time > '2026-07-01T00:00:00+00:00'`
   (or a trailing `Z`). A literal without an offset is rejected, because it would mean different
   instants in different deployments.
-- **Casts are explicit.** `float(...)` and `str(...)` convert an attribute of unknown type; there is
-  no implicit string-to-number coercion.
-- **Logical operators:** combine conditions with `and`, `or`, and `not`. The whole expression must
-  be a condition (a comparison or combination of them), not a bare value.
+- **Casts and calls.** The only function calls allowed are `float()` and `str()` — which convert an
+  attribute of unknown type — plus `int()` on spans, and the reducers `any`/`all`/`len`/`max`/`min`/`sum`
+  inside a session comprehension. Arbitrary function or method calls (e.g. `name.startswith(...)`,
+  `len(span_id)`) and operators like `**`, `//`, and the bitwise `& | ^` are rejected. There is no
+  implicit string-to-number coercion.
 
 A timezone-qualified datetime bound and an explicit cast look like this:
 
