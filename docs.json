@@ -61,6 +61,7 @@
               {
                 "group": "Quick Start",
                 "pages": [
+                  "docs/phoenix/agent-assisted-setup",
                   {
                     "group": "Python",
                     "pages": [
@@ -84,8 +85,7 @@
               {
                 "group": "Coding Agents",
                 "pages": [
-                  "docs/phoenix/integrations/developer-tools/coding-agents",
-                  "docs/phoenix/agent-assisted-setup"
+                  "docs/phoenix/integrations/developer-tools/coding-agents"
                 ]
               },
               {
