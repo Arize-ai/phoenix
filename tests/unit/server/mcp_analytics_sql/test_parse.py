@@ -1140,6 +1140,28 @@ class TestStructuralPolicyIsDefaultDeny:
         ]
         assert held, "Any is classified as comparing but the value it holds is never reached"
 
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT ctid FROM spans",
+            "SELECT xmin FROM spans",
+            "SELECT ctid::text FROM spans",
+            "SELECT system_user FROM spans",
+        ],
+    )
+    def test_what_the_plan_gate_cannot_see_is_refused_before_it(self, sql: str) -> None:
+        """The PostgreSQL plan gate inspects relations and set-returning
+        functions, so system columns and bare system functions pass it: it
+        bounds cost, and is not a capability gate.
+
+        Admission is what refuses these, which is only true while the column
+        policy stays an allowlist -- under a denylist a column described nowhere
+        is readable, and each of these is described nowhere.
+        """
+        result = try_parse_and_admit(sql, dialect="postgresql")
+
+        assert result.outcome is AdmissionOutcome.COLUMN_NOT_ALLOWED
+
     def test_a_lossy_shape_keeps_its_own_message(self) -> None:
         """The structural policy runs after the lossy-shape checks, which name
         the hazard and a spelling that works. Told only that `HexString` is not
