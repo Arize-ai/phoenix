@@ -216,6 +216,53 @@ class TestHiddenColumnsAreRefused:
         assert "Did you mean span_kind" in caught.value.message
         assert "exists but is not part of" not in caught.value.message
 
+    @pytest.mark.parametrize(
+        "sql,expected",
+        [
+            ("SELECT latency_m FROM spans", "latency_ms"),
+            ("SELECT graphql_node_i FROM projects", "graphql_node_id"),
+        ],
+    )
+    def test_an_advertised_column_can_be_suggested(self, sql: str, expected: str) -> None:
+        """A virtual column is a column to the caller, and `latency_ms` is the
+        most advertised name on this surface -- so the likeliest typo of all got
+        no suggestion while rarer ones did."""
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql(sql, allowlist=load_allowlist(), dialect="sqlite")
+
+        assert f"Did you mean {expected}" in caught.value.message
+
+    def test_the_alias_collision_refusal_claims_nothing_about_binding(self) -> None:
+        """It binds to the alias in the shape that reaches this message, so
+        describing the outcome as uncertain would be false -- and any binding
+        claim is one more thing to keep true as the modelled rules are refined.
+        """
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql(
+                "SELECT id AS gradient_start_color FROM projects ORDER BY gradient_start_color",
+                allowlist=load_allowlist(),
+                dialect="sqlite",
+            )
+        message = caught.value.message
+
+        assert "Rename the alias" in message
+        for claim in ("depends on", "sorts or groups", "ambiguous", "may bind", "might"):
+            assert claim not in message
+
+    def test_a_group_by_alias_over_a_withheld_name_keeps_the_stock_wording(self) -> None:
+        """GROUP BY binds to the input column when one carries the name, so this
+        reference is the withheld column itself rather than an alias collision,
+        and the two refusals must not be worded alike."""
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql(
+                "SELECT name AS gradient_start_color FROM projects GROUP BY gradient_start_color",
+                allowlist=load_allowlist(),
+                dialect="sqlite",
+            )
+
+        assert "exists but is not part of the analytics schema" in caught.value.message
+        assert "Rename the alias" not in caught.value.message
+
     def test_an_unqualified_reference_is_reported_against_every_table_checked(self) -> None:
         """Naming one of them would assert something narrower than what was tested."""
         with pytest.raises(AnalyticsSqlError) as caught:

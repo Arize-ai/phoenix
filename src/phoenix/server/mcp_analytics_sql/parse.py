@@ -929,17 +929,20 @@ def _check_hidden_columns(
                 folded = {c.casefold() for c in allowlist.table_specs[table_name].hidden_columns}
                 if name in folded:
                     if locality is Locality.OUTPUT_ALIAS:
-                        # Refused on the category, not on a reading of where this
-                        # name binds. The alias makes the reference ambiguous to
-                        # a reader as well, and the caller's fix is to rename it.
+                        # States the collision and the fix, and asserts nothing
+                        # about where the name binds. It binds to the alias in
+                        # the shape that reaches here, so a message describing
+                        # the outcome as uncertain would be false; and any
+                        # binding claim is one more thing to keep true as the
+                        # rules the category models are refined.
                         return AdmissionResult(
                             AdmissionOutcome.COLUMN_NOT_ALLOWED,
                             f"{table_name}.{name}",
                             message=(
-                                f"An output alias named {name} shadows a column of "
-                                f"{table_name} that is not part of the analytics schema, "
-                                "so which one this sorts or groups by depends on where the "
-                                "name appears. Rename the alias."
+                                f"An output alias named {name} matches a column of "
+                                f"{table_name} that is not part of the analytics schema. "
+                                "The collision is refused outright, so the withheld column "
+                                "cannot be reached through it. Rename the alias."
                             ),
                         )
                     return AdmissionResult(
@@ -982,14 +985,25 @@ def _check_hidden_columns(
             # Not a column of any table in scope -- a misspelling, most often.
             # The withheld-column wording would be false here and would tell the
             # caller to stop rather than to fix the spelling, so this names the
-            # nearest columns the schema does offer. PostgreSQL suggests one
-            # itself when the statement reaches it; SQLite does not, and neither
-            # engine is reached now that admission refuses first.
+            # nearest columns the schema does offer. Only for the shapes this
+            # branch refuses: a reference beside a foreign source returned above
+            # and still reaches the engine, where PostgreSQL suggests a name
+            # itself and SQLite does not.
+            #
+            # Virtual columns are in the pool because they are columns to a
+            # caller -- `latency_ms` is the most advertised name on this surface,
+            # and leaving it out meant the likeliest typo of all got no
+            # suggestion.
             offered_here = sorted(
                 {
                     spec.name
                     for table_name in candidates
                     for spec in allowlist.table_specs[table_name].columns
+                }
+                | {
+                    virtual
+                    for table_name in candidates
+                    for virtual in allowlist.table_specs[table_name].virtual_columns
                 }
                 - {
                     hidden
