@@ -1,6 +1,11 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "noEmit": true
-  }
+    "noEmit": true,
+    "composite": false,
+    "incremental": false,
+    "module": "esnext",
+    "moduleResolution": "bundler"
+  },
+  "include": ["./**/*.ts"]
 }

@@ -34,15 +34,21 @@ Create a `.env` file in the root directory:
 # OpenAI API Key
 OPENAI_API_KEY=your-openai-api-key-here
 
-# Phoenix Configuration
-PHOENIX_ENDPOINT=http://localhost:6006/v1/traces
+# Phoenix Configuration — same Phoenix, one variable per concern
+PHOENIX_ENDPOINT=http://localhost:6006
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
 PHOENIX_PROJECT_NAME=mastra-project
 ```
 
-If you are using Phoenix Cloud
+The eval script calls the Phoenix API on `PHOENIX_ENDPOINT`, the server's base URL.
+`PHOENIX_COLLECTOR_ENDPOINT` is the exact URL traces are sent to — Mastra's
+`ArizeExporter` POSTs to it verbatim, so it carries the OTLP `/v1/traces` path and
+`src/mastra/index.ts` passes it straight through.
 
-1. Be sure to include: PHOENIX_API_KEY=your-api-key
-2. Add "/v1/traces" at the end of your endpoint
+If you are using an instance with authentication enabled, also set
+`PHOENIX_API_KEY=your-api-key` and point both variables at that instance:
+`PHOENIX_ENDPOINT=https://phoenix.example.com` and
+`PHOENIX_COLLECTOR_ENDPOINT=https://phoenix.example.com/v1/traces`.
 
 ## Running the Agent
 
@@ -60,7 +66,7 @@ Once you've run the agent, open Phoenix. You'll see all agent runs, tool calls, 
 
 ## Running Evals
 
-Once you're ready to run Evals, navigate up to the example-agent directory and run:
+Once you're ready to run Evals, run this from the example directory:
 
 ```bash
 npm run eval

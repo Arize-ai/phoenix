@@ -39,13 +39,19 @@ const baseToggleButtonGroupCSS = css(`
 
   &:has(.toggle-button[data-focus-visible]) {
     border-radius: var(--global-rounding-small);
-    outline: 1px solid var(--global-input-field-border-color-active);
-    outline-offset: 1px;
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 `);
 
 export type ToggleButtonGroupProps = AriaToggleButtonGroupProps;
 
+/**
+ * Groups buttons that can be toggled independently or arranged in a
+ * non-segmented layout, such as a wrapping choice grid. For a compact,
+ * mutually exclusive choice that always has a selection, use
+ * `SegmentedControl` instead.
+ */
 export const ToggleButtonGroup = ({
   size = "M",
   css: cssProp,

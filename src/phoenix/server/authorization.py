@@ -24,8 +24,39 @@ Usage:
 
 from fastapi import HTTPException, Request
 
-from phoenix.config import get_env_support_email
+from phoenix.config import ENV_PHOENIX_ENABLE_AUTH, get_env_support_email
 from phoenix.server.bearer_auth import PhoenixUser
+
+
+def require_auth_enabled(request: Request) -> None:
+    """
+    FastAPI dependency to restrict access to routes that are only safe when
+    authentication is enabled.
+
+    Usage:
+        Add as a dependency to any route that issues credentials:
+
+            @router.post("/api_keys", dependencies=[Depends(require_auth_enabled)])
+            async def create_api_key(...):
+                ...
+
+    Behavior:
+        - Allows access if authentication is enabled.
+        - Raises HTTP 403 Forbidden otherwise.
+
+    Without authentication, Phoenix has no notion of identity, so every caller is
+    already anonymous and unrestricted. Minting a credential in that state would
+    hand out a bearer token that outlives the deployment's current configuration,
+    which amounts to an escalation of privilege. Such routes must fail closed.
+    """
+    if not request.app.state.authentication_enabled:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "This action requires authentication to be enabled. "
+                f"Set the {ENV_PHOENIX_ENABLE_AUTH} environment variable to true."
+            ),
+        )
 
 
 def prevent_access_in_read_only_mode(request: Request) -> None:

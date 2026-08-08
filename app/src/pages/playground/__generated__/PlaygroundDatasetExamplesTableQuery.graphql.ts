@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<9115a37a4f31d61036ec42e712816996>>
+ * @generated SignedSource<<b5f6c938fa2cffa1fcba0708b7ebf39b>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -58,11 +57,11 @@ v2 = {
   "variableName": "splitIds"
 },
 v3 = [
-  (v2/*: any*/)
+  (v2/*:: as any*/)
 ],
 v4 = {
   "alias": null,
-  "args": (v3/*: any*/),
+  "args": (v3/*:: as any*/),
   "kind": "ScalarField",
   "name": "exampleCount",
   "storageKey": null
@@ -112,7 +111,7 @@ v6 = {
           "name": "node",
           "plural": false,
           "selections": [
-            (v5/*: any*/)
+            (v5/*:: as any*/)
           ],
           "storageKey": null
         }
@@ -135,33 +134,33 @@ v8 = [
     "name": "first",
     "value": 20
   },
-  (v2/*: any*/)
+  (v2/*:: as any*/)
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "PlaygroundDatasetExamplesTableQuery",
     "selections": [
       {
         "alias": "dataset",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
           {
-            "args": (v3/*: any*/),
+            "args": (v3/*:: as any*/),
             "kind": "FragmentSpread",
             "name": "PlaygroundDatasetExamplesTableFragment"
           },
           {
             "kind": "InlineFragment",
             "selections": [
-              (v4/*: any*/),
-              (v6/*: any*/)
+              (v4/*:: as any*/),
+              (v6/*:: as any*/)
             ],
             "type": "Dataset",
             "abstractKey": null
@@ -175,26 +174,26 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "PlaygroundDatasetExamplesTableQuery",
     "selections": [
       {
         "alias": "dataset",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v7/*: any*/),
-          (v5/*: any*/),
+          (v7/*:: as any*/),
+          (v5/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v8/*: any*/),
+                "args": (v8/*:: as any*/),
                 "concreteType": "DatasetExampleConnection",
                 "kind": "LinkedField",
                 "name": "examples",
@@ -216,7 +215,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v5/*: any*/),
+                          (v5/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -267,8 +266,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v7/*: any*/),
-                          (v5/*: any*/)
+                          (v7/*:: as any*/),
+                          (v5/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -305,7 +304,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v8/*: any*/),
+                "args": (v8/*:: as any*/),
                 "filters": [
                   "datasetVersionId",
                   "splitIds"
@@ -315,8 +314,8 @@ return {
                 "kind": "LinkedHandle",
                 "name": "examples"
               },
-              (v4/*: any*/),
-              (v6/*: any*/)
+              (v4/*:: as any*/),
+              (v6/*:: as any*/)
             ],
             "type": "Dataset",
             "abstractKey": null

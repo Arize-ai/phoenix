@@ -24,10 +24,10 @@ import {
   View,
 } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { DEFAULT_RETENTION_POLICY_NAME } from "@phoenix/constants";
+import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 
 import { EditRetentionPolicy } from "./EditRetentionPolicy";
-
-const DEFAULT_POLICY_NAME = "Default";
 
 enum RetentionPolicyAction {
   EDIT = "editPolicy",
@@ -41,8 +41,16 @@ export interface RetentionPolicyActionMenuProps {
    * The names of the projects associated with the policy.
    */
   projectNames: string[];
-  onPolicyEdit: () => void;
-  onPolicyDelete: () => void;
+  /**
+   * Called after an edit succeeds, for site-specific effects. Success
+   * notifications are handled by the menu itself.
+   */
+  onPolicyEdit?: () => void;
+  /**
+   * Called after a delete is issued, for site-specific effects. Success
+   * notifications are handled by the menu itself.
+   */
+  onPolicyDelete?: () => void;
 }
 
 export const RetentionPolicyActionMenu = ({
@@ -52,7 +60,8 @@ export const RetentionPolicyActionMenu = ({
   onPolicyEdit,
   onPolicyDelete,
 }: RetentionPolicyActionMenuProps) => {
-  const canDelete = policyName !== DEFAULT_POLICY_NAME;
+  const notifySuccess = useNotifySuccess();
+  const canDelete = policyName !== DEFAULT_RETENTION_POLICY_NAME;
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const connectionId = ConnectionHandler.getConnectionID(
@@ -80,9 +89,9 @@ export const RetentionPolicyActionMenu = ({
       <MenuTrigger>
         <Button
           size="S"
-          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+          leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
         />
-        <Popover>
+        <Popover placement="bottom end">
           <Menu
             disabledKeys={canDelete ? [] : [RetentionPolicyAction.DELETE]}
             onAction={(action) => {
@@ -103,7 +112,7 @@ export const RetentionPolicyActionMenu = ({
                 justifyContent="start"
                 alignItems="center"
               >
-                <Icon svg={<Icons.EditOutline />} />
+                <Icon svg={<Icons.Edit />} />
                 <Text>Edit</Text>
               </Flex>
             </MenuItem>
@@ -117,7 +126,7 @@ export const RetentionPolicyActionMenu = ({
                 justifyContent="start"
                 alignItems="center"
               >
-                <Icon svg={<Icons.TrashOutline />} />
+                <Icon svg={<Icons.Trash />} />
                 <Text>Delete</Text>
               </Flex>
             </MenuItem>
@@ -143,7 +152,11 @@ export const RetentionPolicyActionMenu = ({
                   <EditRetentionPolicy
                     policyId={policyId}
                     onEditCompleted={() => {
-                      onPolicyEdit();
+                      notifySuccess({
+                        title: "Policy Updated",
+                        message: `Policy "${policyName}" was updated and will take effect shortly.`,
+                      });
+                      onPolicyEdit?.();
                       setShowEditDialog(false);
                     }}
                     onCancel={() => {
@@ -212,12 +225,16 @@ export const RetentionPolicyActionMenu = ({
                           },
                         });
                         setShowDeleteDialog(false);
-                        onPolicyDelete();
+                        notifySuccess({
+                          title: "Policy deleted",
+                          message: `Policy "${policyName}" was deleted`,
+                        });
+                        onPolicyDelete?.();
                       }}
                       isDisabled={isDeleting}
                       leadingVisual={
                         isDeleting ? (
-                          <Icon svg={<Icons.LoadingOutline />} />
+                          <Icon svg={<Icons.Loading />} />
                         ) : undefined
                       }
                     >

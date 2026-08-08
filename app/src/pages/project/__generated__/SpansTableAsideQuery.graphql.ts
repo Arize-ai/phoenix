@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<b9cc8f93b0ed35556d5239d6addf2706>>
+ * @generated SignedSource<<2eebbeeeef75d3a9681b555f04158fe2>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -38,6 +37,7 @@ export type SpansTableAsideQuery$data = {
     readonly name?: string;
     readonly spanAnnotationNames?: ReadonlyArray<string>;
     readonly timeRangeTraceCount?: number;
+    readonly traceAnnotationsNames?: ReadonlyArray<string>;
   };
 };
 export type SpansTableAsideQuery = {
@@ -79,8 +79,8 @@ v5 = {
   "variableName": "timeRange"
 },
 v6 = [
-  (v4/*: any*/),
-  (v5/*: any*/)
+  (v4/*:: as any*/),
+  (v5/*:: as any*/)
 ],
 v7 = [
   {
@@ -110,14 +110,14 @@ v8 = {
     },
     {
       "alias": "timeRangeTraceCount",
-      "args": (v6/*: any*/),
+      "args": (v6/*:: as any*/),
       "kind": "ScalarField",
       "name": "traceCount",
       "storageKey": null
     },
     {
       "alias": null,
-      "args": (v6/*: any*/),
+      "args": (v6/*:: as any*/),
       "concreteType": "SpanCostSummary",
       "kind": "LinkedField",
       "name": "costSummary",
@@ -130,7 +130,7 @@ v8 = {
           "kind": "LinkedField",
           "name": "total",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v7/*:: as any*/),
           "storageKey": null
         },
         {
@@ -140,7 +140,7 @@ v8 = {
           "kind": "LinkedField",
           "name": "prompt",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v7/*:: as any*/),
           "storageKey": null
         },
         {
@@ -150,7 +150,7 @@ v8 = {
           "kind": "LinkedField",
           "name": "completion",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v7/*:: as any*/),
           "storageKey": null
         }
       ],
@@ -159,13 +159,13 @@ v8 = {
     {
       "alias": "latencyMsP50",
       "args": [
-        (v4/*: any*/),
+        (v4/*:: as any*/),
         {
           "kind": "Literal",
           "name": "probability",
           "value": 0.5
         },
-        (v5/*: any*/)
+        (v5/*:: as any*/)
       ],
       "kind": "ScalarField",
       "name": "latencyMsQuantile",
@@ -174,13 +174,13 @@ v8 = {
     {
       "alias": "latencyMsP99",
       "args": [
-        (v4/*: any*/),
+        (v4/*:: as any*/),
         {
           "kind": "Literal",
           "name": "probability",
           "value": 0.99
         },
-        (v5/*: any*/)
+        (v5/*:: as any*/)
       ],
       "kind": "ScalarField",
       "name": "latencyMsQuantile",
@@ -197,6 +197,13 @@ v8 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
+      "name": "traceAnnotationsNames",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
       "name": "documentEvaluationNames",
       "storageKey": null
     }
@@ -207,9 +214,9 @@ v8 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/),
+      (v2/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -217,13 +224,13 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*: any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v8/*: any*/)
+          (v8/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -234,16 +241,16 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v2/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v2/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "SpansTableAsideQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*: any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -256,7 +263,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v8/*: any*/),
+          (v8/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -270,16 +277,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e6417cbdc9860374a93196aaa89bf7fd",
+    "cacheID": "a1e027b33affffecaa47b7824525b199",
     "id": null,
     "metadata": {},
     "name": "SpansTableAsideQuery",
     "operationKind": "query",
-    "text": "query SpansTableAsideQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n  $filterCondition: String\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      description\n      timeRangeTraceCount: traceCount(timeRange: $timeRange, filterCondition: $filterCondition)\n      costSummary(timeRange: $timeRange, filterCondition: $filterCondition) {\n        total {\n          cost\n        }\n        prompt {\n          cost\n        }\n        completion {\n          cost\n        }\n      }\n      latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange, filterCondition: $filterCondition)\n      latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange, filterCondition: $filterCondition)\n      spanAnnotationNames\n      documentEvaluationNames\n    }\n    id\n  }\n}\n"
+    "text": "query SpansTableAsideQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n  $filterCondition: String\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      description\n      timeRangeTraceCount: traceCount(timeRange: $timeRange, filterCondition: $filterCondition)\n      costSummary(timeRange: $timeRange, filterCondition: $filterCondition) {\n        total {\n          cost\n        }\n        prompt {\n          cost\n        }\n        completion {\n          cost\n        }\n      }\n      latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange, filterCondition: $filterCondition)\n      latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange, filterCondition: $filterCondition)\n      spanAnnotationNames\n      traceAnnotationsNames\n      documentEvaluationNames\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "50ef5520bd2830aadbd6bbb40300258b";
+(node as any).hash = "9f9849c08befb130c27f4a869a27686b";
 
 export default node;

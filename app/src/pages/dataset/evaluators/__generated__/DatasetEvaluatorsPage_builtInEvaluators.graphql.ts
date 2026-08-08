@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<5714907b9b3ee64f155b3d89daf8f2f8>>
+ * @generated SignedSource<<16abb844b9c8758b9f9b2bc19bfe0805>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -69,8 +68,8 @@ return {
           "name": "id",
           "storageKey": null
         },
-        (v0/*: any*/),
-        (v1/*: any*/)
+        (v0/*:: as any*/),
+        (v1/*:: as any*/)
       ],
       "storageKey": null
     },
@@ -90,8 +89,8 @@ return {
       "name": "classificationEvaluatorConfigs",
       "plural": true,
       "selections": [
-        (v0/*: any*/),
-        (v1/*: any*/),
+        (v0/*:: as any*/),
+        (v1/*:: as any*/),
         {
           "alias": null,
           "args": null,

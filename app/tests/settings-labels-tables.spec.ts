@@ -26,7 +26,10 @@ test.describe("Settings Labels Tables", () => {
       .fill("Prompt label for compiler e2e coverage");
     await Promise.all([
       page.waitForResponse((resp) =>
-        isGraphQLMutationResponse(resp, "NewPromptLabelDialogMutation")
+        isGraphQLMutationResponse(
+          resp,
+          "usePromptLabelMutationsCreateLabelMutation"
+        )
       ),
       page.getByRole("button", { name: "Create Label" }).click(),
     ]);

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<3422641644534afcfe75a4c6c9bedc32>>
+ * @generated SignedSource<<c10988f2eaa9d5b85c545c5a84615cd8>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -51,14 +50,14 @@ v2 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SettingsAnnotationsPageDeleteAnnotationConfigsMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "DeleteAnnotationConfigsPayload",
         "kind": "LinkedField",
         "name": "deleteAnnotationConfigs",
@@ -72,7 +71,7 @@ return {
             "name": "annotationConfigs",
             "plural": true,
             "selections": [
-              (v2/*: any*/)
+              (v2/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -85,13 +84,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SettingsAnnotationsPageDeleteAnnotationConfigsMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "DeleteAnnotationConfigsPayload",
         "kind": "LinkedField",
         "name": "deleteAnnotationConfigs",
@@ -105,7 +104,7 @@ return {
             "name": "annotationConfigs",
             "plural": true,
             "selections": [
-              (v2/*: any*/),
+              (v2/*:: as any*/),
               {
                 "kind": "InlineFragment",
                 "selections": [

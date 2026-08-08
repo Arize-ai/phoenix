@@ -30,7 +30,7 @@ export function ExternalLink({ href, children }: ExternalLinkProps) {
       rel="noreferrer"
     >
       {children}
-      <Icon svg={<Icons.ExternalLinkOutline />} />
+      <Icon svg={<Icons.ExternalLink />} />
     </a>
   );
 }

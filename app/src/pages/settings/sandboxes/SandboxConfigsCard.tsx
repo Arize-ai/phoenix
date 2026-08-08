@@ -3,7 +3,7 @@ import { graphql, useMutation } from "react-relay";
 
 import {
   Card,
-  ContextualHelp,
+  DocumentationHelp,
   Flex,
   Label,
   Switch,
@@ -28,6 +28,7 @@ import {
   getSandboxConfigSettings,
   LanguageWithIcon,
   SandboxHostingTypeBadge,
+  SandboxLanguageDialectBadge,
   shouldShowRuntimeUnavailableBadge,
   StatusText,
 } from "./utils";
@@ -54,9 +55,9 @@ export function SandboxConfigsCard({
     <Card
       title="Sandbox Configurations"
       titleExtra={
-        <ContextualHelp variant="info">
+        <DocumentationHelp topic="sandboxConfigurations">
           Reusable sandbox configurations for code evaluators.
-        </ContextualHelp>
+        </DocumentationHelp>
       }
       extra={
         <SandboxConfigDialogTrigger
@@ -99,6 +100,10 @@ export function SandboxConfigsCard({
                         <Text>{backend.displayName}</Text>
                         <SandboxHostingTypeBadge
                           hostingType={backend.hostingType}
+                        />
+                        <SandboxLanguageDialectBadge
+                          languageDialect={backend.languageDialect}
+                          runtimeNotes={backend.runtimeNotes}
                         />
                       </Flex>
                     </td>

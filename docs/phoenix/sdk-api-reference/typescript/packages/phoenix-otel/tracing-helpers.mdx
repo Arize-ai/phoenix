@@ -1,6 +1,6 @@
 ---
 title: "Tracing Helpers"
-description: "Wrap functions and methods with OpenInference spans using withSpan, traceChain, traceAgent, traceTool, and observe"
+description: "Wrap functions and methods with OpenInference spans using withSpan, the span-kind wrappers (traceChain, traceAgent, traceTool, traceLLM, traceRetriever, traceReranker, traceEmbedding, traceGuardrail, traceEvaluator, tracePrompt), and observe"
 ---
 
 `@arizeai/phoenix-otel` re-exports the OpenInference tracing helpers from `@arizeai/openinference-core`, so you can configure Phoenix export and author traced functions from one package path.
@@ -35,7 +35,7 @@ await handleQuery("What's the weather?");
   <ul>
     <li><code>src/index.ts</code> re-exports the helper surface from <code>@arizeai/openinference-core</code></li>
     <li><code>node_modules/@arizeai/openinference-core/src/helpers/withSpan.ts</code> implements wrapper behavior</li>
-    <li><code>node_modules/@arizeai/openinference-core/src/helpers/wrappers.ts</code> defines <code>traceChain</code>, <code>traceAgent</code>, and <code>traceTool</code></li>
+    <li><code>node_modules/@arizeai/openinference-core/src/helpers/wrappers.ts</code> defines the span-kind wrappers <code>traceChain</code>, <code>traceAgent</code>, <code>traceTool</code>, <code>traceLLM</code>, <code>traceRetriever</code>, <code>traceReranker</code>, <code>traceEmbedding</code>, <code>traceGuardrail</code>, <code>traceEvaluator</code>, and <code>tracePrompt</code></li>
     <li><code>node_modules/@arizeai/openinference-core/src/helpers/decorators.ts</code> defines <code>observe</code></li>
   </ul>
 </section>
@@ -135,6 +135,79 @@ const searchDocs = traceTool(
 );
 ```
 
+### Additional Span-Kind Wrappers
+
+Alongside `traceChain`, `traceAgent`, and `traceTool`, the following wrappers cover the remaining OpenInference span kinds. Each is a shorthand for `withSpan(fn, { ...options, kind })` with the listed span kind pre-configured, accepts the same `SpanTraceOptions` (minus `kind`), and resolves the default tracer at invocation time.
+
+<Note>These wrappers are marked `@experimental` in `@arizeai/openinference-core` and may change in a future release.</Note>
+
+| Wrapper | Span kind | Use it for |
+|---------|-----------|------------|
+| `traceLLM(fn, options?)` | `LLM` | Invocations of a large language model — chat or text completions and other foundation-model inference calls. |
+| `traceRetriever(fn, options?)` | `RETRIEVER` | Fetching documents or context from a knowledge base, vector store, or search index (RAG). |
+| `traceReranker(fn, options?)` | `RERANKER` | Reordering or scoring candidate documents by relevance before passing them to a model. |
+| `traceEmbedding(fn, options?)` | `EMBEDDING` | Converting text or other data into vector representations for semantic search and retrieval. |
+| `traceGuardrail(fn, options?)` | `GUARDRAIL` | Safety, validation, or policy checks such as content moderation, PII detection, or compliance enforcement. |
+| `traceEvaluator(fn, options?)` | `EVALUATOR` | Assessing or scoring output quality — relevance scoring, correctness checks, or LLM-as-a-judge evaluations. |
+| `tracePrompt(fn, options?)` | `PROMPT` | Constructing, rendering, or templating a prompt before it is sent to a model. |
+
+```ts
+import {
+  traceEmbedding,
+  traceEvaluator,
+  traceGuardrail,
+  traceLLM,
+  tracePrompt,
+  traceReranker,
+  traceRetriever,
+} from "@arizeai/phoenix-otel";
+
+// traceRetriever — fetch context from a vector store
+const retrieveDocuments = traceRetriever(
+  async (query: string) => vectorStore.similaritySearch(query, 5),
+  { name: "vector-search" }
+);
+
+// traceReranker — reorder candidates by relevance
+const rerankDocuments = traceReranker(
+  async (query: string, documents: Document[]) =>
+    reranker.rerank(query, documents),
+  { name: "rerank" }
+);
+
+// traceEmbedding — turn text into vectors
+const embedText = traceEmbedding(
+  async (text: string) =>
+    client.embeddings.create({ model: "text-embedding-3-small", input: text }),
+  { name: "embed-text" }
+);
+
+// tracePrompt — render a prompt template
+const renderPrompt = tracePrompt(
+  (variables: Record<string, string>) => promptTemplate.format(variables),
+  { name: "render-prompt" }
+);
+
+// traceLLM — call a language model
+const chatCompletion = traceLLM(
+  async (messages: Message[]) =>
+    client.chat.completions.create({ model: "gpt-4", messages }),
+  { name: "chat-completion" }
+);
+
+// traceGuardrail — moderate or validate content
+const moderateContent = traceGuardrail(
+  async (text: string) => moderationClient.check(text),
+  { name: "content-moderation" }
+);
+
+// traceEvaluator — score an answer (e.g. LLM-as-a-judge)
+const evaluateAnswer = traceEvaluator(
+  async (question: string, answer: string) => judge.score({ question, answer }),
+  { name: "answer-evaluation" }
+);
+```
+
 ### `observe(options?)`
 
 Decorator factory for class methods. Use TypeScript 5+ standard decorators.
@@ -186,7 +259,7 @@ const retriever = withSpan(
 );
 ```
 
-The same customization pattern works with `traceChain`, `traceAgent`, and `traceTool`, since they all delegate to `withSpan`.
+The same customization pattern works with every span-kind wrapper (`traceChain`, `traceAgent`, `traceTool`, `traceLLM`, `traceRetriever`, `traceReranker`, `traceEmbedding`, `traceGuardrail`, `traceEvaluator`, and `tracePrompt`), since they all delegate to `withSpan`.
 
 ## Combining Helpers With Context Attributes
 

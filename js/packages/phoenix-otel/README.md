@@ -30,7 +30,7 @@ A lightweight wrapper around OpenTelemetry for Node.js applications that simplif
 - **Simple Setup** - One-line configuration with sensible defaults
 - **Environment Variables** - Automatic configuration from environment variables
 - **Batch Processing** - Built-in batch span processing for production use
-- **OpenInference Helpers Included** - Re-exports `withSpan`, `traceChain`, `traceAgent`, `traceTool`, `observe`, context setters, attribute builders, `OITracer`, and utility helpers
+- **OpenInference Helpers Included** - Re-exports `withSpan`, the span-kind wrappers (`traceChain`, `traceAgent`, `traceTool`, `traceLLM`, `traceRetriever`, `traceReranker`, `traceEmbedding`, `traceGuardrail`, `traceEvaluator`, `tracePrompt`), `observe`, context setters, attribute builders, `OITracer`, and utility helpers
 - **Provider-Swap Safe Wrappers** - The re-exported OpenInference helpers resolve the default tracer when the wrapped function executes, so module-scoped wrappers continue following global provider changes
 - **Agent-Friendly Local Docs** - Ships curated docs and source in `node_modules/@arizeai/phoenix-otel/`
 
@@ -39,6 +39,8 @@ A lightweight wrapper around OpenTelemetry for Node.js applications that simplif
 ```bash
 npm install @arizeai/phoenix-otel
 ```
+
+Requires Node.js 18 or newer. Both ESM and CommonJS entry points are provided.
 
 ## Quick Start
 
@@ -66,14 +68,14 @@ await provider.shutdown();
 
 ### Production Setup
 
-For production use with Phoenix Cloud:
+For production use with a remote Phoenix instance:
 
 ```typescript
 import { register } from "@arizeai/phoenix-otel";
 
 register({
   projectName: "my-app",
-  url: "https://app.phoenix.arize.com",
+  url: "https://your-phoenix-instance.com",
   apiKey: process.env.PHOENIX_API_KEY,
 });
 ```
@@ -88,10 +90,23 @@ The `register` function automatically reads from environment variables:
 # For local Phoenix server (default)
 export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
 
-# For Phoenix Cloud
-export PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com"
+# For a remote Phoenix instance
+export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"
 export PHOENIX_API_KEY="your-api-key"
 ```
+
+When a setting is not provided by argument or environment variable, `register`
+also looks for a `.env.phoenix` file in the current working directory — walking
+up toward the filesystem root and stopping at the first match — and reads
+`PHOENIX_`-prefixed keys from it (dotenv format). Environment variables always
+take precedence over the file; set `PHOENIX_DISCOVER_CONFIG=false` to disable
+discovery entirely.
+
+`PHOENIX_API_KEY` and `PHOENIX_CLIENT_HEADERS` are resolved as one credential
+group. Explicit `Authorization` headers are preserved case-insensitively. If an
+explicit or process credential is paired with `PHOENIX_COLLECTOR_ENDPOINT` from
+the file, the exporter warns once and continues without logging credential
+values.
 
 ### Configuration Options
 
@@ -108,7 +123,83 @@ The `register` function accepts the following parameters:
 | `global`           | `boolean`                | `true`                    | Register the tracer provider globally                  |
 | `diagLogLevel`     | `DiagLogLevel`           | `undefined`               | Diagnostic logging level for debugging                 |
 
+### Custom Span Processors
+
+`register()` also accepts `spanProcessors`, which replaces the default Phoenix
+exporter setup. For these setups the package root re-exports
+`OTLPTraceExporter`, and the ESM-only `@arizeai/phoenix-otel/vercel` subpath
+re-exports `@arizeai/openinference-vercel` (`OpenInferenceSimpleSpanProcessor`,
+`OpenInferenceBatchSpanProcessor`, `isOpenInferenceSpan`, and types) — no need
+to install the underlying packages:
+
+```typescript
+import {
+  ensureCollectorEndpoint,
+  OTLPTraceExporter,
+  register,
+} from "@arizeai/phoenix-otel";
+import {
+  isOpenInferenceSpan,
+  OpenInferenceSimpleSpanProcessor,
+} from "@arizeai/phoenix-otel/vercel";
+
+register({
+  projectName: "my-agent",
+  spanProcessors: [
+    new OpenInferenceSimpleSpanProcessor({
+      exporter: new OTLPTraceExporter({
+        url: ensureCollectorEndpoint("http://localhost:6006"),
+      }),
+      // Export only AI spans, re-rooting any left orphaned by the filter
+      spanFilter: isOpenInferenceSpan,
+      reparentOrphanedSpans: true,
+    }),
+  ],
+});
+```
+
 ## Usage Examples
+
+### With the Vercel AI SDK (v7+)
+
+AI SDK v7 telemetry registration is process-global, so applications configure
+it explicitly. Install `ai` and `@ai-sdk/otel`, then register the integration
+alongside the Phoenix provider. Request-header capture is disabled below
+because headers can contain authorization tokens and cookies.
+
+```typescript
+// instrumentation.ts
+import { OpenTelemetry } from "@ai-sdk/otel";
+import { registerTelemetry } from "ai";
+import { register } from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "my-ai-app",
+});
+
+registerTelemetry(
+  new OpenTelemetry({
+    tracer: provider.getTracer("@arizeai/phoenix-otel/ai-sdk"),
+    headers: false,
+  })
+);
+```
+
+```typescript
+// main.ts
+import "./instrumentation.ts";
+import { openai } from "@ai-sdk/openai";
+import { generateText } from "ai";
+
+const result = await generateText({
+  model: openai("gpt-4o-mini"),
+  prompt: "Write a short story about a cat.",
+});
+```
+
+> **Note**: AI SDK v6 and older emit a different span shape that is not
+> supported by the bundled span processors. Use `@arizeai/phoenix-otel` 1.x
+> (with `@arizeai/openinference-vercel` 2.x) for AI SDK v6.
 
 ### With Auto-Instrumentation
 
@@ -165,7 +256,7 @@ const response = await openai.chat.completions.create({
 
 ### Tracing Helpers
 
-The package includes `withSpan`, `traceChain`, `traceAgent`, and `traceTool` for wrapping functions with OpenInference spans. Each helper automatically records inputs, outputs, errors, and span kind.
+The package includes `withSpan` plus span-kind shorthands — `traceChain`, `traceAgent`, and `traceTool` — for wrapping functions with OpenInference spans. Each helper automatically records inputs, outputs, errors, and span kind.
 
 ```typescript
 import {
@@ -211,6 +302,42 @@ const retrieveDocs = withSpan(
 ```
 
 These helpers resolve the default tracer when the wrapped function runs, so traced functions defined at module scope keep following global provider changes.
+
+#### Additional Span-Kind Wrappers
+
+The full set of OpenInference span kinds is covered by matching wrappers, each a shorthand for `withSpan(fn, { ...options, kind })`. They accept the same options as `traceChain`/`traceAgent`/`traceTool` (everything except `kind`, which is pre-set). These wrappers are marked `@experimental` in `@arizeai/openinference-core`.
+
+| Wrapper          | Span kind   | Use it for                                                                    |
+| ---------------- | ----------- | ----------------------------------------------------------------------------- |
+| `traceLLM`       | `LLM`       | Language-model invocations — chat/text completions and other inference calls  |
+| `traceRetriever` | `RETRIEVER` | Fetching documents from a knowledge base, vector store, or search index (RAG) |
+| `traceReranker`  | `RERANKER`  | Reordering or scoring candidate documents by relevance                        |
+| `traceEmbedding` | `EMBEDDING` | Converting text or data into vector representations                           |
+| `traceGuardrail` | `GUARDRAIL` | Safety, validation, or policy checks (moderation, PII, compliance)            |
+| `traceEvaluator` | `EVALUATOR` | Scoring output quality — relevance, correctness, or LLM-as-a-judge            |
+| `tracePrompt`    | `PROMPT`    | Constructing, rendering, or templating a prompt before a model call           |
+
+```typescript
+import {
+  traceEmbedding,
+  traceEvaluator,
+  traceGuardrail,
+  traceLLM,
+  tracePrompt,
+  traceReranker,
+  traceRetriever,
+} from "@arizeai/phoenix-otel";
+
+const retrieveDocuments = traceRetriever(
+  async (query: string) => vectorStore.similaritySearch(query, 5),
+  { name: "vector-search" }
+);
+
+const evaluateAnswer = traceEvaluator(
+  async (question: string, answer: string) => judge.score({ question, answer }),
+  { name: "answer-evaluation" }
+);
+```
 
 ### Custom Input And Output Processing
 
@@ -452,7 +579,7 @@ import { register } from "@arizeai/phoenix-otel";
 
 register({
   projectName: "my-app-prod",
-  url: "https://app.phoenix.arize.com",
+  url: "https://your-phoenix-instance.com",
   apiKey: process.env.PHOENIX_API_KEY,
   batch: true, // Batch processing for better performance
 });
@@ -467,7 +594,7 @@ import { register } from "@arizeai/phoenix-otel";
 
 register({
   projectName: "my-app",
-  url: "https://app.phoenix.arize.com",
+  url: "https://your-phoenix-instance.com",
   headers: {
     "X-Custom-Header": "custom-value",
     "X-Environment": process.env.NODE_ENV || "development",
@@ -522,6 +649,13 @@ import {
   observe,
   traceAgent,
   traceChain,
+  traceEmbedding,
+  traceEvaluator,
+  traceGuardrail,
+  traceLLM,
+  tracePrompt,
+  traceReranker,
+  traceRetriever,
   traceTool,
   withSpan,
 } from "@arizeai/phoenix-otel";

@@ -18,26 +18,26 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@faker-js/faker": "^10.3.0",
+    "@faker-js/faker": "^10.5.0",
     "express": "^5.2.1",
-    "ws": "^8.19.0"
+    "ws": "^8.21.0"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.78.0",
-    "@google/genai": "^1.43.0",
+    "@anthropic-ai/sdk": "^0.111.0",
+    "@google/genai": "^2.11.0",
     "@types/express": "^5.0.6",
-    "@types/node": "^25.3.1",
+    "@types/node": "^26.1.1",
     "@types/ws": "^8.18.1",
-    "json-schema-faker": "^0.6.0",
-    "openai": "^6.25.0",
-    "oxfmt": "^0.51.0",
-    "oxlint": "~1.66.0",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
+    "json-schema-faker": "^0.6.2",
+    "openai": "^6.46.0",
+    "oxfmt": "^0.58.0",
+    "oxlint": "~1.73.0",
+    "tsx": "^4.23.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@11.3.0"
+  "packageManager": "pnpm@11.11.0"
 }

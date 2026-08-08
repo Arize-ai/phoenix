@@ -106,13 +106,15 @@ nothing. Use `limit=` to control result size instead.
 ## Not Filtering Spans Appropriately
 
 ```python
+from phoenix.client.types.spans import SpanQuery
+
 # WRONG — fetches all spans including internal LLM calls, retrievers, etc.
 df = client.spans.get_spans_dataframe(project_identifier="my-project")
 
 # RIGHT for end-to-end evaluation — filter to top-level spans
 df = client.spans.get_spans_dataframe(
     project_identifier="my-project",
-    root_spans_only=True,
+    query=SpanQuery().where("parent_id is None"),
 )
 
 # RIGHT for RAG evaluation — fetch child spans for retriever/LLM metrics
@@ -123,7 +125,10 @@ retriever_spans = all_spans[all_spans["span_kind"] == "RETRIEVER"]
 llm_spans = all_spans[all_spans["span_kind"] == "LLM"]
 ```
 
-**Why**: For end-to-end evaluation (e.g., overall answer quality), use `root_spans_only=True`.
+**Why**: For end-to-end evaluation (e.g., overall answer quality), scope the query to root
+spans with `SpanQuery().where("parent_id is None")` — the `root_spans_only=True` argument is
+deprecated. Use `parent_span is None` instead if you also want orphans (spans whose parent is
+absent) counted as roots.
 For RAG systems, you often need child spans separately — retriever spans for
 DocumentRelevance and LLM spans for Faithfulness. Choose the right span level
 for your evaluation target.
@@ -211,15 +216,29 @@ an evaluator with `ClassificationEvaluator` and run it with `async_evaluate_data
 ## Using HallucinationEvaluator
 
 ```python
-# WRONG — deprecated
+# WRONG — not a top-level export, and takes an LLM, not a model string
 from phoenix.evals import HallucinationEvaluator
 eval = HallucinationEvaluator(model)
 
-# RIGHT — use FaithfulnessEvaluator
-from phoenix.evals.metrics import FaithfulnessEvaluator
+# WRONG — there is no `context` field
+eval.evaluate({"input": question, "output": answer, "context": retrieved_docs})
+
+# RIGHT
+from phoenix.evals.metrics import HallucinationEvaluator
 from phoenix.evals import LLM
-eval = FaithfulnessEvaluator(llm=LLM(provider="openai", model="gpt-4o"))
+eval = HallucinationEvaluator(llm=LLM(provider="openai", model="gpt-4o"))
+eval.evaluate({"input": conversation_so_far, "output": assistant_reply})
 ```
 
-**Why**: `HallucinationEvaluator` is deprecated. `FaithfulnessEvaluator` is its replacement,
-using "faithful"/"unfaithful" labels with maximized score (1.0 = faithful).
+**Why**: pre-built evaluators live in `phoenix.evals.metrics`, not the top-level
+`phoenix.evals`. `HallucinationEvaluator` grounds a response against **the conversation**
+— `input` is the full history the assistant had access to (prior turns, tool calls, tool
+results), `output` is the reply being judged. There is no separate `context` field: if your
+source of truth is a supplied context such as retrieved documents, that is
+`FaithfulnessEvaluator`, not this one.
+
+Labels are `hallucinated`/`grounded` and the score is **minimized** — `hallucinated` is
+`1.0`, `grounded` is `0.0`. Do not assume "1.0 = good"; read the returned `Score`'s
+`direction` before thresholding. Results are also not comparable with previously stored
+`hallucination` annotations that used `factual`/`hallucinated` labels — dashboards and
+thresholds built on those need migrating, not reinterpreting.

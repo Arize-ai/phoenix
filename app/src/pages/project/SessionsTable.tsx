@@ -14,28 +14,34 @@ import {
 } from "@tanstack/react-table";
 import React, {
   startTransition,
+  Suspense,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
+import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
+import { Group, Panel } from "react-resizable-panels";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
   ContextualHelp,
-  CopyToClipboardButton,
   Flex,
   Heading,
   Icon,
   Icons,
+  OverflowRow,
   Text,
   View,
 } from "@phoenix/components";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { useTimeRange } from "@phoenix/components/datetime";
+import {
+  expandableSelectableTableCSS,
+  TABLE_DATA_CELL_CLASS,
+} from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
@@ -47,19 +53,32 @@ import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationCont
 import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
 
 import {
-  CellWithControlsWrap,
+  ColumnHeaderCell,
+  ColumnOrderingProvider,
+  CopyableTextCell,
   IntCell,
-  TextCell,
+  RowExpandToggleButton,
+  useTableRowsExpanded,
+  useColumnOrder,
 } from "../../components/table";
 import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import type { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
+import type { SessionsTableSessionFilterVocabularyQuery } from "./__generated__/SessionsTableSessionFilterVocabularyQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
+import {
+  SessionInputValueTooltipCell,
+  SessionOutputValueTooltipCell,
+} from "./IOValueTooltipCell";
 import { SessionColumnSelector } from "./SessionColumnSelector";
-import { useSessionSearchContext } from "./SessionSearchContext";
-import { SessionSearchField } from "./SessionSearchField";
+import { SessionFilterConditionField } from "./SessionFilterConditionField";
+import { SessionsTableAside } from "./SessionsTableAside";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
 import { spansTableCSS } from "./styles";
+import { TableAsidePanel, TableAsideToggleButton } from "./TableAside";
+import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
+import { TableMetricsChartSelector } from "./TableMetricsChartSelector";
 import {
+  ANNOTATION_COLUMN_SIZING,
   DEFAULT_SESSION_SORT,
   getGqlSessionSort,
   makeAnnotationColumnId,
@@ -73,6 +92,53 @@ const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
+
+const toolbarFilterFieldCSS = css`
+  flex: 2 1 420px;
+  min-width: min(100%, 320px);
+`;
+
+const EMPTY_SESSION_FILTER_VOCABULARY = [] as const;
+
+/**
+ * The filter field, once its per-project autocomplete vocabulary has loaded.
+ * The vocabulary resolver scans annotation names and root-span attributes, so
+ * it is suspended separately from the table it sits above.
+ */
+function SessionFilterConditionFieldWithVocabulary({
+  projectId,
+  onValidCondition,
+}: {
+  projectId: string;
+  onValidCondition: (condition: string) => void;
+}) {
+  const data = useLazyLoadQuery<SessionsTableSessionFilterVocabularyQuery>(
+    graphql`
+      query SessionsTableSessionFilterVocabularyQuery($id: ID!) {
+        project: node(id: $id) {
+          ... on Project {
+            sessionFilterVocabulary {
+              name
+              type
+              description
+              category
+              iterableName
+            }
+          }
+        }
+      }
+    `,
+    { id: projectId }
+  );
+  return (
+    <SessionFilterConditionField
+      vocabulary={
+        data.project?.sessionFilterVocabulary ?? EMPTY_SESSION_FILTER_VOCABULARY
+      }
+      onValidCondition={onValidCondition}
+    />
+  );
+}
 
 const TableBody = <T extends { id: string }>({
   table,
@@ -104,14 +170,10 @@ const TableBody = <T extends { id: string }>({
               return (
                 <td
                   key={cell.id}
+                  className={TABLE_DATA_CELL_CLASS}
                   style={{
                     width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
                     maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
-                    // prevent all wrapping, just show an ellipsis and let users expand if necessary
-                    textWrap: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
                   }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -135,8 +197,19 @@ export function SessionsTable(props: SessionsTableProps) {
   // we need a reference to the scrolling element for pagination logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const { filterIoSubstringOrSessionId } = useSessionSearchContext();
+  const [validSessionFilterCondition, setValidSessionFilterCondition] =
+    useState<string>("");
   const { fetchKey } = useStreamState();
+  // Source the time range directly here (rather than only via the preloaded
+  // parent query) so a live window sliding forward refetches with the current
+  // search/filter still applied. The parent query is intentionally not reloaded
+  // on window slides — see the load effect in `ProjectPage` and issue #14216.
+  const { timeRangeISOStrings } = useTimeRange();
+  const {
+    isExpanded: areRowsExpanded,
+    setIsExpanded: setAreRowsExpanded,
+    tableProps: rowsExpandedTableProps,
+  } = useTableRowsExpanded();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SessionsTableQuery, SessionsTable_sessions$key>(
       graphql`
@@ -149,31 +222,31 @@ export function SessionsTable(props: SessionsTableProps) {
             type: "ProjectSessionSort"
             defaultValue: { col: startTime, dir: desc }
           }
-          filterIoSubstring: { type: "String", defaultValue: null }
-          sessionId: { type: "String", defaultValue: null }
+          sessionFilterCondition: { type: "String", defaultValue: null }
         ) {
+          id
           name
           ...SessionColumnSelector_annotations
           sessions(
             first: $first
             after: $after
             sort: $sort
-            filterIoSubstring: $filterIoSubstring
+            sessionFilterCondition: $sessionFilterCondition
             timeRange: $timeRange
-            sessionId: $sessionId
           ) @connection(key: "SessionsTable_sessions") {
             edges {
               session: node {
                 id
                 sessionId
+                userId
                 numTraces
                 startTime
                 endTime
                 firstInput {
-                  value
+                  value: truncatedValue
                 }
                 lastOutput {
-                  value
+                  value: truncatedValue
                 }
                 tokenUsage {
                   total
@@ -245,7 +318,7 @@ export function SessionsTable(props: SessionsTableProps) {
   const setSessionSequence = useSessionPagination()?.setSessionSequence;
   useEffect(() => {
     if (!setSessionSequence) {
-      return;
+      return undefined;
     }
     setSessionSequence(
       data.sessions.edges.map(({ session }) => ({
@@ -325,8 +398,16 @@ export function SessionsTable(props: SessionsTableProps) {
       id: "annotations",
       accessorKey: "sessionAnnotations",
       enableSorting: false,
+      ...ANNOTATION_COLUMN_SIZING,
       cell: ({ row }) => {
-        return <SessionAnnotationSummaryGroupTokens session={row.original} />;
+        return (
+          <OverflowRow isExpanded={areRowsExpanded}>
+            <SessionAnnotationSummaryGroupTokens
+              session={row.original}
+              showFilterActions
+            />
+          </OverflowRow>
+        );
       },
     },
     ...dynamicAnnotationColumns,
@@ -337,31 +418,39 @@ export function SessionsTable(props: SessionsTableProps) {
       header: "session id",
       accessorKey: "sessionId",
       enableSorting: false,
-      cell: ({ getValue }) => {
-        const value = getValue() as string | null;
-        if (!value) return <>{"--"}</>;
-        return (
-          <CellWithControlsWrap
-            controls={<CopyToClipboardButton text={value} />}
-          >
-            <Truncate>
-              <Text>{value}</Text>
-            </Truncate>
-          </CellWithControlsWrap>
-        );
-      },
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
     },
     {
       header: "first input",
       accessorKey: "firstInput.value",
       enableSorting: false,
-      cell: TextCell,
+      cell: ({ getValue, row }) => (
+        <SessionInputValueTooltipCell
+          nodeId={row.original.id}
+          preview={getValue()}
+        />
+      ),
     },
     {
       header: "last output",
       accessorKey: "lastOutput.value",
       enableSorting: false,
-      cell: TextCell,
+      cell: ({ getValue, row }) => (
+        <SessionOutputValueTooltipCell
+          nodeId={row.original.id}
+          preview={getValue()}
+        />
+      ),
+    },
+    {
+      header: "user",
+      accessorKey: "userId",
+      enableSorting: false,
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
     },
     ...annotationColumns,
     {
@@ -380,24 +469,26 @@ export function SessionsTable(props: SessionsTableProps) {
       header: "p50 latency",
       accessorKey: "traceLatencyMsP50",
       enableSorting: false,
+      meta: { textAlign: "right" },
       cell: ({ getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
           return null;
         }
-        return <LatencyText latencyMs={value} />;
+        return <LatencyText latencyMs={value} size="S" />;
       },
     },
     {
       header: "p99 latency",
       accessorKey: "traceLatencyMsP99",
       enableSorting: false,
+      meta: { textAlign: "right" },
       cell: ({ getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
           return null;
         }
-        return <LatencyText latencyMs={value} />;
+        return <LatencyText latencyMs={value} size="S" />;
       },
     },
     {
@@ -405,6 +496,7 @@ export function SessionsTable(props: SessionsTableProps) {
       accessorKey: "tokenCountTotal",
       enableSorting: true,
       minSize: 80,
+      meta: { textAlign: "right" },
       cell: ({ getValue, row }) => {
         const value = getValue();
         if (value == null || typeof value !== "number") {
@@ -426,13 +518,16 @@ export function SessionsTable(props: SessionsTableProps) {
       id: "costTotal",
       enableSorting: true,
       minSize: 80,
+      meta: { textAlign: "right" },
       cell: ({ row, getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
           return "--";
         }
         const session = row.original;
-        return <SessionTokenCosts totalCost={value} nodeId={session.id} />;
+        return (
+          <SessionTokenCosts totalCost={value} nodeId={session.id} size="S" />
+        );
       },
     },
     {
@@ -450,13 +545,19 @@ export function SessionsTable(props: SessionsTableProps) {
           sort: sort ? getGqlSessionSort(sort) : DEFAULT_SESSION_SORT,
           after: null,
           first: PAGE_SIZE,
-          filterIoSubstring: filterIoSubstringOrSessionId,
-          sessionId: filterIoSubstringOrSessionId,
+          sessionFilterCondition: validSessionFilterCondition || null,
+          timeRange: timeRangeISOStrings,
         },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [sorting, refetch, filterIoSubstringOrSessionId, fetchKey]);
+  }, [
+    sorting,
+    refetch,
+    validSessionFilterCondition,
+    fetchKey,
+    timeRangeISOStrings,
+  ]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -477,6 +578,21 @@ export function SessionsTable(props: SessionsTableProps) {
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const columnSizing = useTracingContext((state) => state.columnSizing);
   const setColumnSizing = useTracingContext((state) => state.setColumnSizing);
+  const storedColumnOrder = useTracingContext((state) => state.columnOrder);
+  const setStoredColumnOrder = useTracingContext(
+    (state) => state.setColumnOrder
+  );
+  const {
+    leafColumnOrder,
+    visibleColumnOrder,
+    onVisibleColumnOrderChange,
+    getColumnOrderIndex,
+  } = useColumnOrder({
+    columns,
+    columnOrder: storedColumnOrder,
+    onColumnOrderChange: setStoredColumnOrder,
+    columnVisibility,
+  });
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
@@ -487,6 +603,7 @@ export function SessionsTable(props: SessionsTableProps) {
       expanded,
       columnVisibility,
       columnSizing,
+      columnOrder: leafColumnOrder,
     },
     defaultColumn: defaultColumnSettings,
     columnResizeMode: "onChange",
@@ -499,10 +616,6 @@ export function SessionsTable(props: SessionsTableProps) {
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
-  const computedColumns = table.getAllColumns().filter((column) => {
-    // Filter out columns that are eval groupings
-    return column.columns.length === 0;
-  });
   const { columnSizingInfo, columnSizing: columnSizingState } =
     table.getState();
   const getFlatHeaders = table.getFlatHeaders;
@@ -528,107 +641,184 @@ export function SessionsTable(props: SessionsTableProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
   return (
-    <div css={spansTableCSS}>
-      <View
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        borderBottomColor="default"
-        borderBottomWidth="thin"
-        flex="none"
-      >
-        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
-          <View flex="1 1 auto">
-            <SessionSearchField />
-          </View>
-          <SessionColumnSelector columns={computedColumns} query={data} />
-        </Flex>
-      </View>
-      <div
-        css={css`
-          flex: 1 1 auto;
-          overflow: auto;
-        `}
-        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-        ref={tableContainerRef}
-      >
-        <table
-          css={selectableTableCSS}
-          style={{
-            ...columnSizeVars,
-            width: table.getTotalSize(),
-            minWidth: "100%",
-          }}
+    <TableMetricsChartsPanelGroup view="sessions">
+      <div css={spansTableCSS}>
+        <View
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          paddingStart="size-200"
+          paddingEnd="size-200"
+          borderBottomColor="default"
+          borderBottomWidth="thin"
+          flex="none"
         >
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    colSpan={header.colSpan}
-                    style={{
-                      width: `calc(var(--header-${header.id}-size) * 1px)`,
-                    }}
-                    key={header.id}
-                  >
-                    {header.isPlaceholder ? null : (
-                      <>
-                        <div
-                          data-sortable={header.column.getCanSort()}
-                          {...{
-                            className: header.column.getCanSort() ? "sort" : "",
-                            onClick: header.column.getToggleSortingHandler(),
-                            style: {
-                              left: header.getStart(),
-                              width: header.getSize(),
-                            },
-                          }}
-                        >
-                          <Truncate maxWidth="100%">
-                            {flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                          </Truncate>
-                          {header.column.getIsSorted() ? (
-                            <Icon
-                              className="sort-icon"
-                              svg={
-                                header.column.getIsSorted() === "asc" ? (
-                                  <Icons.ArrowUpFilled />
-                                ) : (
-                                  <Icons.ArrowDownFilled />
-                                )
+          <Flex
+            direction="row"
+            gap="size-100"
+            width="100%"
+            alignItems="center"
+            wrap="wrap"
+          >
+            <div css={toolbarFilterFieldCSS}>
+              {/* Autocomplete data must not gate the table's first paint, so
+                  the field renders — and filters — before it arrives. */}
+              <Suspense
+                fallback={
+                  <SessionFilterConditionField
+                    vocabulary={EMPTY_SESSION_FILTER_VOCABULARY}
+                    onValidCondition={setValidSessionFilterCondition}
+                  />
+                }
+              >
+                <SessionFilterConditionFieldWithVocabulary
+                  projectId={data.id}
+                  onValidCondition={setValidSessionFilterCondition}
+                />
+              </Suspense>
+            </div>
+            <TableMetricsChartSelector view="sessions" />
+            <SessionColumnSelector
+              columns={table.getAllColumns()}
+              query={data}
+            />
+            <RowExpandToggleButton
+              isExpanded={areRowsExpanded}
+              onChange={setAreRowsExpanded}
+            />
+            <TableAsideToggleButton />
+          </Flex>
+        </View>
+        <Group
+          orientation="horizontal"
+          id="sessions-table-layout"
+          css={css`
+            flex: 1 1 auto;
+            min-height: 0;
+          `}
+        >
+          <Panel>
+            <div
+              css={css`
+                height: 100%;
+                overflow: auto;
+              `}
+              onScroll={(e) =>
+                fetchMoreOnBottomReached(e.target as HTMLDivElement)
+              }
+              ref={tableContainerRef}
+            >
+              <ColumnOrderingProvider
+                columnOrder={visibleColumnOrder}
+                onColumnOrderChange={onVisibleColumnOrderChange}
+              >
+                <table
+                  css={expandableSelectableTableCSS}
+                  {...rowsExpandedTableProps}
+                  style={{
+                    ...columnSizeVars,
+                    width: table.getTotalSize(),
+                    minWidth: "100%",
+                  }}
+                >
+                  <thead>
+                    {table
+                      .getHeaderGroups()
+                      .map((headerGroup, headerGroupIndex) => (
+                        <tr key={headerGroup.id}>
+                          {headerGroup.headers.map((header) => (
+                            <ColumnHeaderCell
+                              key={header.id}
+                              columnId={header.column.id}
+                              // Only the top header group is reorderable;
+                              // sub-headers of a group column move with it
+                              index={
+                                headerGroupIndex === 0
+                                  ? getColumnOrderIndex(header.column.id)
+                                  : -1
                               }
-                            />
-                          ) : null}
-                        </div>
-                        <div
-                          {...{
-                            onMouseDown: header.getResizeHandler(),
-                            onTouchStart: header.getResizeHandler(),
-                            className: `resizer ${
-                              header.column.getIsResizing() ? "isResizing" : ""
-                            }`,
-                          }}
-                        />
-                      </>
-                    )}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          {isEmpty ? (
-            <SessionsTableEmpty />
-          ) : columnSizingInfo.isResizingColumn ? (
-            <MemoizedTableBody table={table} />
-          ) : (
-            <TableBody table={table} />
-          )}
-        </table>
+                              label={
+                                typeof header.column.columnDef.header ===
+                                "string"
+                                  ? header.column.columnDef.header
+                                  : undefined
+                              }
+                              colSpan={header.colSpan}
+                              style={{
+                                width: `calc(var(--header-${header.id}-size) * 1px)`,
+                              }}
+                            >
+                              {header.isPlaceholder ? null : (
+                                <>
+                                  <div
+                                    data-sortable={header.column.getCanSort()}
+                                    {...{
+                                      className: header.column.getCanSort()
+                                        ? "sort"
+                                        : "",
+                                      onClick:
+                                        header.column.getToggleSortingHandler(),
+                                      style: {
+                                        left: header.getStart(),
+                                        width: header.getSize(),
+                                      },
+                                    }}
+                                  >
+                                    <Truncate maxWidth="100%">
+                                      {flexRender(
+                                        header.column.columnDef.header,
+                                        header.getContext()
+                                      )}
+                                    </Truncate>
+                                    {header.column.getIsSorted() ? (
+                                      <Icon
+                                        className="sort-icon"
+                                        svg={
+                                          header.column.getIsSorted() ===
+                                          "asc" ? (
+                                            <Icons.CaretUpFilled />
+                                          ) : (
+                                            <Icons.CaretDownFilled />
+                                          )
+                                        }
+                                      />
+                                    ) : null}
+                                  </div>
+                                  <div
+                                    {...{
+                                      onMouseDown: header.getResizeHandler(),
+                                      onTouchStart: header.getResizeHandler(),
+                                      className: `resizer ${
+                                        header.column.getIsResizing()
+                                          ? "isResizing"
+                                          : ""
+                                      }`,
+                                    }}
+                                  />
+                                </>
+                              )}
+                            </ColumnHeaderCell>
+                          ))}
+                        </tr>
+                      ))}
+                  </thead>
+                  {isEmpty ? (
+                    <SessionsTableEmpty />
+                  ) : columnSizingInfo.isResizingColumn ? (
+                    <MemoizedTableBody table={table} />
+                  ) : (
+                    <TableBody table={table} />
+                  )}
+                </table>
+              </ColumnOrderingProvider>
+            </div>
+          </Panel>
+          <TableAsidePanel>
+            <SessionsTableAside
+              sessionFilterCondition={validSessionFilterCondition || null}
+            />
+          </TableAsidePanel>
+        </Group>
       </div>
-    </div>
+    </TableMetricsChartsPanelGroup>
   );
 }

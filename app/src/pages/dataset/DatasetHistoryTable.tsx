@@ -9,8 +9,9 @@ import { useCallback, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 
 import { Icon, Icons } from "@phoenix/components";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 
 import type { DatasetHistoryTable_versions$key } from "./__generated__/DatasetHistoryTable_versions.graphql";
@@ -125,9 +126,9 @@ export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
                           className="sort-icon"
                           svg={
                             header.column.getIsSorted() === "asc" ? (
-                              <Icons.ArrowUpFilled />
+                              <Icons.CaretUpFilled />
                             ) : (
-                              <Icons.ArrowDownFilled />
+                              <Icons.CaretDownFilled />
                             )
                           }
                         />
@@ -140,7 +141,12 @@ export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
           ))}
         </thead>
         {isEmpty ? (
-          <TableEmpty />
+          <TableEmptyWrap>
+            <EmptyState
+              graphic={<EmptyStateGraphic variant="version" />}
+              description="No versions yet"
+            />
+          </TableEmptyWrap>
         ) : (
           <tbody>
             {rows.map((row) => {

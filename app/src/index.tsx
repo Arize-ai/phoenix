@@ -8,7 +8,7 @@ import { App } from "./App";
  * @see https://vitejs.dev/config/build-options#build-modulepreload
  */
 import "vite/modulepreload-polyfill";
-import "normalize.css";
+import "./styles/cascade-layers.css";
 
 const rootEl = document.getElementById("root");
 

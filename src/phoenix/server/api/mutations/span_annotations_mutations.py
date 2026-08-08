@@ -64,6 +64,19 @@ class SpanAnnotationMutationMixin:
             span_rowids.append(span_rowid)
 
         async with info.context.db() as session:
+            existing_span_rowids = set(
+                await session.scalars(
+                    select(models.Span.id).where(models.Span.id.in_(set(span_rowids)))
+                )
+            )
+            missing_span_ids = [
+                str(annotation_input.span_id)
+                for span_rowid, annotation_input in zip(span_rowids, input)
+                if span_rowid not in existing_span_rowids
+            ]
+            if missing_span_ids:
+                raise NotFound(f"Could not find spans with IDs: {missing_span_ids}")
+
             for idx, (span_rowid, annotation_input) in enumerate(zip(span_rowids, input)):
                 resolved_identifier = ""
                 if isinstance(annotation_input.identifier, str):
@@ -165,6 +178,11 @@ class SpanAnnotationMutationMixin:
             raise BadRequest(f"Invalid span ID: {annotation_input.span_id}")
 
         async with info.context.db() as session:
+            if (
+                await session.scalar(select(models.Span.id).where(models.Span.id == span_rowid))
+                is None
+            ):
+                raise NotFound(f"Could not find span with ID: {annotation_input.span_id}")
             note_identifier = get_note_identifier("px-span-note")
             values = {
                 "span_rowid": span_rowid,

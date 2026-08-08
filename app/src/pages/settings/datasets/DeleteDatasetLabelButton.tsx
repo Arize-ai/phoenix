@@ -49,7 +49,7 @@ export function DeleteDatasetLabelButton(props: DeleteDatasetLabelButtonProps) {
     <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
       <Button
         size="S"
-        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Trash />} />}
         aria-label="Delete Dataset Label"
         isDisabled={isDeleting}
       />

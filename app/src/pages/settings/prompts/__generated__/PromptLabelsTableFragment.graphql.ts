@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<017995d817e4e166f6b16ac88e75dabf>>
+ * @generated SignedSource<<fbdda0dbefdec7380aabae6ffdc8b1d2>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -18,6 +17,7 @@ export type PromptLabelsTableFragment$data = {
         readonly description: string | null;
         readonly id: string;
         readonly name: string;
+        readonly usageCount: number;
       };
     }>;
   };
@@ -107,6 +107,13 @@ const node: ReaderFragment = {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "usageCount",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "__typename",
                   "storageKey": null
                 }
@@ -156,6 +163,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "aa6aef745b6890f9e8a48c72d2309626";
+(node as any).hash = "0d56a7fa3df2612dce4bcafd786cafd6";
 
 export default node;

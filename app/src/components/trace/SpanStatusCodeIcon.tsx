@@ -10,17 +10,17 @@ export function SpanStatusCodeIcon<TCode extends SpanStatusCodeType>({
 }: {
   statusCode: TCode;
 }) {
-  let iconSVG = <Icons.MinusOutline />;
+  let iconSVG = <Icons.Minus />;
   const color = useSpanStatusCodeColor(statusCode);
   switch (statusCode) {
     case "OK":
-      iconSVG = <Icons.CheckmarkOutline />;
+      iconSVG = <Icons.Checkmark />;
       break;
     case "ERROR":
-      iconSVG = <Icons.AlertCircleOutline />;
+      iconSVG = <Icons.AlertCircle />;
       break;
     case "UNSET":
-      iconSVG = <Icons.MinusOutline />;
+      iconSVG = <Icons.Minus />;
       break;
     default:
       assertUnreachable(statusCode);

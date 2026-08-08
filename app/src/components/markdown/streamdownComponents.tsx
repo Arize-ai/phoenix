@@ -199,7 +199,7 @@ const inlineCodeCSS = css`
   border-radius: var(--global-rounding-small);
   background: var(--global-inline-code-background-color);
   color: var(--global-inline-code-text-color);
-  font-family: var(--ac-global-font-family-code);
+  font-family: var(--global-font-family-mono);
   font-size: 0.9em;
   line-height: 1.4;
 `;
@@ -364,7 +364,7 @@ function TableCopyButton({
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!copied) return;
+    if (!copied) return undefined;
     const timeout = window.setTimeout(() => setCopied(false), 2000);
     return () => window.clearTimeout(timeout);
   }, [copied]);
@@ -380,7 +380,7 @@ function TableCopyButton({
   return (
     <ActionIconButton
       label={copied ? "Copied table" : "Copy table as markdown"}
-      icon={copied ? <Icons.CheckmarkOutline /> : <Icons.DuplicateOutline />}
+      icon={copied ? <Icons.Checkmark /> : <Icons.Duplicate />}
       onPress={() => void onPress()}
     />
   );
@@ -401,7 +401,7 @@ function TableDownloadButton({
   return (
     <ActionIconButton
       label="Download table as CSV"
-      icon={<Icons.DownloadOutline />}
+      icon={<Icons.Download />}
       onPress={onPress}
     />
   );
@@ -416,7 +416,7 @@ function TableFullscreenButton({ children }: PropsWithChildren) {
         css={actionButtonCSS}
         size="S"
       >
-        <Icon svg={<Icons.ExpandOutline />} />
+        <Icon svg={<Icons.Expand />} />
       </IconButton>
       <ModalOverlay isDismissable>
         <Modal size="L">

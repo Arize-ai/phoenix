@@ -34,14 +34,32 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetSelectorPopoverContent } from "./DatasetSelectorPopoverContent";
+import { SpanSelectionDownloadButton } from "./SpanSelectionDownloadButton";
 import { TransferTracesButton } from "./TransferTracesButton";
 
-interface SelectedSpan {
+export interface SelectedSpan {
+  /**
+   * The span node (relay global) ID
+   */
   id: string;
-  traceId: string;
+  /**
+   * The OpenTelemetry span ID
+   */
+  spanId: string;
+  trace: {
+    /**
+     * The trace node (relay global) ID
+     */
+    id: string;
+    /**
+     * The OpenTelemetry trace ID
+     */
+    traceId: string;
+  };
 }
 
 type SpanSelectionToolbarProps = {
+  projectName: string;
   selectedSpans: SelectedSpan[];
   onClearSelection: () => void;
 };
@@ -56,10 +74,10 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
   const [isDatasetPopoverOpen, setIsDatasetPopoverOpen] = useState(false);
   const [isDeletingTracesDialogOpen, setIsDeletingTracesDialogOpen] =
     useState(false);
-  const { selectedSpans, onClearSelection } = props;
+  const { projectName, selectedSpans, onClearSelection } = props;
 
   const traceIds = useMemo(
-    () => [...new Set(selectedSpans.map((span) => span.traceId))],
+    () => [...new Set(selectedSpans.map((span) => span.trace.id))],
     [selectedSpans]
   );
   const [commitSpansToDataset, isAddingSpansToDataset] = useMutation(graphql`
@@ -167,7 +185,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
             onPress={onClearSelection}
             aria-label="Clear selection"
           >
-            <Icon svg={<Icons.CloseOutline />} />
+            <Icon svg={<Icons.Close />} />
           </IconButton>
           <View paddingEnd="size-100">
             <Text>{`${selectedSpans.length} span${isPlural ? "s" : ""} selected`}</Text>
@@ -183,7 +201,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
             <Button
               variant="primary"
               size="M"
-              leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+              leadingVisual={<Icon svg={<Icons.Plus />} />}
               onPress={() => {
                 setIsDatasetPopoverOpen(true);
               }}
@@ -242,11 +260,12 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                           onPress={() => {
                             setIsCreatingDataset(false);
                           }}
-                          leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+                          leadingVisual={<Icon svg={<Icons.Close />} />}
                         ></Button>
                       </DialogTitleExtra>
                     </DialogHeader>
                     <CreateDatasetForm
+                      submitButtonText="Create and add"
                       onDatasetCreateError={(error) => {
                         const formattedError =
                           getErrorMessagesFromRelayMutationError(error);
@@ -256,11 +275,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                       }}
                       onDatasetCreated={(dataset) => {
                         setIsCreatingDataset(false);
-                        notifySuccess({
-                          title: "Dataset created",
-                          message: `${dataset.name} has been successfully created.`,
-                        });
-                        setIsDatasetPopoverOpen(true);
+                        onAddSpansToDataset(dataset.id);
                       }}
                     />
                   </DialogContent>
@@ -268,13 +283,18 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               </Modal>
             </ModalOverlay>
           </DialogTrigger>
+          <SpanSelectionDownloadButton
+            projectId={projectId}
+            fileNamePrefix={projectName}
+            selectedSpans={selectedSpans}
+          />
           <Button
             size="M"
             aria-label="Delete Traces"
             isDisabled={isDeletingTraces}
             onPress={onDeletePress}
             variant="danger"
-            leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+            leadingVisual={<Icon svg={<Icons.Trash />} />}
           ></Button>
           {/* Delete traces dialog */}
           <DialogTrigger

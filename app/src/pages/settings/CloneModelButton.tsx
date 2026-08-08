@@ -199,7 +199,7 @@ export function CloneModelButton({
     >
       <Button
         variant="default"
-        leadingVisual={<Icon svg={<Icons.GitBranchOutline />} />}
+        leadingVisual={<Icon svg={<Icons.GitBranch />} />}
         aria-label="Clone model"
         onPress={handleOpen}
         size="S"

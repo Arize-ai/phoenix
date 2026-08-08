@@ -34,6 +34,36 @@ export function formatAnnotationConfigsOutput({
   return formatAnnotationConfigsPretty(configs);
 }
 
+export interface FormatAnnotationConfigOutputOptions {
+  /**
+   * Annotation config to format.
+   */
+  config: AnnotationConfig;
+  /**
+   * Output format. Defaults to `"pretty"`.
+   */
+  format?: OutputFormat;
+}
+
+/**
+ * Format a single annotation config. `raw`/`json` emit the config object
+ * directly (not wrapped in an array) so agents can extract fields such as
+ * `.id` without indexing. `pretty` renders the shared single-row table.
+ */
+export function formatAnnotationConfigOutput({
+  config,
+  format,
+}: FormatAnnotationConfigOutputOptions): string {
+  const selected = format || "pretty";
+  if (selected === "raw") {
+    return JSON.stringify(config);
+  }
+  if (selected === "json") {
+    return JSON.stringify(config, null, 2);
+  }
+  return formatAnnotationConfigsPretty([config]);
+}
+
 function formatAnnotationConfigsPretty(configs: AnnotationConfig[]): string {
   if (configs.length === 0) {
     return "No annotation configs found";

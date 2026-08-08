@@ -108,8 +108,8 @@ export const EvaluatorCategoricalChoiceConfig = () => {
     <div
       css={css`
         border-radius: var(--global-rounding-medium);
-        padding: var(--global-dimension-static-size-200);
-        margin-top: var(--global-dimension-static-size-50);
+        padding: var(--global-dimension-size-200);
+        margin-top: var(--global-dimension-size-50);
         border: 1px solid var(--global-border-color-default);
       `}
     >
@@ -214,7 +214,7 @@ export const EvaluatorCategoricalChoiceConfig = () => {
                 {index > 1 && (
                   <Button
                     type="button"
-                    leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+                    leadingVisual={<Icon svg={<Icons.Trash />} />}
                     aria-label="Remove choice"
                     onPress={() => {
                       if (fields.length === 2) {
@@ -248,7 +248,7 @@ export const EvaluatorCategoricalChoiceConfig = () => {
               css={css`
                 width: fit-content;
               `}
-              leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+              leadingVisual={<Icon svg={<Icons.Plus />} />}
               aria-label="Add choice"
               onPress={() => {
                 append({ label: "", score: undefined });
@@ -270,7 +270,7 @@ const GridRow = ({ children }: PropsWithChildren) => {
         width: 100%;
         display: grid;
         grid-template-columns: 3fr 1fr;
-        gap: var(--global-dimension-static-size-100);
+        gap: var(--global-dimension-size-100);
         align-items: start;
       `}
     >

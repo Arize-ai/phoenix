@@ -16,12 +16,14 @@ export type CreateDatasetFormProps = {
   ) => void;
   onDatasetCreateError?: (error: Error) => void;
   onCancel?: () => void;
+  submitButtonText?: string;
 };
 
 export function CreateDatasetForm({
   onDatasetCreated,
   onDatasetCreateError,
   onCancel,
+  submitButtonText = "Create Dataset",
 }: CreateDatasetFormProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [commit, isCommitting] = useMutation<CreateDatasetFormMutation>(graphql`
@@ -81,7 +83,7 @@ export function CreateDatasetForm({
     <DatasetForm
       isSubmitting={isCommitting}
       onSubmit={onSubmit}
-      submitButtonText={isCommitting ? "Creating..." : "Create Dataset"}
+      submitButtonText={isCommitting ? "Creating..." : submitButtonText}
       formMode="create"
       errorMessage={errorMessage}
       onCancel={onCancel}

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<7fcae1904d9688333785289f13ea1d45>>
+ * @generated SignedSource<<e855df899bc076c32d77250e7ab7ca96>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -62,6 +61,7 @@ export type SpansTable_spans$data = {
         readonly spanKind: SpanKind;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
+        readonly statusMessage: string;
         readonly tokenCountTotal?: number | null;
         readonly trace: {
           readonly costSummary?: {
@@ -82,6 +82,7 @@ export type SpansTable_spans$data = {
           readonly traceId: string;
           readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup">;
         };
+        readonly userId: string | null;
         readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
       };
     }>;
@@ -165,7 +166,7 @@ v5 = {
       "name": "fraction",
       "storageKey": null
     },
-    (v4/*: any*/)
+    (v4/*:: as any*/)
   ],
   "storageKey": null
 },
@@ -203,10 +204,6 @@ return {
       "name": "first"
     },
     {
-      "kind": "RootArgument",
-      "name": "orphanSpanAsRootSpan"
-    },
-    {
       "defaultValue": true,
       "kind": "LocalArgument",
       "name": "rootSpansOnly"
@@ -231,7 +228,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -241,7 +238,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [
         "node"
@@ -255,7 +252,7 @@ return {
   },
   "name": "SpansTable_spans",
   "selections": [
-    (v1/*: any*/),
+    (v1/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -280,16 +277,6 @@ return {
           "kind": "Variable",
           "name": "filterCondition",
           "variableName": "filterCondition"
-        },
-        {
-          "kind": "Variable",
-          "name": "orphanSpanAsRootSpan",
-          "variableName": "orphanSpanAsRootSpan"
-        },
-        {
-          "kind": "Variable",
-          "name": "rootSpansOnly",
-          "variableName": "rootSpansOnly"
         },
         {
           "kind": "Variable",
@@ -323,7 +310,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*: any*/),
+                (v2/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -331,7 +318,7 @@ return {
                   "name": "spanKind",
                   "storageKey": null
                 },
-                (v1/*: any*/),
+                (v1/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -343,7 +330,21 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "userId",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "statusCode",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "statusMessage",
                   "storageKey": null
                 },
                 {
@@ -372,7 +373,7 @@ return {
                       "name": "tokenCountTotal",
                       "storageKey": null
                     },
-                    (v3/*: any*/)
+                    (v3/*:: as any*/)
                   ]
                 },
                 {
@@ -404,7 +405,7 @@ return {
                   "name": "trace",
                   "plural": false,
                   "selections": [
-                    (v2/*: any*/),
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -417,7 +418,7 @@ return {
                       "kind": "Condition",
                       "passingValue": true,
                       "selections": [
-                        (v3/*: any*/)
+                        (v3/*:: as any*/)
                       ]
                     },
                     {
@@ -428,7 +429,7 @@ return {
                       "name": "traceAnnotationSummaries",
                       "plural": true,
                       "selections": [
-                        (v5/*: any*/),
+                        (v5/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -436,8 +437,8 @@ return {
                           "name": "count",
                           "storageKey": null
                         },
-                        (v6/*: any*/),
-                        (v1/*: any*/)
+                        (v6/*:: as any*/),
+                        (v1/*:: as any*/)
                       ],
                       "storageKey": null
                     },
@@ -456,7 +457,7 @@ return {
                   "kind": "LinkedField",
                   "name": "input",
                   "plural": false,
-                  "selections": (v7/*: any*/),
+                  "selections": (v7/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -466,7 +467,7 @@ return {
                   "kind": "LinkedField",
                   "name": "output",
                   "plural": false,
-                  "selections": (v7/*: any*/),
+                  "selections": (v7/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -477,9 +478,9 @@ return {
                   "name": "spanAnnotations",
                   "plural": true,
                   "selections": [
-                    (v2/*: any*/),
-                    (v1/*: any*/),
-                    (v4/*: any*/),
+                    (v2/*:: as any*/),
+                    (v1/*:: as any*/),
+                    (v4/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -512,9 +513,9 @@ return {
                   "name": "spanAnnotationSummaries",
                   "plural": true,
                   "selections": [
-                    (v5/*: any*/),
-                    (v6/*: any*/),
-                    (v1/*: any*/)
+                    (v5/*:: as any*/),
+                    (v6/*:: as any*/),
+                    (v1/*:: as any*/)
                   ],
                   "storageKey": null
                 },
@@ -621,13 +622,13 @@ return {
       ],
       "storageKey": null
     },
-    (v2/*: any*/)
+    (v2/*:: as any*/)
   ],
   "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "453f087b57550ce764bfba3c2054d946";
+(node as any).hash = "21f75435b9fbc436a63612580f7ceec5";
 
 export default node;

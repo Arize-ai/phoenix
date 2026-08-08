@@ -14,15 +14,16 @@ import type { toSDKParamsBase, Variables } from "./types";
 // We must re-export these types so that they are included in the phoenix-client distribution
 export type { MessageCreateParams };
 
-export type ToAnthropicParams<V extends Variables> = toSDKParamsBase<V>;
+export type ToAnthropicParams<PromptVariables extends Variables> =
+  toSDKParamsBase<PromptVariables>;
 
 /**
  * Convert a Phoenix prompt to Anthropic client sdk's message create parameters
  */
-export const toAnthropic = <V extends Variables = Variables>({
+export const toAnthropic = <PromptVariables extends Variables = Variables>({
   prompt,
   variables,
-}: ToAnthropicParams<V>): MessageCreateParams | null => {
+}: ToAnthropicParams<PromptVariables>): MessageCreateParams | null => {
   try {
     let invocationParameters: { max_tokens: number } | undefined;
     if (prompt.invocation_parameters.type === "anthropic") {

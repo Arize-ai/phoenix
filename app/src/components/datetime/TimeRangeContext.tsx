@@ -3,6 +3,7 @@ import React, {
   startTransition,
   useEffect,
   useEffectEvent,
+  useMemo,
   useState,
 } from "react";
 import { useSearchParams } from "react-router";
@@ -20,12 +21,14 @@ import {
   getMillisecondsUntilNextLastNTimeRangeRefresh,
   getTimeRangeFromSearchParams,
   getTimeRangeFromLastNTimeRangeKey,
+  getTimeRangeSearch,
   isLastNTimeRangeKey,
   setTimeRangeSearchParams,
 } from "./utils";
 
 export type TimeRangeContextType = {
   timeRange: OpenTimeRangeWithKey;
+  timeRangeISOStrings: TimeRangeISOStrings;
   /**
    * Set the time range with the state write wrapped in a transition so
    * steering interactions (preset picks, pan/zoom) do not block the input
@@ -37,6 +40,12 @@ export type TimeRangeContextType = {
    * a transition so brush-driven updates do not block the input event.
    */
   setCustomTimeRange: (timeRange: TimeRange) => void;
+};
+
+/** ISO 8601 bounds for the active time range. */
+export type TimeRangeISOStrings = {
+  start: string | undefined;
+  end: string | undefined;
 };
 
 export const TimeRangeContext = createContext<TimeRangeContextType | null>(
@@ -55,6 +64,17 @@ export function useTimeRange() {
     );
   }
   return context;
+}
+
+/**
+ * The active time range serialized as a URL search string (including the
+ * leading "?"), for building links to other time-scoped views so the range
+ * carries across the navigation. A live range serializes as just its last-N
+ * key so it stays live at the destination; a custom range as its bounds.
+ */
+export function useTimeRangeSearch(): string {
+  const { timeRange } = useTimeRange();
+  return getTimeRangeSearch(timeRange);
 }
 
 /**
@@ -124,6 +144,9 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     urlTimeRange ??
     getStoredTimeRange({ storedLastNTimeRangeKey, now: timeRangeNow });
   const timeRangeStartMs = timeRange.start?.getTime();
+  const start = timeRange.start?.toISOString();
+  const end = timeRange.end?.toISOString();
+  const timeRangeISOStrings = useMemo(() => ({ start, end }), [start, end]);
 
   /**
    * Set the active time range and reflect it in the URL.
@@ -182,7 +205,7 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
   // minute or hour) so the displayed window keeps tracking "now".
   useEffect(() => {
     if (!isLastNTimeRangeKey(timeRange.timeRangeKey)) {
-      return;
+      return undefined;
     }
     const timeRangeKey = timeRange.timeRangeKey;
     const timeoutId = window.setTimeout(() => {
@@ -199,6 +222,7 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     <TimeRangeContext.Provider
       value={{
         timeRange,
+        timeRangeISOStrings,
         setTimeRange,
         setCustomTimeRange,
       }}

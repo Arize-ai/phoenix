@@ -22,7 +22,7 @@ const baseRadioGroupCSS = css(`
   align-items: center;
   width: fit-content;
   gap: var(--global-dimension-size-200);
-  font-size: var(--global-dimension-static-font-size-100);
+  font-size: var(--global-dimension-font-size-100);
 
   & > .radio:not(:first-of-type) {
     border-left: none;
@@ -78,7 +78,7 @@ const baseRadioGroupCSS = css(`
 
   &:has(.radio[data-focus-visible]) {
     border-radius: var(--global-rounding-small);
-    outline: 1px solid var(--global-input-field-border-color-active);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     // display an outline offset around the radio group, accounting for the outline offset of the inner radios
     outline-offset: var(--global-dimension-size-100);
   }

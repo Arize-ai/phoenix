@@ -8,7 +8,7 @@ export const checkboxCSS = css`
   --border-color-pressed: var(--global-checkbox-border-color-pressed);
   --border-color-hover: var(--global-checkbox-border-color-hover);
   --checkbox-focus-ring-color: var(--focus-ring-color);
-  --checkbox-size: var(--global-dimension-static-size-200);
+  --checkbox-size: var(--global-dimension-size-200);
 
   display: flex;
   /* This is needed so the HiddenInput is positioned correctly */
@@ -24,7 +24,9 @@ export const checkboxCSS = css`
     height: var(--checkbox-size);
     border: 2px solid var(--border-color);
     border-radius: var(--global-rounding-small);
-    transition: all 200ms;
+    transition:
+      background-color 200ms,
+      border-color 200ms;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -54,8 +56,8 @@ export const checkboxCSS = css`
   }
 
   &[data-focus-visible] .checkbox {
-    outline: 2px solid var(--checkbox-focus-ring-color);
-    outline-offset: 2px;
+    outline: var(--focus-ring-thickness) solid var(--checkbox-focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 
   &[data-selected],

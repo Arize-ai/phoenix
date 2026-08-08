@@ -21,12 +21,12 @@ export function useModalFloatingLayerInteractivity(
 ) {
   useLayoutEffect(() => {
     if (!isModalLayer) {
-      return;
+      return undefined;
     }
 
     const element = ref.current;
     if (!element) {
-      return;
+      return undefined;
     }
 
     const enableInteractivity = () => {

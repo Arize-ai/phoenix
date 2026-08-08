@@ -40,6 +40,11 @@ async function resetPassword({
   await page.getByRole("button", { name: "Reset Password" }).click();
 }
 
+async function logout({ page }: { page: Page }) {
+  await page.getByRole("button", { name: "Account" }).click();
+  await page.getByRole("menuitem", { name: "Log Out" }).click();
+}
+
 async function resetPasswordAndReLogin({
   page,
   baseURL,
@@ -84,8 +89,8 @@ setup(
       oldPassword: "admin",
       newPassword: "admin123",
     });
-    await page.goto(`${baseURL}/settings/general`);
-    await page.waitForURL("**/settings/general");
+    await page.goto(`${baseURL}/settings/users`);
+    await page.waitForURL("**/settings/users");
 
     // Add member user
     await page.getByRole("button", { name: "Add User" }).click();
@@ -121,7 +126,7 @@ setup(
       .click();
     await expect(page.getByTestId("dialog")).not.toBeVisible();
 
-    await page.getByRole("button", { name: "Log Out" }).click();
+    await logout({ page });
 
     await login({
       page,
@@ -136,7 +141,7 @@ setup(
       oldPassword: "member",
       newPassword: "member123",
     });
-    await page.getByRole("button", { name: "Log Out" }).click();
+    await logout({ page });
 
     await login({
       page,

@@ -256,3 +256,33 @@ class TestTraceAnnotationMutations:
             "The name 'note' is reserved for trace and span notes. "
             "Use POST /v1/trace_notes instead."
         ) in response.errors[0].message
+
+    async def test_create_trace_annotations_on_missing_trace_returns_not_found(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        missing_trace_gid = str(GlobalID("Trace", "2003"))
+        response = await gql_client.execute(
+            self.QUERY,
+            {
+                "input": [
+                    {
+                        "traceId": missing_trace_gid,
+                        "name": "test_annotation",
+                        "label": "LABEL1",
+                        "score": 0.5,
+                        "explanation": "x",
+                        "annotatorKind": "HUMAN",
+                        "metadata": {},
+                        "identifier": "",
+                        "source": AnnotationSource.API.name,
+                    }
+                ]
+            },
+            operation_name="CreateTraceAnnotations",
+        )
+        assert response.data is None
+        assert response.errors
+        assert (
+            f"Could not find traces with IDs: ['{missing_trace_gid}']" in response.errors[0].message
+        )

@@ -2,7 +2,7 @@ import { css, keyframes } from "@emotion/react";
 import type { ReactNode } from "react";
 import { useCallback, useRef, useState } from "react";
 
-import { CopyToClipboardButton } from "@phoenix/components";
+import { Button, CopyToClipboardButton, Flex } from "@phoenix/components";
 import { ExpandableContent } from "@phoenix/components/core/content/ExpandableContent";
 
 import { useScrollAnchor } from "./scrollAnchor";
@@ -112,6 +112,58 @@ export function ToolPartMeta({
         </span>
       ))}
     </div>
+  );
+}
+
+/**
+ * Canonical inset for the Accept/Reject footer shared by every approval-style
+ * tool part (prompt edits, dataset writes, span annotations, experiment
+ * patches, …). Centralizing it here keeps the footer padding identical across
+ * all PXI tools instead of each detail component re-specifying its own.
+ */
+const approvalActionsRowCSS = css`
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-200)
+    var(--global-dimension-size-150);
+`;
+
+/**
+ * The right-aligned Accept/Reject buttons rendered at the bottom of a tool part
+ * awaiting user approval. When the proposal can no longer be acted on (e.g. it
+ * was made in an earlier session), pass `staleMessage` to explain why the
+ * disabled buttons can't be used.
+ */
+export function ToolPartApprovalActions({
+  onAccept,
+  onReject,
+  isDisabled = false,
+  staleMessage,
+}: {
+  onAccept: () => void;
+  onReject: () => void;
+  isDisabled?: boolean;
+  staleMessage?: string;
+}) {
+  return (
+    <>
+      <div css={approvalActionsRowCSS}>
+        <Flex direction="row-reverse" gap="size-100">
+          <Button
+            size="S"
+            variant="primary"
+            isDisabled={isDisabled}
+            onPress={onAccept}
+          >
+            Accept
+          </Button>
+          <Button size="S" isDisabled={isDisabled} onPress={onReject}>
+            Reject
+          </Button>
+        </Flex>
+      </div>
+      {isDisabled && staleMessage ? (
+        <ToolPartCodeBlock>{staleMessage}</ToolPartCodeBlock>
+      ) : null}
+    </>
   );
 }
 

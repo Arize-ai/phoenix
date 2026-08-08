@@ -57,11 +57,7 @@ export function PlaygroundRunButton() {
       data-testid="playground-run-button"
       variant="primary"
       leadingVisual={
-        <Icon
-          svg={
-            isRunning ? <Icons.LoadingOutline /> : <Icons.PlayCircleOutline />
-          }
-        />
+        <Icon svg={isRunning ? <Icons.Loading /> : <Icons.PlayCircle />} />
       }
       size="S"
       onPress={() => {

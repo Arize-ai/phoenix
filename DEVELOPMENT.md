@@ -1,6 +1,7 @@
 # Developer's Guide
 
 - [Developer's Guide](#developers-guide)
+  - [Quickstart](#quickstart)
   - [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
   - [Testing and Linting](#testing-and-linting)
   - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
@@ -21,6 +22,46 @@
       - [Response Format](#response-format)
   - [Cursor / VS Code](#cursor--vs-code)
     - [Debugging the Python Server](#debugging-the-python-server)
+
+## Quickstart
+
+The fastest path from a fresh clone to a running Phoenix dev server. See the sections below for details on any step.
+
+**Prerequisites**
+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) (Python environment management)
+- [nvm](https://github.com/nvm-sh/nvm) (Node version management)
+
+```bash
+# 1. Install Python dependencies (installs Phoenix and all sub-packages in editable mode)
+uv sync --all-extras
+
+# 2. Install the pinned Node.js version (reads .nvmrc) and pnpm
+nvm install
+npm i -g pnpm@11.11.0
+
+# 3. Install and build the web app
+cd app
+cp .env.example .env
+# edit .env and change PHOENIX_AUTH to `false` if you do not want to manage API keys during development
+pnpm install
+pnpm run build
+
+# 4. Start the dev server (Python API + frontend with hot reload)
+pnpm dev
+```
+
+Open [http://localhost:6006](http://localhost:6006). If authentication is enabled, log in with **`admin@localhost`** / **`admin`**, or set `PHOENIX_ENABLE_AUTH=False` in `app/.env` to bypass it.
+
+> **💡 Tip:** Optionally use an in-memory database for a fresh Phoenix on every restart:
+>
+> ```bash
+> PHOENIX_SQL_DATABASE_URL=sqlite:///:memory: pnpm dev
+> ```
+
+To send traces to your dev server, point any OpenInference/OpenTelemetry instrumented app at `http://localhost:6006` (for example, `PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006`). See the [Vercel AI SDK tracing guide](https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js) or the runnable [AI SDK agent example](./js/examples/apps/ai-sdk-agent) for a minimal traced agent.
+
+If a step fails, consult the detailed setup instructions below.
 
 ## Setting Up Your macOS Development Environment
 
@@ -53,7 +94,7 @@ nvm alias default <version-that-was-installed>
 npm i -g pnpm@9.15.5
 ```
 
-Then we will build the web app. 
+Then we will build the web app.
 
 Change directory to `app`:
 
@@ -305,68 +346,85 @@ After doing so, consider pasting the following settings into your workspace sett
   "oxc.path.oxlint": "app/node_modules/oxlint/bin/oxlint",
   "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.formatOnSave": true,
-  "typescript.tsdk": "app/node_modules/typescript/lib",
   "relay.rootDirectory": "app",
   "relay.pathToConfig": "app/relay.config.js",
   "relay.autoStartCompiler": true
 }
 ```
 
+> [!NOTE]
+> The repo compiles with TypeScript 7 (the native compiler), which no longer ships
+> `tsserver`, so do not set `typescript.tsdk`. For IntelliSense that matches the
+> compiler, install the [TypeScript (Native Preview)](https://marketplace.visualstudio.com/items?itemName=TypeScriptTeam.native-preview)
+> extension; otherwise VS Code's built-in TypeScript language service works fine for
+> editing. Tools that still need the JS compiler API (openapi-typescript, typedoc,
+> Storybook docgen) resolve the `@typescript/typescript6` bridge via `.pnpmfile.cjs`
+> in `app/` and `js/`.
+
 ### Debugging the Python Server
 
 The dev server runs with `debugpy` enabled, allowing you to attach a debugger from VS Code or Cursor.
 
 1. **Create a launch configuration** at `.vscode/launch.json`:
-  ```json
-   {
-     "version": "0.2.0",
-     "configurations": [
-       {
-         "name": "Attach to Phoenix Dev Server",
-         "type": "debugpy",
-         "request": "attach",
-         "connect": {
-           "host": "localhost",
-           "port": 5678
-         },
-         "justMyCode": false
-       }
-     ]
-   }
-  ```
-  > **Note:** The default debugpy port is 5678. If you customize it via the `DEBUGPY_PORT` environment variable, update the `port` value in the launch configuration to match.
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Attach to Phoenix Dev Server",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "justMyCode": false
+    }
+  ]
+}
+```
+
+> **Note:** The default debugpy port is 5678. If you customize it via the `DEBUGPY_PORT` environment variable, update the `port` value in the launch configuration to match.
+
 2. **Start the dev environment** from the `app` directory:
-  ```bash
-   pnpm dev
-  ```
-   This launches both the Python server and the frontend UI simultaneously using `mprocs`. The server will start with debugpy listening on port 5678.
-  > **💡 Tip:** Use in-memory SQLite for a fresh database without affecting your existing on-disk data:
-  >
-  > ```bash
-  > PHOENIX_SQL_DATABASE_URL=sqlite:///:memory: pnpm dev
-  > ```
-  >
-  > **💡 Tip:** Customize ports via environment variables:
-  >
-  > ```bash
-  > VITE_PORT=3000 DEBUGPY_PORT=5679 pnpm dev
-  > ```
-  >
-  > Or add to `app/.env`:
-  >
-  > ```
-  > VITE_PORT=3000
-  > DEBUGPY_PORT=5679
-  > ```
+
+```bash
+ pnpm dev
+```
+
+This launches both the Python server and the frontend UI simultaneously using `mprocs`. The server will start with debugpy listening on port 5678.
+
+> **💡 Tip:** Use in-memory SQLite for a fresh database without affecting your existing on-disk data:
+>
+> ```bash
+> PHOENIX_SQL_DATABASE_URL=sqlite:///:memory: pnpm dev
+> ```
+>
+> **💡 Tip:** Customize ports via environment variables:
+>
+> ```bash
+> VITE_PORT=3000 DEBUGPY_PORT=5679 pnpm dev
+> ```
+>
+> Or add to `app/.env`:
+>
+> ```
+> VITE_PORT=3000
+> DEBUGPY_PORT=5679
+> ```
+
 3. **Set breakpoints** by clicking in the gutter (left of line numbers) in any Python file.
 4. **Attach the debugger**:
-  - Press `⇧⌘D` (macOS) or `Ctrl+Shift+D` (Windows/Linux) to open the Run and Debug panel
-  - Select **"Attach to Phoenix Dev Server"** from the dropdown
-  - Press `F5` or click the green play button
+
+- Press `⇧⌘D` (macOS) or `Ctrl+Shift+D` (Windows/Linux) to open the Run and Debug panel
+- Select **"Attach to Phoenix Dev Server"** from the dropdown
+- Press `F5` or click the green play button
+
 5. **Trigger your code** by making a request to the server via the UI or API.
 6. **Debug**: When a breakpoint is hit, use the debug toolbar to step through code:
-  - `F10` — Step over
-  - `F11` — Step into
-  - `F5` — Continue
-  - Inspect variables in the left panel or evaluate expressions in the Debug Console
 
+- `F10` — Step over
+- `F11` — Step into
+- `F5` — Continue
+- Inspect variables in the left panel or evaluate expressions in the Debug Console

@@ -74,8 +74,8 @@ const drawerCSS = css`
   }
 
   .drawer__resize-handle:focus-visible {
-    outline: 2px solid var(--global-color-primary);
-    outline-offset: 2px;
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 
   &[data-dragging="true"] {
@@ -291,6 +291,8 @@ export function Drawer({
 
   // Provide OverlayTriggerStateContext so react-aria's Dialog render prop
   // surfaces a working `close` function and `slot="close"` auto-wires.
+  // `point` anchors an overlay to the cursor (context menus). A drawer is
+  // anchored to the viewport edge, so it stays null and `setPoint` is a no-op.
   const overlayState = {
     isOpen: true as const,
     open: () => {},
@@ -299,6 +301,8 @@ export function Drawer({
     setOpen: (open: boolean) => {
       if (!open) onClose?.();
     },
+    point: null,
+    setPoint: () => {},
   };
 
   return (

@@ -242,6 +242,62 @@ class TestSpanAnnotationMutations:
             "Use the createSpanNote mutation or POST /v1/span_notes instead."
         ) in response.errors[0].message
 
+    async def test_create_span_annotations_on_missing_span_returns_not_found(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        missing_span_gid = str(GlobalID("Span", "104"))
+        response = await gql_client.execute(
+            self.CREATE_SPAN_ANNOTATIONS_MUTATION,
+            {
+                "input": [
+                    {
+                        "spanId": missing_span_gid,
+                        "name": "test_annotation",
+                        "label": "LABEL1",
+                        "score": 0.75,
+                        "explanation": "Initial explanation",
+                        "annotatorKind": AnnotatorKind.HUMAN.name,
+                        "metadata": {},
+                        "identifier": "",
+                        "source": AnnotationSource.API.name,
+                    }
+                ]
+            },
+        )
+        assert response.data is None
+        assert response.errors
+        assert (
+            f"Could not find spans with IDs: ['{missing_span_gid}']" in response.errors[0].message
+        )
+
+    async def test_create_span_note_on_missing_span_returns_not_found(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        mutation = """
+        mutation CreateSpanNote($annotationInput: CreateSpanNoteInput!) {
+          createSpanNote(annotationInput: $annotationInput) {
+            spanAnnotations {
+              id
+            }
+          }
+        }
+        """
+        missing_span_gid = str(GlobalID("Span", "104"))
+        response = await gql_client.execute(
+            mutation,
+            {
+                "annotationInput": {
+                    "spanId": missing_span_gid,
+                    "note": "Needs review",
+                }
+            },
+        )
+        assert response.data is None
+        assert response.errors
+        assert f"Could not find span with ID: {missing_span_gid}" in response.errors[0].message
+
     async def test_create_span_note_uses_uuidv4_identifier(
         self,
         gql_client: AsyncGraphQLClient,

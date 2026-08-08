@@ -43,6 +43,13 @@ GET_SPANS_TRACE_IDS = ParameterRequirement(
     min_server_version=Version(13, 9, 0),
 )
 
+GET_SPANS_SPAN_IDS = ParameterRequirement(
+    parameter_name="span_id",
+    parameter_location="query",
+    route="GET /v1/projects/{id}/spans",
+    min_server_version=Version(19, 6, 0),
+)
+
 GET_SPANS_FILTERS = ParameterRequirement(
     parameter_name="span_kind",
     parameter_location="query",

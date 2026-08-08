@@ -33,7 +33,7 @@ export function EditSpanAnnotationsButton({
       <Button
         size={size}
         aria-label="Edit Span Annotations"
-        leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Edit />} />}
       >
         {buttonText}
       </Button>

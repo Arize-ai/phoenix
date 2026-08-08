@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<e2fff49368301a5cb1379a424280c05f>>
+ * @generated SignedSource<<bf96f82d6716e776eb89e3be6ed699ef>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -36,7 +35,7 @@ return {
   "metadata": null,
   "name": "PromptLabelConfigButton_promptLabels",
   "selections": [
-    (v0/*: any*/),
+    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -45,7 +44,7 @@ return {
       "name": "labels",
       "plural": true,
       "selections": [
-        (v0/*: any*/)
+        (v0/*:: as any*/)
       ],
       "storageKey": null
     }

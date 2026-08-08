@@ -10,7 +10,7 @@ export function GitHubStarCount() {
     fetch("https://api.github.com/repos/Arize-ai/phoenix")
       .then((response) => response.json())
       .then((data) => {
-        setStarCountText(format(".2s")(data.stargazers_count));
+        setStarCountText(format(".3s")(data.stargazers_count));
       });
   }, []);
 

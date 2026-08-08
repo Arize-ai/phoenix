@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export PATH="$HOME/.local/bin:$HOME/.local/share/phoenix-node/bin:$PATH"
+
+cd "$repo_root"
+command -v uv >/dev/null
+command -v node >/dev/null
+command -v pnpm >/dev/null
+test -x .venv/bin/python
+test -d app/node_modules
+test -d js/node_modules
+
+echo "Phoenix orb environment is ready; no persistent services need resuming."

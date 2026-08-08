@@ -25,14 +25,14 @@ export const DEFAULT_MODEL_PROVIDER: ModelProvider = "OPENAI";
 /**
  * The default model name
  */
-export const DEFAULT_MODEL_NAME = "gpt-4o";
+export const DEFAULT_MODEL_NAME = "gpt-5.6-luna";
 
 export const DEFAULT_CHAT_ROLE: ChatMessageRole = "user";
 
 /**
  * The default OpenAI API type for built-in OpenAI and Azure OpenAI providers.
  */
-export const DEFAULT_OPENAI_API_TYPE: OpenAIApiType = "CHAT_COMPLETIONS";
+export const DEFAULT_OPENAI_API_TYPE: OpenAIApiType = "RESPONSES";
 
 /**
  * Map of {@link ChatMessageRole} to potential role values.

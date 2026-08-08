@@ -87,6 +87,10 @@ async def get_projects(
         default=False,
         description="Include dataset evaluator projects in the response. Dataset evaluator projects are created when running experiments with persisted evaluators.",  # noqa: E501
     ),
+    name_contains: Optional[str] = Query(
+        default=None,
+        description="Return only projects whose name contains this substring (case-insensitive).",  # noqa: E501
+    ),
 ) -> GetProjectsResponseBody:
     """
     Retrieve a paginated list of all projects in the system.
@@ -99,6 +103,7 @@ async def get_projects(
             Experiment projects are created from running experiments.
         include_dataset_evaluator_projects (bool): Flag to include dataset evaluator projects in the response.
             Dataset evaluator projects are created from running dataset evaluators.
+        name_contains (Optional[str]): Case-insensitive substring to filter project names by.
 
     Returns:
         GetProjectsResponseBody: Response containing a list of projects and pagination information.
@@ -111,6 +116,8 @@ async def get_projects(
         stmt = exclude_experiment_projects(stmt)
     if not include_dataset_evaluator_projects:
         stmt = exclude_dataset_evaluator_projects(stmt)
+    if name_contains:
+        stmt = stmt.where(models.CaseInsensitiveContains(models.Project.name, name_contains))
     async with request.app.state.db() as session:
         if cursor:
             try:

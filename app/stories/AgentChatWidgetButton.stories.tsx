@@ -47,17 +47,6 @@ const interactiveCanvasCSS = css`
   height: 240px;
   border: 1px solid var(--global-border-color-default);
   border-radius: 18px;
-  background:
-    radial-gradient(
-      circle at top left,
-      rgba(125, 176, 255, 0.14),
-      transparent 36%
-    ),
-    linear-gradient(
-      180deg,
-      var(--ac-global-background-color-dark-300),
-      var(--ac-global-background-color-dark-200)
-    );
   overflow: hidden;
 `;
 
@@ -102,7 +91,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "PXI chat trigger button. Shows the resting pill state, the single wipe border treatment used while streaming, and the retained animated glyph options for the thinking state.",
+          "PXI chat trigger button. Shows the resting pill state, the single glow wipe used while streaming, and the retained animated glyph options for the thinking state.",
       },
     },
   },

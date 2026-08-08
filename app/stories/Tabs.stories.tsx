@@ -2,6 +2,9 @@ import type { Meta, StoryFn } from "@storybook/react";
 
 import {
   Card,
+  Icon,
+  IconButton,
+  Icons,
   LazyTabPanel,
   Tab,
   TabList,
@@ -179,5 +182,39 @@ const OrientationTemplate: StoryFn = (args) => (
 
 export const VerticalOrientation = {
   render: OrientationTemplate,
+  args: {},
+};
+
+const ExtraTemplate: StoryFn = (args) => (
+  <Card title="Tabs with an Extra Slot">
+    <View width="600px" padding="size-200">
+      <Tabs {...args}>
+        <TabList
+          extra={
+            <IconButton size="S" aria-label="Collapse all">
+              <Icon svg={<Icons.RowCollapse />} />
+            </IconButton>
+          }
+        >
+          <Tab id="tab1">Tab 1</Tab>
+          <Tab id="tab2">Tab 2</Tab>
+          <Tab id="tab3">Tab 3</Tab>
+        </TabList>
+        <TabPanel padded id="tab1">
+          Content for Tab 1
+        </TabPanel>
+        <TabPanel padded id="tab2">
+          Content for Tab 2
+        </TabPanel>
+        <TabPanel padded id="tab3">
+          Content for Tab 3
+        </TabPanel>
+      </Tabs>
+    </View>
+  </Card>
+);
+
+export const WithExtra = {
+  render: ExtraTemplate,
   args: {},
 };

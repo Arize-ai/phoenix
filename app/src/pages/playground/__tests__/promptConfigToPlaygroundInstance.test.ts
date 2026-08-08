@@ -268,6 +268,7 @@ describe("buildPlaygroundInstanceFieldsFromPromptConfig", () => {
       responseFormat: null,
     });
 
+    expect(result.model.openaiApiType).toBe("RESPONSES");
     expect(result.model.invocationParameters).toEqual({
       reasoningEffort: "high",
     });

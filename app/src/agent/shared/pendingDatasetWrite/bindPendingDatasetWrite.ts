@@ -6,7 +6,7 @@ import type {
 } from "./types";
 
 const REJECTED_MESSAGE =
-  "You rejected the proposed dataset change, so nothing was written.";
+  "The user rejected the proposed dataset change, so nothing was written.";
 
 /**
  * Dataset-specific wrapper over the generic {@link bindPendingApproval}: fills

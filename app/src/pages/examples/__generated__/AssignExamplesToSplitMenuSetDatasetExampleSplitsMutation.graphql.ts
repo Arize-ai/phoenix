@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<26a3c02db8c9cf2eb925c98509d7eb7c>>
+ * @generated SignedSource<<50658633ec30ecd090d381eaae9f9cba>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -71,7 +70,7 @@ v2 = [
         "name": "example",
         "plural": false,
         "selections": [
-          (v1/*: any*/),
+          (v1/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -80,7 +79,7 @@ v2 = [
             "name": "datasetSplits",
             "plural": true,
             "selections": [
-              (v1/*: any*/),
+              (v1/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -107,20 +106,20 @@ v2 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "AssignExamplesToSplitMenuSetDatasetExampleSplitsMutation",
-    "selections": (v2/*: any*/),
+    "selections": (v2/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "AssignExamplesToSplitMenuSetDatasetExampleSplitsMutation",
-    "selections": (v2/*: any*/)
+    "selections": (v2/*:: as any*/)
   },
   "params": {
     "cacheID": "5a70eb04d75cb977a01f115bb8cfd85a",

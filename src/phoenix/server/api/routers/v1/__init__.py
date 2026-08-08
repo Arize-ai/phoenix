@@ -9,6 +9,9 @@ from phoenix.server.bearer_auth import is_authenticated
 
 from .annotation_configs import router as annotation_configs_router
 from .annotations import router as annotations_router
+from .api_keys import router as api_keys_router
+from .chat_completions import router as chat_completions_router
+from .dataset_labels import router as dataset_labels_router
 from .datasets import router as datasets_router
 from .documents import router as documents_router
 from .experiment_evaluations import router as experiment_evaluations_router
@@ -43,7 +46,6 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
             )
         )
         dependencies.append(Depends(is_authenticated))
-        dependencies.append(Depends(restrict_access_by_viewers))
 
     router = APIRouter(
         prefix="/v1",
@@ -54,18 +56,30 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
             ]
         ),
     )
-    router.include_router(annotation_configs_router)
-    router.include_router(annotations_router)
-    router.include_router(datasets_router)
-    router.include_router(experiments_router)
-    router.include_router(experiment_runs_router)
-    router.include_router(experiment_evaluations_router)
-    router.include_router(traces_router)
-    router.include_router(spans_router)
-    router.include_router(prompts_router)
-    router.include_router(projects_router)
-    router.include_router(sessions_router)
-    router.include_router(documents_router)
-    router.include_router(users_router)
-    router.include_router(secrets_router)
+    viewer_restricted_router = APIRouter(
+        dependencies=[Depends(restrict_access_by_viewers)] if authentication_enabled else []
+    )
+    viewer_restricted_router.include_router(annotation_configs_router)
+    viewer_restricted_router.include_router(annotations_router)
+    viewer_restricted_router.include_router(dataset_labels_router)
+    viewer_restricted_router.include_router(datasets_router)
+    viewer_restricted_router.include_router(experiments_router)
+    viewer_restricted_router.include_router(experiment_runs_router)
+    viewer_restricted_router.include_router(experiment_evaluations_router)
+    viewer_restricted_router.include_router(traces_router)
+    viewer_restricted_router.include_router(spans_router)
+    viewer_restricted_router.include_router(prompts_router)
+    viewer_restricted_router.include_router(projects_router)
+    viewer_restricted_router.include_router(sessions_router)
+    viewer_restricted_router.include_router(documents_router)
+    viewer_restricted_router.include_router(users_router)
+    viewer_restricted_router.include_router(secrets_router)
+    router.include_router(viewer_restricted_router)
+    # API-key routes define their own viewer policy: viewers can manage their own user keys,
+    # while system and organization-wide operations remain admin-gated.
+    router.include_router(api_keys_router)
+    # The chat completions proxy writes nothing and powers read features like
+    # AI search, so — like the agents chat endpoints — it stays available to
+    # every authenticated role, viewers included.
+    router.include_router(chat_completions_router)
     return router

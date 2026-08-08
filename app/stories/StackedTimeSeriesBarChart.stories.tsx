@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { TooltipContentProps } from "recharts";
+import type { LegendPayload, TooltipContentProps } from "recharts";
 import {
   Bar,
   BarChart,
@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { expect, within } from "storybook/test";
 
 import { Card, Flex, Text, View } from "@phoenix/components";
 import type { SequentialChartColors } from "@phoenix/components/chart";
@@ -17,7 +18,7 @@ import {
   ChartTooltipItem,
   InteractiveLegend,
   SEQUENTIAL_CHART_COLORS,
-  defaultBarChartTooltipProps,
+  defaultTooltipProps,
   defaultCartesianGridProps,
   defaultLegendProps,
   defaultXAxisProps,
@@ -149,6 +150,13 @@ const highVolumeData = [
   },
 ];
 
+const LONG_ERROR_SERIES_NAME =
+  "errors_from_policy_validation_grounding_citation_completeness_and_escalation_checks";
+const LONG_OK_SERIES_NAME =
+  "successful traces that passed every production quality gate without requiring human review";
+const LONG_STATIC_SERIES_NAME =
+  "production_baseline_for_multilingual_safety_sensitive_customer_support_workflows";
+
 function TooltipContent({ active, payload, label }: TooltipContentProps) {
   const { fullTimeFormatter } = useTimeFormatters();
 
@@ -192,6 +200,9 @@ interface StackedBarChartProps {
   height?: number | string;
   firstColor?: keyof SequentialChartColors;
   secondColor?: keyof SequentialChartColors;
+  firstSeriesName?: string;
+  secondSeriesName?: string;
+  additionalLegendItems?: ReadonlyArray<LegendPayload>;
 }
 
 function StackedBarChart({
@@ -199,6 +210,9 @@ function StackedBarChart({
   height = 200,
   firstColor = "red300",
   secondColor = "default",
+  firstSeriesName = "error",
+  secondSeriesName = "ok",
+  additionalLegendItems,
 }: StackedBarChartProps) {
   const timeRange = {
     start: new Date("2021-01-01"),
@@ -242,23 +256,26 @@ function StackedBarChart({
           />
 
           <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
-          <Tooltip {...defaultBarChartTooltipProps} content={TooltipContent} />
+          <Tooltip {...defaultTooltipProps} content={TooltipContent} />
           <Bar
             dataKey="error"
             stackId="a"
             fill={colors[firstColor]}
             hide={isDataKeyHidden("error")}
+            name={firstSeriesName}
           />
           <Bar
             dataKey="ok"
             stackId="a"
             fill={colors[secondColor]}
             hide={isDataKeyHidden("ok")}
+            name={secondSeriesName}
             radius={[2, 2, 0, 0]}
           />
 
           <InteractiveLegend
             align="left"
+            additionalLegendItems={additionalLegendItems}
             hiddenDataKeys={hiddenDataKeys}
             iconType="circle"
             iconSize={8}
@@ -335,6 +352,80 @@ export const Tall: Story = {
   args: {
     data: chartData,
     height: 600,
+  },
+};
+
+/**
+ * Long interactive and supplemental legend labels remain inside their items,
+ * truncate with an ellipsis, and inherit the same neutral label color.
+ */
+export const LongLegendNames: Story = {
+  args: {
+    additionalLegendItems: [
+      {
+        color: "var(--global-color-purple-700)",
+        type: "plainline",
+        value: LONG_STATIC_SERIES_NAME,
+      },
+    ],
+    data: chartData,
+    firstSeriesName: LONG_ERROR_SERIES_NAME,
+    height: 400,
+    secondSeriesName: LONG_OK_SERIES_NAME,
+  },
+  render: (args) => (
+    <div style={{ width: "320px" }}>
+      <StackedBarChart {...args} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    for (const label of [LONG_ERROR_SERIES_NAME, LONG_OK_SERIES_NAME]) {
+      const legendButton = await canvas.findByRole("button", {
+        name: `Hide ${label}`,
+      });
+      const legendText = legendButton.querySelector<HTMLElement>(
+        ".recharts-legend-item-text"
+      );
+      const truncatedLabel = legendText?.firstElementChild;
+
+      if (!(truncatedLabel instanceof HTMLElement)) {
+        throw new Error(`Missing truncated legend label for ${label}`);
+      }
+
+      await expect(legendButton).toHaveAttribute("title", label);
+      await expect(truncatedLabel).toHaveAttribute("title", label);
+      await expect(truncatedLabel.scrollWidth).toBeGreaterThan(
+        truncatedLabel.clientWidth
+      );
+      await expect(
+        truncatedLabel.getBoundingClientRect().right
+      ).toBeLessThanOrEqual(legendButton.getBoundingClientRect().right + 1);
+      await expect(getComputedStyle(truncatedLabel).color).toBe(
+        getComputedStyle(legendButton).color
+      );
+    }
+
+    const staticTruncatedLabel = await canvas.findByTitle(
+      LONG_STATIC_SERIES_NAME
+    );
+    const staticLegendText = staticTruncatedLabel.parentElement;
+    const staticLegendItem = staticLegendText?.parentElement;
+
+    if (!(staticLegendItem instanceof HTMLElement)) {
+      throw new Error("Missing static legend item");
+    }
+
+    await expect(staticTruncatedLabel.scrollWidth).toBeGreaterThan(
+      staticTruncatedLabel.clientWidth
+    );
+    await expect(
+      staticTruncatedLabel.getBoundingClientRect().right
+    ).toBeLessThanOrEqual(staticLegendItem.getBoundingClientRect().right + 1);
+    await expect(getComputedStyle(staticTruncatedLabel).color).toBe(
+      getComputedStyle(staticLegendItem).color
+    );
   },
 };
 

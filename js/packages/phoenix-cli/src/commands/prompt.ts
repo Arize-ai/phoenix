@@ -12,32 +12,41 @@ import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { formatPromptOutput, type OutputFormat } from "./formatPrompt";
 import { formatPromptsOutput } from "./formatPrompts";
+import type { CommonOptions, DeleteOptions } from "./options";
 
 type Prompt = componentsV1["schemas"]["Prompt"];
 type PromptVersion = componentsV1["schemas"]["PromptVersion"];
 
-interface PromptGetOptions {
-  endpoint?: string;
-  apiKey?: string;
-  format?: OutputFormat;
-  progress?: boolean;
+/**
+ * Options for `px prompt get <prompt-identifier>`. `--tag` and `--version`
+ * are alternative ways to select a specific version; without either, fetches
+ * the latest version.
+ */
+interface PromptGetOptions extends CommonOptions<OutputFormat> {
+  /**
+   * `--tag <tag>`: Get the prompt version currently labeled with this tag.
+   *
+   * @example "production"
+   */
   tag?: string;
+  /**
+   * `--version <version_id>`: Get a specific prompt version by ID.
+   *
+   * @example "UHJvbXB0VmVyc2lvbjox"
+   */
   version?: string;
 }
 
-interface PromptListOptions {
-  endpoint?: string;
-  apiKey?: string;
-  format?: "pretty" | "json" | "raw";
-  progress?: boolean;
+/**
+ * Options for `px prompt list`.
+ */
+interface PromptListOptions extends CommonOptions {
+  /**
+   * `--limit <number>`: Maximum number of prompts to fetch. Defaults to 100.
+   *
+   * @example 50
+   */
   limit?: number;
-}
-
-interface PromptDeleteOptions {
-  endpoint?: string;
-  apiKey?: string;
-  yes?: boolean;
-  progress?: boolean;
 }
 
 /**
@@ -250,7 +259,7 @@ async function promptListHandler(options: PromptListOptions): Promise<void> {
  */
 async function promptDeleteHandler(
   promptIdentifier: string,
-  options: PromptDeleteOptions
+  options: DeleteOptions
 ): Promise<void> {
   try {
     assertDeletesEnabled();

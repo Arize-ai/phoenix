@@ -9,17 +9,17 @@ metadata:
 
 Composable rules for building UI in the Phoenix app. Before starting work, explore `app/src/components/` and `app/package.json` to understand existing patterns, packages, and conventions — then follow these rules.
 
-## Rule Files
+## Reference Files
 
 Read the relevant file(s) based on the task:
 
-| Rule file | When to read |
+| Reference | When to read |
 |-----------|-------------|
-| `rules/components.md` | Creating, composing, or refactoring components |
-| `rules/relay.md` | Using Relay |
-| `rules/accessibility.md` | Any interactive element, form, overlay, or semantic markup |
-| `rules/test-ids.md` | Adding or changing `data-testid` attributes for E2E tests |
-| `rules/resize-svg-logo-assets.md` | Adding or updating provider/integration logo icons |
+| `references/components.md` | Creating, composing, or refactoring components |
+| `references/relay.md` | Using Relay |
+| `references/accessibility.md` | Any interactive element, form, overlay, or semantic markup |
+| `references/test-ids.md` | Adding or changing `data-testid` attributes for E2E tests |
+| `references/resize-svg-logo-assets.md` | Adding or updating provider/integration logo icons |
 
 ## Verification
 

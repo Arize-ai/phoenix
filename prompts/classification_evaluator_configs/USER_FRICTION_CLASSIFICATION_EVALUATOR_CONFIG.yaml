@@ -1,0 +1,52 @@
+name: user_friction
+description: Assess whether a user message expresses friction with an assistant's preceding behavior.
+optimization_direction: minimize
+messages:
+  - role: user
+    content: |-
+      You are an expert evaluator labeling whether the latest user message expresses friction with an AI assistant's preceding behavior.
+
+      <rubric>
+
+      FRICTION - The latest user message contains one or more of these signals directed at the assistant's preceding behavior:
+
+      - Correction: redirects or contradicts the assistant, identifies that it misunderstood, or asks it to undo, stop, or revert an action it took on its own initiative. Stopping or cancelling work the user themselves requested is not friction unless dissatisfaction is also expressed. Repeating or re-asserting an instruction or constraint the user already gave, after the assistant failed to follow it, is a correction
+      - Retry: repeats or rephrases an earlier request because the assistant failed, errored, returned nothing useful, or did not complete it
+      - Frustration: expresses negative affect about the assistant's behavior, such as annoyance, impatience, or disappointment
+      - Challenge: questions an action the assistant took or announced that was unrequested, unexplained, or inappropriate. A neutral question about why the assistant gave a recommendation or answer is not a challenge by itself, but asking why the assistant did not take a specific alternative the user implies was better ("why didn't you use X instead?") is a challenge. Asking why the assistant presented a recommendation as the best, current, or only suitable option is also a challenge; merely asking for rationale or a comparison is not
+
+      NO_FRICTION - The latest user message does not express friction with the assistant. This includes:
+
+      - A direct answer to a question or request for information from the assistant, even if the answer is terse or negative, such as "no", "skip", or "the second one"
+      - A follow-up, refinement, or new constraint that builds on the preceding response without indicating it was wrong or unsatisfactory
+      - A topic switch or new task
+      - Acceptance or rejection of an optional proposal. Commands such as "don't do that" are no_friction when they directly answer whether the assistant should do it
+      - Gratitude, greetings, acknowledgements, or other ordinary conversation
+      - A changed preference that does not imply the assistant made an error
+      - Curiosity or verification about a delivered answer, recommendation, or reasoning rather than a challenge to an action the assistant took. Requests for evidence or skeptical questions about a claim remain no_friction unless the user explicitly says the answer is wrong, fabricated, or unacceptable
+      - A first user message with no preceding assistant behavior to react to
+
+      Judge only expressed friction. Do not infer dissatisfaction from silence, brevity, negative words alone, or the fact that the user asks for additional work. A genuine friction signal still counts when combined with praise or a new request.
+
+      Apply the no_friction cases before interpreting terse or negative wording as friction. A direct answer to an assistant question or optional proposal remains no_friction unless the user also explicitly indicates that the assistant misunderstood, failed, or acted improperly. A negative answer followed by a replacement instruction is friction only when it corrects a completed response to the same request; it remains no_friction when answering a question or declining a proposal.
+
+      When the evidence supports both labels or remains ambiguous, choose no_friction. Precision on the friction label is more important than recall.
+
+      </rubric>
+
+      <data>
+
+      <conversation_before_user_message>
+      {{conversation}}
+      </conversation_before_user_message>
+
+      <latest_user_message>
+      {{user_message}}
+      </latest_user_message>
+
+      </data>
+
+      Reason through whether the latest user message reacts negatively to the assistant's preceding behavior. Then classify it as friction or no_friction.
+choices:
+  friction: 1.0
+  no_friction: 0.0

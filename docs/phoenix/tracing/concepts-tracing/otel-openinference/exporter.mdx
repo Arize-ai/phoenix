@@ -68,9 +68,13 @@ otlp_exporter = OTLPSpanExporter(
 )
 ```
 
-For a Phoenix Cloud or TLS-fronted Phoenix deployment, drop `insecure=True` and pass `credentials=grpc.ssl_channel_credentials()`.
+For a TLS-fronted Phoenix deployment, drop `insecure=True` and pass `credentials=grpc.ssl_channel_credentials()`.
 
 ## OTLP/HTTP Configuration
+
+Phoenix serves OTLP/HTTP on port `6006` — the same port as its UI — **not** the OTLP-standard
+HTTP port `4318`. Point the exporter at `http://<host>:6006/v1/traces` (the `4318` in the table
+above is the generic OTLP default, not Phoenix's).
 
 ```python
 from opentelemetry.exporter.otlp.proto.http import Compression
@@ -138,7 +142,7 @@ The traces-only variant takes priority over the generic one when both are set. F
 
 A few exporter failure modes worth knowing about up front:
 
-- **Wrong OTLP port or endpoint** — gRPC defaults to 4317, HTTP to 4318. Mixing them up surfaces as connection refused or 404s.
+- **Wrong OTLP port or endpoint** — Phoenix listens for OTLP/gRPC on `4317` and OTLP/HTTP on `6006` (its UI port, not the OTLP-standard `4318`). Mixing them up surfaces as connection refused or 404s.
 - **Wrong encoding for the transport** — gRPC requires Protobuf. Trying to send JSON over gRPC will silently fail.
 - **Proxies breaking gRPC** — corporate proxies, service meshes, and some load balancers don't handle HTTP/2 well. If you see flaky gRPC errors, switch to HTTP.
 - **TLS mismatches** — forgetting `insecure=True` when running against a local collector over `http://` fails. So does setting `insecure=False` against an `http://` endpoint. Match `insecure` to the scheme: `True` for `http://`, `False` (default) for `https://`.

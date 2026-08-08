@@ -123,7 +123,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
                 onPress={onClearSelection}
                 aria-label="Clear selection"
               >
-                <Icon svg={<Icons.CloseOutline />} />
+                <Icon svg={<Icons.Close />} />
               </IconButton>
               <Tooltip>Clear selection</Tooltip>
             </TooltipTrigger>
@@ -140,13 +140,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
           size="M"
           leadingVisual={
             <Icon
-              svg={
-                isDeletingExamples ? (
-                  <Icons.LoadingOutline />
-                ) : (
-                  <Icons.TrashOutline />
-                )
-              }
+              svg={isDeletingExamples ? <Icons.Loading /> : <Icons.Trash />}
             />
           }
           isDisabled={isDeletingExamples}

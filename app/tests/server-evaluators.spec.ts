@@ -39,7 +39,10 @@ test.describe.serial("Server Evaluators", () => {
     // Fill in dataset details in the dialog
     await page.getByLabel("Dataset Name").clear();
     await page.getByLabel("Dataset Name").fill(datasetName);
-    await page.getByLabel("Description").fill("Test dataset for evaluators");
+    await page
+      .getByTestId("dialog")
+      .getByLabel("Description")
+      .fill("Test dataset for evaluators");
 
     // Create the dataset
     await page.getByRole("button", { name: "Create Dataset" }).click();
@@ -312,28 +315,25 @@ test.describe.serial("Server Evaluators", () => {
       .getByRole("textbox", { name: /Description/i })
       .fill("Initial description for custom evaluator");
 
-    // Fill in the System message - find the textbox within the System section
-    const systemSection = page.locator(
-      'button:has-text("System"):not([role="menuitem"])'
-    );
-    const systemTextbox = systemSection
-      .locator("..")
-      .locator("..")
-      .getByRole("textbox");
-    await systemTextbox.fill("You are an evaluator. Evaluate the output.");
-
-    // Fill in the User message - find the textbox within the User section
-    const userSection = page.locator(
-      'button:has-text("User"):not([role="menuitem"])'
-    );
-    const userTextbox = userSection
-      .locator("..")
-      .locator("..")
+    // Fill in the System message - each message card's collapse toggle is
+    // labeled "<role> message", so scope to the card that contains it
+    const systemMessage = page
+      .locator("li")
+      .filter({ has: page.getByRole("button", { name: "system message" }) });
+    await systemMessage
       .getByRole("textbox")
-      .first();
-    await userTextbox.fill(
-      "Please evaluate this output: {{output}}\n\nReference: {{reference}}"
-    );
+      .fill("You are an evaluator. Evaluate the output.");
+
+    // Fill in the User message
+    const userMessage = page
+      .locator("li")
+      .filter({ has: page.getByRole("button", { name: "user message" }) });
+    await userMessage
+      .getByRole("textbox")
+      .first()
+      .fill(
+        "Please evaluate this output: {{output}}\n\nReference: {{reference}}"
+      );
 
     // Click Create button
     await page.getByRole("button", { name: "Create" }).click();

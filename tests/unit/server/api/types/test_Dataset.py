@@ -4,7 +4,7 @@ from secrets import token_hex
 from typing import Any
 
 import pytest
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -23,6 +23,7 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
+from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -849,6 +850,154 @@ class TestDatasetExperimentsResolver:
             {"node": {"sequenceNumber": 1, "id": str(GlobalID(Experiment.__name__, str(2)))}},
         ]
         assert response.data == {"node": {"experiments": {"edges": edges}}}
+
+
+class TestDatasetBaselineExperimentResolver:
+    QUERY = """
+      query ($datasetId: ID!) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            baselineExperiment {
+              id
+              name
+              sequenceNumber
+              isBaseline
+            }
+          }
+        }
+      }
+    """
+
+    async def test_returns_null_when_no_baseline_is_set(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, _ = await _create_dataset_with_experiments(db, experiment_count=3)
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"datasetId": str(GlobalID("Dataset", str(dataset_id)))},
+        )
+
+        assert not response.errors
+        assert response.data == {"node": {"baselineExperiment": None}}
+
+    async def test_returns_baseline_experiment_with_sequence_number(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, experiment_ids = await _create_dataset_with_experiments(
+            db,
+            experiment_count=4,
+            baseline_experiment_index=3,
+        )
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"datasetId": str(GlobalID("Dataset", str(dataset_id)))},
+        )
+
+        assert not response.errors
+        assert response.data == {
+            "node": {
+                "baselineExperiment": {
+                    "id": str(GlobalID(Experiment.__name__, str(experiment_ids[2]))),
+                    "name": "experiment-3",
+                    "sequenceNumber": 3,
+                    "isBaseline": True,
+                }
+            }
+        }
+
+    async def test_sequence_number_skips_ephemeral_experiments(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, experiment_ids = await _create_dataset_with_experiments(
+            db,
+            experiment_count=3,
+            baseline_experiment_index=2,
+            create_ephemeral_experiment_first=True,
+        )
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"datasetId": str(GlobalID("Dataset", str(dataset_id)))},
+        )
+
+        assert not response.errors
+        assert response.data == {
+            "node": {
+                "baselineExperiment": {
+                    "id": str(GlobalID(Experiment.__name__, str(experiment_ids[1]))),
+                    "name": "experiment-2",
+                    "sequenceNumber": 2,
+                    "isBaseline": True,
+                }
+            }
+        }
+
+
+async def _create_dataset_with_experiments(
+    db: DbSessionFactory,
+    *,
+    experiment_count: int,
+    baseline_experiment_index: int | None = None,
+    create_ephemeral_experiment_first: bool = False,
+) -> tuple[int, list[int]]:
+    async with db() as session:
+        dataset_id = await session.scalar(
+            insert(models.Dataset)
+            .returning(models.Dataset.id)
+            .values(name="baseline-test-dataset", metadata_={})
+        )
+        assert dataset_id is not None
+        dataset_version_id = await session.scalar(
+            insert(models.DatasetVersion)
+            .returning(models.DatasetVersion.id)
+            .values(dataset_id=dataset_id, metadata_={})
+        )
+        assert dataset_version_id is not None
+
+        if create_ephemeral_experiment_first:
+            await session.execute(
+                insert(models.Experiment).values(
+                    dataset_id=dataset_id,
+                    dataset_version_id=dataset_version_id,
+                    name="playground",
+                    is_ephemeral=True,
+                    repetitions=1,
+                    metadata_={},
+                )
+            )
+
+        experiment_ids = list(
+            await session.scalars(
+                insert(models.Experiment).returning(models.Experiment.id),
+                [
+                    {
+                        "dataset_id": dataset_id,
+                        "dataset_version_id": dataset_version_id,
+                        "name": f"experiment-{index + 1}",
+                        "repetitions": 1,
+                        "metadata_": {},
+                    }
+                    for index in range(experiment_count)
+                ],
+            )
+        )
+
+        if baseline_experiment_index is not None:
+            await session.execute(
+                insert(models.ExperimentTag).values(
+                    experiment_id=experiment_ids[baseline_experiment_index - 1],
+                    dataset_id=dataset_id,
+                    name=BASELINE_EXPERIMENT_TAG_NAME,
+                    description=None,
+                )
+            )
+
+    return dataset_id, experiment_ids
 
 
 @pytest.fixture
@@ -1787,3 +1936,81 @@ async def test_dataset_filter_and_sort(
     datasets = data["datasets"]
     dataset_names = [edge["node"]["name"] for edge in datasets["edges"]]
     assert dataset_names == expected_names
+
+
+@pytest.fixture
+async def dataset_created_and_updated_by_different_users(db: DbSessionFactory) -> dict[str, str]:
+    """
+    A dataset owned by one user whose latest version was authored by another, plus a dataset with
+    no owner and an unattributed version. Returns the expected creator and last editor usernames.
+    """
+    async with db() as session:
+        user_role_id = await session.scalar(
+            select(models.UserRole.id).where(models.UserRole.name == "MEMBER")
+        )
+        assert user_role_id is not None
+
+        def _user(username: str) -> models.User:
+            return models.User(
+                user_role_id=user_role_id,
+                username=username,
+                email=f"{token_hex(4)}@test.com",
+                password_hash=b"hash",
+                password_salt=b"salt",
+                reset_password=False,
+                auth_method="LOCAL",
+            )
+
+        owner, editor = _user("owner"), _user("editor")
+        session.add_all([owner, editor])
+        await session.flush()
+
+        collaborative = models.Dataset(name="collaborative-dataset", metadata_={})
+        collaborative.user_id = owner.id
+        unattributed = models.Dataset(name="unattributed-dataset", metadata_={})
+        session.add_all([collaborative, unattributed])
+        await session.flush()
+
+        # The latest version's author is the editor, not the dataset's owner.
+        for author_id in (owner.id, editor.id):
+            session.add(
+                models.DatasetVersion(dataset_id=collaborative.id, metadata_={}, user_id=author_id)
+            )
+            await session.flush()
+
+        session.add(models.DatasetVersion(dataset_id=unattributed.id, metadata_={}))
+        await session.commit()
+
+        return {"createdBy": "owner", "updatedBy": "editor"}
+
+
+async def test_dataset_created_by_is_its_owner_and_updated_by_is_its_latest_version_author(
+    gql_client: AsyncGraphQLClient,
+    dataset_created_and_updated_by_different_users: dict[str, str],
+) -> None:
+    query = """
+      query {
+        datasets {
+          edges {
+            node {
+              name
+              createdBy { username }
+              updatedBy { username }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data
+    nodes = {edge["node"]["name"]: edge["node"] for edge in response.data["datasets"]["edges"]}
+
+    expected = dataset_created_and_updated_by_different_users
+    collaborative = nodes["collaborative-dataset"]
+    assert collaborative["createdBy"]["username"] == expected["createdBy"]
+    assert collaborative["updatedBy"]["username"] == expected["updatedBy"]
+
+    unattributed = nodes["unattributed-dataset"]
+    assert unattributed["createdBy"] is None
+    assert unattributed["updatedBy"] is None

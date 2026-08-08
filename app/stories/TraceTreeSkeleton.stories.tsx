@@ -20,7 +20,7 @@ const frameCSS = {
   width: 640,
   height: 480,
   border: "1px solid var(--global-border-color-default)",
-  background: "var(--ac-global-color-grey-75)",
+  background: "var(--global-color-gray-75)",
   overflow: "auto" as const,
 };
 

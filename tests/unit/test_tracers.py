@@ -1,13 +1,26 @@
+import gc
 import json
 import re
+import threading
+import time
+import weakref
 from datetime import datetime, timezone
-from typing import Sequence
+from typing import Sequence, cast
+from unittest.mock import Mock, patch
 
+import anyio
 import pytest
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.exporter.otlp.proto.http import trace_exporter as otlp_http_trace_exporter
+from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
-from opentelemetry.trace import Status, StatusCode
+from opentelemetry.trace import (
+    Status,
+    StatusCode,
+    format_span_id,
+    format_trace_id,
+    get_current_span,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
@@ -15,7 +28,318 @@ from phoenix.db import models
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.types import DbSessionFactory
-from phoenix.tracers import Tracer, _build_remote_http_span_exporter
+from phoenix.tracers import (
+    Tracer,
+    _build_remote_http_span_exporter,
+    build_synthetic_readable_span,
+    detached_otel_context,
+    extract_otel_context,
+)
+
+
+class TestExtractOtelContext:
+    STANDARD_TRACE_ID = "11111111111111111111111111111111"
+    STANDARD_SPAN_ID = "2222222222222222"
+
+    def test_extracts_standard_traceparent(self) -> None:
+        extracted = extract_otel_context(
+            {"traceparent": f"00-{self.STANDARD_TRACE_ID}-{self.STANDARD_SPAN_ID}-01"}
+        )
+        span_context = get_current_span(extracted).get_span_context()
+        assert format_trace_id(span_context.trace_id) == self.STANDARD_TRACE_ID
+        assert format_span_id(span_context.span_id) == self.STANDARD_SPAN_ID
+
+    def test_returns_invalid_context_for_empty_carrier(self) -> None:
+        extracted = extract_otel_context({})
+        assert not get_current_span(extracted).get_span_context().is_valid
+
+
+class _SlowExporter(SpanExporter):
+    """A remote exporter slow enough to make a blocking release measurable."""
+
+    DELAY = 0.3
+
+    def __init__(self) -> None:
+        self.exported: list[ReadableSpan] = []
+
+    def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        time.sleep(self.DELAY)
+        self.exported.extend(spans)
+        return SpanExportResult.SUCCESS
+
+    def shutdown(self) -> None:
+        return None
+
+    def force_flush(self, timeout_millis: int = 30_000) -> bool:
+        return True
+
+
+class _BlockingShutdownExporter(SpanExporter):
+    """A remote exporter that holds the drain open, as a slow collector does.
+
+    `draining` is set once the release is inside the drain, so a test can end a
+    span in that window.
+    """
+
+    DELAY = 0.3
+
+    def __init__(self) -> None:
+        self.draining = threading.Event()
+        self.exported: list[ReadableSpan] = []
+
+    def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        self.exported.extend(spans)
+        return SpanExportResult.SUCCESS
+
+    def shutdown(self) -> None:
+        self.draining.set()
+        time.sleep(self.DELAY)
+
+    def force_flush(self, timeout_millis: int = 30_000) -> bool:
+        return True
+
+
+class TestTracerLifecycle:
+    """A `Tracer` is request-scoped and must not outlive the block that owns it.
+
+    One is built per agent turn, per experiment work item, and per playground
+    stream. Each holds every span it captured, including full message
+    histories: the span limits are raised so that nothing is evicted.
+    """
+
+    @staticmethod
+    def _tracer() -> Tracer:
+        return Tracer(span_cost_calculator=cast(SpanCostCalculator, Mock()))
+
+    def test_provider_does_not_register_an_atexit_handler(self) -> None:
+        """`shutdown_on_exit` has to stay disabled on a per-request provider.
+
+        The SDK default registers `atexit.register(provider.shutdown)`, which
+        stores a bound method and pins the provider for the life of the
+        process. That suits one process-wide provider, not one per request.
+        """
+        tracer = self._tracer()
+        assert tracer.tracer_provider._atexit_handler is None
+
+    def test_provider_is_collected_once_the_tracer_is_dropped(self) -> None:
+        tracer = self._tracer()
+        with tracer.start_as_current_span("operation"):
+            pass
+        provider_ref = weakref.ref(tracer.tracer_provider)
+        del tracer
+        gc.collect()
+        assert provider_ref() is None, (
+            "the tracer provider outlived its tracer, so every span it captured is still reachable"
+        )
+
+    def test_shutdown_is_idempotent(self) -> None:
+        """Owners call `shutdown()` from a `finally`, which can run twice."""
+        tracer = self._tracer()
+        tracer.shutdown()
+        tracer.shutdown()
+
+    def test_leaving_the_block_releases_the_captured_spans(self) -> None:
+        """`shutdown()` alone does not release them.
+
+        It reaches `_BufferedSpanExporter.shutdown()`, which returns without
+        touching the buffer. Only `clear()` empties it, so `__exit__` does
+        both. `test_a_span_ending_during_the_drain_is_still_released` covers
+        the order the two run in.
+        """
+        with self._tracer() as tracer:
+            with tracer.start_as_current_span("operation"):
+                pass
+            assert tracer._self_exporter.get_finished_spans()
+        assert tracer._self_exporter.get_finished_spans() == []
+
+    def test_the_block_releases_on_an_exception_path(self) -> None:
+        """The work items re-raise cancellation through this block, and the
+        traceback pins the frame. Release cannot wait on the frame dying.
+        """
+        tracer = self._tracer()
+        with patch.object(tracer.tracer_provider, "shutdown") as shutdown:
+            with pytest.raises(RuntimeError):
+                with tracer:
+                    with tracer.start_as_current_span("operation"):
+                        pass
+                    raise RuntimeError("work item failed")
+        assert tracer._self_exporter.get_finished_spans() == []
+        shutdown.assert_called_once()
+
+    @staticmethod
+    def _remote_tracer(exporter: SpanExporter) -> Tracer:
+        return Tracer(
+            span_cost_calculator=cast(SpanCostCalculator, Mock()),
+            enable_remote_export=True,
+            remote_collector_endpoint="http://collector.invalid",
+            remote_span_exporter_factory=lambda _: exporter,
+        )
+
+    async def test_async_block_releases_and_exports(self) -> None:
+        exporter = _SlowExporter()
+        tracer = self._remote_tracer(exporter)
+        async with tracer:
+            with tracer.start_as_current_span("operation"):
+                pass
+        assert [s.name for s in exporter.exported] == ["operation"]
+        assert tracer._self_exporter.get_finished_spans() == []
+
+    async def test_async_block_does_not_hold_the_event_loop(self) -> None:
+        """With a remote exporter the release drains the batch queue, which is a
+        full OTLP round-trip. On the loop that stalls every other request on the
+        worker, so `__aexit__` hands it to a thread.
+        """
+        ticks = 0
+
+        async def _heartbeat() -> None:
+            nonlocal ticks
+            while True:
+                await anyio.sleep(0.02)
+                ticks += 1
+
+        exporter = _SlowExporter()
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(_heartbeat)
+            await anyio.sleep(0.05)
+            ticks = 0
+            async with self._remote_tracer(exporter) as tracer:
+                with tracer.start_as_current_span("operation"):
+                    pass
+            advanced = ticks
+            tg.cancel_scope.cancel()
+        assert advanced >= 5, (
+            f"the loop advanced only {advanced} times during a "
+            f"{_SlowExporter.DELAY}s release, so the release ran inline"
+        )
+
+    async def test_async_block_releases_under_cancellation(self) -> None:
+        """A client disconnecting cancels the scope the release runs in. Without
+        the shield in `__aexit__` the `await` raises before the release happens
+        and the tracer is never torn down.
+        """
+        exporter = _SlowExporter()
+        tracer = self._remote_tracer(exporter)
+        with anyio.CancelScope() as scope:
+            scope.cancel()
+            try:
+                async with tracer:
+                    with tracer.start_as_current_span("operation"):
+                        pass
+            except BaseException:  # noqa: S110 - the cancellation itself is not under test
+                pass
+        assert [s.name for s in exporter.exported] == ["operation"]
+        assert tracer._self_exporter.get_finished_spans() == []
+
+    async def test_async_block_skips_the_thread_without_a_remote_exporter(self) -> None:
+        """There is no remote queue to drain, so the thread hop serves no purpose."""
+        tracer = self._tracer()
+        with patch("anyio.to_thread.run_sync") as run_sync:
+            async with tracer:
+                with tracer.start_as_current_span("operation"):
+                    pass
+        run_sync.assert_not_called()
+        assert tracer._self_exporter.get_finished_spans() == []
+
+    def test_a_span_ending_during_the_drain_is_still_released(self) -> None:
+        """`shutdown()` has to run before `clear()`, not after.
+
+        With a remote exporter the shutdown drains the batch queue.
+        `SimpleSpanProcessor` has no shutdown check, so it keeps filling the
+        buffer for as long as the collector takes. Clearing first leaves
+        whatever ended inside that window reachable, and the window is as wide
+        as the collector is slow.
+        """
+        exporter = _BlockingShutdownExporter()
+        tracer = self._remote_tracer(exporter)
+        ended_late = threading.Event()
+        failures: list[BaseException] = []
+
+        def _end_a_span_mid_drain() -> None:
+            # Failures on this thread do not reach pytest. Uncaptured, they
+            # would leave the test passing on a window it never opened.
+            try:
+                assert exporter.draining.wait(5), "the release never reached the drain"
+                with tracer.start_as_current_span("ended-during-the-drain"):
+                    pass
+                ended_late.set()
+            except BaseException as error:
+                failures.append(error)
+
+        late = threading.Thread(target=_end_a_span_mid_drain)
+        with tracer:
+            with tracer.start_as_current_span("operation"):
+                pass
+            late.start()
+        late.join(5)
+        assert not failures, failures[0]
+        assert ended_late.is_set(), "no span ended during the drain, so nothing was exercised"
+        assert tracer._self_exporter.get_finished_spans() == []
+
+    def test_a_teardown_failure_does_not_replace_the_original_error(self) -> None:
+        """A failure while tearing down must not stand in for the failure the
+        block is unwinding. Otherwise the caller sees a broken exporter in
+        place of the agent error, or in place of a cancellation.
+        """
+        tracer = self._tracer()
+        with patch.object(
+            tracer.tracer_provider, "shutdown", side_effect=RuntimeError("the exporter is down")
+        ):
+            with pytest.raises(ValueError, match="the agent turn failed"):
+                with tracer:
+                    with tracer.start_as_current_span("operation"):
+                        pass
+                    raise ValueError("the agent turn failed")
+        assert tracer._self_exporter.get_finished_spans() == []
+
+    def test_a_teardown_failure_does_not_fail_a_block_that_succeeded(self) -> None:
+        tracer = self._tracer()
+        with patch.object(
+            tracer.tracer_provider, "shutdown", side_effect=RuntimeError("the exporter is down")
+        ):
+            with tracer:
+                with tracer.start_as_current_span("operation"):
+                    pass
+        assert tracer._self_exporter.get_finished_spans() == []
+
+    def test_a_tracer_cannot_be_entered_twice(self) -> None:
+        """Nesting the same tracer releases it at the inner exit, and the outer
+        block then records into a half-torn-down tracer.
+        """
+        tracer = self._tracer()
+        with tracer:
+            with pytest.raises(RuntimeError, match="already been entered"):
+                with tracer:
+                    pass
+
+    def test_a_tracer_cannot_be_reused_after_its_block(self) -> None:
+        """The first release stops the batch processor but not
+        `SimpleSpanProcessor`, so a second block's spans would reach the local
+        buffer while remote export refuses them.
+        """
+        tracer = self._tracer()
+        with tracer:
+            pass
+        with pytest.raises(RuntimeError, match="already been entered"):
+            with tracer:
+                pass
+
+    async def test_the_async_block_rejects_reuse_too(self) -> None:
+        """`__aenter__` delegates, so there is one gate rather than two."""
+        tracer = self._tracer()
+        async with tracer:
+            pass
+        with pytest.raises(RuntimeError, match="already been entered"):
+            async with tracer:
+                pass
+
+    def test_spans_are_still_readable_inside_the_block(self) -> None:
+        """`get_db_traces` runs inside the `with` at every call site, so the
+        release on exit must not race the models the caller still has to build.
+        """
+        with self._tracer() as tracer:
+            with tracer.start_as_current_span("operation"):
+                pass
+            assert [s.name for s in tracer._self_exporter.get_finished_spans()] == ["operation"]
 
 
 class TestTracer:
@@ -114,6 +438,42 @@ class TestTracer:
         returned_traces = tracer.get_db_traces(project_id=project.id)
         assert len(returned_traces) == 1
         assert returned_traces[0].project_session is None
+
+    @pytest.mark.parametrize("span_kind", ["tool", "ToOl"])
+    @pytest.mark.asyncio
+    async def test_get_db_traces_normalizes_span_kind(self, tracer: Tracer, span_kind: str) -> None:
+        with tracer.start_as_current_span(
+            "span",
+            attributes={OPENINFERENCE_SPAN_KIND: span_kind},
+        ):
+            pass
+
+        returned_traces = tracer.get_db_traces(project_id=1)
+        assert len(returned_traces) == 1
+        assert [span.span_kind for span in returned_traces[0].spans] == ["TOOL"]
+
+    @pytest.mark.asyncio
+    async def test_detached_otel_context_can_use_propagated_remote_parent(
+        self, project: models.Project, tracer: Tracer
+    ) -> None:
+        trace_id = "4bf92f3577b34da6a3ce929d0e0e4736"
+        parent_span_id = "00f067aa0ba902b7"
+        parent_context = extract_otel_context({"traceparent": f"00-{trace_id}-{parent_span_id}-01"})
+
+        with detached_otel_context(parent_context):
+            with tracer.start_as_current_span(
+                "child",
+                attributes={OPENINFERENCE_SPAN_KIND: "CHAIN"},
+            ):
+                pass
+
+        returned_traces = tracer.get_db_traces(project_id=project.id)
+        assert len(returned_traces) == 1
+        returned_trace = returned_traces[0]
+        assert returned_trace.trace_id == trace_id
+        assert len(returned_trace.spans) == 1
+        returned_span = returned_trace.spans[0]
+        assert returned_span.parent_id == parent_span_id
 
     @pytest.mark.asyncio
     async def test_save_db_traces_persists_nested_spans(
@@ -478,6 +838,47 @@ class TestTracer:
             tracer._self_provider.resource.attributes["openinference.project.name"]
             == "assistant_agent"
         )
+
+    def test_synthetic_span_uses_local_and_remote_processors(
+        self,
+        span_cost_calculator: SpanCostCalculator,
+    ) -> None:
+        remotely_exported: list[ReadableSpan] = []
+
+        class FakeRemoteExporter(SpanExporter):
+            def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+                remotely_exported.extend(spans)
+                return SpanExportResult.SUCCESS
+
+            def shutdown(self) -> None:
+                return None
+
+        tracer = Tracer(
+            span_cost_calculator=span_cost_calculator,
+            enable_remote_export=True,
+            remote_collector_endpoint="https://collector.example",
+            remote_span_exporter_factory=lambda _: FakeRemoteExporter(),
+        )
+        now = datetime(2026, 7, 10, tzinfo=timezone.utc)
+        synthetic_span = build_synthetic_readable_span(
+            name="synthetic",
+            trace_id=int("1" * 32, 16),
+            span_id=int("2" * 16, 16),
+            parent_span_id=None,
+            start_time=now,
+            end_time=now,
+            attributes={OPENINFERENCE_SPAN_KIND: "AGENT"},
+            status=Status(StatusCode.OK),
+            resource=tracer.resource,
+        )
+
+        tracer.record_readable_span(synthetic_span)
+        assert tracer.force_flush()
+
+        db_traces = tracer.get_db_traces(project_id=1)
+        assert db_traces[0].trace_id == "1" * 32
+        assert db_traces[0].spans[0].span_id == "2" * 16
+        assert remotely_exported == [synthetic_span]
 
     @pytest.mark.asyncio
     async def test_save_db_traces_persists_events_and_exceptions(

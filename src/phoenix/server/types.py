@@ -12,6 +12,7 @@ from typing import Any, Generic, Optional, Protocol, TypeVar, final
 
 from cachetools import LRUCache
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing_extensions import Self
 
 from phoenix.auth import CanReadToken, ClaimSet, Token, TokenAttributes
 from phoenix.db import models
@@ -30,16 +31,13 @@ class CanGetLastUpdatedAt(Protocol):
 class DbSessionFactory:
     def __init__(
         self,
-        db: Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]],
+        db: Callable[[], AbstractAsyncContextManager[AsyncSession]],
         dialect: str,
-        read_db: Optional[
-            Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]]
-        ] = None,
+        read_db: Optional[Callable[[], AbstractAsyncContextManager[AsyncSession]]] = None,
     ):
         self._db = db
         self._read_db = read_db or db
         self.dialect = SupportedSQLDialect(dialect)
-        self.lock: Optional[asyncio.Lock] = None
         self.should_not_insert_or_update = False
         """An informational flag that allows different tasks to coordinate whether insert
         and update operations should be allowed. For example, this can be set to True when disk
@@ -49,10 +47,16 @@ class DbSessionFactory:
         """
 
     def __call__(self) -> AbstractAsyncContextManager[AsyncSession]:
-        return self._db(self.lock)
+        return self._db()
 
     def read(self) -> AbstractAsyncContextManager[AsyncSession]:
-        return self._read_db(self.lock)
+        """A session for reads that need not observe their own writes.
+
+        Do not rely on read-your-writes: against a Postgres replica this can be
+        arbitrarily stale. Without a read engine it falls back to the writer's,
+        whose pool then serialises it with writes.
+        """
+        return self._read_db()
 
 
 _AnyT = TypeVar("_AnyT")
@@ -176,7 +180,13 @@ class UserTokenAttributes(TokenAttributes):
 
 
 @dataclass(frozen=True)
-class RefreshTokenAttributes(UserTokenAttributes): ...
+class RefreshTokenAttributes(UserTokenAttributes):
+    # Present when the token was minted under an OAuth2 grant. None for web-session tokens.
+    grant_id: Optional[int] = None
+    # Snapshot of grant scopes at mint time. None means full role access (legacy
+    # web-session tokens). A grant-linked token MUST carry a non-None scopes
+    # tuple — NULL scopes on a grant-linked row is treated as invalid.
+    scopes: Optional[tuple[str, ...]] = None
 
 
 @dataclass(frozen=True)
@@ -186,6 +196,12 @@ class PasswordResetTokenAttributes(UserTokenAttributes): ...
 @dataclass(frozen=True)
 class AccessTokenAttributes(UserTokenAttributes):
     refresh_token_id: RefreshTokenId
+    # Present when the token was minted under an OAuth2 grant. None for web-session tokens.
+    grant_id: Optional[int] = None
+    # Snapshot of grant scopes at mint time. None means full role access (legacy
+    # web-session tokens). A grant-linked token MUST carry a non-None scopes
+    # tuple — NULL scopes on a grant-linked row is treated as invalid.
+    scopes: Optional[tuple[str, ...]] = None
 
 
 @dataclass(frozen=True)
@@ -197,14 +213,14 @@ class ApiKeyAttributes(UserTokenAttributes):
 class _DbId(str, ABC):
     table: type[models.Base]
 
-    def __new__(cls, id_: int) -> _DbId:
+    def __new__(cls, id_: int) -> Self:
         assert isinstance(id_, int)
         return super().__new__(cls, f"{cls.table.__name__}:{id_}")
 
     def __int__(self) -> int:
         return int(self.split(":")[1])
 
-    def __deepcopy__(self, memo: Any) -> _DbId:
+    def __deepcopy__(self, memo: Any) -> Self:
         return self
 
 
@@ -284,6 +300,8 @@ class CanLogOutUser(Protocol):
 
 
 class TokenStore(CanReadToken, CanRevokeTokens, CanLogOutUser, Protocol):
+    async def consume_refresh_token(self, token_id: RefreshTokenId) -> bool: ...
+    async def consumed_refresh_token_grant_id(self, token: Token) -> Optional[int]: ...
     async def create_password_reset_token(
         self,
         claims: PasswordResetTokenClaims,

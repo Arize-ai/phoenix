@@ -155,7 +155,7 @@ export function ExperimentCostAndLatencySummaryPlaceholder({
 const skeletonItemCSS = css`
   display: flex;
   flex-direction: row;
-  gap: var(--global-dimension-static-size-50);
+  gap: var(--global-dimension-size-50);
   align-items: center;
   font-size: var(--global-font-size-s);
 `;
@@ -174,7 +174,7 @@ export function ExperimentCostAndLatencySummarySkeleton() {
       <div css={skeletonItemCSS}>
         <Text color="text-900" size="S">
           <Icon
-            svg={<Icons.ClockOutline />}
+            svg={<Icons.Clock />}
             css={css`
               font-size: 1.1em;
             `}
@@ -185,7 +185,7 @@ export function ExperimentCostAndLatencySummarySkeleton() {
       {/* Token count skeleton */}
       <div css={skeletonItemCSS}>
         <Icon
-          svg={<Icons.TokensOutline />}
+          svg={<Icons.Tokens />}
           css={css`
             color: var(--global-text-color-900);
           `}
@@ -195,7 +195,7 @@ export function ExperimentCostAndLatencySummarySkeleton() {
       {/* Cost skeleton */}
       <div css={skeletonItemCSS}>
         <Icon
-          svg={<Icons.DollarSignOutline />}
+          svg={<Icons.DollarSign />}
           css={css`
             color: var(--global-text-color-900);
           `}

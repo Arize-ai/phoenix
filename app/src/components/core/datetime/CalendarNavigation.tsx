@@ -12,11 +12,11 @@ export function CalendarNavigation() {
   return (
     <header className="calendar__header">
       <IconButton slot="previous" size="S">
-        <Icon svg={<Icons.ChevronLeft />} />
+        <Icon svg={<Icons.ChevronLeftSmall />} />
       </IconButton>
       <Heading className="calendar__heading" />
       <IconButton slot="next" size="S">
-        <Icon svg={<Icons.ChevronRight />} />
+        <Icon svg={<Icons.ChevronRightSmall />} />
       </IconButton>
     </header>
   );

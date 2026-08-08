@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<634f4d6768003a793c1077fb8f3d8f7e>>
+ * @generated SignedSource<<f9c36a88991d09a0c5f0f8caa7f9d09e>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -105,6 +104,8 @@ export type ExperimentCompareTable_comparisons$data = {
             readonly id: string;
           };
           readonly id: string;
+          readonly isBaseline: boolean;
+          readonly isEphemeral: boolean;
           readonly metadata: any;
           readonly name: string;
           readonly project: {
@@ -222,7 +223,7 @@ v9 = {
   "storageKey": null
 },
 v10 = [
-  (v1/*: any*/)
+  (v1/*:: as any*/)
 ],
 v11 = {
   "alias": null,
@@ -290,7 +291,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -300,7 +301,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [],
       "operation": ExperimentCompareTableQuery_graphql
@@ -356,7 +357,7 @@ return {
                   "name": "example",
                   "plural": false,
                   "selections": [
-                    (v1/*: any*/),
+                    (v1/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -405,7 +406,7 @@ return {
                       "kind": "LinkedField",
                       "name": "annotationSummaries",
                       "plural": true,
-                      "selections": (v2/*: any*/),
+                      "selections": (v2/*:: as any*/),
                       "storageKey": null
                     },
                     {
@@ -423,7 +424,7 @@ return {
                       "name": "runs",
                       "plural": true,
                       "selections": [
-                        (v1/*: any*/),
+                        (v1/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -452,7 +453,7 @@ return {
                           "name": "error",
                           "storageKey": null
                         },
-                        (v3/*: any*/),
+                        (v3/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -469,8 +470,8 @@ return {
                               "name": "total",
                               "plural": false,
                               "selections": [
-                                (v4/*: any*/),
-                                (v5/*: any*/)
+                                (v4/*:: as any*/),
+                                (v5/*:: as any*/)
                               ],
                               "storageKey": null
                             }
@@ -501,10 +502,10 @@ return {
                                   "name": "node",
                                   "plural": false,
                                   "selections": [
-                                    (v1/*: any*/),
-                                    (v6/*: any*/),
-                                    (v7/*: any*/),
-                                    (v8/*: any*/),
+                                    (v1/*:: as any*/),
+                                    (v6/*:: as any*/),
+                                    (v7/*:: as any*/),
+                                    (v8/*:: as any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -519,8 +520,8 @@ return {
                                       "name": "explanation",
                                       "storageKey": null
                                     },
-                                    (v9/*: any*/),
-                                    (v3/*: any*/)
+                                    (v9/*:: as any*/),
+                                    (v3/*:: as any*/)
                                   ],
                                   "storageKey": null
                                 }
@@ -609,7 +610,7 @@ return {
       "name": "node",
       "plural": false,
       "selections": [
-        (v1/*: any*/),
+        (v1/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -648,8 +649,8 @@ return {
                       "name": "node",
                       "plural": false,
                       "selections": [
-                        (v1/*: any*/),
-                        (v6/*: any*/),
+                        (v1/*:: as any*/),
+                        (v6/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -657,7 +658,21 @@ return {
                           "name": "sequenceNumber",
                           "storageKey": null
                         },
-                        (v9/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "isBaseline",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "isEphemeral",
+                          "storageKey": null
+                        },
+                        (v9/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -665,7 +680,7 @@ return {
                           "kind": "LinkedField",
                           "name": "datasetVersion",
                           "plural": false,
-                          "selections": (v10/*: any*/),
+                          "selections": (v10/*:: as any*/),
                           "storageKey": null
                         },
                         {
@@ -675,7 +690,7 @@ return {
                           "kind": "LinkedField",
                           "name": "project",
                           "plural": false,
-                          "selections": (v10/*: any*/),
+                          "selections": (v10/*:: as any*/),
                           "storageKey": null
                         },
                         {
@@ -694,8 +709,8 @@ return {
                               "name": "total",
                               "plural": false,
                               "selections": [
-                                (v5/*: any*/),
-                                (v4/*: any*/)
+                                (v5/*:: as any*/),
+                                (v4/*:: as any*/)
                               ],
                               "storageKey": null
                             }
@@ -730,7 +745,7 @@ return {
                           "kind": "LinkedField",
                           "name": "annotationSummaries",
                           "plural": true,
-                          "selections": (v2/*: any*/),
+                          "selections": (v2/*:: as any*/),
                           "storageKey": null
                         }
                       ],
@@ -772,7 +787,7 @@ return {
                       "name": "node",
                       "plural": false,
                       "selections": [
-                        (v6/*: any*/),
+                        (v6/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -784,8 +799,8 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v6/*: any*/),
-                                (v11/*: any*/),
+                                (v6/*:: as any*/),
+                                (v11/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -794,8 +809,8 @@ return {
                                   "name": "values",
                                   "plural": true,
                                   "selections": [
-                                    (v8/*: any*/),
-                                    (v7/*: any*/)
+                                    (v8/*:: as any*/),
+                                    (v7/*:: as any*/)
                                   ],
                                   "storageKey": null
                                 }
@@ -806,10 +821,10 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v6/*: any*/),
-                                (v11/*: any*/),
-                                (v12/*: any*/),
-                                (v13/*: any*/)
+                                (v6/*:: as any*/),
+                                (v11/*:: as any*/),
+                                (v12/*:: as any*/),
+                                (v13/*:: as any*/)
                               ],
                               "type": "ContinuousAnnotationConfig",
                               "abstractKey": null
@@ -817,8 +832,8 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v6/*: any*/),
-                                (v11/*: any*/),
+                                (v6/*:: as any*/),
+                                (v11/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -826,8 +841,8 @@ return {
                                   "name": "threshold",
                                   "storageKey": null
                                 },
-                                (v12/*: any*/),
-                                (v13/*: any*/)
+                                (v12/*:: as any*/),
+                                (v13/*:: as any*/)
                               ],
                               "type": "FreeformAnnotationConfig",
                               "abstractKey": null
@@ -857,6 +872,6 @@ return {
 };
 })();
 
-(node as any).hash = "e39cde7e29d3e6099f6e5bbea3a0d875";
+(node as any).hash = "33ea7d0490310d4c56e46aaad74e779c";
 
 export default node;

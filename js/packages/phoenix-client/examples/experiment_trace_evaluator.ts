@@ -18,7 +18,7 @@
 import { traceTool } from "@arizeai/phoenix-otel";
 
 import { createClient } from "../src/client";
-import { createOrGetDataset } from "../src/datasets";
+import { createDataset } from "../src/datasets";
 import {
   asExperimentEvaluator,
   evaluateExperiment,
@@ -129,7 +129,7 @@ function createToolCallEvaluator(projectName: string) {
 async function main() {
   // 4a. Create a dataset of questions, each annotated with which tool the
   //     agent should call.
-  const { datasetId } = await createOrGetDataset({
+  const { datasetId } = await createDataset({
     client,
     name: `tool-call-example-dataset`,
     description: "Questions that require tool use",

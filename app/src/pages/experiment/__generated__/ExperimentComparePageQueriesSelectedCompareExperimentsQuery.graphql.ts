@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<0a69ecf964a4e550468fcc08221692a0>>
+ * @generated SignedSource<<43ee2e392d357486b133a3e9b272ac88>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -44,7 +43,7 @@ v1 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ExperimentComparePageQueriesSelectedCompareExperimentsQuery",
@@ -71,7 +70,7 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ExperimentComparePageQueriesSelectedCompareExperimentsQuery",
     "selections": [
@@ -134,7 +133,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v1/*: any*/),
+                          (v1/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -147,6 +146,13 @@ return {
                             "args": null,
                             "kind": "ScalarField",
                             "name": "name",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "isBaseline",
                             "storageKey": null
                           }
                         ],
@@ -162,19 +168,19 @@ return {
             "type": "Dataset",
             "abstractKey": null
           },
-          (v1/*: any*/)
+          (v1/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "7c15fa41768e4a97fd4af03e110f1d65",
+    "cacheID": "dc3d9c1ce6d47fca9075572550ccf512",
     "id": null,
     "metadata": {},
     "name": "ExperimentComparePageQueriesSelectedCompareExperimentsQuery",
     "operationKind": "query",
-    "text": "query ExperimentComparePageQueriesSelectedCompareExperimentsQuery(\n  $datasetId: ID!\n  $experimentIds: [ID!]!\n) {\n  ...ExperimentComparePage_selectedCompareExperiments_3xL6z4\n}\n\nfragment ExperimentComparePage_selectedCompareExperiments_3xL6z4 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds, includeEphemeral: true) {\n        edges {\n          experiment: node {\n            id\n            sequenceNumber\n            name\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentComparePageQueriesSelectedCompareExperimentsQuery(\n  $datasetId: ID!\n  $experimentIds: [ID!]!\n) {\n  ...ExperimentComparePage_selectedCompareExperiments_3xL6z4\n}\n\nfragment ExperimentComparePage_selectedCompareExperiments_3xL6z4 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds, includeEphemeral: true) {\n        edges {\n          experiment: node {\n            id\n            sequenceNumber\n            name\n            isBaseline\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
