@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from difflib import get_close_matches
 from enum import Enum
@@ -265,9 +266,8 @@ def _check_structural_policy(root: exp.Expression) -> Optional[AdmissionResult]:
     """Refuse structural classes that nothing has decided about.
 
     Functions and table sources are checked elsewhere and are skipped here.
-    What remains is the seam, and the answer for an unlisted class is no --
-    which is the whole change: the question used to be "is this one of the five
-    we refuse", and it is now "is this one we have accepted".
+    What remains is the seam, and the answer for an unlisted class is no: the
+    question is "is this one we have accepted", not "is this one we refuse".
     """
     for node in root.walk():
         if isinstance(node, exp.Func):
@@ -387,16 +387,33 @@ _TIMESTAMP_COMPARISONS = (
 )
 
 
+def _strip_parens(node: Optional[exp.Expression]) -> Optional[exp.Expression]:
+    """The operand a comparison actually has, with grouping removed.
+
+    Parentheses are not part of what is being compared, but both consumers match
+    on the node itself, so `(start_time) = ('...')` presented them a pair of
+    `Paren`s and neither check engaged -- the whole timestamp machinery defeated
+    by grouping the caller is free to add.
+    """
+    while isinstance(node, exp.Paren):
+        node = node.this
+    return node
+
+
 def _timestamp_comparison_pairs(
     node: exp.Expression,
 ) -> list[tuple[Optional[exp.Expression], Optional[exp.Expression]]]:
     """Every (compared-against, operand) pair a node establishes.
 
-    One enumeration for both consumers below, because they ask the same question
-    of the same tree and answering it twice is how a spelling gets covered by one
-    and not the other. A construct that compares without spelling a comparison
+    One enumeration for both consumers, because they ask the same question of the
+    same tree and answering it twice is how a spelling gets covered by one and
+    not the other. A construct that compares without spelling a comparison
     belongs here: `CASE col WHEN value` and `= ANY(...)` are decided exactly like
     `col = value`, and a quantifier holds its values rather than being one.
+
+    Operands are unwrapped rather than matched as written, so grouping and row
+    syntax cannot hide one. A row comparison decides element against element, so
+    that is how its pairs are formed.
     """
     if isinstance(node, _TIMESTAMP_COMPARISONS):
         pairs = [(node.this, node.expression), (node.expression, node.this)]
@@ -412,28 +429,46 @@ def _timestamp_comparison_pairs(
                     for held in _within_scope(other, exp.Expression)
                     if held is not other
                 )
-        return pairs
+        return _unwrapped(pairs)
     if isinstance(node, exp.Between):
-        return [(node.this, node.args.get("low")), (node.this, node.args.get("high"))]
+        return _unwrapped([(node.this, node.args.get("low")), (node.this, node.args.get("high"))])
     if isinstance(node, exp.In):
         # A comparison spelled as a list, so a member is decided the way a
         # literal beside `=` is, and only against the left operand.
-        return [(node.this, member) for member in node.expressions]
+        return _unwrapped((node.this, member) for member in node.expressions)
     if isinstance(node, exp.Case) and node.this is not None:
         # Only the operand form. `CASE WHEN col = value` builds a real comparison
         # node and is covered above; this spelling compares without one.
-        return [(node.this, when.this) for when in node.args.get("ifs") or []]
+        return _unwrapped((node.this, when.this) for when in node.args.get("ifs") or [])
     return []
+
+
+def _unwrapped(
+    pairs: Iterable[tuple[Optional[exp.Expression], Optional[exp.Expression]]],
+) -> list[tuple[Optional[exp.Expression], Optional[exp.Expression]]]:
+    """Strip grouping, and split a row comparison into its element comparisons."""
+    out: list[tuple[Optional[exp.Expression], Optional[exp.Expression]]] = []
+    for left, right in pairs:
+        left, right = _strip_parens(left), _strip_parens(right)
+        if isinstance(left, exp.Tuple) and isinstance(right, exp.Tuple):
+            # `(a, b) = (x, y)` compares a with x and b with y. Callers reach
+            # for this to compare several columns at once, and one of them being
+            # a timestamp is exactly the case that must not slip through.
+            out.extend(
+                (_strip_parens(a), _strip_parens(b))
+                for a, b in zip(left.expressions, right.expressions)
+            )
+            continue
+        out.append((left, right))
+    return out
 
 
 def _within_scope(clause: exp.Expression, kind: type[exp.Expression]) -> list[exp.Expression]:
     """Nodes of `kind` under `clause` that belong to the clause's own scope.
 
     A sort or group key may contain a subquery, whose references are resolved
-    against that subquery's select list rather than this one. Walking through it
-    marks an inner reference against the outer aliases -- a wrong answer in the
-    model, and the same unbounded-descent mistake that let a sort key's operand
-    be read as the key itself.
+    against that subquery's select list rather than this one, so walking through
+    it marks an inner reference against the outer aliases.
     """
     return [
         node
@@ -508,13 +543,10 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> Column
     stored thing. A reference to a CTE, a subquery, or an output alias means
     whatever that relation projected under the name.
 
-    Four passes previously carried four answers to this question -- ``build_scope``
-    in schema qualification, a hand-built name set in the duration substitution,
-    nothing at all in the node-id substitution, and a syntactic scan for
-    timestamp literals -- and every disagreement between them was a defect.
-    This is the one answer for those four. Star expansion still carries its
-    own scan (`_star_sources`), which reads sources rather than resolving
-    references and is not folded in here.
+    One answer for the four passes that need it -- schema qualification, the two
+    substitutions and the timestamp scan -- because any disagreement between
+    them is a defect. Star expansion keeps its own scan (`_star_sources`), which
+    reads sources rather than resolving references.
 
     Three ways a reference can be local, and the third is why ``build_scope`` is
     necessary but not sufficient:
@@ -590,12 +622,9 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> Column
         if order_clause is not None:
             for ordered in _within_scope(order_clause, exp.Ordered):
                 # The whole sort key, not any column beneath it. An alias binds
-                # only when the key *is* the bare name: inside an expression both
-                # engines resolve to the input column, so descending here marked
-                # a real reference local and the hidden-column check skipped it.
-                # `ORDER BY gradient_start_color || ''` under an alias of that
-                # name sorts by the withheld value -- measured, rows came back in
-                # the hidden column's order, not the alias's.
+                # only when the key *is* the bare name; inside an expression both
+                # engines resolve to the input column, so `ORDER BY col || ''`
+                # under an alias of that name sorts by the real column.
                 key = ordered.this
                 if (
                     isinstance(key, exp.Column)
@@ -760,16 +789,11 @@ def _check_base_tables(root: exp.Expression, *, allowlist: Allowlist) -> Optiona
     # table must appear in some scope's sources, because that map is what every
     # later check reads; a table missing from it is skipped rather than refused.
     #
-    # An earlier version looked for the specific cause -- a table alias equal to
-    # a CTE name -- and refused whenever both appeared anywhere in the
-    # statement. That rejected ordinary SQL: `WITH t AS (...) SELECT ... FROM
-    # (SELECT ... FROM spans AS t) q` has the CTE and the alias in different
-    # scopes, which is legal, unambiguous, and executes on both engines. `t` is
-    # both the most common CTE name and the most common table alias, so the
-    # false positive was easy to hit and the rule was far broader than the bug.
-    #
-    # Checking the invariant instead refuses only when a table has actually been
-    # lost, whatever the cause.
+    # Naming the cause instead -- a table alias equal to a CTE name -- would
+    # refuse ordinary SQL: in `WITH t AS (...) SELECT ... FROM (SELECT ... FROM
+    # spans AS t) q` the two are in different scopes, which is legal and runs on
+    # both engines, and `t` is the commonest spelling of each. The invariant
+    # refuses only when a table has actually been lost, whatever the cause.
     # Checked per scope, not across the statement. A flat set of every resolved
     # name let one occurrence mask another: with `projects` read normally in one
     # subquery and shadowed in a second, the shadowed one passed because the
@@ -1029,9 +1053,7 @@ def _check_hidden_columns(
             # itself and SQLite does not.
             #
             # Virtual columns are in the pool because they are columns to a
-            # caller -- `latency_ms` is the most advertised name on this surface,
-            # and leaving it out meant the likeliest typo of all got no
-            # suggestion.
+            # caller, and `latency_ms` is the most advertised name here.
             # Parenthesised because `-` binds tighter than `|`: without them the
             # withheld names are subtracted from the virtual set alone and stay
             # in the pool, so a near miss on one is answered by naming it.
