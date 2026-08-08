@@ -7,10 +7,12 @@ member is referenced, that it does not collide with a join the caller already ma
 that a span with no cost row answers the way the family says a missing value should.
 """
 
+import re
 from datetime import datetime, timedelta
+from typing import Any
 
 import pytest
-from sqlalchemy import func, insert, select
+from sqlalchemy import Select, func, insert, select
 
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
@@ -315,28 +317,157 @@ async def test_cost_details_empty_and_null_semantics(
     assert await _matching(db, condition) == expected
 
 
-async def test_cost_details_subquery_does_not_correlate_a_caller_join(
-    db: DbSessionFactory,
-    cost_project: None,
-) -> None:
-    """The comprehension's `SpanCost` join is aliased, so it cannot bind to the caller's.
-
-    Without the alias SQLAlchemy would correlate the enclosing statement's `span_costs`
-    rather than adding one to the subquery, quietly widening `any(...)` from "this span's
-    detail rows" to "any detail row at all" -- a predicate that is true for every span. The
-    caller shape is `span_cost_summary_by_project`'s.
-    """
-    stmt = (
+def _caller_statement_joining_span_costs() -> Select[Any]:
+    """`span_cost_summary_by_project`'s shape: `span_costs` already joined, unaliased."""
+    return (
         select(func.count())
         .select_from(models.Trace)
         .join(models.SpanCost, models.Trace.id == models.SpanCost.trace_rowid)
         .join_from(models.SpanCost, models.Span)
     )
-    stmt = SpanFilter('any(d.token_type == "cache_read" for d in span.cost_details)')(stmt)
+
+
+async def test_cost_details_subquery_reads_only_this_span(
+    db: DbSessionFactory,
+    cost_project: None,
+) -> None:
+    """`any(...)` means "this span's detail rows", against a caller that joined `span_costs`.
+
+    This is the behaviour that matters; `test_cost_details_subquery_aliases_its_own_join`
+    below pins the mechanism, because this assertion holds either way.
+    """
+    stmt = SpanFilter('any(d.token_type == "cache_read" for d in span.cost_details)')(
+        _caller_statement_joining_span_costs()
+    )
     async with db() as session:
-        # Only `cheap` has a cache_read row. If the subquery correlated the caller's join,
-        # every priced span would match and this would be 3.
+        # Only `cheap` has a cache_read row.
         assert await session.scalar(stmt) == 1
+
+
+def test_cost_details_subquery_aliases_its_own_join() -> None:
+    """The comprehension's `SpanCost` join is aliased rather than naming the mapped class.
+
+    Asserted structurally, on the emitted SQL, because no result-level assertion can see it:
+    an explicit `join()` target lands in the subquery's own FROM either way, so the inner
+    `span_costs` shadows the caller's and the rows come out the same. Removing the alias
+    leaves every behavioural test in this file green, which is why the guard needs a test
+    shaped like this one or none at all.
+
+    The alias is therefore defensive rather than load-bearing on any shape found so far. It
+    is kept because the reasoning that makes it unnecessary depends on the join staying
+    explicit, and this test is what would fail if that changed.
+    """
+    stmt = SpanFilter('any(d.token_type == "cache_read" for d in span.cost_details)')(
+        _caller_statement_joining_span_costs()
+    )
+    sql = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+    subquery = sql[sql.index("EXISTS") :]
+    assert re.search(r"JOIN span_costs AS span_costs_\d+", subquery), subquery
+
+
+@pytest.fixture
+async def mixed_null_detail(db: DbSessionFactory) -> None:
+    """One span whose detail rows are half priced and half not.
+
+    The shared fixture cannot show what this test is about: its only NULL `cost_per_token`
+    sits on a span with a single detail row, where a reduction over `[NULL]` is NULL and a
+    quantifier over it is false, so both spellings agree by accident. The divergence needs
+    an element that is NULL *beside* one that is not.
+    """
+    async with db() as session:
+        project_rowid = await session.scalar(
+            insert(models.Project).values(name="mixed").returning(models.Project.id)
+        )
+        trace_rowid = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="trace-mixed",
+                project_rowid=project_rowid,
+                start_time=_TS,
+                end_time=_TS + timedelta(seconds=60),
+            )
+            .returning(models.Trace.id)
+        )
+        span_rowid = await session.scalar(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_rowid,
+                span_id="mixed",
+                parent_id=None,
+                name="mixed",
+                span_kind="LLM",
+                start_time=_TS,
+                end_time=_TS + timedelta(seconds=1),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            .returning(models.Span.id)
+        )
+        span_cost_id = await session.scalar(
+            insert(models.SpanCost)
+            .values(
+                span_rowid=span_rowid,
+                trace_rowid=trace_rowid,
+                span_start_time=_TS,
+                total_cost=1.0,
+                total_tokens=100.0,
+            )
+            .returning(models.SpanCost.id)
+        )
+        for token_type, per_token in (("input", 0.01), ("output", None)):
+            await session.execute(
+                insert(models.SpanCostDetail).values(
+                    span_cost_id=span_cost_id,
+                    token_type=token_type,
+                    is_prompt=token_type == "input",
+                    cost=0.5,
+                    tokens=50.0,
+                    cost_per_token=per_token,
+                )
+            )
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        # One span, `cost_per_token` of [0.01, NULL], and one question: "is every detail
+        # priced above 0.005?" The two spellings answer it differently, because `all(...)`
+        # is lowered to count a NULL predicate as a counterexample while a reduction is a
+        # SQL aggregate and skips NULL rows outright.
+        #
+        # Neither is wrong -- SQL's rule is the one both grains use for reductions, and a
+        # span-only exception would create a divergence rather than remove one. This is a
+        # characterization test: it has no fail-before state, and its job is to fail if the
+        # rule ever drifts.
+        pytest.param(
+            "all(d.cost_per_token > 0.005 for d in span.cost_details)",
+            [],
+            id="all-counts-a-null-element-as-a-counterexample",
+        ),
+        pytest.param(
+            "min(d.cost_per_token for d in span.cost_details) > 0.005",
+            ["mixed"],
+            id="min-skips-a-null-element",
+        ),
+        pytest.param(
+            "sum(d.cost_per_token for d in span.cost_details) > 0.005",
+            ["mixed"],
+            id="sum-skips-a-null-element",
+        ),
+    ],
+)
+async def test_reductions_skip_null_elements_where_quantifiers_do_not(
+    db: DbSessionFactory,
+    mixed_null_detail: None,
+    condition: str,
+    expected: list[str],
+) -> None:
+    assert await _matching(db, condition) == expected
 
 
 @pytest.mark.parametrize(
