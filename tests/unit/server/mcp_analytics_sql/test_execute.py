@@ -471,7 +471,7 @@ class TestLossyNormalisationIsReported:
         normalize_row_values([Decimal("9007199254740993")], applied)
 
         assert "decimal_to_float" in applied
-        assert "Cost" in LOSSY_CONVERSION_NOTES["decimal_to_float"]
+        assert "binary floating-point" in LOSSY_CONVERSION_NOTES["decimal_to_float"]
 
     def test_a_non_finite_float_is_flagged(self) -> None:
         applied: set[str] = set()

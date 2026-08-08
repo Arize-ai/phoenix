@@ -13,10 +13,16 @@ from typing import Any, Optional
 #: binary float nearest to it are both just numbers in JSON, and replaced bytes
 #: are just a string.
 LOSSY_CONVERSION_NOTES: dict[str, str] = {
+    # Says only what is true. An earlier wording claimed cost and token columns
+    # are "stored exactly", which they are not -- `span_costs.total_cost` and
+    # its siblings are `Float`, so they are binary floating point in the
+    # database, and this conversion cannot be what makes them inexact. What
+    # reaches here as a `Decimal` is an exact value computed by the engine, a
+    # NUMERIC aggregate on PostgreSQL being the usual source.
     "decimal_to_float": (
-        "An exact decimal was returned as a binary floating-point number, which "
-        "cannot represent every decimal value. Cost and token columns are stored "
-        "exactly; compute sums and comparisons in SQL rather than on these values."
+        "An exact decimal value was returned as a binary floating-point number, "
+        "which cannot represent every decimal. Compare and aggregate in SQL "
+        "rather than on the returned value if the exact figure matters."
     ),
     "non_finite_to_null": (
         "A non-finite number (infinity or NaN) was returned as null, because JSON "

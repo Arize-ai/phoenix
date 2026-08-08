@@ -60,13 +60,29 @@ class RewriteContext:
     substituted_columns: dict[str, str] = field(default_factory=dict)
 
 
-_JSON_TEXT_ORDERING_NOTE = (
-    "A JSON value was ordered or compared without a cast. Both backends return "
-    "text from a JSON extraction, so MIN, MAX and ORDER BY compare character by "
-    "character -- 1017066 sorts below 149740. Cast the extraction to the type "
-    "you mean, as in `CAST(attributes ->> '$.n' AS REAL)`, if the path holds a "
-    "number."
-)
+#: Deliberately dialect-specific: the hazard is not the same on both backends
+#: and a note that overstates it teaches a caller to distrust correct answers.
+#: PostgreSQL's `->>` and `#>>` are defined to return text, so ordering is
+#: always character by character there. SQLite returns the document's own type,
+#: so a numeric path orders numerically and only a path holding a numeric
+#: *string* misorders. Measured on the shipped engine: `MAX(doc ->> '$.n')` over
+#: 1017066 and 149740 answers 1017066, typed integer.
+_JSON_TEXT_ORDERING_NOTES: dict[str, str] = {
+    "postgresql": (
+        "A JSON value was ordered or compared without a cast. On PostgreSQL a "
+        "JSON extraction returns text, so MIN, MAX and ORDER BY compare "
+        "character by character -- '1017066' sorts below '149740'. Cast the "
+        "extraction to the type you mean, as in "
+        "`CAST(attributes #>> '{a,b}' AS numeric)`."
+    ),
+    "sqlite": (
+        "A JSON value was ordered or compared without a cast. On SQLite the "
+        "extraction returns whatever type the document holds, so a numeric path "
+        "orders correctly and a path holding a quoted number orders as text. "
+        "Cast the extraction if the path may hold either, as in "
+        "`CAST(attributes ->> '$.n' AS REAL)`."
+    ),
+}
 
 #: Positions where text ordering gives a different answer rather than a slower
 #: one. `SUM` and `AVG` coerce, so they are absent deliberately.
@@ -113,8 +129,9 @@ def _note_uncast_json_ordering(root: exp.Expression, ctx: RewriteContext) -> Non
         target = node.this
         if isinstance(target, exp.Cast):
             continue
-        if _is_json_extraction(target) and _JSON_TEXT_ORDERING_NOTE not in ctx.notes:
-            ctx.notes.append(_JSON_TEXT_ORDERING_NOTE)
+        note = _JSON_TEXT_ORDERING_NOTES[ctx.dialect]
+        if _is_json_extraction(target) and note not in ctx.notes:
+            ctx.notes.append(note)
             return
 
 
@@ -556,7 +573,7 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     # identity is stable across the walk below. A reference this marks local
     # means the column some derived relation projected under the name, not the
     # duration this pass computes.
-    query_local = query_local_columns(root)
+    query_local = query_local_columns(root, allowlist=ctx.allowlist)
 
     for node in list(root.find_all(exp.Column)):
         if (node.name or "").lower() == "latency_ms" and id(node) not in query_local:
@@ -725,7 +742,7 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
     # at all, so a derived relation projecting the column had its outer
     # reference rewritten into an expression over an `id` that relation does not
     # provide, and a CTE's own literal column of that name was overwritten.
-    query_local = query_local_columns(root)
+    query_local = query_local_columns(root, allowlist=ctx.allowlist)
 
     def is_node_id(node: exp.Expression) -> bool:
         return (
