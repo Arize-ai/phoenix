@@ -97,13 +97,26 @@ def parse_sql(sql: str, *, dialect: DialectName) -> exp.Expression:
 #:
 #: Chosen against measurement rather than by feel: the deepest statement in the
 #: corpus and the liveness suite is 9 levels, and the generator fails somewhere
-#: above 258. This sits an order of magnitude above real usage and well below the
-#: floor of what breaks.
+#: above 258 -- on the nesting this counts, not on operator runs, which render at
+#: two thousand terms. So this sits an order of magnitude above real usage and
+#: well below the floor of what breaks.
 MAX_TREE_DEPTH = 100
 
 
 def _tree_depth(root: exp.Expression) -> int:
-    """Deepest path in the tree, walked iteratively so measuring cannot recurse."""
+    """How deeply the statement nests, walked iteratively so measuring cannot recurse.
+
+    A repeated operator does not count as nesting. `a OR b OR c` parses
+    left-deep, one node per term, but every stage handles a run of one operator
+    iteratively -- so counting the terms measures the caller's typing rather than
+    the stack, and a hundred-term `OR` over a pasted list of ids is an ordinary
+    thing to write. Measured: such chains render at two thousand terms, while
+    nested subqueries, which alternate node types, break above 258.
+
+    Same-type descent is the rule rather than a list of operator classes,
+    because a list of node classes kept in agreement by hand is how this file
+    has produced defects before.
+    """
     deepest = 0
     stack: list[tuple[exp.Expression, int]] = [(root, 0)]
     while stack:
@@ -112,7 +125,8 @@ def _tree_depth(root: exp.Expression) -> int:
         for value in node.args.values():
             for item in value if isinstance(value, list) else [value]:
                 if isinstance(item, exp.Expression):
-                    stack.append((item, depth + 1))
+                    same = type(item) is type(node)
+                    stack.append((item, depth if same else depth + 1))
     return deepest
 
 

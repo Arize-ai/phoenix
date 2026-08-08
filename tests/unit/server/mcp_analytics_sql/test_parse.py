@@ -36,6 +36,7 @@ from phoenix.server.mcp_analytics_sql.parse import (
     AdmissionOutcome,
     AdmissionResult,
     _timestamp_comparison_pairs,
+    _tree_depth,
     admit_sql,
     query_local_columns,
     try_parse_and_admit,
@@ -56,16 +57,8 @@ CORPUS = _load_corpus()
 
 
 def _depth_of(sql: str, dialect: str) -> int:
-    root = parse_one(sql, read="postgres" if dialect == "postgresql" else dialect)
-    deepest, stack = 0, [(root, 0)]
-    while stack:
-        node, depth = stack.pop()
-        deepest = max(deepest, depth)
-        for value in node.args.values():
-            for item in value if isinstance(value, list) else [value]:
-                if isinstance(item, exp.Expression):
-                    stack.append((item, depth + 1))
-    return deepest
+    """Measured with the real metric, so a change to it cannot pass unnoticed here."""
+    return _tree_depth(parse_one(sql, read="postgres" if dialect == "postgresql" else dialect))
 
 
 def _outcome(result: AdmissionResult) -> str:
@@ -911,6 +904,25 @@ class TestTimestampComparisonCoverage:
             rewrite(root, ctx).sql(dialect="sqlite")
 
         assert caught.value.code in (ErrorCode.UNSUPPORTED_SYNTAX, ErrorCode.PARSE_ERROR)
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT id FROM spans WHERE " + " OR ".join(f"name = 'v{i}'" for i in range(400)),
+            "SELECT id FROM spans WHERE " + " AND ".join(f"name <> 'v{i}'" for i in range(400)),
+            "SELECT " + " || ".join(["name"] * 400) + " FROM spans",
+            " UNION ALL ".join(["SELECT id FROM spans"] * 300),
+        ],
+    )
+    def test_a_long_run_of_one_operator_is_not_nesting(self, sql: str) -> None:
+        """A run of one operator parses left-deep, one node per term, so counting
+        the nodes measures the caller's typing rather than the stack.
+
+        Every stage handles such a run iteratively -- these render at two
+        thousand terms -- and enumerating ids in a four-hundred-term `OR` is an
+        ordinary thing for a caller to write. Measuring it as depth refused them.
+        """
+        assert try_parse_and_admit(sql, dialect="sqlite").outcome is AdmissionOutcome.ADMIT
 
     def test_the_depth_bound_is_far_above_anything_real(self) -> None:
         """A bound picked by feel is a bound that refuses a real query one day.
