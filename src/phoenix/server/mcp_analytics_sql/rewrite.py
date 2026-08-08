@@ -39,11 +39,10 @@ class RewriteContext:
     # deployment has indexed, read from its catalog. Empty when nothing is
     # indexed or the catalog could not be read, which costs only the index.
     indexed_json_accessors: dict[tuple[str, ...], tuple[str, str]] = field(default_factory=dict)
-    # Relation names that exist only inside this statement -- CTEs, and the
-    # derived tables the rewrites below wrap real tables in. SQLite can attribute
-    # a column read to one of these instead of to the underlying table, and the
-    # authorizer has no other way to tell such a name from a table nobody
-    # allowlisted.
+    # Relation names that exist only inside this statement: the caller's CTEs
+    # and subqueries. SQLite can attribute a column read to one of these instead
+    # of to the underlying table, and the authorizer has no other way to tell
+    # such a name from a table nobody allowlisted.
     introduced_relations: set[str] = field(default_factory=set)
     # What the caller sent and what the engine was given. Carried here because
     # this is the object that reaches the envelope. `applied` names the passes
@@ -208,14 +207,12 @@ def _assert_rewrites_preserved_policy(root: exp.Expression, ctx: RewriteContext)
 def _record_introduced_relations(root: exp.Expression, ctx: RewriteContext) -> None:
     """Collect every relation name that exists only for the duration of this statement.
 
-    The time-bound wrapper replaces ``FROM spans s`` with
-    ``FROM (SELECT * FROM spans WHERE ...) AS s``, so the statement handed to the
-    engine contains a derived table that the caller never wrote and the manifest
-    has never heard of. SQLite may then report a column read against that alias
-    rather than against ``spans``, which the table check reads as an attempt on an
-    unknown table and refuses -- a statement rejected for a relation we invented.
+    SQLite may report a column read against a derived relation's alias rather
+    than against the table beneath it. The table check reads a name it does not
+    recognise as an attempt on an unknown table, so without this the caller's own
+    CTE is refused as if it were a forbidden relation.
 
-    Caller-written CTEs and subqueries are collected for the same reason. Letting
+    Caller-written CTEs and subqueries are the whole of it. Letting
     them through costs nothing: a derived relation yields only rows drawn from
     its own SELECT, and the base tables that SELECT reads are authorized
     separately, so the underlying access has already been decided on its merits.
@@ -524,8 +521,7 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                 for name in emitted:
                     # Qualified by the alias the caller used, not by the table
                     # name: after `FROM spans AS s` the name `spans` no longer
-                    # resolves, and the time-bound wrapper renames the source to
-                    # the alias too.
+                    # resolves.
                     new_exprs.append(exp.column(name, table=alias or table_name or None))
             local_changed = True
 
@@ -639,9 +635,8 @@ def _qualify_schema(root: exp.Expression, ctx: RewriteContext) -> exp.Expression
         SELECT count(*) FROM spans
 
     becomes a count over all of ``public.spans``. The CTE turns into dead code,
-    the caller's filter disappears, the outer read escapes the time bounds the
-    envelope still reports, and the statement is valid SQL throughout -- so the
-    only symptom is a wrong number. SQLite has no such pass and answers the same
+    the caller's filter disappears, and the statement is valid SQL throughout --
+    so the only symptom is a wrong number. SQLite has no such pass and answers the same
     query correctly, so the two backends disagree.
 
     The pass immediately before this one already resolves scopes correctly and
@@ -738,10 +733,9 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
 
     changed = False
 
-    # The same resolution `latency_ms` uses. This pass previously carried none
-    # at all, so a derived relation projecting the column had its outer
-    # reference rewritten into an expression over an `id` that relation does not
-    # provide, and a CTE's own literal column of that name was overwritten.
+    # The same resolution `latency_ms` uses. Without it a derived relation
+    # projecting this column has its outer reference rewritten into an expression
+    # over an `id` that relation does not provide.
     query_local = query_local_columns(root, allowlist=ctx.allowlist)
 
     def is_node_id(node: exp.Expression) -> bool:

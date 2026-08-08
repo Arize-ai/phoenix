@@ -30,10 +30,9 @@ _ANALYTICS_TAG = "phoenix-analytics-sql"
 def _preamble(dialect: str, engine: Optional[dict[str, Any]]) -> str:
     """The properties that hold for every query, stated once.
 
-    These used to ride on each `executeSql` answer, where they made up more than
-    half the bytes of a small result and could never take another value. They
-    belong to the surface rather than to any one answer, so a caller reads them
-    here and the answers carry only what varies.
+    They belong to the surface rather than to any one answer -- on a small
+    result they would be most of its bytes and could never take another value --
+    so a caller reads them here and the answers carry only what varies.
 
     The engine line changes which functions a caller will attempt: `percentile`
     is not stock SQLite but is available here through a loaded extension, and a

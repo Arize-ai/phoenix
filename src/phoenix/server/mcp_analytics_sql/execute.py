@@ -10,7 +10,6 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from functools import lru_cache
 from typing import Any, Optional, cast
 
@@ -337,11 +336,10 @@ def _sqlite_authorizer(
 
         # Every denial here is a disagreement between admission and the engine,
         # because admission has already checked the caller's tables against the
-        # same allowlist. Two very different things produce that disagreement and
-        # they were previously indistinguishable in the log, which mattered: over
-        # one measured session the table check denied eleven statements and every
-        # one was a relation the rewrites had introduced, so a reader had no way
-        # to see that it had never once refused a forbidden table.
+        # same allowlist. Two very different things produce that disagreement,
+        # and a log that spells them alike cannot show whether the check has ever
+        # refused a forbidden table or has only ever tripped over relations this
+        # statement introduced.
         #
         # `bypass` means the engine resolved a name that belongs to Phoenix's
         # schema and is not allowlisted. Admission should have refused it and did
@@ -495,23 +493,6 @@ def resolve_sqlite_db_path() -> Optional[str]:
     return database
 
 
-def _as_utc(value: Optional[datetime]) -> Optional[datetime]:
-    """Read a naive boundary as UTC rather than as the server's local time.
-
-    Callers routinely omit the offset, and the transport hands the value on
-    naive. Left alone the two backends then disagree about the same request:
-    the SQLite literal is built with ``astimezone``, which reads a naive value
-    as local time and shifts the window by the host's offset, while Postgres
-    receives it unshifted. Every timestamp in this database is UTC, so UTC is
-    what an unqualified one means -- and a window that silently moves by hours
-    depending on where the server runs is the kind of wrongness that produces a
-    plausible answer to a question nobody asked.
-    """
-    if value is None or value.tzinfo is not None:
-        return value
-    return value.replace(tzinfo=timezone.utc)
-
-
 async def execute_analytics_sql(
     db: DbSessionFactory,
     params: ExecuteParams,
@@ -534,11 +515,10 @@ async def execute_analytics_sql(
 
     allowlist = load_allowlist()
     if dialect == "postgresql":
-        # Resolved against the connection, not assumed. `get_env_database_schema()
-        # or "public"` is the hardcoded fallback that #14172 removed from the
-        # usage statistics for the same reason: with the variable unset and the
-        # tables reached through `search_path`, "public" names a schema that
-        # does not hold them, and every rewritten relation is qualified wrong.
+        # Resolved against the connection, not assumed. With the schema variable
+        # unset and the tables reached through `search_path`, a hardcoded
+        # "public" names a schema that does not hold them, and every rewritten
+        # relation is then qualified wrong.
         schema = await resolve_pg_schema(db)
         allowlist = Allowlist(
             tables=allowlist.tables,
@@ -567,21 +547,12 @@ async def execute_analytics_sql(
             )
             raise
 
-        # No window unless the caller asks for one.
-        #
-        # A default window was a resource guard that could not guard anything.
-        # Defeating it costs one parameter, so it stopped no determined caller;
-        # what it did instead was answer a different question than the one asked
-        # and report success. Measured across roughly twenty-five cold-agent
-        # runs on both backends and three model tiers, every single caller
-        # noticed the injected window and worked around it -- so it protected
-        # nobody and charged everybody a round trip.
-        #
-        # The real guards are elsewhere and do not depend on this one: the row
-        # limit and byte caps bound the answer, and the statement deadline
-        # bounds the work. A deadline stops a runaway scan with an error the
-        # caller can act on, which is strictly better than returning promptly
-        # with a plausible wrong number.
+        # No window unless the caller asks for one, because a window narrows the
+        # question rather than bounding the work: it answers something other than
+        # what was asked and reports success. The guards that do bound the work
+        # are the row limit, the byte caps and the statement deadline, none of
+        # which change the answer -- a deadline stops a runaway scan with an
+        # error the caller can act on.
         requested = params.row_limit if params.row_limit is not None else DEFAULT_ROW_LIMIT
         row_limit = max(1, min(requested, MAX_ROW_LIMIT))
         ctx = RewriteContext(
@@ -705,7 +676,7 @@ def _estimated_rows(plan_json: list[dict[str, Any]]) -> Optional[int]:
 
     It remains an estimate. PostgreSQL keeps no statistics for an expression
     over a JSON path, so a GROUP BY on one can be out by a large factor, and the
-    field is named in the manifest as an estimate for that reason.
+    field is named in the tool's output schema as an estimate for that reason.
     """
     node = plan_json[0].get("Plan", {})
     if node.get("Node Type") == "Limit":
@@ -731,8 +702,8 @@ async def _execute_postgres(
         # `exec_driver_sql`, which SQLAlchemy forbids with a server-side cursor
         # -- and that cursor is what bounds memory here, since a row limit of
         # 5000 says nothing about row width. Losing the bound to accommodate a
-        # rare literal is the worse trade, so this is a clean refusal instead of
-        # the KeyError that previously escaped the error envelope entirely.
+        # rare literal is the worse trade, so this is a clean refusal rather
+        # than a KeyError escaping the error envelope.
         raise AnalyticsSqlError(
             code=ErrorCode.UNSUPPORTED_SYNTAX,
             message=(
@@ -752,12 +723,12 @@ async def _execute_postgres(
         await session.execute(text("SET LOCAL work_mem = '64MB'"))
         await session.execute(text("SET LOCAL temp_file_limit = '512MB'"))
 
-        # EXPLAIN resolves names, so a mistyped column fails here rather than at
-        # the statement below -- which is where the mapping was added, leaving
-        # the most common caller mistake reaching them as a raw driver
-        # traceback. PostgreSQL's own text is passed through because it names
-        # the column and often suggests the right one; it describes the caller's
-        # query against tables they were shown, so there is nothing to withhold.
+        # EXPLAIN resolves names, so a name error surfaces here rather than at
+        # the statement below and needs the same mapping. PostgreSQL's own text
+        # is passed through: it describes the caller's query against tables they
+        # were shown, so there is nothing to withhold. Most typos no longer
+        # reach this point -- the column allowlist refuses them first -- but an
+        # unqualified name beside a table-valued function still does.
         try:
             explain = await session.execute(
                 _as_text(f"EXPLAIN (VERBOSE, FORMAT JSON) {rendered_sql}")
@@ -811,13 +782,10 @@ async def _execute_postgres(
         except AnalyticsSqlError:
             raise
         except Exception as exc:
-            # The SQLite path has had this mapping for a while; Postgres never
-            # had any handler at all, so every driver error reached the caller
-            # as an unhandled internal failure. Two consequences were visible
-            # from outside: the envelope advertises `statement_timeout` as the
-            # backstop while ErrorCode.TIMEOUT was unreachable here, and a
-            # caller who mistyped a column got a driver traceback instead of the
-            # guidance the other backend gives them.
+            # Without a handler here every driver error reaches the caller as an
+            # unhandled internal failure -- and the envelope advertises
+            # `statement_timeout` as the backstop, which is only true if a
+            # timeout can be mapped to ErrorCode.TIMEOUT.
             #
             # Broader than SQLAlchemyError on purpose. SQLAlchemy wraps driver
             # errors raised by `execute()`, but not those raised while iterating
