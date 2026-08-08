@@ -152,18 +152,22 @@ asymmetry is deliberate.
 Three consequences worth stating, because each is stricter than the enclosing
 grain:
 
-- **The filtered row is not reachable.** `span.<member>` and bare span names are
-  rejected inside a comprehension rather than compiled — compare them outside
-  and conjoin: `span.total_cost > 1 and any(...)`.
+- **Nothing reaches out of the scope.** The loop variable's fields are the whole
+  vocabulary. `attributes[...]`, `metadata[...]`, a legacy spelling like
+  `context.span_id`, a grain column like `latency_ms`, and the reserved root
+  itself are all rejected — compare them outside and conjoin instead:
+  `span.total_cost > 1 and any(...)`. This is enforcement, not style: the eval
+  globals for a comprehension bind element columns and nothing else, so anything
+  else that typed here would compile and then raise when the query is built,
+  outside the error boundary.
 - **Casts follow the family, not the grain.** `int(...)` is refused outright
   rather than aliased to `float(...)`, and casting a term to the type it already
   has is refused as a no-op. All three still compile outside a comprehension.
 - **An `if` clause is a condition**, so a bare text field is not one.
 
-A rejection here never suggests `attributes[...]`. The element scope has no
-dynamic namespace, and an attribute path written inside one compiles and then
-fails when the query is built, so the advice would be a trap rather than a
-remedy.
+A rejection here never suggests `attributes[...]`, for the same reason: that
+spelling is precisely what fails this way, so the advice would hand the user the
+crash instead of the fix.
 
 Empty-collection results follow CPython: `all(())` is true, `len(())` and
 `sum(())` are `0`. `max(())`/`min(())` raise in Python and are NULL here, which
