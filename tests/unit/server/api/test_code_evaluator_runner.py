@@ -153,27 +153,11 @@ class TestHarnessGeneration:
         assert "Paris" in harness
 
     def test_python_harness_executes_with_non_finite_float_inputs(self) -> None:
-        """Regression test.
-
-        `repr()` renders every JSON-derived value as a valid Python literal
-        *except* non-finite floats: `repr(float("nan"))` is the bare token
-        `nan`, and `repr(float("inf"))` / `repr(float("-inf"))` are `inf` /
-        `-inf` -- valid expressions only when those names are bound, not
-        literals. NaN/Infinity are legal IEEE-754 doubles that can
-        legitimately arrive here from real span/trace data (e.g. a computed
-        ratio that hit division by zero), so without binding those names the
-        generated harness fails with a bare `NameError` while merely
-        constructing `_inputs`, before the user's `evaluate()` ever runs --
-        which upstream surfaces as an opaque "no result markers found"
-        instead of a clear error.
-        """
+        """Regression test for NameError on nan/inf inputs, see _build_python_harness."""
         runner, _ = _make_runner()
         harness = runner._build_python_harness(
             {"nan": float("nan"), "pos_inf": float("inf"), "neg_inf": float("-inf")}
         )
-        # Executing the generated harness source (as a real subprocess-based
-        # sandbox backend would) must not raise NameError while constructing
-        # `_inputs`.
         exec(compile(harness, "<harness>", "exec"), {})
 
     def test_typescript_harness_contains_source_code(self) -> None:
