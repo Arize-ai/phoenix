@@ -63,7 +63,9 @@ _EQUIVALENT: dict[str, str] = {
 }
 
 
-def admission_error_from_outcome(outcome: str, detail: str = "") -> AnalyticsSqlError:
+def admission_error_from_outcome(
+    outcome: str, detail: str = "", *, message: str = ""
+) -> AnalyticsSqlError:
     code = ErrorCode(outcome)
     messages = {
         ErrorCode.PARSE_ERROR: "SQL could not be parsed.",
@@ -74,6 +76,12 @@ def admission_error_from_outcome(outcome: str, detail: str = "") -> AnalyticsSql
         # Names the column rather than reporting it missing. It is in the real
         # schema, so a caller told "no such column" retries the spellings it
         # thinks are near it; told the column exists and was left out, it stops.
+        #
+        # This wording is for a column the schema withholds. A column that does
+        # not exist reaches the same outcome and must not get this sentence:
+        # told a typo "exists and was left out", a caller stops -- when trying
+        # the spelling it meant is exactly what it should do. Callers that
+        # refuse an unknown column supply their own message.
         #
         # Left out for being uninformative, not for being secret: these are
         # display attributes and foreign keys to tables this surface does not
@@ -97,7 +105,7 @@ def admission_error_from_outcome(outcome: str, detail: str = "") -> AnalyticsSql
         identifiers = (detail,)
     return AnalyticsSqlError(
         code=code,
-        message=messages.get(code, detail or code.value),
+        message=message or messages.get(code, detail or code.value),
         identifiers=identifiers,
         admission_detail=detail,
     )

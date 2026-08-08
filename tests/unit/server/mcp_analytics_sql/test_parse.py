@@ -196,6 +196,31 @@ class TestHiddenColumnsAreRefused:
         assert "exists but is not part of the analytics schema" in caught.value.message
         assert "answers no analytical question" in caught.value.message
 
+    def test_a_column_that_does_not_exist_is_not_described_as_withheld(self) -> None:
+        """The two reach one outcome and must not share one sentence.
+
+        Told a typo "exists and was left out", a caller stops -- when trying the
+        spelling it meant is exactly what it should do. So the unknown-column
+        case supplies its own wording and a suggestion drawn from the manifest,
+        which cannot propose a column the caller may not read.
+        """
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql("SELECT span_kindd FROM spans", allowlist=load_allowlist(), dialect="sqlite")
+        assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
+        assert "is not a column of that table" in caught.value.message
+        assert "Did you mean span_kind" in caught.value.message
+        assert "exists but is not part of" not in caught.value.message
+
+    def test_an_unqualified_reference_is_reported_against_every_table_checked(self) -> None:
+        """Naming one of them would assert something narrower than what was tested."""
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql(
+                "SELECT nosuchthing FROM spans JOIN traces ON spans.trace_rowid = traces.id",
+                allowlist=load_allowlist(),
+                dialect="sqlite",
+            )
+        assert "not a column of any table in scope (spans, traces)" in caught.value.message
+
     @pytest.mark.parametrize(
         "sql",
         [

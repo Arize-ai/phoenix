@@ -98,22 +98,25 @@ async def test_in_memory_is_refused_and_says_so_accurately(
 async def test_a_mistyped_column_is_reported_not_leaked(db: DbSessionFactory) -> None:
     """The most common caller mistake must not surface as a driver traceback.
 
-    EXPLAIN resolves names, so an unknown column fails there rather than at the
-    statement below it -- and only the statement was wrapped, so this case
-    reached the caller as
+    It used to reach the engine, where EXPLAIN resolves names, and returned
     ``(sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class
-    'asyncpg.exceptions.UndefinedColumnError'>: ...``, which names our driver
-    stack and invites debugging the server instead of the query.
+    'asyncpg.exceptions.UndefinedColumnError'>: ...`` -- naming our driver stack
+    and inviting the caller to debug the server instead of the query.
 
-    PostgreSQL's own text is kept, including the HINT, because it names the
-    column and usually suggests the intended one.
+    Admission now refuses it first, since the column policy is an allowlist, so
+    the statement never reaches PostgreSQL and its "did you mean" never arrives.
+    The suggestion is made here instead, from the manifest -- which knows the
+    exposed columns, so it will not propose one the caller cannot read.
     """
     with pytest.raises(AnalyticsSqlError) as caught:
         await execute_analytics_sql(db, ExecuteParams(sql="SELECT span_kindd FROM spans"))
     message = caught.value.message
-    assert caught.value.code is ErrorCode.EXECUTION_ERROR
+    assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
     assert "span_kindd" in message
-    assert "span_kind" in message, "PostgreSQL's suggestion is the useful part"
+    assert "span_kind" in message, "the suggestion is the useful part"
+    # Not the withheld-column wording: that would be false, and would tell the
+    # caller to stop rather than to fix the spelling.
+    assert "exists but is not part of" not in message
     for leaked in ("sqlalchemy", "asyncpg", "Traceback", "ProgrammingError"):
         assert leaked not in message
 
