@@ -133,7 +133,7 @@ The available backends are:
 
 | Language | Backends |
 |----------|----------|
-| Python | WebAssembly (local), E2B, Daytona, Vercel Sandbox, Modal |
+| Python | WebAssembly (local), E2B, Daytona, Vercel Sandbox, Modal, Tenki |
 | TypeScript | Deno (local), Daytona, Vercel Sandbox |
 
 Backends fall into two groups based on where the code actually runs:
@@ -152,7 +152,7 @@ flowchart TB
         Server --> localBox
     end
 
-    subgraph provider ["Hosted Sandbox — E2B / Daytona / Vercel / Modal"]
+    subgraph provider ["Hosted Sandbox — E2B / Daytona / Vercel / Modal / Tenki"]
         Code("Evaluator code")
     end
 
@@ -173,7 +173,7 @@ flowchart TB
     linkStyle default stroke:#94A3B8,stroke-width:2px
 ```
 
-**Local** backends (WebAssembly, Deno) ship with Phoenix and need no credentials, so they're available immediately on self-hosted deployments — but they only run **simple, self-contained code**: no environment variables, no network access, no installed packages. **Hosted** backends (E2B, Daytona, Vercel, Modal) run each invocation on a third-party provider's infrastructure, and are the only backends that support environment variables, outbound network access, and third-party dependencies. See [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes) for the full capability matrix.
+**Local** backends (WebAssembly, Deno) ship with Phoenix and need no credentials, so they're available immediately on self-hosted deployments — but they only run **simple, self-contained code**: no environment variables, no network access, no installed packages. **Hosted** backends (E2B, Daytona, Vercel, Modal, Tenki) run each invocation on a third-party provider's infrastructure, and are the only backends that support environment variables, outbound network access, and third-party dependencies. See [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes) for the full capability matrix.
 
 <Tip>
 If your evaluator needs to read an environment variable, install a package, or call an external API, pick a hosted backend. The local backends are intentionally restricted to simple code evaluation.
