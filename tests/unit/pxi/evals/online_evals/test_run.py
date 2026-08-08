@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import replace
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 from unittest import mock
 
@@ -478,6 +480,7 @@ def test_none_result_counts_as_not_applicable() -> None:
     )["tool_count_per_turn"]
 
     assert summary.not_applicable == 1
+    assert summary.not_applicable_reasons == {"evaluator_not_applicable": 1}
     assert summary.evaluated == 0
     assert spans.writes == []
 
@@ -495,6 +498,7 @@ def test_incomplete_tool_topology_is_not_applicable() -> None:
     )["tool_count_per_turn"]
 
     assert summary.not_applicable == 1
+    assert summary.not_applicable_reasons == {"incomplete_topology": 1}
     assert summary.errors == 0
     assert summary.evaluated == 0
     assert spans.writes == []
@@ -611,6 +615,65 @@ def test_main_returns_nonzero_when_an_evaluator_errors() -> None:
         ),
     ):
         assert run_module.main(["--project", "pxi_dev", "--eval", "tool_count_per_turn"]) == 1
+
+
+def test_main_writes_structured_and_github_summaries(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    json_path = tmp_path / "summary.json"
+    markdown_path = tmp_path / "step-summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(markdown_path))
+    summary = RunSummary(
+        discovered=3,
+        already_annotated=1,
+        not_applicable=1,
+        evaluated=1,
+        annotations=1,
+        not_applicable_reasons={"incomplete_topology": 1},
+    )
+
+    with (
+        mock.patch.object(run_module, "Client"),
+        mock.patch.object(
+            run_module,
+            "run_evaluators",
+            new=mock.AsyncMock(return_value={"tool_count_per_turn": summary}),
+        ),
+    ):
+        exit_code = run_module.main(
+            [
+                "--project",
+                "pxi_dev",
+                "--eval",
+                "tool_count_per_turn",
+                "--summary-json",
+                str(json_path),
+            ]
+        )
+
+    assert exit_code == 0
+    assert json.loads(json_path.read_text()) == {
+        "schema_version": 1,
+        "status": "succeeded",
+        "project": "pxi_dev",
+        "dry_run": False,
+        "evaluators": {
+            "tool_count_per_turn": {
+                "discovered": 3,
+                "already_annotated": 1,
+                "sampled_out": 0,
+                "not_applicable": 1,
+                "evaluated": 1,
+                "errors": 0,
+                "annotations": 1,
+                "not_applicable_reasons": {"incomplete_topology": 1},
+            }
+        },
+    }
+    markdown = markdown_path.read_text()
+    assert "**Status:** succeeded" in markdown
+    assert "| `tool_count_per_turn` | 3 | 1 | 1 | 1 | 0 | 1 |" in markdown
+    assert "`incomplete_topology`=1" in markdown
 
 
 @pytest.mark.parametrize("value", ["0", "-1", "nan", "inf", "not-a-number"])

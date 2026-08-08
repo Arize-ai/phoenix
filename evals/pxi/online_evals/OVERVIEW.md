@@ -31,6 +31,12 @@ tool_count_per_turn: discovered=11 already_annotated=0 sampled_out=0 not_applica
 user_friction:       discovered=11 already_annotated=0 sampled_out=0 not_applicable=6 evaluated=5  errors=0 written=5
 ```
 
+The CLI can also write the same counters as a versioned JSON report with
+`--summary-json`. In GitHub Actions it appends a compact evaluator table to the
+job summary automatically. Not-applicable results are grouped by reason so an
+isolated incomplete trace is distinguishable from an evaluator's normal
+applicability filtering.
+
 ## Anatomy of a turn trace
 
 One trace = one conversational turn. All spans are children of the
