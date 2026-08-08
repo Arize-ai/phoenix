@@ -600,6 +600,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/experiments/{experiment_id}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the tags applied to an experiment
+         * @description List the tags currently pointing at this experiment. Tags are scoped to the experiment's dataset, so a tag appears here only while this experiment owns it.
+         */
+        get: operations["listExperimentTags"];
+        put?: never;
+        /**
+         * Assign a tag to an experiment
+         * @description Assign a tag to an experiment. Tags are scoped to the experiment's dataset and each tag name points at a single experiment, so assigning a tag that another experiment on the same dataset owns atomically moves the tag to this experiment. Re-assigning a tag the experiment already owns is idempotent and replaces the description. Assigning the reserved 'baseline' tag makes this experiment the dataset's baseline; ephemeral experiments cannot become the baseline.
+         */
+        post: operations["setExperimentTag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/experiments/{experiment_id}/tags/{tag_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a tag from an experiment
+         * @description Remove a tag from the experiment that owns it. This operation is idempotent and never steals a tag from another experiment: if the experiment does not currently own the tag, the request is a no-op.
+         */
+        delete: operations["deleteExperimentTag"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/experiments/{experiment_id}/runs": {
         parameters: {
             query?: never;
@@ -3069,6 +3113,19 @@ export interface components {
              */
             experiment_id: string;
         };
+        /** ExperimentTag */
+        ExperimentTag: {
+            /**
+             * Name
+             * @description The name of the tag
+             */
+            name: string;
+            /**
+             * Description
+             * @description The description of the tag
+             */
+            description: string | null;
+        };
         /**
          * FileUIPart
          * @description A file part of a message.
@@ -3429,6 +3486,11 @@ export interface components {
             data: components["schemas"]["ExperimentRun"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** ListExperimentTagsResponseBody */
+        ListExperimentTagsResponseBody: {
+            /** Data */
+            data: components["schemas"]["ExperimentTag"][];
         };
         /** ListExperimentsResponseBody */
         ListExperimentsResponseBody: {
@@ -4988,6 +5050,20 @@ export interface components {
              * @description The complete set of dataset label GlobalIDs to apply to the dataset. Labels not in this list are removed from the dataset; an empty list removes all labels.
              */
             dataset_label_ids?: string[];
+        };
+        /** SetExperimentTagRequestBody */
+        SetExperimentTagRequestBody: {
+            /** @description The name of the tag to assign, e.g. 'baseline'. If another experiment on the same dataset already owns this tag, the tag is moved to this experiment. */
+            name: components["schemas"]["Identifier"];
+            /**
+             * Description
+             * @description An optional description of the tag (replaces any existing description)
+             */
+            description?: string | null;
+        };
+        /** SetExperimentTagResponseBody */
+        SetExperimentTagResponseBody: {
+            data: components["schemas"]["ExperimentTag"];
         };
         /** SetProjectAnnotationConfigsRequestBody */
         SetProjectAnnotationConfigsRequestBody: {
@@ -8359,6 +8435,160 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listExperimentTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the experiment */
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tags currently applied to the experiment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListExperimentTagsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid experiment ID */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    setExperimentTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the experiment */
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetExperimentTagRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The tag as it now applies to the experiment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetExperimentTagResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid experiment ID or request body, or the experiment is ephemeral and cannot be tagged as the baseline */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteExperimentTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the experiment */
+                experiment_id: string;
+                /** @description The name of the tag to remove */
+                tag_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned on successful tag removal */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid experiment ID or tag name */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };

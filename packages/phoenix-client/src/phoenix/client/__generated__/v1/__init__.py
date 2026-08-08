@@ -256,6 +256,11 @@ class ExperimentRun(TypedDict):
     error: NotRequired[str]
 
 
+class ExperimentTag(TypedDict):
+    name: str
+    description: Optional[str]
+
+
 class FileUIPart(TypedDict):
     type: Literal["file"]
     mediaType: str
@@ -340,6 +345,10 @@ class ListDatasetsResponseBody(TypedDict):
 class ListExperimentRunsResponseBody(TypedDict):
     data: Sequence[ExperimentRun]
     next_cursor: Optional[str]
+
+
+class ListExperimentTagsResponseBody(TypedDict):
+    data: Sequence[ExperimentTag]
 
 
 class ListExperimentsResponseBody(TypedDict):
@@ -753,6 +762,15 @@ class SetDatasetLabelsForDatasetResponseBody(TypedDict):
 
 class SetDatasetLabelsRequestBody(TypedDict):
     dataset_label_ids: NotRequired[Sequence[str]]
+
+
+class SetExperimentTagRequestBody(TypedDict):
+    name: str
+    description: NotRequired[str]
+
+
+class SetExperimentTagResponseBody(TypedDict):
+    data: ExperimentTag
 
 
 class SetProjectAnnotationConfigsRequestBody(TypedDict):
