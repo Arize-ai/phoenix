@@ -47,11 +47,9 @@ PERMITTED = [
         id="case",
     ),
     pytest.param("SELECT unixepoch(start_time) AS v FROM spans", id="unixepoch"),
-    # Relations that exist only inside the statement. The time-bound wrapper
-    # rewrites `FROM spans s` into `FROM (SELECT * FROM spans WHERE ...) AS s`,
-    # so the engine is handed a derived table the caller never wrote; SQLite may
-    # then report a column read against that alias rather than against the table
-    # under it, and the table check saw a relation nobody allowlisted. The join
+    # Relations that exist only inside the statement. SQLite may report a column
+    # read against a derived relation's alias rather than against the table under
+    # it, and the table check then sees a relation nobody allowlisted. The join
     # is load-bearing -- a single-table select reports reads against `spans` and
     # never exercises this at all.
     pytest.param(

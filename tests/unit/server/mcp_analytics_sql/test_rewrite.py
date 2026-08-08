@@ -322,10 +322,8 @@ def test_star_expands_every_joined_table() -> None:
 
 
 def test_star_over_an_aliased_table_uses_the_alias() -> None:
-    """After `FROM spans AS s` the name `spans` no longer resolves.
-
-    The time-bound wrapper also renames the source to the alias, so expanding to
-    `spans.<col>` produces a statement that cannot execute on either backend.
+    """After `FROM spans AS s` the name `spans` no longer resolves, so expanding
+    to `spans.<col>` produces a statement that cannot execute on either backend.
     """
     root = parse_sql("SELECT * FROM spans AS s", dialect="sqlite")
     out = render(
@@ -399,9 +397,8 @@ def test_schema_qualification_does_not_redirect_a_cte_to_its_base_table() -> Non
 
     Qualifying by name rewrites `FROM spans` in the outer query to
     `FROM public.spans`, and a schema-qualified name cannot resolve to a CTE.
-    The CTE becomes dead code, the caller's filter vanishes, the outer read
-    escapes the time bounds the envelope still reports, and every step is valid
-    SQL — so the only symptom is a wrong number. SQLite has no such pass, so the
+    The CTE becomes dead code, the caller's filter vanishes, and every step is
+    valid SQL — so the only symptom is a wrong number. SQLite has no such pass, so the
     two backends answered the same query differently.
 
     Naming a CTE after the table it derives from is among the commonest idioms

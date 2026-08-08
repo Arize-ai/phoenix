@@ -91,11 +91,10 @@ _REFUSED_NODE_CLASSES: dict[type[exp.Expr], str] = {
         "OPERATOR(...) names an operator directly and bypasses the function "
         "allowlist. Use the operator's ordinary spelling."
     ),
-    # TABLESAMPLE was silently discarded on the four time-bounded tables,
-    # because the wrapper rebuilds the source from the manifest and drops every
-    # arg the original table node carried. A caller sampling one percent
-    # received the first page in scan order instead, with nothing reported --
-    # the statistical claim the query makes was quietly falsified.
+    # A sample is a statistical claim, and the two engines do not offer the same
+    # one -- SQLite has no TABLESAMPLE at all. Admitting it would mean deciding
+    # per dialect what a caller's percentage becomes; refusing says so, and
+    # row_limit bounds the scan without claiming the rows are representative.
     exp.TableSample: (
         "TABLESAMPLE is not supported. Use a filter or a row_limit to bound the rows examined."
     ),
@@ -188,8 +187,8 @@ def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
 
     Each of these renders without complaint into something that means less than
     it said, so nothing downstream can notice. Refusing is the only honest
-    answer available while the loss is real; two of the three become
-    unnecessary once the causes are fixed, and are marked accordingly.
+    answer available while the loss is real; an entry that becomes unnecessary
+    once its cause is fixed says so.
     """
     for star in root.find_all(exp.Star):
         for arg, spelling in _STAR_MODIFIERS.items():
@@ -231,8 +230,7 @@ def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
 #: that is neither an `exp.Func` (its own allowlist) nor a table source (its
 #: own check) falls here, and until this existed the seam between those two
 #: policies was governed by a five-entry denylist -- so a class nobody had
-#: considered was admitted by default. Three defects were found in that seam in
-#: one night, none of them by a check.
+#: considered was admitted by default.
 #:
 #: Two provenances, and they are not equally strong. Most entries were produced
 #: by parsing statements this surface ships, tests or teaches -- the admission
@@ -245,7 +243,7 @@ def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
 #: refusal: an entry here is not proof anyone exercised it.
 #:
 #: It is therefore a floor, not a survey. The parser defines several hundred
-#: structural classes and this names sixty-odd; a legitimate construct nobody
+#: structural classes and this names seventy-eight; a legitimate construct nobody
 #: has written yet will be refused. That is the deliberate trade -- a refusal
 #: names itself and can be lifted by adding a line, while the previous default
 #: admitted whatever nobody had thought about.
@@ -493,7 +491,7 @@ class ColumnLocality:
 
 
 def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> ColumnLocality:
-    """``id()`` of every column reference that resolves to something query-local.
+    """Which column references resolve to something query-local, and on what evidence.
 
     An advertised column that is not stored -- ``latency_ms``, ``graphql_node_id``
     -- is substituted by a rewrite, and a timestamp column decides how a literal
@@ -538,11 +536,10 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> Column
     scope_root = build_scope(root)
     if scope_root is None:
         return ColumnLocality({})
-    # Required rather than optional. Omitting it emptied `offered`, which made
-    # the GROUP BY rule mark every alias-matching name local -- do-no-harm for
-    # a rewrite, and fail-open for the hidden-column check, which consumes the
-    # same set. A default that is conservative for one caller and dangerous
-    # for another is not a default.
+    # Required rather than optional. Without it `offered` is empty, and the
+    # GROUP BY rule then marks every alias-matching name local -- a resolution
+    # that is simply wrong, and silently so, since nothing downstream can tell a
+    # marking made from knowledge of the tables from one made in their absence.
     table_specs = allowlist.table_specs
     local: dict[int, Locality] = {}
     for scope in scope_root.traverse():
@@ -953,10 +950,10 @@ def _check_hidden_columns(
             # column: `SELECT user_id FROM datasets, (SELECT 1) q` is unqualified,
             # so it took the foreign-source path and was never checked.
             #
-            # A derived relation that genuinely projects the name is already
-            # excluded above -- `local` covers it -- so reaching here with a
-            # hidden name means the allowlisted table is the only source that
-            # offers it.
+            # A derived relation that genuinely projects the name was excluded
+            # above, so reaching here with a hidden name means either the
+            # allowlisted table is the only source offering it, or the reference
+            # is alias-bound -- evidence this check declines, and refuses on.
             for table_name in candidates:
                 folded = {c.casefold() for c in allowlist.table_specs[table_name].hidden_columns}
                 if name in folded:
