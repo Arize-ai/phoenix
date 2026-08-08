@@ -402,7 +402,16 @@ def _timestamp_comparison_pairs(
         pairs = [(node.this, node.expression), (node.expression, node.this)]
         for column, other in ((node.this, node.expression), (node.expression, node.this)):
             if isinstance(other, exp.Any):
-                pairs.extend((column, held) for held in other.walk() if held is not other)
+                # Bounded at the subquery edge. `= ANY(SELECT ...)` compares
+                # against what the subquery returns, so a value written inside it
+                # is beside that subquery's own columns, not beside this one --
+                # pairing them refuses valid SQL and, on SQLite, rewrote a
+                # literal the caller was comparing against their own data.
+                pairs.extend(
+                    (column, held)
+                    for held in _within_scope(other, exp.Expression)
+                    if held is not other
+                )
         return pairs
     if isinstance(node, exp.Between):
         return [(node.this, node.args.get("low")), (node.this, node.args.get("high"))]
@@ -1023,17 +1032,22 @@ def _check_hidden_columns(
             # caller -- `latency_ms` is the most advertised name on this surface,
             # and leaving it out meant the likeliest typo of all got no
             # suggestion.
+            # Parenthesised because `-` binds tighter than `|`: without them the
+            # withheld names are subtracted from the virtual set alone and stay
+            # in the pool, so a near miss on one is answered by naming it.
             offered_here = sorted(
-                {
-                    spec.name
-                    for table_name in candidates
-                    for spec in allowlist.table_specs[table_name].columns
-                }
-                | {
-                    virtual
-                    for table_name in candidates
-                    for virtual in allowlist.table_specs[table_name].virtual_columns
-                }
+                (
+                    {
+                        spec.name
+                        for table_name in candidates
+                        for spec in allowlist.table_specs[table_name].columns
+                    }
+                    | {
+                        virtual
+                        for table_name in candidates
+                        for virtual in allowlist.table_specs[table_name].virtual_columns
+                    }
+                )
                 - {
                     hidden
                     for table_name in candidates
