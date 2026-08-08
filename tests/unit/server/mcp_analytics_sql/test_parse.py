@@ -827,6 +827,10 @@ class TestTimestampComparisonCoverage:
             ("SELECT id FROM spans WHERE (id, (name, start_time)) = (1, ('x', '{}'))", "sqlite"),
             ("SELECT id FROM spans WHERE ((start_time, id), 0) = (('{}', 1), 0)", "sqlite"),
             ("SELECT id FROM spans WHERE start_time IN (VALUES ('{}'))", "sqlite"),
+            # A cast of a literal states a value rather than computing one, so
+            # the operand is there to be found.
+            ("SELECT id FROM spans WHERE start_time = CAST('{}' AS TEXT)", "sqlite"),
+            ("SELECT id FROM spans WHERE (id, start_time) = (1, CAST('{}' AS TEXT))", "sqlite"),
             ("SELECT id FROM spans WHERE (id, start_time) IN ((1, '{}'))", "sqlite"),
         ],
     )
@@ -841,6 +845,37 @@ class TestTimestampComparisonCoverage:
 
         assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
         assert "time of day" in result.detail
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT id FROM spans WHERE start_time = '{}' || ''",
+            "SELECT id FROM spans WHERE start_time = (SELECT '{}')",
+            "SELECT id FROM spans WHERE date(start_time) = '{}'",
+            "SELECT CAST(start_time AS TEXT) FROM spans WHERE id = 1",
+        ],
+    )
+    def test_a_computed_operand_is_the_standing_limit_and_is_admitted(self, sql: str) -> None:
+        """Recorded so the boundary is a decision rather than an oversight.
+
+        Each of these computes a value instead of naming one, on whichever side,
+        and rewriting a literal beside it would change a comparison the caller
+        authored. On SQLite the cost is a predicate that matches nothing rather
+        than an error, which is where to look first if one is reported.
+        """
+        result = try_parse_and_admit(sql.format("2026-01-01T10:30:00"), dialect="sqlite")
+
+        assert result.outcome is AdmissionOutcome.ADMIT
+
+    def test_nesting_deeper_than_the_parser_returns_an_outcome(self) -> None:
+        """The parser descends recursively, so about a hundred parentheses
+        exhaust the stack rather than failing to parse. Uncaught it escapes the
+        error envelope as a masked internal failure."""
+        sql = "SELECT id FROM spans WHERE id = " + "(" * 200 + "1" + ")" * 200
+
+        result = try_parse_and_admit(sql, dialect="sqlite")
+
+        assert result.outcome is AdmissionOutcome.PARSE_ERROR
 
     def test_an_aware_literal_behind_grouping_is_still_rewritten(self) -> None:
         ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)
