@@ -482,6 +482,24 @@ def test_none_result_counts_as_not_applicable() -> None:
     assert spans.writes == []
 
 
+def test_incomplete_tool_topology_is_not_applicable() -> None:
+    root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
+    tool = _span("tool", trace_id="trace", name="bash", kind="TOOL", parent_id="missing")
+    spans = _FakeSpans([root], {"trace": [root, tool]}, [])
+
+    summary = _run(
+        _FakeClient(spans),
+        project="pxi_dev",
+        specs=[TOOL_COUNT_PER_TURN],
+        now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+    )["tool_count_per_turn"]
+
+    assert summary.not_applicable == 1
+    assert summary.errors == 0
+    assert summary.evaluated == 0
+    assert spans.writes == []
+
+
 def test_evaluator_failure_is_isolated_to_one_turn() -> None:
     failing_root = _span(
         "failing-root", trace_id="failing-trace", name="pxi.turn", kind="AGENT", parent_id=None

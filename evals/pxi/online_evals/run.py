@@ -17,7 +17,7 @@ from phoenix.evals.evaluators import Score
 from evals.pxi.online_evals import judge
 from evals.pxi.online_evals.evaluators import EVALUATORS
 from evals.pxi.online_evals.models import EvaluatorSpec, RunSummary
-from evals.pxi.online_evals.topology import span_id, trace_id
+from evals.pxi.online_evals.topology import InvalidTurnTrace, span_id, trace_id
 
 logger = logging.getLogger(__name__)
 
@@ -233,6 +233,15 @@ async def run_evaluators(
     for spec, root, task in tasks:
         try:
             result = await task
+        except InvalidTurnTrace as error:
+            logger.warning(
+                "%s: skipping trace %s because its topology is incomplete: %s",
+                spec.name,
+                trace_id(root),
+                error,
+            )
+            summaries[spec.name].not_applicable += 1
+            continue
         except Exception:
             logger.exception("%s failed on trace %s; continuing", spec.name, trace_id(root))
             summaries[spec.name].errors += 1
