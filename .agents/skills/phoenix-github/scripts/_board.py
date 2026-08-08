@@ -16,7 +16,13 @@ from typing import Any, Iterable
 ORG = os.environ.get("PHOENIX_PROJECT_ORG", "Arize-ai")
 PROJECT_NUMBER = int(os.environ.get("PHOENIX_PROJECT_NUMBER", "42"))
 REPO = os.environ.get("PHOENIX_REPO", "Arize-ai/phoenix")
-ROSTER_TEAM = os.environ.get("PHOENIX_ROSTER_TEAM", "oss-eng")
+ROSTER_TEAMS = [
+    t.strip() for t in os.environ.get("PHOENIX_ROSTER_TEAM", "oss-eng").split(",") if t.strip()
+]
+ROSTER_LABEL = ", ".join(f"@{ORG}/{t}" for t in ROSTER_TEAMS)
+ROSTER_EXCLUDE = {
+    p.strip().lower() for p in os.environ.get("PHOENIX_ROSTER_EXCLUDE", "").split(",") if p.strip()
+}
 
 # Ticket-load guardrails: everyone should be fed, nobody should be buried.
 MIN_TICKETS = int(os.environ.get("PHOENIX_MIN_TICKETS", "3"))
@@ -25,6 +31,11 @@ MAX_TICKETS = int(os.environ.get("PHOENIX_MAX_TICKETS", "15"))
 # A snapshot older than this is not safe to write from: tickets closed since it
 # was taken still read as OPEN in the file.
 SNAPSHOT_MAX_AGE_MIN = int(os.environ.get("PHOENIX_SNAPSHOT_MAX_AGE_MIN", "120"))
+
+# Report glyphs shared by the reporting scripts.
+OK = "✅"
+WARN = "⚠️"
+NONE = "➖"
 
 DONE = "✅  Done"
 IN_PROGRESS = "👨‍💻  In progress"
@@ -79,8 +90,12 @@ class Item:
         self.state: str | None = content.get("state")
         self.status: str | None = (node.get("status") or {}).get("name")
         self.sprint: str | None = (node.get("sprint") or {}).get("title")
+        # Exclusion is applied here, at the data boundary, so every consumer
+        # (health, rollover, standup, ...) honors it without repeating the check.
         self.assignees: list[str] = [
-            a["login"] for a in (content.get("assignees") or {}).get("nodes", [])
+            a["login"]
+            for a in (content.get("assignees") or {}).get("nodes", [])
+            if a["login"].lower() not in ROSTER_EXCLUDE
         ]
         labels = (content.get("labels") or {}).get("nodes", [])
         self.labels: list[str] = [lb["name"] for lb in labels]
@@ -261,9 +276,13 @@ def stranded(items: Iterable[Item], past: Iterable[Sprint]) -> list[Item]:
 
 
 def roster() -> list[str]:
-    """Live membership of the roster team (default @Arize-ai/oss-eng)."""
-    logins = gh_json("api", f"orgs/{ORG}/teams/{ROSTER_TEAM}/members", "--jq", "[.[].login]")
-    return sorted(logins, key=str.lower)
+    """Live membership of the roster team(s), minus PHOENIX_ROSTER_EXCLUDE."""
+    logins = {
+        login
+        for team in ROSTER_TEAMS
+        for login in gh_json("api", f"orgs/{ORG}/teams/{team}/members", "--jq", "[.[].login]")
+    }
+    return sorted((lg for lg in logins if lg.lower() not in ROSTER_EXCLUDE), key=str.lower)
 
 
 # --------------------------------------------------------------------------
