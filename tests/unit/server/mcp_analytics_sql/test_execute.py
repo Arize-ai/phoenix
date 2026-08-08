@@ -504,3 +504,47 @@ class TestLossyNormalisationIsReported:
 
         assert result.envelope["rows"] == [[None]]
         assert any("non-finite" in note for note in result.envelope["notes"])
+
+
+class TestSqliteResolutionErrorsAreActionable:
+    """PostgreSQL's own words already reach the caller; SQLite's did not.
+
+    An unqualified column two joined tables both offer passes admission -- it is
+    not hidden and both tables offer it -- and then fails at the engine. The
+    message names only the caller's own identifier, so withholding it made an
+    ordinary mistake un-actionable on one backend and precise on the other.
+    """
+
+    async def test_an_ambiguous_column_names_itself(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        db, db_path = analytics_sqlite_db
+        with pytest.raises(AnalyticsSqlError) as exc:
+            await execute_analytics_sql(
+                db,
+                ExecuteParams(
+                    sql="SELECT start_time FROM spans JOIN traces ON spans.trace_rowid = traces.id"
+                ),
+                sqlite_db_path=db_path,
+            )
+
+        assert exc.value.code is ErrorCode.EXECUTION_ERROR
+        assert "start_time" in exc.value.message
+        assert "ambiguous" in exc.value.message.lower()
+
+    async def test_it_no_longer_recommends_validate_only(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        """`validate_only` runs the same EXPLAIN here and returns the same
+        message, so naming it sent the caller round a loop."""
+        db, db_path = analytics_sqlite_db
+        with pytest.raises(AnalyticsSqlError) as exc:
+            await execute_analytics_sql(
+                db,
+                ExecuteParams(
+                    sql="SELECT start_time FROM spans JOIN traces ON spans.trace_rowid = traces.id"
+                ),
+                sqlite_db_path=db_path,
+            )
+
+        assert "validate_only" not in exc.value.message

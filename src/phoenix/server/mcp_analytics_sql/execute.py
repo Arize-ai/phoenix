@@ -1051,13 +1051,19 @@ async def _execute_sqlite_file(
         # mistyped a column. Logged at error so a malformed database or a bug of
         # ours leaves a trace rather than being answered as bad SQL.
         logger.error("analytics sql: unclassified database error - %s", exc)
+        # SQLite's own words, as PostgreSQL's are already passed through. The
+        # commonest arrival here is an unqualified column two joined tables both
+        # offer, which admission cannot refuse and whose message names only the
+        # caller's own identifier -- withholding it turned an ordinary mistake
+        # into an un-actionable answer on one backend and a precise one on the
+        # other, which is the divergence class this surface exists to avoid.
+        #
+        # `validate_only` is not offered as a remedy here. It runs the same
+        # EXPLAIN on this backend and returns this same message, so naming it
+        # sends the caller round a loop that cannot tell them anything new.
         raise AnalyticsSqlError(
             code=ErrorCode.EXECUTION_ERROR,
-            message=(
-                "The statement was accepted but the database could not run it. "
-                "The server log records the underlying error. "
-                "validate_only=true reports resolution errors without executing."
-            ),
+            message=(f"The statement was accepted but the database could not run it: {exc}"),
         ) from exc
 
     return ExecuteResult(

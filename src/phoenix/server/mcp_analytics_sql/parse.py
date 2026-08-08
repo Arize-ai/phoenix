@@ -370,7 +370,7 @@ def _refused_cast_target(target: exp.Expression) -> Optional[str]:
 _TIMESTAMP_COMPARISONS = (exp.EQ, exp.NEQ, exp.GT, exp.GTE, exp.LT, exp.LTE)
 
 
-def query_local_columns(root: exp.Expression, *, allowlist: Optional[Allowlist] = None) -> set[int]:
+def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> set[int]:
     """``id()`` of every column reference that resolves to something query-local.
 
     An advertised column that is not stored -- ``latency_ms``, ``graphql_node_id``
@@ -409,10 +409,12 @@ def query_local_columns(root: exp.Expression, *, allowlist: Optional[Allowlist] 
     scope_root = build_scope(root)
     if scope_root is None:
         return set()
-    # Without it the GROUP BY rule cannot tell an alias-only name from one a
-    # source column also carries, so it falls back to treating the clause as
-    # binding to the input -- the conservative half.
-    table_specs = allowlist.table_specs if allowlist is not None else {}
+    # Required rather than optional. Omitting it emptied `offered`, which made
+    # the GROUP BY rule mark every alias-matching name local -- do-no-harm for
+    # a rewrite, and fail-open for the hidden-column check, which consumes the
+    # same set. A default that is conservative for one caller and dangerous
+    # for another is not a default.
+    table_specs = allowlist.table_specs
     local: set[int] = set()
     for scope in scope_root.traverse():
         derived_aliases: set[str] = set()
@@ -440,9 +442,21 @@ def query_local_columns(root: exp.Expression, *, allowlist: Optional[Allowlist] 
                 local.add(id(column))
         order_clause = select.args.get("order") if select else None
         if order_clause is not None:
-            for column in order_clause.find_all(exp.Column):
-                if not column.table and (column.name or "").lower() in output_aliases:
-                    local.add(id(column))
+            for ordered in order_clause.find_all(exp.Ordered):
+                # The whole sort key, not any column beneath it. An alias binds
+                # only when the key *is* the bare name: inside an expression both
+                # engines resolve to the input column, so descending here marked
+                # a real reference local and the hidden-column check skipped it.
+                # `ORDER BY gradient_start_color || ''` under an alias of that
+                # name sorts by the withheld value -- measured, rows came back in
+                # the hidden column's order, not the alias's.
+                key = ordered.this
+                if (
+                    isinstance(key, exp.Column)
+                    and not key.table
+                    and (key.name or "").lower() in output_aliases
+                ):
+                    local.add(id(key))
         # GROUP BY takes the input column when one carries the name and the
         # output alias only otherwise, so it is local only in the second case.
         # Marking it local unconditionally let an alias shadowing a withheld
@@ -468,7 +482,9 @@ def query_local_columns(root: exp.Expression, *, allowlist: Optional[Allowlist] 
     return local
 
 
-def _timestamp_literals(root: exp.Expression, columns: frozenset[str]) -> list[exp.Literal]:
+def _timestamp_literals(
+    root: exp.Expression, columns: frozenset[str], *, allowlist: Allowlist
+) -> list[exp.Literal]:
     """Every string literal compared against a column that holds a timestamp.
 
     Columns that resolve to a query-local relation are skipped: a derived
@@ -476,7 +492,7 @@ def _timestamp_literals(root: exp.Expression, columns: frozenset[str]) -> list[e
     and rewriting the literal beside it to storage format changes a comparison
     the caller wrote against their own data.
     """
-    local = query_local_columns(root)
+    local = query_local_columns(root, allowlist=allowlist)
     found: list[exp.Literal] = []
 
     def collect(left: Optional[exp.Expression], right: Optional[exp.Expression]) -> None:
@@ -528,7 +544,7 @@ def _check_timestamp_literals(
     columns = timestamp_column_names(allowlist.tables)
     if not columns:
         return None
-    for literal in _timestamp_literals(root, columns):
+    for literal in _timestamp_literals(root, columns, allowlist=allowlist):
         parsed = parse_timestamp_literal(literal.this)
         if parsed is None or parsed.is_aware or not parsed.has_time:
             continue
@@ -955,7 +971,16 @@ def try_parse_and_admit(
             exc.admission_detail or (exc.identifiers[0] if exc.identifiers else exc.message),
         )
 
-    return AdmissionResult(
-        AdmissionOutcome.ADMIT,
-        rendered_sql=render(root, dialect=dialect),
-    )
+    # Rendering can refuse too, now that it raises rather than degrading: a
+    # statement can pass every admission check and still name a construct the
+    # target cannot express. `SELECT * FROM (VALUES (1)) AS t(x)` on SQLite is
+    # one -- the column-alias list has no rendering there. Left uncaught it
+    # escaped this function, whose whole contract is to return an outcome
+    # instead of raising, so a corpus entry for such a shape would error out of
+    # the harness rather than record a verdict.
+    try:
+        rendered = render(root, dialect=dialect)
+    except AnalyticsSqlError as exc:
+        return AdmissionResult(AdmissionOutcome(exc.code.value), exc.message)
+
+    return AdmissionResult(AdmissionOutcome.ADMIT, rendered_sql=rendered)
