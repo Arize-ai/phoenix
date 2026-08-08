@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from difflib import get_close_matches
 from enum import Enum
 from typing import Optional
 
@@ -43,6 +44,8 @@ class AdmissionResult:
     outcome: AdmissionOutcome
     detail: str = ""
     rendered_sql: Optional[str] = None
+    # Set when the outcome's stock wording would be wrong for this case.
+    message: str = ""
 
 
 ALLOWED_ROOTS = (exp.Select, exp.Union, exp.Intersect, exp.Except)
@@ -861,9 +864,41 @@ def _check_hidden_columns(
             # cannot launder one we withheld.
             if not qualifier and foreign_source:
                 continue
+            # Not a column of any table in scope -- a misspelling, most often.
+            # The withheld-column wording would be false here and would tell the
+            # caller to stop rather than to fix the spelling, so this names the
+            # nearest columns the schema does offer. PostgreSQL suggests one
+            # itself when the statement reaches it; SQLite does not, and neither
+            # engine is reached now that admission refuses first.
+            offered_here = sorted(
+                {
+                    spec.name
+                    for table_name in candidates
+                    for spec in allowlist.table_specs[table_name].columns
+                }
+                - {
+                    hidden
+                    for table_name in candidates
+                    for hidden in allowlist.table_specs[table_name].hidden_columns
+                }
+            )
+            near = get_close_matches(name, offered_here, n=3, cutoff=0.7)
+            suggestion = f" Did you mean {', '.join(near)}?" if near else ""
+            # An unqualified reference was checked against every table in scope,
+            # so naming one of them would assert something narrower than what
+            # was tested.
+            subject = (
+                f"Column {candidates[0]}.{name} is not a column of that table."
+                if len(candidates) == 1
+                else f"Column {name} is not a column of any table in scope "
+                f"({', '.join(sorted(candidates))})."
+            )
             return AdmissionResult(
                 AdmissionOutcome.COLUMN_NOT_ALLOWED,
                 f"{candidates[0]}.{name}",
+                message=(
+                    f"{subject}{suggestion} Use describeSqlSchema to see the columns that are."
+                ),
             )
     return None
 
@@ -907,7 +942,9 @@ def admit(root: exp.Expression, *, allowlist: Allowlist, dialect: DialectName) -
         or _check_timestamp_literals(root, allowlist=allowlist)
     )
     if failure is not None:
-        raise admission_error_from_outcome(failure.outcome.value, failure.detail)
+        raise admission_error_from_outcome(
+            failure.outcome.value, failure.detail, message=failure.message
+        )
     return root
 
 
