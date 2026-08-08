@@ -3,12 +3,16 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
+import json
 import logging
 import math
 import os
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
+from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any
 
 from phoenix.client import Client
 from phoenix.client.__generated__ import v1
@@ -17,7 +21,7 @@ from phoenix.evals.evaluators import Score
 from evals.pxi.online_evals import judge
 from evals.pxi.online_evals.evaluators import EVALUATORS
 from evals.pxi.online_evals.models import EvaluatorSpec, RunSummary
-from evals.pxi.online_evals.topology import span_id, trace_id
+from evals.pxi.online_evals.topology import InvalidTurnTrace, span_id, trace_id
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +33,8 @@ MAX_SPANS_PER_BATCH = 10_000
 TRACE_ID_BATCH_SIZE = 100
 ANNOTATION_WRITE_BATCH_SIZE = 100
 MAX_CONCURRENT_EVALUATIONS = 8
+EVALUATOR_NOT_APPLICABLE = "evaluator_not_applicable"
+INCOMPLETE_TOPOLOGY = "incomplete_topology"
 
 
 class OversizedTraceError(RuntimeError):
@@ -233,12 +239,21 @@ async def run_evaluators(
     for spec, root, task in tasks:
         try:
             result = await task
+        except InvalidTurnTrace as error:
+            logger.warning(
+                "%s: skipping trace %s because its topology is incomplete: %s",
+                spec.name,
+                trace_id(root),
+                error,
+            )
+            summaries[spec.name].record_not_applicable(INCOMPLETE_TOPOLOGY)
+            continue
         except Exception:
             logger.exception("%s failed on trace %s; continuing", spec.name, trace_id(root))
             summaries[spec.name].errors += 1
             continue
         if result is None:
-            summaries[spec.name].not_applicable += 1
+            summaries[spec.name].record_not_applicable(EVALUATOR_NOT_APPLICABLE)
             continue
         summaries[spec.name].evaluated += 1
         annotation: v1.SpanAnnotationData = {
@@ -267,6 +282,51 @@ async def run_evaluators(
 
 def _default_project() -> str | None:
     return os.getenv("PHOENIX_PROJECT") or os.getenv("PHOENIX_PROJECT_NAME")
+
+
+def _build_run_report(
+    *, project: str, dry_run: bool, summaries: dict[str, RunSummary]
+) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "status": "failed"
+        if any(summary.errors for summary in summaries.values())
+        else "succeeded",
+        "project": project,
+        "dry_run": dry_run,
+        "evaluators": {name: asdict(summary) for name, summary in summaries.items()},
+    }
+
+
+def _write_json_report(path: Path, report: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+
+
+def _append_github_step_summary(path: Path, report: dict[str, Any]) -> None:
+    status = report["status"]
+    lines = [
+        "## PXI Online Evals",
+        "",
+        f"**Status:** {status}  ",
+        f"**Project:** `{report['project']}`  ",
+        f"**Dry run:** `{str(report['dry_run']).lower()}`",
+        "",
+        "| Evaluator | Discovered | Existing | Evaluated | Not applicable | Errors | Annotations | Reasons |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+    ]
+    for name, summary in report["evaluators"].items():
+        reasons = ", ".join(
+            f"`{reason}`={count}"
+            for reason, count in sorted(summary["not_applicable_reasons"].items())
+        )
+        lines.append(
+            f"| `{name}` | {summary['discovered']} | {summary['already_annotated']} | "
+            f"{summary['evaluated']} | {summary['not_applicable']} | {summary['errors']} | "
+            f"{summary['annotations']} | {reasons or '—'} |"
+        )
+    with path.open("a") as file:
+        file.write("\n".join(lines) + "\n")
 
 
 def _positive_float(value: str) -> float:
@@ -312,6 +372,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--dry-run", action="store_true", help="Evaluate without writing annotations."
     )
+    parser.add_argument(
+        "--summary-json",
+        type=Path,
+        help="Write a versioned, machine-readable run summary to this path.",
+    )
     return parser
 
 
@@ -344,7 +409,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"evaluated={summary.evaluated} errors={summary.errors} "
             f"{annotation_verb}={summary.annotations}"
         )
-    return 1 if any(summary.errors for summary in summaries.values()) else 0
+    report = _build_run_report(project=args.project, dry_run=args.dry_run, summaries=summaries)
+    if args.summary_json is not None:
+        _write_json_report(args.summary_json, report)
+    if github_step_summary := os.getenv("GITHUB_STEP_SUMMARY"):
+        _append_github_step_summary(Path(github_step_summary), report)
+    return 1 if report["status"] == "failed" else 0
 
 
 if __name__ == "__main__":

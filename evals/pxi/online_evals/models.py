@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal, Optional
 
 from phoenix.client.__generated__ import v1
@@ -49,3 +49,8 @@ class RunSummary:
     evaluated: int = 0
     errors: int = 0
     annotations: int = 0
+    not_applicable_reasons: dict[str, int] = field(default_factory=dict)
+
+    def record_not_applicable(self, reason: str) -> None:
+        self.not_applicable += 1
+        self.not_applicable_reasons[reason] = self.not_applicable_reasons.get(reason, 0) + 1

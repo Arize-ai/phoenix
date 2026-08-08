@@ -31,6 +31,12 @@ tool_count_per_turn: discovered=11 already_annotated=0 sampled_out=0 not_applica
 user_friction:       discovered=11 already_annotated=0 sampled_out=0 not_applicable=6 evaluated=5  errors=0 written=5
 ```
 
+The CLI can also write the same counters as a versioned JSON report with
+`--summary-json`. In GitHub Actions it appends a compact evaluator table to the
+job summary automatically. Not-applicable results are grouped by reason so an
+isolated incomplete trace is distinguishable from an evaluator's normal
+applicability filtering.
+
 ## Anatomy of a turn trace
 
 One trace = one conversational turn. All spans are children of the
@@ -146,7 +152,7 @@ rate 0.25  █████                 subset of the 0.50 selection
 | Unbounded discovery | hard cap (5,000 roots) fails the run loudly | operator shrinks the window |
 | One bad turn poisoning the run | per-turn exception isolation | logged + counted; run continues; process exits non-zero so schedules go red |
 | Bad judge config | provider/API-key validated at startup | fail fast, before any trace work |
-| Malformed topology (orphan tool span, missing ancestor, cycle) | **deliberately loud** — counts as an error | post-settle traces should be complete; an anomaly means dropped spans or a tracing regression. Downgrade to skip-with-warning if noisy in practice. |
+| Malformed topology (orphan tool span, missing ancestor, cycle) | skip as not-applicable + warning | incomplete traces cannot produce a trustworthy tool count and should not poison later scheduled runs |
 
 ## Assumptions
 
