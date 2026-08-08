@@ -831,3 +831,44 @@ class TestMainstreamGrammarIsNotRefused:
         result = try_parse_and_admit(sql, dialect=cast(DialectName, dialect))
 
         assert "not part of the permitted grammar" not in result.detail, sql
+
+
+class TestGroupByBindsToTheInputColumn:
+    """`ORDER BY` and `GROUP BY` are not symmetric, and treating them alike leaked.
+
+    Both engines resolve a bare `GROUP BY` name against the input columns first,
+    falling back to an output alias only when no source column carries it.
+    `ORDER BY` prefers the output alias. Marking both query-local let an alias
+    shadowing a withheld column reach the real one.
+    """
+
+    def test_an_alias_shadowing_a_hidden_column_does_not_reach_it(self) -> None:
+        """Measured: with rows (a,1) (a,2) (b,1), `GROUP BY user_id` under this
+        alias yields two groups -- it grouped by the real column, disclosing its
+        distribution."""
+        result = try_parse_and_admit(
+            "SELECT name AS user_id, COUNT(*) FROM datasets GROUP BY user_id", dialect="sqlite"
+        )
+
+        assert result.outcome is AdmissionOutcome.COLUMN_NOT_ALLOWED
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT date(start_time) AS v FROM spans GROUP BY v",
+            "SELECT s.name AS span_name, COUNT(*) AS v FROM span_annotations sa "
+            "JOIN spans s ON s.id = sa.span_rowid GROUP BY span_name",
+        ],
+    )
+    def test_an_alias_only_name_still_groups(self, sql: str) -> None:
+        """No source column carries the name, so the engine binds to the alias
+        and so must the resolver. This is ordinary bucketing SQL."""
+        assert try_parse_and_admit(sql, dialect="sqlite").outcome is AdmissionOutcome.ADMIT
+
+    def test_order_by_still_binds_to_the_output_alias(self) -> None:
+        rendered = rewrite(
+            parse_one("SELECT id, 1 AS latency_ms FROM spans ORDER BY latency_ms", read="sqlite"),
+            RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500),
+        ).sql(dialect="sqlite")
+
+        assert "ORDER BY latency_ms" in rendered

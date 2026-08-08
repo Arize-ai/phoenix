@@ -851,11 +851,13 @@ class TestJsonAccessorOrigin:
 
 
 class TestUncastJsonOrderingNote:
-    """`max` over a numeric JSON path answers with the wrong row, silently.
+    """A JSON value ordered without a cast may not order the way it reads.
 
-    Both backends return text from a JSON extraction, so ordering compares
-    character by character. `SUM` and `AVG` coerce and are unaffected, which is
-    why the failure is easy to miss. See D6.
+    The hazard differs by backend and the note says so: PostgreSQL's extraction
+    operators return text, so ordering is always lexicographic; SQLite returns
+    the document's own type, so only a path holding a quoted number misorders.
+    Stating it as "both backends return text" was false on the shipped engine --
+    `MAX(doc ->> '$.n')` over 1017066 and 149740 answers 1017066, typed integer.
     """
 
     @staticmethod
@@ -863,7 +865,7 @@ class TestUncastJsonOrderingNote:
         read = "postgres" if dialect == "postgresql" else dialect
         ctx = RewriteContext(allowlist=load_allowlist(), dialect=dialect, row_limit=500)
         rewrite(sqlglot.parse_one(sql, read=read), ctx)
-        return any("character by character" in note for note in ctx.notes)
+        return any("without a cast" in note for note in ctx.notes)
 
     @pytest.mark.parametrize(
         "sql",
@@ -903,4 +905,4 @@ class TestUncastJsonOrderingNote:
         rendered = rewrite(tree, ctx).sql(dialect="sqlite")
 
         assert "JSON_EXTRACT" in rendered.upper()
-        assert any("character by character" in note for note in ctx.notes)
+        assert any("without a cast" in note for note in ctx.notes)

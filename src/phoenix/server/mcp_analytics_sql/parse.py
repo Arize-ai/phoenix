@@ -151,7 +151,7 @@ def _check_double_quoted_timestamp_operands(
     columns = timestamp_column_names(allowlist.tables)
     if not columns:
         return None
-    local = query_local_columns(root)
+    local = query_local_columns(root, allowlist=allowlist)
 
     def offender(
         column: Optional[exp.Expression], operand: Optional[exp.Expression]
@@ -370,7 +370,7 @@ def _refused_cast_target(target: exp.Expression) -> Optional[str]:
 _TIMESTAMP_COMPARISONS = (exp.EQ, exp.NEQ, exp.GT, exp.GTE, exp.LT, exp.LTE)
 
 
-def query_local_columns(root: exp.Expression) -> set[int]:
+def query_local_columns(root: exp.Expression, *, allowlist: Optional[Allowlist] = None) -> set[int]:
     """``id()`` of every column reference that resolves to something query-local.
 
     An advertised column that is not stored -- ``latency_ms``, ``graphql_node_id``
@@ -381,9 +381,11 @@ def query_local_columns(root: exp.Expression) -> set[int]:
 
     Four passes previously carried four answers to this question -- ``build_scope``
     in schema qualification, a hand-built name set in the duration substitution,
-    nothing at all in the node-id substitution, and a syntactic scan for star
-    expansion -- and every disagreement between them was a defect. This is the
-    one answer.
+    nothing at all in the node-id substitution, and a syntactic scan for
+    timestamp literals -- and every disagreement between them was a defect.
+    This is the one answer for those four. Star expansion still carries its
+    own scan (`_star_sources`), which reads sources rather than resolving
+    references and is not folded in here.
 
     Three ways a reference can be local, and the third is why ``build_scope`` is
     necessary but not sufficient:
@@ -391,14 +393,26 @@ def query_local_columns(root: exp.Expression) -> set[int]:
     1. Qualified, where the qualifier names a derived relation. Both a CTE's own
        name and the alias it is bound to in ``FROM`` resolve to it.
     2. Unqualified, where a derived relation in the same scope projects the name.
-    3. Unqualified in ``ORDER BY`` or ``GROUP BY``, where the select list aliases
-       the name. Both engines resolve those against the output first, and
-       ``build_scope`` does not report them as source columns at all, so they
-       have to be walked separately.
+    3. Unqualified in ``ORDER BY``, where the select list aliases the name. Both
+       engines resolve that against the output first, and ``build_scope`` does
+       not report it as a source column at all, so it has to be walked
+       separately.
+
+    ``GROUP BY`` is deliberately absent from the third case, and the two clauses
+    are not symmetric. Both engines resolve a bare ``GROUP BY`` name against the
+    *input* columns first, falling back to an output alias only when no source
+    column carries the name -- so treating it as query-local let an alias
+    shadowing a withheld column reach it: ``SELECT name AS user_id FROM datasets
+    GROUP BY user_id`` groups by the real ``user_id`` and was admitted, which
+    discloses that column's distribution.
     """
     scope_root = build_scope(root)
     if scope_root is None:
         return set()
+    # Without it the GROUP BY rule cannot tell an alias-only name from one a
+    # source column also carries, so it falls back to treating the clause as
+    # binding to the input -- the conservative half.
+    table_specs = allowlist.table_specs if allowlist is not None else {}
     local: set[int] = set()
     for scope in scope_root.traverse():
         derived_aliases: set[str] = set()
@@ -424,12 +438,32 @@ def query_local_columns(root: exp.Expression) -> set[int]:
                 continue
             if (column.name or "").lower() in derived_projections:
                 local.add(id(column))
-        for clause_name in ("order", "group"):
-            clause = select.args.get(clause_name) if select else None
-            if clause is None:
-                continue
-            for column in clause.find_all(exp.Column):
+        order_clause = select.args.get("order") if select else None
+        if order_clause is not None:
+            for column in order_clause.find_all(exp.Column):
                 if not column.table and (column.name or "").lower() in output_aliases:
+                    local.add(id(column))
+        # GROUP BY takes the input column when one carries the name and the
+        # output alias only otherwise, so it is local only in the second case.
+        # Marking it local unconditionally let an alias shadowing a withheld
+        # column reach it; never marking it refuses `GROUP BY v` over an
+        # alias-only name, which is ordinary bucketing SQL.
+        group_clause = select.args.get("group") if select else None
+        if group_clause is not None:
+            offered = {
+                column.name.casefold()
+                for alias, source in scope.sources.items()
+                if isinstance(source, exp.Table) and source.name in table_specs
+                for column in table_specs[source.name].columns
+            } | {
+                virtual.casefold()
+                for alias, source in scope.sources.items()
+                if isinstance(source, exp.Table) and source.name in table_specs
+                for virtual in table_specs[source.name].virtual_columns
+            }
+            for column in group_clause.find_all(exp.Column):
+                name = (column.name or "").lower()
+                if not column.table and name in output_aliases and name not in offered:
                     local.add(id(column))
     return local
 
@@ -641,7 +675,7 @@ def _check_hidden_columns(
     # A CTE column, a subquery projection or an output alias is the caller's own
     # name for their own value, and resolving it against a base table's schema
     # refuses a statement that never touched one.
-    local = query_local_columns(root)
+    local = query_local_columns(root, allowlist=allowlist)
     try:
         scope_root = build_scope(root)
     except SqlglotError as exc:
