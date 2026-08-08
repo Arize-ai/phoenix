@@ -19,10 +19,7 @@ export function DownloadExperimentActionMenu({
   return (
     <StopPropagation>
       <MenuTrigger>
-        <Button
-          size="S"
-          leadingVisual={<Icon svg={<Icons.DownloadOutline />} />}
-        />
+        <Button size="S" leadingVisual={<Icon svg={<Icons.Download />} />} />
         <Popover>
           <Menu
             onAction={(action) => {

@@ -144,7 +144,7 @@ export function DeleteCustomProviderButton({
     <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
       <Button
         variant="danger"
-        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Trash />} />}
         aria-label="Delete provider"
         size="S"
       />

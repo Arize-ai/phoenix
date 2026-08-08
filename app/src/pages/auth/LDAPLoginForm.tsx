@@ -14,7 +14,12 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { getReturnUrl, prependBasename } from "@phoenix/utils/routingUtils";
+import {
+  assignAppRelativeLocation,
+  getReturnUrl,
+  isServerOwnedPath,
+  prependBasename,
+} from "@phoenix/utils/routingUtils";
 
 type LDAPLoginFormParams = {
   username: string;
@@ -69,6 +74,10 @@ export function LDAPLoginForm(props: LDAPLoginFormProps) {
         setIsLoading(() => false);
       }
       const returnUrl = getReturnUrl();
+      if (isServerOwnedPath(returnUrl)) {
+        assignAppRelativeLocation(returnUrl);
+        return;
+      }
       navigate(returnUrl);
     },
     [navigate, propsOnSubmit, setError]
@@ -133,7 +142,7 @@ export function LDAPLoginForm(props: LDAPLoginFormProps) {
             type="submit"
             isDisabled={isLoading}
             leadingVisual={
-              isLoading ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
+              isLoading ? <Icon svg={<Icons.Loading />} /> : undefined
             }
           >
             {isLoading ? "Logging In" : "Log In"}

@@ -170,7 +170,7 @@ export function ExpandableContent({
           aria-expanded={false}
         >
           <span>Expand</span>
-          <Icon svg={<Icons.ArrowIosDownwardOutline />} />
+          <Icon svg={<Icons.ChevronDownSmall />} />
         </button>
       )}
       {canCollapse && (
@@ -182,7 +182,7 @@ export function ExpandableContent({
           aria-expanded={true}
         >
           <span>Collapse</span>
-          <Icon svg={<Icons.ArrowIosUpwardOutline />} />
+          <Icon svg={<Icons.ChevronUpSmall />} />
         </button>
       )}
     </div>
@@ -211,7 +211,7 @@ function useIsOverflowing({
   useEffect(() => {
     const content = contentRef.current;
     const container = containerRef.current;
-    if (!content || !container) return;
+    if (!content || !container) return undefined;
 
     const checkOverflow = () => {
       const overflowBoundary =

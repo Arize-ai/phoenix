@@ -58,7 +58,7 @@ export const ExampleDetailsPaginator = ({
           aria-label="Next"
           isDisabled={!hasNext}
           onPress={handleNext}
-          leadingVisual={<Icon svg={<Icons.ArrowDownwardOutline />} />}
+          leadingVisual={<Icon svg={<Icons.ArrowDown />} />}
         ></Button>
         <Tooltip offset={4}>
           <TooltipArrow />
@@ -74,7 +74,7 @@ export const ExampleDetailsPaginator = ({
           aria-label="Previous"
           isDisabled={!hasPrevious}
           onPress={handlePrevious}
-          leadingVisual={<Icon svg={<Icons.ArrowUpwardOutline />} />}
+          leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
         ></Button>
         <Tooltip offset={4}>
           <TooltipArrow />

@@ -12,7 +12,7 @@ import {
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { toPythonPrimitiveStr } from "@phoenix/utils/pythonUtils";
 
-import { useSpanFilters } from "./SpanFiltersContext";
+import { useSpanFilterActions } from "./SpanFiltersContext";
 
 export const makeMetadataTooltipFilterCondition = (
   key: string,
@@ -41,7 +41,7 @@ export function MetadataTooltip({
   metadata,
   width,
 }: MetadataTooltipProps) {
-  const { appendFilterCondition } = useSpanFilters();
+  const { appendFilterCondition } = useSpanFilterActions();
   const entries = Object.entries(metadata).map(([key, value]) => ({
     key,
     value: String(value),

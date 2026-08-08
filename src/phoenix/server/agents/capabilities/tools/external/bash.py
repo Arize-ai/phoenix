@@ -16,10 +16,10 @@ NAME = "bash"
 DESCRIPTION = """\
 Run a shell command in the browser virtual filesystem.
 Runs inside a browser-only just-bash virtual shell, not a host machine or container.
-Read Phoenix context from /phoenix; writes there are blocked.
-Write scratch files only under /home/user/workspace; mutations elsewhere are blocked.
-Redirect unwanted output to /dev/null (e.g. `cmd >/dev/null 2>&1`); it is the only \
-writable path outside the workspace.
+Write scratch files only under /home/user/workspace or /tmp; mutations elsewhere are \
+blocked.
+Redirect unwanted output to /dev/null (e.g. `cmd >/dev/null 2>&1`); it is a \
+discard-only path.
 General purpose network access is disabled, so curl/wget and remote package installs \
 should not be assumed to work.
 Built-in just-bash commands are available; do not assume apt, brew, pnpm, uv, git, \
@@ -29,7 +29,7 @@ The user has no access to the filesystem. You can use the filesystem for your ow
 purposes, but if you want to share something with the user, you must display the \
 content in the rich markdown rendered chat.
 phoenix-gql is available for GraphQL operations against the Phoenix GraphQL API. \
-Run phoenix-gql --help for usage and current permissions.\
+If CLI usage is unclear, run `phoenix-gql --help` directly.\
 """
 
 PARAMETERS: dict[str, Any] = {

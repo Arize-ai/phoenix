@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<e7131b2efd51501919bf157361632f00>>
+ * @generated SignedSource<<6632e290966eebddb6eb4a487958cfc9>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -40,7 +39,24 @@ v2 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v3 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "username",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "profilePictureUrl",
+    "storageKey": null
+  },
+  (v1/*:: as any*/)
+];
 return {
   "fragment": {
     "argumentDefinitions": [],
@@ -65,7 +81,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v0/*:: as any*/),
         "concreteType": "PromptConnection",
         "kind": "LinkedField",
         "name": "prompts",
@@ -87,8 +103,8 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v1/*: any*/),
-                  (v2/*: any*/),
+                  (v1/*:: as any*/),
+                  (v2/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -99,11 +115,32 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "concreteType": "User",
+                    "kind": "LinkedField",
+                    "name": "createdBy",
+                    "plural": false,
+                    "selections": (v3/*:: as any*/),
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "User",
+                    "kind": "LinkedField",
+                    "name": "updatedBy",
+                    "plural": false,
+                    "selections": (v3/*:: as any*/),
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "PromptVersion",
                     "kind": "LinkedField",
                     "name": "version",
                     "plural": false,
                     "selections": [
+                      (v1/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -111,7 +148,47 @@ return {
                         "name": "createdAt",
                         "storageKey": null
                       },
-                      (v1/*: any*/)
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "modelName",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "modelProvider",
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "versionCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "PromptVersionTag",
+                    "kind": "LinkedField",
+                    "name": "versionTags",
+                    "plural": true,
+                    "selections": [
+                      (v1/*:: as any*/),
+                      (v2/*:: as any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "promptVersionId",
+                        "storageKey": null
+                      }
                     ],
                     "storageKey": null
                   },
@@ -123,8 +200,8 @@ return {
                     "name": "labels",
                     "plural": true,
                     "selections": [
-                      (v1/*: any*/),
-                      (v2/*: any*/),
+                      (v1/*:: as any*/),
+                      (v2/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -160,7 +237,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v1/*: any*/)
+                  (v1/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -197,7 +274,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v0/*:: as any*/),
         "filters": [
           "filter",
           "labelIds"
@@ -210,12 +287,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3bf444cc04be064fc037755409e3288d",
+    "cacheID": "6a940525c3e245a0239c02ae00d55eda",
     "id": null,
     "metadata": {},
     "name": "promptsLoaderQuery",
     "operationKind": "query",
-    "text": "query promptsLoaderQuery {\n  ...PromptsTable_prompts\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        version {\n          createdAt\n          id\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query promptsLoaderQuery {\n  ...PromptsTable_prompts\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdBy {\n          username\n          profilePictureUrl\n          id\n        }\n        updatedBy {\n          username\n          profilePictureUrl\n          id\n        }\n        version {\n          id\n          createdAt\n          modelName\n          modelProvider\n        }\n        versionCount\n        versionTags {\n          id\n          name\n          promptVersionId\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

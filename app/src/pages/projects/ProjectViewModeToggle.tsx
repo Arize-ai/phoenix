@@ -1,15 +1,12 @@
-import { css } from "@emotion/react";
-
 import {
   Icon,
   Icons,
-  ToggleButton,
-  ToggleButtonGroup,
+  SegmentedControl,
+  SegmentedControlItem,
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
 import { usePreferencesContext } from "@phoenix/contexts";
-import type { ProjectViewMode } from "@phoenix/store/preferencesStore";
 
 export const ProjectViewModeToggle = () => {
   const { projectViewMode, setProjectViewMode } = usePreferencesContext(
@@ -20,36 +17,28 @@ export const ProjectViewModeToggle = () => {
   );
 
   return (
-    <ToggleButtonGroup
-      css={css`
-        flex-basis: fit-content;
-      `}
-      selectedKeys={[projectViewMode]}
-      selectionMode="single"
+    <SegmentedControl
+      aria-label="Project view"
+      selectedKey={projectViewMode}
       onSelectionChange={(value) => {
-        const selectedKey = value.values().next().value;
-        if (typeof selectedKey === "string") {
-          setProjectViewMode(selectedKey as ProjectViewMode);
+        if (value === "grid" || value === "table") {
+          setProjectViewMode(value);
         }
       }}
       size="M"
     >
       <TooltipTrigger delay={100}>
-        <ToggleButton
-          id="grid"
-          aria-label="Grid view"
-          leadingVisual={<Icon svg={<Icons.Grid />} />}
-        />
+        <SegmentedControlItem id="grid" aria-label="Grid view">
+          <Icon svg={<Icons.GridFilled />} />
+        </SegmentedControlItem>
         <Tooltip>View projects in a grid</Tooltip>
       </TooltipTrigger>
       <TooltipTrigger delay={100}>
-        <ToggleButton
-          id="table"
-          aria-label="Table view"
-          leadingVisual={<Icon svg={<Icons.ListOutline />} />}
-        />
+        <SegmentedControlItem id="table" aria-label="Table view">
+          <Icon svg={<Icons.List />} />
+        </SegmentedControlItem>
         <Tooltip>View projects in a table</Tooltip>
       </TooltipTrigger>
-    </ToggleButtonGroup>
+    </SegmentedControl>
   );
 };

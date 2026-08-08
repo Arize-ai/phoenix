@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timedelta, timezone
 from itertools import cycle
 from secrets import token_bytes, token_hex, token_urlsafe
@@ -171,13 +170,7 @@ async def test_data_migration_for_project_sessions(
                     "parent_id": row["parent_id"],
                     "start_time": row["start_time"],
                     "end_time": row["end_time"],
-                    "session_id": str(
-                        (
-                            json.loads(row["attributes"])  # type: ignore[unused-ignore]
-                            if _engine.dialect.name == "sqlite"
-                            else row["attributes"]
-                        )["session"]["id"]
-                    ),  # type: ignore[dict-item, unused-ignore]
+                    "session_id": str(row["attributes"]["session"]["id"]),
                 },
             ),
             axis=1,

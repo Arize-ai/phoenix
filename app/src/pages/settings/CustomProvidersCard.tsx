@@ -11,7 +11,7 @@ import invariant from "tiny-invariant";
 
 import {
   Card,
-  Empty,
+  DocumentationHelp,
   Flex,
   Icon,
   Icons,
@@ -19,7 +19,9 @@ import {
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
+  View,
 } from "@phoenix/components";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { tableCSS } from "@phoenix/components/table/styles";
@@ -145,7 +147,7 @@ function NameCell({
       <TooltipTrigger>
         <TriggerWrap>
           <Icon
-            svg={<Icons.AlertTriangleOutline />}
+            svg={<Icons.AlertTriangle />}
             color="warning"
             aria-label="Configuration error"
           />
@@ -319,9 +321,23 @@ export function CustomProvidersCard({
 
   return (
     <ErrorBoundary>
-      <Card title="Custom AI Providers" extra={<NewCustomProviderButton />}>
+      <Card
+        title="Custom AI Providers"
+        titleExtra={
+          <DocumentationHelp topic="customAiProviders">
+            Create shared provider credentials and routing configurations for
+            the Playground and saved prompts.
+          </DocumentationHelp>
+        }
+        extra={<NewCustomProviderButton />}
+      >
         {isEmpty ? (
-          <Empty message="No custom AI providers configured yet." />
+          <View padding="size-500">
+            <EmptyState
+              graphic={<EmptyStateGraphic variant="customAIProvider" />}
+              description="No custom AI providers configured yet."
+            />
+          </View>
         ) : (
           <table css={tableCSS}>
             <thead>

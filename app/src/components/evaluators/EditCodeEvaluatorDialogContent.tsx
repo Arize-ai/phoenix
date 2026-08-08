@@ -1291,7 +1291,7 @@ const outputConfigValuesGridCSS = css`
   width: 100%;
   display: grid;
   grid-template-columns: 3fr 1fr;
-  gap: var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
   align-items: start;
 `;
 
@@ -1374,11 +1374,11 @@ const typeFooterCSS = css`
 
   & .cm-editor {
     height: 100% !important;
-    background-color: var(--ac-global-color-grey-100);
+    background-color: var(--global-color-gray-100);
   }
 
   & .cm-gutters {
-    background-color: var(--ac-global-color-grey-100);
+    background-color: var(--global-color-gray-100);
   }
 
   & .cm-scroller {

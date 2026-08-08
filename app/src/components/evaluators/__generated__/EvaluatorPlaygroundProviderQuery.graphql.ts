@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<b6b043d1b954dae965bff4679669cdf3>>
+ * @generated SignedSource<<c1e2391622b9982ea6ed3c6f7ce577ff>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -63,7 +62,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "EvaluatorPlaygroundProviderQuery",
-    "selections": (v0/*: any*/),
+    "selections": (v0/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -72,7 +71,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "EvaluatorPlaygroundProviderQuery",
-    "selections": (v0/*: any*/)
+    "selections": (v0/*:: as any*/)
   },
   "params": {
     "cacheID": "d14405c14c659f9aa5edc1edb1aa694b",

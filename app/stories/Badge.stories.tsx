@@ -150,15 +150,15 @@ export const WithIcon: Story = {
   render: () => (
     <div css={rowCSS}>
       <Badge variant="success">
-        <Icon svg={<Icons.CheckmarkOutline />} />
+        <Icon svg={<Icons.Checkmark />} />
         Licensed
       </Badge>
       <Badge variant="danger">
-        <Icon svg={<Icons.CloseOutline />} />
+        <Icon svg={<Icons.Close />} />
         Rejected
       </Badge>
       <Badge variant="info">
-        <Icon svg={<Icons.InfoOutline />} />
+        <Icon svg={<Icons.Info />} />
         Published
       </Badge>
     </div>

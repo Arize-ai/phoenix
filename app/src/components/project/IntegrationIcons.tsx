@@ -956,6 +956,273 @@ export const OpenRouterSVG = () => (
   </svg>
 );
 
+// Brand-color mark: blurred color fields clipped by the "A" silhouette mask.
+// Kept on the source 24x24 viewBox because the filter regions and mask are in
+// userSpace coordinates; the svg is simply rendered at 32x32.
+export const AntigravitySVG = () => (
+  <svg
+    width="32"
+    height="32"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>Antigravity</title>
+    <mask
+      id="antigravity-mask"
+      maskUnits="userSpaceOnUse"
+      x="0"
+      y="1"
+      width="24"
+      height="23"
+    >
+      <path
+        d="M21.751 22.607c1.34 1.005 3.35.335 1.508-1.508C17.73 15.74 18.904 1 12.037 1 5.17 1 6.342 15.74.815 21.1c-2.01 2.009.167 2.511 1.507 1.506 5.192-3.517 4.857-9.714 9.715-9.714 4.857 0 4.522 6.197 9.714 9.715z"
+        fill="#fff"
+      />
+    </mask>
+    <g mask="url(#antigravity-mask)">
+      <g filter="url(#antigravity-b1)">
+        <path
+          d="M-1.018-3.992c-.408 3.591 2.686 6.89 6.91 7.37 4.225.48 7.98-2.043 8.387-5.633.408-3.59-2.686-6.89-6.91-7.37-4.225-.479-7.98 2.043-8.387 5.633z"
+          fill="#FFE432"
+        />
+      </g>
+      <g filter="url(#antigravity-b2)">
+        <path
+          d="M15.269 7.747c1.058 4.557 5.691 7.374 10.348 6.293 4.657-1.082 7.575-5.653 6.516-10.21-1.058-4.556-5.691-7.374-10.348-6.292-4.657 1.082-7.575 5.653-6.516 10.21z"
+          fill="#FC413D"
+        />
+      </g>
+      <g filter="url(#antigravity-b3)">
+        <path
+          d="M-12.443 10.804c1.338 4.703 7.36 7.11 13.453 5.378 6.092-1.733 9.947-6.95 8.61-11.652C8.282-.173 2.26-2.58-3.833-.848-9.925.884-13.78 6.1-12.443 10.804z"
+          fill="#00B95C"
+        />
+      </g>
+      <g filter="url(#antigravity-b4)">
+        <path
+          d="M-12.443 10.804c1.338 4.703 7.36 7.11 13.453 5.378 6.092-1.733 9.947-6.95 8.61-11.652C8.282-.173 2.26-2.58-3.833-.848-9.925.884-13.78 6.1-12.443 10.804z"
+          fill="#00B95C"
+        />
+      </g>
+      <g filter="url(#antigravity-b5)">
+        <path
+          d="M-7.608 14.703c3.352 3.424 9.126 3.208 12.896-.483 3.77-3.69 4.108-9.459.756-12.883C2.69-2.087-3.083-1.871-6.853 1.82c-3.77 3.69-4.108 9.458-.755 12.883z"
+          fill="#00B95C"
+        />
+      </g>
+      <g filter="url(#antigravity-b6)">
+        <path
+          d="M9.932 27.617c1.04 4.482 5.384 7.303 9.7 6.3 4.316-1.002 6.971-5.448 5.93-9.93-1.04-4.483-5.384-7.304-9.7-6.301-4.316 1.002-6.971 5.448-5.93 9.93z"
+          fill="#3186FF"
+        />
+      </g>
+      <g filter="url(#antigravity-b7)">
+        <path
+          d="M2.572-8.185C.392-3.329 2.778 2.472 7.9 4.771c5.122 2.3 11.042.227 13.222-4.63 2.18-4.855-.205-10.656-5.327-12.955-5.122-2.3-11.042-.227-13.222 4.63z"
+          fill="#FBBC04"
+        />
+      </g>
+      <g filter="url(#antigravity-b8)">
+        <path
+          d="M-3.267 38.686c-5.277-2.072 3.742-19.117 5.984-24.83 2.243-5.712 8.34-8.664 13.616-6.592 5.278 2.071 11.533 13.482 9.29 19.195-2.242 5.713-23.613 14.298-28.89 12.227z"
+          fill="#3186FF"
+        />
+      </g>
+      <g filter="url(#antigravity-b9)">
+        <path
+          d="M28.71 17.471c-1.413 1.649-5.1.808-8.236-1.878-3.135-2.687-4.531-6.201-3.118-7.85 1.412-1.649 5.1-.808 8.235 1.878s4.532 6.2 3.119 7.85z"
+          fill="#749BFF"
+        />
+      </g>
+      <g filter="url(#antigravity-b10)">
+        <path
+          d="M18.163 9.077c5.81 3.93 12.502 4.19 14.946.577 2.443-3.612-.287-9.727-6.098-13.658-5.81-3.931-12.502-4.19-14.946-.577-2.443 3.612.287 9.727 6.098 13.658z"
+          fill="#FC413D"
+        />
+      </g>
+      <g filter="url(#antigravity-b11)">
+        <path
+          d="M-.915 2.684c-1.44 3.473-.97 6.967 1.05 7.804 2.02.837 4.824-1.3 6.264-4.772 1.44-3.473.97-6.967-1.05-7.804-2.02-.837-4.824 1.3-6.264 4.772z"
+          fill="#FFEE48"
+        />
+      </g>
+    </g>
+    <defs>
+      <filter
+        id="antigravity-b1"
+        colorInterpolationFilters="sRGB"
+        filterUnits="userSpaceOnUse"
+        x="-3.288"
+        y="-11.917"
+        width="19.838"
+        height="17.587"
+      >
+        <feFlood floodOpacity="0" result="BackgroundImageFix" />
+        <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+        <feGaussianBlur result="blur" stdDeviation="1.117" />
+      </filter>
+      <filter
+        id="antigravity-b2"
+        colorInterpolationFilters="sRGB"
+        filterUnits="userSpaceOnUse"
+        x="4.251"
+        y="-13.493"
+        width="38.9"
+        height="38.565"
+      >
+        <feFlood floodOpacity="0" result="BackgroundImageFix" />
+        <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+        <feGaussianBlur result="blur" stdDeviation="5.4" />
+      </filter>
+      <filter
+        id="antigravity-b3"
+        colorInterpolationFilters="sRGB"
+        filterUnits="userSpaceOnUse"
+        x="-21.889"
+        y="-10.592"
+        width="40.955"
+        height="36.517"
+      >
+        <feFlood floodOpacity="0" result="BackgroundImageFix" />
+        <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+        <feGaussianBlur result="blur" stdDeviation="4.591" />
+      </filter>
+      <filter
+        id="antigravity-b4"
+        colorInterpolationFilters="sRGB"
+        filterUnits="userSpaceOnUse"
+        x="-21.889"
+        y="-10.592"
+        width="40.955"
+        height="36.517"
+      >
+        <feFlood floodOpacity="0" result="BackgroundImageFix" />
+        <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+        <feGaussianBlur result="blur" stdDeviation="4.591" />
+      </filter>
+      <filter
+        id="antigravity-b5"
+        colorInterpolationFilters="sRGB"
+        filterUnits="userSpaceOnUse"
+        x="-19.099"
+        y="-10.278"
+        width="36.632"
+        height="36.595"
+      >
+        <feFlood floodOpacity="0" result="BackgroundImageFix" />
+        <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+        <feGaussianBlur result="blur" stdDeviation="4.591" />
+      </filter>
+      <filter
+        id="antigravity-b6"
+        colorInterpolationFilters="sRGB"
+        filterUnits="userSpaceOnUse"
+        x=".981"
+        y="8.758"
+        width="33.533"
+        height="34.087"
+      >
+        <feFlood floodOpacity="0" result="BackgroundImageFix" />
+        <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+        <feGaussianBlur result="blur" stdDeviation="4.363" />
+      </filter>
+      <filter
+        id="antigravity-b7"
+        colorInterpolationFilters="sRGB"
+        filterUnits="userSpaceOnUse"
+        x="-6.143"
+        y="-21.659"
+        width="35.978"
+        height="35.276"
+      >
+        <feFlood floodOpacity="0" result="BackgroundImageFix" />
+        <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+        <feGaussianBlur result="blur" stdDeviation="3.954" />
+      </filter>
+      <filter
+        id="antigravity-b8"
+        colorInterpolationFilters="sRGB"
+        filterUnits="userSpaceOnUse"
+        x="-11.96"
+        y="-.46"
+        width="45.114"
+        height="46.523"
+      >
+        <feFlood floodOpacity="0" result="BackgroundImageFix" />
+        <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+        <feGaussianBlur result="blur" stdDeviation="3.531" />
+      </filter>
+      <filter
+        id="antigravity-b9"
+        colorInterpolationFilters="sRGB"
+        filterUnits="userSpaceOnUse"
+        x="10.485"
+        y=".58"
+        width="25.094"
+        height="24.054"
+      >
+        <feFlood floodOpacity="0" result="BackgroundImageFix" />
+        <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+        <feGaussianBlur result="blur" stdDeviation="3.159" />
+      </filter>
+      <filter
+        id="antigravity-b10"
+        colorInterpolationFilters="sRGB"
+        filterUnits="userSpaceOnUse"
+        x="5.833"
+        y="-12.467"
+        width="33.508"
+        height="30.007"
+      >
+        <feFlood floodOpacity="0" result="BackgroundImageFix" />
+        <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+        <feGaussianBlur result="blur" stdDeviation="2.669" />
+      </filter>
+      <filter
+        id="antigravity-b11"
+        colorInterpolationFilters="sRGB"
+        filterUnits="userSpaceOnUse"
+        x="-8.355"
+        y="-8.876"
+        width="22.194"
+        height="26.151"
+      >
+        <feFlood floodOpacity="0" result="BackgroundImageFix" />
+        <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+        <feGaussianBlur result="blur" stdDeviation="3.303" />
+      </filter>
+    </defs>
+  </svg>
+);
+
+// The frame follows the theme via currentColor (near-black in light, near-white
+// in dark, matching the brand's two variants); the inner square approximates
+// the brand grays (#CFCECD light / #4B4646 dark) with reduced opacity.
+export const OpenCodeSVG = () => (
+  <svg
+    width="32"
+    height="32"
+    viewBox="0 0 32 32"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>OpenCode</title>
+    <g transform="translate(3.2 0)">
+      <path
+        d="M19.2,25.6 L6.4,25.6 L6.4,12.8 L19.2,12.8 L19.2,25.6"
+        fill="currentColor"
+        fillOpacity="0.25"
+      />
+      <path
+        d="M19.2,6.4 L6.4,6.4 L6.4,25.6 L19.2,25.6 L19.2,6.4 M25.6,32 L0,32 L0,0 L25.6,0 L25.6,32"
+        fill="currentColor"
+      />
+    </g>
+  </svg>
+);
+
 export const RubyLLMSVG = () => (
   <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
     <g clipPath="url(#rubyllm-clip)">
@@ -1273,12 +1540,89 @@ export const TanStackAISVG = () => (
   </svg>
 );
 
+export const CursorSVG = () => (
+  <svg
+    width="32"
+    height="32"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    fillRule="evenodd"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>Cursor</title>
+    <path d="M22.106 5.68L12.5.135a.998.998 0 00-.998 0L1.893 5.68a.84.84 0 00-.419.726v11.186c0 .3.16.577.42.727l9.607 5.547a.999.999 0 00.998 0l9.608-5.547a.84.84 0 00.42-.727V6.407a.84.84 0 00-.42-.726zm-.603 1.176L12.228 22.92c-.063.108-.228.064-.228-.061V12.34a.59.59 0 00-.295-.51l-9.11-5.26c-.107-.062-.063-.228.062-.228h18.55c.264 0 .428.286.296.514z"></path>
+  </svg>
+);
+
+export const VSCodeSVG = () => (
+  <svg
+    width="32"
+    height="32"
+    viewBox="0 0 100 100"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>VS Code</title>
+    <mask
+      id="vscode_mask0"
+      maskUnits="userSpaceOnUse"
+      x="0"
+      y="0"
+      width="100"
+      height="100"
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M70.9119 99.3171C72.4869 99.9307 74.2828 99.8914 75.8725 99.1264L96.4608 89.2197C98.6242 88.1787 100 85.9892 100 83.5872V16.4133C100 14.0113 98.6243 11.8218 96.4609 10.7808L75.8725 0.873756C73.7862 -0.130129 71.3446 0.11576 69.5135 1.44695C69.252 1.63711 69.0028 1.84943 68.769 2.08341L29.3551 38.0415L12.1872 25.0096C10.589 23.7965 8.35363 23.8959 6.86933 25.2461L1.36303 30.2549C-0.452552 31.9064 -0.454633 34.7627 1.35853 36.417L16.2471 50.0001L1.35853 63.5832C-0.454633 65.2374 -0.452552 68.0938 1.36303 69.7453L6.86933 74.7541C8.35363 76.1043 10.589 76.2037 12.1872 74.9905L29.3551 61.9587L68.769 97.9167C69.3925 98.5406 70.1246 99.0104 70.9119 99.3171ZM75.0152 27.2989L45.1091 50.0001L75.0152 72.7012V27.2989Z"
+        fill="white"
+      />
+    </mask>
+    <g mask="url(#vscode_mask0)">
+      <path
+        d="M96.4614 10.7962L75.8569 0.875542C73.4719 -0.272773 70.6217 0.211611 68.75 2.08333L1.29858 63.5832C-0.515693 65.2373 -0.513607 68.0937 1.30308 69.7452L6.81272 74.754C8.29793 76.1042 10.5347 76.2036 12.1338 74.9905L93.3609 13.3699C96.086 11.3026 100 13.2462 100 16.6667V16.4275C100 14.0265 98.6246 11.8378 96.4614 10.7962Z"
+        fill="#0065A9"
+      />
+      <path
+        d="M96.4614 89.2038L75.8569 99.1245C73.4719 100.273 70.6217 99.7884 68.75 97.9167L1.29858 36.4169C-0.515693 34.7627 -0.513607 31.9063 1.30308 30.2548L6.81272 25.246C8.29793 23.8958 10.5347 23.7964 12.1338 25.0095L93.3609 86.6301C96.086 88.6974 100 86.7538 100 83.3334V83.5726C100 85.9735 98.6246 88.1622 96.4614 89.2038Z"
+        fill="#007ACC"
+      />
+      <path
+        d="M75.8578 99.1263C73.4721 100.274 70.6219 99.7885 68.75 97.9166C71.0564 100.223 75 98.5895 75 95.3278V4.67213C75 1.41039 71.0564 -0.223106 68.75 2.08329C70.6219 0.211402 73.4721 -0.273666 75.8578 0.873633L96.4587 10.7807C98.6234 11.8217 100 14.0112 100 16.4132V83.5871C100 85.9891 98.6234 88.1786 96.4586 89.2196L75.8578 99.1263Z"
+        fill="#1F9CF0"
+      />
+      <g style={{ mixBlendMode: "overlay" }} opacity="0.25">
+        <path
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M70.8511 99.3171C72.4261 99.9306 74.2221 99.8913 75.8117 99.1264L96.4 89.2197C98.5634 88.1787 99.9392 85.9892 99.9392 83.5871V16.4133C99.9392 14.0112 98.5635 11.8217 96.4001 10.7807L75.8117 0.873695C73.7255 -0.13019 71.2838 0.115699 69.4527 1.44688C69.1912 1.63705 68.942 1.84937 68.7082 2.08335L29.2943 38.0414L12.1264 25.0096C10.5283 23.7964 8.29285 23.8959 6.80855 25.246L1.30225 30.2548C-0.513334 31.9064 -0.515415 34.7627 1.29775 36.4169L16.1863 50L1.29775 63.5832C-0.515415 65.2374 -0.513334 68.0937 1.30225 69.7452L6.80855 74.754C8.29285 76.1042 10.5283 76.2036 12.1264 74.9905L29.2943 61.9586L68.7082 97.9167C69.3317 98.5405 70.0638 99.0104 70.8511 99.3171ZM74.9544 27.2989L45.0483 50L74.9544 72.7012V27.2989Z"
+          fill="url(#vscode_paint0_linear)"
+        />
+      </g>
+    </g>
+    <defs>
+      <linearGradient
+        id="vscode_paint0_linear"
+        x1="49.9392"
+        y1="0.257812"
+        x2="49.9392"
+        y2="99.7423"
+        gradientUnits="userSpaceOnUse"
+      >
+        <stop stopColor="white" />
+        <stop offset="1" stopColor="white" stopOpacity="0" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
+
 /**
  * Registry of all integration icons keyed by component name.
  * Used by stories and anywhere a complete list is needed.
  */
 export const INTEGRATION_ICONS: Record<string, () => React.JSX.Element> = {
   AgnoSVG,
+  AntigravitySVG,
   AnthropicSVG,
   AutogenSVG,
   BasetenSVG,
@@ -1287,6 +1631,7 @@ export const INTEGRATION_ICONS: Record<string, () => React.JSX.Element> = {
   ClaudeSVG,
   CloudflareSVG,
   CrewAISVG,
+  CursorSVG,
   DifySVG,
   DSPYSVG,
   GeminiSVG,
@@ -1305,6 +1650,7 @@ export const INTEGRATION_ICONS: Record<string, () => React.JSX.Element> = {
   MistralAISVG,
   NodeJSSVG,
   OpenAISVG,
+  OpenCodeSVG,
   OpenRouterSVG,
   PortkeySVG,
   PydanticAISVG,
@@ -1314,4 +1660,5 @@ export const INTEGRATION_ICONS: Record<string, () => React.JSX.Element> = {
   TraceLoopSVG,
   VercelSVG,
   VertexAISVG,
+  VSCodeSVG,
 };

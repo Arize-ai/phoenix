@@ -1,6 +1,6 @@
 import type { Chat } from "@ai-sdk/react";
-import type { UIMessage } from "ai";
 
+import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 /**
  * For the workflow to add, edit, or remove a PXI tool, see the `defineTool` /
  * `defineClientActionTool` helpers in
@@ -13,8 +13,8 @@ import {
 } from "@phoenix/agent/extensions/toolRegistry";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
-type AddToolOutput = Chat<UIMessage>["addToolOutput"];
-type AppendMessagePart = (part: UIMessage["parts"][number]) => void;
+type AddToolOutput = Chat<AgentUIMessage>["addToolOutput"];
+type AppendMessagePart = (part: AgentUIMessage["parts"][number]) => void;
 
 /** Arguments needed to forward one tool call into the frontend registry. */
 type HandleAgentToolCallOptions = {

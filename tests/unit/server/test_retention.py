@@ -2,7 +2,7 @@ from asyncio import Event, sleep
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any, AsyncIterator
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import sqlalchemy as sa
@@ -448,3 +448,109 @@ async def sweeper_trigger() -> AsyncIterator[Event]:
 
     with patch.object(TraceDataSweeper, "_sleep_until_next_hour", wait_for_event):
         yield event
+
+
+class TestOrphanSessionSweep:
+    """_delete_orphan_sessions removes sessions with no remaining traces once
+    their last activity (end_time) is older than the grace period.
+    """
+
+    @staticmethod
+    def _sweeper(db: DbSessionFactory) -> TraceDataSweeper:
+        sweeper = TraceDataSweeper(db=db, dml_event_handler=MagicMock())
+        # The batch loop checks self._running; start() is deliberately not called
+        # so the sweep can be driven synchronously.
+        sweeper._running = True
+        return sweeper
+
+    @staticmethod
+    async def _add_session(
+        session: Any,
+        project_id: int,
+        end_time: datetime,
+        with_trace: bool,
+    ) -> int:
+        project_session = models.ProjectSession(
+            session_id=token_hex(8),
+            project_id=project_id,
+            start_time=end_time - timedelta(minutes=5),
+            end_time=end_time,
+        )
+        session.add(project_session)
+        await session.flush()
+        if with_trace:
+            session.add(
+                models.Trace(
+                    trace_id=token_hex(16),
+                    project_rowid=project_id,
+                    project_session_rowid=project_session.id,
+                    start_time=end_time - timedelta(minutes=5),
+                    end_time=end_time,
+                )
+            )
+            await session.flush()
+        return int(project_session.id)
+
+    async def test_deletes_only_old_orphans(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        old, recent = now - timedelta(hours=2), now - timedelta(minutes=10)
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+            await session.flush()
+            old_orphan = await self._add_session(session, project.id, old, with_trace=False)
+            recent_orphan = await self._add_session(session, project.id, recent, with_trace=False)
+            old_with_trace = await self._add_session(session, project.id, old, with_trace=True)
+            recent_with_trace = await self._add_session(
+                session, project.id, recent, with_trace=True
+            )
+            # An annotation on the old orphan must cascade away with the session.
+            session.add(
+                models.ProjectSessionAnnotation(
+                    project_session_id=old_orphan,
+                    name=token_hex(4),
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="APP",
+                )
+            )
+
+        await self._sweeper(db)._delete_orphan_sessions()
+
+        async with db() as session:
+            remaining = set((await session.scalars(sa.select(models.ProjectSession.id))).all())
+            num_annotations = await session.scalar(
+                sa.select(func.count(models.ProjectSessionAnnotation.id))
+            )
+        assert old_orphan not in remaining, "old orphan should be deleted"
+        assert {recent_orphan, old_with_trace, recent_with_trace} <= remaining, (
+            "recent orphans and sessions with traces should be kept"
+        )
+        assert num_annotations == 0, "the deleted session's annotation should cascade away"
+
+    async def test_deletes_in_batches(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        num_orphans = 3
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+            await session.flush()
+            orphan_ids = {
+                await self._add_session(
+                    session, project.id, now - timedelta(hours=2), with_trace=False
+                )
+                for _ in range(num_orphans)
+            }
+
+        with patch("phoenix.server.retention._ORPHAN_SESSION_DELETE_BATCH_SIZE", 1):
+            await self._sweeper(db)._delete_orphan_sessions()
+
+        async with db() as session:
+            remaining = set((await session.scalars(sa.select(models.ProjectSession.id))).all())
+        assert not (orphan_ids & remaining), "all orphans should be deleted across batches"

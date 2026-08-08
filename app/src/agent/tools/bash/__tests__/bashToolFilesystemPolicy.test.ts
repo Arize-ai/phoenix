@@ -24,12 +24,23 @@ describe("bash tool filesystem policy", () => {
     expect(result.stdout).toBe("ok");
   });
 
-  it("still blocks writes outside the workspace", async () => {
+  it("allows writes to /tmp", async () => {
+    const runtime = await createBashToolRuntime();
+
+    const result = await runtime.executeCommand(
+      "printf 'help' > /tmp/help && cat /tmp/help"
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("help");
+  });
+
+  it("still blocks writes outside scratch directories", async () => {
     const runtime = await createBashToolRuntime();
 
     await expect(
       runtime.executeCommand("printf 'nope' > /etc/passwd")
-    ).rejects.toThrow("Writes outside the workspace are blocked");
+    ).rejects.toThrow("Writes outside scratch directories are blocked");
   });
 
   it("still allows workspace writes", async () => {

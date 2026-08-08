@@ -1,8 +1,8 @@
 import {
   Icon,
   Icons,
-  ToggleButton,
-  ToggleButtonGroup,
+  SegmentedControl,
+  SegmentedControlItem,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
@@ -23,38 +23,34 @@ export function AIMessageContentRadioGroup({
   onChange: (messageMode: AIMessageMode) => void;
 }) {
   return (
-    <ToggleButtonGroup
-      selectedKeys={[messageMode]}
+    <SegmentedControl
+      selectedKey={messageMode}
       size="S"
       aria-label="Message Mode"
-      onSelectionChange={(v) => {
-        if (v.size === 0) {
-          return;
-        }
-        const mode = v.keys().next().value;
+      onSelectionChange={(mode) => {
         if (typeof mode === "string" && isAIMessageMode(mode)) {
           onChange(mode);
         }
       }}
     >
       <TooltipTrigger delay={0}>
-        <ToggleButton aria-label="text input" id={"text"}>
-          <Icon svg={<Icons.MessageSquareOutline />} />
-        </ToggleButton>
+        <SegmentedControlItem aria-label="text input" id="text">
+          <Icon svg={<Icons.MessageSquare />} />
+        </SegmentedControlItem>
         <Tooltip placement="top">
           <TooltipArrow />
           Text input
         </Tooltip>
       </TooltipTrigger>
       <TooltipTrigger delay={0}>
-        <ToggleButton aria-label="tool calling" id={"toolCalls"}>
+        <SegmentedControlItem aria-label="tool calling" id="toolCalls">
           <Icon svg={<Icons.Code />} />
-        </ToggleButton>
+        </SegmentedControlItem>
         <Tooltip placement="top">
           <TooltipArrow />
           Tool calling
         </Tooltip>
       </TooltipTrigger>
-    </ToggleButtonGroup>
+    </SegmentedControl>
   );
 }

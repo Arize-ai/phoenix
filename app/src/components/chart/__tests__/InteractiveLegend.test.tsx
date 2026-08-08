@@ -1,6 +1,6 @@
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { DefaultLegendContentProps } from "recharts";
+import type { DefaultLegendContentProps, LegendPayload } from "recharts";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -36,16 +36,14 @@ function findLegendButton(label: string) {
 }
 
 function TestChart({
-  defaultHiddenDataKeys,
   legendProps,
 }: {
-  defaultHiddenDataKeys?: string[];
   legendProps?: Partial<
     Omit<InteractiveLegendProps, "hiddenDataKeys" | "onToggleDataKey">
   >;
 }) {
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
-    useInteractiveLegend({ defaultHiddenDataKeys });
+    useInteractiveLegend();
 
   return (
     <>
@@ -116,16 +114,6 @@ describe("InteractiveLegend", () => {
     container.remove();
   });
 
-  it("renders legend items as toggle buttons", () => {
-    act(() => {
-      root.render(<TestChart />);
-    });
-
-    const uvButton = findLegendButton("Hide uv");
-    expect(uvButton.type).toBe("button");
-    expect(uvButton.getAttribute("aria-pressed")).toBe("true");
-  });
-
   it("toggles a chart item when its legend item is clicked", () => {
     act(() => {
       root.render(<TestChart />);
@@ -149,14 +137,28 @@ describe("InteractiveLegend", () => {
     expect(uvButton.getAttribute("data-inactive")).toBe("true");
   });
 
-  it("supports initially hidden chart items", () => {
+  it("renders supplemental entries without data keys as static items", () => {
+    const additionalLegendItems: ReadonlyArray<LegendPayload> = [
+      {
+        value: "Baseline",
+        type: "plainline",
+        color: "#4338ca",
+        payload: { strokeDasharray: "4 4" },
+      },
+    ];
+
     act(() => {
-      root.render(<TestChart defaultHiddenDataKeys={["pv"]} />);
+      root.render(<TestChart legendProps={{ additionalLegendItems }} />);
     });
 
-    expect(findLegendButton("Show pv").getAttribute("aria-pressed")).toBe(
-      "false"
-    );
+    const baselineItem = Array.from(
+      container.querySelectorAll(".recharts-legend-item")
+    ).find((element) => element.textContent === "Baseline");
+    expect(baselineItem).toBeTruthy();
+    expect(baselineItem?.querySelector("button")).toBeNull();
+    expect(
+      baselineItem?.querySelector("line")?.getAttribute("stroke-dasharray")
+    ).toBe("4 4");
   });
 
   it("calls the provided legend onClick before toggling", () => {

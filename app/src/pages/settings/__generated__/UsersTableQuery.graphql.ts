@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<e4088522a871fa236d2a61e6b7ea85cb>>
+ * @generated SignedSource<<0a5fbf362c979ffa871912b2270e7b47>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -56,13 +55,13 @@ v2 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "UsersTableQuery",
     "selections": [
       {
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "kind": "FragmentSpread",
         "name": "UsersTable_users"
       }
@@ -72,13 +71,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "UsersTableQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "UserConnection",
         "kind": "LinkedField",
         "name": "users",
@@ -100,7 +99,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
+                  (v2/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -139,6 +138,20 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "apiKeyCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "oauth2GrantCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "UserRole",
                     "kind": "LinkedField",
                     "name": "role",
@@ -151,7 +164,7 @@ return {
                         "name": "name",
                         "storageKey": null
                       },
-                      (v2/*: any*/)
+                      (v2/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -180,7 +193,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v2/*: any*/)
+                  (v2/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -217,7 +230,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "filters": null,
         "handle": "connection",
         "key": "UsersTable_users",
@@ -227,16 +240,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "989bed145551c10e1be0202ba01f29a6",
+    "cacheID": "8ab6e274533a0b434e084b991c1dc8bf",
     "id": null,
     "metadata": {},
     "name": "UsersTableQuery",
     "operationKind": "query",
-    "text": "query UsersTableQuery(\n  $after: String = null\n  $first: Int = 50\n) {\n  ...UsersTable_users_2HEEH6\n}\n\nfragment UsersTable_users_2HEEH6 on Query {\n  users(first: $first, after: $after) {\n    edges {\n      user: node {\n        id\n        email\n        username\n        createdAt\n        authMethod\n        profilePictureUrl\n        role {\n          name\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query UsersTableQuery(\n  $after: String = null\n  $first: Int = 50\n) {\n  ...UsersTable_users_2HEEH6\n}\n\nfragment UsersTable_users_2HEEH6 on Query {\n  users(first: $first, after: $after) {\n    edges {\n      user: node {\n        id\n        email\n        username\n        createdAt\n        authMethod\n        profilePictureUrl\n        apiKeyCount\n        oauth2GrantCount\n        role {\n          name\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3e71021826f5285ec7804bb7637703fd";
+(node as any).hash = "5b4963381bc87826b05613c71720c77a";
 
 export default node;

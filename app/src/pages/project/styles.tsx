@@ -7,12 +7,9 @@ export const spansTableCSS = css`
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  .span-filter-condition-field {
-    flex: 1 1 auto;
-  }
 
   // Style the column selector
   .dropdown__button {
-    min-width: var(--global-dimension-static-size-300);
+    min-width: var(--global-dimension-size-300);
   }
 `;

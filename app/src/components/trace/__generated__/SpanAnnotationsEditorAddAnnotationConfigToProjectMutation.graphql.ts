@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<8b1f23c362fea2ef2b9ce9f5cc9dd31f>>
+ * @generated SignedSource<<9e8b46884f2c99f1789f700af12f1f9a>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -87,10 +86,10 @@ v6 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/),
-      (v3/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/),
+      (v2/*:: as any*/),
+      (v3/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -98,7 +97,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v4/*: any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": "AddAnnotationConfigToProjectPayload",
         "kind": "LinkedField",
         "name": "addAnnotationConfigToProject",
@@ -114,7 +113,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v5/*: any*/),
+                "args": (v5/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -123,7 +122,7 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v6/*: any*/),
+                      (v6/*:: as any*/),
                       {
                         "args": [
                           {
@@ -155,17 +154,17 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v2/*: any*/),
-      (v0/*: any*/),
-      (v3/*: any*/),
-      (v1/*: any*/)
+      (v2/*:: as any*/),
+      (v0/*:: as any*/),
+      (v3/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "SpanAnnotationsEditorAddAnnotationConfigToProjectMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v4/*: any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": "AddAnnotationConfigToProjectPayload",
         "kind": "LinkedField",
         "name": "addAnnotationConfigToProject",
@@ -181,7 +180,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v5/*: any*/),
+                "args": (v5/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -194,7 +193,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v6/*: any*/),
+                  (v6/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -233,7 +232,7 @@ return {
                         "name": "spanAnnotations",
                         "plural": true,
                         "selections": [
-                          (v6/*: any*/),
+                          (v6/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,

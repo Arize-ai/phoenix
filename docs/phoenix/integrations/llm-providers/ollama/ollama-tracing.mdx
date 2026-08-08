@@ -1,0 +1,67 @@
+---
+title: "Ollama Tracing"
+description: Instrument LLM calls made with the Ollama Python client via the OllamaInstrumentor
+---
+
+[Ollama](https://ollama.com/) lets you run open-weight large language models locally and call them through a simple Python client. The [Ollama Python client](https://github.com/ollama/ollama-python) can be instrumented using the [`openinference-instrumentation-ollama`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-ollama) package.
+
+## Coverage
+
+The instrumentor traces `chat` calls made through `ollama.chat`, `ollama.Client.chat`, and `ollama.AsyncClient.chat`, including streaming responses (`stream=True`) and tool calls. It captures input and output messages, token counts, the model name (also on error spans), and invocation parameters. When plain Python functions are passed as tools, their schemas are captured under `llm.tools.N.tool.json_schema`.
+
+Other client methods — including `generate` and `embed`/`embeddings` — are not currently traced.
+
+## Install
+
+```bash
+pip install openinference-instrumentation-ollama "ollama>=0.4.0"
+```
+
+## Setup
+
+Make sure a local Ollama server is running and the model you want to use has been pulled, for example `ollama pull llama3.2`.
+
+Connect your application to Phoenix and instrument the Ollama client:
+
+```python
+from openinference.instrumentation.ollama import OllamaInstrumentor
+from phoenix.otel import register
+
+# Configure the Phoenix tracer
+tracer_provider = register(project_name="my-llm-app")
+
+OllamaInstrumentor().instrument(tracer_provider=tracer_provider)
+```
+
+Instrument the client before you import or call it. Aliases captured before instrumentation are not traced — for example, `from ollama import chat` binds the unwrapped method at import time, so calls to that alias will not produce spans. Instrument first, or call `ollama.chat(...)` via the module attribute.
+
+## Run Ollama
+
+```python
+import ollama
+
+response = ollama.chat(
+    model="llama3.2",
+    messages=[
+        {
+            "role": "user",
+            "content": "Explain the importance of running LLMs locally.",
+        }
+    ],
+)
+print(response.message.content)
+```
+
+For streaming, async (`AsyncClient.chat`), and tool-call examples, see the [example scripts](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-ollama/examples) in the OpenInference package.
+
+## Observe
+
+Now that you have tracing setup, all `chat` calls made through your Ollama application will be streamed to your running Phoenix for observability and evaluation.
+
+## Resources
+
+* [Example chat](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-ollama/examples/chat.py)
+
+* [Example streaming and tools](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-ollama/examples/streaming_and_tools.py)
+
+* [OpenInference package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-ollama)

@@ -88,10 +88,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
         </Flex>
         <Flex direction="row" gap="size-100" alignItems="center">
           <DialogTrigger>
-            <Button
-              size="S"
-              leadingVisual={<Icon svg={<Icons.EditOutline />} />}
-            >
+            <Button size="S" leadingVisual={<Icon svg={<Icons.Edit />} />}>
               Annotate
             </Button>
             <ModalOverlay>

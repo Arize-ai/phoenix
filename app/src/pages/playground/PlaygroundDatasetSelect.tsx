@@ -95,9 +95,10 @@ export function PlaygroundDatasetSelect({
       {datasetId ? (
         <Button
           className="dataset-clear-button"
+          aria-label="Clear dataset"
           size="S"
           isDisabled={isDisabled}
-          leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Close />} />}
           onPress={() => {
             setDatasetId(null);
             setSearchParams((prev) => {

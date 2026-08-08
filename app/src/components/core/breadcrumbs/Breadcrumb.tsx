@@ -13,6 +13,7 @@ const breadcrumbCSS = css`
 
   a {
     color: var(--global-text-color-700);
+    border-radius: var(--global-rounding-small);
     text-decoration: none;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -49,7 +50,7 @@ function Breadcrumb({
       {({ isCurrent }) => (
         <>
           {children}
-          {!isCurrent && <Icon svg={<Icons.ChevronRight />} />}
+          {!isCurrent && <Icon svg={<Icons.ChevronRightSmall />} />}
         </>
       )}
     </AriaBreadcrumb>

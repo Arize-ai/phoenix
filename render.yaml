@@ -1,0 +1,54 @@
+# Render Blueprint for Arize Phoenix
+# https://render.com/docs/infrastructure-as-code
+#
+# One-click deploy: https://render.com/deploy?repo=https://github.com/Arize-ai/phoenix
+#
+# This blueprint runs the official Phoenix Docker image alongside a managed
+# PostgreSQL database. Authentication is enabled by default: Render generates a
+# strong PHOENIX_SECRET for you, and the first login uses the default admin
+# account (email: admin@localhost, password: admin). You will be required to
+# set a new password on first login.
+services:
+  - type: web
+    name: phoenix
+    runtime: image
+    image:
+      url: docker.io/arizephoenix/phoenix:latest
+    # Phoenix needs more than the 512MB starter instance — heavy span queries
+    # will OOM the process, and Render serves 404s while it restarts.
+    plan: standard
+    autoDeploy: false
+    healthCheckPath: /healthz
+    envVars:
+      - key: PORT
+        value: "6006"
+      - key: PHOENIX_PORT
+        value: "6006"
+      # --- Authentication (enabled by default) ---
+      - key: PHOENIX_ENABLE_AUTH
+        value: "true"
+      # Phoenix requires the secret to contain at least one digit. Render's
+      # generated value almost always satisfies this; in the rare case the
+      # container exits with a PHOENIX_SECRET validation error, regenerate the
+      # value or set your own (32+ chars with a digit and a lowercase letter).
+      - key: PHOENIX_SECRET
+        generateValue: true
+      - key: PHOENIX_USE_SECURE_COOKIES
+        value: "true"
+      # Optional: uncomment and set to override the default admin password
+      # ("admin"). Either way, you will still be required to change the
+      # password on first login.
+      # - key: PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD
+      #   sync: false
+      # --- Persistent storage ---
+      - key: PHOENIX_SQL_DATABASE_URL
+        fromDatabase:
+          name: phoenix-db
+          property: connectionString
+
+databases:
+  - name: phoenix-db
+    plan: basic-1gb
+    diskSizeGB: 50
+    databaseName: phoenix
+    user: phoenix

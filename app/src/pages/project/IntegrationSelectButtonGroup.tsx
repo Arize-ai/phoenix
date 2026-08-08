@@ -126,7 +126,13 @@ export function IntegrationSelectButtonGroup({
           size="S"
           trailingVisual={
             <Icon
-              svg={isExpanded ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+              svg={
+                isExpanded ? (
+                  <Icons.ChevronUpSmall />
+                ) : (
+                  <Icons.ChevronDownSmall />
+                )
+              }
             />
           }
           onPress={() => setIsExpanded((prev) => !prev)}

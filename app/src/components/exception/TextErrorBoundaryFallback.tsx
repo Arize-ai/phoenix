@@ -25,7 +25,7 @@ export function TextErrorBoundaryFallback({
         cursor: ${error ? "help" : "default"};
       `}
     >
-      <Icon svg={<Icons.AlertCircleOutline />} />
+      <Icon svg={<Icons.AlertCircle />} />
       <Text color="text-300">error</Text>
     </div>
   );
@@ -51,7 +51,7 @@ export function TextErrorBoundaryFallback({
               white-space: pre-wrap;
               overflow-wrap: break-word;
               margin: 0;
-              font-size: var(--ac-global-font-size-xs, 12px);
+              font-size: var(--global-font-size-xs, 12px);
             `}
           >
             {error}

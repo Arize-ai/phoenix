@@ -151,10 +151,11 @@ export function ExperimentCompareListPage({
   const { getExperimentColor, baseExperimentColor } = useExperimentColors();
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const preloadedData = usePreloadedQuery(
-    ExperimentComparePageQueriesCompareListQuery,
-    queryRef
-  );
+  const preloadedData =
+    usePreloadedQuery<ExperimentComparePageQueriesCompareListQueryType>(
+      ExperimentComparePageQueriesCompareListQuery,
+      queryRef
+    );
 
   const aggregateData =
     useFragment<ExperimentCompareListPage_aggregateData$key>(
@@ -167,7 +168,7 @@ export function ExperimentCompareListPage({
           dataset: node(id: $datasetId) {
             ... on Dataset {
               id
-              experimentAnnotationSummaries {
+              experimentAnnotationSummaries(includeEphemeral: true) {
                 annotationName
                 minScore
                 maxScore
@@ -356,12 +357,12 @@ export function ExperimentCompareListPage({
   }, [aggregateData?.dataset.datasetEvaluators?.edges]);
 
   const annotationConfigsByName = useMemo(() => {
-    return annotationConfigs.reduce(
+    return annotationConfigs.reduce<Record<string, AnnotationConfig>>(
       (acc, config) => {
         acc[config.name] = config;
         return acc;
       },
-      {} as Record<string, AnnotationConfig>
+      {}
     );
   }, [annotationConfigs]);
 
@@ -533,7 +534,7 @@ export function ExperimentCompareListPage({
                   flex: none;
                 `}
               >
-                <Icon svg={<Icons.ExpandOutline />} />
+                <Icon svg={<Icons.Expand />} />
               </IconButton>
               <Tooltip>
                 <TooltipArrow />
@@ -756,9 +757,9 @@ export function ExperimentCompareListPage({
                 className="sort-icon"
                 svg={
                   column.getIsSorted() === "asc" ? (
-                    <Icons.ArrowUpFilled />
+                    <Icons.CaretUpFilled />
                   ) : (
-                    <Icons.ArrowDownFilled />
+                    <Icons.CaretDownFilled />
                   )
                 }
               />
@@ -960,9 +961,9 @@ export function ExperimentCompareListPage({
                           className="sort-icon"
                           svg={
                             headerContext.column.getIsSorted() === "asc" ? (
-                              <Icons.ArrowUpFilled />
+                              <Icons.CaretUpFilled />
                             ) : (
-                              <Icons.ArrowDownFilled />
+                              <Icons.CaretDownFilled />
                             )
                           }
                         />
@@ -1155,15 +1156,10 @@ export function ExperimentCompareListPage({
       const sort = sorting[0];
       const dir: SortDir = sort.desc ? "desc" : "asc";
       const sortId = sort.id;
-      let metric: ExperimentRunMetric | undefined = undefined;
-      let annotationName: string | undefined = undefined;
-      if (isExperimentRunMetric(sortId)) {
-        metric = sortId;
-      } else {
-        annotationName = sortId;
-      }
       gqlSort = {
-        col: { metric, annotationName },
+        col: isExperimentRunMetric(sortId)
+          ? { metric: sortId }
+          : { annotationName: sortId },
         dir,
       };
     }
@@ -1410,8 +1406,7 @@ function AnnotationValueItem({
       css={css`
         --mod-barloader-fill-color: ${optimizedBarColor};
         ${bgColor ? `background-color: ${bgColor};` : ""}
-        padding: var(--global-dimension-size-25)
-          var(--global-dimension-size-50);
+        padding: var(--global-dimension-size-25) var(--global-dimension-size-50);
         border-radius: var(--global-rounding-small);
         margin: calc(-1 * var(--global-dimension-size-25))
           calc(-1 * var(--global-dimension-size-50));

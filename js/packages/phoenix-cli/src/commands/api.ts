@@ -1,10 +1,16 @@
 import { Command } from "commander";
 
+import { createOAuthFetch, hasOAuthCredentials } from "../authFetch";
 import type { PhoenixConfig } from "../config";
-import { getConfigErrorMessage, resolveConfig } from "../config";
+import {
+  getConfigErrorMessage,
+  resolveConfig,
+  validateConfig,
+} from "../config";
 import { renderCurlCommand } from "../curl";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
+import type { ConnectionOptions } from "./options";
 
 /**
  * Returns true if the query string is a GraphQL mutation or subscription.
@@ -15,10 +21,26 @@ export function isNonQuery({ query }: { query: string }): boolean {
   return /^\s*(mutation|subscription)[\s({]/m.test(stripped);
 }
 
-interface ApiGraphqlOptions {
-  endpoint?: string;
-  apiKey?: string;
+/**
+ * Options for `px api graphql`.
+ */
+interface ApiGraphqlOptions extends ConnectionOptions {
+  /**
+   * `--curl`: Print the equivalent curl command instead of executing the
+   * request.
+   *
+   * @example true // px api graphql '{ projects { edges { node { name } } } }' --curl
+   */
   curl?: boolean;
+  /**
+   * `--show-token`: Reveal the raw `Authorization` token in the printed curl
+   * command instead of masking it. Only valid together with `--curl`; the
+   * handler rejects it otherwise. Handle with care — the printed command
+   * contains a usable, plaintext API key, so it's easy to accidentally leak
+   * via shell history, a pasted bug report, or a chat log.
+   *
+   * @example true // px api graphql '...' --curl --show-token
+   */
   showToken?: boolean;
 }
 
@@ -46,6 +68,8 @@ export function buildGraphqlRequest({
   };
   if (config.apiKey) {
     headers["Authorization"] = `Bearer ${config.apiKey}`;
+  } else if (config.oauthTokens) {
+    headers["Authorization"] = `Bearer ${config.oauthTokens.accessToken}`;
   }
 
   return {
@@ -82,13 +106,10 @@ async function apiGraphqlHandler(
       cliOptions: { endpoint: options.endpoint, apiKey: options.apiKey },
     });
 
-    if (!config.endpoint) {
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
       writeError({
-        message: getConfigErrorMessage({
-          errors: [
-            "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
-          ],
-        }),
+        message: getConfigErrorMessage({ errors: validation.errors }),
       });
       process.exit(ExitCode.INVALID_ARGUMENT);
     }
@@ -112,7 +133,10 @@ async function apiGraphqlHandler(
     }
 
     // 4. POST using Node 22 built-in fetch
-    const response = await fetch(request.url, {
+    const apiFetch = hasOAuthCredentials(config)
+      ? createOAuthFetch({ config })
+      : fetch;
+    const response = await apiFetch(request.url, {
       method: request.method,
       headers: request.headers,
       body: request.body,
@@ -122,6 +146,10 @@ async function apiGraphqlHandler(
       writeError({
         message: `Error: HTTP ${response.status} ${response.statusText} from ${request.url}`,
       });
+      if (response.status === 401 && config.credentialSource === "oauth") {
+        writeError({ message: "Session expired. Run: px auth login" });
+        process.exit(ExitCode.AUTH_REQUIRED);
+      }
       if (response.status === 401 || response.status === 403) {
         process.exit(ExitCode.AUTH_REQUIRED);
       }
@@ -182,7 +210,10 @@ function createApiGraphqlCommand(): Command {
         "  Auth tokens are masked by default. Use --show-token with --curl to reveal them."
     )
     .argument("<query>", "GraphQL query string")
-    .option("--endpoint <url>", "Phoenix API endpoint (or set PHOENIX_HOST)")
+    .option(
+      "--endpoint <url>",
+      "Phoenix API endpoint (or set PHOENIX_ENDPOINT)"
+    )
     .option("--api-key <key>", "Phoenix API key (or set PHOENIX_API_KEY)")
     .option(
       "--curl",

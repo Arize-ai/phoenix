@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<e60a1564b12b64b2c1bd32a9acfc6e23>>
+ * @generated SignedSource<<939125c03fc510c3cc13d32b6ca074e2>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -108,7 +107,7 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v0/*: any*/)
+                        (v0/*:: as any*/)
                       ],
                       "type": "TraceRetentionRuleMaxCount",
                       "abstractKey": null
@@ -116,7 +115,7 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v1/*: any*/)
+                        (v1/*:: as any*/)
                       ],
                       "type": "TraceRetentionRuleMaxDays",
                       "abstractKey": null
@@ -124,8 +123,8 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v1/*: any*/),
-                        (v0/*: any*/)
+                        (v1/*:: as any*/),
+                        (v0/*:: as any*/)
                       ],
                       "type": "TraceRetentionRuleMaxDaysOrCount",
                       "abstractKey": null

@@ -13,7 +13,7 @@
         ],
         "summary": "List annotation configurations",
         "description": "Retrieve a paginated list of all annotation configurations in the system.",
-        "operationId": "list_annotation_configs_v1_annotation_configs_get",
+        "operationId": "listAnnotationConfigs",
         "parameters": [
           {
             "name": "cursor",
@@ -85,7 +85,7 @@
           "annotation_configs"
         ],
         "summary": "Create an annotation configuration",
-        "operationId": "create_annotation_config_v1_annotation_configs_post",
+        "operationId": "createAnnotationConfig",
         "requestBody": {
           "required": true,
           "content": {
@@ -136,7 +136,7 @@
           "annotation_configs"
         ],
         "summary": "Get an annotation configuration by ID or name",
-        "operationId": "get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get",
+        "operationId": "getAnnotationConfig",
         "parameters": [
           {
             "name": "config_identifier",
@@ -190,7 +190,7 @@
           "annotation_configs"
         ],
         "summary": "Update an annotation configuration",
-        "operationId": "update_annotation_config_v1_annotation_configs__config_id__put",
+        "operationId": "updateAnnotationConfig",
         "parameters": [
           {
             "name": "config_id",
@@ -252,7 +252,7 @@
           "annotation_configs"
         ],
         "summary": "Delete an annotation configuration",
-        "operationId": "delete_annotation_config_v1_annotation_configs__config_id__delete",
+        "operationId": "deleteAnnotationConfig",
         "parameters": [
           {
             "name": "config_id",
@@ -296,6 +296,318 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_identifier}/annotation_configs": {
+      "get": {
+        "tags": [
+          "annotation_configs"
+        ],
+        "summary": "List annotation configurations assigned to a project",
+        "description": "Retrieve a paginated list of the annotation configurations assigned to a project, identified by either project ID or project name.",
+        "operationId": "getProjectAnnotationConfigs",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (base64-encoded annotation config ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (base64-encoded annotation config ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "Maximum number of configs to return",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of configs to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of the project's annotation configurations with pagination information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetProjectAnnotationConfigsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "annotation_configs"
+        ],
+        "summary": "Replace the set of annotation configurations assigned to a project",
+        "description": "Replace the project's entire set of assigned annotation configurations with the provided set. The server diffs the desired set against the current set: configs in the body but not assigned are added, and configs assigned but not in the body are removed. An empty array clears all assignments.",
+        "operationId": "setProjectAnnotationConfigs",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProjectAnnotationConfigsRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The resulting set of annotation configurations assigned to the project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetProjectAnnotationConfigsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_identifier}/annotation_configs/{config_identifier}": {
+      "put": {
+        "tags": [
+          "annotation_configs"
+        ],
+        "summary": "Assign an annotation configuration to a project",
+        "description": "Assign an annotation configuration to a project. This operation is idempotent: re-assigning a config that is already assigned is a no-op that returns the config. Both the project and the config are identified by either ID or name.",
+        "operationId": "assignAnnotationConfigToProject",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name."
+          },
+          {
+            "name": "config_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The annotation configuration identifier: either ID or name.",
+              "title": "Config Identifier"
+            },
+            "description": "The annotation configuration identifier: either ID or name."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The annotation configuration assigned to the project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignAnnotationConfigToProjectResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "annotation_configs"
+        ],
+        "summary": "Unassign an annotation configuration from a project",
+        "description": "Unassign an annotation configuration from a project. This operation is idempotent: unassigning a config that is not currently assigned is a no-op. The underlying annotation config is not deleted. Both the project and the config are identified by either ID or name.",
+        "operationId": "unassignAnnotationConfigFromProject",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name."
+          },
+          {
+            "name": "config_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The annotation configuration identifier: either ID or name.",
+              "title": "Config Identifier"
+            },
+            "description": "The annotation configuration identifier: either ID or name."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful unassignment"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         }
       }
@@ -1343,6 +1655,623 @@
               }
             },
             "description": "Invalid parameters"
+          }
+        }
+      }
+    },
+    "/v1/dataset_labels": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "List dataset labels",
+        "description": "Retrieve a paginated list of all dataset labels in the system.",
+        "operationId": "listDatasetLabels",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (a dataset label GlobalID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (a dataset label GlobalID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "The max number of dataset labels to return at a time.",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The max number of dataset labels to return at a time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDatasetLabelsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Create a dataset label",
+        "operationId": "createDatasetLabel",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDatasetLabelRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateDatasetLabelResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A dataset label with the same name already exists"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid request body"
+          }
+        }
+      }
+    },
+    "/v1/dataset_labels/{label_id}": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Get a dataset label by ID",
+        "operationId": "getDatasetLabel",
+        "parameters": [
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset label",
+              "title": "Label Id"
+            },
+            "description": "The ID of the dataset label"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDatasetLabelResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset label not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset label ID"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Update a dataset label by ID",
+        "description": "Partially update a dataset label's name, color, and/or description. Only the fields included in the request body are changed; omitted fields are left as-is.",
+        "operationId": "updateDatasetLabel",
+        "parameters": [
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset label",
+              "title": "Label Id"
+            },
+            "description": "The ID of the dataset label"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDatasetLabelRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateDatasetLabelResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset label not found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A dataset label with the same name already exists"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset label ID or request body"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Delete a dataset label by ID",
+        "description": "Delete a dataset label. This also removes the label from every dataset it is applied to.",
+        "operationId": "deleteDatasetLabel",
+        "parameters": [
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset label",
+              "title": "Label Id"
+            },
+            "description": "The ID of the dataset label"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset label not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset label ID"
+          }
+        }
+      }
+    },
+    "/v1/datasets/{dataset_identifier}/labels": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "List the labels applied to a dataset",
+        "operationId": "listDatasetLabelsForDataset",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either the dataset ID (GlobalID) or its name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either the dataset ID (GlobalID) or its name."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDatasetLabelsForDatasetResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset identifier"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Replace the set of labels applied to a dataset",
+        "description": "Replace the entire set of labels applied to a dataset. Labels present in the request but not currently applied are added; labels currently applied but absent from the request are removed. An empty list removes all labels.",
+        "operationId": "setDatasetLabelsForDataset",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either the dataset ID (GlobalID) or its name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either the dataset ID (GlobalID) or its name."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetDatasetLabelsRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetDatasetLabelsForDatasetResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset or one or more dataset labels not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset identifier or request body"
+          }
+        }
+      }
+    },
+    "/v1/datasets/{dataset_identifier}/labels/{label_id}": {
+      "put": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Apply a label to a dataset",
+        "description": "Apply an existing label to a dataset. This operation is idempotent: applying a label that is already applied is a no-op that returns the label.",
+        "operationId": "addDatasetLabelToDataset",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either the dataset ID (GlobalID) or its name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either the dataset ID (GlobalID) or its name."
+          },
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset label to apply",
+              "title": "Label Id"
+            },
+            "description": "The ID of the dataset label to apply"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddDatasetLabelToDatasetResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset or dataset label not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset identifier or dataset label ID"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Remove a label from a dataset",
+        "description": "Remove a label from a dataset without deleting the label itself. This operation is idempotent: removing a label that is not applied is a no-op.",
+        "operationId": "removeDatasetLabelFromDataset",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either the dataset ID (GlobalID) or its name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either the dataset ID (GlobalID) or its name."
+          },
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset label to remove",
+              "title": "Label Id"
+            },
+            "description": "The ID of the dataset label to remove"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset identifier or dataset label ID"
           }
         }
       }
@@ -3713,6 +4642,27 @@
             "description": "Filter by one or more trace IDs"
           },
           {
+            "name": "span_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by one or more span IDs",
+              "title": "Span Id"
+            },
+            "description": "Filter by one or more span IDs"
+          },
+          {
             "name": "parent_id",
             "in": "query",
             "required": false,
@@ -3948,6 +4898,27 @@
               "title": "Trace Id"
             },
             "description": "Filter by one or more trace IDs"
+          },
+          {
+            "name": "span_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by one or more span IDs",
+              "title": "Span Id"
+            },
+            "description": "Filter by one or more span IDs"
           },
           {
             "name": "parent_id",
@@ -5033,6 +6004,79 @@
       }
     },
     "/v1/prompts/{prompt_identifier}": {
+      "patch": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Update prompt metadata",
+        "description": "Update a prompt's description and metadata by identifier.",
+        "operationId": "patchPrompt",
+        "parameters": [
+          {
+            "name": "prompt_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the prompt, i.e. name or ID.",
+              "title": "Prompt Identifier"
+            },
+            "description": "The identifier of the prompt, i.e. name or ID."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchPromptRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated prompt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchPromptResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
       "delete": {
         "tags": [
           "prompts"
@@ -5153,6 +6197,24 @@
               "title": "Include Dataset Evaluator Projects"
             },
             "description": "Include dataset evaluator projects in the response. Dataset evaluator projects are created when running experiments with persisted evaluators."
+          },
+          {
+            "name": "name_contains",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return only projects whose name contains this substring (case-insensitive).",
+              "title": "Name Contains"
+            },
+            "description": "Return only projects whose name contains this substring (case-insensitive)."
           }
         ],
         "responses": {
@@ -5851,7 +6913,7 @@
         "tags": [
           "spans"
         ],
-        "summary": "Annotate Span Documents",
+        "summary": "Create span document annotations",
         "operationId": "annotateSpanDocuments",
         "parameters": [
           {
@@ -6221,6 +7283,524 @@
         }
       }
     },
+    "/v1/user/api_keys": {
+      "get": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "List the authenticated user's API keys",
+        "description": "Retrieve the API keys belonging to the currently authenticated user. The keys themselves are not recoverable and are never included in the response.",
+        "operationId": "getUserApiKeys",
+        "responses": {
+          "200": {
+            "description": "The authenticated user's API keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetApiKeysResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "Create an API key for the authenticated user",
+        "description": "Create a personal API key for the currently authenticated user. The key inherits the user's role, so it grants no more access than the user already has. Creation requires an access-token session; API keys cannot mint replacement keys. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.",
+        "operationId": "createUserApiKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The newly created API key, including the key itself.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateApiKeyResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/users/api_keys": {
+      "get": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "List all user API keys",
+        "description": "Retrieve API keys belonging to human users across the organization. System API keys are excluded. Restricted to admins.",
+        "operationId": "getAllUserApiKeys",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (a UserApiKey GlobalID).",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (a UserApiKey GlobalID)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "The maximum number of API keys to return (at most 1000).",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The maximum number of API keys to return (at most 1000)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A paginated list of user API keys and their owners.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAllUserApiKeysResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/user/api_keys/{api_key_id}": {
+      "delete": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "Delete a user API key",
+        "description": "Permanently revoke a user API key. Users can revoke their own keys, and admins can revoke keys belonging to other users. The key stops working immediately.",
+        "operationId": "deleteUserApiKey",
+        "parameters": [
+          {
+            "name": "api_key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the API key.",
+              "title": "Api Key Id"
+            },
+            "description": "The GlobalID of the API key."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful deletion."
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "API key not found."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/system/api_keys": {
+      "get": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "List system API keys",
+        "description": "Retrieve all system API keys. System keys belong to the system user rather than to any human, so this endpoint is restricted to admins. The keys themselves are not recoverable and are never included in the response.",
+        "operationId": "getSystemApiKeys",
+        "responses": {
+          "200": {
+            "description": "The system API keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetApiKeysResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "Create a system API key",
+        "description": "Create a system API key. System keys belong to the system user rather than to any human, so this endpoint is restricted to admins. Creation requires an admin access-token session or the configured admin secret; API keys cannot mint keys. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.",
+        "operationId": "createSystemApiKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The newly created system API key, including the key itself.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateApiKeyResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/system/api_keys/{api_key_id}": {
+      "delete": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "Delete a system API key",
+        "description": "Permanently revoke a system API key. The key stops working immediately. Restricted to admins.",
+        "operationId": "deleteSystemApiKey",
+        "parameters": [
+          {
+            "name": "api_key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the system API key.",
+              "title": "Api Key Id"
+            },
+            "description": "The GlobalID of the system API key."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful deletion."
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "System API key not found."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/chat/completions": {
+      "post": {
+        "tags": [
+          "chat_completions"
+        ],
+        "summary": "OpenAI-compatible chat completions",
+        "description": "Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) \u2014 callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.\n\n**Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.",
+        "operationId": "createChatCompletion",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChatCompletionRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletion"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletionErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletionErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletionErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/login": {
       "post": {
         "summary": " Login",
@@ -6561,6 +8141,57 @@
         }
       }
     },
+    "/agents/server/sessions/{session_id}/chat": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Run Server Agent",
+        "description": "Stream a chat turn from the GraphQL server agent.\n\nThis is the endpoint the PXI CLI talks to directly (no pre-configured\nagent record): it builds a fresh server agent per request from the\ncaller-supplied model and contexts, then streams the reply back as\nVercel-AI chunks.\n\nThe request contexts gate capabilities \u2014 GraphQL mutations, web access,\nand subagents \u2014 and mutations are refused for viewer users. When trace\nrecording is enabled (and permitted by system settings), the run is\ntraced; locally ingested traces are persisted to the agent's project\nonce the stream completes.\n\nReturns ``403`` if agents or the server agent are disabled, or if a\nviewer requests mutations.",
+        "operationId": "run_server_agent_agents_server_sessions__session_id__chat_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agents/{agent_id}/sessions/{session_id}/chat": {
       "post": {
         "tags": [
@@ -6732,6 +8363,18 @@
   },
   "components": {
     "schemas": {
+      "AddDatasetLabelToDatasetResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetLabel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AddDatasetLabelToDatasetResponseBody"
+      },
       "AgentSpanContext": {
         "properties": {
           "type": {
@@ -6965,6 +8608,122 @@
         ],
         "title": "AnonymousUser"
       },
+      "ApiKey": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at"
+        ],
+        "title": "ApiKey"
+      },
+      "ApiKeyData": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "A human-readable name for the API key."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "An optional description of what the API key is for."
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At",
+            "description": "When the API key expires. The key never expires when omitted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ApiKeyData"
+      },
+      "ApiKeyUser": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "email"
+        ],
+        "title": "ApiKeyUser"
+      },
       "AppContext": {
         "properties": {
           "type": {
@@ -6990,8 +8749,45 @@
         "title": "AppContext",
         "description": "Per-turn browser clock context for resolving relative time requests."
       },
+      "AssignAnnotationConfigToProjectResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CategoricalAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/ContinuousAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
+                "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
+                "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AssignAnnotationConfigToProjectResponseBody"
+      },
       "AssistantMessageMetadata": {
         "properties": {
+          "type": {
+            "type": "string",
+            "const": "assistant",
+            "title": "Type",
+            "default": "assistant"
+          },
           "sessionId": {
             "type": "string",
             "title": "Sessionid"
@@ -7000,6 +8796,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/AssistantMessageMetadataTraceIds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "turnTraceContext": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnTraceContext"
               },
               {
                 "type": "null"
@@ -7104,113 +8910,6 @@
           "total"
         ],
         "title": "AssistantMessageMetadataUsageTokens"
-      },
-      "AssistantMetadataUIMessage": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "system",
-              "user",
-              "assistant"
-            ],
-            "title": "Role"
-          },
-          "metadata": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AssistantMessageMetadata"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "parts": {
-            "items": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/TextUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ReasoningUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolInputStreamingPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolInputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolOutputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolOutputErrorPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolApprovalRequestedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolApprovalRespondedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolOutputDeniedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolInputStreamingPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputErrorPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolApprovalRespondedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputDeniedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/SourceUrlUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/SourceDocumentUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/FileUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DataUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/StepStartUIPart"
-                }
-              ]
-            },
-            "type": "array",
-            "title": "Parts"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "role",
-          "parts"
-        ],
-        "title": "AssistantMetadataUIMessage",
-        "description": "`UIMessage` with `metadata` narrowed to `AssistantMessageMetadata`."
       },
       "BuiltInProviderModelSelection": {
         "properties": {
@@ -7358,6 +9057,227 @@
         ],
         "title": "CategoricalAnnotationValue"
       },
+      "ChatCompletion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "object": {
+            "type": "string",
+            "const": "chat.completion",
+            "title": "Object",
+            "default": "chat.completion"
+          },
+          "created": {
+            "type": "integer",
+            "title": "Created"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "choices": {
+            "items": {
+              "$ref": "#/components/schemas/ChatCompletionChoice"
+            },
+            "type": "array",
+            "title": "Choices"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/ChatCompletionUsage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created",
+          "model",
+          "choices",
+          "usage"
+        ],
+        "title": "ChatCompletion"
+      },
+      "ChatCompletionChoice": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index",
+            "default": 0
+          },
+          "message": {
+            "$ref": "#/components/schemas/ChatCompletionMessage"
+          },
+          "finish_reason": {
+            "type": "string",
+            "title": "Finish Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "finish_reason"
+        ],
+        "title": "ChatCompletionChoice"
+      },
+      "ChatCompletionErrorDetail": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "param": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Param"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "type"
+        ],
+        "title": "ChatCompletionErrorDetail"
+      },
+      "ChatCompletionErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ChatCompletionErrorDetail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ChatCompletionErrorResponse"
+      },
+      "ChatCompletionMessage": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "const": "assistant",
+            "title": "Role",
+            "default": "assistant"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "ChatCompletionMessage"
+      },
+      "ChatCompletionRequestMessage": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "developer",
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ChatCompletionTextPart"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "ChatCompletionRequestMessage"
+      },
+      "ChatCompletionStreamOptions": {
+        "properties": {
+          "include_usage": {
+            "type": "boolean",
+            "title": "Include Usage",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ChatCompletionStreamOptions"
+      },
+      "ChatCompletionTextPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "text",
+            "title": "Type"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "text"
+        ],
+        "title": "ChatCompletionTextPart"
+      },
+      "ChatCompletionUsage": {
+        "properties": {
+          "prompt_tokens": {
+            "type": "integer",
+            "title": "Prompt Tokens"
+          },
+          "completion_tokens": {
+            "type": "integer",
+            "title": "Completion Tokens"
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt_tokens",
+          "completion_tokens",
+          "total_tokens"
+        ],
+        "title": "ChatCompletionUsage"
+      },
       "ChatContext": {
         "oneOf": [
           {
@@ -7371,6 +9291,12 @@
           },
           {
             "$ref": "#/components/schemas/SessionContext"
+          },
+          {
+            "$ref": "#/components/schemas/PromptContext"
+          },
+          {
+            "$ref": "#/components/schemas/PromptVersionContext"
           },
           {
             "$ref": "#/components/schemas/AgentSpanContext"
@@ -7409,6 +9335,8 @@
             "llm_evaluator": "#/components/schemas/LlmEvaluatorContext",
             "playground": "#/components/schemas/PlaygroundContext",
             "project": "#/components/schemas/ProjectContext",
+            "prompt": "#/components/schemas/PromptContext",
+            "prompt_version": "#/components/schemas/PromptVersionContext",
             "session": "#/components/schemas/SessionContext",
             "span": "#/components/schemas/AgentSpanContext",
             "subagents": "#/components/schemas/SubagentsContext",
@@ -7430,7 +9358,7 @@
           },
           "messages": {
             "items": {
-              "$ref": "#/components/schemas/AssistantMetadataUIMessage"
+              "$ref": "#/components/schemas/PhoenixUIMessage"
             },
             "type": "array",
             "title": "Messages"
@@ -7454,6 +9382,12 @@
           "exportRemoteTraces": {
             "type": "boolean",
             "title": "Exportremotetraces",
+            "default": false
+          },
+          "attachUserId": {
+            "type": "boolean",
+            "title": "Attachuserid",
+            "description": "When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.",
             "default": false
           },
           "contexts": {
@@ -7497,6 +9431,16 @@
                 "custom": "#/components/schemas/CustomProviderModelSelection"
               }
             }
+          },
+          "turnTraceContext": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnTraceContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": true,
@@ -7543,7 +9487,7 @@
           },
           "messages": {
             "items": {
-              "$ref": "#/components/schemas/AssistantMetadataUIMessage"
+              "$ref": "#/components/schemas/PhoenixUIMessage"
             },
             "type": "array",
             "title": "Messages"
@@ -7556,6 +9500,12 @@
           "exportRemoteTraces": {
             "type": "boolean",
             "title": "Exportremotetraces",
+            "default": false
+          },
+          "attachUserId": {
+            "type": "boolean",
+            "title": "Attachuserid",
+            "description": "When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.",
             "default": false
           },
           "contexts": {
@@ -7599,6 +9549,16 @@
                 "custom": "#/components/schemas/CustomProviderModelSelection"
               }
             }
+          },
+          "turnTraceContext": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnTraceContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": true,
@@ -7806,6 +9766,267 @@
           "data"
         ],
         "title": "CreateAnnotationConfigResponseBody"
+      },
+      "CreateApiKeyRequestBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ApiKeyData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateApiKeyRequestBody"
+      },
+      "CreateApiKeyResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CreatedApiKey"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateApiKeyResponseBody"
+      },
+      "CreateChatCompletionRequestBody": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'."
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ChatCompletionRequestMessage"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Messages"
+          },
+          "stream": {
+            "type": "boolean",
+            "title": "Stream",
+            "default": false
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature"
+          },
+          "top_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top P"
+          },
+          "max_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Completion Tokens"
+          },
+          "stop": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop"
+          },
+          "frequency_penalty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presence Penalty"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "n": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N"
+          },
+          "stream_options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatCompletionStreamOptions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools"
+          },
+          "tool_choice": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Choice"
+          },
+          "response_format": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Format"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "messages"
+        ],
+        "title": "CreateChatCompletionRequestBody",
+        "examples": [
+          {
+            "messages": [
+              {
+                "content": "You are a helpful assistant.",
+                "role": "system"
+              },
+              {
+                "content": "Say hello.",
+                "role": "user"
+              }
+            ],
+            "model": "openai:gpt-4o"
+          }
+        ]
+      },
+      "CreateDatasetLabelRequestBody": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name",
+            "description": "The name of the dataset label"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#([0-9a-f]{6})$",
+            "title": "Color",
+            "description": "A lowercase hex color code (e.g. '#00cc88') used to display the label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "An optional description of the dataset label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "color"
+        ],
+        "title": "CreateDatasetLabelRequestBody"
+      },
+      "CreateDatasetLabelResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetLabel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateDatasetLabelResponseBody"
       },
       "CreateExperimentRequestBody": {
         "properties": {
@@ -8226,6 +10447,59 @@
         ],
         "title": "CreateUserResponseBody"
       },
+      "CreatedApiKey": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "The API key. This is the only time it is returned; it cannot be recovered from the listing endpoints."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "key"
+        ],
+        "title": "CreatedApiKey"
+      },
       "CustomProviderModelSelection": {
         "properties": {
           "providerType": {
@@ -8395,6 +10669,16 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatasetExampleSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -8407,6 +10691,59 @@
           "updated_at"
         ],
         "title": "DatasetExample"
+      },
+      "DatasetExampleSource": {
+        "properties": {
+          "span_id": {
+            "type": "string",
+            "title": "Span Id"
+          },
+          "span_node_id": {
+            "type": "string",
+            "title": "Span Node Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "span_id",
+          "span_node_id"
+        ],
+        "title": "DatasetExampleSource"
+      },
+      "DatasetLabel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "color"
+        ],
+        "title": "DatasetLabel"
       },
       "DatasetVersion": {
         "properties": {
@@ -9611,6 +11948,34 @@
         ],
         "title": "FreeformAnnotationConfigData"
       },
+      "GetAllUserApiKeysResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/UserApiKey"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetAllUserApiKeysResponseBody"
+      },
       "GetAnnotationConfigResponseBody": {
         "properties": {
           "data": {
@@ -9687,6 +12052,62 @@
           "next_cursor"
         ],
         "title": "GetAnnotationConfigsResponseBody"
+      },
+      "GetApiKeysResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ApiKey"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetApiKeysResponseBody"
+      },
+      "GetDatasetLabelResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetLabel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetDatasetLabelResponseBody"
+      },
+      "GetDatasetLabelsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetLabel"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetDatasetLabelsResponseBody"
       },
       "GetDatasetResponseBody": {
         "properties": {
@@ -9767,6 +12188,52 @@
           "next_cursor"
         ],
         "title": "GetIncompleteExperimentRunsResponseBody"
+      },
+      "GetProjectAnnotationConfigsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfig"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfig"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfig"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetProjectAnnotationConfigsResponseBody"
       },
       "GetProjectResponseBody": {
         "properties": {
@@ -10329,6 +12796,22 @@
           "data"
         ],
         "title": "ListDatasetExamplesResponseBody"
+      },
+      "ListDatasetLabelsForDatasetResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetLabel"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ListDatasetLabelsForDatasetResponseBody"
       },
       "ListDatasetVersionsResponseBody": {
         "properties": {
@@ -11217,6 +13700,165 @@
         "type": "object",
         "title": "OtlpStatus"
       },
+      "PatchPromptRequestBody": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "New description for the prompt (null clears the description)"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "description": "New metadata object for the prompt (replaces the existing metadata as a whole)"
+          }
+        },
+        "type": "object",
+        "title": "PatchPromptRequestBody",
+        "description": "Fields to update on a prompt. Omit a field to leave it unchanged."
+      },
+      "PatchPromptResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Prompt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "PatchPromptResponseBody"
+      },
+      "PhoenixUIMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/AssistantMessageMetadata"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UserMessageMetadata"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "assistant": "#/components/schemas/AssistantMessageMetadata",
+                    "user": "#/components/schemas/UserMessageMetadata"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
+          "parts": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TextUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ReasoningUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolInputStreamingPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolInputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolApprovalRequestedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolApprovalRespondedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputDeniedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolInputStreamingPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolApprovalRespondedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputDeniedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceUrlUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceDocumentUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/FileUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DataUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/StepStartUIPart"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Parts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "parts"
+        ],
+        "title": "PhoenixUIMessage",
+        "description": "`UIMessage` with `metadata` narrowed to the Phoenix wire shapes."
+      },
       "PlaygroundBuiltinModelContext": {
         "properties": {
           "type": {
@@ -11500,17 +14142,6 @@
               }
             ],
             "title": "Spanfilter"
-          },
-          "rootSpansOnly": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rootspansonly"
           }
         },
         "type": "object",
@@ -11519,7 +14150,7 @@
           "projectNodeId"
         ],
         "title": "ProjectContext",
-        "description": "Project the user is currently viewing.\n\n``span_filter`` carries the project-scoped span filter expression when the\nspan filter field is mounted \u2014 empty string when the field is mounted with\nno condition applied, ``None`` when the field is not present at all.\n\n``root_spans_only`` carries the current state of the spans-table root vs.\nall toggle when that toggle is mounted \u2014 ``True`` when the table is\nrestricted to root spans, ``False`` when it shows every span, ``None``\nwhen the toggle is not present (e.g. on the traces tab)."
+        "description": "Project the user is currently viewing.\n\n``span_filter`` carries the project-scoped span filter expression when the\nspan filter field is mounted \u2014 empty string when the field is mounted with\nno condition applied, ``None`` when the field is not present at all. It\ndescribes the view in full, root-span scoping included (which is expressed\nwithin the filter DSL as ``parent_id is None``)."
       },
       "Prompt": {
         "properties": {
@@ -11958,6 +14589,26 @@
           "messages"
         ],
         "title": "PromptChatTemplate"
+      },
+      "PromptContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "prompt",
+            "title": "Type"
+          },
+          "promptNodeId": {
+            "type": "string",
+            "title": "Promptnodeid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "promptNodeId"
+        ],
+        "title": "PromptContext",
+        "description": "Prompt the user is currently viewing."
       },
       "PromptData": {
         "properties": {
@@ -13212,6 +15863,31 @@
         ],
         "title": "PromptVersion"
       },
+      "PromptVersionContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "prompt_version",
+            "title": "Type"
+          },
+          "promptNodeId": {
+            "type": "string",
+            "title": "Promptnodeid"
+          },
+          "promptVersionNodeId": {
+            "type": "string",
+            "title": "Promptversionnodeid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "promptNodeId",
+          "promptVersionNodeId"
+        ],
+        "title": "PromptVersionContext",
+        "description": "Prompt version the user is currently viewing."
+      },
       "PromptVersionData": {
         "properties": {
           "description": {
@@ -13915,6 +16591,99 @@
           "end_time"
         ],
         "title": "SessionTraceData"
+      },
+      "SetDatasetLabelsForDatasetResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetLabel"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SetDatasetLabelsForDatasetResponseBody"
+      },
+      "SetDatasetLabelsRequestBody": {
+        "properties": {
+          "dataset_label_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dataset Label Ids",
+            "description": "The complete set of dataset label GlobalIDs to apply to the dataset. Labels not in this list are removed from the dataset; an empty list removes all labels."
+          }
+        },
+        "type": "object",
+        "title": "SetDatasetLabelsRequestBody"
+      },
+      "SetProjectAnnotationConfigsRequestBody": {
+        "properties": {
+          "annotation_config_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Annotation Config Ids",
+            "description": "The complete set of annotation configuration GlobalIDs that should be assigned to the project. Configs not in this list are unassigned; an empty list clears all assignments."
+          }
+        },
+        "type": "object",
+        "required": [
+          "annotation_config_ids"
+        ],
+        "title": "SetProjectAnnotationConfigsRequestBody"
+      },
+      "SetProjectAnnotationConfigsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfig"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfig"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfig"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "SetProjectAnnotationConfigsResponseBody"
       },
       "SourceDocumentUIPart": {
         "properties": {
@@ -15768,6 +18537,32 @@
         ],
         "title": "TraceSpanData"
       },
+      "TurnTraceContext": {
+        "properties": {
+          "traceId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Traceid"
+          },
+          "rootSpanId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{16}$",
+            "title": "Rootspanid"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Startedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "traceId",
+          "rootSpanId",
+          "startedAt"
+        ],
+        "title": "TurnTraceContext"
+      },
       "UIMessage": {
         "properties": {
           "id": {
@@ -15904,6 +18699,64 @@
           "data"
         ],
         "title": "UpdateAnnotationConfigResponseBody"
+      },
+      "UpdateDatasetLabelRequestBody": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "New name for the label (null is rejected; name is required)"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^#([0-9a-f]{6})$",
+                "description": "A lowercase six-digit hex color code (e.g. '#00cc88')"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color",
+            "description": "New lowercase hex color code for the label (null is rejected)"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "New description for the label (null clears the description)"
+          }
+        },
+        "type": "object",
+        "title": "UpdateDatasetLabelRequestBody",
+        "description": "Fields to update on a dataset label. Omit a field to leave it unchanged."
+      },
+      "UpdateDatasetLabelResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetLabel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "UpdateDatasetLabelResponseBody"
       },
       "UpdateExperimentRequestBody": {
         "properties": {
@@ -16196,6 +19049,84 @@
         "title": "UpsertOrDeleteSecretsResult",
         "description": "Result payload listing which keys were upserted and which were deleted."
       },
+      "UserApiKey": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "user": {
+            "$ref": "#/components/schemas/ApiKeyUser"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "user"
+        ],
+        "title": "UserApiKey"
+      },
+      "UserMessageMetadata": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "user",
+            "title": "Type",
+            "default": "user"
+          },
+          "currentDateTime": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Currentdatetime"
+          },
+          "timeZone": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currentDateTime",
+          "timeZone"
+        ],
+        "title": "UserMessageMetadata",
+        "description": "Wire schema for metadata the browser attaches to outgoing user messages."
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -16268,6 +19199,12 @@
             "title": "Exportremotetraces",
             "default": false
           },
+          "attachUserId": {
+            "type": "boolean",
+            "title": "Attachuserid",
+            "description": "When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.",
+            "default": false
+          },
           "messages": {
             "items": {
               "$ref": "#/components/schemas/UIMessage"
@@ -16315,6 +19252,61 @@
         ],
         "title": "_SummarizeResponse"
       },
+      "ToolCallCallbackProviderMetadata": {
+        "additionalProperties": false,
+        "description": "Shape of the ``phoenix`` namespace the browser returns in\n``callProviderMetadata`` on resolved tool parts: the server-stamped fields\nplus browser-recorded execution timings.",
+        "properties": {
+          "tool_execution_environment": {
+            "enum": [
+              "client",
+              "server"
+            ],
+            "title": "Tool Execution Environment",
+            "type": "string"
+          },
+          "tool_input_emitted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tool Input Emitted At"
+          },
+          "client_started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Started At"
+          },
+          "client_ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Ended At"
+          }
+        },
+        "required": [
+          "tool_execution_environment"
+        ],
+        "title": "ToolCallCallbackProviderMetadata",
+        "type": "object"
+      },
       "ToolCallProviderMetadata": {
         "additionalProperties": false,
         "description": "Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI\n``providerMetadata`` on tool-call chunks (``tool-input-start`` and\n``tool-input-available``).",
@@ -16326,6 +19318,18 @@
             ],
             "title": "Tool Execution Environment",
             "type": "string"
+          },
+          "tool_input_emitted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tool Input Emitted At"
           }
         },
         "required": [

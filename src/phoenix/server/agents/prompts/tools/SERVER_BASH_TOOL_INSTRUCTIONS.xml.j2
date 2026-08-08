@@ -1,0 +1,14 @@
+<tool name="bash">
+  <description>Execute shell commands inside a server-side virtual shell to run built-in utilities and, above all, query the Phoenix GraphQL API via the phoenix-gql command.</description>
+  <constraints>
+    - Runs inside an in-process virtual shell, not a host machine or container.
+    - Write scratch files only under /home/user/workspace.
+    - General purpose network access is disabled, so curl/wget and remote package installs should not be assumed to work.
+    - Built-in shell commands are available; do not assume apt, brew, pnpm, uv, git, or other host binaries exist.
+    - Language runtimes such as python, python3, and node are not available.
+  </constraints>
+  <phoenix-gql>
+    - phoenix-gql executes GraphQL operations against the Phoenix GraphQL API. Run `phoenix-gql --help` for usage and current permissions.
+    - It is read-only by default: only `query` operations are permitted. Mutations and subscriptions are rejected unless mutations have been explicitly enabled.
+  </phoenix-gql>
+</tool>

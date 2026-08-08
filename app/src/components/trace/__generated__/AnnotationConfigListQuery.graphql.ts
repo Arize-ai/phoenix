@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<a22a0dc576a920072dbcb6c47c906a70>>
+ * @generated SignedSource<<c5b37b8ecd2cc7d38fcaffb014ea9b6b>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -65,7 +64,7 @@ v2 = {
 v3 = {
   "kind": "InlineFragment",
   "selections": [
-    (v2/*: any*/)
+    (v2/*:: as any*/)
   ],
   "type": "Node",
   "abstractKey": "__isNode"
@@ -94,9 +93,9 @@ v6 = {
 v7 = {
   "kind": "InlineFragment",
   "selections": [
-    (v4/*: any*/),
-    (v5/*: any*/),
-    (v6/*: any*/)
+    (v4/*:: as any*/),
+    (v5/*:: as any*/),
+    (v6/*:: as any*/)
   ],
   "type": "AnnotationConfigBase",
   "abstractKey": "__isAnnotationConfigBase"
@@ -150,8 +149,8 @@ v10 = {
 v11 = {
   "kind": "InlineFragment",
   "selections": [
-    (v9/*: any*/),
-    (v10/*: any*/)
+    (v9/*:: as any*/),
+    (v10/*:: as any*/)
   ],
   "type": "ContinuousAnnotationConfig",
   "abstractKey": null
@@ -172,14 +171,14 @@ v13 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "AnnotationConfigListQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -224,10 +223,10 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v3/*: any*/),
-                  (v7/*: any*/),
-                  (v8/*: any*/),
-                  (v11/*: any*/)
+                  (v3/*:: as any*/),
+                  (v7/*:: as any*/),
+                  (v8/*:: as any*/),
+                  (v11/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -243,19 +242,19 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "AnnotationConfigListQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v12/*: any*/),
+          (v12/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -283,25 +282,25 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v12/*: any*/),
-                          (v3/*: any*/),
+                          (v12/*:: as any*/),
+                          (v3/*:: as any*/),
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v4/*: any*/),
-                              (v6/*: any*/),
-                              (v5/*: any*/)
+                              (v4/*:: as any*/),
+                              (v6/*:: as any*/),
+                              (v5/*:: as any*/)
                             ],
                             "type": "AnnotationConfigBase",
                             "abstractKey": "__isAnnotationConfigBase"
                           },
-                          (v8/*: any*/),
+                          (v8/*:: as any*/),
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v9/*: any*/),
-                              (v10/*: any*/),
-                              (v13/*: any*/)
+                              (v9/*:: as any*/),
+                              (v10/*:: as any*/),
+                              (v13/*:: as any*/)
                             ],
                             "type": "ContinuousAnnotationConfig",
                             "abstractKey": null
@@ -309,8 +308,8 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v4/*: any*/),
-                              (v13/*: any*/),
+                              (v4/*:: as any*/),
+                              (v13/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -335,7 +334,7 @@ return {
             "type": "Project",
             "abstractKey": null
           },
-          (v2/*: any*/)
+          (v2/*:: as any*/)
         ],
         "storageKey": null
       },
@@ -363,11 +362,11 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v12/*: any*/),
-                  (v3/*: any*/),
-                  (v7/*: any*/),
-                  (v8/*: any*/),
-                  (v11/*: any*/)
+                  (v12/*:: as any*/),
+                  (v3/*:: as any*/),
+                  (v7/*:: as any*/),
+                  (v8/*:: as any*/),
+                  (v11/*:: as any*/)
                 ],
                 "storageKey": null
               }

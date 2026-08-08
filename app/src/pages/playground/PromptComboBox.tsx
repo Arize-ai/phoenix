@@ -57,7 +57,9 @@ export function PromptComboBox({
       stopPropagation
       defaultItems={items}
       placeholder="Select a prompt..."
-      renderEmptyState={() => <div>No prompts found</div>}
+      // No renderEmptyState: this is a custom-value name picker, so a typed name
+      // that matches nothing should just close the menu, not show "No prompts".
+      // Omitting it sets allowsEmptyCollection=false, so the popover won't open.
       onSelectionChange={(key) => {
         if (typeof key !== "string" && key != null) {
           return;

@@ -187,11 +187,12 @@ def canonicalize_dn(dn: str) -> str | None:
         >>> canonicalize_dn("CN=john+EMAIL=john@corp.com,OU=users,DC=example,DC=com")
         'cn=john+email=john@corp.com,ou=users,dc=example,dc=com'
 
+        >>> # multi-valued RDN components are sorted
         >>> canonicalize_dn("email=john@corp.com+cn=John,ou=Users,dc=Example,dc=com")
-        'cn=john+email=john@corp.com,ou=users,dc=example,dc=com'  # Sorted
+        'cn=john+email=john@corp.com,ou=users,dc=example,dc=com'
 
-        >>> canonicalize_dn("invalid dn syntax")
-        None
+        >>> canonicalize_dn("invalid dn syntax") is None
+        True
 
     References:
         RFC 4514 Section 4: String representation of DNs are case-insensitive

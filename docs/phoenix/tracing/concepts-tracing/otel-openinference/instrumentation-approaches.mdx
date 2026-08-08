@@ -27,7 +27,7 @@ from openinference.instrumentation.openai import OpenAIInstrumentor
 
 tracer_provider = register(
     project_name="my-project",
-    # api_key="..."  # Optional — only needed for Phoenix Cloud or authenticated instances
+    # api_key="..."  # Optional — only needed for instances with authentication enabled
 )
 
 OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)

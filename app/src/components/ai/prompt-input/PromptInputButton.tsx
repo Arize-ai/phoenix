@@ -27,11 +27,11 @@ function resolveTooltip(tooltip: PromptInputButtonTooltip) {
  * @example
  * ```tsx
  * <PromptInputButton tooltip="Attach files" aria-label="Attach files">
- *   <Icon svg={<Icons.PlusOutline />} />
+ *   <Icon svg={<Icons.Plus />} />
  * </PromptInputButton>
  *
  * <PromptInputButton tooltip={{ content: "Search", shortcut: "⌘K" }}>
- *   <Icon svg={<Icons.SearchOutline />} />
+ *   <Icon svg={<Icons.Search />} />
  * </PromptInputButton>
  * ```
  */

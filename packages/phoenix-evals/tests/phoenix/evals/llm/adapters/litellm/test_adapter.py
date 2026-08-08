@@ -10,6 +10,8 @@ import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
+pytest.importorskip("litellm")
 from litellm import BadRequestError as LiteLLMBadRequestError
 from litellm import RateLimitError as LiteLLMRateLimitError
 

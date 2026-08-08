@@ -1,0 +1,148 @@
+---
+title: "Cursor"
+description: "Trace Cursor IDE and CLI conversations, shell commands, MCP tools, and file operations in Phoenix."
+keywords: ["cursor", "cursor tracing", "phoenix", "mcp tracing", "agent tracing"]
+---
+
+> Trace Cursor IDE and CLI conversations, shell commands, MCP tools, and file operations in Phoenix for full observability.
+
+Trace your [Cursor](https://cursor.com/) sessions in Phoenix with the [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit — each conversation becomes a session and each message turn a trace, with the model's response, shell commands, MCP tools, and file edits captured as nested spans. No application code changes required: the toolkit hooks into Cursor's IDE and CLI events and streams [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix.
+
+## Launch Phoenix
+
+The fastest way to get started with Phoenix is by signing up for a [free Phoenix Cloud account](https://app.arize.com/auth/phoenix/signup). If you prefer, you can also run Phoenix in a [notebook](/docs/phoenix/environments#notebooks), [self-host it](/docs/phoenix/environments#container), or use it directly from your [terminal](/docs/phoenix/environments#terminal).
+
+Go to the settings page in your Phoenix instance to find your **endpoint** and **API key**. A self-hosted Phoenix defaults to `http://localhost:6006`; the API key is only required when auth is enabled.
+
+## Install
+
+The **curl installer** is the simplest — it runs a short wizard that saves your Phoenix credentials for you. Use a **local clone** if you'd rather run the installer from a checkout of the source.
+
+### Curl installer (recommended)
+
+**macOS / Linux:**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- cursor
+```
+
+**Windows (PowerShell):**
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.bat -OutFile $env:TEMP\install.bat
+& $env:TEMP\install.bat cursor
+```
+
+### Local clone
+
+```bash
+git clone https://github.com/Arize-ai/coding-harness-tracing.git
+cd coding-harness-tracing
+./install.sh cursor        # macOS / Linux
+install.bat cursor         # Windows
+```
+
+The installer prompts for your backend — select **Phoenix**, then enter your endpoint and optional API key — and your project name, writes them to `~/.arize/harness/config.json`, and registers the hooks in `~/.cursor/hooks.json`. Both Cursor IDE and Cursor CLI sessions are instrumented from the same configuration.
+
+## Configuration
+
+Credentials live in `~/.arize/harness/config.json`. Environment variables override values in `config.json` and can be set in your shell profile so they apply to Cursor IDE and Cursor CLI sessions.
+
+```bash
+export PHOENIX_ENDPOINT="http://localhost:6006"
+export PHOENIX_API_KEY="<your-api-key>"   # optional, only if auth is enabled
+export PHOENIX_PROJECT="cursor"
+export ARIZE_TRACE_ENABLED="true"
+```
+
+On the Phoenix backend, set the project name with `PHOENIX_PROJECT` (or `PHOENIX_PROJECT_NAME`); `ARIZE_PROJECT_NAME` is Arize-only and ignored here. `ARIZE_TRACE_ENABLED` is a backend-agnostic harness setting and keeps the `ARIZE_` prefix regardless of destination.
+
+### Redaction controls
+
+Each `ARIZE_LOG_*` flag accepts `"true"` or `"false"` and defaults to `"true"`. Set to `"false"` to opt out per category:
+
+```bash
+export ARIZE_LOG_PROMPTS="false"
+export ARIZE_LOG_TOOL_DETAILS="false"
+export ARIZE_LOG_TOOL_CONTENT="false"
+```
+
+| Flag | Redacts |
+| :--- | :------ |
+| `ARIZE_LOG_PROMPTS` | User prompt and assistant response text |
+| `ARIZE_LOG_TOOL_DETAILS` | Tool names and arguments |
+| `ARIZE_LOG_TOOL_CONTENT` | Tool call output content (shell output, MCP results, file contents) |
+
+## Observe
+
+Once tracing is enabled, Cursor activity is streamed to Phoenix. You'll see:
+
+- **Session grouping** by `conversation_id` for each Cursor conversation
+- **Turn traces** by `generation_id` for each message turn
+- **User prompt spans** for submitted prompts
+- **Agent response spans** with model output
+- **Agent thinking spans** when Cursor emits reasoning/thought events
+- **Shell spans** with command input and command output merged into a single tool span
+- **MCP spans** named `MCP: {tool}` with tool input and result
+- **File read and edit spans** for file operations, including tab reads and edits
+
+The default project name is `cursor` unless you set `PHOENIX_PROJECT`.
+
+<Frame caption="Cursor conversation grouped together in a single session view">
+  <img
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/coding-harnesses/cursor-session.png"
+    alt="Phoenix session view for a Cursor conversation showing its turns grouped together, each with its own token count, cost, and latency, plus the selected turn's input and output"
+  />
+</Frame>
+
+Drill into any turn trace to inspect the full span tree, including the model response and nested shell, MCP, and file-operation spans.
+
+<Frame caption="Detailed trace view for a Cursor turn">
+  <img
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/coding-harnesses/cursor-trace.png"
+    alt="Phoenix trace view showing the trace tree for a Cursor turn with the agent response and nested shell, MCP, and file-operation spans, alongside the span's model, input, token count, cost, and latency"
+  />
+</Frame>
+
+## How Shell and MCP Merge Works
+
+Cursor emits separate `before*` and `after*` hook events for shell commands and MCP tools. The hooks keep a small disk-backed state entry for the `before` event, then create a single span on the corresponding `after` event. That gives you one span with both the input and the output instead of two partial spans.
+
+On `stop`, the hook handler cleans up any saved state for that turn so the state directory does not keep growing over time.
+
+## Reference
+
+For the full list of environment variables, default file paths, and troubleshooting steps, see the [Cursor tracing README](https://github.com/Arize-ai/coding-harness-tracing/blob/main/tracing/cursor/README.md).
+
+## Fail-Open Behavior
+
+If the tracing hook errors, Cursor continues running. The hook handler always returns the permissive response Cursor expects, so tracing failures do not block the editor or agent workflow.
+
+## Uninstall
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- uninstall cursor
+```
+
+## Resources
+
+<CardGroup>
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/coding-harness-tracing"
+    title="Arize Coding Harness Tracing"
+    horizontal
+  />
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/openinference"
+    title="OpenInference"
+    horizontal
+  />
+  <Card
+    icon="book-open"
+    href="https://cursor.com/"
+    title="Cursor"
+    horizontal
+  />
+</CardGroup>

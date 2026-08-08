@@ -17,10 +17,12 @@ import {
   ChartTooltipItem,
   InteractiveLegend,
   TimeRangeChartBrush,
+  compactChartMargin,
+  compactTimeXAxisProps,
+  compactYAxisProps,
   defaultCartesianGridProps,
-  defaultLegendProps,
-  defaultTimeXAxisProps,
-  defaultYAxisProps,
+  defaultTooltipProps,
+  compactLegendProps,
   useBinTimeTickFormatter,
   useCategoryChartColors,
   useInteractiveLegend,
@@ -30,12 +32,22 @@ import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import {
+  PROJECT_METRICS_CHART_SYNC_ID,
+  useMetricQueryFetchOptions,
+} from "@phoenix/pages/project/metrics/types";
+import {
   intFormatter,
   intShortFormatter,
   percentFormatter,
 } from "@phoenix/utils/numberFormatUtils";
+import {
+  compareTokenTypes,
+  getTokenDetailColor,
+  getTokenDetailLabel,
+} from "@phoenix/utils/tokenDetailUtils";
 
 import type { TraceTokenCountTimeSeriesQuery } from "./__generated__/TraceTokenCountTimeSeriesQuery.graphql";
+import { getTokenDetailDataKey } from "./tokenDetails";
 
 type TokenCountTimeSeriesDatum = NonNullable<
   NonNullable<
@@ -50,80 +62,6 @@ type TokenDetailsChartDatum = {
   total: number | null;
   [key: string]: number | null;
 };
-
-const TOKEN_DETAIL_DATA_KEY_PREFIX = "tokenDetail:";
-const TOKEN_DETAIL_SORT_ORDER: Record<string, number> = {
-  input: 0,
-  output: 0,
-  cache_read: 1,
-  cache_write: 2,
-  reasoning: 3,
-  audio: 4,
-};
-
-function getTokenDetailDataKey(tokenType: string) {
-  return `${TOKEN_DETAIL_DATA_KEY_PREFIX}${encodeURIComponent(tokenType)}`;
-}
-
-function getTokenDetailLabel(tokenType: string) {
-  if (tokenType === "cache_read") {
-    return "Cache read";
-  }
-  if (tokenType === "cache_write") {
-    return "Cache write";
-  }
-  return tokenType
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function compareTokenTypes(left: string, right: string) {
-  const leftOrder = TOKEN_DETAIL_SORT_ORDER[left] ?? 100;
-  const rightOrder = TOKEN_DETAIL_SORT_ORDER[right] ?? 100;
-  if (leftOrder !== rightOrder) {
-    return leftOrder - rightOrder;
-  }
-  return left.localeCompare(right);
-}
-
-function getTokenDetailColor({
-  colors,
-  index,
-  tokenType,
-}: {
-  colors: ReturnType<typeof useCategoryChartColors>;
-  index: number;
-  tokenType: string;
-}) {
-  if (tokenType === "input") {
-    return colors.category1;
-  }
-  if (tokenType === "output") {
-    return colors.category2;
-  }
-  if (tokenType === "cache_read") {
-    return colors.category9;
-  }
-  if (tokenType === "cache_write") {
-    return colors.category7;
-  }
-  if (tokenType === "reasoning") {
-    return colors.category4;
-  }
-  if (tokenType === "audio") {
-    return colors.category3;
-  }
-  const fallbackColors = [
-    colors.category5,
-    colors.category6,
-    colors.category8,
-    colors.category10,
-    colors.category11,
-    colors.category12,
-  ];
-  return fallbackColors[index % fallbackColors.length];
-}
 
 function getTokenDetails(
   datum: TokenCountTimeSeriesDatum,
@@ -192,7 +130,8 @@ function useTraceTokenCountTimeSeriesData({
         scale,
         utcOffsetMinutes,
       },
-    }
+    },
+    useMetricQueryFetchOptions()
   );
 
   return {
@@ -302,40 +241,31 @@ export function TraceTokenCountTimeSeries({
         <ChartEmptyStateOverlay
           isEmpty={!hasData}
           message="No data in this time range"
+          chartType="bar"
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
-              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+              margin={compactChartMargin}
               barSize={10}
-              syncId={"projectMetrics"}
+              syncId={PROJECT_METRICS_CHART_SYNC_ID}
               {...chartProps}
             >
-              <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+              <CartesianGrid {...defaultCartesianGridProps} />
               <XAxis
-                {...defaultTimeXAxisProps}
+                {...compactTimeXAxisProps}
                 domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
                 tickFormatter={(x) => timeTickFormatter(new Date(x))}
               />
               <YAxis
-                {...defaultYAxisProps}
-                width={70}
+                {...compactYAxisProps}
+                allowDecimals={false}
                 tickFormatter={(x) => intShortFormatter(x)}
-                label={{
-                  value: "Tokens",
-                  angle: -90,
-                  dx: -28,
-                  style: {
-                    textAnchor: "middle",
-                    fill: "var(--chart-axis-label-color)",
-                  },
-                }}
-                style={{ fill: "var(--global-text-color-700)" }}
               />
               <Tooltip
                 content={TooltipContent}
                 // TODO formalize this
-                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+                {...defaultTooltipProps}
               />
               <Bar
                 dataKey="prompt"
@@ -352,7 +282,7 @@ export function TraceTokenCountTimeSeries({
               />
 
               <InteractiveLegend
-                {...defaultLegendProps}
+                {...compactLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
                 iconType="circle"
                 iconSize={8}
@@ -416,43 +346,31 @@ function TraceTokenDetailsTimeSeries({
         <ChartEmptyStateOverlay
           isEmpty={!hasData}
           message="No data in this time range"
+          chartType="bar"
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
-              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+              margin={compactChartMargin}
               barSize={10}
-              syncId={"projectMetrics"}
+              syncId={PROJECT_METRICS_CHART_SYNC_ID}
               {...chartProps}
             >
-              <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+              <CartesianGrid {...defaultCartesianGridProps} />
               <XAxis
-                {...defaultTimeXAxisProps}
+                {...compactTimeXAxisProps}
                 domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
                 tickFormatter={(x) => timeTickFormatter(new Date(x))}
               />
               <YAxis
-                {...defaultYAxisProps}
-                width={70}
+                {...compactYAxisProps}
+                allowDecimals={false}
                 tickFormatter={(x) => intShortFormatter(x)}
-                label={{
-                  value:
-                    tokenKind === "prompt"
-                      ? "Prompt tokens"
-                      : "Completion tokens",
-                  angle: -90,
-                  dx: -28,
-                  style: {
-                    textAnchor: "middle",
-                    fill: "var(--chart-axis-label-color)",
-                  },
-                }}
-                style={{ fill: "var(--global-text-color-700)" }}
               />
               <Tooltip
                 content={TokenDetailsTooltipContent}
                 // TODO formalize this
-                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+                {...defaultTooltipProps}
               />
               {tokenTypes.map((tokenType, index) => {
                 const dataKey = getTokenDetailDataKey(tokenType);
@@ -472,7 +390,7 @@ function TraceTokenDetailsTimeSeries({
               })}
 
               <InteractiveLegend
-                {...defaultLegendProps}
+                {...compactLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
                 iconType="circle"
                 iconSize={8}

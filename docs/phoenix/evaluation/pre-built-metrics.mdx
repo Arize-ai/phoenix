@@ -16,6 +16,9 @@ LLM evaluators use a judge model to assess the quality of outputs. These are use
   <Card title="Faithfulness" icon="check-double" href="/docs/phoenix/evaluation/pre-built-metrics/faithfulness">
     Measures whether a response is faithful to (grounded in) the provided context. Detects hallucinations and unsupported claims.
   </Card>
+  <Card title="Hallucination" icon="ghost" href="/docs/phoenix/evaluation/pre-built-metrics/hallucination">
+    Detects claims in a response that are unsupported by, or contradict, the conversation. The conversation-level counterpart to Faithfulness.
+  </Card>
   <Card title="Conciseness" icon="compress" href="/docs/phoenix/evaluation/pre-built-metrics/conciseness">
     Evaluates whether a response is concise and free of unnecessary content like filler, hedging, and meta-commentary.
   </Card>
@@ -36,6 +39,9 @@ LLM evaluators use a judge model to assess the quality of outputs. These are use
   </Card>
   <Card title="Refusal" icon="hand" href="/docs/phoenix/evaluation/pre-built-metrics/refusal">
     Detects when an LLM refuses, declines, or avoids answering a user query.
+  </Card>
+  <Card title="User Friction" icon="comments" href="/docs/phoenix/evaluation/pre-built-metrics/user-friction">
+    Detects corrections, retries, frustration, and challenges expressed in a user's follow-up message.
   </Card>
 </CardGroup>
 
@@ -70,7 +76,7 @@ Legacy evaluators are template-based evaluators from earlier versions of Phoenix
     Evaluates summary quality using legacy templates.
   </Card>
   <Card title="Toxicity" icon="triangle-exclamation" href="/docs/phoenix/evaluation/pre-built-metrics/toxicity">
-    Legacy toxicity detection evaluation.
+    Detect hateful, demeaning, abusive, or threatening text.
   </Card>
   <Card title="SQL Generation" icon="database" href="/docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval">
     Evaluates SQL query correctness using legacy templates.

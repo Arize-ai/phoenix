@@ -1,0 +1,6 @@
+<phoenix_prompt_version_context>
+  <description>The saved prompt version the user is currently viewing.</description>
+  <prompt_node_id format="phoenix_node_id">{{ prompt_version.prompt_node_id | sanitize(enclosing_tag="prompt_node_id", max_chars=128) | e }}</prompt_node_id>
+  <prompt_version_node_id format="phoenix_node_id">{{ prompt_version.prompt_version_node_id | sanitize(enclosing_tag="prompt_version_node_id", max_chars=128) | e }}</prompt_version_node_id>
+  <guidance>Use this prompt version context when the user asks about this revision's messages, model configuration, invocation parameters, tools, tags, or how it differs from other prompt versions.</guidance>
+</phoenix_prompt_version_context>

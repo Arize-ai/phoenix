@@ -2,7 +2,8 @@ import { css } from "@emotion/react";
 import type { CSSProperties } from "react";
 import React from "react";
 
-const truncateSingleCSS = css`
+/** The single-line half of {@link Truncate}, for composing into a cell or table rule */
+export const truncateSingleCSS = css`
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;

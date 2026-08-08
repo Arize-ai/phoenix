@@ -69,7 +69,7 @@ export function ReplaceSecretButton({
     >
       <Button
         variant="default"
-        leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Edit />} />}
         aria-label={`Replace ${secretKey}`}
         size="S"
       />

@@ -895,7 +895,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
                 isDisabled={!isValid || isSubmitting || isParsing}
                 leadingVisual={
                   pendingAction === "update" ? (
-                    <Icon svg={<Icons.LoadingOutline />} />
+                    <Icon svg={<Icons.Loading />} />
                   ) : undefined
                 }
               >
@@ -960,7 +960,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
               isDisabled={!isValid || isSubmitting || isParsing}
               leadingVisual={
                 pendingAction === "append" ? (
-                  <Icon svg={<Icons.LoadingOutline />} />
+                  <Icon svg={<Icons.Loading />} />
                 ) : undefined
               }
             >
@@ -977,7 +977,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
             isDisabled={!isValid || isSubmitting || isParsing}
             leadingVisual={
               pendingAction === "create" ? (
-                <Icon svg={<Icons.LoadingOutline />} />
+                <Icon svg={<Icons.Loading />} />
               ) : undefined
             }
           >

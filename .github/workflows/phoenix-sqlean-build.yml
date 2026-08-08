@@ -1,0 +1,93 @@
+name: Build arize-phoenix-sqlean wheels
+
+# Called by build-sqlean in publish.yaml and wheel in phoenix-sqlean-ci.yml, so
+# a PR runs the build a release runs. cibuildwheel.toml carries the settings;
+# the layout they depend on lives here.
+
+on:
+  workflow_call:
+    inputs:
+      sources-artifact:
+        description: Artifact holding the prepared package sources.
+        required: true
+        type: string
+      runners:
+        description: JSON array of runner labels to build on.
+        required: true
+        type: string
+      cibw-build:
+        description: CIBW_BUILD override. Empty uses cibuildwheel.toml's matrix.
+        required: false
+        type: string
+        default: ""
+      cibw-archs-linux:
+        description: CIBW_ARCHS_LINUX override. Empty uses cibuildwheel.toml's.
+        required: false
+        type: string
+        default: ""
+      emulate-aarch64:
+        description: >-
+          QEMU for cross-arch Linux builds. Defaults true to match
+          cibuildwheel.toml's aarch64; false only if a caller narrowed to native.
+        required: false
+        type: boolean
+        default: true
+      dist-artifact-prefix:
+        description: Upload wheels as <prefix>-<runner>. Empty skips the upload.
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.runners) }}
+    steps:
+      # Workspace root: cibuildwheel resolves test-sources against its cwd, not
+      # package-dir.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ inputs.sources-artifact }}
+      - name: Set up QEMU for aarch64 wheels
+        if: runner.os == 'Linux' && inputs.emulate-aarch64
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+        with:
+          platforms: arm64
+      # Not step env: an empty CIBW_* overrides cibuildwheel.toml rather than
+      # being ignored, taking Linux from 10 identifiers to 36 (musllinux,
+      # free-threaded, cp39, cp315).
+      - name: Narrow the matrix
+        if: inputs.cibw-build != '' || inputs.cibw-archs-linux != ''
+        shell: bash
+        env:
+          BUILD: ${{ inputs.cibw-build }}
+          ARCHS_LINUX: ${{ inputs.cibw-archs-linux }}
+        run: |
+          if [ -n "$BUILD" ]; then echo "CIBW_BUILD=$BUILD" >> "$GITHUB_ENV"; fi
+          if [ -n "$ARCHS_LINUX" ]; then echo "CIBW_ARCHS_LINUX=$ARCHS_LINUX" >> "$GITHUB_ENV"; fi
+      - name: Build wheels
+        # Must be >= v3.4.0: earlier releases reference actions/setup-python@v6
+        # inside their own action.yml, and this org rejects unpinned actions
+        # transitively, so the job fails while preparing actions.
+        uses: pypa/cibuildwheel@1828c10ab37f080699c7b81cea34097c684a7074 # v4.2.0
+        with:
+          config-file: cibuildwheel.toml
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "10.15"
+      - name: Build sdist
+        if: runner.os == 'Linux'
+        run: pipx run build==1.5.0 --sdist --outdir wheelhouse .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: inputs.dist-artifact-prefix != ''
+        with:
+          name: ${{ inputs.dist-artifact-prefix }}-${{ matrix.os }}
+          path: wheelhouse/

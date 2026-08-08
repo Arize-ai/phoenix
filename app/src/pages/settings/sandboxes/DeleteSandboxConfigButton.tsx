@@ -73,7 +73,7 @@ export function DeleteSandboxConfigButton({
         size="S"
         variant="danger"
         aria-label={`Delete ${config.name}`}
-        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Trash />} />}
       />
       <ModalOverlay>
         <Modal>

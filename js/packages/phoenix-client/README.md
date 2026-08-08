@@ -37,12 +37,13 @@ The client will automatically read environment variables from your environment, 
 
 The following environment variables are used:
 
-- `PHOENIX_HOST` - The base URL of the Phoenix API.
+- `PHOENIX_ENDPOINT` - The base URL of your Phoenix. This is the canonical setting for the client.
 - `PHOENIX_API_KEY` - The API key to use for authentication.
 - `PHOENIX_CLIENT_HEADERS` - Custom headers to add to all requests. A JSON stringified object.
+- `PHOENIX_COLLECTOR_ENDPOINT` - Read by the OTel SDK for trace export, usually the same URL as `PHOENIX_ENDPOINT`. The client uses it for API access when `PHOENIX_ENDPOINT` is unset.
 
 ```bash
-PHOENIX_HOST='http://localhost:12345' PHOENIX_API_KEY='xxxxxx' pnpx tsx examples/list_datasets.ts
+PHOENIX_ENDPOINT='http://localhost:12345' PHOENIX_API_KEY='xxxxxx' pnpx tsx examples/list_datasets.ts
 # emits the following request:
 # GET http://localhost:12345/v1/datasets
 # headers: {
@@ -59,6 +60,31 @@ const phoenix = createClient({
     headers: {
       Authorization: "Bearer xxxxxx",
     },
+  },
+});
+```
+
+For credentials that can expire, create an authenticated fetch implementation
+and pass it to the client. The token provider controls storage and refresh-token
+rotation. Requests that receive a `401` share one refresh operation and are
+retried once.
+
+```ts
+import { createAuthFetch, createClient } from "@arizeai/phoenix-client";
+
+const authFetch = createAuthFetch({
+  getAccessToken: async ({ forceRefresh }) => {
+    if (forceRefresh) {
+      await refreshAndPersistTokens();
+    }
+    return loadTokens().accessToken;
+  },
+});
+
+const phoenix = createClient({
+  options: {
+    baseUrl: "http://localhost:6006",
+    fetch: authFetch,
   },
 });
 ```
@@ -127,6 +153,8 @@ The following LLM provider SDKs are supported:
 - Vercel AI SDK: `ai` [ai](https://www.npmjs.com/package/ai)
 - OpenAI: `openai` [openai](https://www.npmjs.com/package/openai)
 - Anthropic: `anthropic` [@anthropic-ai/sdk](https://www.npmjs.com/package/@anthropic-ai/sdk)
+
+> **Note:** These provider SDKs are optional peer dependencies — installing `@arizeai/phoenix-client` does not pull them in. Install the one you convert to yourself, e.g. `npm install ai`, `npm install openai`, or `npm install @anthropic-ai/sdk`. Calling `toSDK({ sdk: "ai" | "openai" | "anthropic" })` without the matching SDK installed fails at runtime.
 
 ```ts
 import { generateText } from "ai";
@@ -297,6 +325,68 @@ const experiment = await runExperiment({
 ```
 
 > **Hint:** Tasks and evaluators are instrumented using [OpenTelemetry](https://opentelemetry.io/). You can view detailed traces of experiment runs and evaluations directly in the Phoenix UI for debugging and performance analysis.
+
+## Eval Tests
+
+The package also exposes Vitest and Jest submodules for writing
+dataset-backed evaluations as normal test suites.
+
+```bash
+npm install -D @arizeai/phoenix-client vitest dotenv
+```
+
+```ts
+import * as px from "@arizeai/phoenix-client/vitest";
+import { expect } from "vitest";
+
+px.describe(
+  "text-to-sql",
+  () => {
+    px.test(
+      "select all",
+      {
+        input: { userQuery: "Get all users" },
+        expected: { sql: "SELECT * FROM users;" },
+      },
+      async ({ input, expected }) => {
+        const sql = await generateSql(input.userQuery);
+        px.logOutput({ sql });
+        expect(sql).toEqual(expected?.sql);
+      }
+    );
+  },
+  {
+    acceptanceCriteria: [
+      // every test must pass (100% of the auto-logged `pass` boolean is true)
+      {
+        annotationName: "pass",
+        metric: "passRate",
+        passFn: (a) => a.score === true,
+        minPassRate: 1,
+      },
+    ],
+  }
+);
+```
+
+The reference output can be supplied under any one of three interchangeable
+keys — `expected`, `reference`, or `output` — so you can match whichever name
+your evaluators expect. They all resolve to the same slot: the dataset
+example's `output`, exposed to evaluators and the test body as `expected`.
+Supplying more than one at a time is a type error.
+
+Use `@arizeai/phoenix-client/vitest/reporter` or
+`@arizeai/phoenix-client/jest/reporter` to print Phoenix dataset and
+experiment links, annotation aggregates, and acceptance criteria at the end
+of a run. Acceptance criteria gate the suite after it finishes — `average`
+checks an aggregate bar (so CI can allow a mean of 80% while still running
+every case), and `passRate` requires a minimum fraction of runs to satisfy a
+per-run `passFn` predicate.
+
+See the [`docs/`](./docs) folder — `ci-evals.mdx`, `ci-evals-vitest.mdx`,
+`ci-evals-jest.mdx`, and `ci-evals-annotations.mdx` — for setup, the full
+`describe` / `test` / `test.each` API, acceptance criteria, repetitions,
+dry-run mode, and annotation details.
 
 ## Traces
 
@@ -482,6 +572,32 @@ const rootSpans = await getSpans({
 | `spanKind`   | `SpanKindFilter \| SpanKindFilter[]` | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, etc.) |
 | `statusCode` | `SpanStatusCode \| SpanStatusCode[]` | Filter by status code (`OK`, `ERROR`, `UNSET`)                  |
 
+### Logging Spans
+
+Use `logSpans` to submit spans directly to a project using Phoenix's simplified span structure — the same shape returned by `getSpans`. This is useful for backfilling or migrating spans without going through OpenTelemetry. If your application is already instrumented with OpenTelemetry, export spans via `@arizeai/phoenix-otel` instead.
+
+```ts
+import { logSpans } from "@arizeai/phoenix-client/spans";
+
+const result = await logSpans({
+  project: { projectName: "my-project" },
+  spans: [
+    {
+      name: "chat_completion",
+      context: { trace_id: "abc123", span_id: "def456" },
+      span_kind: "LLM",
+      start_time: "2024-01-01T00:00:00Z",
+      end_time: "2024-01-01T00:00:01Z",
+      status_code: "OK",
+      attributes: { "llm.model_name": "gpt-4" },
+    },
+  ],
+});
+console.log(`Queued ${result.totalQueued} of ${result.totalReceived} spans`);
+```
+
+If any span in the request is invalid or a duplicate of a span that already exists, none of the spans are queued and `logSpans` throws a `SpanCreationError` with `invalidSpans` and `duplicateSpans` details.
+
 ## Span Annotations
 
 The `spans` export also provides functions for managing span annotations — adding evaluations, feedback, and labels to spans.
@@ -612,6 +728,31 @@ await addSessionNote({
     note: "Needs review",
   },
 });
+```
+
+## Projects
+
+The `@arizeai/phoenix-client` package provides a `projects` export for listing projects.
+
+### Fetching Projects
+
+Use `getProjects` to list projects. Pagination is handled for you.
+
+```ts
+import { getProjects } from "@arizeai/phoenix-client/projects";
+
+// List every project
+const projects = await getProjects();
+
+for (const project of projects) {
+  console.log(`Project: ${project.name} (${project.id})`);
+}
+```
+
+Pass `nameContains` to filter by a case-insensitive substring of the project name. The filter is applied server-side and requires Phoenix server `17.16.0` or newer.
+
+```ts
+const agentProjects = await getProjects({ nameContains: "agent" });
 ```
 
 ## Examples

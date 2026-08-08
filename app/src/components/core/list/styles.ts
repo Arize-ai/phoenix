@@ -7,13 +7,13 @@ export const listCSS = css`
 
   & li {
     position: relative;
-    padding: var(--global-dimension-static-size-200);
+    padding: var(--global-dimension-size-200);
 
     &:not(:first-of-type)::after {
       content: " ";
       border-top: 1px solid var(--global-border-color-default);
       position: absolute;
-      left: var(--global-dimension-static-size-200);
+      left: var(--global-dimension-size-200);
       right: 0;
       top: 0;
     }
@@ -21,10 +21,10 @@ export const listCSS = css`
 
   &[data-list-size="S"] {
     & li {
-      padding: var(--global-dimension-static-size-100);
+      padding: var(--global-dimension-size-100);
 
       &:not(:first-of-type)::after {
-        left: var(--global-dimension-static-size-100);
+        left: var(--global-dimension-size-100);
       }
     }
   }

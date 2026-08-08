@@ -22,7 +22,7 @@ export const ShareLinkButton = ({
     <TooltipTrigger delay={200}>
       <Button
         size="S"
-        leadingVisual={<Icon svg={<Icons.ShareOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Share />} />}
         onPress={() => {
           const url = new URL(
             prependBasename(location.pathname),

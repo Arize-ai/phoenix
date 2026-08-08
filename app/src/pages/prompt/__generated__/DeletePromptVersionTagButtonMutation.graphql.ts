@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<f1d87ec6ac6c65d815428bc7abe7b5b2>>
+ * @generated SignedSource<<93b582bfb5e7c439025b3b08825702b5>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -67,14 +66,14 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "DeletePromptVersionTagButtonMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "PromptVersionTagMutationPayload",
         "kind": "LinkedField",
         "name": "deletePromptVersionTag",
@@ -90,7 +89,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -116,13 +115,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "DeletePromptVersionTagButtonMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "PromptVersionTagMutationPayload",
         "kind": "LinkedField",
         "name": "deletePromptVersionTag",
@@ -138,7 +137,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -151,7 +150,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v3/*: any*/),
+                  (v3/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -163,7 +162,7 @@ return {
                         "name": "versionTags",
                         "plural": true,
                         "selections": [
-                          (v3/*: any*/),
+                          (v3/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,

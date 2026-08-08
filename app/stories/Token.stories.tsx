@@ -75,7 +75,7 @@ export const Removable: Meta<typeof Token> = {
 const WithLeadingVisualTemplate: StoryFn<TokenProps> = (args) => (
   <Card title="Token with Leading Visual">
     <View width="600px" padding="size-200">
-      <Token {...args} leadingVisual={<Icon svg={<Icons.Info />} />}>
+      <Token {...args} leadingVisual={<Icon svg={<Icons.InfoFilled />} />}>
         With Leading Visual
       </Token>
     </View>
@@ -96,7 +96,7 @@ const FullInteractiveTemplate: StoryFn<TokenProps> = (args) => (
     <View width="600px" padding="size-200">
       <Token
         {...args}
-        leadingVisual={<Icon svg={<Icons.Info />} />}
+        leadingVisual={<Icon svg={<Icons.InfoFilled />} />}
         onPress={() => alert("Token clicked!")}
         onRemove={() => alert("Token removed!")}
       >

@@ -1,6 +1,7 @@
 export { Message } from "./Message";
 export { MessageContent } from "./MessageContent";
 export { MessageResponse } from "./MessageResponse";
+export { MessageCopyAction } from "./MessageCopyAction";
 export { MessageActions } from "./MessageActions";
 export { MessageAction } from "./MessageAction";
 export { MessageToolbar } from "./MessageToolbar";

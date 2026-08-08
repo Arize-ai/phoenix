@@ -21,7 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
-version = "2.9.0"
+version = "2.13.0"
 dependencies = [
   "httpx",
   "tqdm",
@@ -31,6 +31,22 @@ dependencies = [
   "opentelemetry-sdk",
   "opentelemetry-exporter-otlp",
 ]
+
+[project.optional-dependencies]
+# The pytest plugin is opt-in: pytest stays OUT of base deps and is only required when a user
+# installs this extra (or already has pytest). The pytest11 entry point below is inert unless
+# pytest is importable, so importing arize-phoenix-client never pulls pytest in.
+pytest = [
+  "pytest>=7",
+]
+# Optional adapter for `phoenix.evals` evaluators used via @pytest.mark.phoenix(evaluators=...)
+# and px.evaluate(...). Kept separate so the base client never depends on arize-phoenix-evals.
+evals = [
+  "arize-phoenix-evals",
+]
+
+[project.entry-points.pytest11]
+phoenix = "phoenix.client.pytest.plugin"
 
 [project.urls]
 Documentation = "https://arize.com/docs/phoenix/"

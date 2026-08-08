@@ -1,3 +1,20 @@
+/**
+ * Type-guard for the `AbortError` browsers raise when the user dismisses a
+ * picker or an in-flight request is aborted. Structural rather than an
+ * `instanceof DOMException` check so it also matches abort errors surfaced by
+ * non-DOM sources.
+ * @param error - the thrown value to inspect
+ * @returns true if the error is named `AbortError`
+ */
+export const isAbortError = (error: unknown): boolean => {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    error.name === "AbortError"
+  );
+};
+
 const isErrorWithMessage = (error: unknown): error is { message: string } => {
   return (
     typeof error === "object" &&

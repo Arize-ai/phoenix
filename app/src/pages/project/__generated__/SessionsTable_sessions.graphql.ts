@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<8725c611cf9dbbd996db0d301dcc672b>>
+ * @generated SignedSource<<6195b5b0e20fdafe627ae154cbb0eb10>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -76,6 +75,7 @@ export type SessionsTable_sessions$data = {
         };
         readonly traceLatencyMsP50: number | null;
         readonly traceLatencyMsP99: number | null;
+        readonly userId: string | null;
         readonly " $fragmentSpreads": FragmentRefs<"SessionAnnotationSummaryGroup">;
       };
     }>;
@@ -98,22 +98,22 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "id",
   "storageKey": null
 },
 v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "name",
   "storageKey": null
 },
 v3 = [
   {
-    "alias": null,
+    "alias": "value",
     "args": null,
     "kind": "ScalarField",
-    "name": "value",
+    "name": "truncatedValue",
     "storageKey": null
   }
 ],
@@ -139,11 +139,6 @@ return {
       "name": "after"
     },
     {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "filterIoSubstring"
-    },
-    {
       "defaultValue": 30,
       "kind": "LocalArgument",
       "name": "first"
@@ -151,7 +146,7 @@ return {
     {
       "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "sessionId"
+      "name": "sessionFilterCondition"
     },
     {
       "defaultValue": {
@@ -173,7 +168,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -183,7 +178,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [
         "node"
@@ -197,7 +192,8 @@ return {
   },
   "name": "SessionsTable_sessions",
   "selections": [
-    (v1/*: any*/),
+    (v1/*:: as any*/),
+    (v2/*:: as any*/),
     {
       "args": null,
       "kind": "FragmentSpread",
@@ -208,13 +204,8 @@ return {
       "args": [
         {
           "kind": "Variable",
-          "name": "filterIoSubstring",
-          "variableName": "filterIoSubstring"
-        },
-        {
-          "kind": "Variable",
-          "name": "sessionId",
-          "variableName": "sessionId"
+          "name": "sessionFilterCondition",
+          "variableName": "sessionFilterCondition"
         },
         {
           "kind": "Variable",
@@ -248,12 +239,19 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*: any*/),
+                (v1/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
                   "name": "sessionId",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "userId",
                   "storageKey": null
                 },
                 {
@@ -284,7 +282,7 @@ return {
                   "kind": "LinkedField",
                   "name": "firstInput",
                   "plural": false,
-                  "selections": (v3/*: any*/),
+                  "selections": (v3/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -294,7 +292,7 @@ return {
                   "kind": "LinkedField",
                   "name": "lastOutput",
                   "plural": false,
-                  "selections": (v3/*: any*/),
+                  "selections": (v3/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -378,10 +376,10 @@ return {
                   "name": "sessionAnnotations",
                   "plural": true,
                   "selections": [
-                    (v2/*: any*/),
-                    (v1/*: any*/),
-                    (v4/*: any*/),
-                    (v5/*: any*/),
+                    (v1/*:: as any*/),
+                    (v2/*:: as any*/),
+                    (v4/*:: as any*/),
+                    (v5/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -440,7 +438,7 @@ return {
                           "name": "fraction",
                           "storageKey": null
                         },
-                        (v4/*: any*/)
+                        (v4/*:: as any*/)
                       ],
                       "storageKey": null
                     },
@@ -451,7 +449,7 @@ return {
                       "name": "meanScore",
                       "storageKey": null
                     },
-                    (v1/*: any*/)
+                    (v2/*:: as any*/)
                   ],
                   "storageKey": null
                 },
@@ -463,7 +461,7 @@ return {
                   "name": "project",
                   "plural": false,
                   "selections": [
-                    (v2/*: any*/),
+                    (v1/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -505,8 +503,8 @@ return {
                                 {
                                   "kind": "InlineFragment",
                                   "selections": [
-                                    (v2/*: any*/),
-                                    (v1/*: any*/),
+                                    (v1/*:: as any*/),
+                                    (v2/*:: as any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -522,8 +520,8 @@ return {
                                       "name": "values",
                                       "plural": true,
                                       "selections": [
-                                        (v4/*: any*/),
-                                        (v5/*: any*/)
+                                        (v4/*:: as any*/),
+                                        (v5/*:: as any*/)
                                       ],
                                       "storageKey": null
                                     }
@@ -606,14 +604,13 @@ return {
         }
       ],
       "storageKey": null
-    },
-    (v2/*: any*/)
+    }
   ],
   "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "5b3f781dd578f1b1198e7de5a5daf95d";
+(node as any).hash = "bd21d26acb6b02042bc7743aac5560c6";
 
 export default node;

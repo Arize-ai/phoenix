@@ -24,7 +24,7 @@ export const traceTreeListCSS = css`
       width: 0;
     }
     .span-node-wrap {
-      padding-left: var(--global-dimension-static-size-200);
+      padding-left: var(--global-dimension-size-200);
     }
   }
   @container (width < ${LARGE_BREAKPOINT}) {

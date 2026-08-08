@@ -43,7 +43,9 @@ import argparse
 import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
+from io import StringIO
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Any, Iterator
 
 import pglast
@@ -142,10 +144,12 @@ class PostgreSQLDDLExtractor:
     def _execute_query(
         self, query: sql.SQL | sql.Composed, params: tuple[Any, ...], operation_name: str
     ) -> list[dict[str, Any]]:
-        """Execute database query with standardized error handling.
+        """Execute a catalog query, letting database errors fail the run.
 
-        Returns empty list on error to allow graceful degradation.
-        Errors are logged to stderr with context.
+        Converting an error into an empty result would silently omit schema
+        objects from the reference DDL — and once the transaction is aborted,
+        every subsequent catalog query would fail and hollow out the rest of
+        the output while the run still exits 0.
         """
         if not self.conn:
             raise RuntimeError("No database connection")
@@ -155,8 +159,7 @@ class PostgreSQLDDLExtractor:
                 cur.execute(query, params)
                 return cur.fetchall()
         except psycopg.Error as e:
-            print(f"Error {operation_name}: {e}", file=sys.stderr)
-            return []
+            raise RuntimeError(f"Error {operation_name}: {e}") from e
 
     def extract_all_types_ddl(self, schema: str = DEFAULT_SCHEMA) -> list[TypeInfo]:
         """Extract DDL for all user-defined types (enums, etc.) in the specified schema."""
@@ -196,13 +199,9 @@ class PostgreSQLDDLExtractor:
         table_ddls: list[TableInfo] = []
 
         for table_name in tables:
-            try:
-                ddl_info = self._extract_single_table_ddl(schema, table_name)
-                table_ddls.append(ddl_info)
-            except Exception as e:
-                print(
-                    f"Warning: Failed to extract DDL for table {table_name}: {e}", file=sys.stderr
-                )
+            # Let extraction failures propagate: swallowing them into a warning
+            # would silently omit an entire table from the reference DDL.
+            table_ddls.append(self._extract_single_table_ddl(schema, table_name))
 
         # Sort tables based on foreign key dependencies (topological sort)
         return self._topological_sort_tables(table_ddls)
@@ -349,7 +348,16 @@ class PostgreSQLDDLExtractor:
                      LEFT JOIN information_schema.key_column_usage kcu
                                ON tc.constraint_name = kcu.constraint_name
                                    AND tc.table_schema = kcu.table_schema
-                     LEFT JOIN pg_constraint pgc ON pgc.conname = tc.constraint_name
+                                   AND tc.table_name = kcu.table_name
+                     -- Constraint names are unique per TABLE, not per schema: joining
+                     -- pg_constraint by name alone matches same-named constraints on
+                     -- other tables and cross-contaminates their definitions, so the
+                     -- join must also pin the constrained table's oid.
+                     LEFT JOIN pg_constraint pgc
+                               ON pgc.conname = tc.constraint_name
+                                   AND pgc.conrelid = to_regclass(
+                                       quote_ident(tc.table_schema) || '.' || quote_ident(tc.table_name)
+                                   )
             WHERE tc.table_schema = %s
               AND tc.table_name = %s
               AND tc.constraint_type IN ('PRIMARY KEY', 'UNIQUE', 'CHECK')
@@ -363,37 +371,56 @@ class PostgreSQLDDLExtractor:
     def _get_foreign_keys(self, schema: str, table_name: str) -> list[dict[str, Any]]:
         """Get foreign key constraints with full details.
 
-        For composite FKs whose source-column declaration order differs from the
-        referenced unique constraint's column order, we must pair source→target
-        via `position_in_unique_constraint` (the FK column's position in the
-        referenced unique constraint), not via raw ordinal positions. The target
-        list is then ordered by the source column's ordinal position so the
-        emitted REFERENCES clause matches the FK declaration's positional mapping.
+        PostgreSQL permits the same constraint name on different tables, so
+        information_schema.referential_constraints cannot be joined safely by
+        constraint name and schema alone. Use pg_constraint's relation OIDs and
+        pair conkey/confkey by ordinality to preserve composite-FK mappings.
         """
         query = sql.SQL("""
             SELECT
-                tc.constraint_name,
-                array_agg(kcu.column_name ORDER BY kcu.ordinal_position) as columns,
-                kcu2.table_schema AS foreign_table_schema,
-                kcu2.table_name AS foreign_table_name,
-                array_agg(kcu2.column_name ORDER BY kcu.ordinal_position) as foreign_columns,
-                rc.update_rule,
-                rc.delete_rule
-            FROM information_schema.table_constraints AS tc
-                     JOIN information_schema.key_column_usage AS kcu
-                          ON tc.constraint_name = kcu.constraint_name
-                              AND tc.table_schema = kcu.table_schema
-                     JOIN information_schema.referential_constraints AS rc
-                          ON tc.constraint_name = rc.constraint_name
-                     JOIN information_schema.key_column_usage AS kcu2
-                          ON rc.unique_constraint_name = kcu2.constraint_name
-                              AND kcu.position_in_unique_constraint = kcu2.ordinal_position
-            WHERE tc.constraint_type = 'FOREIGN KEY'
-              AND tc.table_schema = %s
-              AND tc.table_name = %s
-            GROUP BY tc.constraint_name, kcu2.table_schema, kcu2.table_name,
-                     rc.update_rule, rc.delete_rule
-            ORDER BY tc.constraint_name
+                con.conname AS constraint_name,
+                array_agg(source_column.attname ORDER BY key_map.position) AS columns,
+                target_namespace.nspname AS foreign_table_schema,
+                target_table.relname AS foreign_table_name,
+                array_agg(target_column.attname ORDER BY key_map.position) AS foreign_columns,
+                CASE con.confupdtype
+                    WHEN 'a' THEN 'NO ACTION'
+                    WHEN 'r' THEN 'RESTRICT'
+                    WHEN 'c' THEN 'CASCADE'
+                    WHEN 'n' THEN 'SET NULL'
+                    WHEN 'd' THEN 'SET DEFAULT'
+                END AS update_rule,
+                CASE con.confdeltype
+                    WHEN 'a' THEN 'NO ACTION'
+                    WHEN 'r' THEN 'RESTRICT'
+                    WHEN 'c' THEN 'CASCADE'
+                    WHEN 'n' THEN 'SET NULL'
+                    WHEN 'd' THEN 'SET DEFAULT'
+                END AS delete_rule
+            FROM pg_constraint AS con
+                     JOIN pg_class AS source_table
+                          ON source_table.oid = con.conrelid
+                     JOIN pg_namespace AS source_namespace
+                          ON source_namespace.oid = source_table.relnamespace
+                     JOIN pg_class AS target_table
+                          ON target_table.oid = con.confrelid
+                     JOIN pg_namespace AS target_namespace
+                          ON target_namespace.oid = target_table.relnamespace
+                     JOIN LATERAL unnest(con.conkey, con.confkey) WITH ORDINALITY
+                          AS key_map(source_attnum, target_attnum, position)
+                          ON TRUE
+                     JOIN pg_attribute AS source_column
+                          ON source_column.attrelid = source_table.oid
+                              AND source_column.attnum = key_map.source_attnum
+                     JOIN pg_attribute AS target_column
+                          ON target_column.attrelid = target_table.oid
+                              AND target_column.attnum = key_map.target_attnum
+            WHERE con.contype = 'f'
+              AND source_namespace.nspname = %s
+              AND source_table.relname = %s
+            GROUP BY con.oid, con.conname, target_namespace.nspname, target_table.relname,
+                     con.confupdtype, con.confdeltype
+            ORDER BY con.conname
         """)
         return self._execute_query(
             query, (schema, table_name), f"getting foreign keys for {schema}.{table_name}"
@@ -406,29 +433,30 @@ class PostgreSQLDDLExtractor:
         - PRIMARY KEY indexes (automatically created)
         - UNIQUE constraint indexes (handled separately)
 
-        Returns index metadata including name, uniqueness, and definition.
+        Returns index metadata including name, uniqueness, and definition. The
+        full definition comes from pg_get_indexdef, which renders columns,
+        expressions, operator classes, and predicates — so no join to
+        pg_attribute is needed. (An earlier version joined pg_attribute on
+        indkey to aggregate column names, which silently dropped pure
+        expression indexes: their indkey entries are 0 and match no attribute.)
         """
         query = sql.SQL("""
-            SELECT DISTINCT
+            SELECT
                 i.relname as index_name,
                 ix.indisunique as is_unique,
                 ix.indisprimary as is_primary,
-                array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)) as columns,
                 pg_get_indexdef(i.oid) as index_definition
             FROM pg_class t                              -- Target table
                      JOIN pg_index ix ON t.oid = ix.indrelid      -- Index metadata
                      JOIN pg_class i ON i.oid = ix.indexrelid     -- Index object
-                     JOIN pg_attribute a ON t.oid = a.attrelid    -- Column attributes
                      JOIN pg_namespace n ON t.relnamespace = n.oid -- Schema info
             WHERE t.relname = %s
               AND n.nspname = %s
-              AND a.attnum = ANY(ix.indkey)           -- Match columns in index
               AND NOT ix.indisprimary                 -- Skip PRIMARY KEY indexes (handled as constraints)
               AND NOT EXISTS (                       -- Skip UNIQUE constraint indexes
                 SELECT 1 FROM pg_constraint c
                 WHERE c.conindid = i.oid AND c.contype = 'u'
               )
-            GROUP BY i.relname, ix.indisunique, ix.indisprimary, i.oid
             ORDER BY i.relname
         """)
         return self._execute_query(
@@ -480,11 +508,20 @@ class PostgreSQLDDLExtractor:
                 ddl_parts.append(wrapped_index)
 
         # === Triggers ===
-        sorted_triggers = sorted(table_info.triggers, key=lambda x: x["trigger_name"])
-        if sorted_triggers:
-            ddl_parts.append("")
-            for trigger in sorted_triggers:
-                ddl_parts.append(f"{trigger['action_statement']};")
+        # information_schema.triggers.action_statement is only the action clause
+        # (e.g. "EXECUTE FUNCTION f()"), not a CREATE TRIGGER statement, and the
+        # trigger's function is not extracted at all — so triggers cannot be
+        # rendered faithfully. Fail loudly instead of emitting invalid DDL.
+        if table_info.triggers:
+            trigger_names = ", ".join(
+                t["trigger_name"]
+                for t in sorted(table_info.triggers, key=lambda x: x["trigger_name"])
+            )
+            raise NotImplementedError(
+                f"Table {table_name} has triggers ({trigger_names}), which this generator "
+                "cannot render (use pg_get_triggerdef and extract the trigger function to "
+                "add support)."
+            )
 
         return "\n".join(ddl_parts)
 
@@ -760,24 +797,41 @@ class PostgreSQLDDLExtractor:
         return result
 
     def _format_column(self, col: dict[str, Any]) -> str:
-        """Format a single column definition."""
+        """Format a single column definition.
+
+        Raises NotImplementedError for column features this generator cannot
+        render (identity columns, non-int/bigint serials) rather than silently
+        emitting valid-looking DDL that loses semantics.
+        """
         # Quote column name if it contains mixed case or special characters
         column_name = self._quote_identifier_if_needed(col["column_name"])
         parts: list[str] = [column_name]
+
+        if col.get("is_identity") == "YES":
+            raise NotImplementedError(
+                f"Column {col['column_name']} is a GENERATED ... AS IDENTITY column. "
+                "This generator does not render identity clauses, so the column would "
+                "silently lose its identity default. Add identity support before using "
+                "identity columns in the schema."
+            )
 
         # === Data Type Processing ===
         # Keep original case for user-defined types, lowercase for system types
         original_data_type = col["data_type"]
         data_type_lower = original_data_type.lower()
 
-        # Handle PostgreSQL serial types and identity columns
+        # Handle PostgreSQL serial types
         if col.get("column_default") and "nextval(" in col["column_default"]:
             if data_type_lower == "integer":
                 parts.append("serial")
             elif data_type_lower == "bigint":
                 parts.append("bigserial")
             else:
-                parts.append(self._format_data_type(col, original_data_type))
+                raise NotImplementedError(
+                    f"Column {col['column_name']} ({original_data_type}) has a nextval() "
+                    "default, but only integer/bigint serial folding is supported. "
+                    "Passing it through would silently drop the sequence default."
+                )
         else:
             parts.append(self._format_data_type(col, original_data_type))
 
@@ -1236,8 +1290,7 @@ def run_alembic_migrations(url: URL, skip_if_failed: bool = False) -> bool:
 
     except Exception as e:
         if not skip_if_failed:
-            print(f"Warning: Failed to run migrations: {e}", file=sys.stderr)
-            print("Proceeding with DDL extraction from database as-is", file=sys.stderr)
+            print(f"Error: Failed to run migrations: {e}", file=sys.stderr)
         return False
 
 
@@ -1295,7 +1348,8 @@ def _extract_ddl_ephemeral(args: argparse.Namespace) -> int:
         print(f"Connection: {url}")
 
         # Always run migrations for ephemeral instances
-        run_alembic_migrations(url)
+        if not run_alembic_migrations(url):
+            return 1
 
         # Extract DDL using URL directly
         return _extract_ddl_with_url(url, args)
@@ -1354,43 +1408,60 @@ def _extract_ddl_with_url(url: URL, args: argparse.Namespace) -> int:
         # Extract tables
         tables_ddl = extractor.extract_all_tables_ddl(args.schema)
 
-        # Write DDL to file
+        # Render the complete artifact before touching the destination. Generation
+        # can fail for unsupported schema features, and must not truncate the last
+        # valid checked-in DDL.
+        output = StringIO()
+        if types_ddl:
+            output.write("-- User-Defined Types (Enums)\n")
+            output.write("-- " + "=" * 30 + "\n\n")
+
+            for type_info in types_ddl:
+                output.write(extractor.generate_type_ddl(type_info))
+                output.write("\n")
+
+            output.write("\n\n")
+
+        for i, table_info in enumerate(tables_ddl):
+            if i > 0:
+                output.write("\n\n")
+            output.write(extractor.generate_ddl(table_info))
+            output.write("\n")
+
+        # Write and validate a temporary file in the destination directory, then
+        # atomically replace the destination only after validation succeeds.
+        temporary_output: Path | None = None
         try:
-            with args.output.open("w", encoding="utf-8") as f:
-                # Write user-defined types first
-                if types_ddl:
-                    f.write("-- User-Defined Types (Enums)\n")
-                    f.write("-- " + "=" * 30 + "\n\n")
+            with NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=args.output.parent,
+                prefix=f".{args.output.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as temporary_file:
+                temporary_file.write(output.getvalue())
+                temporary_output = Path(temporary_file.name)
 
-                    for type_info in types_ddl:
-                        type_ddl = extractor.generate_type_ddl(type_info)
-                        f.write(type_ddl)
-                        f.write("\n")
+            print("\nValidating schema syntax...")
+            if not validate_schema_syntax(temporary_output):
+                print(
+                    "Error: Schema contains syntax errors - destination was not changed",
+                    file=sys.stderr,
+                )
+                return 1
 
-                    f.write("\n\n")
-
-                # Write each table's DDL
-                for i, table_info in enumerate(tables_ddl):
-                    if i > 0:  # Add extra spacing between tables
-                        f.write("\n\n")
-
-                    ddl = extractor.generate_ddl(table_info)
-                    f.write(ddl)
-                    f.write("\n")
-        except (OSError, IOError) as e:
+            temporary_output.replace(args.output)
+            temporary_output = None
+        except OSError as e:
             print(f"Error writing to {args.output}: {e}", file=sys.stderr)
             return 1
+        finally:
+            if temporary_output is not None:
+                temporary_output.unlink(missing_ok=True)
 
         print(f"DDL exported to: {args.output}")
         print(f"Processed {len(types_ddl)} user-defined types and {len(tables_ddl)} tables")
-
-        # Validate the generated schema syntax
-        print("\nValidating schema syntax...")
-        if not validate_schema_syntax(args.output):
-            print(
-                "Warning: Schema contains syntax errors - please review the output",
-                file=sys.stderr,
-            )
 
     return 0
 

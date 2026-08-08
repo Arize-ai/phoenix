@@ -36,6 +36,7 @@ from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSu
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation
 from phoenix.trace.dsl import SpanFilter
+from phoenix.trace.dsl.filter import RootSpanScope
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.Project import Project
@@ -205,6 +206,16 @@ class Trace(Node):
             return None
         return Span(id=span_rowid)
 
+    @strawberry.field(
+        description='The first non-null "user.id" span attribute in the trace, '
+        "identifying the end user of the traced application.",
+    )  # type: ignore
+    async def user_id(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[str]:
+        return await info.context.data_loaders.trace_user_ids.load(self.id)
+
     @strawberry.field
     async def num_spans(
         self,
@@ -269,7 +280,7 @@ class Trace(Node):
     async def spans(
         self,
         info: Info[Context, None],
-        first: Optional[int] = UNSET,
+        first: int,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
@@ -277,8 +288,6 @@ class Trace(Node):
         orphan_span_as_root_span: Optional[bool] = True,
         filter_condition: Optional[str] = UNSET,
     ) -> Connection[Span]:
-        assert isinstance(first, int)
-
         # Build base query for spans in this trace
         base_query = (
             select(models.Span.id)
@@ -301,9 +310,20 @@ class Trace(Node):
             base_query = base_query.where(models.Span.id < cursor.rowid)
         # Narrow by SpanFilter DSL (e.g. `span_kind == 'LLM'`, `status_code == 'ERROR'`)
         # before any root-span CTE wrapping, so the filter applies to the candidate set.
+        filter_root_scope: Optional[RootSpanScope] = None
         if filter_condition:
             span_filter = SpanFilter(condition=filter_condition)
             base_query = span_filter(base_query)
+            filter_root_scope = span_filter.root_scope
+        # The flag is redundant when the condition already restricts at least as
+        # narrowly, and applying both would add a second correlated subquery (plus,
+        # in the orphan-aware branch, a CTE over `spans`) selecting the same rows.
+        if (
+            root_spans_only
+            and filter_root_scope is not None
+            and (orphan_span_as_root_span or filter_root_scope == "strict")
+        ):
+            root_spans_only = False
         # Build final query based on filtering requirements
         if root_spans_only:
             if orphan_span_as_root_span:

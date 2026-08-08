@@ -48,7 +48,7 @@ export function PlaygroundConfigButton() {
       <Button
         size="S"
         aria-label="Playground Settings"
-        leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Options />} />}
         isDisabled={isRunning}
       />
       <Popover>

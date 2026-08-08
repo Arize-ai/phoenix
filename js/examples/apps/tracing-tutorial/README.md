@@ -11,7 +11,7 @@ This tutorial accompanies the Phoenix Tracing Tutorial documentation:
 ## Prerequisites
 
 - **Node.js 18+** installed
-- **Phoenix** running locally (`pip install arize-phoenix && phoenix serve`) or access to Phoenix Cloud
+- **Phoenix** running locally (`uvx arize-phoenix serve`, or `pip install arize-phoenix && phoenix serve`)
 - **OpenAI API key**
 
 ## Setup

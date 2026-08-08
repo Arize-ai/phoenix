@@ -8,6 +8,7 @@ from sqlalchemy import (
     Insert,
     Select,
     SQLColumnExpression,
+    TextClause,
     Values,
     and_,
     case,
@@ -20,6 +21,7 @@ from sqlalchemy import (
     literal_column,
     or_,
     select,
+    text,
     util,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +29,7 @@ from sqlalchemy.orm import QueryableAttribute, aliased
 from sqlalchemy.sql.roles import InElementRole
 from typing_extensions import assert_never
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME
+from phoenix.config import PLAYGROUND_PROJECT_NAME, get_env_database_schema
 from phoenix.db import models
 
 
@@ -60,11 +62,11 @@ async def latest_code_evaluator_versions_by_evaluator_id(
     }
 
 
-async def code_evaluator_with_latest_version_for_update(
+async def code_evaluator_with_latest_version(
     session: AsyncSession,
     code_evaluator_id: int,
 ) -> Optional[tuple[models.CodeEvaluator, Optional[models.CodeEvaluatorVersion]]]:
-    """Resolve one evaluator and its latest version inside an existing write session."""
+    """Resolve one evaluator and its latest version."""
     latest_version = aliased(models.CodeEvaluatorVersion)
     latest_version_id = (
         select(models.CodeEvaluatorVersion.id)
@@ -451,11 +453,22 @@ def date_trunc(
         - The result is always returned in UTC, regardless of the input offset.
 
     Examples:
-        >>> # Truncate to hour with no offset
-        >>> date_trunc(SupportedSQLDialect.POSTGRESQL, "hour", Span.start_time)
+        Truncate to the hour with no offset (PostgreSQL), rendered as SQL:
 
-        >>> # Truncate to day with UTC-5 offset (Eastern Time)
-        >>> date_trunc(SupportedSQLDialect.SQLITE, "day", Span.start_time, -300)
+        >>> import sqlalchemy as sa
+        >>> from sqlalchemy.dialects import postgresql, sqlite
+        >>> kw = {"literal_binds": True}
+        >>> source = sa.column("start_time")
+        >>> expr = date_trunc(SupportedSQLDialect.POSTGRESQL, "hour", source)
+        >>> print(expr.compile(dialect=postgresql.dialect(), compile_kwargs=kw))
+        date_trunc('hour', start_time, '-0:00')
+
+        Truncate to the day with a UTC-5 offset (Eastern Time) on SQLite:
+
+        >>> expr = date_trunc(SupportedSQLDialect.SQLITE, "day", source, -300)
+        >>> print(expr.compile(dialect=sqlite.dialect(), compile_kwargs=kw))
+        datetime(datetime(strftime('%Y-%m-%d 00:00:00',
+        datetime(start_time, '-300 minutes'))), '300 minutes')
     """
     if dialect is SupportedSQLDialect.POSTGRESQL:
         # Note: the usage of the timezone parameter in the form of e.g. "+05:00"
@@ -946,12 +959,19 @@ def get_experiment_run_annotations_query(
         - error: Error message if evaluation failed, None if successful (Optional[str])
 
     Example:
+        Build the query:
+
         >>> run_ids = [1, 2, 3]
         >>> eval_names = ["relevance", "coherence"]
         >>> query = get_experiment_run_annotations_query(run_ids, eval_names)
-        >>> results = await session.execute(query)
-        >>> for run_id, name, error in results:
-        ...     # Process annotations...
+
+        Execute it against a session:
+
+        .. code-block:: python
+
+            results = await session.execute(query)
+            for run_id, name, error in results:
+                ...  # Process annotations
     """
     return (
         select(
@@ -1135,14 +1155,16 @@ def get_experiment_incomplete_runs_query(
         [1..repetitions] list when successful_count=0.
 
     Example:
-        >>> experiment = session.get(models.Experiment, experiment_id)
-        >>> dialect = SupportedSQLDialect(session.bind.dialect.name)
-        >>> query = get_experiment_incomplete_runs_query(
-        ...     experiment, dialect, cursor_example_rowid=100, limit=50
-        ... )
-        >>> results = await session.execute(query)
-        >>> for revision, success_count, incomplete_reps in results:
-        ...     # Process incomplete runs...
+        .. code-block:: python
+
+            experiment = session.get(models.Experiment, experiment_id)
+            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            query = get_experiment_incomplete_runs_query(
+                experiment, dialect, cursor_example_rowid=100, limit=50
+            )
+            results = await session.execute(query)
+            for revision, success_count, incomplete_reps in results:
+                ...  # Process incomplete runs
     """
     # Step 1: Get successful run counts for incomplete examples
     run_counts_subquery = get_successful_run_counts_subquery(experiment.id, experiment.repetitions)
@@ -1212,8 +1234,7 @@ def get_experiment_incomplete_runs_query(
     )
 
 
-# Token-count aggregation helpers.  Both sum `llm_token_count_{prompt,completion}`
-# from leaf LLM spans (`span_kind = 'LLM'`) and group by the requested key.
+# Sums `llm_token_count_{prompt,completion}` from leaf LLM spans (`span_kind = 'LLM'`).
 # Summing cumulative counts on root spans multi-counted tokens whenever frameworks
 # (e.g. smolagents) propagated LLM token attributes up through wrapping agent/tool
 # spans — the cumulative rollup at the root then included the same tokens at every
@@ -1223,24 +1244,7 @@ def get_experiment_incomplete_runs_query(
 # NULL columns coalesce to 0.  The GROUP BY emits no row for a key whose set of LLM
 # spans is empty (e.g. a trace whose spans are all non-LLM), so callers must
 # default missing keys to (0, 0) — an absent key means "zero", not "unknown".
-
-
-def token_counts_by_session(keys: Collection[int]) -> Select[Any]:
-    """Sum leaf-LLM token counts, grouped by session rowid.
-
-    Columns: `id_` (project_session_rowid), `prompt`, `completion`.
-    """
-    return (
-        select(
-            models.Trace.project_session_rowid.label("id_"),
-            func.sum(func.coalesce(models.Span.llm_token_count_prompt, 0)).label("prompt"),
-            func.sum(func.coalesce(models.Span.llm_token_count_completion, 0)).label("completion"),
-        )
-        .join_from(models.Span, models.Trace)
-        .where(func.upper(models.Span.span_kind) == "LLM")
-        .where(models.Trace.project_session_rowid.in_(keys))
-        .group_by(models.Trace.project_session_rowid)
-    )
+# The per-session sibling lives in `phoenix.db.session_aggregates`.
 
 
 def token_counts_by_trace(keys: Collection[int]) -> Select[Any]:
@@ -1258,3 +1262,47 @@ def token_counts_by_trace(keys: Collection[int]) -> Select[Any]:
         .where(models.Span.trace_rowid.in_(keys))
         .group_by(models.Span.trace_rowid)
     )
+
+
+# Ordinary tables in the schema Phoenix's ORM actually reads and writes.
+# Resolution:
+#   1. The schema env var (`models.Base.metadata.schema` is set from the same
+#      var at import time, so when set it is authoritative).
+#   2. The schema an unqualified reference to the `projects` table resolves
+#      from on this connection (`to_regclass` follows search_path the same way
+#      the ORM's unqualified queries do). This is NOT current_schema(): CREATE
+#      targets the first *existing* schema in search_path, but reads resolve
+#      from the first schema *containing* the table, e.g. when search_path
+#      gained a leading entry after the tables were created.
+# If neither resolves (pre-migration database), the filter matches nothing and
+# usage reports zero: when the ORM can't see the tables, there is no Phoenix
+# usage to report — deliberately not current_schema(), which could count an
+# unrelated application's tables in a shared schema.
+_PG_TABLES_IN_PHOENIX_SCHEMA = f"""\
+FROM pg_class AS c
+JOIN pg_namespace AS n ON n.oid = c.relnamespace
+WHERE c.relkind = 'r'
+AND n.nspname = coalesce(
+    cast(:nspname AS text),
+    (SELECT pn.nspname
+     FROM pg_class AS pc
+     JOIN pg_namespace AS pn ON pn.oid = pc.relnamespace
+     WHERE pc.oid = to_regclass('{models.Project.__tablename__}'))
+)
+"""
+
+
+def pg_table_sizes_stmt() -> TextClause:
+    """Rows of (table_name, total_bytes) for each ordinary table in Phoenix's
+    PostgreSQL schema, including indexes and TOAST data."""
+    return text(
+        f"SELECT c.relname, pg_total_relation_size(c.oid)\n{_PG_TABLES_IN_PHOENIX_SCHEMA}"
+    ).bindparams(nspname=get_env_database_schema())
+
+
+def pg_total_table_size_stmt() -> TextClause:
+    """Total bytes across all ordinary tables in Phoenix's PostgreSQL schema,
+    including indexes and TOAST data. Returns 0 (not NULL) when no tables match."""
+    return text(
+        f"SELECT coalesce(sum(pg_total_relation_size(c.oid)), 0)\n{_PG_TABLES_IN_PHOENIX_SCHEMA}"
+    ).bindparams(nspname=get_env_database_schema())

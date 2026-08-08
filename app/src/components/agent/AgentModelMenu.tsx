@@ -10,7 +10,6 @@ import {
   MenuItem,
   MenuSectionTitle,
   MenuTrigger,
-  SelectChevronUpDownIcon,
   Separator,
   Text,
 } from "@phoenix/components";
@@ -197,7 +196,6 @@ export function AgentModelMenu({
         ) : (
           <Text color="text-700">Select a model</Text>
         )}
-        {variant !== "quiet" && <SelectChevronUpDownIcon />}
       </Button>
       <MenuContainer
         minHeight={0}

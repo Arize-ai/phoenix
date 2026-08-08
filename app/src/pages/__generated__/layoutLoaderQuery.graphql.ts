@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<132ad8442f39674b897ecd5a9d0ab8c8>>
+ * @generated SignedSource<<ea2783a13d3ba4ec6a631d34c1d4bc0c>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -58,7 +57,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "layoutLoaderQuery",
-    "selections": (v0/*: any*/),
+    "selections": (v0/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -67,7 +66,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "layoutLoaderQuery",
-    "selections": (v0/*: any*/)
+    "selections": (v0/*:: as any*/)
   },
   "params": {
     "cacheID": "bd9d561e7b62e792627d75e8eaef3b0d",

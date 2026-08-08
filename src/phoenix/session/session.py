@@ -308,8 +308,11 @@ def launch_app(
 
     Examples
     --------
-    >>> import phoenix as px
-    >>> session = px.launch_app()
+    .. code-block:: python
+
+        import phoenix as px
+
+        session = px.launch_app()
     """
     global _session
 

@@ -122,13 +122,7 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
                 isDisabled={!isValid || isCommitting}
                 leadingVisual={
                   <Icon
-                    svg={
-                      isCommitting ? (
-                        <Icons.LoadingOutline />
-                      ) : (
-                        <Icons.SaveOutline />
-                      )
-                    }
+                    svg={isCommitting ? <Icons.Loading /> : <Icons.Save />}
                   />
                 }
                 onPress={() =>

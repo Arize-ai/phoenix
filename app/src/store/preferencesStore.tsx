@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
+import type { AIQueryModelConfig } from "@phoenix/components/filter/ai/types";
 import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
 import {
   pythonPackageManagers,
@@ -97,6 +98,13 @@ export interface PreferencesProps {
    */
   showMetricsInTraceTree: boolean;
   /**
+   * Whether the tracing and experiments tables' rows wrap their content or
+   * clip it to a single line. A reading preference, so it spans datasets,
+   * projects and tabs.
+   * @default false
+   */
+  areTableRowsExpanded: boolean;
+  /**
    * {@link ModelConfig|ModelConfigs} for llm providers will be used as the default parameters for the provider
    */
   modelConfigByProvider: ModelConfigByProvider;
@@ -110,6 +118,10 @@ export interface PreferencesProps {
    */
   isAnnotatingSpans: boolean;
   /**
+   * Whether the note-taking bar is shown at the bottom of the span details
+   */
+  isTakingSpanNotes: boolean;
+  /**
    * The view mode for projects
    */
   projectViewMode: ProjectViewMode;
@@ -122,7 +134,8 @@ export interface PreferencesProps {
    */
   lastSelectedDashboardProjectId?: string;
   /**
-   * Whether the side nav is open or closed
+   * Whether the user prefers the side nav to be open or closed. Responsive
+   * layout constraints can temporarily override this preference.
    * @default true
    */
   isSideNavExpanded: boolean;
@@ -161,6 +174,16 @@ export interface PreferencesProps {
    * When undefined, falls back to {@link DEFAULT_MODEL_NAME}.
    */
   defaultModelName?: string;
+  /**
+   * Whether AI query is enabled on filter condition fields
+   * @default true
+   */
+  isAIQueryEnabled: boolean;
+  /**
+   * How AI query on filter fields resolves its language model. When
+   * undefined, the on-device browser model is used.
+   */
+  aiQueryModelConfig?: AIQueryModelConfig;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -188,6 +211,8 @@ export interface PreferencesState extends PreferencesProps {
    * @param showMetricsInTraceTree
    */
   setShowMetricsInTraceTree: (showMetricsInTraceTree: boolean) => void;
+  /** Setter for whether tracing tables' rows are expanded */
+  setAreTableRowsExpanded: (areTableRowsExpanded: boolean) => void;
   /**
    * Setter for the model configs by provider
    */
@@ -207,6 +232,10 @@ export interface PreferencesState extends PreferencesProps {
    */
   setIsAnnotatingSpans: (isAnnotatingSpans: boolean) => void;
   /**
+   * Setter for showing/hiding the span note-taking bar
+   */
+  setIsTakingSpanNotes: (isTakingSpanNotes: boolean) => void;
+  /**
    * Setter for the project view mode
    */
   setProjectViewMode: (projectViewMode: ProjectViewMode) => void;
@@ -219,7 +248,7 @@ export interface PreferencesState extends PreferencesProps {
    */
   setLastSelectedDashboardProjectId: (projectId: string) => void;
   /**
-   * Setter for the side nav open state
+   * Setter for the user's preferred side nav open state
    */
   setIsSideNavExpanded: (isSideNavExpanded: boolean) => void;
   /**
@@ -259,6 +288,17 @@ export interface PreferencesState extends PreferencesProps {
    * Pass `undefined` (or an empty string) to clear the preference.
    */
   setDefaultModelName: (defaultModelName: string | undefined) => void;
+  /**
+   * Setter for enabling/disabling AI query on filter condition fields
+   */
+  setIsAIQueryEnabled: (isAIQueryEnabled: boolean) => void;
+  /**
+   * Setter for how AI query resolves its language model. Pass `undefined`
+   * to fall back to the on-device browser model.
+   */
+  setAIQueryModelConfig: (
+    aiQueryModelConfig: AIQueryModelConfig | undefined
+  ) => void;
 }
 
 export const createPreferencesStore = (
@@ -294,6 +334,13 @@ export const createPreferencesStore = (
         type: "setShowMetricsInTraceTree",
       });
     },
+    // Clipped to start: an even row height is what makes a table scan as a grid
+    areTableRowsExpanded: false,
+    setAreTableRowsExpanded: (areTableRowsExpanded) => {
+      set({ areTableRowsExpanded }, false, {
+        type: "setAreTableRowsExpanded",
+      });
+    },
     modelConfigByProvider: {},
     setModelConfigForProvider: ({ provider, modelConfig }) => {
       set(
@@ -315,9 +362,13 @@ export const createPreferencesStore = (
         type: "setPlaygroundStreamingEnabled",
       });
     },
-    isAnnotatingSpans: true,
+    isAnnotatingSpans: false,
     setIsAnnotatingSpans: (isAnnotatingSpans) => {
       set({ isAnnotatingSpans }, false, { type: "setIsAnnotatingSpans" });
+    },
+    isTakingSpanNotes: false,
+    setIsTakingSpanNotes: (isTakingSpanNotes) => {
+      set({ isTakingSpanNotes }, false, { type: "setIsTakingSpanNotes" });
     },
     projectViewMode: "grid",
     setProjectViewMode: (projectViewMode) => {
@@ -389,6 +440,14 @@ export const createPreferencesStore = (
       set({ defaultModelName: trimmed ? trimmed : undefined }, false, {
         type: "setDefaultModelName",
       });
+    },
+    isAIQueryEnabled: true,
+    setIsAIQueryEnabled: (isAIQueryEnabled) => {
+      set({ isAIQueryEnabled }, false, { type: "setIsAIQueryEnabled" });
+    },
+    aiQueryModelConfig: undefined,
+    setAIQueryModelConfig: (aiQueryModelConfig) => {
+      set({ aiQueryModelConfig }, false, { type: "setAIQueryModelConfig" });
     },
     ...initialProps,
   });

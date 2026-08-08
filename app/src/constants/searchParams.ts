@@ -5,6 +5,12 @@
 export const SELECTED_SPAN_NODE_ID_PARAM = "selectedSpanNodeId";
 
 /**
+ * The applied span filter DSL condition. Absent means no condition was applied
+ * here, which lets the view seed its own default.
+ */
+export const SPAN_FILTER_CONDITION_PARAM = "spanFilterCondition";
+
+/**
  * The search param that contains the selected session details sub-view.
  * This is used to preserve the active session tab across reloads and links.
  */
@@ -42,6 +48,14 @@ export const TIME_RANGE_START_PARAM = "timeRangeStart";
  * The canonical ISO datetime upper bound for the tracing time range.
  */
 export const TIME_RANGE_END_PARAM = "timeRangeEnd";
+
+/**
+ * The search param that holds the label ids used to filter a list of resources
+ * (e.g. prompts or datasets). Stored as a repeated param so multiple labels can
+ * be selected, e.g. `?labelId=a&labelId=b`. Persisting to the URL makes the
+ * label filter shareable and lets it survive reloads.
+ */
+export const LABEL_ID_PARAM = "labelId";
 
 export const CREATE_CODE_EVALUATOR_PARAM = "createCodeEvaluator";
 

@@ -129,7 +129,7 @@ export function NewCustomProviderButton() {
       <Button
         variant="primary"
         size="S"
-        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Plus />} />}
         aria-label="Create a new provider"
       >
         New Provider

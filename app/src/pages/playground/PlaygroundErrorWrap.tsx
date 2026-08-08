@@ -7,7 +7,7 @@ export function PlaygroundErrorWrap({ children }: { children: ReactNode }) {
   return (
     <Flex direction="row" gap="size-50" alignItems="center">
       <Icon
-        svg={<Icons.AlertCircleOutline />}
+        svg={<Icons.AlertCircle />}
         color="danger"
         css={css`
           flex-shrink: 0;

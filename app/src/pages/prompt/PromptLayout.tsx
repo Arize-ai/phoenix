@@ -114,7 +114,7 @@ export function PromptLayout() {
             <DialogTrigger>
               <Button
                 size="M"
-                leadingVisual={<Icon svg={<Icons.GitBranchOutline />} />}
+                leadingVisual={<Icon svg={<Icons.GitBranch />} />}
               >
                 Clone
               </Button>
@@ -131,7 +131,7 @@ export function PromptLayout() {
             </DialogTrigger>
             <LinkButton
               variant="primary"
-              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+              leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
               to={`/playground?promptId=${encodeURIComponent(data.id)}`}
               size="M"
               aria-label="Open this Prompt in Playground"

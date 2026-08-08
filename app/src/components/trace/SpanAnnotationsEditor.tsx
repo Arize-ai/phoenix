@@ -14,6 +14,7 @@ import {
   useLazyLoadQuery,
   useMutation,
 } from "react-relay";
+import invariant from "tiny-invariant";
 
 import {
   Alert,
@@ -38,7 +39,7 @@ import type {
   AnnotationConfig,
 } from "@phoenix/components/annotation";
 import { AnnotationConfigDialog } from "@phoenix/components/annotation/AnnotationConfigDialog";
-import { Empty } from "@phoenix/components/core/Empty";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { FocusHotkey } from "@phoenix/components/FocusHotkey";
 import type { SpanAnnotationsEditorAddAnnotationConfigToProjectMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorAddAnnotationConfigToProjectMutation.graphql";
 import type { SpanAnnotationsEditorCreateAnnotationMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorCreateAnnotationMutation.graphql";
@@ -47,6 +48,7 @@ import type { SpanAnnotationsEditorSpanAnnotationsListQuery } from "@phoenix/com
 import { AnnotationConfigList } from "@phoenix/components/trace/AnnotationConfigList";
 import type { AnnotationFormMutationResult } from "@phoenix/components/trace/AnnotationFormProvider";
 import { AnnotationFormProvider } from "@phoenix/components/trace/AnnotationFormProvider";
+import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 import type { AnnotationConfig as AnnotationConfigType } from "@phoenix/pages/settings/types";
 import { deduplicateAnnotationsByName } from "@phoenix/pages/trace/utils";
@@ -55,52 +57,63 @@ import { isStringArray } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SpanAnnotationsEditor_spanAnnotations$key } from "./__generated__/SpanAnnotationsEditor_spanAnnotations.graphql";
-import type { SpanAnnotationsEditorCreateAnnotationConfigMutation } from "./__generated__/SpanAnnotationsEditorCreateAnnotationConfigMutation.graphql";
+import type {
+  AnnotationConfigInput,
+  SpanAnnotationsEditorCreateAnnotationConfigMutation,
+} from "./__generated__/SpanAnnotationsEditorCreateAnnotationConfigMutation.graphql";
 import type { SpanAnnotationsEditorEditAnnotationMutation } from "./__generated__/SpanAnnotationsEditorEditAnnotationMutation.graphql";
 import type { AnnotationFormData } from "./SpanAnnotationInput";
 import { SpanAnnotationInput } from "./SpanAnnotationInput";
 
-export const EDIT_ANNOTATION_HOTKEY = "e";
+const EMPTY_TIME_RANGE_ISO_STRINGS = {
+  start: undefined,
+  end: undefined,
+};
 
 export type SpanAnnotationsEditorProps = {
   spanNodeId: string;
   projectId: string;
+  /**
+   * Refetches the project's annotation configs when bumped. Pass it where the
+   * caller renders its own `NewAnnotationButton`; left out, the editor renders
+   * one and owns the key.
+   */
+  annotationConfigsRefetchKey?: number;
 };
 
 export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
-  const { projectId, spanNodeId } = props;
-  const [newAnnotationName, setNewAnnotationName] = useState<string | null>(
-    null
-  );
-  const [refetchKey, setRefetchKey] = useState(0);
+  const { projectId, spanNodeId, annotationConfigsRefetchKey } = props;
+  const ownsAddButton = annotationConfigsRefetchKey === undefined;
+  const [ownRefetchKey, setOwnRefetchKey] = useState(0);
+  const refetchKey = annotationConfigsRefetchKey ?? ownRefetchKey;
 
   return (
     <View height="100%" maxHeight="100%" overflow="auto">
       <Flex direction="column" height="100%">
-        <View
-          paddingY="size-100"
-          paddingX="size-100"
-          borderBottomWidth="thin"
-          borderColor="default"
-          width="100%"
-          flex="none"
-        >
-          <Flex
-            direction="row"
-            alignItems="center"
-            justifyContent="end"
+        {ownsAddButton ? (
+          <View
+            paddingY="size-100"
+            paddingX="size-100"
+            borderBottomWidth="thin"
+            borderColor="default"
             width="100%"
+            flex="none"
           >
-            <NewAnnotationButton
-              projectId={projectId}
-              spanNodeId={spanNodeId}
-              disabled={newAnnotationName !== null}
-              onAnnotationNameSelect={setNewAnnotationName}
-              refetchKey={refetchKey}
-              onRefetchKeyChange={setRefetchKey}
-            />
-          </Flex>
-        </View>
+            <Flex
+              direction="row"
+              alignItems="center"
+              justifyContent="end"
+              width="100%"
+            >
+              <NewAnnotationButton
+                projectId={projectId}
+                spanNodeId={spanNodeId}
+                refetchKey={refetchKey}
+                onRefetchKeyChange={setOwnRefetchKey}
+              />
+            </Flex>
+          </View>
+        ) : null}
         <Suspense>
           <SpanAnnotationsList
             spanId={spanNodeId}
@@ -113,26 +126,26 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
   );
 }
 
-type NewAnnotationButtonProps = {
+export type NewAnnotationButtonProps = {
   projectId: string;
   spanNodeId: string;
-  disabled?: boolean;
-  onAnnotationNameSelect: (name: string) => void;
   refetchKey: number;
   onRefetchKeyChange: (updater: (prev: number) => number) => void;
 };
 
-function NewAnnotationButton(props: NewAnnotationButtonProps) {
-  const {
-    projectId,
-    disabled = false,
-    spanNodeId,
-    onAnnotationNameSelect,
-    refetchKey,
-    onRefetchKeyChange,
-  } = props;
+/**
+ * Adds an annotation to the span: picks one of the project's annotation
+ * configs, or creates a config that does not exist yet.
+ */
+export function NewAnnotationButton(props: NewAnnotationButtonProps) {
+  const { projectId, spanNodeId, refetchKey, onRefetchKeyChange } = props;
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [showEditConfigDialog, setShowEditConfigDialog] = useState(false);
+  // a chosen name means an annotation is being filled in below
+  const [newAnnotationName, setNewAnnotationName] = useState<string | null>(
+    null
+  );
+  const disabled = newAnnotationName !== null;
 
   const { viewer } = useViewer();
   const userFilter = useMemo(() => (viewer ? [viewer.id] : [null]), [viewer]);
@@ -194,11 +207,54 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
       onError,
     }: { onCompleted?: () => void; onError?: (error: string) => void } = {}
   ) => {
-    const { id: _, annotationType, ...config } = _config;
-    const key = annotationType.toLowerCase();
+    let annotationConfigInput: AnnotationConfigInput;
+    switch (_config.annotationType) {
+      case "CATEGORICAL": {
+        const {
+          id: _,
+          annotationType: _type,
+          optimizationDirection,
+          values,
+          ...categorical
+        } = _config;
+        invariant(
+          optimizationDirection,
+          "optimizationDirection is required for a categorical annotation config"
+        );
+        invariant(
+          values,
+          "values are required for a categorical annotation config"
+        );
+        annotationConfigInput = {
+          categorical: { ...categorical, optimizationDirection, values },
+        };
+        break;
+      }
+      case "CONTINUOUS": {
+        const {
+          id: _,
+          annotationType: _type,
+          optimizationDirection,
+          ...continuous
+        } = _config;
+        invariant(
+          optimizationDirection,
+          "optimizationDirection is required for a continuous annotation config"
+        );
+        annotationConfigInput = {
+          continuous: { ...continuous, optimizationDirection },
+        };
+        break;
+      }
+      case "FREEFORM": {
+        const { id: _, annotationType: _type, ...freeform } = _config;
+        annotationConfigInput = { freeform };
+        break;
+      }
+    }
     createAnnotationConfig({
       variables: {
-        input: { annotationConfig: { [key]: config } },
+        input: { annotationConfig: annotationConfigInput },
       },
       onCompleted: (response) => {
         const annotationConfig =
@@ -235,7 +291,7 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
           variant={disabled ? "default" : "primary"}
           isDisabled={disabled}
           size="S"
-          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Plus />} />}
           aria-label="Add Annotation"
         >
           Annotation
@@ -247,9 +303,7 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
               <AnnotationList
                 projectId={projectId}
                 spanNodeId={spanNodeId}
-                onAnnotationNameSelect={(name) => {
-                  onAnnotationNameSelect(name);
-                }}
+                onAnnotationNameSelect={setNewAnnotationName}
                 onOpenEditConfigDialog={() => {
                   setIsPopoverOpen(false);
                   setShowEditConfigDialog(true);
@@ -441,7 +495,8 @@ function SpanAnnotationsList(props: {
   // time range is nullable in this context
   // we only use it to refresh fragments after mutations so it is ok to not have a time range context
   const timeRangeContext = useNullableTimeRangeContext();
-  const timeRange = timeRangeContext?.timeRange;
+  const timeRangeISOStrings =
+    timeRangeContext?.timeRangeISOStrings ?? EMPTY_TIME_RANGE_ISO_STRINGS;
 
   const [commitDeleteAnnotation] =
     useMutation<SpanAnnotationsEditorDeleteAnnotationMutation>(graphql`
@@ -462,11 +517,9 @@ function SpanAnnotationsList(props: {
             node(id: $spanId) {
               ... on Span {
                 ...AnnotationSummaryGroup
-                ...TraceHeaderRootSpanAnnotationsFragment
                 ...SpanAnnotationsEditor_spanAnnotations
                   @arguments(filterUserIds: $filterUserIds)
-                ...SpanAsideAnnotationList_span
-                ...SpanFeedback_annotations
+                ...SpanAnnotationsTable_annotations
               }
             }
           }
@@ -482,10 +535,7 @@ function SpanAnnotationsList(props: {
             variables: {
               spanId: spanNodeId,
               annotationIds: [annotation.id],
-              timeRange: {
-                start: timeRange?.start?.toISOString(),
-                end: timeRange?.end?.toISOString(),
-              },
+              timeRange: timeRangeISOStrings,
               projectId,
               filterUserIds: userFilter,
             },
@@ -508,7 +558,13 @@ function SpanAnnotationsList(props: {
           });
         }
       }),
-    [commitDeleteAnnotation, spanNodeId, timeRange, projectId, userFilter]
+    [
+      commitDeleteAnnotation,
+      spanNodeId,
+      timeRangeISOStrings,
+      projectId,
+      userFilter,
+    ]
   );
 
   const [commitEdit] = useMutation<SpanAnnotationsEditorEditAnnotationMutation>(
@@ -547,11 +603,9 @@ function SpanAnnotationsList(props: {
             node(id: $spanId) {
               ... on Span {
                 ...AnnotationSummaryGroup
-                ...TraceHeaderRootSpanAnnotationsFragment
                 ...SpanAnnotationsEditor_spanAnnotations
                   @arguments(filterUserIds: $filterUserIds)
-                ...SpanAsideAnnotationList_span
-                ...SpanFeedback_annotations
+                ...SpanAnnotationsTable_annotations
               }
             }
           }
@@ -575,10 +629,7 @@ function SpanAnnotationsList(props: {
                 score: data.score,
                 explanation: data.explanation || null,
                 filterUserIds: userFilter,
-                timeRange: {
-                  start: timeRange?.start?.toISOString(),
-                  end: timeRange?.end?.toISOString(),
-                },
+                timeRange: timeRangeISOStrings,
                 projectId,
               },
               onCompleted: () => {
@@ -598,7 +649,7 @@ function SpanAnnotationsList(props: {
         }
       });
     },
-    [commitEdit, spanNodeId, userFilter, timeRange, projectId]
+    [commitEdit, spanNodeId, userFilter, timeRangeISOStrings, projectId]
   );
 
   const [commitCreateAnnotation] =
@@ -622,11 +673,9 @@ function SpanAnnotationsList(props: {
             node(id: $spanId) {
               ... on Span {
                 ...AnnotationSummaryGroup
-                ...TraceHeaderRootSpanAnnotationsFragment
                 ...SpanAnnotationsEditor_spanAnnotations
                   @arguments(filterUserIds: $filterUserIds)
-                ...SpanAsideAnnotationList_span
-                ...SpanFeedback_annotations
+                ...SpanAnnotationsTable_annotations
               }
             }
           }
@@ -650,10 +699,7 @@ function SpanAnnotationsList(props: {
             name: data.name,
             spanId: spanNodeId,
             filterUserIds: userFilter,
-            timeRange: {
-              start: timeRange?.start?.toISOString(),
-              end: timeRange?.end?.toISOString(),
-            },
+            timeRange: timeRangeISOStrings,
             projectId,
           },
           onCompleted: () => {
@@ -670,7 +716,13 @@ function SpanAnnotationsList(props: {
           },
         });
       }),
-    [commitCreateAnnotation, spanNodeId, timeRange, projectId, userFilter]
+    [
+      commitCreateAnnotation,
+      spanNodeId,
+      timeRangeISOStrings,
+      projectId,
+      userFilter,
+    ]
   );
 
   return (
@@ -689,7 +741,10 @@ function SpanAnnotationsList(props: {
           justifyContent="center"
           height="100%"
         >
-          <Empty message="No annotation configurations for this project." />
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.Settings />} />}
+            description="No annotation configurations for this project."
+          />
         </Flex>
       )}
       {!!annotationConfigsLength && (

@@ -2,6 +2,8 @@
 title: "Anthropic Tracing"
 ---
 
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
 Anthropic is a leading provider for state-of-the-art LLMs. The Anthropic SDK can be instrumented using the [`openinference-instrumentation-anthropic`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-anthropic) package.
 
 ## Install
@@ -12,17 +14,7 @@ pip install openinference-instrumentation-anthropic anthropic
 
 ## Setup
 
-Use the register function to connect your application to Phoenix:
-
-```python
-from phoenix.otel import register
-
-# configure the Phoenix tracer
-tracer_provider = register(
-  project_name="my-llm-app", # Default is 'default'
-  auto_instrument=True # Auto-instrument your app based on installed OI dependencies
-)
-```
+<RegisterTracerPython projectName="my-llm-app" />
 
 ## Run Anthropic
 

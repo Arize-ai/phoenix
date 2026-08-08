@@ -8,6 +8,8 @@ import pytest
 import sqlalchemy as sa
 from deepdiff.diff import DeepDiff
 from sqlalchemy import select
+from sqlalchemy.dialects import postgresql as postgresql_dialect
+from sqlalchemy.dialects import sqlite as sqlite_dialect
 from sqlalchemy.orm import selectinload
 
 from phoenix.db import models
@@ -1807,3 +1809,39 @@ class TestExperimentJobPolymorphism:
             assert isinstance(eval_config, models.ExperimentEvalOnlyConfig)
             assert not isinstance(eval_config, models.ExperimentPromptTask)
             assert eval_config.type == "EVAL_ONLY"
+
+
+class TestJSONBReflection:
+    def test_sqlite_reflects_jsonb_as_jsonb(self) -> None:
+        engine = sa.create_engine("sqlite://")
+        with engine.connect() as conn:
+            conn.exec_driver_sql("CREATE TABLE t (doc JSONB NOT NULL)")
+            conn.commit()
+        metadata = sa.MetaData()
+        metadata.reflect(bind=engine)
+        reflected = metadata.tables["t"].columns["doc"].type
+        assert isinstance(reflected, models.JSONB)
+        assert reflected.compile(sqlite_dialect.dialect()) == "JSONB"
+
+    @pytest.mark.parametrize(
+        "dialect,expected",
+        [
+            (sqlite_dialect.dialect(), "JSONB"),
+            (postgresql_dialect.dialect(), "JSONB"),  # type: ignore[no-untyped-call]
+        ],
+        ids=["sqlite", "postgresql"],
+    )
+    def test_json_columns_compile_to_jsonb_on_both_backends(
+        self, dialect: Any, expected: str
+    ) -> None:
+        for table_name, column_name in [
+            ("datasets", "metadata"),
+            ("dataset_versions", "metadata"),
+            ("experiments", "metadata"),
+            ("span_annotations", "metadata"),
+            ("spans", "attributes"),
+            ("experiment_runs", "output"),
+        ]:
+            column = models.Base.metadata.tables[table_name].columns[column_name]
+            actual = column.type.compile(dialect)
+            assert actual == expected, f"{table_name}.{column_name} -> {actual}"

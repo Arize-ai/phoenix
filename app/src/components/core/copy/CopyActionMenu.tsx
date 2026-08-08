@@ -41,7 +41,7 @@ export function CopyActionMenu({ items }: CopyActionMenuProps) {
     [items]
   );
 
-  const iconKey = copiedItemId != null ? "Checkmark" : "DuplicateOutline";
+  const iconKey = copiedItemId != null ? "Checkmark" : "Duplicate";
 
   return (
     <MenuTrigger>
@@ -72,9 +72,7 @@ export function CopyActionMenu({ items }: CopyActionMenuProps) {
               key={item.name}
               id={item.name}
               textValue={`Copy ${item.name}`}
-              leadingContent={
-                <Icon svgKey={item.iconKey ?? "DuplicateOutline"} />
-              }
+              leadingContent={<Icon svgKey={item.iconKey ?? "Duplicate"} />}
             >
               {item.name}
             </MenuItem>

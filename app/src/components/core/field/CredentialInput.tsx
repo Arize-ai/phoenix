@@ -72,8 +72,8 @@ function CredentialInput({
           }
 
           &:focus-visible {
-            outline: 2px solid var(--global-color-primary);
-            outline-offset: 2px;
+            outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+            outline-offset: var(--focus-ring-offset);
           }
 
           &[disabled] {
@@ -96,9 +96,7 @@ function CredentialInput({
         isDisabled={disabled || readOnly}
         aria-label={isVisible ? "Hide credential" : "Show credential"}
       >
-        <Icon
-          svg={isVisible ? <Icons.EyeOutline /> : <Icons.EyeOffOutline />}
-        />
+        <Icon svg={isVisible ? <Icons.Eye /> : <Icons.EyeOff />} />
       </Button>
     </div>
   );

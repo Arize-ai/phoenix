@@ -149,10 +149,6 @@ describe("AskUserToolDetails", () => {
       },
     });
 
-    expect(container.textContent).toContain("Choose a provider");
-    expect(container.textContent).toContain("Anything else?");
-    expect(container.textContent).toContain("Anthropic");
-    expect(container.textContent).toContain("Use the lowest latency option.");
     expect(getAnswerRows()).toEqual([
       { status: "answered", text: "Anthropic" },
       { status: "answered", text: "Use the lowest latency option." },

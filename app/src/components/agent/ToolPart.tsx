@@ -3,6 +3,10 @@ import { getToolName } from "ai";
 import { useEffect, useRef, useState } from "react";
 
 import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
+import {
+  CREATE_ANNOTATION_CONFIG_TOOL_NAME,
+  UPDATE_ANNOTATION_CONFIG_TOOL_NAME,
+} from "@phoenix/agent/tools/annotationConfig";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { CREATE_DATASET_TOOL_NAME } from "@phoenix/agent/tools/createDataset";
@@ -41,14 +45,26 @@ import {
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
+import {
+  parseSetSpansFilterInput,
+  SET_SPANS_FILTER_TOOL_NAME,
+} from "@phoenix/agent/tools/spansFilter";
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
 import { Icon, Icons } from "@phoenix/components";
+import { revealOnHoverCSS } from "@phoenix/components/core/styles";
 import type { Variant } from "@phoenix/components/core/types";
+import { MarkdownBlock } from "@phoenix/components/markdown";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
   AddDatasetExamplesToolDetails,
   getAddDatasetExamplesToolPreview,
 } from "./AddDatasetExamplesToolDetails";
+import {
+  AnnotationConfigWriteToolDetails,
+  getCreateAnnotationConfigToolPreview,
+  getUpdateAnnotationConfigToolPreview,
+} from "./AnnotationConfigWriteToolDetails";
 import {
   AskUserToolDetails,
   formatAskUserState,
@@ -109,6 +125,11 @@ import {
   PatchExperimentToolDetails,
 } from "./PatchExperimentToolDetails";
 import {
+  getReadSkillResourceToolPreview,
+  READ_SKILL_RESOURCE_TOOL_NAME,
+  ReadSkillResourceToolDetails,
+} from "./ReadSkillResourceToolDetails";
+import {
   formatRemovePromptInstanceState,
   getRemovePromptInstanceStatusVariant,
   getRemovePromptInstanceToolPreview,
@@ -120,7 +141,9 @@ import {
   getSavePromptToolPreview,
   SavePromptToolDetails,
 } from "./SavePromptToolDetails";
-import { getScrollableParent, useScrollAnchor } from "./scrollAnchor";
+import { getScrollableParent } from "./scrollAnchor";
+import { ToolExecutionSummary } from "./ToolExecutionSummary";
+import { getToolIconKey } from "./toolIconConfig";
 import {
   TOOL_PART_ENTRY_KEYFRAMES,
   TOOL_CALL_SUMMARY_LANE_RULES,
@@ -130,7 +153,12 @@ import {
   ToolPartStatus,
 } from "./ToolPartPrimitives";
 import type { MessagePart, ToolInvocationPart } from "./toolPartTypes";
-import { formatToolState, isToolUIPart } from "./toolPartTypes";
+import {
+  formatToolState,
+  isToolUIPart,
+  stringifyToolValue,
+} from "./toolPartTypes";
+import { useToolDisclosure } from "./useToolDisclosure";
 import {
   formatWritePromptToolsState,
   getWritePromptToolsToolPreview,
@@ -168,8 +196,8 @@ export const toolPartCSS = css`
     background: var(--global-code-block-header-background-color);
 
     &:focus-visible {
-      outline: 2px solid var(--global-color-primary);
-      outline-offset: -2px;
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: calc(-1 * var(--focus-ring-thickness));
     }
   }
 
@@ -177,18 +205,18 @@ export const toolPartCSS = css`
     display: none;
   }
 
-  &[open] summary {
+  &[open] > summary {
     border-bottom: 1px solid var(--tool-call-body-border-color);
   }
 
   /* Rotate chevron when open */
-  &[open] .tool-part__chevron {
-    transform: rotate(0deg);
+  &[open] > summary .tool-part__chevron {
+    transform: rotate(90deg);
   }
 
   .tool-part__body {
     background: var(--tool-call-body-background-color);
-    font-family: var(--ac-global-font-family-code);
+    font-family: var(--global-font-family-mono);
     font-size: var(--global-font-size-xs);
     line-height: var(--global-line-height-xs);
     white-space: pre-wrap;
@@ -196,6 +224,17 @@ export const toolPartCSS = css`
     overflow-x: auto;
     padding-top: var(--global-dimension-size-125);
     padding-bottom: var(--global-dimension-size-75);
+  }
+
+  .tool-part__subagent-message {
+    font-family: var(--global-font-family-sans);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+    padding: 0 var(--global-dimension-size-250) var(--global-dimension-size-125);
+  }
+
+  .tool-part__subagent-message > .tool-part {
+    margin-top: var(--global-dimension-size-100);
   }
 
   .tool-part__line {
@@ -217,15 +256,11 @@ export const toolPartCSS = css`
     padding-right: calc(var(--global-dimension-size-250) + 28px);
 
     .copy-to-clipboard-button {
+      ${revealOnHoverCSS}
       position: absolute;
       top: 0;
       right: var(--global-dimension-size-250);
-      opacity: 0;
       transition: opacity 150ms ease;
-
-      &:focus-within {
-        opacity: 1;
-      }
     }
 
     &:hover .copy-to-clipboard-button {
@@ -269,7 +304,7 @@ export const toolPartCSS = css`
   .tool-part__preview {
     flex: ${TOOL_CALL_SUMMARY_LANE_RULES.middleFlex};
     font-weight: 400;
-    font-family: var(--ac-global-font-family-code);
+    font-family: var(--global-font-family-mono);
     color: var(--tool-call-secondary-color);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -336,8 +371,8 @@ export const toolPartCSS = css`
 
   .tool-part__chevron {
     font-size: 18px;
-    transition: transform 150ms ease;
-    transform: rotate(-90deg);
+    transition: transform 200ms ease-in-out;
+    transform: rotate(0deg);
     opacity: 0;
   }
 
@@ -406,7 +441,7 @@ export const toolPartCSS = css`
     overflow: visible;
     transition: border-color 150ms ease;
 
-    summary {
+    > summary {
       background: none;
     }
 
@@ -427,19 +462,19 @@ export const toolPartCSS = css`
       transition: none;
     }
 
-    summary {
+    > summary {
       border-bottom: none;
     }
 
-    .tool-part__summary {
+    > summary .tool-part__summary {
       font-size: var(--global-font-size-s);
     }
 
-    .tool-part__title-text {
+    > summary .tool-part__title-text {
       color: var(--tool-call-quiet-color);
     }
 
-    .tool-part__body {
+    > div > .tool-part__body {
       background: none;
     }
   }
@@ -495,6 +530,49 @@ function scrollElementIntoViewWithinScrollParent(element: HTMLElement): void {
   scrollParent.scrollBy({ top: delta, behavior: "smooth" });
 }
 
+/**
+ * Renders the right-hand status for a single tool call. Completed / failed /
+ * running map to the compact {@link ToolExecutionSummary} (icon only — a single
+ * call has no meaningful count). `approval-requested` ("Awaiting approval") and
+ * `output-denied` ("Denied") have no clean icon in that system, so they keep
+ * their text label.
+ */
+function renderToolPartStatus(
+  state: ToolInvocationPart["state"],
+  stateLabel: string,
+  statusVariant: StatusVariant | undefined
+) {
+  switch (state) {
+    case "output-available":
+      return (
+        <span className="tool-part__status">
+          <ToolExecutionSummary completed />
+        </span>
+      );
+    case "output-error":
+      return (
+        <span className="tool-part__status">
+          <ToolExecutionSummary failed />
+        </span>
+      );
+    case "input-streaming":
+    case "input-available":
+    case "approval-responded":
+      return (
+        <span className="tool-part__status">
+          <ToolExecutionSummary running />
+        </span>
+      );
+    case "approval-requested":
+    case "output-denied":
+      return (
+        <ToolPartStatus variant={statusVariant}>{stateLabel}</ToolPartStatus>
+      );
+    default:
+      return assertUnreachable(state);
+  }
+}
+
 function ToolInvocationPartDetails({
   part,
   defaultOpen,
@@ -504,22 +582,18 @@ function ToolInvocationPartDetails({
 }) {
   const toolName = getToolName(part);
   const uiBehavior = getAgentToolUIBehavior(toolName);
-  const detailsRef = useRef<HTMLDetailsElement>(null);
   const hasAutoOpenedRef = useRef(false);
-  const [manualOpen, setManualOpen] = useState<boolean | null>(null);
   const [isHeaderActive, setIsHeaderActive] = useState(false);
-  const scrollAnchor = useScrollAnchor();
+  const { preview, stateLabel, statusVariant, details, variant, quietLabel } =
+    getToolPresentation(toolName, part);
+  const shouldAutoOpen = shouldAutoOpenToolPart(part);
   const {
-    preview,
-    stateLabel,
-    statusVariant,
-    details,
-    icon,
-    variant,
-    quietLabel,
-  } = getToolPresentation(toolName, part);
-  const shouldAutoOpen = shouldAutoOpenToolPart(part, preview);
-  const isRenderedOpen = manualOpen ?? defaultOpen ?? shouldAutoOpen;
+    ref: detailsRef,
+    isOpen: isRenderedOpen,
+    toggle,
+  } = useToolDisclosure<HTMLDetailsElement>({
+    defaultOpen: defaultOpen ?? shouldAutoOpen,
+  });
 
   useEffect(() => {
     if (!shouldAutoOpen || hasAutoOpenedRef.current) {
@@ -534,10 +608,14 @@ function ToolInvocationPartDetails({
         scrollElementIntoViewWithinScrollParent(detailsRef.current);
       }
     });
-  }, [shouldAutoOpen, uiBehavior?.scrollIntoViewOnMount]);
+  }, [shouldAutoOpen, uiBehavior?.scrollIntoViewOnMount, detailsRef]);
 
   const isQuiet = variant === "quiet";
   const showQuietSummary = isQuiet && !isRenderedOpen;
+  const statusState =
+    part.state === "output-available" && part.preliminary === true
+      ? "input-available"
+      : part.state;
 
   return (
     <details
@@ -558,24 +636,18 @@ function ToolInvocationPartDetails({
           // natively can race the auto-open/manual override state during tool
           // streaming updates and make the disclosure feel stuck.
           event.preventDefault();
-
-          // Record the tool's position before it grows/shrinks, flip the open
-          // state, then restore the header to the same spot once the DOM has
-          // updated so opening a tool doesn't jump the transcript.
-          scrollAnchor.capture(detailsRef.current);
-          setManualOpen(!isRenderedOpen);
-          requestAnimationFrame(() => scrollAnchor.restore(detailsRef.current));
+          toggle();
         }}
       >
         <div className="tool-part__summary">
           <span className="tool-part__title">
             <span className="tool-part__icon-slot">
               <Icon
-                svg={<Icons.ChevronDown />}
+                svg={<Icons.ChevronRightSmall />}
                 className="tool-part__chevron"
               />
               <Icon
-                svg={icon ?? <Icons.WrenchOutline />}
+                svgKey={getToolIconKey({ toolName, input: part.input })}
                 className="tool-part__tool-icon"
               />
             </span>
@@ -595,11 +667,9 @@ function ToolInvocationPartDetails({
           {showQuietSummary ? null : preview ? (
             <span className="tool-part__preview">{preview}</span>
           ) : null}
-          {showQuietSummary ? null : (
-            <ToolPartStatus variant={statusVariant}>
-              {stateLabel}
-            </ToolPartStatus>
-          )}
+          {showQuietSummary
+            ? null
+            : renderToolPartStatus(statusState, stateLabel, statusVariant)}
         </div>
       </summary>
       <div>{details}</div>
@@ -607,18 +677,19 @@ function ToolInvocationPartDetails({
   );
 }
 
-export function shouldAutoOpenToolPart(
-  part: ToolInvocationPart,
-  preview: string
-): boolean {
+function shouldAutoOpenToolPart(part: ToolInvocationPart): boolean {
   const toolName = getToolName(part);
   const uiBehavior = getAgentToolUIBehavior(toolName);
   if (uiBehavior?.autoOpen !== true) {
     return false;
   }
-  // Avoid opening an empty shell while tool arguments are still absent. Once the
-  // preview can be derived from arguments, the expanded details have context.
-  return preview !== "" || part.state !== "input-streaming";
+  // Stay collapsed while arguments are still streaming in. Auto-open tools
+  // build their expanded body from a pending client-action that only exists
+  // once the input is complete (`input-available`), so opening mid-stream
+  // shows an empty shell even though the collapsed preview is already
+  // derivable. The collapsed row still surfaces the preview and a running
+  // spinner until the input finishes, then auto-opens with real content.
+  return part.state !== "input-streaming";
 }
 
 export function getToolPartPreview(part: ToolInvocationPart): string {
@@ -808,6 +879,119 @@ function GenericToolDetails({ part }: { part: ToolInvocationPart }) {
   );
 }
 
+type CallSubagentOutput = {
+  summary: string;
+  messageParts: MessagePart[];
+};
+
+function CallSubagentToolDetails({ part }: { part: ToolInvocationPart }) {
+  const output =
+    part.state === "output-available"
+      ? parseCallSubagentOutput(part.output)
+      : null;
+  if (!output) {
+    return <GenericToolDetails part={part} />;
+  }
+
+  return (
+    <div className="tool-part__body">
+      {output.summary ? (
+        <>
+          <ToolPartLabel>Summary</ToolPartLabel>
+          <ToolPartExpandableSection>
+            <ToolPartCodeBlock>{output.summary}</ToolPartCodeBlock>
+          </ToolPartExpandableSection>
+        </>
+      ) : null}
+      <ToolPartLabel>Subagent</ToolPartLabel>
+      <div className="tool-part__subagent-message">
+        {output.messageParts.map((messagePart, index) => (
+          <CallSubagentMessagePart
+            key={`${messagePart.type}-${index}`}
+            part={messagePart}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CallSubagentMessagePart({ part }: { part: MessagePart }) {
+  if (part.type === "text") {
+    if (part.text.trim().length === 0) {
+      return null;
+    }
+    return (
+      <MarkdownBlock mode="markdown" renderMode="streaming" margin="none">
+        {part.text}
+      </MarkdownBlock>
+    );
+  }
+  if (part.type === "reasoning") {
+    if (part.text.trim().length === 0) {
+      return null;
+    }
+    return (
+      <ToolPartExpandableSection>
+        <ToolPartCodeBlock>{part.text}</ToolPartCodeBlock>
+      </ToolPartExpandableSection>
+    );
+  }
+  if (part.type === "step-start") {
+    return null;
+  }
+  if (isToolUIPart(part)) {
+    return <ToolPart part={part} />;
+  }
+  const value = stringifyToolValue(part);
+  if (value.trim().length === 0) {
+    return null;
+  }
+  return (
+    <ToolPartExpandableSection>
+      <ToolPartCodeBlock>{value}</ToolPartCodeBlock>
+    </ToolPartExpandableSection>
+  );
+}
+
+function parseCallSubagentOutput(output: unknown): CallSubagentOutput | null {
+  if (typeof output !== "object" || output === null || Array.isArray(output)) {
+    return null;
+  }
+  const outputRecord = output as Record<string, unknown>;
+  const message = outputRecord.message;
+  if (
+    typeof message !== "object" ||
+    message === null ||
+    Array.isArray(message)
+  ) {
+    return null;
+  }
+  const messageRecord = message as Record<string, unknown>;
+  const parts = messageRecord.parts;
+  if (!isMessagePartArray(parts)) {
+    return null;
+  }
+  const summary = outputRecord.summary;
+  return {
+    summary: typeof summary === "string" ? summary : "",
+    messageParts: parts,
+  };
+}
+
+function isMessagePartArray(value: unknown): value is MessagePart[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (part): part is MessagePart =>
+        typeof part === "object" &&
+        part !== null &&
+        "type" in part &&
+        typeof (part as { type?: unknown }).type === "string"
+    )
+  );
+}
+
 /**
  * Extracts the `name` argument the main agent passed to `call_subagent`, used
  * as the collapsed-row summary. Returns "" when the input is not yet available.
@@ -823,6 +1007,19 @@ function getCallSubagentName(part: ToolInvocationPart): string {
   return "";
 }
 
+/**
+ * Builds the collapsed-row preview for `set_spans_filter`. The span filter DSL
+ * condition describes the whole view, root-span scoping included, so it is
+ * shown verbatim. An empty condition clears the filter.
+ */
+function getSetSpansFilterToolPreview(part: ToolInvocationPart): string {
+  const parsed = parseSetSpansFilterInput(part.input);
+  if (!parsed) {
+    return "";
+  }
+  return parsed.condition.trim() || "All spans";
+}
+
 function getToolPresentation(
   toolName: string,
   part: ToolInvocationPart
@@ -831,7 +1028,6 @@ function getToolPresentation(
   stateLabel: string;
   statusVariant?: StatusVariant;
   details: React.ReactNode;
-  icon?: React.ReactNode;
   variant?: ToolVariant;
   quietLabel?: string;
 } {
@@ -978,6 +1174,20 @@ function getToolPresentation(
         statusVariant: getPatchExperimentStatusVariant(part) ?? statusVariant,
         details: <PatchExperimentToolDetails part={part} />,
       };
+    case CREATE_ANNOTATION_CONFIG_TOOL_NAME:
+      return {
+        preview: getCreateAnnotationConfigToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <AnnotationConfigWriteToolDetails part={part} />,
+      };
+    case UPDATE_ANNOTATION_CONFIG_TOOL_NAME:
+      return {
+        preview: getUpdateAnnotationConfigToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <AnnotationConfigWriteToolDetails part={part} />,
+      };
     case EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME:
       return {
         preview: getEditCodeEvaluatorDraftToolPreview(part),
@@ -999,55 +1209,42 @@ function getToolPresentation(
         stateLabel: formatToolState(part.state),
         statusVariant,
         details: <LoadSkillToolDetails part={part} />,
-        icon: <Icons.GraduationCapOutline />,
         variant: part.state === "output-available" ? "quiet" : "default",
         quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
       };
     }
+    case READ_SKILL_RESOURCE_TOOL_NAME:
+      return {
+        preview: getReadSkillResourceToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <ReadSkillResourceToolDetails part={part} />,
+      };
     case NATIVE_WEB_SEARCH_TOOL_NAME:
-    case NATIVE_WEB_FETCH_TOOL_NAME: {
-      const inputStr = JSON.stringify(part.input, null, 2);
-      const outputStr =
-        part.state === "output-available"
-          ? JSON.stringify(part.output, null, 2)
-          : "";
-      const errorStr = part.errorText ?? "";
+    case NATIVE_WEB_FETCH_TOOL_NAME:
       return {
         preview: getNativeWebToolPreview(toolName, part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        details: (
-          <div className="tool-part__body">
-            <ToolPartLabel>Input</ToolPartLabel>
-            <ToolPartExpandableSection>
-              <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
-            </ToolPartExpandableSection>
-            {part.state === "output-available" ? (
-              <>
-                <ToolPartLabel>Output</ToolPartLabel>
-                <ToolPartExpandableSection>
-                  <ToolPartCodeBlock>{outputStr}</ToolPartCodeBlock>
-                </ToolPartExpandableSection>
-              </>
-            ) : null}
-            {part.state === "output-error" ? (
-              <>
-                <ToolPartLabel variant="danger">Error</ToolPartLabel>
-                <ToolPartExpandableSection>
-                  <ToolPartCodeBlock>{errorStr}</ToolPartCodeBlock>
-                </ToolPartExpandableSection>
-              </>
-            ) : null}
-          </div>
-        ),
+        // Native web tools have no bespoke renderer — fall back to the generic
+        // input/output/error JSON view.
+        details: <GenericToolDetails part={part} />,
       };
-    }
     case CALL_SUBAGENT_TOOL_NAME:
       return {
         preview: getCallSubagentName(part),
+        stateLabel:
+          part.state === "output-available" && part.preliminary === true
+            ? "Running"
+            : formatToolState(part.state),
+        statusVariant,
+        details: <CallSubagentToolDetails part={part} />,
+      };
+    case SET_SPANS_FILTER_TOOL_NAME:
+      return {
+        preview: getSetSpansFilterToolPreview(part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        icon: <Icons.SplitOutline />,
         details: <GenericToolDetails part={part} />,
       };
     default: {

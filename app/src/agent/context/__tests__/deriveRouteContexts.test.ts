@@ -89,4 +89,29 @@ describe("deriveRouteContexts", () => {
       { type: "span", projectNodeId: "P1", spanNodeId: "SPAN1" },
     ]);
   });
+
+  it("derives prompt context from a prompt route", () => {
+    const contexts = deriveRouteContexts(
+      [match({ promptId: "PROMPT1" })],
+      new URLSearchParams()
+    );
+
+    expect(contexts).toEqual([{ type: "prompt", promptNodeId: "PROMPT1" }]);
+  });
+
+  it("derives prompt and prompt version contexts from a prompt version route", () => {
+    const contexts = deriveRouteContexts(
+      [match({ promptId: "PROMPT1" }), match({ versionId: "VERSION1" })],
+      new URLSearchParams()
+    );
+
+    expect(contexts).toEqual([
+      { type: "prompt", promptNodeId: "PROMPT1" },
+      {
+        type: "prompt_version",
+        promptNodeId: "PROMPT1",
+        promptVersionNodeId: "VERSION1",
+      },
+    ]);
+  });
 });

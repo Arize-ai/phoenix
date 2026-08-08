@@ -46,7 +46,7 @@ export const WithIcon = {
   args: {
     children: "With Icon",
     isSelected: false,
-    leadingVisual: <Icon svg={<Icons.PlusCircleOutline />} />,
+    leadingVisual: <Icon svg={<Icons.PlusCircle />} />,
   },
 };
 
