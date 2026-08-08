@@ -208,7 +208,7 @@ def _begin_read_transaction(connection: SAConnection) -> None:
     connection.exec_driver_sql("BEGIN")
 
 
-def aio_sqlite_read_engine(url: URL) -> Optional[AsyncEngine]:
+def aio_sqlite_read_engine(url: URL, log_to_stdout: bool = False) -> Optional[AsyncEngine]:
     """A read-only engine giving each concurrent reader its own connection.
 
     The primary engine serves every session from a single pooled connection, so
@@ -236,6 +236,7 @@ def aio_sqlite_read_engine(url: URL) -> Optional[AsyncEngine]:
     # a connection to go stale across.
     engine = create_async_engine(
         url=url,
+        echo=log_to_stdout,
         json_serializer=_dumps,
         async_creator=sqlite_connection_factory(database, mode="ro"),
         pool_size=_READ_POOL_SIZE,
