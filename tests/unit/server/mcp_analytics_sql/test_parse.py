@@ -872,3 +872,54 @@ class TestGroupByBindsToTheInputColumn:
         ).sql(dialect="sqlite")
 
         assert "ORDER BY latency_ms" in rendered
+
+
+class TestOrderByAliasBindsOnlyAsAWholeKey:
+    """An alias binds in ORDER BY only when the sort key is the bare name.
+
+    Inside an expression both engines resolve to the input column, so treating
+    every column beneath the clause as query-local let a shadowing alias reach a
+    withheld one. Measured on rows (1,'zzz') (2,'aaa') (3,'mmm'):
+    `ORDER BY gradient_start_color || ''` returned 2,3,1 -- the hidden column's
+    order -- while the bare alias returned 1,2,3.
+    """
+
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "gradient_start_color || ''",
+            "upper(gradient_start_color)",
+            "CAST(gradient_start_color AS TEXT)",
+        ],
+    )
+    def test_an_expression_sort_key_reaches_the_real_column_and_is_refused(self, key: str) -> None:
+        result = try_parse_and_admit(
+            f"SELECT id AS gradient_start_color FROM projects ORDER BY {key}", dialect="sqlite"
+        )
+
+        assert result.outcome is AdmissionOutcome.COLUMN_NOT_ALLOWED
+
+    def test_a_bare_alias_sort_key_still_binds_to_the_output(self) -> None:
+        result = try_parse_and_admit(
+            "SELECT id AS gradient_start_color FROM projects ORDER BY gradient_start_color",
+            dialect="sqlite",
+        )
+
+        assert result.outcome is AdmissionOutcome.ADMIT
+
+    def test_the_rewrite_still_leaves_a_bare_alias_alone(self) -> None:
+        rendered = rewrite(
+            parse_one("SELECT id, 1 AS latency_ms FROM spans ORDER BY latency_ms", read="sqlite"),
+            RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500),
+        ).sql(dialect="sqlite")
+
+        assert "ORDER BY latency_ms" in rendered
+
+
+def test_a_render_refusal_returns_an_outcome_rather_than_raising() -> None:
+    """`try_parse_and_admit` promises an outcome instead of an exception, and
+    rendering can now refuse -- a statement can pass every admission check and
+    still name a construct the target cannot express."""
+    result = try_parse_and_admit("SELECT * FROM (VALUES (1), (2)) AS t(x)", dialect="sqlite")
+
+    assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX

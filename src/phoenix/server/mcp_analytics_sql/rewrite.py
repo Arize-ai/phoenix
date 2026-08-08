@@ -301,7 +301,7 @@ def _normalize_timestamp_literals(root: exp.Expression, ctx: RewriteContext) -> 
         return root
     changed = False
     saw_bare_date = False
-    for literal in _timestamp_literals(root, columns):
+    for literal in _timestamp_literals(root, columns, allowlist=ctx.allowlist):
         parsed = parse_timestamp_literal(literal.this)
         if parsed is None:
             continue
