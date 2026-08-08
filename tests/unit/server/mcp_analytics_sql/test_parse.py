@@ -84,7 +84,7 @@ def test_corpus_is_not_shrinking() -> None:
     The count is asserted rather than derived so that deleting a case is a
     deliberate edit to this line, not a silent side effect of editing the data.
     """
-    assert len(CORPUS) >= 56
+    assert len(CORPUS) >= 76
     keys = [(c["sql"], c.get("dialect", DIALECT)) for c in CORPUS]
     assert len(set(keys)) == len(keys), "duplicate statement/dialect pair in corpus"
 
@@ -174,7 +174,10 @@ class TestHiddenColumnsAreRefused:
                 "SELECT p.trace_retention_policy_id FROM projects p",
                 "projects.trace_retention_policy_id",
             ),
-            ("SELECT id FROM projects WHERE gradient_end_color = '#fff'", "projects."),
+            (
+                "SELECT id FROM projects WHERE gradient_end_color = '#fff'",
+                "projects.gradient_end_color",
+            ),
             ("SELECT count(*) FROM datasets GROUP BY user_id", "datasets.user_id"),
         ],
     )
@@ -859,7 +862,7 @@ class TestStructuralPolicyIsDefaultDeny:
         was derived from must keep working -- on both backends."""
         for dialect in ("postgresql", "sqlite"):
             result = self._admit(sql, cast(DialectName, dialect))
-            assert "not part of the permitted grammar" not in result.detail, f"{dialect}: {sql}"
+            assert result.outcome is AdmissionOutcome.ADMIT, f"{dialect}: {sql} -> {result.detail}"
 
     @pytest.mark.parametrize(
         "sql,construct",
@@ -993,7 +996,7 @@ class TestMainstreamGrammarIsNotRefused:
     def test_it_admits(self, sql: str, dialect: str) -> None:
         result = try_parse_and_admit(sql, dialect=cast(DialectName, dialect))
 
-        assert "not part of the permitted grammar" not in result.detail, sql
+        assert result.outcome is AdmissionOutcome.ADMIT, f"{sql} -> {result.detail}"
 
 
 class TestGroupByBindsToTheInputColumn:
@@ -1027,14 +1030,6 @@ class TestGroupByBindsToTheInputColumn:
         """No source column carries the name, so the engine binds to the alias
         and so must the resolver. This is ordinary bucketing SQL."""
         assert try_parse_and_admit(sql, dialect="sqlite").outcome is AdmissionOutcome.ADMIT
-
-    def test_order_by_still_binds_to_the_output_alias(self) -> None:
-        rendered = rewrite(
-            parse_one("SELECT id, 1 AS latency_ms FROM spans ORDER BY latency_ms", read="sqlite"),
-            RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500),
-        ).sql(dialect="sqlite")
-
-        assert "ORDER BY latency_ms" in rendered
 
 
 class TestOrderByAliasBindsOnlyAsAWholeKey:
