@@ -419,6 +419,22 @@ def _timestamp_comparison_pairs(
     return []
 
 
+def _within_scope(clause: exp.Expression, kind: type[exp.Expression]) -> list[exp.Expression]:
+    """Nodes of `kind` under `clause` that belong to the clause's own scope.
+
+    A sort or group key may contain a subquery, whose references are resolved
+    against that subquery's select list rather than this one. Walking through it
+    marks an inner reference against the outer aliases -- a wrong answer in the
+    model, and the same unbounded-descent mistake that let a sort key's operand
+    be read as the key itself.
+    """
+    return [
+        node
+        for node in clause.walk(prune=lambda n: isinstance(n, (exp.Select, exp.Subquery)))
+        if isinstance(node, kind)
+    ]
+
+
 class Locality(Enum):
     """Why a reference is query-local, which decides who may act on it.
 
@@ -507,11 +523,20 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> dict[i
             if expression is not None:
                 derived_projections.update(name.lower() for name in expression.named_selects)
         select = scope.expression if isinstance(scope.expression, exp.Select) else None
-        output_aliases = {
-            projection.alias.lower()
-            for projection in (select.expressions if select else [])
-            if isinstance(projection, exp.Alias) and projection.alias
-        }
+        # A set operation has no input columns of its own, so a sort key over one
+        # can only name a result column -- every output name qualifies, not just
+        # the aliased ones. Its ORDER BY hangs off the set operation rather than
+        # off either branch, so a scope-by-scope walk that looks only at selects
+        # never reaches it.
+        set_operation = scope.expression if isinstance(scope.expression, exp.SetOperation) else None
+        if set_operation is not None:
+            output_aliases = {name.lower() for name in set_operation.named_selects}
+        else:
+            output_aliases = {
+                projection.alias.lower()
+                for projection in (select.expressions if select else [])
+                if isinstance(projection, exp.Alias) and projection.alias
+            }
         for column in scope.columns:
             table = (column.table or "").lower()
             if table:
@@ -520,9 +545,11 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> dict[i
                 continue
             if (column.name or "").lower() in derived_projections:
                 local[id(column)] = Locality.DERIVED_PROJECTION
-        order_clause = select.args.get("order") if select else None
+        order_clause = (
+            (select or set_operation).args.get("order") if (select or set_operation) else None
+        )
         if order_clause is not None:
-            for ordered in order_clause.find_all(exp.Ordered):
+            for ordered in _within_scope(order_clause, exp.Ordered):
                 # The whole sort key, not any column beneath it. An alias binds
                 # only when the key *is* the bare name: inside an expression both
                 # engines resolve to the input column, so descending here marked
@@ -558,7 +585,7 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> dict[i
                 if isinstance(source, exp.Table) and source.name in table_specs
                 for virtual in table_specs[source.name].virtual_columns
             }
-            for column in group_clause.find_all(exp.Column):
+            for column in _within_scope(group_clause, exp.Column):
                 name = (column.name or "").lower()
                 if not column.table and name in output_aliases and name not in offered:
                     local.setdefault(id(column), Locality.OUTPUT_ALIAS)

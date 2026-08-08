@@ -1050,6 +1050,37 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
         """
         assert try_parse_and_admit(sql, dialect="sqlite").outcome is AdmissionOutcome.ADMIT
 
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT count(*) AS n FROM spans UNION SELECT count(*) FROM datasets ORDER BY n",
+            "SELECT name AS lbl FROM datasets UNION SELECT name FROM datasets ORDER BY lbl",
+            "SELECT id AS n FROM projects INTERSECT SELECT id FROM projects ORDER BY n",
+            "SELECT id AS n FROM projects EXCEPT SELECT id FROM projects ORDER BY n DESC",
+        ],
+    )
+    def test_a_set_operation_sorts_by_its_own_output_names(self, sql: str) -> None:
+        """A compound select's ORDER BY hangs off the set operation, not either
+        branch, so a walk that looks only at selects never reached it and every
+        such sort key was refused as an unknown column. All four execute on both
+        engines; the single-SELECT form of the same query already admitted.
+
+        Every output name qualifies, not just the aliased ones -- a set operation
+        has no input columns of its own for a key to bind to instead.
+        """
+        assert try_parse_and_admit(sql, dialect="sqlite").outcome is AdmissionOutcome.ADMIT
+
+    def test_a_key_inside_a_subquery_is_not_bound_to_the_outer_aliases(self) -> None:
+        """A sort or group key may contain a subquery, whose references resolve
+        against its own select list. Walking through it marked an inner
+        reference against the outer aliases."""
+        root = parse_one(
+            "SELECT id AS n FROM projects ORDER BY (SELECT s.name FROM spans s ORDER BY n LIMIT 1)",
+            read="sqlite",
+        )
+
+        assert query_local_columns(root, allowlist=load_allowlist()) == {}
+
     def test_the_resolver_categorises_alias_evidence_apart_from_structural(self) -> None:
         """The invariant the split exists to hold.
 
