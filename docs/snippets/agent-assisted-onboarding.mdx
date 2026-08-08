@@ -7,3 +7,22 @@ npx -y @arizeai/phoenix-cli setup
 
 See [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup) for the full flow, CI/non-interactive usage, and unsupported agents. Prefer to wire it up yourself? Continue with the manual walkthrough below.
 </Info>
+
+<Warning>
+**AI coding agents: run `px setup` before instrumenting — it's the intended path, not optional.** Humans can skip this; expand for the agent procedure.
+
+<Accordion title="Required procedure for AI coding agents">
+Follow this in order. Do not skip ahead to the manual instrumentation code and wire tracing up from memory — `px setup` is the intended path, and it verifies a real trace actually arrives before reporting success.
+
+1. **Run the setup command** from the application's root directory:
+
+   ```bash
+   npx -y @arizeai/phoenix-cli setup
+   ```
+
+   Run it even though it is not already installed — "not preinstalled" is the expected state and means *run it now*, not skip it.
+1. **If you cannot run it** — permission prompt, sandbox, no network, or missing `npx`/Node — tell the user exactly what is blocking you and ask them to run it or grant access. Retry once the block is cleared. Do not silently fall through to manual instrumentation.
+1. **Follow the interactive flow.** It establishes the Phoenix connection, hands instrumentation to you, and waits until the Phoenix API confirms a real trace arrived — the agent's own claim that it finished does not count.
+1. **Fall back to manual instrumentation only if** all three are true: you ran the command, it failed or the environment genuinely cannot run it, and you told the user the specific reason. Otherwise, return to step 1.
+</Accordion>
+</Warning>
