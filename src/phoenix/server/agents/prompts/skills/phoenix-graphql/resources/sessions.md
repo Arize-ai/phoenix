@@ -4,7 +4,7 @@ A session groups the traces of one multi-turn conversation.
 
 ## Reaching a session
 
-- `Project.sessions(timeRange, first, after, sort, sessionFilterCondition)` → connection of `ProjectSession`. `sessionFilterCondition` is a session filter expression; discover its bindable names via `Project.sessionFilterVocabulary` and check one with `Project.validateSessionFilterCondition`.
+- `Project.sessions(timeRange, first, after, sort, sessionFilterCondition)` → connection of `ProjectSession`. `sessionFilterCondition` is a session filter expression; discover its bindable names via `Project.sessionFilterVocabulary` and check one with `Project.validateSessionFilterCondition`. The user-facing grammar reference (aggregates, comprehensions, annotations, root-span access) is the [Filter Expressions](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions) doc; the enforced grammar lives in `internal_docs/specs/session-filter-dsl.md`.
 - `getProjectSessionById(sessionId: String!)` → `ProjectSession` — `sessionId` is the raw session string, not a global id.
 
 ## Fields
