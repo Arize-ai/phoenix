@@ -6,7 +6,12 @@ import sqlean
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from phoenix.db.engines import aio_sqlite_engine, aio_sqlite_read_engine, get_async_db_url
+from phoenix.db.engines import (
+    aio_sqlite_engine,
+    aio_sqlite_read_engine,
+    get_async_db_url,
+    set_sqlite_migration_pragma,
+)
 
 
 def test_get_async_sqlite_db_url() -> None:
@@ -58,6 +63,35 @@ async def test_memory_sqlite_init_failure_propagates_to_caller() -> None:
     with mock.patch("phoenix.db.engines.init_models", fail):
         with pytest.raises(RuntimeError, match="init failed"):
             aio_sqlite_engine(get_async_db_url("sqlite:///:memory:"), migrate=True)
+
+
+def test_migration_pragma_leaves_foreign_keys_off() -> None:
+    # Alembic rewrites a table by dropping the original, which cascades to child
+    # rows while enforcement is on. Completing the pragma set here would delete
+    # every API key and token on the next such migration.
+    connection = sqlean.connect(":memory:")
+    try:
+        set_sqlite_migration_pragma(connection, None)
+        assert connection.execute("PRAGMA foreign_keys").fetchone()[0] == 0
+    finally:
+        connection.close()
+
+
+async def test_migrated_sqlite_file_is_in_wal_mode(tmp_path: Path) -> None:
+    path = tmp_path / "phoenix.db"
+    engine = aio_sqlite_engine(
+        get_async_db_url(f"sqlite:///{path}"), migrate=True, log_migrations=False
+    )
+    try:
+        # Checked without connecting the engine: the migration connection creates
+        # the file, and a mode=ro reader cannot set the journal mode itself.
+        connection = sqlean.connect(str(path))
+        try:
+            assert connection.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+        finally:
+            connection.close()
+    finally:
+        await engine.dispose()
 
 
 async def test_sqlite_read_session_holds_one_snapshot(tmp_path: Path) -> None:

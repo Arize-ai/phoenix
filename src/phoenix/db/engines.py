@@ -49,10 +49,14 @@ _READ_MAX_OVERFLOW = 8
 
 
 # Settings scoped to one connection. Safe anywhere: none touches the file.
-_CONNECTION_PRAGMAS = (
-    "PRAGMA foreign_keys = ON;",
-    "PRAGMA busy_timeout = 10000;",
-)
+_CONNECTION_PRAGMAS = ("PRAGMA busy_timeout = 10000;",)
+
+# Withheld from the migration connection. Alembic rewrites a table by copying it
+# into a new one, dropping the original and renaming; with enforcement on, the
+# drop deletes the original's rows first and every `ON DELETE CASCADE` child row
+# goes with them. SQLite's own procedure for such a rewrite begins by turning
+# this off.
+_FOREIGN_KEY_PRAGMAS = ("PRAGMA foreign_keys = ON;",)
 
 # Page cache, in KiB when negative. SQLite has no shared buffer pool, so each
 # connection holds its own and the read pool multiplies it.
@@ -64,8 +68,9 @@ _WRITER_CACHE_PRAGMAS = ("PRAGMA cache_size = -32000;",)
 _READER_CACHE_PRAGMAS = ("PRAGMA cache_size = -2000;",)
 
 # Properties of the database file. `journal_mode` writes to its header, so a
-# read-only connection cannot set these; it inherits what the writer left, and
-# the writer must therefore connect first.
+# read-only connection cannot set these and inherits what a writing connection
+# left. The migration connection creates the file, so applying them there puts
+# the database in WAL before anything else opens it.
 _DATABASE_PRAGMAS = (
     "PRAGMA journal_mode = WAL;",
     "PRAGMA synchronous = OFF;",
@@ -82,6 +87,17 @@ def _apply_pragmas(connection: Connection, statements: tuple[str, ...]) -> None:
 
 
 def set_sqlite_pragma(connection: Connection, _: Any) -> None:
+    _apply_pragmas(
+        connection,
+        _CONNECTION_PRAGMAS + _FOREIGN_KEY_PRAGMAS + _WRITER_CACHE_PRAGMAS + _DATABASE_PRAGMAS,
+    )
+
+
+def set_sqlite_migration_pragma(connection: Connection, _: Any) -> None:
+    """The writer's settings without foreign key enforcement.
+
+    Alembic's table rewrites cannot run under it; see `_FOREIGN_KEY_PRAGMAS`.
+    """
     _apply_pragmas(connection, _CONNECTION_PRAGMAS + _WRITER_CACHE_PRAGMAS + _DATABASE_PRAGMAS)
 
 
@@ -167,7 +183,7 @@ def set_sqlite_read_pragma(connection: Connection, _: Any) -> None:
     A `mode=ro` connection fails on `PRAGMA journal_mode = WAL`, so a read
     engine inherits the journal mode the writer set and cannot set it itself.
     """
-    _apply_pragmas(connection, _CONNECTION_PRAGMAS + _READER_CACHE_PRAGMAS)
+    _apply_pragmas(connection, _CONNECTION_PRAGMAS + _FOREIGN_KEY_PRAGMAS + _READER_CACHE_PRAGMAS)
 
 
 def _disable_implicit_transactions(connection: Connection, _: Any) -> None:
@@ -316,6 +332,7 @@ def aio_sqlite_engine(
             poolclass=NullPool,
             echo=log_migrations,
         )
+        event.listen(migration_engine.sync_engine, "connect", set_sqlite_migration_pragma)
         migrate_in_thread(migration_engine, log_migrations=log_migrations)
     return engine
 
