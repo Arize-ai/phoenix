@@ -12,6 +12,7 @@
 
 ## Quick Start
 
+- [Agent-Assisted Setup](https://arize.com/docs/phoenix/agent-assisted-setup): Let your coding agent instrument your app and send first traces in one command (px setup) — the fastest way to onboard
 - [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing): Instrument an app and send your first traces to Phoenix
 - [Evaluations Quickstart](https://arize.com/docs/phoenix/get-started/get-started-evaluations): Run your first LLM evaluator and view results
 - [Playground Quickstart](https://arize.com/docs/phoenix/get-started/get-started-prompt-playground): Test prompt variations against real examples in the Playground
