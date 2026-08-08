@@ -94,6 +94,22 @@ ENV_PHOENIX_AGENTS_DISABLE_BASH = "PHOENIX_AGENTS_DISABLE_BASH"
 Disables the server-side bash tool by preventing subagents from being attached to
 the assistant. When true, the option to enable subagents is also hidden from the UI settings.
 """
+ENV_PHOENIX_AGENTS_SKILLS_SOURCES = "PHOENIX_AGENTS_SKILLS_SOURCES"
+"""
+Comma-separated list of additional skill sources for the server agent, each either a
+local directory or a GitHub repository:
+
+    PHOENIX_AGENTS_SKILLS_SOURCES=/etc/phoenix/skills,https://github.com/owner/repo@v1.2.0
+
+A source root containing SKILL.md directly is one skill; otherwise each child directory
+holding a SKILL.md is one skill. Remote sources are fetched once at startup, cached under
+PHOENIX_WORKING_DIR/skills, and then treated exactly like a local directory; a new or
+changed skill requires a restart. Fetching never blocks startup — an unreachable network
+falls back to the cache.
+
+These skills are advertised to the model as third-party. Unset leaves the agent with only
+its built-in skills.
+"""
 ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
 """
 Whether to disable the agent assistant feature (the /chat endpoint). Defaults to False,
@@ -1434,6 +1450,10 @@ def get_env_phoenix_agents_web_access_enabled() -> bool:
 
 def get_env_phoenix_agents_disable_bash() -> bool:
     return _bool_val(ENV_PHOENIX_AGENTS_DISABLE_BASH, False)
+
+
+def get_env_phoenix_agents_skills_sources() -> Optional[str]:
+    return getenv(ENV_PHOENIX_AGENTS_SKILLS_SOURCES)
 
 
 class AuthSettings(NamedTuple):
@@ -3121,6 +3141,7 @@ ROOT_DIR = RestrictedPath(WORKING_DIR)
 INFERENCES_DIR = RestrictedPath(WORKING_DIR / "inferences")
 TRACE_DATASETS_DIR = RestrictedPath(WORKING_DIR / "trace_datasets")
 WASM_DIR = RestrictedPath(WORKING_DIR / "wasm")
+SKILLS_DIR = RestrictedPath(WORKING_DIR / "skills")
 
 
 def ensure_working_dir_if_needed() -> None:

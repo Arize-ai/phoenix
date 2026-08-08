@@ -194,6 +194,39 @@ the [Phoenix roadmap milestone](https://github.com/Arize-ai/phoenix/milestone/13
 Because skills are context-aware, PXI surfaces the right one for the page and
 task you are on.
 
+### Adding your own skills
+
+Point `PHOENIX_AGENTS_SKILLS_SOURCES` at one or more sources — a local directory,
+a GitHub repository, or a mix — to give the server-side agent skills of your own:
+
+```bash
+PHOENIX_AGENTS_SKILLS_SOURCES=/etc/phoenix/skills,https://github.com/owner/repo@v1.2.0
+```
+
+Public skill repositories usually collect their skills under a subdirectory. Paste the
+GitHub URL of that folder and Phoenix reads the ref and path straight out of it:
+
+```bash
+PHOENIX_AGENTS_SKILLS_SOURCES=https://github.com/anthropics/skills/tree/main/skills
+```
+
+Each skill is a directory containing a `SKILL.md` with YAML frontmatter, following
+the [Agent Skills](https://agentskills.io/home) layout. A source may be a
+single skill directory, or a parent directory of them:
+
+```
+/etc/phoenix/skills/
+└── incident-triage/
+    ├── SKILL.md
+    └── resources/
+        └── runbook.md
+```
+
+`SKILL.md` requires `name` and `description`. The name must be a lowercase
+hyphenated slug matching its directory. `description` is what the agent matches
+against when deciding whether the skill applies, so make it specific. Supporting
+files are referenced from `SKILL.md` by relative path and read only when it says to.
+
 ## You stay in control
 
 Agent assistance is opt-in. PXI can be turned off completely, runs under an
@@ -362,6 +395,7 @@ present, so it does not offer an action that cannot succeed on your current page
   | `PHOENIX_AGENTS_COLLECTOR_ENDPOINT` | Remote collector endpoint for assistant trace export. |
   | `PHOENIX_AGENTS_COLLECTOR_API_KEY` | API key for the remote collector, if required. |
   | `PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME` | Project name for locally recorded assistant traces (default `assistant_agent`). |
+  | `PHOENIX_AGENTS_SKILLS_SOURCES` | Comma-separated extra skill sources for the server-side agent, each a local directory or a GitHub repository — e.g. `/etc/phoenix/skills,https://github.com/owner/repo@v1.2.0`. See **Adding your own skills** below. |
   </Accordion>
 </AccordionGroup>
 

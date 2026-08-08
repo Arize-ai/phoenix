@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 import strawberry
 from openinference.instrumentation import OITracer, TraceConfig
@@ -16,6 +16,7 @@ from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
     build_anthropic_prompt_cache_capability,
 )
+from phoenix.server.agents.capabilities.skills import Skill
 from phoenix.server.agents.capabilities.tools.internal import CallSubAgentCapability
 from phoenix.server.agents.capabilities.tools.internal.bash import BashCapability
 from phoenix.server.agents.capabilities.tools.internal.write_span_note import (
@@ -66,6 +67,7 @@ def build_server_agent(
     is_viewer: bool = False,
     tracer_provider: TracerProvider | None = None,
     enable_subagents: bool = False,
+    external_skills: Sequence[Skill] = (),
 ) -> AbstractAgent[None, str]:
     """Construct server agent."""
     resolved_prompts = prompts or ServerAgentPrompts()
@@ -81,6 +83,7 @@ def build_server_agent(
             instructions=resolved_prompts.bash_tool,
             allow_mutations=allow_mutations,
             internal_skills=[PHOENIX_GRAPHQL_SKILL, SPAN_CODING_SKILL],
+            external_skills=external_skills,
         ),
         WriteSpanNoteCapability(
             db=db,
@@ -122,6 +125,7 @@ def build_server_agent(
             is_viewer=is_viewer,
             tracer_provider=tracer_provider,
             enable_subagents=False,
+            external_skills=external_skills,
         )
         capabilities.append(
             CallSubAgentCapability[None](

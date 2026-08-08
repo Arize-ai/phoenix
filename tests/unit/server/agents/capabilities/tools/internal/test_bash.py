@@ -451,3 +451,56 @@ class TestSkillsManifest:
 
         advertised = sorted(re.findall(rf"<directory>{SKILLS_ROOT}/(.+?)/</directory>", rendered))
         assert advertised == listed
+
+
+class TestExternalSkillMounts:
+    """Skills from outside the repo mount exactly like built-in ones."""
+
+    @staticmethod
+    def _external_skill(tmp_path: Path, name: str = "external-skill") -> Skill:
+        skill_dir = tmp_path / name
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            f"---\nname: {name}\ndescription: An external skill.\n---\n\nExternal body.\n",
+            encoding="utf-8",
+        )
+        (skill_dir / "resources").mkdir()
+        (skill_dir / "resources" / "extra.md").write_text("Extra reference.", encoding="utf-8")
+        return Skill.from_file(skill_dir / "SKILL.md")
+
+    async def test_an_external_skill_is_readable(self, tmp_path: Path) -> None:
+        run = _build_run_bash(allow_mutations=False, skills=[self._external_skill(tmp_path)])
+
+        result = await run(f"cat {SKILLS_ROOT}/external-skill/SKILL.md")
+
+        assert result["exit_code"] == 0
+        assert "External body." in result["stdout"]
+
+    async def test_an_external_skill_is_read_only(self, tmp_path: Path) -> None:
+        """The host directory must not be writable through the mount."""
+        skill = self._external_skill(tmp_path)
+        run = _build_run_bash(allow_mutations=False, skills=[skill])
+
+        result = await run(f"echo clobber > {SKILLS_ROOT}/external-skill/SKILL.md")
+
+        assert result["exit_code"] != 0
+        assert "readonly" in result["stdout"] + result["stderr"]
+        # The real file on the host is untouched.
+        assert "External body." in (skill.path / "SKILL.md").read_text(encoding="utf-8")
+
+    async def test_external_skill_resources_are_readable(self, tmp_path: Path) -> None:
+        run = _build_run_bash(allow_mutations=False, skills=[self._external_skill(tmp_path)])
+
+        result = await run(f"cat {SKILLS_ROOT}/external-skill/resources/extra.md")
+
+        assert result["stdout"].strip() == "Extra reference."
+
+    async def test_built_in_and_external_skills_mount_side_by_side(self, tmp_path: Path) -> None:
+        run = _build_run_bash(
+            allow_mutations=False,
+            skills=[SPAN_CODING_SKILL, self._external_skill(tmp_path)],
+        )
+
+        result = await run(f"ls {SKILLS_ROOT}")
+
+        assert sorted(result["stdout"].split()) == ["external-skill", "span-coding"]

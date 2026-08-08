@@ -61,6 +61,7 @@ from phoenix.config import (
     DEFAULT_PROJECT_NAME,
     ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
     SERVER_DIR,
+    SKILLS_DIR,
     OAuth2ClientConfig,
     get_env_allow_external_resources,
     get_env_allowed_providers,
@@ -80,6 +81,7 @@ from phoenix.config import (
     get_env_max_spans_queue_size,
     get_env_mcp_code_mode,
     get_env_phoenix_agents_disable_bash,
+    get_env_phoenix_agents_skills_sources,
     get_env_port,
     get_env_support_email,
     server_instrumentation_is_enabled,
@@ -91,6 +93,8 @@ from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.types import AnnotationPrecursor
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
+from phoenix.server.agents.skills import get_all_built_in_skills
+from phoenix.server.agents.skills.external import load_external_skills
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, build_context
 from phoenix.server.api.dataloaders import CacheForDataLoaders
@@ -1301,6 +1305,13 @@ def create_app(
     app.state.redactor = redactor
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
     app.state.docs_mcp_server = docs_mcp_server
+    # Loaded once here rather than per request: discovery touches the filesystem and may
+    # fetch over the network. Never raises, so a bad source cannot stop the server.
+    app.state.external_agent_skills = load_external_skills(
+        sources_setting=get_env_phoenix_agents_skills_sources(),
+        cache_dir=Path(SKILLS_DIR),
+        reserved_names=[skill.name for skill in get_all_built_in_skills()],
+    ).skills
     app.state.sandbox_session_manager = sandbox_session_manager
     app.state.sandbox_runtime = sandbox_runtime
     app.state.graphql_schema = graphql_schema

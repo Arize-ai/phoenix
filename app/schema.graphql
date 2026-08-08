@@ -90,8 +90,10 @@ type AgentSkill {
   """The model-facing trigger guidance shown to the assistant."""
   description: String!
 
-  """The summary for this skill."""
-  summary: String!
+  """
+  A short human-facing label for this skill, shown in the skill picker. Absent when the skill does not define one; `description` is model-facing trigger guidance and is not a substitute.
+  """
+  summary: String
 }
 
 type AgentTraceRecording {

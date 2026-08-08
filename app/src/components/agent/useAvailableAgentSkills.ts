@@ -9,7 +9,8 @@ import type { useAvailableAgentSkillsQuery } from "./__generated__/useAvailableA
 export type AvailableAgentSkill = {
   name: string;
   description: string;
-  summary: string;
+  /** Short human-facing label. Absent when the skill does not define one. */
+  summary: string | null;
 };
 
 type AvailableAgentSkillsInput = {
@@ -67,6 +68,6 @@ export function useAvailableAgentSkills(): AvailableAgentSkill[] {
   return data.availableAgentSkills.map((skill) => ({
     name: skill.name,
     description: skill.description,
-    summary: skill.summary,
+    summary: skill.summary ?? null,
   }));
 }

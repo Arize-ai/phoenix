@@ -1305,6 +1305,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             is_viewer=is_viewer,
             tracer_provider=tracer_provider,
             enable_subagents=subagents_enabled,
+            external_skills=request.app.state.external_agent_skills,
         )
         adapter: VercelAIAdapter[None, str] = VercelAIAdapter(
             agent=server_agent,
