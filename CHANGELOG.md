@@ -1,5 +1,37 @@
 # Changelog
 
+## [19.19.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.19.0...arize-phoenix-v19.19.1) (2026-08-08)
+
+
+### Bug Fixes
+
+* **app:** make the Mastra snippet's OTLP path append idempotent ([10688a4](https://github.com/Arize-ai/phoenix/commit/10688a4784951ce6547161c74c39f3b4d9b3a327))
+* close remaining endpoint-variable foot guns in Python and onboarding ([ed90e0e](https://github.com/Arize-ai/phoenix/commit/ed90e0edf16fe7dfe3e6d0c5ae0925a3457daf18))
+* **db:** fold case with sqlean's text_casefold in CaseInsensitiveContains ([#15156](https://github.com/Arize-ai/phoenix/issues/15156)) ([e7b8e98](https://github.com/Arize-ai/phoenix/commit/e7b8e988967f071de8b5fb47bd6dff8d8ca9a5a1))
+* **db:** reflect JSONB back as JSONB on SQLite ([#15074](https://github.com/Arize-ai/phoenix/issues/15074)) ([bde8151](https://github.com/Arize-ai/phoenix/commit/bde815160ca8c623e8492c87c4e93bae3112c84c))
+* Set relative base path in vite.config.mts ([8ff33c6](https://github.com/Arize-ai/phoenix/commit/8ff33c69dc7ae8832b1b2369250c4113289b3a64))
+* tracer leak and cost tracking guards ([#15084](https://github.com/Arize-ai/phoenix/issues/15084)) ([70c1225](https://github.com/Arize-ai/phoenix/commit/70c1225ec9d3dcfeb1e5bcaa123fed9f42bcbfd5))
+
+
+### Performance Improvements
+
+* **db:** give SQLite reads their own connection pool ([#15075](https://github.com/Arize-ai/phoenix/issues/15075)) ([0a280c9](https://github.com/Arize-ai/phoenix/commit/0a280c90ae69b0d90f7516bb8416cc2d4e197f20))
+* **ui:** keep span-filter action consumers out of per-keystroke renders ([30fe604](https://github.com/Arize-ai/phoenix/commit/30fe604af931d3c22c28a47342bde5f23a69dd70))
+
+
+### Documentation
+
+* add AG2 tracing integration page ([#15196](https://github.com/Arize-ai/phoenix/issues/15196)) ([90bcff0](https://github.com/Arize-ai/phoenix/commit/90bcff0e475ce251b2866a57892b49bf3118e884))
+* add AG2, Together AI, Cohere, and Ollama to README integrations table ([ed7175b](https://github.com/Arize-ai/phoenix/commit/ed7175bd62bfb419ec4f1b9a65789b4f647fda90))
+* add Cohere Python instrumentor integration page ([#15192](https://github.com/Arize-ai/phoenix/issues/15192)) ([0e8a95f](https://github.com/Arize-ai/phoenix/commit/0e8a95f709b8742f8047a9046fb912e07eb90f60))
+* add Ollama LLM provider integration page ([#15187](https://github.com/Arize-ai/phoenix/issues/15187)) ([#15213](https://github.com/Arize-ai/phoenix/issues/15213)) ([a4be07b](https://github.com/Arize-ai/phoenix/commit/a4be07b80fdfd2d668ebd403b9ab7e8105774d58))
+* add Phoenix release notes ([ffb971c](https://github.com/Arize-ai/phoenix/commit/ffb971cb102f1c6949c9b0329263715c93db1d0b))
+* add Together AI tracing integration page ([fb5dd8d](https://github.com/Arize-ai/phoenix/commit/fb5dd8d363df168ebc28b48681e30700cf195d4c)), closes [#15186](https://github.com/Arize-ai/phoenix/issues/15186)
+* explain why vite base is relative (PHOENIX_HOST_ROOT_PATH support) ([68e57b5](https://github.com/Arize-ai/phoenix/commit/68e57b5521b2e12dc9a750a878732ecb5f57a9fc))
+* inline the OTLP path at the exporter instead of a named variable ([02b7f6f](https://github.com/Arize-ai/phoenix/commit/02b7f6f2af8f2b314d05806ae0b892a0e25eb677))
+* **js:** simplify Mastra onboarding snippet to declarative traces endpoint ([5583ff9](https://github.com/Arize-ai/phoenix/commit/5583ff99629f6ac9005bed88f4f22f1e8ea36cbf))
+* trim endpoint docs to in-place corrections ([0f6aa07](https://github.com/Arize-ai/phoenix/commit/0f6aa07cdc8084189e58d0ec686df3ec2fc7e60c))
+
 ## [19.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.18.0...arize-phoenix-v19.19.0) (2026-08-06)
 
 

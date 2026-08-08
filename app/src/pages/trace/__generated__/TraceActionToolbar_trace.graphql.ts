@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0b681e996c447830a7f35596c018eb33>>
+ * @generated SignedSource<<6886b4d92785e8809d52a90318a9187a>>
  * @lightSyntaxTransform
  */
 
@@ -9,18 +9,18 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type TraceFeedbackActionToolbar_trace$data = {
+export type TraceActionToolbar_trace$data = {
   readonly id: string;
   readonly viewerUserFeedbackAnnotations: ReadonlyArray<{
     readonly id: string;
     readonly identifier: string;
     readonly label: string | null;
   }>;
-  readonly " $fragmentType": "TraceFeedbackActionToolbar_trace";
+  readonly " $fragmentType": "TraceActionToolbar_trace";
 };
-export type TraceFeedbackActionToolbar_trace$key = {
-  readonly " $data"?: TraceFeedbackActionToolbar_trace$data;
-  readonly " $fragmentSpreads": FragmentRefs<"TraceFeedbackActionToolbar_trace">;
+export type TraceActionToolbar_trace$key = {
+  readonly " $data"?: TraceActionToolbar_trace$data;
+  readonly " $fragmentSpreads": FragmentRefs<"TraceActionToolbar_trace">;
 };
 
 const node: ReaderFragment = (function(){
@@ -35,7 +35,7 @@ return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "TraceFeedbackActionToolbar_trace",
+  "name": "TraceActionToolbar_trace",
   "selections": [
     (v0/*:: as any*/),
     {
@@ -82,6 +82,6 @@ return {
 };
 })();
 
-(node as any).hash = "3f52c62b0ee88fb6be09253ed8477ff4";
+(node as any).hash = "c2758036b9849684415d4aebc6f98e63";
 
 export default node;
