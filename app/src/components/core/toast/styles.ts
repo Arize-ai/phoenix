@@ -1,6 +1,6 @@
 import { css, keyframes } from "@emotion/react";
 
-import { PORTALED_OVERLAY_Z_INDEX } from "@phoenix/components/core/zIndex";
+import { APP_NOTIFICATION_Z_INDEX } from "@phoenix/components/core/zIndex";
 
 /**
  * How far (in px) each stacked toast peeks out from behind the front toast
@@ -45,7 +45,7 @@ export const toastRegionCSS = css`
   max-width: calc(100vw - var(--global-dimension-size-400));
   transform: translateX(-50%);
   outline: none;
-  z-index: ${PORTALED_OVERLAY_Z_INDEX};
+  z-index: ${APP_NOTIFICATION_Z_INDEX};
 
   --collapsed-peek: ${COLLAPSED_PEEK}px;
   --expanded-gap: ${EXPANDED_GAP}px;

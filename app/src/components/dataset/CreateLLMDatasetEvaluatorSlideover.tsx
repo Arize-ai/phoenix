@@ -1,12 +1,15 @@
 import { Suspense, useCallback, useMemo, useState } from "react";
-import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { Dialog } from "@phoenix/components/core/dialog";
 import { Loading } from "@phoenix/components/core/loading";
-import { Modal, ModalOverlay } from "@phoenix/components/core/overlay/Modal";
+import type { ViewportModalOverlayProps } from "@phoenix/components/core/overlay/ViewportModal";
+import {
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components/core/overlay/ViewportModal";
 import type { CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
@@ -50,7 +53,7 @@ export const CreateLLMDatasetEvaluatorSlideover = ({
   updateConnectionIds?: string[];
   initialState?: CreateLLMDatasetEvaluatorInitialState;
   onEvaluatorCreated?: (datasetEvaluatorId: string) => void;
-} & ModalOverlayProps) => {
+} & Omit<ViewportModalOverlayProps, "children">) => {
   const defaultMessages = useMemo(() => {
     if (initialState?.promptMessages) {
       return convertPromptVersionMessagesToPlaygroundInstanceMessages({
@@ -60,8 +63,8 @@ export const CreateLLMDatasetEvaluatorSlideover = ({
     return undefined;
   }, [initialState]);
   return (
-    <ModalOverlay {...props}>
-      <Modal variant="slideover" size="fullscreen">
+    <ViewportModalOverlay {...props}>
+      <ViewportModal size="fullscreen">
         <Dialog>
           {({ close }) => (
             <Suspense fallback={<Loading />}>
@@ -79,8 +82,8 @@ export const CreateLLMDatasetEvaluatorSlideover = ({
             </Suspense>
           )}
         </Dialog>
-      </Modal>
-    </ModalOverlay>
+      </ViewportModal>
+    </ViewportModalOverlay>
   );
 };
 

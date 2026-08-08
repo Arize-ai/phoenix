@@ -2,12 +2,16 @@ import { Suspense } from "react";
 import { DialogTrigger } from "react-aria-components";
 import { useNavigate, useParams } from "react-router";
 
-import { Loading, Modal, ModalOverlay } from "@phoenix/components";
+import {
+  Loading,
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components";
 
 import { ExperimentDetailsDialog } from "./ExperimentDetailsDialog";
 
 /**
- * A page that shows the details of an experiment as a slide-over.
+ * A page that shows the details of an experiment in a viewport modal.
  */
 export function ExperimentDetailPage() {
   const { experimentId, datasetId } = useParams();
@@ -21,13 +25,13 @@ export function ExperimentDetailPage() {
         }
       }}
     >
-      <ModalOverlay>
-        <Modal variant="slideover" size="L">
+      <ViewportModalOverlay>
+        <ViewportModal size="L">
           <Suspense fallback={<Loading />}>
             <ExperimentDetailsDialog experimentId={experimentId as string} />
           </Suspense>
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

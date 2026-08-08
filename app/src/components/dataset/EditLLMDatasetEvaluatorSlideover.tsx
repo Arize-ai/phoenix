@@ -1,5 +1,4 @@
 import { Suspense, useCallback, useMemo, useState } from "react";
-import type { ModalOverlayProps } from "react-aria-components";
 import {
   graphql,
   useFragment,
@@ -11,7 +10,11 @@ import invariant from "tiny-invariant";
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { Dialog } from "@phoenix/components/core/dialog";
 import { Loading } from "@phoenix/components/core/loading";
-import { Modal, ModalOverlay } from "@phoenix/components/core/overlay/Modal";
+import type { ViewportModalOverlayProps } from "@phoenix/components/core/overlay/ViewportModal";
+import {
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components/core/overlay/ViewportModal";
 import type { EditLLMDatasetEvaluatorSlideover_evaluator$key } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_evaluator.graphql";
 import type { EditLLMDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import type { EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
@@ -42,7 +45,7 @@ type EditLLMDatasetEvaluatorSlideoverProps = {
   datasetId: string;
   updateConnectionIds?: string[];
   onUpdate?: () => void;
-} & ModalOverlayProps;
+} & Omit<ViewportModalOverlayProps, "children">;
 
 export const EditLLMDatasetEvaluatorSlideover = ({
   datasetEvaluatorId,
@@ -52,8 +55,8 @@ export const EditLLMDatasetEvaluatorSlideover = ({
   ...props
 }: EditLLMDatasetEvaluatorSlideoverProps) => {
   return (
-    <ModalOverlay {...props}>
-      <Modal variant="slideover" size="fullscreen">
+    <ViewportModalOverlay {...props}>
+      <ViewportModal size="fullscreen">
         <Dialog>
           {({ close }) => (
             <Suspense fallback={<Loading />}>
@@ -69,8 +72,8 @@ export const EditLLMDatasetEvaluatorSlideover = ({
             </Suspense>
           )}
         </Dialog>
-      </Modal>
-    </ModalOverlay>
+      </ViewportModal>
+    </ViewportModalOverlay>
   );
 };
 

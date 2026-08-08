@@ -2,7 +2,10 @@ import { useState } from "react";
 import type { DataID } from "react-relay";
 
 import { Button, DialogTrigger, Icon, Icons } from "@phoenix/components";
-import { Modal, ModalOverlay } from "@phoenix/components/core/overlay";
+import {
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components/core/overlay";
 
 import { NewDatasetLabelDialog } from "./NewDatasetLabelDialog";
 
@@ -26,17 +29,17 @@ export function NewDatasetLabelButton(props: NewDatasetLabelButtonProps) {
       >
         New Label
       </Button>
-      <ModalOverlay
+      <ViewportModalOverlay
         isOpen={showNewDatasetLabelDialog}
         onOpenChange={setShowNewDatasetLabelDialog}
       >
-        <Modal size="S">
+        <ViewportModal size="S">
           <NewDatasetLabelDialog
             updateConnectionIds={props.updateConnectionIds}
             onCompleted={() => setShowNewDatasetLabelDialog(false)}
           />
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

@@ -6,14 +6,17 @@ import {
   useRef,
   useState,
 } from "react";
-import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { Dialog } from "@phoenix/components/core/dialog";
 import { Loading } from "@phoenix/components/core/loading";
-import { Modal, ModalOverlay } from "@phoenix/components/core/overlay/Modal";
+import type { ViewportModalOverlayProps } from "@phoenix/components/core/overlay/ViewportModal";
+import {
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components/core/overlay/ViewportModal";
 import type { CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation.graphql";
 import type { CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation.graphql";
 import type { CreateCodeDatasetEvaluatorSlideoverQuery } from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideoverQuery.graphql";
@@ -44,7 +47,7 @@ export const CreateCodeDatasetEvaluatorSlideover = ({
   datasetId: string;
   updateConnectionIds?: string[];
   onEvaluatorCreated?: (datasetEvaluatorId: string) => void;
-} & ModalOverlayProps) => {
+} & Omit<ViewportModalOverlayProps, "children">) => {
   const isDirtyRef = useRef(false);
 
   useEffect(() => {
@@ -71,8 +74,12 @@ export const CreateCodeDatasetEvaluatorSlideover = ({
   }, []);
 
   return (
-    <ModalOverlay {...props} isOpen={isOpen} onOpenChange={handleOpenChange}>
-      <Modal variant="slideover" size="fullscreen">
+    <ViewportModalOverlay
+      {...props}
+      isOpen={isOpen}
+      onOpenChange={handleOpenChange}
+    >
+      <ViewportModal size="fullscreen">
         <Dialog>
           {({ close }) => (
             <Suspense fallback={<Loading />}>
@@ -86,8 +93,8 @@ export const CreateCodeDatasetEvaluatorSlideover = ({
             </Suspense>
           )}
         </Dialog>
-      </Modal>
-    </ModalOverlay>
+      </ViewportModal>
+    </ViewportModalOverlay>
   );
 };
 

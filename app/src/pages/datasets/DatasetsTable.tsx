@@ -459,6 +459,10 @@ export function DatasetsTable(props: DatasetsTableProps) {
     defaultColumn: defaultColumnSettings,
     columnResizeMode: "onChange",
     getCoreRowModel: getCoreRowModel(),
+    // Key rows by entity ID rather than by index so that row-hosted overlays
+    // (action menus) and row selection stay bound to the row they were opened
+    // on when a refetch re-orders the list.
+    getRowId: (row) => row.id,
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
     onColumnSizingChange: setColumnSizing,

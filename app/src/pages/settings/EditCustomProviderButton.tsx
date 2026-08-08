@@ -21,8 +21,8 @@ import {
   Icon,
   Icons,
   Loading,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
   View,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
@@ -320,8 +320,8 @@ export function EditCustomProviderButton({
         onPress={handleOpen}
         size="S"
       />
-      <ModalOverlay>
-        <Modal size="L">
+      <ViewportModalOverlay>
+        <ViewportModal size="L">
           <Dialog>
             <DialogContent>
               <DialogHeader>
@@ -344,8 +344,8 @@ export function EditCustomProviderButton({
               </Suspense>
             </DialogContent>
           </Dialog>
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }
