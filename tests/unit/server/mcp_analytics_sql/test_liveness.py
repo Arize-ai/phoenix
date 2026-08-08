@@ -24,6 +24,7 @@ import pytest
 from sqlalchemy import text
 
 from phoenix.server.mcp_analytics_sql.ddl import render_schema_ddl
+from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError
 from phoenix.server.mcp_analytics_sql.execute import ExecuteParams, execute_analytics_sql
 from phoenix.server.mcp_analytics_sql.teaching import describe_sql_schema
 from phoenix.server.types import DbSessionFactory
@@ -308,6 +309,29 @@ async def test_set_operations_get_a_row_limit(
         sqlite_db_path=db_path,
     )
     assert "limit_injection" in result.envelope["applied"]["rewrites"]
+
+
+async def test_a_name_offered_by_both_a_table_and_a_derived_relation_is_refused_by_the_engine(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+) -> None:
+    """The premise the `DERIVED_PROJECTION` category rests on.
+
+    Admission marks the reference query-local because a derived relation
+    projects the name, and cannot tell that a base table offers it too. That is
+    safe only because the engine refuses the collision rather than resolving it
+    toward the base table -- which would make the admission a read of a column
+    the schema withholds. Measured here rather than assumed; PostgreSQL refuses
+    it in the same four positions.
+    """
+    db, db_path = analytics_sqlite_db
+    with pytest.raises(AnalyticsSqlError) as caught:
+        await execute_analytics_sql(
+            db,
+            ExecuteParams(sql="SELECT user_id FROM datasets, (SELECT 1 AS user_id) q"),
+            sqlite_db_path=db_path,
+        )
+
+    assert "ambiguous" in caught.value.message.casefold()
 
 
 async def test_queue_slot_is_returned_when_a_waiter_is_cancelled() -> None:

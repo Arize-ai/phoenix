@@ -32,10 +32,8 @@ from phoenix.server.mcp_analytics_sql.allowlist import DialectName, load_allowli
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp_analytics_sql.parse import (
     _ALLOWED_STRUCTURAL_CLASSES,
-    STRUCTURAL,
     AdmissionOutcome,
     AdmissionResult,
-    Locality,
     _timestamp_comparison_pairs,
     admit_sql,
     query_local_columns,
@@ -1125,8 +1123,9 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
             "SELECT id AS n FROM projects ORDER BY (SELECT s.name FROM spans s ORDER BY n LIMIT 1)",
             read="sqlite",
         )
+        locality = query_local_columns(root, allowlist=load_allowlist())
 
-        assert query_local_columns(root, allowlist=load_allowlist()) == {}
+        assert not any(locality.is_local(column) for column in root.find_all(exp.Column))
 
     def test_the_resolver_categorises_alias_evidence_apart_from_structural(self) -> None:
         """The invariant the split exists to hold.
@@ -1139,22 +1138,55 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
         """
         allowlist = load_allowlist()
 
-        alias = query_local_columns(
-            parse_one(
-                "SELECT id AS gradient_start_color FROM projects ORDER BY gradient_start_color",
-                read="sqlite",
-            ),
-            allowlist=allowlist,
+        alias_root = parse_one(
+            "SELECT id AS gradient_start_color FROM projects ORDER BY gradient_start_color",
+            read="sqlite",
         )
-        assert set(alias.values()) == {Locality.OUTPUT_ALIAS}
-        assert not set(alias.values()) & STRUCTURAL
+        alias = query_local_columns(alias_root, allowlist=allowlist)
+        marked = [c for c in alias_root.find_all(exp.Column) if alias.is_local(c)]
+        assert marked, "the bare sort key is local"
+        assert all(alias.is_alias_bound(c) for c in marked)
+        assert not any(alias.is_structurally_local(c) for c in marked)
 
-        derived = query_local_columns(
-            parse_one("SELECT q.user_id FROM (SELECT 1 AS user_id) q", read="sqlite"),
-            allowlist=allowlist,
+        derived_root = parse_one("SELECT q.user_id FROM (SELECT 1 AS user_id) q", read="sqlite")
+        derived = query_local_columns(derived_root, allowlist=allowlist)
+        structural = [c for c in derived_root.find_all(exp.Column) if derived.is_local(c)]
+        assert structural, "a qualified reference into a subquery is structural evidence"
+        assert all(derived.is_structurally_local(c) for c in structural)
+        assert not any(derived.is_alias_bound(c) for c in structural)
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT user_id FROM datasets, (SELECT 1 AS user_id) q",
+            "SELECT 1 FROM datasets, (SELECT 1 AS user_id) q WHERE user_id = 1",
+            "SELECT 1 AS c FROM datasets, (SELECT 1 AS user_id) q ORDER BY user_id",
+            "SELECT count(*) FROM datasets, (SELECT 1 AS user_id) q GROUP BY user_id",
+        ],
+    )
+    def test_a_derived_projection_colliding_with_a_base_column_is_admitted(self, sql: str) -> None:
+        """The premise `DERIVED_PROJECTION` rests on, pinned rather than assumed.
+
+        The name is offered by both a base table and a derived relation, so the
+        category cannot say which one it means -- and does not have to, because
+        both engines refuse the collision as ambiguous instead of resolving it
+        toward the base table. Measured in all four positions on SQLite and
+        PostgreSQL. If an engine ever resolved it silently, this admission would
+        become a withheld-column read, and this test is what would notice.
+        """
+        assert try_parse_and_admit(sql, dialect="sqlite").outcome is AdmissionOutcome.ADMIT
+
+    def test_the_locality_answer_cannot_be_asked_by_membership(self) -> None:
+        """The permissive spelling is the obvious one, so a disclosure check that
+        reaches for it fails open -- which is how both alias defects reached the
+        hidden-column check. Naming the bar is the whole point of the type."""
+        locality = query_local_columns(
+            parse_one("SELECT id AS v FROM projects ORDER BY v", read="sqlite"),
+            allowlist=load_allowlist(),
         )
-        assert set(derived.values()) <= STRUCTURAL
-        assert derived, "a qualified reference into a subquery is structural evidence"
+
+        with pytest.raises(TypeError):
+            1 in locality  # type: ignore[operator]
 
     def test_the_rewrite_still_leaves_a_bare_alias_alone(self) -> None:
         rendered = rewrite(
