@@ -22,6 +22,8 @@
     - Attribute access: `attributes['key.path']`, `input.value`, `output.value`, `metadata['key']`.
     - Annotations: `annotations['Name'].label`, `annotations['Name'].score`.
     - Substring search: `'needle' in input.value` (any string field, ignores case).
+    - Cost and tokens for a span: `span.total_cost`, `span.prompt_cost`, `span.completion_cost`, `span.total_tokens`, `span.prompt_tokens`, `span.completion_tokens`, `span.total_cost_per_token`, `span.prompt_cost_per_token`, `span.completion_cost_per_token`. These MUST carry the `span.` prefix — a bare `total_cost` is read as an attribute named "total_cost" and silently matches nothing.
+    - Per-token-type cost rows: `span.cost_details`, iterated with `any`/`all`/`len`/`sum`/`max`/`min`, e.g. `any(cost_detail.token_type == 'cache_read' for cost_detail in span.cost_details)`. Element fields: `token_type`, `is_prompt`, `cost`, `tokens`, `cost_per_token`.
     - Combine clauses with `and`, `or`, `not`.
   </dsl_reference>
   <value_conventions>
@@ -38,6 +40,9 @@
     - "Slow traces" → `parent_id is None and latency_ms >= 5000`.
     - "Include orphaned spans as roots" → `parent_span is None`.
     - "Hallucinations" → `annotations['Hallucination'].label == 'hallucinated'`.
+    - "Expensive spans" → `span.total_cost > 0.1`.
+    - "Expensive LLM calls" → `span_kind == 'LLM' and span.total_cost > 0.1`.
+    - "Spans that hit the prompt cache" → `any(cost_detail.token_type == 'cache_read' for cost_detail in span.cost_details)`.
     - "Spans mentioning agent in input" → `'agent' in input.value`.
     - "Show everything" → `''`.
     - "Reset to default view" → `parent_id is None`.
