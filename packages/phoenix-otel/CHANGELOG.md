@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.17.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.17.0...arize-phoenix-otel-v0.17.1) (2026-08-08)
+
+
+### Bug Fixes
+
+* **phoenix-otel:** correct README logo variants and UTM campaign ([f0077ac](https://github.com/Arize-ai/phoenix/commit/f0077accf2f5ef9d8d935fdd299dfef626dd47a1))
+* **phoenix-otel:** only remove the default processor when replacing it ([#15021](https://github.com/Arize-ai/phoenix/issues/15021)) ([997df77](https://github.com/Arize-ai/phoenix/commit/997df77664a6decdee027572ba7998c16ec424fc))
+
+
+### Documentation
+
+* fill small feature-gap docs across evals, tracing, playground, and packages ([e5764b3](https://github.com/Arize-ai/phoenix/commit/e5764b348eeaca2d824638264b9d929c5a730c5a))
+* **otel:** document arize-phoenix-otel/server version independence ([#14823](https://github.com/Arize-ai/phoenix/issues/14823)) ([003ff2d](https://github.com/Arize-ai/phoenix/commit/003ff2da27d0de5a8633c2ce6931653e9a648b83))
+* replace app.phoenix.arize.com with generic placeholder in package docs ([23deebc](https://github.com/Arize-ai/phoenix/commit/23deebcc2ff045297d86be44b9b6291bf0461151))
+
 ## [0.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.16.1...arize-phoenix-otel-v0.17.0) (2026-08-08)
 
 
