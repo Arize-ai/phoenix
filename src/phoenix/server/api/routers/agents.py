@@ -129,10 +129,10 @@ from phoenix.server.api.types.SandboxConfig import (
     get_sandbox_backend_info,
 )
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
-from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
+from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.sandbox import SecretsContext
 from phoenix.server.sandbox.types import SandboxRuntimeContext
-from phoenix.server.types import CanPutItem, DbSessionFactory
+from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import (
     Tracer,
     build_synthetic_readable_span,
@@ -830,20 +830,6 @@ async def _persist_db_traces(
     return project_ids
 
 
-async def _persist_db_traces_and_emit_event(
-    *,
-    db: DbSessionFactory,
-    event_queue: CanPutItem[DmlEvent],
-    db_traces: list[models.Trace],
-) -> None:
-    if not db_traces:
-        return
-    async with db() as session:
-        project_ids = await _persist_db_traces(session=session, db_traces=db_traces)
-    if project_ids:
-        event_queue.put(SpanInsertEvent(project_ids))
-
-
 def _tracer_scope(tracer: Tracer | None) -> AbstractAsyncContextManager[object]:
     """Bound a tracer's lifetime, or do nothing when trace recording is off.
 
@@ -876,17 +862,21 @@ async def _persist_agent_traces(
     traces.
     """
     try:
+        db: DbSessionFactory = request.app.state.db
         # Bounded as well as shielded, so a slow database cannot pile up
         # handlers on a burst of disconnects. Expiry raises `TimeoutError` and
         # logs like any other write failure.
         with anyio.fail_after(_TRACE_PERSIST_TIMEOUT_SECONDS, shield=True):
-            project_id = await _ensure_project_exists(request.app.state.db, project_name)
-            db_traces = tracer.get_db_traces(project_id=project_id)
-            await _persist_db_traces_and_emit_event(
-                db=request.app.state.db,
-                event_queue=request.state.event_queue,
-                db_traces=db_traces,
-            )
+            async with db() as session:
+                project_id = await _ensure_project_exists(session, project_name)
+                db_traces = tracer.get_db_traces(project_id=project_id)
+                project_ids = (
+                    await _persist_db_traces(session=session, db_traces=db_traces)
+                    if db_traces
+                    else ()
+                )
+            if project_ids:
+                request.state.event_queue.put(SpanInsertEvent(project_ids))
     except Exception:
         logger.exception("Failed to persist agent traces for project %r", project_name)
 
@@ -1093,21 +1083,31 @@ async def _interleave_agent_and_subagent_message_chunks(
             await asyncio.gather(*tasks_to_cancel, return_exceptions=True)
 
 
-async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int:
-    """Resolve project_id by name, creating the project row if missing."""
-    async with db() as session:
-        await session.execute(
-            insert_on_conflict(
-                {"name": project_name},
-                table=models.Project,
-                dialect=db.dialect,
-                unique_by=("name",),
-                on_conflict=OnConflict.DO_NOTHING,
-            )
-        )
-        project_id = await session.scalar(select(models.Project.id).filter_by(name=project_name))
-        assert project_id is not None
+async def _ensure_project_exists(session: AsyncSession, project_name: str) -> int:
+    """Resolve project_id by name, creating the project row if missing.
+
+    Read first, so the steady-state path is one statement and does not write.
+    The insert cannot carry the read: ``ON CONFLICT DO NOTHING`` returns no row
+    when the conflict fires, which is every call after the project's first.
+    """
+    by_name = select(models.Project.id).filter_by(name=project_name)
+    if (project_id := await session.scalar(by_name)) is not None:
         return project_id
+    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    project_id = await session.scalar(
+        insert_on_conflict(
+            {"name": project_name},
+            table=models.Project,
+            dialect=dialect,
+            unique_by=("name",),
+            on_conflict=OnConflict.DO_NOTHING,
+        ).returning(models.Project.id)
+    )
+    if project_id is None:
+        # A concurrent caller won the insert, so the statement returned no row.
+        project_id = await session.scalar(by_name)
+    assert project_id is not None
+    return project_id
 
 
 async def _upsert_project_sessions(

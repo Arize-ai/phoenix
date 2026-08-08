@@ -34,13 +34,13 @@ from phoenix.server.api.routers import agents as agents_module
 from phoenix.server.api.routers.agents import (
     TurnTraceContext,
     _build_message_metadata_chunk,
+    _ensure_project_exists,
     _get_current_context_usage,
     _interleave_agent_and_subagent_message_chunks,
     _load_phoenix_user_email,
     _load_sandbox_availability,
     _maybe_using_user,
     _persist_agent_traces,
-    _persist_db_traces_and_emit_event,
     _SubagentMessageChunksClosed,
     _tracer_scope,
 )
@@ -57,7 +57,11 @@ class _EventQueue:
         self.events.append(item)
 
 
-class TestPersistDbTracesAndEmitEvent:
+class TestPersistAgentTracesAgainstTheDatabase:
+    """The whole write in one transaction: project upsert, traces, spans, and
+    the project-session roll-up, with the insert event emitted after commit.
+    """
+
     @staticmethod
     def _trace(
         *,
@@ -112,6 +116,8 @@ class TestPersistDbTracesAndEmitEvent:
             project_id = project.id
 
         start_time = datetime(2026, 6, 29, 15, 0, tzinfo=timezone.utc)
+        # The project already exists, so `_ensure_project_exists` resolves this
+        # id rather than creating one, and the prebuilt traces line up with it.
         db_traces = [
             self._trace(
                 project_id=project_id,
@@ -129,13 +135,19 @@ class TestPersistDbTracesAndEmitEvent:
             ),
         ]
         event_queue = _EventQueue()
+        tracer = MagicMock()
+        tracer.get_db_traces.return_value = db_traces
+        request = MagicMock()
+        request.app.state.db = db
+        request.state.event_queue = event_queue
 
-        await _persist_db_traces_and_emit_event(
-            db=db,
-            event_queue=event_queue,
-            db_traces=db_traces,
+        await _persist_agent_traces(
+            tracer=tracer,
+            request=request,
+            project_name="pxi-dev-test",
         )
 
+        assert tracer.get_db_traces.call_args.kwargs == {"project_id": project_id}
         assert event_queue.events == [SpanInsertEvent((project_id,))]
         async with db.read() as session:
             trace_count = await session.scalar(
@@ -148,6 +160,33 @@ class TestPersistDbTracesAndEmitEvent:
             assert project_session is not None
             assert project_session.start_time == start_time
             assert project_session.end_time == start_time + timedelta(seconds=3)
+
+
+class TestEnsureProjectExists:
+    """Read first, insert only when missing. The insert cannot carry the read:
+    `ON CONFLICT DO NOTHING` returns no row once the project exists, so the
+    creating call is the only one whose `RETURNING` yields an id.
+    """
+
+    async def test_creates_the_project_when_it_is_missing(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            project_id = await _ensure_project_exists(session, "brand-new")
+        async with db.read() as session:
+            name = await session.scalar(
+                select(models.Project.name).where(models.Project.id == project_id)
+            )
+        assert name == "brand-new"
+
+    async def test_resolves_an_existing_project_to_the_same_id(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            created = await _ensure_project_exists(session, "reused")
+            resolved = await _ensure_project_exists(session, "reused")
+        assert resolved == created
+        async with db.read() as session:
+            count = await session.scalar(
+                select(func.count(models.Project.id)).where(models.Project.name == "reused")
+            )
+        assert count == 1
 
 
 class TestTracerScope:
@@ -266,30 +305,31 @@ class TestPersistAgentTraces:
         turn produced its answer.
         """
         persisted: list[object] = []
+        db_traces = [MagicMock()]
+        tracer = MagicMock()
+        tracer.get_db_traces.return_value = db_traces
 
-        async def _ensure(db: object, name: str) -> int:
+        async def _ensure(session: object, name: str) -> int:
             await anyio.lowlevel.checkpoint()
             return 1
 
-        async def _persist(*, db: object, event_queue: object, db_traces: object) -> None:
+        async def _persist(*, session: object, db_traces: object) -> tuple[int, ...]:
             await anyio.lowlevel.checkpoint()
             persisted.append(db_traces)
+            return ()
 
         with (
             patch("phoenix.server.api.routers.agents._ensure_project_exists", new=_ensure),
-            patch(
-                "phoenix.server.api.routers.agents._persist_db_traces_and_emit_event",
-                new=_persist,
-            ),
+            patch("phoenix.server.api.routers.agents._persist_db_traces", new=_persist),
         ):
             with anyio.CancelScope() as scope:
                 scope.cancel()
                 await _persist_agent_traces(
-                    tracer=self._tracer(),
+                    tracer=tracer,
                     request=MagicMock(),
                     project_name="p",
                 )
-        assert persisted == [[]]
+        assert persisted == [db_traces]
 
     async def test_a_stalled_database_cannot_hold_the_handler_open(self) -> None:
         """The shield is bounded, so a burst of disconnects against a stalled
@@ -303,7 +343,7 @@ class TestPersistAgentTraces:
         failing.
         """
 
-        async def _hang(db: object, name: str) -> int:
+        async def _hang(session: object, name: str) -> int:
             await anyio.sleep(5)
             raise AssertionError("unreachable")
 
