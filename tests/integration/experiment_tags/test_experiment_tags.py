@@ -28,9 +28,7 @@ def _create_dataset_with_example(app: _AppInfo, auth: _SecurityArtifact) -> str:
         app,
         auth,
         query=(
-            "mutation ($name: String!) {"
-            "  createDataset(input: {name: $name}) { dataset { id } }"
-            "}"
+            "mutation ($name: String!) {  createDataset(input: {name: $name}) { dataset { id } }}"
         ),
         variables={"name": f"experiment-tags-{token_hex(4)}"},
     )
@@ -78,9 +76,7 @@ def _baseline_experiment_id(
         app,
         auth,
         query=(
-            "query ($id: ID!) {"
-            "  node(id: $id) { ... on Dataset { baselineExperiment { id } } }"
-            "}"
+            "query ($id: ID!) {  node(id: $id) { ... on Dataset { baselineExperiment { id } } }}"
         ),
         variables={"id": dataset_id},
     )
@@ -182,9 +178,7 @@ class TestExperimentTagsThroughGraphQL:
             _app,
             user,
             query=(
-                "mutation ($id: ID!) {"
-                "  dismissExperiment(experimentId: $id) { experiment { id } }"
-                "}"
+                "mutation ($id: ID!) {  dismissExperiment(experimentId: $id) { experiment { id } }}"
             ),
             variables={"id": experiment_id},
         )
