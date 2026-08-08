@@ -2962,6 +2962,35 @@ def _symbol(op: ast.AST) -> str:
     return _OPERATOR_SYMBOLS.get(type(op), type(op).__name__)
 
 
+def _element_scope_error(
+    node: ast.expr,
+    scope: "_ElementScope",
+    namespace: typing.Optional["_RootNamespace"] = None,
+) -> SyntaxError:
+    """Reject a name that only means something outside the comprehension it was written in.
+
+    An element scope binds element columns and nothing else -- no attribute namespace, no
+    grain columns, no legacy spellings. Anything else typed here would compile and then
+    raise `NameError` when the query is built, outside the `SpanFilterError` boundary, so
+    this is the one place that has to catch it.
+
+    Which is also why the message never suggests `attributes[...]`: that spelling is exactly
+    what fails this way, and advising it would hand the user the crash instead of the fix.
+    """
+    source = _ellipsize(ast.unparse(node), 80)
+    if namespace is not None and _namespace_root(node, namespace.keyword):
+        return SyntaxError(
+            f"`{source}` reads the filtered row, which is not reachable inside a "
+            f"comprehension over `{scope.iterable}`; compare it outside, "
+            f"e.g. `{source} > 0 and any(...)`"
+        )
+    fields = _disjunction(sorted(scope.grammar.element_bindings.binding_names))
+    return SyntaxError(
+        f"`{source}` is not reachable inside a comprehension over `{scope.iterable}`; "
+        f"a {scope.iterable} element exposes {fields}"
+    )
+
+
 def _raise_invalid_name(source_segment: str, bindings: _FilterBindings) -> typing.NoReturn:
     choice, score = _find_best_match(source_segment, bindings.binding_names)
     suggestion = f', did you mean "{choice}"?' if choice and score > 0.75 else ""
@@ -3020,7 +3049,7 @@ class _SemanticPolicy:
         if isinstance(node, ast.Attribute):
             return self._attribute(node, scopes)
         if isinstance(node, ast.Subscript):
-            return self._subscript(node)
+            return self._subscript(node, scopes)
         if isinstance(node, ast.BoolOp):
             for value in node.values:
                 self._expect(value, scopes, "boolean")
@@ -3111,30 +3140,18 @@ class _SemanticPolicy:
             return self._binding(node.attr, scope.grammar.element_bindings)
         if _is_annotation(node.value):
             return "float" if node.attr == "score" else "string"
+        if scopes:
+            # Nothing dotted resolves in an element scope except the loop variable, handled
+            # above. This has to come before the legacy and proxy lookups rather than after:
+            # both resolve to *grain* bindings, which the element eval globals do not carry,
+            # so letting them through here types the expression and then raises `NameError`
+            # when the query is built.
+            raise _element_scope_error(node, scopes[-1], self._bindings.root_namespace)
         source = ast.unparse(node)
         if replacement := self._bindings.legacy_replacements.get(source):
             return self._binding(replacement, self._bindings)
         if source in self._bindings.attribute_proxies:
             return "json"
-        if scopes:
-            # Inside a comprehension the element language has no dynamic namespace at all, so
-            # the advice below would be actively wrong here: `attributes[...]` compiles in an
-            # element scope and then raises at query-build time, because the eval globals for a
-            # comprehension bind element columns only. Name what the element does expose.
-            scope = scopes[-1]
-            if (namespace := self._bindings.root_namespace) is not None and _namespace_root(
-                node, namespace.keyword
-            ):
-                raise SyntaxError(
-                    f"`{source}` reads the filtered row, which is not reachable inside a "
-                    f"comprehension over `{scope.iterable}`; compare it outside, e.g. "
-                    f"`{source} > 0 and any(...)`"
-                )
-            fields = scope.grammar.element_bindings.binding_names
-            raise SyntaxError(
-                f"invalid field `{source}`; a {scope.iterable} element exposes "
-                f"{_disjunction(sorted(fields))}"
-            )
         proxies = _disjunction(sorted(f"`{proxy}`" for proxy in self._bindings.attribute_proxies))
         raise SyntaxError(
             f"invalid name `{source}`"
@@ -3142,8 +3159,10 @@ class _SemanticPolicy:
             + f'. Read an arbitrary root-span attribute as `attributes["{source}"]`'
         )
 
-    def _subscript(self, node: ast.Subscript) -> _Kind:
+    def _subscript(self, node: ast.Subscript, scopes: tuple[_ElementScope, ...] = ()) -> _Kind:
         if _is_subscript(node, "attributes") or _is_subscript(node, "metadata"):
+            if scopes:
+                raise _element_scope_error(node, scopes[-1])
             if _get_attribute_keys_list(node) is None:
                 raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
             return "json"
