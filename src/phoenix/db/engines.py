@@ -22,7 +22,7 @@ from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
 from phoenix.db.pg_config import get_pg_config
 
-SQLEAN_EXTENSIONS = ("text", "stats")
+SQLEAN_EXTENSIONS = ("text", "stats", "crypto")
 
 sqlean.extensions.enable(*SQLEAN_EXTENSIONS)
 
