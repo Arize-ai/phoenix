@@ -2201,6 +2201,7 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/experiments/fake-id-{}/incomplete-evaluations"),
     (422, "GET", "v1/experiments/fake-id-{}/json"),
     (422, "GET", "v1/experiments/fake-id-{}/csv"),
+    (422, "GET", "v1/experiments/fake-id-{}/tags"),
     # Prompts
     (200, "GET", "v1/prompts"),
     (200, "GET", "v1/prompts/fake-id-{}/versions"),
@@ -2260,6 +2261,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/document_annotations"),
     (422, "POST", "v1/experiment_evaluations"),
     (422, "POST", "v1/experiments/fake-id-{}/runs"),
+    (422, "POST", "v1/experiments/fake-id-{}/tags"),
     (422, "POST", "v1/projects"),
     (422, "POST", "v1/projects/fake-id-{}/spans"),
     (422, "POST", "v1/prompts"),
@@ -2291,6 +2293,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "DELETE", "v1/datasets/fake-id-{}"),
     (422, "DELETE", "v1/datasets/fake-id-{}/splits/test-split"),
     (422, "DELETE", "v1/experiments/fake-id-{}"),
+    (422, "DELETE", "v1/experiments/fake-id-{}/tags/test-tag"),
     (404, "DELETE", "v1/sessions/fake-id-{}"),
     (404, "DELETE", "v1/spans/fake-id-{}"),
     (404, "DELETE", "v1/prompts/fake-id-{}"),
