@@ -15,8 +15,8 @@ export default meta;
 export const Default = {
   args: {
     items: [
-      { name: "Project Name", value: "my-project", iconKey: "TextOutline" },
-      { name: "Project ID", value: "proj_abc123", iconKey: "IDOutline" },
+      { name: "Project Name", value: "my-project", iconKey: "Text" },
+      { name: "Project ID", value: "proj_abc123", iconKey: "ID" },
     ],
   },
 };
@@ -32,7 +32,7 @@ export const WithoutIcons = {
 
 export const SingleItem = {
   args: {
-    items: [{ name: "API Key", value: "sk-abc123", iconKey: "KeyOutline" }],
+    items: [{ name: "API Key", value: "sk-abc123", iconKey: "Key" }],
   },
 };
 
@@ -40,13 +40,13 @@ export const ManyItems: StoryFn = () => (
   <View padding="size-200">
     <CopyActionMenu
       items={[
-        { name: "Dataset Name", value: "eval-dataset", iconKey: "TextOutline" },
-        { name: "Dataset ID", value: "ds_xyz789", iconKey: "IDOutline" },
-        { name: "Version", value: "v1.2.3", iconKey: "GitBranchOutline" },
+        { name: "Dataset Name", value: "eval-dataset", iconKey: "Text" },
+        { name: "Dataset ID", value: "ds_xyz789", iconKey: "ID" },
+        { name: "Version", value: "v1.2.3", iconKey: "GitBranch" },
         {
           name: "Created At",
           value: "2025-01-15T10:30:00Z",
-          iconKey: "CalendarOutline",
+          iconKey: "Calendar",
         },
       ]}
     />

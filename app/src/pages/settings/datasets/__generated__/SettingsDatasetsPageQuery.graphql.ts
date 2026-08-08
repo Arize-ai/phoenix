@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<9495fa6128f97a99735e3e5d3c3ddca1>>
+ * @generated SignedSource<<8d45d432c15780f289bc428c1e502465>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -51,7 +50,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v0/*:: as any*/),
         "concreteType": "DatasetLabelConnection",
         "kind": "LinkedField",
         "name": "datasetLabels",
@@ -105,6 +104,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "usageCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "__typename",
                     "storageKey": null
                   }
@@ -151,7 +157,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v0/*:: as any*/),
         "filters": null,
         "handle": "connection",
         "key": "DatasetLabelsTable__datasetLabels",
@@ -161,12 +167,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d644286d0a3b1a6e827bb334d3435e5f",
+    "cacheID": "2863524d62e5da3226a7403f2e731209",
     "id": null,
     "metadata": {},
     "name": "SettingsDatasetsPageQuery",
     "operationKind": "query",
-    "text": "query SettingsDatasetsPageQuery {\n  ...DatasetLabelsSettingsCardFragment\n}\n\nfragment DatasetLabelsSettingsCardFragment on Query {\n  ...DatasetLabelsTableFragment\n}\n\nfragment DatasetLabelsTableFragment on Query {\n  datasetLabels(first: 100) {\n    edges {\n      node {\n        id\n        name\n        description\n        color\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SettingsDatasetsPageQuery {\n  ...DatasetLabelsSettingsCardFragment\n}\n\nfragment DatasetLabelsSettingsCardFragment on Query {\n  ...DatasetLabelsTableFragment\n}\n\nfragment DatasetLabelsTableFragment on Query {\n  datasetLabels(first: 100) {\n    edges {\n      node {\n        id\n        name\n        description\n        color\n        usageCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

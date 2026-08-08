@@ -31,7 +31,7 @@ export function ExperimentRepetitionSelector({
       <TooltipTrigger>
         <TriggerWrap>
           <Flex direction="row" alignItems="center">
-            <Icon svg={<Icons.RepeatOutline />} />
+            <Icon svg={<Icons.Repeat />} />
             <Text
               css={css`
                 margin-inline-start: var(--global-dimension-size-100);
@@ -54,7 +54,7 @@ export function ExperimentRepetitionSelector({
         onPress={() => setRepetitionNumber((prev) => prev - 1)}
         aria-label="Previous repetition"
       >
-        <Icon svg={<Icons.ChevronLeft />} />
+        <Icon svg={<Icons.ChevronLeftSmall />} />
       </IconButton>
       <IconButton
         size="S"
@@ -62,7 +62,7 @@ export function ExperimentRepetitionSelector({
         onPress={() => setRepetitionNumber((prev) => prev + 1)}
         aria-label="Next repetition"
       >
-        <Icon svg={<Icons.ChevronRight />} />
+        <Icon svg={<Icons.ChevronRightSmall />} />
       </IconButton>
     </Flex>
   );

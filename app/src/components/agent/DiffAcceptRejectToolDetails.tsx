@@ -3,10 +3,14 @@ import { parseDiffFromFile } from "@pierre/diffs";
 import { FileDiff } from "@pierre/diffs/react";
 import { type ReactNode, useMemo } from "react";
 
-import { Button, Flex, View } from "@phoenix/components";
+import { Flex } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 
-import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
+import {
+  ToolPartApprovalActions,
+  ToolPartCodeBlock,
+  ToolPartLabel,
+} from "./ToolPartPrimitives";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { stringifyToolValue } from "./toolPartTypes";
 
@@ -34,19 +38,22 @@ const diffAcceptRejectToolDetailsCSS = css`
   }
 
   .diff-accept-reject__diff {
-    font-family: var(--ac-global-font-family-sans);
+    font-family: var(--global-font-family-sans);
     white-space: normal;
   }
 `;
 
-type PendingDiffEdit<T> = {
+export type PendingDiffEdit<T> = {
   before: T;
   after: T;
   accept?: () => Promise<void>;
   reject?: () => Promise<void>;
 };
 
-type DiffAcceptRejectToolDetailsProps<T, P extends PendingDiffEdit<T>> = {
+export type DiffAcceptRejectToolDetailsProps<
+  T,
+  P extends PendingDiffEdit<T>,
+> = {
   part: ToolInvocationPart;
   pending: P | null;
   snapshotToText: (snapshot: T) => string;
@@ -151,7 +158,7 @@ function PendingDiff<T, P extends PendingDiffEdit<T>>({
 
             [data-code] {
               padding: 0;
-              padding-bottom: var(--global-dimension-static-size-100)
+              padding-bottom: var(--global-dimension-size-100)
             }
 
             [data-column-number] {
@@ -161,28 +168,12 @@ function PendingDiff<T, P extends PendingDiffEdit<T>>({
           }}
         />
       </div>
-      <View paddingX="size-200">
-        <Flex direction="row-reverse" gap="size-100">
-          <Button
-            size="S"
-            variant="primary"
-            isDisabled={!canRespond}
-            onPress={() => void pending.accept?.()}
-          >
-            Accept
-          </Button>
-          <Button
-            size="S"
-            isDisabled={!canRespond}
-            onPress={() => void pending.reject?.()}
-          >
-            Reject
-          </Button>
-        </Flex>
-        {!canRespond ? (
-          <ToolPartCodeBlock>{staleSessionMessage}</ToolPartCodeBlock>
-        ) : null}
-      </View>
+      <ToolPartApprovalActions
+        onAccept={() => void pending.accept?.()}
+        onReject={() => void pending.reject?.()}
+        isDisabled={!canRespond}
+        staleMessage={staleSessionMessage}
+      />
     </Flex>
   );
 }

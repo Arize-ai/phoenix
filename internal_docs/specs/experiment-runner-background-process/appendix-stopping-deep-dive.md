@@ -374,6 +374,7 @@ class RunningExperiment:
         self._subscribers.clear()
         # NOTE: Does NOT call on_done - caller handles DB updates
 
+
 class ExperimentRunner:
     def stop_experiment(self, exp_id: int) -> bool:
         """In-memory only. Called by mutation and heartbeat."""
@@ -709,7 +710,8 @@ result = await session.execute(
     .where(
         select(ExperimentExecutionConfig.claimed_by)
         .where(experiment_id == exp_id)
-        .scalar_subquery() == self._replica_id
+        .scalar_subquery()
+        == self._replica_id
     )
 )
 if result.rowcount == 0:

@@ -29,8 +29,11 @@ const baseToggleButtonCSS = css(
       background-color: var(--global-input-field-border-color-hover);
     }
     &[data-focus-visible] {
-      outline: 1px solid var(--global-input-field-border-color-active);
-      outline-offset: -2px;
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: calc(-1 * var(--focus-ring-thickness));
+    }
+    &[data-selected="true"][data-focus-visible] {
+      outline-color: var(--global-button-primary-foreground-color);
     }
 `
 );

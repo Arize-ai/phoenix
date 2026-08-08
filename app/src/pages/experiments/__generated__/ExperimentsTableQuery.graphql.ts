@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<5aedc57d79cb73449b278ce035a43624>>
+ * @generated SignedSource<<c428af135bed97ab01c82d71718fb930>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -108,21 +107,21 @@ v7 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ExperimentsTableQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
           {
-            "args": (v2/*: any*/),
+            "args": (v2/*:: as any*/),
             "kind": "FragmentSpread",
             "name": "ExperimentsTableFragment"
           }
@@ -135,20 +134,20 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ExperimentsTableQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
-          (v4/*: any*/),
+          (v3/*:: as any*/),
+          (v4/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -160,7 +159,7 @@ return {
                 "name": "experimentAnnotationSummaries",
                 "plural": true,
                 "selections": [
-                  (v5/*: any*/),
+                  (v5/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -180,7 +179,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": "ExperimentConnection",
                 "kind": "LinkedField",
                 "name": "experiments",
@@ -202,8 +201,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v4/*: any*/),
-                          (v6/*: any*/),
+                          (v4/*:: as any*/),
+                          (v6/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -216,6 +215,13 @@ return {
                             "args": null,
                             "kind": "ScalarField",
                             "name": "description",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "isBaseline",
                             "storageKey": null
                           },
                           {
@@ -275,7 +281,7 @@ return {
                             "name": "project",
                             "plural": false,
                             "selections": [
-                              (v4/*: any*/)
+                              (v4/*:: as any*/)
                             ],
                             "storageKey": null
                           },
@@ -303,8 +309,8 @@ return {
                                     "name": "node",
                                     "plural": false,
                                     "selections": [
-                                      (v4/*: any*/),
-                                      (v6/*: any*/),
+                                      (v4/*:: as any*/),
+                                      (v6/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -336,7 +342,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "total",
                                 "plural": false,
-                                "selections": (v7/*: any*/),
+                                "selections": (v7/*:: as any*/),
                                 "storageKey": null
                               },
                               {
@@ -346,7 +352,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "prompt",
                                 "plural": false,
-                                "selections": (v7/*: any*/),
+                                "selections": (v7/*:: as any*/),
                                 "storageKey": null
                               },
                               {
@@ -356,7 +362,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "completion",
                                 "plural": false,
-                                "selections": (v7/*: any*/),
+                                "selections": (v7/*:: as any*/),
                                 "storageKey": null
                               }
                             ],
@@ -370,7 +376,7 @@ return {
                             "name": "annotationSummaries",
                             "plural": true,
                             "selections": [
-                              (v5/*: any*/),
+                              (v5/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -417,7 +423,7 @@ return {
                                 "name": "profilePictureUrl",
                                 "storageKey": null
                               },
-                              (v4/*: any*/)
+                              (v4/*:: as any*/)
                             ],
                             "storageKey": null
                           },
@@ -436,7 +442,7 @@ return {
                                 "name": "status",
                                 "storageKey": null
                               },
-                              (v4/*: any*/)
+                              (v4/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -458,8 +464,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v4/*: any*/)
+                          (v3/*:: as any*/),
+                          (v4/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -496,7 +502,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "ExperimentsTable_experiments",
@@ -513,16 +519,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1abce83d8019b0384e39c10f368a94d6",
+    "cacheID": "8ccb0247c2b37b866882772ac37bfe87",
     "id": null,
     "metadata": {},
     "name": "ExperimentsTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExperimentsTableFragment_2HEEH6\n    id\n  }\n}\n\nfragment ExperimentsTableFragment_2HEEH6 on Dataset {\n  id\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: $first, after: $after) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n        errorRate\n        runCount\n        expectedRunCount\n        repetitions\n        averageRunLatencyMs\n        project {\n          id\n        }\n        datasetSplits {\n          edges {\n            node {\n              id\n              name\n              color\n            }\n          }\n        }\n        costSummary {\n          total {\n            tokens\n            cost\n          }\n          prompt {\n            tokens\n            cost\n          }\n          completion {\n            tokens\n            cost\n          }\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n          count\n          errorCount\n        }\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        job {\n          status\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ExperimentsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExperimentsTableFragment_2HEEH6\n    id\n  }\n}\n\nfragment ExperimentsTableFragment_2HEEH6 on Dataset {\n  id\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: $first, after: $after) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        isBaseline\n        createdAt\n        metadata\n        errorRate\n        runCount\n        expectedRunCount\n        repetitions\n        averageRunLatencyMs\n        project {\n          id\n        }\n        datasetSplits {\n          edges {\n            node {\n              id\n              name\n              color\n            }\n          }\n        }\n        costSummary {\n          total {\n            tokens\n            cost\n          }\n          prompt {\n            tokens\n            cost\n          }\n          completion {\n            tokens\n            cost\n          }\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n          count\n          errorCount\n        }\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        job {\n          status\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f030ce18df72171c2246907cda544324";
+(node as any).hash = "13f75158c220eb8e198b35d2c30bba40";
 
 export default node;

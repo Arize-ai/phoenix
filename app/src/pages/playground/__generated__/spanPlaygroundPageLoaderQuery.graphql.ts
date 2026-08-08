@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<8291791ec9d0a22942ccfea4ff2f0878>>
+ * @generated SignedSource<<053af2d551e6387be645130bb1242fe2>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -74,7 +73,7 @@ v4 = {
   "name": "project",
   "plural": false,
   "selections": [
-    (v3/*: any*/),
+    (v3/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -100,7 +99,7 @@ v6 = {
   "name": "trace",
   "plural": false,
   "selections": [
-    (v3/*: any*/),
+    (v3/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -120,28 +119,28 @@ v7 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "spanPlaygroundPageLoaderQuery",
     "selections": [
       {
         "alias": "span",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v3/*: any*/),
-              (v4/*: any*/),
-              (v5/*: any*/),
-              (v6/*: any*/),
-              (v7/*: any*/)
+              (v3/*:: as any*/),
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
+              (v7/*:: as any*/)
             ],
             "type": "Span",
             "abstractKey": null
@@ -155,27 +154,27 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "spanPlaygroundPageLoaderQuery",
     "selections": [
       {
         "alias": "span",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v3/*: any*/),
+          (v2/*:: as any*/),
+          (v3/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v4/*: any*/),
-              (v5/*: any*/),
-              (v6/*: any*/),
-              (v7/*: any*/)
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
+              (v7/*:: as any*/)
             ],
             "type": "Span",
             "abstractKey": null

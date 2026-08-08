@@ -30,8 +30,8 @@ export const SectionHeading = ({
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: var(--global-dimension-static-size-100)
-            var(--global-dimension-static-size-200);
+          padding: var(--global-dimension-size-100)
+            var(--global-dimension-size-200);
         }
       `}
     >

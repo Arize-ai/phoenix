@@ -11,6 +11,7 @@ import {
 } from "@phoenix/components/ai/attachment";
 import type { AttachmentContextData } from "@phoenix/components/ai/attachment";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 const MAX_CONDITION_CHARS = 40;
 const ID_PREFIX_CHARS = 8;
@@ -43,6 +44,10 @@ function contextLabel(context: AgentContext): string {
       return "Trace";
     case "session":
       return "Session";
+    case "prompt":
+      return "Prompt";
+    case "prompt_version":
+      return "Prompt Version";
     case "span":
       return "Span";
     case "code_evaluator":
@@ -51,6 +56,8 @@ function contextLabel(context: AgentContext): string {
       return "LLM Evaluator";
     case "dataset":
       return "Dataset";
+    default:
+      return assertUnreachable(context);
   }
 }
 
@@ -61,6 +68,10 @@ function contextDetail(context: AgentContext): string | undefined {
       return truncateId(context.otelTraceId);
     case "session":
       return truncateId(context.sessionNodeId);
+    case "prompt":
+      return truncateId(context.promptNodeId);
+    case "prompt_version":
+      return truncateId(context.promptVersionNodeId);
     case "span": {
       const spanId = context.spanNodeId ?? context.otelSpanId;
       if (spanId == null) {

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<f90ebbeaf477f68275e88a653c79ff03>>
+ * @generated SignedSource<<34a0eaa773dbd043122df567f6c6b40c>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -81,14 +80,14 @@ v4 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "TransferTracesButtonTransferMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "Query",
         "kind": "LinkedField",
         "name": "transferTracesToProject",
@@ -96,14 +95,14 @@ return {
         "selections": [
           {
             "alias": "project",
-            "args": (v2/*: any*/),
+            "args": (v2/*:: as any*/),
             "concreteType": null,
             "kind": "LinkedField",
             "name": "node",
             "plural": false,
             "selections": [
-              (v3/*: any*/),
-              (v4/*: any*/)
+              (v3/*:: as any*/),
+              (v4/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -116,13 +115,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "TransferTracesButtonTransferMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "Query",
         "kind": "LinkedField",
         "name": "transferTracesToProject",
@@ -130,7 +129,7 @@ return {
         "selections": [
           {
             "alias": "project",
-            "args": (v2/*: any*/),
+            "args": (v2/*:: as any*/),
             "concreteType": null,
             "kind": "LinkedField",
             "name": "node",
@@ -143,8 +142,8 @@ return {
                 "name": "__typename",
                 "storageKey": null
               },
-              (v3/*: any*/),
-              (v4/*: any*/)
+              (v3/*:: as any*/),
+              (v4/*:: as any*/)
             ],
             "storageKey": null
           }

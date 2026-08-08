@@ -23,15 +23,25 @@ import {
   Alert,
   Card,
   ContentSkeleton,
-  Empty,
+  ContextualHelp,
   Flex,
+  Icon,
+  Icons,
   Link,
   Text,
   View,
 } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
+import {
+  CHECKBOX_COLUMN_ID,
+  CHECKBOX_COLUMN_PINNING,
+} from "@phoenix/components/table/constants";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
-import { tableCSS } from "@phoenix/components/table/styles";
+import {
+  getCommonPinningStyles,
+  tableCSS,
+} from "@phoenix/components/table/styles";
 import { useNotifySuccess } from "@phoenix/contexts";
 
 import type { ProjectAnnotationConfigCardContent_project_annotations$key } from "./__generated__/ProjectAnnotationConfigCardContent_project_annotations.graphql";
@@ -48,12 +58,16 @@ export const ProjectAnnotationConfigCard = (
   props: ProjectAnnotationConfigCardProps
 ) => {
   return (
-    <Card title="Project Annotations">
-      <Alert variant="info" banner>
-        Annotation Configs are configured globally and can be associated with
-        multiple projects. Select the annotation configs you want to use for
-        this project.
-      </Alert>
+    <Card
+      title="Annotation Configs"
+      titleExtra={
+        <ContextualHelp variant="info">
+          Annotation Configs are configured globally and can be associated with
+          multiple projects. Select the annotation configs you want to use for
+          this project.
+        </ContextualHelp>
+      }
+    >
       <Suspense fallback={<ContentSkeleton />}>
         <ProjectAnnotationConfigCardContent projectId={props.projectId} />
       </Suspense>
@@ -83,7 +97,7 @@ interface AnnotationConfigTableRow {
 
 const columns: ColumnDef<AnnotationConfigTableRow>[] = [
   {
-    id: "select",
+    id: CHECKBOX_COLUMN_ID,
     maxSize: 10,
     header: () => null,
     cell: ({ row }: CellContext<AnnotationConfigTableRow, unknown>) => (
@@ -340,13 +354,19 @@ const ProjectAnnotationConfigCardContent = (
   const table = useReactTable({
     data: tableData,
     columns,
+    state: {
+      columnPinning: CHECKBOX_COLUMN_PINNING,
+    },
     getCoreRowModel: getCoreRowModel(),
   });
 
   if (allAnnotationConfigs.edges.length === 0) {
     return (
       <View paddingY="size-400">
-        <Empty message="No annotation configurations available." />
+        <CompactEmptyState
+          icon={<Icon svg={<Icons.Settings />} />}
+          description="No annotation configurations available."
+        />
       </View>
     );
   }
@@ -370,7 +390,11 @@ const ProjectAnnotationConfigCardContent = (
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <th colSpan={header.colSpan} key={header.id}>
+                  <th
+                    colSpan={header.colSpan}
+                    key={header.id}
+                    style={getCommonPinningStyles(header.column)}
+                  >
                     {header.isPlaceholder ? null : (
                       <div
                         style={{
@@ -396,8 +420,13 @@ const ProjectAnnotationConfigCardContent = (
                   <td
                     key={cell.id}
                     style={{
+                      ...getCommonPinningStyles(cell.column),
                       width: cell.column.getSize(),
                       maxWidth: cell.column.getSize(),
+                      userSelect:
+                        cell.column.id === CHECKBOX_COLUMN_ID
+                          ? "none"
+                          : undefined,
                     }}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

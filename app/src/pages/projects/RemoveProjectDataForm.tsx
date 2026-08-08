@@ -151,7 +151,7 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
             isDisabled={!isValid || isCommitting}
             size="S"
             leadingVisual={
-              isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
+              isCommitting ? <Icon svg={<Icons.Loading />} /> : undefined
             }
             onPress={() => {
               // TODO: This is a bit of a hack as the form is not working in a dialog for some reason

@@ -62,6 +62,13 @@ Phoenix automatically converts [OTel GenAI semantic convention](https://opentele
 
 If a span already has OpenInference attributes set (e.g. from a dual-emitting instrumentor), those values take precedence over the synthesized ones.
 
+Message parts are converted structurally, not concatenated. A `gen_ai` message's
+text, image, blob, and reasoning parts each become an entry under
+`llm.{input,output}_messages.{i}.message.contents.{j}`, tagged with
+`message_content.type` (`text`, `image`, `reasoning`, …) — so a model's reasoning
+survives the conversion as a `reasoning` part rather than being folded into the
+answer text. See [span-llm](span-llm.md#messages) for the full content-part shape.
+
 No client-side changes required. Send OTLP to Phoenix as usual:
 
 ```python

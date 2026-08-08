@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<5fcac99a45d154a5f2dac8bb5e5c60c7>>
+ * @generated SignedSource<<33369ca95a80927220fb8f970e61284e>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -14,6 +13,8 @@ export type ProjectMenu_projects$data = {
   readonly projects: {
     readonly edges: ReadonlyArray<{
       readonly project: {
+        readonly gradientEndColor: string;
+        readonly gradientStartColor: string;
         readonly id: string;
         readonly name: string;
       };
@@ -93,7 +94,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -103,7 +104,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [],
       "operation": ProjectMenuProjectsQuery_graphql
@@ -130,12 +131,12 @@ return {
           "name": "node",
           "plural": false,
           "selections": [
-            (v1/*: any*/),
-            (v2/*: any*/),
+            (v1/*:: as any*/),
+            (v2/*:: as any*/),
             {
               "kind": "InlineFragment",
               "selections": [
-                (v3/*: any*/)
+                (v3/*:: as any*/)
               ],
               "type": "Project",
               "abstractKey": null
@@ -175,8 +176,22 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*: any*/),
-                (v3/*: any*/)
+                (v2/*:: as any*/),
+                (v3/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "gradientStartColor",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "gradientEndColor",
+                  "storageKey": null
+                }
               ],
               "storageKey": null
             },
@@ -195,7 +210,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*: any*/)
+                (v1/*:: as any*/)
               ],
               "storageKey": null
             }
@@ -236,6 +251,6 @@ return {
 };
 })();
 
-(node as any).hash = "866a8551e0e16d25b8216cdddac490ff";
+(node as any).hash = "acf5af224c355e76f53d918b469f477c";
 
 export default node;

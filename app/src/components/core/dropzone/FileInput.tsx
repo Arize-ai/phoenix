@@ -1,11 +1,8 @@
 import { type ChangeEvent, useCallback, useRef } from "react";
 
 import { IconButton } from "@phoenix/components/core/button";
-import {
-  Icon,
-  CloseOutline,
-  FolderOutline,
-} from "@phoenix/components/core/icon";
+import { Icon } from "@phoenix/components/core/icon";
+import { Close, Folder } from "@phoenix/components/core/icon/Icons";
 
 import { fileInputCSS } from "./styles";
 import type { FileInputProps } from "./types";
@@ -75,7 +72,7 @@ export function FileInput({
               onPress={onClear}
               isDisabled={isDisabled}
             >
-              <Icon svg={<CloseOutline />} />
+              <Icon svg={<Close />} />
             </IconButton>
           )}
           <IconButton
@@ -84,7 +81,7 @@ export function FileInput({
             onPress={handleBrowse}
             isDisabled={isDisabled}
           >
-            <Icon svg={<FolderOutline />} />
+            <Icon svg={<Folder />} />
           </IconButton>
         </div>
       </div>

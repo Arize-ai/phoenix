@@ -1,5 +1,3 @@
-import type { InitialFiles } from "just-bash";
-
 import type { BashCustomCommandPolicy } from "./customCommandPolicy";
 
 export interface BashToolCommandResult {
@@ -87,5 +85,4 @@ export interface BashToolRuntime {
       customCommandPolicy?: BashCustomCommandPolicy;
     }
   ) => Promise<BashToolCommandResult>;
-  replacePhoenixFiles: (files: InitialFiles) => Promise<void>;
 }

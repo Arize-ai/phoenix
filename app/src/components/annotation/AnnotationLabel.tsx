@@ -2,27 +2,22 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 
 import { AnnotationNameAndValue } from "@phoenix/components/annotation/AnnotationNameAndValue";
+import { outlinedPillCSS } from "@phoenix/components/core/styles";
 
 import type { Annotation, AnnotationDisplayPreference } from "./types";
 
-export const baseAnnotationLabelCSS = css`
-  border-radius: var(--global-dimension-size-50);
-  border: 1px solid var(--global-border-color-default);
-  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
-  transition: background-color 0.2s;
-  display: flex;
-  flex-direction: row;
-  gap: var(--global-dimension-size-50);
-  &[data-clickable="true"] {
-    cursor: pointer;
-    &:hover {
-      background-color: var(--global-color-gray-300);
+export const baseAnnotationLabelCSS = css(
+  outlinedPillCSS,
+  css`
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+    display: flex;
+    flex-direction: row;
+    gap: var(--global-dimension-size-50);
+    .icon-wrap {
+      font-size: 12px;
     }
-  }
-  .icon-wrap {
-    font-size: 12px;
-  }
-`;
+  `
+);
 
 export function AnnotationLabel({
   annotation,

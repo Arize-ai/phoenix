@@ -1,29 +1,31 @@
 import { css } from "@emotion/react";
 import { isTextUIPart } from "ai";
 
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import {
+  getAssistantMessageMetadata,
+  type AgentUIMessage,
+} from "@phoenix/agent/chat/types";
 import {
   Message,
   MessageActions,
   MessageContent,
+  MessageCopyAction,
   MessageToolbar,
 } from "@phoenix/components/ai/message";
 import { MarkdownBlock } from "@phoenix/components/markdown";
 
 import { AssistantMessageActions } from "./AssistantMessageActions";
 import { GenerativeUI } from "./generativeUI";
-import { groupMessageParts } from "./groupMessageParts";
-import { MessageCopyAction } from "./MessageCopyAction";
 import { MessageRewindActions } from "./MessageRewindActions";
 import type {
   MessageRewindMode,
   MessageRewindRole,
 } from "./MessageRewindDialog";
+import { partitionMessageParts } from "./partitionMessageParts";
 import { ToolPart } from "./ToolPart";
-import { ToolPartGroup } from "./ToolPartGroup";
 
 /**
- * Reports a rewind/fork request from a message's controls up to the chat view,
+ * Reports a rewind/branch request from a message's controls up to the chat view,
  * which owns the single confirmation dialog. Optional so messages can render
  * without the controls (e.g. while streaming) by omitting the prop entirely.
  */
@@ -46,7 +48,7 @@ const assistantMessageCSS = css`
 /**
  * Renders a user message bubble (right-aligned, primary colour) with a toolbar
  * for copying the message and, when `onRewindRequest` is provided, rewinding or
- * forking the conversation from it.
+ * branching the conversation from it.
  */
 export function UserMessage({
   message,
@@ -84,9 +86,8 @@ export function UserMessage({
 
 /**
  * Renders an assistant message consisting of interleaved text and tool-call
- * parts. Consecutive runs of 3+ tool calls are collapsed into a
- * {@link ToolPartGroup} pool; shorter runs render individually as
- * {@link ToolPart} details.
+ * parts. Every tool call renders individually as a collapsible {@link ToolPart}
+ * so no call is hidden behind a collapsed summary.
  *
  * `showActions` gates the feedback/copy/trace toolbar — callers should set
  * it to `false` while this particular message is still streaming so users
@@ -98,7 +99,7 @@ export function UserMessage({
  *
  * `allowRewind` gates the rewind control. Callers set it to `false` for the
  * last assistant turn, where rewinding to that response is a no-op (see
- * {@link MessageRewindActions}); fork stays available there.
+ * {@link MessageRewindActions}); branch stays available there.
  */
 export function AssistantMessage({
   message,
@@ -113,41 +114,34 @@ export function AssistantMessage({
   onRewindRequest?: MessageRewindRequest;
   allowRewind?: boolean;
 }) {
-  const grouped = groupMessageParts(message.parts);
+  const segments = partitionMessageParts(message.parts);
 
   return (
     <Message from="assistant" data-pin-toolbar={pinToolbar || undefined}>
       <MessageContent>
         <div css={assistantMessageCSS}>
-          {grouped.map((group) => {
-            switch (group.kind) {
+          {segments.map((segment) => {
+            switch (segment.kind) {
               case "text":
                 return (
                   <MarkdownBlock
-                    key={`text-${group.index}`}
+                    key={`text-${segment.index}`}
                     mode="markdown"
                     renderMode="streaming"
                     margin="none"
                   >
-                    {group.part.type === "text" ? group.part.text : ""}
+                    {segment.part.type === "text" ? segment.part.text : ""}
                   </MarkdownBlock>
                 );
               case "tool-solo":
                 return (
-                  <ToolPart key={`tool-${group.index}`} part={group.part} />
-                );
-              case "tool-group":
-                return (
-                  <ToolPartGroup
-                    key={`pool-${group.startIndex}`}
-                    parts={group.parts}
-                  />
+                  <ToolPart key={`tool-${segment.index}`} part={segment.part} />
                 );
               case "generative-ui":
                 return (
                   <GenerativeUI
-                    key={`generative-ui-${group.index}`}
-                    parts={[group.part]}
+                    key={`generative-ui-${segment.index}`}
+                    parts={[segment.part]}
                   />
                 );
               default:
@@ -164,7 +158,7 @@ export function AssistantMessage({
               role="assistant"
               onRequest={onRewindRequest}
               showRewind={allowRewind}
-              traceId={message.metadata?.trace?.traceId}
+              traceId={getAssistantMessageMetadata(message)?.trace?.traceId}
             />
           ) : null}
         </AssistantMessageActions>

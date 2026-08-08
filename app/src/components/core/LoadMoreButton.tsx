@@ -29,7 +29,7 @@ export const LoadMoreButton = ({
       css={buttonCSS}
       isDisabled={isLoadingNext}
       leadingVisual={
-        isLoadingNext ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
+        isLoadingNext ? <Icon svg={<Icons.Loading />} /> : undefined
       }
       {...buttonProps}
     >

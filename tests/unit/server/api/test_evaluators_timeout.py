@@ -12,17 +12,17 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
 )
 from phoenix.db.types.evaluators import InputMapping
-from phoenix.server.api.evaluators import (
-    _PHOENIX_RESULT_BEGIN,
-    _PHOENIX_RESULT_END,
-    CodeEvaluatorRunner,
+from phoenix.server.api.evaluators import CodeEvaluatorRunner
+from phoenix.server.sandbox.result_protocol import (
+    PHOENIX_RESULT_BEGIN,
+    PHOENIX_RESULT_END,
 )
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import ExecutionResult, SandboxBackend
 
 
 def _fenced(payload: str) -> str:
-    return f"{_PHOENIX_RESULT_BEGIN}\n{payload}\n{_PHOENIX_RESULT_END}\n"
+    return f"{PHOENIX_RESULT_BEGIN}\n{payload}\n{PHOENIX_RESULT_END}\n"
 
 
 def _categorical_config() -> CategoricalOutputConfig:

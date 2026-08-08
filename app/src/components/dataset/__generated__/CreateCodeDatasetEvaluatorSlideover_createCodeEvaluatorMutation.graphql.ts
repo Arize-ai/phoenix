@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<548aa5a12dbc73f1e6461700a6d35193>>
+ * @generated SignedSource<<5e1a4787967d842f5c0f0fd50b675562>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -21,9 +20,17 @@ export type CreateCodeEvaluatorInput = {
   sourceCode: string;
 };
 export type AnnotationConfigInput = {
-  categorical?: CategoricalAnnotationConfigInput | null;
-  continuous?: ContinuousAnnotationConfigInput | null;
-  freeform?: FreeformAnnotationConfigInput | null;
+  categorical: CategoricalAnnotationConfigInput;
+  continuous?: never;
+  freeform?: never;
+} | {
+  categorical?: never;
+  continuous: ContinuousAnnotationConfigInput;
+  freeform?: never;
+} | {
+  categorical?: never;
+  continuous?: never;
+  freeform: FreeformAnnotationConfigInput;
 };
 export type CategoricalAnnotationConfigInput = {
   description?: string | null;
@@ -124,20 +131,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "b978b7f8c7265cde32cf9fc460a45b29",

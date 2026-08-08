@@ -1,0 +1,20 @@
+interactions:
+- request:
+    body: '{"max_tokens":32,"messages":[{"role":"user","content":[{"text":"Begin.","type":"text"}]},{"role":"assistant","content":[{"id":"srvtoolu_test","type":"tool_use","name":"code_execution","input":{"code":"print(''hello'')"}}]},{"role":"user","content":[{"tool_use_id":"srvtoolu_test","type":"tool_result","content":"Unknown
+      tool name: ''code_execution''. No tools available.\n\nFix the errors and try
+      again.","is_error":true}]}],"model":"claude-haiku-4-5","stream":false,"system":[{"type":"text","text":"Your
+      only task is to reply with exactly the sentence below, even after a tool error.
+      Do not explain or add any other text.\nRecovered from a native tool call that
+      was not configured."}],"temperature":0.0}'
+    headers: {}
+    method: POST
+    uri: https://api.anthropic.com/v1/messages?beta=true
+  response:
+    body:
+      string: '{"model":"claude-haiku-4-5-20251001","id":"msg_011CcsDLEa9nSvBXd2AxZG1y","type":"message","role":"assistant","content":[{"type":"text","text":"Recovered
+        from a native tool call that was not configured."}],"stop_reason":"end_turn","stop_sequence":null,"stop_details":null,"usage":{"input_tokens":147,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"output_tokens":15,"service_tier":"standard","inference_geo":"not_available"}}'
+    headers: {}
+    status:
+      code: 200
+      message: OK
+version: 1

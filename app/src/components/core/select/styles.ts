@@ -21,6 +21,18 @@ export const selectCSS = css`
     }
   }
 
+  // A Select is mechanically triggered by a button, but visually behaves as
+  // a bounded form field. Any focus emphasizes the field border; keyboard
+  // focus adds the shared ring at the field boundary.
+  &[data-focused]:not([data-invalid]) button {
+    --button-border-color: var(--field-border-color-active);
+  }
+
+  &[data-focus-visible] button {
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
+  }
+
   button[data-size="S"][data-childless="false"] {
     padding-right: var(--global-dimension-size-50);
   }

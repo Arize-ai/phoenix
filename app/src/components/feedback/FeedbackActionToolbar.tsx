@@ -28,7 +28,7 @@ export function FeedbackActionToolbar({
             onAnnotate();
           }}
         >
-          <Icon svg={<Icons.EditOutline />} />
+          <Icon svg={<Icons.Edit />} />
         </MessageAction>
       ) : null}
       <MessageAction
@@ -44,7 +44,7 @@ export function FeedbackActionToolbar({
         }}
       >
         <Icon
-          svg={<Icons.ThumbsUpOutline />}
+          svg={<Icons.ThumbsUp />}
           color={isPositiveSelected ? "success" : "inherit"}
         />
       </MessageAction>
@@ -61,7 +61,7 @@ export function FeedbackActionToolbar({
         }}
       >
         <Icon
-          svg={<Icons.ThumbsDownOutline />}
+          svg={<Icons.ThumbsDown />}
           color={isNegativeSelected ? "danger" : "inherit"}
         />
       </MessageAction>

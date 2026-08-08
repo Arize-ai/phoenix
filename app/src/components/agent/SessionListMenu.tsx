@@ -8,13 +8,13 @@ import {
   Keyboard,
   Menu,
   MenuContainer,
-  MenuEmpty,
   MenuItem,
   MenuTrigger,
   Text,
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import type { AgentSession } from "@phoenix/store/agentStore";
 import { formatRelativeShort } from "@phoenix/utils/timeFormatUtils";
@@ -84,7 +84,7 @@ export function SessionListMenu({
         variant="quiet"
         size="S"
         aria-label="Sessions"
-        leadingVisual={<Icon svg={<Icons.HistoryOutline />} />}
+        leadingVisual={<Icon svg={<Icons.History />} />}
       />
       <MenuContainer placement="bottom end" minHeight="auto" maxHeight={400}>
         <Menu
@@ -102,7 +102,12 @@ export function SessionListMenu({
             />
           ))}
         </Menu>
-        {sessions.length === 0 && <MenuEmpty>No sessions yet</MenuEmpty>}
+        {sessions.length === 0 && (
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.History />} />}
+            description="No sessions yet"
+          />
+        )}
       </MenuContainer>
     </MenuTrigger>
   );
@@ -145,7 +150,7 @@ function SessionMenuItem({
               size="S"
               aria-label={`Delete session: ${displayName}`}
               onPress={() => onRequestDelete(session.id)}
-              leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+              leadingVisual={<Icon svg={<Icons.Trash />} />}
             />
             <Tooltip>
               Delete <Keyboard>⌫</Keyboard>

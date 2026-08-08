@@ -7,6 +7,15 @@ import {
   observe,
   register,
   trace,
+  traceAgent,
+  traceChain,
+  traceEmbedding,
+  traceEvaluator,
+  traceGuardrail,
+  traceLLM,
+  tracePrompt,
+  traceReranker,
+  traceRetriever,
   traceTool,
   withSpan,
 } from "../src";
@@ -47,6 +56,27 @@ async function runInsideParentSpan<T>(name: string, fn: () => Promise<T>) {
 }
 
 describe("openinference re-exports", () => {
+  test("re-exports the full set of span-kind wrappers from @arizeai/openinference-core", () => {
+    const wrappers = {
+      withSpan,
+      traceChain,
+      traceAgent,
+      traceTool,
+      traceLLM,
+      traceRetriever,
+      traceReranker,
+      traceEmbedding,
+      traceGuardrail,
+      traceEvaluator,
+      tracePrompt,
+      observe,
+    };
+
+    for (const [name, wrapper] of Object.entries(wrappers)) {
+      expect(wrapper, `${name} should be re-exported`).toBeTypeOf("function");
+    }
+  });
+
   test("withSpan resolves the current global tracer when invoked", async () => {
     const { processor, getStartCount } = createCountingSpanProcessor();
     const provider = register({

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<2ea15d68ee92aaf12b9639baae75fa69>>
+ * @generated SignedSource<<4a788b8667ae122a87fcda211ecbd7a5>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -15,10 +14,12 @@ export type UsersTable_users$data = {
   readonly users: {
     readonly edges: ReadonlyArray<{
       readonly user: {
+        readonly apiKeyCount: number;
         readonly authMethod: AuthMethod;
         readonly createdAt: string;
         readonly email: string | null;
         readonly id: string;
+        readonly oauth2GrantCount: number;
         readonly profilePictureUrl: string | null;
         readonly role: {
           readonly name: string;
@@ -60,7 +61,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -70,7 +71,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [],
       "operation": UsersTableQuery_graphql
@@ -142,6 +143,20 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "profilePictureUrl",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "apiKeyCount",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "oauth2GrantCount",
                   "storageKey": null
                 },
                 {
@@ -227,6 +242,6 @@ return {
 };
 })();
 
-(node as any).hash = "3e71021826f5285ec7804bb7637703fd";
+(node as any).hash = "5b4963381bc87826b05613c71720c77a";
 
 export default node;

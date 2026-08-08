@@ -20,6 +20,7 @@ import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
 import { useSearchParams } from "react-router";
 
 import {
+  Alert,
   Empty,
   ExpandableContent,
   Flex,
@@ -28,7 +29,6 @@ import {
   Icons,
   Modal,
   ModalOverlay,
-  Text,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
@@ -132,7 +132,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [, setSearchParams] = useSearchParams();
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
 
-  const preloadedData = usePreloadedQuery(
+  const preloadedData = usePreloadedQuery<ExperimentCompareTableQueryType>(
     ExperimentComparePageQueriesCompareGridQuery,
     props.queryRef
   );
@@ -224,6 +224,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     id
                     name
                     sequenceNumber
+                    isBaseline
+                    isEphemeral
                     metadata
                     datasetVersion {
                       id
@@ -307,13 +309,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       data.compareExperiments.edges.map((edge) => {
         const comparison = edge.comparison;
         const repeatedRunGroupsByExperimentId =
-          comparison.repeatedRunGroups.reduce(
-            (acc, group) => {
-              acc[group.experimentId] = group;
-              return acc;
-            },
-            {} as Record<string, ExperimentRepeatedRunGroup>
-          );
+          comparison.repeatedRunGroups.reduce<
+            Record<string, ExperimentRepeatedRunGroup>
+          >((acc, group) => {
+            acc[group.experimentId] = group;
+            return acc;
+          }, {});
         return {
           ...comparison,
           id: comparison.example.id,
@@ -424,10 +425,17 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 <ExperimentNameWithColorSwatch
                   name={name}
                   color={experimentColor}
+                  isBaseline={experiment?.isBaseline}
                 />
                 <div css={actionMenuContainerCSS}>
                   <ExperimentActionMenu
                     experimentId={experimentId}
+                    {...(experiment && !experiment.isEphemeral
+                      ? {
+                          canSetBaseline: true as const,
+                          isBaseline: experiment.isBaseline,
+                        }
+                      : { canSetBaseline: false as const })}
                     metadata={metadata}
                     projectId={projectId}
                     size="S"
@@ -578,7 +586,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           flex="none"
         >
           <ExperimentRunFilterConditionField
-            onValidCondition={setFilterCondition}
+            onValidCondition={({ condition }) => setFilterCondition(condition)}
           />
         </View>
         <div
@@ -630,9 +638,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                                 className="sort-icon"
                                 svg={
                                   header.column.getIsSorted() === "asc" ? (
-                                    <Icons.ArrowUpFilled />
+                                    <Icons.CaretUpFilled />
                                   ) : (
-                                    <Icons.ArrowDownFilled />
+                                    <Icons.CaretDownFilled />
                                   )
                                 }
                               />
@@ -846,7 +854,7 @@ function ExperimentRunOutput(
     props;
 
   if (error) {
-    return <RunError error={error} />;
+    return <RunError error={error} height={height} />;
   }
   const annotationsList = annotations?.edges.length
     ? annotations.edges.map((edge) => edge.annotation)
@@ -879,11 +887,14 @@ function ExperimentRunOutput(
   );
 }
 
-function RunError({ error }: { error: string }) {
+function RunError({ error, height }: { error: string; height: number }) {
   return (
-    <Flex direction="row" gap="size-50" alignItems="center">
-      <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
-      <Text color="danger">{error}</Text>
+    <Flex direction="column" height="100%">
+      <ExpandableContent height={height}>
+        <div css={outputContentCSS}>
+          <Alert variant="danger">{error}</Alert>
+        </div>
+      </ExpandableContent>
     </Flex>
   );
 }
@@ -910,13 +921,12 @@ function ExperimentRunOutputCell({
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
 
   const runsByRepetitionNumber = useMemo(() => {
-    const runsByRepetitionNumber = repeatedRunGroup.runs.reduce(
-      (acc, run) => {
-        acc[run.repetitionNumber] = run;
-        return acc;
-      },
-      {} as Record<number, ExperimentRun>
-    );
+    const runsByRepetitionNumber = repeatedRunGroup.runs.reduce<
+      Record<number, ExperimentRun>
+    >((acc, run) => {
+      acc[run.repetitionNumber] = run;
+      return acc;
+    }, {});
     return runsByRepetitionNumber;
   }, [repeatedRunGroup.runs]);
 
@@ -952,7 +962,7 @@ function ExperimentRunOutputCell({
             setSelectedExampleIndex(rowIndex);
           }}
         >
-          <Icon svg={<Icons.ExpandOutline />} />
+          <Icon svg={<Icons.Expand />} />
         </IconButton>
         <Tooltip>
           <TooltipArrow />

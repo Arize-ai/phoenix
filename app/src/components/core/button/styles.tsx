@@ -3,13 +3,13 @@ import { css } from "@emotion/react";
 export const buttonCSS = css`
   --button-border-color: var(--global-input-field-border-color);
   border: 1px solid var(--button-border-color);
-  font-size: var(--global-dimension-static-font-size-100);
+  font-size: var(--global-dimension-font-size-100);
   line-height: 20px; // TODO(mikeldking): move this into a consistent variable
   margin: 0;
   flex: none;
 
   display: flex;
-  gap: var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
   justify-content: center;
   align-items: center;
   flex-direction: row;
@@ -24,8 +24,8 @@ export const buttonCSS = css`
   &[data-focus-visible],
   &:focus-visible {
     // Only show outline on focus-visible, aka only when tabbed but not clicked
-    outline: 1px solid var(--global-input-field-border-color-active);
-    outline-offset: 1px;
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
   &[disabled] {
     cursor: default;
@@ -38,20 +38,19 @@ export const buttonCSS = css`
     height: var(--global-button-height-m);
   }
   &[data-size="M"][data-childless="false"] {
-    padding: var(--global-dimension-static-size-100)
-      var(--global-dimension-static-size-200);
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
   }
   &[data-size="S"][data-childless="false"] {
-    padding: var(--global-dimension-static-size-50)
-      var(--global-dimension-static-size-100);
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
   }
+  /* Icon-only buttons are square */
   &[data-size="M"][data-childless="true"] {
-    padding: var(--global-dimension-static-size-100)
-      var(--global-dimension-static-size-100);
+    padding: 0;
+    min-width: var(--global-button-height-m);
   }
   &[data-size="S"][data-childless="true"] {
-    padding: var(--global-dimension-static-size-50)
-      var(--global-dimension-static-size-50);
+    padding: 0;
+    min-width: var(--global-button-height-s);
   }
   // The default style
 
@@ -103,7 +102,7 @@ export const buttonCSS = css`
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--global-dimension-static-size-25);
+    gap: var(--global-dimension-size-25);
     text-transform: uppercase;
   }
 

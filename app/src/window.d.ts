@@ -26,6 +26,21 @@ declare global {
       hasDbThreshold: boolean;
       agentAssistantDisabled: boolean;
       /**
+       * Whether the server-side bash tool is disabled
+       * at the deployment level. When true, the subagents setting is hidden.
+       */
+      agentBashDisabled: boolean;
+      /**
+       * Whether the in-process MCP server is mounted at /mcp
+       * on this deployment.
+       */
+      mcpServerEnabled: boolean;
+      /**
+       * Whether the MCP server presents the code-mode tool surface
+       * (discovery tools plus a sandboxed execute tool).
+       */
+      mcpCodeModeEnabled: boolean;
+      /**
        * Mapping of auth error codes to user-friendly messages.
        * Passed from the backend to ensure single source of truth.
        */

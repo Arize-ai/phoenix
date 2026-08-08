@@ -7,6 +7,8 @@ import { classNames } from "@phoenix/utils/classNames";
 
 import * as Icons from "./Icons";
 
+export type IconKey = keyof typeof Icons;
+
 interface IconBaseProps extends StylableProps, HTMLAttributes<HTMLElement> {
   /**
    * Passed through by wrapping components.
@@ -29,9 +31,9 @@ interface IconWithSvgProps extends IconBaseProps {
 interface IconWithKeyProps extends IconBaseProps {
   svg?: never;
   /**
-   * The name of an icon exported from Icons (e.g. "CloseOutline", "Search").
+   * The name of an icon exported from Icons (e.g. "Close", "Search").
    */
-  svgKey: keyof typeof Icons;
+  svgKey: IconKey;
 }
 
 type IconProps = IconWithSvgProps | IconWithKeyProps;

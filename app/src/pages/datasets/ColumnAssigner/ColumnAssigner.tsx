@@ -274,7 +274,7 @@ export function ColumnAssigner({
                 color="warning"
                 aria-label="Collapse conflicts detected"
               >
-                <Icon svg={<Icons.AlertTriangleOutline />} />
+                <Icon svg={<Icons.AlertTriangle />} />
               </IconButton>
               <RichTooltip placement="bottom start">
                 <RichTooltipTitle>

@@ -1,38 +1,42 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHttp } from "@arizeai/phoenix-testing";
+import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { addDocumentAnnotation } from "../../src/spans/addDocumentAnnotation";
+import { createTestClient } from "../testUtils";
 
-// Create mock POST function
-const mockPOST = vi.fn();
+const http = createHttp();
 
-// Mock the fetch module
-vi.mock("openapi-fetch", () => ({
-  default: () => ({
-    POST: mockPOST.mockResolvedValue({
-      data: {
-        data: [{ id: "test-doc-id-1" }],
-      },
-      error: null,
-    }),
-    use: () => {},
-  }),
-}));
+let server: Server;
+
+beforeAll(async () => {
+  server = await createMockServer();
+  server.listen({ onUnhandledRequest: "error" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
 
 describe("addDocumentAnnotation", () => {
-  beforeEach(() => {
-    // Clear all mocks before each test
-    vi.clearAllMocks();
-    // Reset default mock behavior
-    mockPOST.mockResolvedValue({
-      data: {
-        data: [{ id: "test-doc-id-1" }],
-      },
-      error: null,
-    });
-  });
-
   it("should add a document annotation with all fields", async () => {
+    let receivedSyncQueryParam: string | null = null;
+    let receivedRequestBody: unknown;
+
+    server.use(
+      http.post("/v1/document_annotations", async ({ request, response }) => {
+        receivedSyncQueryParam = new URL(request.url).searchParams.get("sync");
+        receivedRequestBody = await request.json();
+        return response(200).json({ data: [{ id: "test-doc-id-1" }] });
+      })
+    );
+
     const result = await addDocumentAnnotation({
+      client: createTestClient(),
       documentAnnotation: {
         spanId: "123abc",
         documentPosition: 0,
@@ -47,10 +51,34 @@ describe("addDocumentAnnotation", () => {
     });
 
     expect(result).toEqual({ id: "test-doc-id-1" });
+    expect(receivedSyncQueryParam).toBe("true");
+    expect(receivedRequestBody).toEqual({
+      data: [
+        {
+          span_id: "123abc",
+          document_position: 0,
+          name: "relevance_score",
+          annotator_kind: "LLM",
+          result: {
+            label: "relevant",
+            score: 0.95,
+            explanation: "Document is highly relevant to the query",
+          },
+          metadata: { model: "gpt-4" },
+        },
+      ],
+    });
   });
 
   it("should add a document annotation with only required fields and label", async () => {
+    server.use(
+      http.post("/v1/document_annotations", ({ response }) =>
+        response(200).json({ data: [{ id: "test-doc-id-1" }] })
+      )
+    );
+
     const result = await addDocumentAnnotation({
+      client: createTestClient(),
       documentAnnotation: {
         spanId: "123abc",
         documentPosition: 1,
@@ -64,7 +92,14 @@ describe("addDocumentAnnotation", () => {
   });
 
   it("should add a document annotation with only required fields and score", async () => {
+    server.use(
+      http.post("/v1/document_annotations", ({ response }) =>
+        response(200).json({ data: [{ id: "test-doc-id-1" }] })
+      )
+    );
+
     const result = await addDocumentAnnotation({
+      client: createTestClient(),
       documentAnnotation: {
         spanId: "123abc",
         documentPosition: 0,
@@ -78,7 +113,14 @@ describe("addDocumentAnnotation", () => {
   });
 
   it("should add a document annotation with only required fields and explanation", async () => {
+    server.use(
+      http.post("/v1/document_annotations", ({ response }) =>
+        response(200).json({ data: [{ id: "test-doc-id-1" }] })
+      )
+    );
+
     const result = await addDocumentAnnotation({
+      client: createTestClient(),
       documentAnnotation: {
         spanId: "123abc",
         documentPosition: 2,
@@ -92,8 +134,10 @@ describe("addDocumentAnnotation", () => {
   });
 
   it("should throw error when no result fields are provided", async () => {
+    // Validation fails client-side before any request is made.
     await expect(
       addDocumentAnnotation({
+        client: createTestClient(),
         documentAnnotation: {
           spanId: "123abc",
           documentPosition: 0,
@@ -107,8 +151,10 @@ describe("addDocumentAnnotation", () => {
   });
 
   it("should handle empty strings properly", async () => {
+    // Validation fails client-side before any request is made.
     await expect(
       addDocumentAnnotation({
+        client: createTestClient(),
         documentAnnotation: {
           spanId: "123abc",
           documentPosition: 0,
@@ -124,7 +170,17 @@ describe("addDocumentAnnotation", () => {
   });
 
   it("should default annotatorKind to HUMAN", async () => {
+    let receivedRequestBody: unknown;
+
+    server.use(
+      http.post("/v1/document_annotations", async ({ request, response }) => {
+        receivedRequestBody = await request.json();
+        return response(200).json({ data: [{ id: "test-doc-id-1" }] });
+      })
+    );
+
     const result = await addDocumentAnnotation({
+      client: createTestClient(),
       documentAnnotation: {
         spanId: "123abc",
         documentPosition: 0,
@@ -136,16 +192,28 @@ describe("addDocumentAnnotation", () => {
     });
 
     expect(result).toEqual({ id: "test-doc-id-1" });
+    expect(receivedRequestBody).toEqual({
+      data: [
+        expect.objectContaining({
+          annotator_kind: "HUMAN",
+        }),
+      ],
+    });
   });
 
   it("should return null when sync=false (default)", async () => {
-    // Mock server returns no data for async calls
-    mockPOST.mockResolvedValueOnce({
-      data: undefined,
-      error: undefined,
-    });
+    let receivedSyncQueryParam: string | null = null;
+
+    server.use(
+      http.post("/v1/document_annotations", ({ request, response }) => {
+        receivedSyncQueryParam = new URL(request.url).searchParams.get("sync");
+        // The server returns no inserted IDs for asynchronous inserts.
+        return response(200).json({ data: [] });
+      })
+    );
 
     const result = await addDocumentAnnotation({
+      client: createTestClient(),
       documentAnnotation: {
         spanId: "123abc",
         documentPosition: 0,
@@ -156,5 +224,6 @@ describe("addDocumentAnnotation", () => {
     });
 
     expect(result).toBeNull();
+    expect(receivedSyncQueryParam).toBe("false");
   });
 });

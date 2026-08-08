@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<e23573641ebe929b5307d638f38e9965>>
+ * @generated SignedSource<<245bc9fb58429f9c30f945f96f56f2e8>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -147,9 +146,9 @@ v4 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/),
+      (v2/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -157,13 +156,13 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*: any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/)
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -174,16 +173,16 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v2/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v2/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "SpanAnnotationScoreTimeSeriesQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*: any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -196,7 +195,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v4/*: any*/),
+          (v4/*:: as any*/),
           {
             "alias": null,
             "args": null,

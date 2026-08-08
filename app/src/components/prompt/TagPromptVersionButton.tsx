@@ -38,7 +38,7 @@ export function TagPromptVersionButton({
       <DialogTrigger isOpen={showTagList} onOpenChange={setShowTagList}>
         <Button
           size="S"
-          leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
+          leadingVisual={<Icon svg={<Icons.PriceTags />} />}
           css={css`
             text-wrap: nowrap;
           `}
@@ -70,7 +70,7 @@ export function TagPromptVersionButton({
             </Suspense>
             <View padding="size-100" width="250px">
               <Button
-                leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+                leadingVisual={<Icon svg={<Icons.Plus />} />}
                 size="S"
                 css={css`
                   width: 100%;

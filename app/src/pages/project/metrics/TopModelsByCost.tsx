@@ -1,6 +1,4 @@
-import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import type { TooltipContentProps } from "recharts";
 import {
   Bar,
   BarChart,
@@ -11,14 +9,13 @@ import {
   YAxis,
 } from "recharts";
 
-import { Text } from "@phoenix/components";
 import {
   ChartEmptyStateOverlay,
-  ChartTooltip,
-  ChartTooltipItem,
   InteractiveLegend,
+  compactChartMargin,
   defaultCartesianGridProps,
-  defaultLegendProps,
+  defaultTooltipProps,
+  compactLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
   truncateModelName,
@@ -26,34 +23,18 @@ import {
   useInteractiveLegend,
 } from "@phoenix/components/chart";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import { useMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { TopModelsByCostQuery } from "./__generated__/TopModelsByCostQuery.graphql";
-
-function TooltipContent({ active, payload, label }: TooltipContentProps) {
-  if (active && payload && payload.length) {
-    return (
-      <ChartTooltip>
-        {label && (
-          <Text weight="heavy" size="S">
-            {String(label)}
-          </Text>
-        )}
-        {payload.map((entry) => (
-          <ChartTooltipItem
-            color={entry.color ?? "transparent"}
-            key={String(entry.dataKey ?? entry.name)}
-            shape="circle"
-            name={String(entry.name ?? entry.dataKey ?? "unknown")}
-            value={costFormatter(Number(entry.value))}
-          />
-        ))}
-      </ChartTooltip>
-    );
-  }
-
-  return null;
-}
+import { ModelTokenDetailBarShape } from "./ModelTokenDetailBarShape";
+import { ModelTokenDetailTooltipContent } from "./ModelTokenDetailTooltipContent";
+import {
+  buildModelTokenDetailChartData,
+  getCostChartEmptyStateMessage,
+  getModelTokenDetailColors,
+  getModelTokenDetailLabel,
+} from "./tokenDetails";
 
 export function TopModelsByCost({
   projectId,
@@ -68,6 +49,13 @@ export function TopModelsByCost({
       query TopModelsByCostQuery($projectId: ID!, $timeRange: TimeRange!) {
         project: node(id: $projectId) {
           ... on Project {
+            # Tokens recorded in the range whether or not their model is
+            # priced, which tells an empty range apart from an unpriced one
+            costSummary(timeRange: $timeRange) {
+              total {
+                tokens
+              }
+            }
             topModelsByCost(timeRange: $timeRange) {
               name
               costSummary(projectId: $projectId, timeRange: $timeRange) {
@@ -78,6 +66,16 @@ export function TopModelsByCost({
                   cost
                 }
                 total {
+                  cost
+                }
+              }
+              costDetailSummaryEntries(
+                projectId: $projectId
+                timeRange: $timeRange
+              ) {
+                tokenType
+                isPrompt
+                value {
                   cost
                 }
               }
@@ -92,39 +90,46 @@ export function TopModelsByCost({
         start: timeRange.start?.toISOString(),
         end: timeRange.end?.toISOString(),
       },
-    }
+    },
+    useMetricQueryFetchOptions()
   );
 
-  const chartData = useMemo(() => {
-    const models = data.project.topModelsByCost ?? [];
-    return models.map((model) => {
-      const costSummary = model.costSummary;
-      return {
-        model: model.name,
-        prompt_cost: costSummary.prompt.cost,
-        completion_cost: costSummary.completion.cost,
-        total_cost: costSummary.total.cost,
-      };
-    });
-  }, [data]);
-  const hasData = chartData.length > 0;
+  const models = data.project.topModelsByCost ?? [];
+  const { chartData, series } = buildModelTokenDetailChartData({
+    metric: "cost",
+    models,
+  });
+  const colorByDataKey = getModelTokenDetailColors({ colors, series });
+  // A model with no measured usage contributes no series, and a chart with no
+  // series has nothing to draw, so it counts as empty however many rows it has.
+  const hasData = series.length > 0;
+  const emptyStateMessage = getCostChartEmptyStateMessage({
+    modelCount: models.length,
+    tokenCount: data.project.costSummary?.total?.tokens ?? 0,
+  });
 
   return (
     <ChartEmptyStateOverlay
       isEmpty={!hasData}
-      message="No data in this time range"
+      message={emptyStateMessage}
+      chartType="barHorizontal"
     >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={chartData}
-          margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+          margin={compactChartMargin}
           layout="vertical"
           barSize={10}
         >
-          <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+          <CartesianGrid {...defaultCartesianGridProps} />
           <Tooltip
-            content={TooltipContent}
-            cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+            content={
+              <ModelTokenDetailTooltipContent
+                totalLabel="Total cost"
+                valueFormatter={costFormatter}
+              />
+            }
+            {...defaultTooltipProps}
           />
           <XAxis
             {...defaultXAxisProps}
@@ -137,26 +142,33 @@ export function TopModelsByCost({
             dataKey="model"
             type="category"
             width={120}
+            axisLine={false}
+            tickLine={false}
+            tickMargin={4}
             tickFormatter={truncateModelName}
           />
-          <Bar
-            dataKey="prompt_cost"
-            fill={colors.category1}
-            hide={isDataKeyHidden("prompt_cost")}
-            name="Prompt cost"
-            stackId="a"
-            radius={[2, 0, 0, 2]}
-          />
-          <Bar
-            dataKey="completion_cost"
-            fill={colors.category2}
-            hide={isDataKeyHidden("completion_cost")}
-            name="Completion cost"
-            stackId="a"
-            radius={[0, 2, 2, 0]}
-          />
+          {series.map((tokenSeries) => (
+            <Bar
+              dataKey={tokenSeries.dataKey}
+              fill={colorByDataKey.get(tokenSeries.dataKey)}
+              hide={isDataKeyHidden(tokenSeries.dataKey)}
+              key={tokenSeries.dataKey}
+              name={getModelTokenDetailLabel({
+                allSeries: series,
+                series: tokenSeries,
+              })}
+              shape={
+                <ModelTokenDetailBarShape
+                  allSeries={series}
+                  isDataKeyHidden={isDataKeyHidden}
+                  series={tokenSeries}
+                />
+              }
+              stackId="a"
+            />
+          ))}
           <InteractiveLegend
-            {...defaultLegendProps}
+            {...compactLegendProps}
             hiddenDataKeys={hiddenDataKeys}
             iconType="circle"
             iconSize={8}

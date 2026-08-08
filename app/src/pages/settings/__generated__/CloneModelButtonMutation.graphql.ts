@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<f082ec7b4e04a1a3d863652c60f21b51>>
+ * @generated SignedSource<<b952e1da65ac045a9f37c75fbe696ca5>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -150,7 +149,7 @@ v4 = {
       "name": "lastUsedAt",
       "storageKey": null
     },
-    (v3/*: any*/),
+    (v3/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -166,7 +165,7 @@ v4 = {
           "name": "tokenType",
           "storageKey": null
         },
-        (v3/*: any*/),
+        (v3/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -183,8 +182,8 @@ v4 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -192,13 +191,13 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "CreateModelMutationPayload",
         "kind": "LinkedField",
         "name": "createModel",
         "plural": false,
         "selections": [
-          (v4/*: any*/)
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -209,21 +208,21 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "CloneModelButtonMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "CreateModelMutationPayload",
         "kind": "LinkedField",
         "name": "createModel",
         "plural": false,
         "selections": [
-          (v4/*: any*/),
+          (v4/*:: as any*/),
           {
             "alias": null,
             "args": null,

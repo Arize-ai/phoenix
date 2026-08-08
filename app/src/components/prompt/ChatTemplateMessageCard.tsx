@@ -3,6 +3,7 @@ import { useMemo } from "react";
 
 import {
   Card,
+  CardCollapsedPreview,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -168,6 +169,12 @@ function ChatTemplateMessagePartContainer({
 
 export type ChatTemplateMessageProps = PropsWithChildren<{
   role: string;
+  /**
+   * A one-line excerpt of the message shown while the card is collapsed. The
+   * card renders its parts as children, so only the caller can say what the
+   * message reads like.
+   */
+  preview?: string;
 }>;
 
 /**
@@ -183,10 +190,15 @@ export type ChatTemplateMessageProps = PropsWithChildren<{
  * </ChatTemplateMessageCard>
  */
 export function ChatTemplateMessageCard(props: ChatTemplateMessageProps) {
-  const { role, children } = props;
+  const { role, preview, children } = props;
   const styles = useChatMessageStyles(role);
   return (
-    <Card title={role} {...styles} collapsible>
+    <Card
+      title={role}
+      {...styles}
+      collapsible
+      headerContent={<CardCollapsedPreview>{preview}</CardCollapsedPreview>}
+    >
       <DisclosureGroup defaultExpandedKeys={PART_TYPE_TITLES}>
         {children}
       </DisclosureGroup>

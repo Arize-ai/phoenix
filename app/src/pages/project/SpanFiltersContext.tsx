@@ -2,93 +2,200 @@ import type { PropsWithChildren } from "react";
 import {
   createContext,
   startTransition,
-  useCallback,
   useContext,
   useEffect,
   useEffectEvent,
+  useMemo,
+  useRef,
   useState,
 } from "react";
+import { useSearchParams } from "react-router";
 
 import {
   SET_SPANS_FILTER_TOOL_NAME,
   type SetSpansFilterInput,
 } from "@phoenix/agent/tools/spansFilter";
+import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
+import { joinFilterConditions } from "@phoenix/utils/filterConditionUtils";
 
 import { validateSpanFilterCondition } from "./spanFilterValidation";
 
 /**
- * Combined state for the on-screen span filters: the freeform filter
- * condition expression and the root-vs-all-spans toggle. These two pieces of
- * state are surfaced together in the spans page UI and are jointly advertised
- * to the PXI agent so it can drive both via tool calls.
+ * Write-side operations on the span filter. Split from the filter-condition
+ * value so that consumers which only need to append or replace the condition
+ * (row cells, tooltips) don't re-render on every keystroke in the filter
+ * input — which is what would happen if these callbacks lived on the same
+ * context as the condition string.
  */
-export type SpanFiltersContextType = {
-  filterCondition: string;
+export type SpanFiltersActions = {
   setFilterCondition: (condition: string) => void;
   appendFilterCondition: (condition: string) => void;
-  rootSpansOnly: boolean;
-  setRootSpansOnly: (rootSpansOnly: boolean) => void;
 };
 
-export const SpanFiltersContext = createContext<SpanFiltersContextType | null>(
+/**
+ * Full context surface used by the filter field itself, which needs both the
+ * current condition string and the actions to update it. Kept as a type so
+ * `useSpanFilters` can hand back the composed view.
+ */
+export type SpanFiltersContextType = SpanFiltersActions & {
+  filterCondition: string;
+};
+
+/**
+ * The condition string is on its own context so that consumers subscribing
+ * only to the actions don't re-render when the condition changes. The filter
+ * field is the only consumer of this context in the common path.
+ */
+const SpanFilterConditionContext = createContext<string | null>(null);
+
+/**
+ * Actions are stable for the provider's lifetime — they read the current
+ * condition through a ref rather than closing over it — so a component that
+ * only calls `appendFilterCondition` never re-renders because of typing.
+ */
+const SpanFiltersActionsContext = createContext<SpanFiltersActions | null>(
   null
 );
 
-export function useSpanFilters() {
-  const context = useContext(SpanFiltersContext);
-  if (context === null) {
-    throw new Error("useSpanFilters must be used within a SpanFiltersProvider");
-  }
-  return context;
+/**
+ * The condition + actions together, for callers that need both (e.g. the
+ * filter field). Prefer `useSpanFilterCondition` or `useSpanFilterActions`
+ * where only one half is needed — that's what avoids per-row re-renders on
+ * every keystroke.
+ */
+export function useSpanFilters(): SpanFiltersContextType {
+  const filterCondition = useSpanFilterCondition();
+  const actions = useSpanFilterActions();
+  return { filterCondition, ...actions };
 }
 
-export function SpanFiltersProvider(props: PropsWithChildren) {
-  const [filterCondition, _setFilterCondition] = useState<string>("");
-  const [rootSpansOnly, _setRootSpansOnly] = useState<boolean>(true);
+/**
+ * The current filter condition string. Subscribing to just this re-renders on
+ * every keystroke, so use it only where the string itself is rendered.
+ */
+export function useSpanFilterCondition(): string {
+  const value = useContext(SpanFilterConditionContext);
+  if (value === null) {
+    throw new Error(
+      "useSpanFilterCondition must be used within a SpanFiltersProvider"
+    );
+  }
+  return value;
+}
 
-  const setFilterCondition = useCallback((condition: string) => {
-    startTransition(() => {
-      _setFilterCondition(condition);
-    });
-  }, []);
-  const appendFilterCondition = useCallback(
-    (condition: string) => {
-      startTransition(() => {
-        if (filterCondition.length > 0) {
-          _setFilterCondition(filterCondition + " and " + condition);
-        } else {
-          _setFilterCondition(condition);
-        }
-      });
-    },
-    [filterCondition]
+/**
+ * The write-side operations for the span filter. Identity is stable for the
+ * provider's lifetime, so this hook never causes a consumer to re-render on
+ * its own — the reference to render-per-keystroke consumers should get from
+ * the context.
+ */
+export function useSpanFilterActions(): SpanFiltersActions {
+  const value = useContext(SpanFiltersActionsContext);
+  if (value === null) {
+    throw new Error(
+      "useSpanFilterActions must be used within a SpanFiltersProvider"
+    );
+  }
+  return value;
+}
+
+/**
+ * Captures the mount-time condition from the URL, falling back to the caller's
+ * supplied value. Whitespace-only text is normalized to the empty condition so
+ * the editor and query seed agree.
+ *
+ * This hook is intentionally mount-only for call sites that own query preload
+ * state. `SpanFiltersProvider` separately follows later URL changes so browser
+ * navigation still updates its controlled editor.
+ */
+export function useInitialSpanFilterCondition(fallbackFilterCondition = "") {
+  const [searchParams] = useSearchParams();
+  const [initialCondition] = useState<string>(() => {
+    const condition =
+      searchParams.get(SPAN_FILTER_CONDITION_PARAM) ?? fallbackFilterCondition;
+    return condition.trim() === "" ? "" : condition;
+  });
+  return initialCondition;
+}
+
+export function SpanFiltersProvider(
+  props: PropsWithChildren<{
+    /**
+     * The condition used whenever the URL carries none. Query-owning callers
+     * pass the same resolved seed used for their preload so the editor and
+     * loaded GraphQL fields start in agreement.
+     */
+    fallbackFilterCondition?: string;
+  }>
+) {
+  // Writes back to the URL happen where the state is applied (SpansTable), so
+  // only valid conditions are persisted.
+  const [searchParams] = useSearchParams();
+  const initialUrlCondition = useInitialSpanFilterCondition(
+    props.fallbackFilterCondition
   );
-  const setRootSpansOnly = useCallback((rootSpansOnly: boolean) => {
+  const [filterCondition, _setFilterCondition] =
+    useState<string>(initialUrlCondition);
+  const rawUrlCondition =
+    searchParams.get(SPAN_FILTER_CONDITION_PARAM) ??
+    props.fallbackFilterCondition ??
+    "";
+  const urlCondition = rawUrlCondition.trim() === "" ? "" : rawUrlCondition;
+
+  // Follow navigation that explicitly changes the filter while leaving
+  // unrelated search-param updates alone. An applied filter's own URL write is
+  // a no-op here because the draft already contains that same condition.
+  useEffect(() => {
     startTransition(() => {
-      _setRootSpansOnly(rootSpansOnly);
+      _setFilterCondition(urlCondition);
     });
-  }, []);
+  }, [urlCondition]);
+
+  // `appendFilterCondition` needs the current condition to join against, but
+  // closing over it would give the callback a new identity on every keystroke
+  // — which would either force all action-only consumers (row cells,
+  // tooltips) to re-render, or defeat any memoization built on top of it.
+  // Reading the latest condition through a ref keeps the callback stable
+  // while still joining against fresh state.
+  const filterConditionRef = useRef(filterCondition);
+  useEffect(() => {
+    filterConditionRef.current = filterCondition;
+  }, [filterCondition]);
+
+  const actions = useMemo<SpanFiltersActions>(
+    () => ({
+      setFilterCondition: (condition: string) => {
+        startTransition(() => {
+          _setFilterCondition(condition);
+        });
+      },
+      appendFilterCondition: (condition: string) => {
+        startTransition(() => {
+          _setFilterCondition(
+            joinFilterConditions({
+              existingCondition: filterConditionRef.current,
+              nextCondition: condition,
+            })
+          );
+        });
+      },
+    }),
+    []
+  );
 
   useRegisterSetSpansFilterClientAction({
-    setFilterCondition,
-    setRootSpansOnly,
+    setFilterCondition: actions.setFilterCondition,
   });
 
   return (
-    <SpanFiltersContext.Provider
-      value={{
-        filterCondition,
-        setFilterCondition,
-        appendFilterCondition,
-        rootSpansOnly,
-        setRootSpansOnly,
-      }}
-    >
-      {props.children}
-    </SpanFiltersContext.Provider>
+    <SpanFiltersActionsContext.Provider value={actions}>
+      <SpanFilterConditionContext.Provider value={filterCondition}>
+        {props.children}
+      </SpanFilterConditionContext.Provider>
+    </SpanFiltersActionsContext.Provider>
   );
 }
 
@@ -99,10 +206,8 @@ export function SpanFiltersProvider(props: PropsWithChildren) {
  */
 function useRegisterSetSpansFilterClientAction({
   setFilterCondition,
-  setRootSpansOnly,
 }: {
   setFilterCondition: (condition: string) => void;
-  setRootSpansOnly: (rootSpansOnly: boolean) => void;
 }) {
   const agentStore = useAgentStore();
   const projectId = useTracingContext((state) => state.projectId);
@@ -111,7 +216,7 @@ function useRegisterSetSpansFilterClientAction({
     async (input: SetSpansFilterInput): Promise<AgentClientActionResult> => {
       // Shape is already validated by parseSetSpansFilterInput in the tool
       // registry before dispatch; here we only handle business logic.
-      const { condition, rootSpansOnly } = input;
+      const { condition } = input;
 
       if (!projectId) {
         return {
@@ -132,17 +237,12 @@ function useRegisterSetSpansFilterClientAction({
         };
       }
       setFilterCondition(condition);
-      setRootSpansOnly(rootSpansOnly);
 
-      const conditionMessage = condition
-        ? `Applied filter: ${condition}.`
-        : "Cleared the span filter.";
-      const rootMessage = rootSpansOnly
-        ? "Showing root spans only."
-        : "Showing all spans.";
       return {
         ok: true,
-        output: `${conditionMessage} ${rootMessage}`,
+        output: condition
+          ? `Applied filter: ${condition}.`
+          : "Cleared the span filter; showing all spans.",
       };
     }
   );

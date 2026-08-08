@@ -10,6 +10,8 @@ import type {
 } from "recharts";
 import { Legend, Surface, Symbols } from "recharts";
 
+import { Truncate } from "@phoenix/components/core";
+
 /**
  * InteractiveLegend is intentionally larger than a thin `<Legend />` wrapper.
  *
@@ -48,11 +50,17 @@ type InteractiveLegendContentProps = RechartsLegendContentProps & {
   baseContent?: LegendProps["content"];
   hiddenDataKeys: ReadonlySet<InteractiveLegendDataKey>;
   onToggleDataKey: (dataKey: InteractiveLegendDataKey) => void;
+  additionalLegendItems?: ReadonlyArray<LegendPayload>;
 };
 
 export type InteractiveLegendProps = LegendProps & {
   hiddenDataKeys: ReadonlySet<InteractiveLegendDataKey>;
   onToggleDataKey: (dataKey: InteractiveLegendDataKey) => void;
+  /**
+   * Additional entries appended after Recharts' generated series. Entries
+   * without a data key are rendered as static, non-interactive items.
+   */
+  additionalLegendItems?: ReadonlyArray<LegendPayload>;
 };
 
 export type UseInteractiveLegendProps = {
@@ -91,6 +99,7 @@ const rightAlignedLegendCSS = css`
 const legendItemCSS = css`
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
 `;
 
 const legendButtonCSS = css`
@@ -102,6 +111,7 @@ const legendButtonCSS = css`
   display: inline-flex;
   align-items: center;
   gap: var(--global-dimension-size-50);
+  max-width: 100%;
   min-height: var(--global-dimension-size-200);
   padding: 0 var(--global-dimension-size-25);
   font: inherit;
@@ -112,7 +122,7 @@ const legendButtonCSS = css`
   }
 
   &:focus-visible {
-    outline: var(--global-border-size-thick) solid var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
     border-radius: var(--global-rounding-small);
   }
@@ -127,9 +137,15 @@ const legendStaticItemCSS = css`
   display: inline-flex;
   align-items: center;
   gap: var(--global-dimension-size-50);
+  max-width: 100%;
   min-height: var(--global-dimension-size-200);
   padding: 0 var(--global-dimension-size-25);
   line-height: var(--global-line-height-xs);
+`;
+
+const legendTextCSS = css`
+  flex: 1 1 auto;
+  min-width: 0;
 `;
 
 function getInteractiveDataKey(
@@ -188,7 +204,10 @@ function LegendIcon({
   iconType?: LegendType;
   inactiveColor: string;
 }) {
-  const preferredIconType = iconType ?? entry.type;
+  const isStaticEntry = getInteractiveDataKey(entry.dataKey) == null;
+  const preferredIconType = isStaticEntry
+    ? entry.type
+    : (iconType ?? entry.type);
   const color = entry.inactive ? inactiveColor : (entry.color ?? inactiveColor);
   const halfSize = LEGEND_ICON_VIEW_BOX_SIZE / 2;
   const thirdSize = LEGEND_ICON_VIEW_BOX_SIZE / 3;
@@ -272,6 +291,7 @@ function LegendIcon({
         height: LEGEND_ICON_VIEW_BOX_SIZE,
       }}
       width={iconSize}
+      css={{ flexShrink: 0 }}
     >
       {icon}
     </Surface>
@@ -401,8 +421,10 @@ function DefaultInteractiveLegendContent({
                   iconType={iconType}
                   inactiveColor={inactiveColor}
                 />
-                <span className="recharts-legend-item-text">
-                  {renderedLabel}
+                <span className="recharts-legend-item-text" css={legendTextCSS}>
+                  <Truncate maxWidth="100%" title={label}>
+                    {renderedLabel}
+                  </Truncate>
                 </span>
               </span>
             ) : (
@@ -433,8 +455,10 @@ function DefaultInteractiveLegendContent({
                   iconType={iconType}
                   inactiveColor={inactiveColor}
                 />
-                <span className="recharts-legend-item-text">
-                  {renderedLabel}
+                <span className="recharts-legend-item-text" css={legendTextCSS}>
+                  <Truncate maxWidth="100%" title={label}>
+                    {renderedLabel}
+                  </Truncate>
                 </span>
               </button>
             )}
@@ -460,9 +484,13 @@ function InteractiveLegendContent({
   onClick,
   onToggleDataKey,
   payload,
+  additionalLegendItems,
   ...contentProps
 }: InteractiveLegendContentProps) {
-  const enhancedPayload = getEnhancedPayload({ hiddenDataKeys, payload });
+  const enhancedPayload = getEnhancedPayload({
+    hiddenDataKeys,
+    payload: [...(payload ?? []), ...(additionalLegendItems ?? [])],
+  });
   const onLegendItemClick = (
     entry: LegendPayload,
     index: number,
@@ -525,6 +553,7 @@ export function InteractiveLegend({
   content,
   hiddenDataKeys,
   onToggleDataKey,
+  additionalLegendItems,
   ...legendProps
 }: InteractiveLegendProps) {
   return (
@@ -535,6 +564,7 @@ export function InteractiveLegend({
           baseContent={content}
           hiddenDataKeys={hiddenDataKeys}
           onToggleDataKey={onToggleDataKey}
+          additionalLegendItems={additionalLegendItems}
         />
       }
     />

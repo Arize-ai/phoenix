@@ -24,7 +24,7 @@ export function useCurrentTime(
   const [nowEpochMs, setNowEpochMs] = useState<number>(() => Date.now());
   useEffect(() => {
     if (typeof updateIntervalMs !== "number") {
-      return;
+      return undefined;
     }
     const interval = setInterval(() => {
       // update via state callback to avoid setting state in the effect

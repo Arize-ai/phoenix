@@ -1,13 +1,11 @@
-import { CopyToClipboardButton } from "../core/copy";
+import { CodeBlockWithCopy, NO_GUTTERS_BASIC_SETUP } from "./CodeBlockWithCopy";
 import { PythonBlock } from "./PythonBlock";
-import { codeBlockWithCopyCSS } from "./styles";
 
 export function PythonBlockWithCopy(props: { value: string }) {
   const { value } = props;
   return (
-    <div className="python-code-block" css={codeBlockWithCopyCSS}>
-      <CopyToClipboardButton text={value} />
-      <PythonBlock value={value} />
-    </div>
+    <CodeBlockWithCopy value={value}>
+      <PythonBlock value={value} basicSetup={NO_GUTTERS_BASIC_SETUP} />
+    </CodeBlockWithCopy>
   );
 }

@@ -1,6 +1,7 @@
 import { defaultKeymap } from "@codemirror/commands";
 import type { BasicSetupOptions } from "@uiw/react-codemirror";
 import ReactCodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
+import { useMemo } from "react";
 
 import { Label } from "@phoenix/components";
 import { CodeWrap, pierreDark, pierreLight } from "@phoenix/components/code";
@@ -23,7 +24,7 @@ const basicSetupOptions: BasicSetupOptions = {
   defaultKeymap: false,
 };
 
-const extensions = [
+const baseExtensions = [
   EditorView.lineWrapping,
   keymap.of([
     // Reserve Mod-Enter for the submit button
@@ -46,6 +47,17 @@ export const VariableEditor = ({
   const editorValue = defaultValue ?? "";
   const editorKey = label ?? "";
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
+  // stable identity so CodeMirror only reconfigures when the label changes
+  const extensions = useMemo(
+    () => [
+      ...baseExtensions,
+      // name the textbox after its variable for assistive technology
+      EditorView.contentAttributes.of({
+        "aria-label": label ?? "Variable value",
+      }),
+    ],
+    [label]
+  );
   return (
     <div css={fieldBaseCSS}>
       <Label>{label}</Label>

@@ -14,6 +14,7 @@ import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 
 import {
   type TimeRangeContextType,
+  type TimeRangeISOStrings,
   TimeRangeProvider,
   useTimeRange,
 } from "../TimeRangeContext";
@@ -21,19 +22,22 @@ import type { LastNTimeRangeKey, OpenTimeRangeWithKey } from "../types";
 
 function TimeRangeReader({
   onRender,
+  onRenderISOStrings,
   onSetTimeRange,
   onLocation,
   onNavigate,
 }: {
   onRender: (timeRange: OpenTimeRangeWithKey) => void;
+  onRenderISOStrings?: (timeRangeISOStrings: TimeRangeISOStrings) => void;
   onSetTimeRange?: (setTimeRange: TimeRangeContextType["setTimeRange"]) => void;
   onLocation?: (search: string) => void;
   onNavigate?: (navigate: NavigateFunction) => void;
 }) {
-  const { timeRange, setTimeRange } = useTimeRange();
+  const { timeRange, timeRangeISOStrings, setTimeRange } = useTimeRange();
   const location = useLocation();
   const navigate = useNavigate();
   onRender(timeRange);
+  onRenderISOStrings?.(timeRangeISOStrings);
   onSetTimeRange?.(setTimeRange);
   onLocation?.(location.search);
   onNavigate?.(navigate);
@@ -45,6 +49,7 @@ function renderTimeRangeProvider({
   initialEntry = "/projects/project-1/traces",
   lastNTimeRangeKey = "15m",
   onRender,
+  onRenderISOStrings,
   onSetTimeRange,
   onLocation,
   onNavigate,
@@ -53,6 +58,7 @@ function renderTimeRangeProvider({
   initialEntry?: string;
   lastNTimeRangeKey?: LastNTimeRangeKey;
   onRender: (timeRange: OpenTimeRangeWithKey) => void;
+  onRenderISOStrings?: (timeRangeISOStrings: TimeRangeISOStrings) => void;
   onSetTimeRange?: (setTimeRange: TimeRangeContextType["setTimeRange"]) => void;
   onLocation?: (search: string) => void;
   onNavigate?: (navigate: NavigateFunction) => void;
@@ -65,6 +71,7 @@ function renderTimeRangeProvider({
             <TimeRangeProvider>
               <TimeRangeReader
                 onRender={onRender}
+                onRenderISOStrings={onRenderISOStrings}
                 onSetTimeRange={onSetTimeRange}
                 onLocation={onLocation}
                 onNavigate={onNavigate}
@@ -124,6 +131,38 @@ describe("TimeRangeProvider", () => {
       "2026-06-09T09:46:00.000Z"
     );
     expect(renderedTimeRanges.at(-1)?.end).toBeNull();
+  });
+
+  it("exposes a referentially stable ISO string representation", () => {
+    const renderedISOStrings: TimeRangeISOStrings[] = [];
+    const render = () =>
+      renderTimeRangeProvider({
+        root,
+        initialEntry: "/projects/project-1/traces?timeRangeKey=15m",
+        onRender: () => null,
+        onRenderISOStrings: (timeRangeISOStrings) => {
+          renderedISOStrings.push(timeRangeISOStrings);
+        },
+      });
+
+    render();
+    const initialISOStrings = renderedISOStrings.at(-1);
+    expect(initialISOStrings).toEqual({
+      start: "2026-06-09T09:45:00.000Z",
+      end: undefined,
+    });
+
+    render();
+    expect(renderedISOStrings.at(-1)).toBe(initialISOStrings);
+
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+    expect(renderedISOStrings.at(-1)).toEqual({
+      start: "2026-06-09T09:46:00.000Z",
+      end: undefined,
+    });
+    expect(renderedISOStrings.at(-1)).not.toBe(initialISOStrings);
   });
 
   it("preserves custom open bounds", () => {

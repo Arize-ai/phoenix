@@ -67,7 +67,7 @@ export const SessionDetailsPaginator = ({
           <Button
             size="S"
             id="next"
-            leadingVisual={<Icon svg={<Icons.ArrowDownwardOutline />} />}
+            leadingVisual={<Icon svg={<Icons.ArrowDown />} />}
             aria-label="Next session"
             isDisabled={!hasNext}
             onPress={() => {
@@ -88,7 +88,7 @@ export const SessionDetailsPaginator = ({
           <Button
             size="S"
             id="previous"
-            leadingVisual={<Icon svg={<Icons.ArrowUpwardOutline />} />}
+            leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
             aria-label="Previous session"
             isDisabled={!hasPrevious}
             onPress={() => {

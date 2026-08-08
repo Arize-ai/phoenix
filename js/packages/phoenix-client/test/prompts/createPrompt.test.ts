@@ -1,12 +1,35 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHttp } from "@arizeai/phoenix-testing";
+import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { createPrompt, promptVersion } from "../../src/prompts";
+import { createTestClient } from "../testUtils";
 
-// Mock the fetch module
-vi.mock("openapi-fetch", () => ({
-  default: () => ({
-    POST: vi.fn().mockResolvedValue({
-      data: {
+const http = createHttp();
+
+let server: Server;
+
+beforeAll(async () => {
+  server = await createMockServer();
+  server.listen({ onUnhandledRequest: "error" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
+
+/**
+ * Register a handler for the prompt creation endpoint that answers with a
+ * canned prompt version payload.
+ */
+function stubPromptCreation() {
+  server.use(
+    http.post("/v1/prompts", ({ response }) =>
+      response(200).json({
         data: {
           id: "mocked-prompt-id",
           description: "test-description",
@@ -30,21 +53,17 @@ vi.mock("openapi-fetch", () => ({
             ],
           },
         },
-      },
-      error: null,
-    }),
-    use: () => {},
-  }),
-}));
+      })
+    )
+  );
+}
 
 describe("createPrompt", () => {
-  beforeEach(() => {
-    // Clear all mocks before each test
-    vi.clearAllMocks();
-  });
-
   it("should create a prompt", async () => {
+    stubPromptCreation();
+
     const prompt = await createPrompt({
+      client: createTestClient(),
       name: "test-prompt",
       description: "test-description",
       version: {
@@ -75,7 +94,10 @@ describe("createPrompt", () => {
     expect(prompt.id).toBe("mocked-prompt-id");
   });
   it("should let you craate a prompt usering promptVersion", async () => {
+    stubPromptCreation();
+
     const prompt = await createPrompt({
+      client: createTestClient(),
       name: "test-prompt",
       description: "test-description",
       version: promptVersion({
@@ -97,7 +119,10 @@ describe("createPrompt", () => {
   });
 
   it("should create a prompt with metadata", async () => {
+    stubPromptCreation();
+
     const prompt = await createPrompt({
+      client: createTestClient(),
       name: "test-prompt",
       description: "test-description",
       metadata: {

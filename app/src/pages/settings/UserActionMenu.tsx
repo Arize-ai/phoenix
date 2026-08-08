@@ -49,7 +49,7 @@ export function UserActionMenu(props: UserActionMenuProps) {
           justifyContent={"start"}
           alignItems={"center"}
         >
-          <Icon svg={<Icons.TrashOutline />} />
+          <Icon svg={<Icons.Trash />} />
           <>Delete</>
         </Flex>
       </MenuItem>
@@ -81,7 +81,7 @@ export function UserActionMenu(props: UserActionMenuProps) {
       <MenuTrigger>
         <Button
           size="S"
-          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+          leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
         />
         <Popover>
           <Menu

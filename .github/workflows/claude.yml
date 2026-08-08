@@ -79,7 +79,7 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@0f97b95b6536c26e5f6bd90faec370d41695beca # v1.0.144
+        uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1.0.183
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
@@ -109,5 +109,5 @@ jobs:
           # Listing the edit tools explicitly guarantees they are allowed
           # independent of permission mode; the action merges them with its own
           # git/Read/Grep tools.
-          claude_args: '--allowedTools Edit,Write'
+          claude_args: '--model opus --allowedTools Edit,Write'
 

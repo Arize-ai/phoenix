@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<507bdaf27acd24e3fa5bab1ceb6c29b7>>
+ * @generated SignedSource<<1847cba53b30551ae2679ba357ba94ab>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -61,20 +60,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ExperimentActionMenuDeleteExperimentMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ExperimentActionMenuDeleteExperimentMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "7fcd7830853f4b8f55b104d75dc5312b",

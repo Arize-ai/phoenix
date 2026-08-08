@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<020d227ba0037644c53fbf1f7292123e>>
+ * @generated SignedSource<<80d394267fb7209519c5ed78472d0349>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -65,7 +64,7 @@ v4 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "dashboardsLoaderQuery",
@@ -92,7 +91,7 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "dashboardsLoaderQuery",
     "selections": [
@@ -115,12 +114,12 @@ return {
             "name": "node",
             "plural": false,
             "selections": [
-              (v1/*: any*/),
-              (v2/*: any*/),
+              (v1/*:: as any*/),
+              (v2/*:: as any*/),
               {
                 "kind": "InlineFragment",
                 "selections": [
-                  (v3/*: any*/)
+                  (v3/*:: as any*/)
                 ],
                 "type": "Project",
                 "abstractKey": null
@@ -132,7 +131,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v4/*: any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": "ProjectConnection",
         "kind": "LinkedField",
         "name": "projects",
@@ -154,8 +153,22 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
-                  (v3/*: any*/)
+                  (v2/*:: as any*/),
+                  (v3/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "gradientStartColor",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "gradientEndColor",
+                    "storageKey": null
+                  }
                 ],
                 "storageKey": null
               },
@@ -174,8 +187,8 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v1/*: any*/),
-                  (v2/*: any*/)
+                  (v1/*:: as any*/),
+                  (v2/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -212,7 +225,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v4/*: any*/),
+        "args": (v4/*:: as any*/),
         "filters": [
           "filter"
         ],
@@ -224,12 +237,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "89e19deac736ecf151ba7fa5227f7b69",
+    "cacheID": "5d463418de182761a57f32d91d2e4739",
     "id": null,
     "metadata": {},
     "name": "dashboardsLoaderQuery",
     "operationKind": "query",
-    "text": "query dashboardsLoaderQuery(\n  $hasSelectedProject: Boolean!\n  $projectId: ID!\n) {\n  ...ProjectMenu_projects_4wy0JP\n}\n\nfragment ProjectMenu_projects_4wy0JP on Query {\n  selectedProject: node(id: $projectId) @include(if: $hasSelectedProject) {\n    __typename\n    id\n    ... on Project {\n      name\n    }\n  }\n  projects(first: 50) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query dashboardsLoaderQuery(\n  $hasSelectedProject: Boolean!\n  $projectId: ID!\n) {\n  ...ProjectMenu_projects_4wy0JP\n}\n\nfragment ProjectMenu_projects_4wy0JP on Query {\n  selectedProject: node(id: $projectId) @include(if: $hasSelectedProject) {\n    __typename\n    id\n    ... on Project {\n      name\n    }\n  }\n  projects(first: 50) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

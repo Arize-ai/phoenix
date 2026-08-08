@@ -10,6 +10,7 @@ export * from "./SpanCumulativeTokenCount";
 export * from "./SpanCumulativeTokenCountDetails";
 export * from "./TokenCount";
 export * from "./TokenCountDetails";
+export * from "./TokenDetailsBreakdown";
 export * from "./TokenCosts";
 export * from "./TokenCostsDetails";
 export * from "./SpanTokenCosts";

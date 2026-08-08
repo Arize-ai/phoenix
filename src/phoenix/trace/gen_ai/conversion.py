@@ -35,6 +35,7 @@ from phoenix.trace.gen_ai.__generated__.models import (
     InputMessages,
     OutputMessage,
     OutputMessages,
+    ReasoningPart,
     RetrievalDocument,
     RetrievalDocuments,
     Role,
@@ -478,7 +479,7 @@ def _flatten_message(
             flat[f"{base}.message.finish_reason"] = finish_reason
 
     text_parts: list[str] = []
-    content_parts: list[TextPart | UriPart | BlobPart] = []
+    content_parts: list[TextPart | UriPart | BlobPart | ReasoningPart] = []
     tool_calls: list[ToolCallRequestPart] = []
     tool_response_part: Optional[ToolCallResponsePart] = None
 
@@ -486,7 +487,7 @@ def _flatten_message(
         if isinstance(part, TextPart):
             text_parts.append(part.content)
             content_parts.append(part)
-        elif isinstance(part, (UriPart, BlobPart)):
+        elif isinstance(part, (UriPart, BlobPart, ReasoningPart)):
             content_parts.append(part)
         elif isinstance(part, ToolCallRequestPart):
             tool_calls.append(part)
@@ -509,6 +510,13 @@ def _flatten_message(
             content_prefix = f"{base}.{MessageAttributes.MESSAGE_CONTENTS}.{content_index}"
             if isinstance(content_part, TextPart):
                 flat[f"{content_prefix}.{MessageContentAttributes.MESSAGE_CONTENT_TYPE}"] = "text"
+                flat[f"{content_prefix}.{MessageContentAttributes.MESSAGE_CONTENT_TEXT}"] = (
+                    content_part.content
+                )
+            elif isinstance(content_part, ReasoningPart):
+                flat[f"{content_prefix}.{MessageContentAttributes.MESSAGE_CONTENT_TYPE}"] = (
+                    "reasoning"
+                )
                 flat[f"{content_prefix}.{MessageContentAttributes.MESSAGE_CONTENT_TEXT}"] = (
                     content_part.content
                 )

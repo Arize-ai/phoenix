@@ -44,6 +44,39 @@ def prepend_root_path(scope: Mapping[str, Any], path: str) -> str:
     return f"{root_path}{path}"
 
 
+def strip_root_path(scope: Mapping[str, Any], path: str) -> str:
+    """
+    Removes the ASGI root path prefix from the given path if one is configured.
+
+    The inverse of prepend_root_path(). Use it when a request path must be
+    stored or forwarded relative to the application mount point, e.g. a return
+    URL whose downstream consumers re-apply the root path themselves.
+
+    Args:
+        scope: The ASGI scope dictionary containing the root_path key
+        path: The path to strip the root path from (e.g., "/apps/phoenix/login")
+
+    Returns:
+        The path without the root path prefix, always with a leading slash.
+        Paths that do not start with the root path segment are returned
+        unchanged.
+
+    Examples:
+        With root_path="/apps/phoenix":
+        - strip_root_path(request.scope, "/apps/phoenix/login") -> "/login"
+        - strip_root_path(request.scope, "/apps/phoenix") -> "/"
+        - strip_root_path(request.scope, "/apps/phoenixfoo") -> "/apps/phoenixfoo"
+        - strip_root_path(request.scope, "/other") -> "/other"
+
+        With no root_path:
+        - strip_root_path(request.scope, "/login") -> "/login"
+    """
+    root_path = get_root_path(scope)
+    if root_path and (path == root_path or path.startswith(f"{root_path}/")):
+        return path[len(root_path) :] or "/"
+    return path
+
+
 def get_root_path(scope: Mapping[str, Any]) -> str:
     """
     Extracts and normalizes the root path from the ASGI scope.

@@ -1,5 +1,16 @@
 import type * as PhoenixOtel from "@arizeai/phoenix-otel";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHttp, DEFAULT_MOCK_BASE_URL } from "@arizeai/phoenix-testing";
+import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 vi.mock("@arizeai/phoenix-otel", async (importOriginal) => ({
   ...(await importOriginal<typeof PhoenixOtel>()),
@@ -47,13 +58,31 @@ vi.mock("@arizeai/phoenix-otel", async (importOriginal) => ({
 
 import * as phoenixOtel from "@arizeai/phoenix-otel";
 
-import type { PhoenixClient } from "../../src/client";
+import { createClient, type PhoenixClient } from "../../src";
 import * as getDatasetModule from "../../src/datasets/getDataset";
 import * as getExperimentInfoModule from "../../src/experiments/getExperimentInfo";
 import {
   asEvaluator,
   runExperiment,
 } from "../../src/experiments/runExperiment";
+import { createTestClient } from "../testUtils";
+
+const http = createHttp();
+
+let server: Server;
+
+beforeAll(async () => {
+  server = await createMockServer();
+  server.listen({ onUnhandledRequest: "error" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
 
 const mockDataset = {
   id: "dataset-1",
@@ -73,8 +102,6 @@ const mockDataset = {
 };
 
 describe("runExperiment tracing", () => {
-  let client: PhoenixClient;
-
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -95,54 +122,32 @@ describe("runExperiment tracing", () => {
       missingRunCount: 0,
     });
 
-    client = {
-      GET: vi.fn(),
-      POST: vi.fn((url: string) => {
-        if (url === "/v1/datasets/{dataset_id}/experiments") {
-          return Promise.resolve({
-            data: {
-              data: {
-                id: "exp-1",
-                dataset_id: mockDataset.id,
-                dataset_version_id: mockDataset.versionId,
-                project_name: "experiment-project",
-                repetitions: 1,
-                metadata: {},
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                example_count: 1,
-                successful_run_count: 0,
-                failed_run_count: 0,
-                missing_run_count: 1,
-              },
-            },
-          });
-        }
-        if (url === "/v1/experiments/{experiment_id}/runs") {
-          return Promise.resolve({
-            data: {
-              data: {
-                id: "run-1",
-              },
-            },
-          });
-        }
-        if (url === "/v1/experiment_evaluations") {
-          return Promise.resolve({
-            data: {
-              data: {
-                id: "eval-1",
-              },
-            },
-          });
-        }
-
-        return Promise.resolve({ data: {} });
-      }),
-      config: {
-        baseUrl: "http://localhost:6006",
-      },
-    };
+    server.use(
+      http.post("/v1/datasets/{dataset_id}/experiments", ({ response }) =>
+        response(200).json({
+          data: {
+            id: "exp-1",
+            dataset_id: mockDataset.id,
+            dataset_version_id: mockDataset.versionId,
+            project_name: "experiment-project",
+            repetitions: 1,
+            metadata: {},
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            example_count: 1,
+            successful_run_count: 0,
+            failed_run_count: 0,
+            missing_run_count: 1,
+          },
+        })
+      ),
+      http.post("/v1/experiments/{experiment_id}/runs", ({ response }) =>
+        response(200).json({ data: { id: "run-1" } })
+      ),
+      http.post("/v1/experiment_evaluations", ({ response }) =>
+        response(200).json({ data: { id: "eval-1" } })
+      )
+    );
   });
 
   it("uses separate tracer providers for task and evaluation tracing", async () => {
@@ -156,7 +161,7 @@ describe("runExperiment tracing", () => {
     });
 
     await runExperiment({
-      client,
+      client: createTestClient(),
       dataset: { datasetId: mockDataset.id },
       task: async ({ input }) => input,
       evaluators: [evaluator],
@@ -189,5 +194,39 @@ describe("runExperiment tracing", () => {
     for (const registration of globalRegistrations) {
       expect(registration.detach).toHaveBeenCalledTimes(1);
     }
+  });
+
+  // Explicit code-level configuration outranks the ambient environment, and an
+  // environment-derived base URL hands trace export back to `register()` — the
+  // same chain a standalone `register()` call reads, so experiments and
+  // instrumented application code never disagree about where spans go.
+  describe("trace export destination", () => {
+    afterEach(() => {
+      delete process.env.PHOENIX_COLLECTOR_ENDPOINT;
+      delete process.env.PHOENIX_ENDPOINT;
+    });
+
+    async function runWith(client: PhoenixClient) {
+      await runExperiment({
+        client,
+        dataset: { datasetId: mockDataset.id },
+        task: async ({ input }) => input,
+        evaluators: [],
+      });
+      return vi.mocked(phoenixOtel.register).mock.calls[0]?.[0];
+    }
+
+    it("exports to an explicit client baseUrl even when the collector variable is set", async () => {
+      process.env.PHOENIX_COLLECTOR_ENDPOINT = "http://ambient-collector";
+      const registerParams = await runWith(createTestClient());
+      expect(registerParams?.url).toBe(DEFAULT_MOCK_BASE_URL);
+    });
+
+    it("lets register() resolve the destination when the base URL came from the environment", async () => {
+      process.env.PHOENIX_ENDPOINT = DEFAULT_MOCK_BASE_URL;
+      process.env.PHOENIX_COLLECTOR_ENDPOINT = "http://ambient-collector";
+      const registerParams = await runWith(createClient());
+      expect(registerParams?.url).toBeUndefined();
+    });
   });
 });

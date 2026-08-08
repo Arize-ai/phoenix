@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<32ebc1f58186c9bda3fff605a8b26e82>>
+ * @generated SignedSource<<d0a808f3c36f36e0128ec52d4bb9797f>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -63,7 +62,7 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SettingsSecretsPageRefetchQuery",
@@ -90,13 +89,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SettingsSecretsPageRefetchQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "SecretConnection",
         "kind": "LinkedField",
         "name": "secrets",
@@ -118,7 +117,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
+                  (v2/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -141,7 +140,7 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v2/*: any*/),
+                      (v2/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -167,7 +166,7 @@ return {
                     "name": "value",
                     "plural": false,
                     "selections": [
-                      (v3/*: any*/),
+                      (v3/*:: as any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
@@ -199,7 +198,7 @@ return {
                     ],
                     "storageKey": null
                   },
-                  (v3/*: any*/)
+                  (v3/*:: as any*/)
                 ],
                 "storageKey": null
               },
@@ -243,7 +242,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "filters": null,
         "handle": "connection",
         "key": "SettingsSecretsPage_secrets",

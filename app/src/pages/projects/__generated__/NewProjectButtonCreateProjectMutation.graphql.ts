@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<db33516f1cd9fd3d700aebc46d13c84f>>
+ * @generated SignedSource<<f774ebd977ad619039c04b7b01c21f21>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -88,8 +87,8 @@ v3 = [
         "name": "project",
         "plural": false,
         "selections": [
-          (v1/*: any*/),
-          (v2/*: any*/),
+          (v1/*:: as any*/),
+          (v2/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -145,8 +144,8 @@ v3 = [
                     "name": "node",
                     "plural": false,
                     "selections": [
-                      (v1/*: any*/),
-                      (v2/*: any*/)
+                      (v1/*:: as any*/),
+                      (v2/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -165,20 +164,20 @@ v3 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "NewProjectButtonCreateProjectMutation",
-    "selections": (v3/*: any*/),
+    "selections": (v3/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "NewProjectButtonCreateProjectMutation",
-    "selections": (v3/*: any*/)
+    "selections": (v3/*:: as any*/)
   },
   "params": {
     "cacheID": "c05cdc005a38ad4285300f8f895ed799",

@@ -25,19 +25,20 @@ Configure the Phoenix Client using environment variables for seamless use across
 
 ```bash
 # For local Phoenix server (default)
-export PHOENIX_BASE_URL="http://localhost:6006"
+export PHOENIX_ENDPOINT="http://localhost:6006"
 
-# Cloud Instance
-export PHOENIX_API_KEY="your-api-key"
-export PHOENIX_BASE_URL="https://app.phoenix.arize.com/s/your-space"
-
-# For custom Phoenix instances with API key authentication
-export PHOENIX_BASE_URL="https://your-phoenix-instance.com"
+# A hosted or self-hosted instance with authentication
+export PHOENIX_ENDPOINT="https://phoenix.example.com"
 export PHOENIX_API_KEY="your-api-key"
 
 # Customize headers
 export PHOENIX_CLIENT_HEADERS="Authorization=Bearer your-api-key,custom-header=value"
 ```
+
+`PHOENIX_ENDPOINT` is a base URL and is the canonical setting for the client. If
+your app also exports traces, set `PHOENIX_COLLECTOR_ENDPOINT` for the OTel SDK
+— usually to the same value. When only `PHOENIX_COLLECTOR_ENDPOINT` is set, the
+client infers its base URL from it.
 
 ### Client Initialization
 
@@ -51,25 +52,18 @@ client = Client()
 
 client = Client(base_url="http://localhost:6006")  # Local Phoenix server
 
-# Cloud instance with API key
-client = Client(
-    base_url="https://app.phoenix.arize.com/s/your-space",
-    api_key="your-api-key"
-)
+# Remote instance with API key
+client = Client(base_url="https://your-phoenix-instance.com", api_key="your-api-key")
 
 # Custom authentication headers
 client = Client(
-    base_url="https://your-phoenix-instance.com",
-    headers={"Authorization": "Bearer your-api-key"}
+    base_url="https://your-phoenix-instance.com", headers={"Authorization": "Bearer your-api-key"}
 )
 
 # Asynchronous client (same configuration options)
 async_client = AsyncClient()
 async_client = AsyncClient(base_url="http://localhost:6006")
-async_client = AsyncClient(
-    base_url="https://app.phoenix.arize.com/s/your-space",
-    api_key="your-api-key"
-)
+async_client = AsyncClient(base_url="https://your-phoenix-instance.com", api_key="your-api-key")
 ```
 
 ## Resources
@@ -98,7 +92,7 @@ prompt = client.prompts.create(
         messages=[{"role": "user", "content": content}],
         model_name="gpt-4o-mini",
     ),
-    prompt_description="Summarize an article in a few bullet points"
+    prompt_description="Summarize an article in a few bullet points",
 )
 
 # Retrieve and use prompts
@@ -107,12 +101,13 @@ prompt = client.prompts.get(prompt_identifier="article-bullet-summarizer")
 # Format the prompt with variables
 prompt_vars = {
     "topic": "Sports",
-    "article": "Moises Henriques, the Australian all-rounder, has signed to play for Surrey in this summer's NatWest T20 Blast. He will join after the IPL and is expected to strengthen the squad throughout the campaign."
+    "article": "Moises Henriques, the Australian all-rounder, has signed to play for Surrey in this summer's NatWest T20 Blast. He will join after the IPL and is expected to strengthen the squad throughout the campaign.",
 }
 formatted_prompt = prompt.format(variables=prompt_vars)
 
 # Make a request with your Prompt using OpenAI
 from openai import OpenAI
+
 oai_client = OpenAI()
 resp = oai_client.chat.completions.create(**formatted_prompt)
 print(resp.choices[0].message.content)
@@ -131,7 +126,7 @@ spans = client.spans.get_spans(
     project_identifier="my-llm-app",
     limit=100,
     start_time=datetime.now() - timedelta(days=7),
-    end_time=datetime.now()
+    end_time=datetime.now(),
 )
 
 # Retrieve all spans belonging to specific traces
@@ -155,17 +150,15 @@ for span in trace_spans:
 spans_df = client.spans.get_spans_dataframe(
     project_identifier="my-llm-app",
     limit=1000,
-    root_spans_only=True,  # Only get top-level spans
-    start_time=datetime.now() - timedelta(hours=24)
+    query=SpanQuery().where("parent_id is None"),  # Only top-level spans
+    start_time=datetime.now() - timedelta(hours=24),
 )
 
 # Advanced querying with SpanQuery
 query = SpanQuery().where("span_kind == 'LLM'")
 
 filtered_df = client.spans.get_spans_dataframe(
-    query=query,
-    project_identifier="my-llm-app",
-    limit=500
+    query=query, project_identifier="my-llm-app", limit=500
 )
 
 # Get span annotations as DataFrame
@@ -173,14 +166,14 @@ annotations_df = client.spans.get_span_annotations_dataframe(
     spans_dataframe=spans_df,  # Use spans from previous query
     project_identifier="my-llm-app",
     include_annotation_names=["relevance", "accuracy"],  # Only specific annotations
-    exclude_annotation_names=["note"]  # Exclude UI notes
+    exclude_annotation_names=["note"],  # Exclude UI notes
 )
 
 # Get annotations as a list
 annotations = client.spans.get_span_annotations(
     span_ids=["span-123", "span-456"],
     project_identifier="my-llm-app",
-    include_annotation_names=["sentiment", "toxicity"]
+    include_annotation_names=["sentiment", "toxicity"],
 )
 ```
 
@@ -196,7 +189,7 @@ client.spans.add_span_annotation(
     annotator_kind="HUMAN",
     label="helpful",
     score=0.9,
-    explanation="Response directly answered the user's question"
+    explanation="Response directly answered the user's question",
 )
 
 # Add automated evaluation annotations
@@ -206,7 +199,7 @@ client.spans.add_span_annotation(
     annotator_kind="LLM",
     label="safe",
     score=0.05,
-    explanation="Content is appropriate and non-toxic"
+    explanation="Content is appropriate and non-toxic",
 )
 
 # Bulk annotation logging for multiple spans
@@ -215,13 +208,13 @@ annotations = [
         "name": "sentiment",
         "span_id": "span-123",
         "annotator_kind": "LLM",
-        "result": {"label": "positive", "score": 0.8}
+        "result": {"label": "positive", "score": 0.8},
     },
     {
         "name": "accuracy",
         "span_id": "span-456",
         "annotator_kind": "HUMAN",
-        "result": {"label": "accurate", "score": 0.95}
+        "result": {"label": "accurate", "score": 0.95},
     },
 ]
 client.spans.log_span_annotations(span_annotations=annotations)
@@ -230,18 +223,20 @@ client.spans.log_span_annotations(span_annotations=annotations)
 import pandas as pd
 
 # Create DataFrame with evaluation results
-df = pd.DataFrame({
-    "name": ["relevance", "coherence", "fluency"],
-    "span_id": ["span-001", "span-002", "span-003"],
-    "annotator_kind": ["LLM", "LLM", "HUMAN"],
-    "label": ["relevant", "coherent", "fluent"],
-    "score": [0.85, 0.92, 0.88],
-    "explanation": [
-        "Response addresses the user query",
-        "Answer flows logically",
-        "Natural language generation"
-    ]
-})
+df = pd.DataFrame(
+    {
+        "name": ["relevance", "coherence", "fluency"],
+        "span_id": ["span-001", "span-002", "span-003"],
+        "annotator_kind": ["LLM", "LLM", "HUMAN"],
+        "label": ["relevant", "coherent", "fluent"],
+        "score": [0.85, 0.92, 0.88],
+        "explanation": [
+            "Response addresses the user query",
+            "Answer flows logically",
+            "Natural language generation",
+        ],
+    }
+)
 client.spans.log_span_annotations_dataframe(dataframe=df)
 ```
 
@@ -260,10 +255,7 @@ from phoenix.client.helpers.spans import get_retrieved_documents
 client = Client()
 
 # Extract retrieved documents for evaluation
-retrieved_docs_df = get_retrieved_documents(
-    client,
-    project_name="my-rag-app"
-)
+retrieved_docs_df = get_retrieved_documents(client, project_name="my-rag-app")
 
 # Each row is a retrieved document with its metadata
 print(retrieved_docs_df.head())
@@ -295,10 +287,7 @@ from phoenix.client.helpers.spans import get_input_output_context
 from phoenix.evals.metrics import FaithfulnessEvaluator
 
 # Extract Q&A with context documents
-qa_df = get_input_output_context(
-    client,
-    project_name="my-rag-app"
-)
+qa_df = get_input_output_context(client, project_name="my-rag-app")
 
 # Each row combines a Q&A pair with concatenated retrieval documents
 # Index: context.span_id
@@ -330,14 +319,12 @@ recent_docs = get_retrieved_documents(
     client,
     project_name="my-rag-app",
     start_time=datetime.now() - timedelta(hours=24),
-    end_time=datetime.now()
+    end_time=datetime.now(),
 )
 
 # Get Q&A from last week
 weekly_qa = get_input_output_context(
-    client,
-    project_name="my-rag-app",
-    start_time=datetime.now() - timedelta(days=7)
+    client, project_name="my-rag-app", start_time=datetime.now() - timedelta(days=7)
 )
 ```
 
@@ -388,34 +375,42 @@ dataset = client.datasets.create_dataset(
     inputs=[
         {"question": "How do I reset my password?"},
         {"question": "What's your return policy?"},
-        {"question": "How do I track my order?"}
+        {"question": "How do I track my order?"},
     ],
     outputs=[
-        {"answer": "You can reset your password by clicking the 'Forgot Password' link on the login page."},
+        {
+            "answer": "You can reset your password by clicking the 'Forgot Password' link on the login page."
+        },
         {"answer": "We offer 30-day returns for unused items in original packaging."},
-        {"answer": "You can track your order using the tracking number sent to your email."}
+        {"answer": "You can track your order using the tracking number sent to your email."},
     ],
     metadata=[
         {"category": "account", "difficulty": "easy"},
         {"category": "policy", "difficulty": "medium"},
-        {"category": "orders", "difficulty": "easy"}
-    ]
+        {"category": "orders", "difficulty": "easy"},
+    ],
 )
 
 # Create dataset from pandas DataFrame
-df = pd.DataFrame({
-    "prompt": ["Hello", "Hi there", "Good morning"],
-    "response": ["Hi! How can I help?", "Hello! What can I do for you?", "Good morning! How may I assist?"],
-    "sentiment": ["neutral", "positive", "positive"],
-    "length": [20, 25, 30]
-})
+df = pd.DataFrame(
+    {
+        "prompt": ["Hello", "Hi there", "Good morning"],
+        "response": [
+            "Hi! How can I help?",
+            "Hello! What can I do for you?",
+            "Good morning! How may I assist?",
+        ],
+        "sentiment": ["neutral", "positive", "positive"],
+        "length": [20, 25, 30],
+    }
+)
 
 dataset = client.datasets.create_dataset(
     name="greeting-responses",
     dataframe=df,
-    input_keys=["prompt"],           # Columns to use as input
-    output_keys=["response"],        # Columns to use as expected output
-    metadata_keys=["sentiment", "length"]  # Additional metadata columns
+    input_keys=["prompt"],  # Columns to use as input
+    output_keys=["response"],  # Columns to use as expected output
+    metadata_keys=["sentiment", "length"],  # Additional metadata columns
 )
 
 # Create dataset from CSV file
@@ -424,7 +419,7 @@ dataset = client.datasets.create_dataset(
     csv_file_path="path/to/data.csv",
     input_keys=["question", "context"],
     output_keys=["answer"],
-    metadata_keys=["source", "confidence"]
+    metadata_keys=["source", "confidence"],
 )
 
 # Add more examples to existing dataset
@@ -432,22 +427,24 @@ updated_dataset = client.datasets.add_examples_to_dataset(
     dataset="customer-support-qa",
     inputs=[{"question": "How do I cancel my subscription?"}],
     outputs=[{"answer": "You can cancel your subscription in your account settings."}],
-    metadata=[{"category": "subscription", "difficulty": "medium"}]
+    metadata=[{"category": "subscription", "difficulty": "medium"}],
 )
 
 # Add examples from DataFrame
-new_examples_df = pd.DataFrame({
-    "question": ["What are your hours?", "Do you offer live chat?"],
-    "answer": ["We're open 24/7", "Yes, live chat is available on our website"],
-    "topic": ["hours", "support"]
-})
+new_examples_df = pd.DataFrame(
+    {
+        "question": ["What are your hours?", "Do you offer live chat?"],
+        "answer": ["We're open 24/7", "Yes, live chat is available on our website"],
+        "topic": ["hours", "support"],
+    }
+)
 
 client.datasets.add_examples_to_dataset(
     dataset="customer-support-qa",
     dataframe=new_examples_df,
     input_keys=["question"],
     output_keys=["answer"],
-    metadata_keys=["topic"]
+    metadata_keys=["topic"],
 )
 
 # Get dataset versions (track changes over time)
@@ -458,8 +455,7 @@ for version in versions:
 
 # Get specific version of dataset
 versioned_dataset = client.datasets.get_dataset(
-    dataset="customer-support-qa",
-    version_id="version-123"
+    dataset="customer-support-qa", version_id="version-123"
 )
 
 # Dataset serialization for backup/sharing
@@ -482,28 +478,29 @@ from phoenix.client.experiments import run_experiment, get_experiment, evaluate_
 # Get a dataset for experimentation
 dataset = client.datasets.get_dataset(dataset="my-dataset")
 
+
 # Define a simple task function
 def my_task(input):
     return f"Hello {input['name']}"
 
+
 # Basic experiment
-experiment = run_experiment(
-    dataset=dataset,
-    task=my_task,
-    experiment_name="greeting-experiment"
-)
+experiment = run_experiment(dataset=dataset, task=my_task, experiment_name="greeting-experiment")
 print(f"Experiment completed with {len(experiment.runs)} runs")
+
 
 # With evaluators
 def accuracy_evaluator(output, expected):
-    return 1.0 if output == expected['text'] else 0.0
+    return 1.0 if output == expected["text"] else 0.0
+
 
 experiment = run_experiment(
     dataset=dataset,
     task=my_task,
     evaluators=[accuracy_evaluator],
-    experiment_name="evaluated-experiment"
+    experiment_name="evaluated-experiment",
 )
+
 
 # Dynamic binding for tasks (access multiple dataset fields)
 def my_task(input, metadata, expected):
@@ -511,17 +508,16 @@ def my_task(input, metadata, expected):
     context = metadata.get("context", "")
     return f"Context: {context}, Input: {input}, Expected: {expected}"
 
+
 # Dynamic binding for evaluators
 def my_evaluator(output, input, expected, metadata):
     # Evaluator can access task output and example fields
     score = calculate_similarity(output, expected)
     return {"score": score, "label": "pass" if score > 0.8 else "fail"}
 
+
 experiment = run_experiment(
-    dataset=dataset,
-    task=my_task,
-    evaluators=[my_evaluator],
-    experiment_name="dynamic-evaluator"
+    dataset=dataset, task=my_task, evaluators=[my_evaluator], experiment_name="dynamic-evaluator"
 )
 
 # Get a completed experiment by ID
@@ -529,17 +525,17 @@ experiment = get_experiment(experiment_id="123")
 
 # Run additional evaluations on existing experiment
 evaluated = evaluate_experiment(
-    experiment=experiment,
-    evaluators=[accuracy_evaluator],
-    print_summary=True
+    experiment=experiment, evaluators=[accuracy_evaluator], print_summary=True
 )
 
 # Async experiments
 from phoenix.client.experiments import async_run_experiment
 from phoenix.client import AsyncClient
 
+
 async def async_task(input):
     return f"Hello {input['name']}"
+
 
 async_client = AsyncClient()
 dataset = await async_client.datasets.get_dataset(dataset="my-dataset")
@@ -548,7 +544,7 @@ experiment = await async_run_experiment(
     dataset=dataset,
     task=async_task,
     experiment_name="greeting-experiment",
-    concurrency=5  # Run 5 tasks concurrently
+    concurrency=5,  # Run 5 tasks concurrently
 )
 ```
 
@@ -575,14 +571,14 @@ print(f"Project name: {project['name']}")
 # Create a new project
 new_project = client.projects.create(
     name="Customer Support Bot",
-    description="Traces and evaluations for our customer support chatbot"
+    description="Traces and evaluations for our customer support chatbot",
 )
 print(f"Created project with ID: {new_project['id']}")
 
 # Update project description (note: project names cannot be changed)
 updated_project = client.projects.update(
     project_id=new_project["id"],
-    description="Updated: Customer support bot with sentiment analysis and quality metrics"
+    description="Updated: Customer support bot with sentiment analysis and quality metrics",
 )
 print(f"Updated project description: {updated_project['description']}")
 ```
@@ -651,11 +647,13 @@ client.sessions.log_session_annotations(session_annotations=annotations)
 # Bulk annotations from a DataFrame
 import pandas as pd
 
-df = pd.DataFrame({
-    "session_id": ["session-123", "session-456"],
-    "label": ["positive", "neutral"],
-    "score": [0.9, 0.5],
-})
+df = pd.DataFrame(
+    {
+        "session_id": ["session-123", "session-456"],
+        "label": ["positive", "neutral"],
+        "score": [0.9, 0.5],
+    }
+)
 client.sessions.log_session_annotations_dataframe(
     dataframe=df,
     annotation_name="sentiment",

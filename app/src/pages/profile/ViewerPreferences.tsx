@@ -52,17 +52,17 @@ export function ViewerPreferences() {
       {
         id: "system" as const,
         label: `Auto (${systemTheme})`,
-        icon: <Icons.HalfMoonHalfSunOutline />,
+        icon: <Icons.HalfMoonHalfSun />,
       },
       {
         id: "dark" as const,
         label: "Dark",
-        icon: <Icons.MoonOutline />,
+        icon: <Icons.Moon />,
       },
       {
         id: "light" as const,
         label: "Light",
-        icon: <Icons.SunOutline />,
+        icon: <Icons.Sun />,
       },
     ];
   }, [systemTheme]);

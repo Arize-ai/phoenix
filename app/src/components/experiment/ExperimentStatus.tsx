@@ -8,6 +8,7 @@ import {
   TriggerWrap,
 } from "@phoenix/components";
 import type { BadgeVariant } from "@phoenix/components/core/badge/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 type ExperimentStatusValue = "RUNNING" | "COMPLETED" | "ERROR" | "STOPPED";
 
@@ -21,19 +22,23 @@ function getStatusVariant(status: ExperimentStatusValue): BadgeVariant {
       return "danger";
     case "STOPPED":
       return "warning";
+    default:
+      return assertUnreachable(status);
   }
 }
 
 function getStatusIcon(status: ExperimentStatusValue) {
   switch (status) {
     case "RUNNING":
-      return <Icons.LoadingOutline />;
+      return <Icons.Loading />;
     case "COMPLETED":
-      return <Icons.CheckmarkCircleOutline />;
+      return <Icons.CheckmarkCircle />;
     case "ERROR":
-      return <Icons.CloseCircleOutline />;
+      return <Icons.CloseCircle />;
     case "STOPPED":
-      return <Icons.StopCircleOutline />;
+      return <Icons.StopCircle />;
+    default:
+      return assertUnreachable(status);
   }
 }
 
@@ -47,6 +52,8 @@ function getStatusLabel(status: ExperimentStatusValue): string {
       return "error";
     case "STOPPED":
       return "stopped";
+    default:
+      return assertUnreachable(status);
   }
 }
 
@@ -60,6 +67,8 @@ function getStatusTooltip(status: ExperimentStatusValue): string {
       return "Experiment encountered an error during execution";
     case "STOPPED":
       return "Experiment was manually stopped before completion";
+    default:
+      return assertUnreachable(status);
   }
 }
 

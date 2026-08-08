@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<14d73dcb8590e584ea6616f0a60eebb6>>
+ * @generated SignedSource<<93764dfc8e30c221237d6d48b30d031a>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -77,20 +76,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ExampleSelectionToolbarDeleteExamplesMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ExampleSelectionToolbarDeleteExamplesMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "b63159f3c325b9af3dc469692f9329e5",

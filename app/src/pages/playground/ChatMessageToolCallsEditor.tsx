@@ -15,6 +15,7 @@ import {
   selectPlaygroundInstance,
   selectPlaygroundInstanceMessage,
 } from "@phoenix/store/playground/selectors";
+import { assertUnreachable } from "@phoenix/typeUtils";
 import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 /**
@@ -107,6 +108,8 @@ export function ChatMessageToolCallsEditor({
       // TODO(apowell): #5348 Add Google tool calls schema
       case "GOOGLE":
         return null;
+      default:
+        return assertUnreachable(instance.model.provider);
     }
   }, [instance.model.provider]);
 

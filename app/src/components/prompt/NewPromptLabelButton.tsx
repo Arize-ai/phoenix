@@ -13,7 +13,7 @@ export function NewPromptLabelButton() {
       <Button
         size="S"
         variant="primary"
-        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Plus />} />}
         onPress={() => setShowNewPromptLabelDialog(true)}
       >
         New Label

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<c61ec8deeac47d7bc21fc91199f8c28d>>
+ * @generated SignedSource<<a88d13a67dedfc3ae18b36bc2bdcd3ba>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -118,7 +117,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -128,7 +127,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [
         "node"
@@ -173,7 +172,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*: any*/),
+                (v1/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -197,7 +196,7 @@ return {
                       "name": "trace",
                       "plural": false,
                       "selections": [
-                        (v1/*: any*/),
+                        (v1/*:: as any*/),
                         {
                           "args": null,
                           "kind": "FragmentSpread",
@@ -240,7 +239,7 @@ return {
                       ],
                       "storageKey": null
                     },
-                    (v1/*: any*/),
+                    (v1/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -263,7 +262,7 @@ return {
                       "name": "project",
                       "plural": false,
                       "selections": [
-                        (v1/*: any*/)
+                        (v1/*:: as any*/)
                       ],
                       "storageKey": null
                     },
@@ -274,7 +273,7 @@ return {
                       "kind": "LinkedField",
                       "name": "input",
                       "plural": false,
-                      "selections": (v2/*: any*/),
+                      "selections": (v2/*:: as any*/),
                       "storageKey": null
                     },
                     {
@@ -284,7 +283,7 @@ return {
                       "kind": "LinkedField",
                       "name": "output",
                       "plural": false,
-                      "selections": (v2/*: any*/),
+                      "selections": (v2/*:: as any*/),
                       "storageKey": null
                     },
                     {
@@ -389,7 +388,7 @@ return {
       ],
       "storageKey": null
     },
-    (v1/*: any*/)
+    (v1/*:: as any*/)
   ],
   "type": "ProjectSession",
   "abstractKey": null

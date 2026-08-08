@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<d7cd01f610cd127a70c8aa3f6fd7ba78>>
+ * @generated SignedSource<<5ac9f77ff6a43a6c50e18985452cdb79>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -86,7 +85,7 @@ v4 = {
           "kind": "LinkedField",
           "name": "total",
           "plural": false,
-          "selections": (v3/*: any*/),
+          "selections": (v3/*:: as any*/),
           "storageKey": null
         },
         {
@@ -96,7 +95,7 @@ v4 = {
           "kind": "LinkedField",
           "name": "prompt",
           "plural": false,
-          "selections": (v3/*: any*/),
+          "selections": (v3/*:: as any*/),
           "storageKey": null
         },
         {
@@ -106,7 +105,7 @@ v4 = {
           "kind": "LinkedField",
           "name": "completion",
           "plural": false,
-          "selections": (v3/*: any*/),
+          "selections": (v3/*:: as any*/),
           "storageKey": null
         }
       ],
@@ -118,21 +117,21 @@ v4 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ExperimentRepeatedRunGroupTokenCountDetailsQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v4/*: any*/)
+          (v2/*:: as any*/),
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -142,20 +141,20 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ExperimentRepeatedRunGroupTokenCountDetailsQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v4/*: any*/),
+          (v2/*:: as any*/),
+          (v4/*:: as any*/),
           {
             "alias": null,
             "args": null,

@@ -1,7 +1,14 @@
 import { useMemo, useState } from "react";
 import { graphql, useFragment, useMutation } from "react-relay";
 
-import { Alert, Card, Flex, Link, Text, View } from "@phoenix/components";
+import {
+  Alert,
+  Flex,
+  Link,
+  SectionHeading,
+  Text,
+  View,
+} from "@phoenix/components";
 import { ProjectTraceRetentionPolicySelect } from "@phoenix/components/retention/ProjectTraceRetentionPolicySelect";
 import {
   useNotifySuccess,
@@ -16,7 +23,12 @@ import type { ProjectRetentionPolicyCard_policy$key } from "./__generated__/Proj
 import type { ProjectRetentionPolicyCard_query$key } from "./__generated__/ProjectRetentionPolicyCard_query.graphql";
 import type { ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation } from "./__generated__/ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation.graphql";
 
-export const ProjectRetentionPolicyCard = ({
+/**
+ * The data retention section of the project settings card. Renders the trace
+ * retention policy selector along with a human-readable summary of what the
+ * policy deletes and on what schedule.
+ */
+export const ProjectRetentionPolicySection = ({
   project,
   query,
 }: {
@@ -110,7 +122,8 @@ export const ProjectRetentionPolicyCard = ({
   };
 
   return (
-    <Card title="Data Retention">
+    <>
+      <SectionHeading>Data Retention</SectionHeading>
       {error && <Alert variant="danger">{error}</Alert>}
       <View paddingX="size-200" paddingY="size-100">
         <Flex direction="row" gap="size-400" alignItems="center">
@@ -147,6 +160,6 @@ export const ProjectRetentionPolicyCard = ({
           <Link to="/settings/data">Configure Retention Policies</Link>
         </Flex>
       </View>
-    </Card>
+    </>
   );
 };

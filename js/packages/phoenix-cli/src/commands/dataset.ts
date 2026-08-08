@@ -11,38 +11,55 @@ import {
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
+import { collectString } from "../optionParsers";
 import {
   type DatasetExamplesData,
   formatDatasetExamplesOutput,
   type OutputFormat,
 } from "./formatDataset";
 import { formatDatasetsOutput } from "./formatDatasets";
+import type { CommonOptions, DeleteOptions } from "./options";
 
 type Dataset = componentsV1["schemas"]["Dataset"];
 
-interface DatasetGetOptions {
-  endpoint?: string;
-  apiKey?: string;
-  format?: OutputFormat;
-  progress?: boolean;
+/**
+ * Options for `px dataset get <dataset-identifier>`. Without `--version`,
+ * fetches examples from the latest version of the dataset.
+ */
+interface DatasetGetOptions extends CommonOptions<OutputFormat> {
+  /**
+   * `--file <path>`: Save output to file instead of stdout. When set, output
+   * is always written as JSON regardless of `--format`.
+   *
+   * @example "./examples.json"
+   */
   file?: string;
+  /**
+   * `--split <name>`: Filter examples by split name. Repeatable to include
+   * multiple splits. Defaults to no filter (all splits).
+   *
+   * @example ["train"]
+   */
   split?: string[];
+  /**
+   * `--version <id>`: Fetch examples from a specific dataset version instead
+   * of the latest.
+   *
+   * @example "RGF0YXNldFZlcnNpb246MQ=="
+   */
   version?: string;
 }
 
-interface DatasetListOptions {
-  endpoint?: string;
-  apiKey?: string;
-  format?: OutputFormat;
-  progress?: boolean;
+/**
+ * Options for `px dataset list`.
+ */
+interface DatasetListOptions extends CommonOptions<OutputFormat> {
+  /**
+   * `--limit <number>`: Maximum number of datasets to fetch. Defaults to 100.
+   *
+   * @example 50
+   */
   limit?: number;
-}
-
-interface DatasetDeleteOptions {
-  endpoint?: string;
-  apiKey?: string;
-  yes?: boolean;
-  progress?: boolean;
 }
 
 /**
@@ -288,7 +305,7 @@ async function datasetListHandler(options: DatasetListOptions): Promise<void> {
  */
 async function datasetDeleteHandler(
   datasetIdentifier: string,
-  options: DatasetDeleteOptions
+  options: DeleteOptions
 ): Promise<void> {
   try {
     assertDeletesEnabled();
@@ -347,13 +364,6 @@ async function datasetDeleteHandler(
 }
 
 /**
- * Collect multiple --split options into an array
- */
-function collectSplits(value: string, previous: string[]): string[] {
-  return previous.concat([value]);
-}
-
-/**
  * Create the `dataset get` command
  */
 export function createDatasetGetCommand(): Command {
@@ -372,7 +382,7 @@ export function createDatasetGetCommand(): Command {
     .option(
       "--split <name>",
       "Filter by split name (can be used multiple times)",
-      collectSplits,
+      collectString,
       []
     )
     .option("--version <id>", "Fetch from a specific dataset version")

@@ -1,0 +1,226 @@
+---
+title: "07.07.2026: Metric Charts, Trace Search, and REST API Expansion"
+description: "Pin metric charts above your data tables, search the trace tree, manage dataset labels and annotation-config assignments over REST, run classification-metric evaluators in TypeScript, and use Claude Sonnet 5 in the Playground."
+---
+
+# Metric Charts Above Data Tables
+
+July 7, 2026
+
+**Available in arize-phoenix 17.20.0+**
+
+Keep the numbers that matter in view while you work through your data. A resizable
+strip of metric charts now sits above the spans, traces, and sessions tables. Pick the
+charts you want per table from a catalog, and Phoenix remembers your selection per
+project.
+
+- **Per-table selection** — choose different charts for the spans, traces, and sessions views
+- **Interactive** — filter series from the legend and drag across a chart to zoom the time range
+- **Persistent** — your chart choices are saved per project
+
+# Trace Tree Search
+
+July 6, 2026
+
+**Available in arize-phoenix 17.19.0+**
+
+Finding a span in a deep, deeply nested trace no longer means scrolling. The trace
+detail view now has a search box that filters the trace tree as you type, so you can jump
+straight to the span you care about.
+
+# Dataset Labels and Annotation Config Assignment over REST
+
+July 4, 2026
+
+**Available in arize-phoenix 17.16.0+ (server), arize-phoenix-client 2.12.0+ (Python, typed access)**
+
+Two organizational workflows that were previously UI-only are now scriptable over the
+REST API.
+
+**Dataset labels** can be created, listed, updated, deleted, and applied to datasets:
+
+```bash
+# Create a label
+curl -X POST "$PHOENIX_HOST/v1/dataset_labels" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "golden", "color": "#00cc88", "description": "Curated eval sets"}'
+
+# Apply a label to a dataset (idempotent)
+curl -X PUT "$PHOENIX_HOST/v1/datasets/$DATASET_ID/labels/$LABEL_ID" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY"
+
+# List the labels applied to a dataset
+curl "$PHOENIX_HOST/v1/datasets/$DATASET_ID/labels" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY"
+```
+
+**Annotation configs** can be assigned to and removed from projects, and both endpoints
+accept either an ID or a name for the project and config:
+
+```bash
+# Assign an annotation config to a project (idempotent)
+curl -X PUT "$PHOENIX_HOST/v1/projects/my-project/annotation_configs/response-quality" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY"
+
+# Replace the full set of configs on a project
+curl -X PUT "$PHOENIX_HOST/v1/projects/my-project/annotation_configs" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"annotation_config_ids": ["'"$CONFIG_ID"'"]}'
+```
+
+# Filter Projects by Name
+
+July 4, 2026
+
+**Available in arize-phoenix 17.16.0+**
+
+`GET /v1/projects` now accepts a `name_contains` query parameter for a case-insensitive
+substring match, so you can locate projects without paging through the full list.
+
+```bash
+curl "$PHOENIX_HOST/v1/projects?name_contains=eval" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY"
+```
+
+# Baseline Experiments
+
+July 4, 2026
+
+**Available in arize-phoenix 17.16.0+**
+
+Mark one experiment per project as the **baseline** to make it the reference point in
+comparison workflows. Set or clear the baseline from the experiment action menu — the
+baseline is flagged with a badge across experiment tables and compare views, and the
+choice persists across sessions.
+
+# Annotation Config CLI Commands
+
+July 4, 2026
+
+**Available in arize-phoenix-client 2.12.0+**
+
+The `px` CLI can now manage annotation configurations directly, making it easy to script
+annotation setup or drive it from a coding agent.
+
+```bash
+# List all annotation configurations
+px annotation-config list
+
+# Fetch one by name or ID
+px annotation-config get response-quality
+
+# Create a categorical pass/fail rating
+px annotation-config create \
+  --type CATEGORICAL \
+  --name response-quality \
+  --value good=1 \
+  --value bad=0 \
+  --optimization-direction MAXIMIZE
+
+# Update just the description
+px annotation-config update response-quality \
+  --description "Pass/fail rating from human review"
+```
+
+# Classification Metric Evaluators in TypeScript
+
+July 4, 2026
+
+**Available in @arizeai/phoenix-evals 1.1.0+ (TypeScript)**
+
+The TypeScript evals package now ships built-in **code** (non-LLM) evaluators for
+precision, recall, and F-score, mirroring the Python `PrecisionRecallFScore` evaluator.
+They support binary classification via `positiveLabel` and multi-class classification
+with `macro`, `micro`, or `weighted` averaging.
+
+```typescript
+import {
+  createPrecisionEvaluator,
+  createPrecisionRecallFScoreEvaluators,
+} from "@arizeai/phoenix-evals/code";
+
+// Binary classification
+const precision = createPrecisionEvaluator({ positiveLabel: "spam" });
+const p = await precision.evaluate({
+  expected: ["spam", "ham", "spam"],
+  output: ["spam", "spam", "ham"],
+});
+
+// Multi-class, weighted average — precision, recall, and F-score together
+const { precision: mp, recall, fScore } = createPrecisionRecallFScoreEvaluators({
+  average: "weighted",
+});
+const f = await fScore.evaluate({
+  expected: ["cat", "dog", "cat", "bird"],
+  output: ["cat", "cat", "cat", "bird"],
+});
+```
+
+For a one-shot computation without constructing an evaluator, use
+`computePrecisionRecallFScore` from the same import path.
+
+# Log Spans from the TypeScript Client
+
+July 2, 2026
+
+**Available in @arizeai/phoenix-client 6.12.0+ (TypeScript)**
+
+The TypeScript client gains `logSpans`, mirroring the Python client's `log_spans`. It
+submits spans directly to a project using Phoenix's simplified span structure — the same
+shape returned by `getSpans` — with no OpenTelemetry setup required.
+
+```typescript
+import { logSpans } from "@arizeai/phoenix-client/spans";
+
+const result = await logSpans({
+  project: { projectName: "my-project" },
+  spans: [
+    {
+      name: "my-span",
+      context: { trace_id: "...", span_id: "..." },
+      span_kind: "CHAIN",
+      start_time: "2026-07-02T00:00:00Z",
+      end_time: "2026-07-02T00:00:01Z",
+      status_code: "OK",
+    },
+  ],
+});
+console.log(`Queued ${result.totalQueued} of ${result.totalReceived} spans`);
+```
+
+Invalid or duplicate spans raise a `SpanCreationError` with `invalidSpans` and
+`duplicateSpans` details so you can see exactly which spans were rejected.
+
+# Claude Sonnet 5 in the Playground
+
+July 1, 2026
+
+**Available in arize-phoenix 17.15.0+**
+
+Claude Sonnet 5 is now selectable in the Playground and prompts for both the Anthropic
+(`claude-sonnet-5`) and AWS Bedrock (`anthropic.claude-sonnet-5`) providers.
+
+# Table and Navigation Improvements
+
+July 4–6, 2026
+
+**Available in arize-phoenix 17.16.0+ through 17.19.0+**
+
+A batch of workflow upgrades landed across the data tables and side navigation:
+
+- **Error column** on the spans and traces tables surfaces the status message recorded when a span errors (arize-phoenix 17.16.0+)
+- **Prompt version columns** — the prompts table now shows the version count, latest version, and version tags with links (arize-phoenix 17.16.0+)
+- **Shift-click range selection** — select a contiguous range of rows with shift-click across the examples, experiments, spans, traces, and annotation-config tables (arize-phoenix 17.17.0+)
+- **Recent searches** — the span filter typeahead shows your last few filter conditions per project (arize-phoenix 17.17.0+)
+- **Consolidated account menu** — profile, docs, support, management console, log out, and the light/dark/system theme toggle now live in a single menu at the bottom of the side nav (arize-phoenix 17.19.0+)
+
+<CardGroup cols={2}>
+  <Card title="REST API" icon="code" href="/docs/phoenix/sdk-api-reference/rest-api/overview">
+    Full REST API reference for datasets, projects, and annotations.
+  </Card>
+  <Card title="Python Client" icon="python" href="/docs/phoenix/sdk-api-reference/python/arize-phoenix-client">
+    Manage prompts, datasets, experiments, and annotations from Python.
+  </Card>
+</CardGroup>

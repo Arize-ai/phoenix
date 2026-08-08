@@ -1,7 +1,10 @@
 import type { componentsV1 } from "@arizeai/phoenix-client";
 import { describe, expect, it } from "vitest";
 
-import { formatAnnotationConfigsOutput } from "../src/commands/formatAnnotationConfigs";
+import {
+  formatAnnotationConfigOutput,
+  formatAnnotationConfigsOutput,
+} from "../src/commands/formatAnnotationConfigs";
 
 type CategoricalAnnotationConfig =
   componentsV1["schemas"]["CategoricalAnnotationConfig"];
@@ -151,6 +154,38 @@ describe("Annotation Config Formatting", () => {
 
       expect(output).toContain("name");
       expect(output).toContain("quality");
+    });
+  });
+
+  describe("formatAnnotationConfigOutput - single config", () => {
+    it("should emit the config object directly (not an array) for raw", () => {
+      const output = formatAnnotationConfigOutput({
+        config: mockCategorical,
+        format: "raw",
+      });
+
+      expect(output).toBe(JSON.stringify(mockCategorical));
+      expect(output.startsWith("[")).toBe(false);
+    });
+
+    it("should emit the config object directly (not an array) for json", () => {
+      const output = formatAnnotationConfigOutput({
+        config: mockCategorical,
+        format: "json",
+      });
+
+      expect(output).toBe(JSON.stringify(mockCategorical, null, 2));
+    });
+
+    it("should render a single-row table for pretty", () => {
+      const output = formatAnnotationConfigOutput({
+        config: mockContinuous,
+        format: "pretty",
+      });
+
+      expect(output).toContain("score");
+      expect(output).toContain("cont-id-002");
+      expect(output).toContain("CONTINUOUS");
     });
   });
 });

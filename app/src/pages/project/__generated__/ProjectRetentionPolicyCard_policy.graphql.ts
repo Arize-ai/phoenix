@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<0e33c5bf0a44913d025f26ec42d68b1f>>
+ * @generated SignedSource<<c34b42ebf2ed080d14511876247a41ce>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -64,8 +63,8 @@ return {
   "metadata": null,
   "name": "ProjectRetentionPolicyCard_policy",
   "selections": [
-    (v0/*: any*/),
-    (v1/*: any*/),
+    (v0/*:: as any*/),
+    (v1/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -74,8 +73,8 @@ return {
       "name": "traceRetentionPolicy",
       "plural": false,
       "selections": [
-        (v0/*: any*/),
-        (v1/*: any*/),
+        (v0/*:: as any*/),
+        (v1/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -94,7 +93,7 @@ return {
             {
               "kind": "InlineFragment",
               "selections": [
-                (v2/*: any*/)
+                (v2/*:: as any*/)
               ],
               "type": "TraceRetentionRuleMaxDays",
               "abstractKey": null
@@ -102,7 +101,7 @@ return {
             {
               "kind": "InlineFragment",
               "selections": [
-                (v3/*: any*/)
+                (v3/*:: as any*/)
               ],
               "type": "TraceRetentionRuleMaxCount",
               "abstractKey": null
@@ -110,8 +109,8 @@ return {
             {
               "kind": "InlineFragment",
               "selections": [
-                (v2/*: any*/),
-                (v3/*: any*/)
+                (v2/*:: as any*/),
+                (v3/*:: as any*/)
               ],
               "type": "TraceRetentionRuleMaxDaysOrCount",
               "abstractKey": null

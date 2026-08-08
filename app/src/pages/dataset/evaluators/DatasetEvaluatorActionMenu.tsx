@@ -45,7 +45,7 @@ export function DatasetEvaluatorActionMenu({
           size="S"
           variant="quiet"
           aria-label="Evaluator actions"
-          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+          leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
         />
         <Popover placement="bottom right">
           <Menu
@@ -67,7 +67,7 @@ export function DatasetEvaluatorActionMenu({
                 justifyContent="start"
                 alignItems="center"
               >
-                <Icon svg={<Icons.Edit2Outline />} />
+                <Icon svg={<Icons.Edit2 />} />
                 <Text>Edit</Text>
               </Flex>
             </MenuItem>
@@ -78,7 +78,7 @@ export function DatasetEvaluatorActionMenu({
                 justifyContent="start"
                 alignItems="center"
               >
-                <Icon svg={<Icons.TrashOutline />} />
+                <Icon svg={<Icons.Trash />} />
                 <Text>Delete</Text>
               </Flex>
             </MenuItem>

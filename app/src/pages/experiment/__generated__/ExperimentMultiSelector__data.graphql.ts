@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<a2a3b328dc8084bd78ce75da5a4644a0>>
+ * @generated SignedSource<<c919c0a94e1279bb2ee28a5c25af531b>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -13,6 +12,7 @@ import { FragmentRefs } from "relay-runtime";
 export type ExperimentMultiSelector__data$data = {
   readonly baseExperiment?: {
     readonly id?: string;
+    readonly isBaseline?: boolean;
     readonly name?: string;
   };
   readonly dataset: {
@@ -21,6 +21,7 @@ export type ExperimentMultiSelector__data$data = {
         readonly experiment: {
           readonly createdAt: string;
           readonly id: string;
+          readonly isBaseline: boolean;
           readonly name: string;
           readonly sequenceNumber: number;
         };
@@ -49,6 +50,13 @@ v1 = {
   "args": null,
   "kind": "ScalarField",
   "name": "name",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "isBaseline",
   "storageKey": null
 };
 return {
@@ -87,11 +95,11 @@ return {
       "name": "node",
       "plural": false,
       "selections": [
-        (v0/*: any*/),
+        (v0/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
-            (v1/*: any*/),
+            (v1/*:: as any*/),
             {
               "alias": "allExperiments",
               "args": null,
@@ -116,8 +124,8 @@ return {
                       "name": "node",
                       "plural": false,
                       "selections": [
-                        (v0/*: any*/),
-                        (v1/*: any*/),
+                        (v0/*:: as any*/),
+                        (v1/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -125,6 +133,7 @@ return {
                           "name": "sequenceNumber",
                           "storageKey": null
                         },
+                        (v2/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -170,8 +179,9 @@ return {
             {
               "kind": "InlineFragment",
               "selections": [
-                (v0/*: any*/),
-                (v1/*: any*/)
+                (v0/*:: as any*/),
+                (v1/*:: as any*/),
+                (v2/*:: as any*/)
               ],
               "type": "Experiment",
               "abstractKey": null
@@ -187,6 +197,6 @@ return {
 };
 })();
 
-(node as any).hash = "a616b80b60dec9ca1971902a32f27442";
+(node as any).hash = "d537abb866a0b9218efdb7c5e1e2393c";
 
 export default node;

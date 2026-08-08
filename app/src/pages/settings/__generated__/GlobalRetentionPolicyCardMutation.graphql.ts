@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<0daa8fa2fabd3c12756220ece8632a77>>
+ * @generated SignedSource<<44569210dbccf154b3e82ba6dcab44b1>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -18,9 +17,17 @@ export type PatchProjectTraceRetentionPolicyInput = {
   rule?: ProjectTraceRetentionRuleInput | null;
 };
 export type ProjectTraceRetentionRuleInput = {
-  maxCount?: ProjectTraceRetentionRuleMaxCountInput | null;
-  maxDays?: ProjectTraceRetentionRuleMaxDaysInput | null;
-  maxDaysOrCount?: ProjectTraceRetentionRuleMaxDaysOrCountInput | null;
+  maxCount?: never;
+  maxDays: ProjectTraceRetentionRuleMaxDaysInput;
+  maxDaysOrCount?: never;
+} | {
+  maxCount: ProjectTraceRetentionRuleMaxCountInput;
+  maxDays?: never;
+  maxDaysOrCount?: never;
+} | {
+  maxCount?: never;
+  maxDays?: never;
+  maxDaysOrCount: ProjectTraceRetentionRuleMaxDaysOrCountInput;
 };
 export type ProjectTraceRetentionRuleMaxDaysInput = {
   maxDays: number;
@@ -134,20 +141,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "GlobalRetentionPolicyCardMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "GlobalRetentionPolicyCardMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "096e3d4c546229fc771e14be03b168a3",

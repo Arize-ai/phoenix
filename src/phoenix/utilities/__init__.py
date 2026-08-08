@@ -20,6 +20,18 @@ def hour_of_week(dt: datetime) -> int:
     return (weekday * 24) + dt.hour
 
 
+def stdout_supports_unicode() -> bool:
+    """Whether stdout can render the startup banner's Unicode glyphs."""
+    if sys.platform.startswith("win"):
+        return False
+    encoding = getattr(sys.stdout, "encoding", None) or "ascii"
+    try:
+        "█─━▶✅➖🗄🚀".encode(encoding)
+    except (LookupError, UnicodeEncodeError):
+        return False
+    return True
+
+
 def no_emojis_on_windows(text: str) -> str:
     if sys.platform.startswith("win"):
         return codecs.encode(text, "ascii", errors="ignore").decode("ascii").strip()

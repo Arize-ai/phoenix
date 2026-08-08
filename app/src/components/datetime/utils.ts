@@ -61,7 +61,7 @@ function getLastNTimeRangeDurationMs({
     case "d":
       return quantity * DAY_IN_MS;
     default:
-      assertUnreachable(unit);
+      return assertUnreachable(unit);
   }
 }
 
@@ -212,6 +212,23 @@ export function setTimeRangeSearchParams({
   setOrDelete(TIME_RANGE_START_PARAM, timeRange.start);
   setOrDelete(TIME_RANGE_END_PARAM, timeRange.end);
   return nextSearchParams;
+}
+
+/**
+ * Serialize the given time range into a URL search string (including the
+ * leading "?") for building navigation targets that carry the active time
+ * range into another time-scoped view (e.g. the project list → project detail
+ * links). Uses the same declarative representation as
+ * {@link setTimeRangeSearchParams}: a live range serializes as just its last-N
+ * key so it stays live at the destination, and a custom range as just its
+ * bounds.
+ */
+export function getTimeRangeSearch(timeRange: OpenTimeRangeWithKey): string {
+  const search = setTimeRangeSearchParams({
+    searchParams: new URLSearchParams(),
+    timeRange,
+  }).toString();
+  return search ? `?${search}` : "";
 }
 
 const LAST_N_UNIT_LABELS: Record<

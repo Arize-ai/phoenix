@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<e1d7f0084203a56c65b5a971a5924b5c>>
+ * @generated SignedSource<<a4bfd77f6a12c3216e7341a64af78cb1>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -15,6 +14,9 @@ export type spanFilterValidationQuery$variables = {
 };
 export type spanFilterValidationQuery$data = {
   readonly project: {
+    readonly analyzeSpanFilterCondition?: {
+      readonly selectsRootSpansOnly: boolean;
+    };
     readonly validateSpanFilterCondition?: {
       readonly errorMessage: string | null;
       readonly isValid: boolean;
@@ -46,18 +48,19 @@ v1 = [
     "variableName": "id"
   }
 ],
-v2 = {
+v2 = [
+  {
+    "kind": "Variable",
+    "name": "condition",
+    "variableName": "condition"
+  }
+],
+v3 = {
   "kind": "InlineFragment",
   "selections": [
     {
       "alias": null,
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "condition",
-          "variableName": "condition"
-        }
-      ],
+      "args": (v2/*:: as any*/),
       "concreteType": "ValidationResult",
       "kind": "LinkedField",
       "name": "validateSpanFilterCondition",
@@ -79,6 +82,24 @@ v2 = {
         }
       ],
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": (v2/*:: as any*/),
+      "concreteType": "SpanFilterConditionAnalysis",
+      "kind": "LinkedField",
+      "name": "analyzeSpanFilterCondition",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "selectsRootSpansOnly",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
     }
   ],
   "type": "Project",
@@ -86,20 +107,20 @@ v2 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "spanFilterValidationQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/)
+          (v3/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -109,13 +130,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "spanFilterValidationQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -128,7 +149,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v2/*: any*/),
+          (v3/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -142,16 +163,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "dca4d0bdb192680d6375719b71aa12e1",
+    "cacheID": "79857c1cebc3823a1b24607c243aa966",
     "id": null,
     "metadata": {},
     "name": "spanFilterValidationQuery",
     "operationKind": "query",
-    "text": "query spanFilterValidationQuery(\n  $condition: String!\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      validateSpanFilterCondition(condition: $condition) {\n        isValid\n        errorMessage\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query spanFilterValidationQuery(\n  $condition: String!\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      validateSpanFilterCondition(condition: $condition) {\n        isValid\n        errorMessage\n      }\n      analyzeSpanFilterCondition(condition: $condition) {\n        selectsRootSpansOnly\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4fbbe426b77211de9644c0c62b947d20";
+(node as any).hash = "b4cdaf04cbca83085e1138be06ab2a77";
 
 export default node;

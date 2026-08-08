@@ -66,7 +66,7 @@ const EvaluatorExampleDatasetContent = () => {
 const DatasetNameDisplay = ({ name }: { name: string }) => {
   return (
     <Flex direction="row" alignItems="center" gap="size-100">
-      <Icon svg={<Icons.DatabaseOutline />} />
+      <Icon svg={<Icons.Database />} />
       <Text>
         <Truncate maxWidth="100%">{name}</Truncate>
       </Text>

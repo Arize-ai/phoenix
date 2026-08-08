@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<5d2da26bac3ffb692c3b3b9412af6918>>
+ * @generated SignedSource<<8838f220e313739444a98682d7888b9c>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -86,20 +85,20 @@ v6 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SpanNotesTableCellQuery",
     "selections": [
       {
         "alias": "span",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -111,9 +110,9 @@ return {
                 "name": "spanNotes",
                 "plural": true,
                 "selections": [
-                  (v3/*: any*/),
-                  (v4/*: any*/),
-                  (v5/*: any*/),
+                  (v3/*:: as any*/),
+                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -122,7 +121,7 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v6/*: any*/)
+                      (v6/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -142,19 +141,19 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SpanNotesTableCellQuery",
     "selections": [
       {
         "alias": "span",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -166,9 +165,9 @@ return {
                 "name": "spanNotes",
                 "plural": true,
                 "selections": [
-                  (v3/*: any*/),
-                  (v4/*: any*/),
-                  (v5/*: any*/),
+                  (v3/*:: as any*/),
+                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -177,8 +176,8 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v6/*: any*/),
-                      (v3/*: any*/)
+                      (v6/*:: as any*/),
+                      (v3/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -189,7 +188,7 @@ return {
             "type": "Span",
             "abstractKey": null
           },
-          (v3/*: any*/)
+          (v3/*:: as any*/)
         ],
         "storageKey": null
       }

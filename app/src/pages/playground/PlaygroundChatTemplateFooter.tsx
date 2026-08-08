@@ -67,7 +67,7 @@ export function PlaygroundChatTemplateFooter({
           size="S"
           aria-label="response format"
           data-testid="add-response-format"
-          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Plus />} />}
           isDisabled={hasResponseFormat}
           onPress={() => {
             setResponseFormat({
@@ -86,7 +86,7 @@ export function PlaygroundChatTemplateFooter({
         <Button
           aria-label="add tool"
           size="S"
-          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Plus />} />}
           onPress={() => {
             const patch: Partial<PlaygroundNormalizedInstance> = {
               tools: [
@@ -112,7 +112,7 @@ export function PlaygroundChatTemplateFooter({
       <Button
         aria-label="add message"
         size="S"
-        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Plus />} />}
         onPress={() => {
           addMessage({
             playgroundInstanceId: instanceId,

@@ -1,6 +1,4 @@
-import { css } from "@emotion/react";
-
-import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
+import { SegmentedControl, SegmentedControlItem } from "@phoenix/components";
 import type { SizingProps } from "@phoenix/components/core/types";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { isTemplateFormat } from "@phoenix/components/templateEditor/types";
@@ -23,39 +21,27 @@ export function TemplateFormatRadioGroup({
     (state) => state.setTemplateFormat
   );
   return (
-    <div
-      css={css`
-        & * {
-          white-space: nowrap;
+    <SegmentedControl
+      size={size}
+      selectedKey={templateFormat}
+      aria-label="Template Format"
+      onSelectionChange={(format) => {
+        if (typeof format === "string" && isTemplateFormat(format)) {
+          setTemplateFormat(format);
         }
-      `}
+      }}
     >
-      <ToggleButtonGroup
-        size={size}
-        defaultSelectedKeys={[templateFormat]}
-        aria-label="Template Format"
-        onSelectionChange={(v) => {
-          if (v.size === 0) {
-            return;
-          }
-          const format = v.keys().next().value;
-          if (typeof format === "string" && isTemplateFormat(format)) {
-            setTemplateFormat(format);
-          }
-        }}
-      >
-        <ToggleButton aria-label="Mustache" id={TemplateFormats.Mustache}>
-          Mustache
-        </ToggleButton>
-        <ToggleButton aria-label="F-String" id={TemplateFormats.FString}>
-          F-String
-        </ToggleButton>
-        {showNoneOption && (
-          <ToggleButton aria-label="None" id={TemplateFormats.NONE}>
-            None
-          </ToggleButton>
-        )}
-      </ToggleButtonGroup>
-    </div>
+      <SegmentedControlItem aria-label="Mustache" id={TemplateFormats.Mustache}>
+        Mustache
+      </SegmentedControlItem>
+      <SegmentedControlItem aria-label="F-String" id={TemplateFormats.FString}>
+        F-String
+      </SegmentedControlItem>
+      {showNoneOption && (
+        <SegmentedControlItem aria-label="None" id={TemplateFormats.NONE}>
+          None
+        </SegmentedControlItem>
+      )}
+    </SegmentedControl>
   );
 }

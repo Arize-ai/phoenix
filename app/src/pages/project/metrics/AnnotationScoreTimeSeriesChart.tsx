@@ -15,19 +15,20 @@ import {
   ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
+  compactChartMargin,
+  compactLegendProps,
+  compactTimeXAxisProps,
+  compactYAxisProps,
+  defaultCartesianGridProps,
+  defaultTooltipProps,
   InteractiveLegend,
   TimeRangeChartBrush,
   useBinTimeTickFormatter,
   useInteractiveLegend,
 } from "@phoenix/components/chart";
-import {
-  defaultCartesianGridProps,
-  defaultLegendProps,
-  defaultTimeXAxisProps,
-  defaultYAxisProps,
-} from "@phoenix/components/chart/defaults";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
+import { PROJECT_METRICS_CHART_SYNC_ID } from "@phoenix/pages/project/metrics/types";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 export type AnnotationScoreTimeSeriesDatum = {
@@ -49,11 +50,11 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
           )}`}</Text>
         )}
         {payload.map((entry, index) => {
-          if (!entry.value) return null;
+          if (entry.value == null) return null;
           return (
             <ChartTooltipItem
               key={index}
-              color={entry.color || "#FF00FF"} // hot pink, fail loudly.
+              color={entry.color}
               shape="line"
               name={String(entry.dataKey || "unknown")}
               value={Number(entry.value).toFixed(2)}
@@ -130,38 +131,26 @@ export function AnnotationScoreTimeSeriesChart({
         <ChartEmptyStateOverlay
           isEmpty={!hasData}
           message="No data in this time range"
+          chartType="line"
         >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={chartData}
-              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
-              syncId={"projectMetrics"}
+              margin={compactChartMargin}
+              syncId={PROJECT_METRICS_CHART_SYNC_ID}
               {...chartProps}
             >
               <XAxis
-                {...defaultTimeXAxisProps}
+                {...compactTimeXAxisProps}
                 domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
                 tickFormatter={(x) => timeTickFormatter(new Date(x))}
               />
               <YAxis
-                width={55}
+                {...compactYAxisProps}
                 tickFormatter={(x) => formatFloat(x)}
-                label={{
-                  value: "Score",
-                  angle: -90,
-                  dx: -28,
-                  style: {
-                    textAnchor: "middle",
-                    fill: "var(--chart-axis-label-color)",
-                  },
-                }}
-                {...defaultYAxisProps}
               />
-              <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
-              <Tooltip
-                content={TooltipContent}
-                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-              />
+              <CartesianGrid {...defaultCartesianGridProps} />
+              <Tooltip content={TooltipContent} {...defaultTooltipProps} />
 
               {names.map((name) => {
                 return (
@@ -174,7 +163,7 @@ export function AnnotationScoreTimeSeriesChart({
               })}
 
               <InteractiveLegend
-                {...defaultLegendProps}
+                {...compactLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
                 iconType="line"
                 iconSize={8}

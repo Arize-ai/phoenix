@@ -43,8 +43,8 @@ export const Default: Meta<typeof ToggleButtonGroup> = {
   args: {
     size: "M",
     isDisabled: false,
-    defaultSelectedKeys: ["1"],
-    selectionMode: "single",
+    defaultSelectedKeys: ["1", "3"],
+    selectionMode: "multiple",
   },
   argTypes: {
     size: {
@@ -61,13 +61,13 @@ const AsIconTemplate: StoryFn<ToggleButtonGroupProps> = (args) => (
     <View width="600px" padding="size-200">
       <ToggleButtonGroup aria-label="ToggleButtonGroupWithIcons" {...args}>
         <ToggleButton aria-label="Option 1" id="1">
-          <Icon svg={<Icons.Info />} />
+          <Icon svg={<Icons.InfoFilled />} />
         </ToggleButton>
         <ToggleButton aria-label="Option 2" id="2">
-          <Icon svg={<Icons.Info />} />
+          <Icon svg={<Icons.InfoFilled />} />
         </ToggleButton>
         <ToggleButton aria-label="Option 3" id="3">
-          <Icon svg={<Icons.Info />} />
+          <Icon svg={<Icons.InfoFilled />} />
         </ToggleButton>
       </ToggleButtonGroup>
     </View>
@@ -79,8 +79,8 @@ export const AsIcon: Meta<typeof ToggleButtonGroup> = {
   args: {
     size: "M",
     isDisabled: false,
-    defaultSelectedKeys: ["1"],
-    selectionMode: "single",
+    defaultSelectedKeys: ["1", "3"],
+    selectionMode: "multiple",
   },
   argTypes: {
     size: {

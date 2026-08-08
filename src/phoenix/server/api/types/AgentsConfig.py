@@ -17,6 +17,12 @@ class AgentsConfig:
             "Resolved from the PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME environment variable."
         ),
     )
+    force_tracing: bool = strawberry.field(
+        description=(
+            "Whether PXI tracing and remote export are forced for all users by the "
+            "PHOENIX_AGENTS_FORCE_TRACING environment variable."
+        ),
+    )
     web_access_enabled: bool = strawberry.field(
         description=(
             "Whether PXI can expose native web search and web fetch capabilities. "

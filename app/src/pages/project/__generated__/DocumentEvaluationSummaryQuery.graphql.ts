@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<77a1436d38e67b142ab66c24f3de1aa4>>
+ * @generated SignedSource<<e7d24788add42c01da6c6dc43b6726e0>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -68,21 +67,21 @@ v2 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "DocumentEvaluationSummaryQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
           {
-            "args": (v2/*: any*/),
+            "args": (v2/*:: as any*/),
             "kind": "FragmentSpread",
             "name": "DocumentEvaluationSummaryValueFragment"
           }
@@ -95,13 +94,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "DocumentEvaluationSummaryQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -126,7 +125,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": "DocumentEvaluationSummary",
                 "kind": "LinkedField",
                 "name": "documentEvaluationSummary",

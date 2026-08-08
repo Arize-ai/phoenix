@@ -111,6 +111,11 @@ type AgentsConfig {
   assistantProjectName: String!
 
   """
+  Whether PXI tracing and remote export are forced for all users by the PHOENIX_AGENTS_FORCE_TRACING environment variable.
+  """
+  forceTracing: Boolean!
+
+  """
   Whether PXI can expose native web search and web fetch capabilities. False when external resources are disabled or PHOENIX_AGENTS_DISABLE_WEB_ACCESS is true.
   """
   webAccessEnabled: Boolean!
@@ -213,6 +218,21 @@ input AnnotationFilterCondition {
   userIds: [ID]
 }
 
+type AnnotationMetricsTimeSeries {
+  data: [AnnotationMetricsTimeSeriesDataPoint!]!
+  names: [String!]!
+}
+
+type AnnotationMetricsTimeSeriesDataPoint {
+  timestamp: DateTime!
+  annotationSummaries: [AnnotationSummary!]!
+}
+
+type AnnotationNameCount {
+  name: String!
+  count: Int!
+}
+
 type AnnotationScoreTimeSeries {
   data: [AnnotationScoreTimeSeriesDataPoint!]!
   names: [String!]!
@@ -241,6 +261,11 @@ type AnnotationSummary {
   meanScore: Float
   scoreCount: Int!
   labelCount: Int!
+}
+
+enum AnnotationTimeRangeField {
+  ANNOTATION_CREATED_AT
+  SOURCE_START_TIME
 }
 
 enum AnnotationType {
@@ -934,6 +959,14 @@ type Dataset implements Node {
   description: String
   metadata: JSON!
   createdAt: DateTime!
+
+  """The user that created the dataset."""
+  createdBy: User
+
+  """
+  The user that last updated the dataset, i.e. the author of its latest version.
+  """
+  updatedBy: User
   updatedAt: DateTime!
   versions(first: Int = 50, last: Int, after: String, before: String, sort: DatasetVersionSort): DatasetVersionConnection!
 
@@ -962,8 +995,11 @@ type Dataset implements Node {
   """
   experimentCount(datasetVersionId: ID, includeEphemeral: Boolean = false): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String, includeEphemeral: Boolean = false, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
+
+  """The experiment tagged as this dataset's baseline, if one is set."""
+  baselineExperiment: Experiment
   experimentJobs(first: Int = 50, last: Int, after: String, before: String): ExperimentJobConnection!
-  experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
+  experimentAnnotationSummaries(includeEphemeral: Boolean = false): [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
 
   """Number of evaluators associated with this dataset."""
@@ -1132,6 +1168,9 @@ type DatasetLabel implements Node {
   name: String!
   description: String
   color: String!
+
+  """The number of datasets that this label is applied to."""
+  usageCount: Int!
 }
 
 """A connection to a list of items."""
@@ -1351,6 +1390,26 @@ input DeleteModelMutationInput {
 type DeleteModelMutationPayload {
   model: GenerativeModel!
   query: Query!
+}
+
+type DeleteProjectAnnotationsByNamePayload {
+  deletedAnnotationCount: Int!
+  query: Query!
+}
+
+input DeleteProjectAnnotationsInput {
+  projectId: ID!
+  annotationName: String!
+
+  """
+  If provided, only annotations whose timestamp falls within this range are deleted. The end of the range is right-exclusive.
+  """
+  timeRange: TimeRange
+
+  """
+  Which timestamp the time range is applied against. Defaults to the annotation's own creation time.
+  """
+  timeRangeField: AnnotationTimeRangeField! = ANNOTATION_CREATED_AT
 }
 
 input DeleteProjectTraceRetentionPolicyInput {
@@ -1664,6 +1723,7 @@ type Experiment implements Node {
   datasetVersion: DatasetVersion!
   dataset: Dataset!
   metadata: JSON!
+  isBaseline: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
 
@@ -1679,7 +1739,7 @@ type Experiment implements Node {
   Expected number of experiment runs: dataset examples in scope times repetitions.
   """
   expectedRunCount: Int!
-  annotationSummaries: [ExperimentAnnotationSummary!]!
+  annotationSummaries(annotationName: String): [ExperimentAnnotationSummary!]!
   errorRate: Float
   averageRunLatencyMs: Float
   project: Project
@@ -1699,6 +1759,7 @@ type ExperimentAnnotationSummary {
   errorCount: Int!
   scoreCount: Int!
   labelCount: Int!
+  labelFractions: [LabelFraction!]!
 }
 
 type ExperimentComparison implements Node {
@@ -2010,6 +2071,32 @@ type FailureDetail {
   errorType: String!
 }
 
+"""
+One bindable term in a filter DSL: its name, value type, gloss, and grouping. Grain-specific resolvers (e.g. Project.sessionFilterVocabulary) serve these as the single source for UI autocomplete, agent discovery, and docs.
+"""
+type FilterVocabularyTerm {
+  """The bindable name exactly as written in a filter expression."""
+  name: String!
+
+  """
+  Value-type hint for the comparand: 'string', 'number', 'datetime', or 'boolean'. Collections carry 'iterable' — they are looped over rather than compared. 'containment' marks a term that only takes `in` / `not in` against a string literal and never `==`.
+  """
+  type: String!
+
+  """Human-readable gloss of what the term means and how it evaluates."""
+  description: String!
+
+  """
+  Presentation/discovery grouping: 'session' (intrinsic column), 'aggregate' (per-session aggregate), 'attribute' (root-span attribute path), 'annotation' (session annotation access), 'iterable' (a collection a comprehension can loop over), or 'element' (a field of one such collection's elements).
+  """
+  category: String!
+
+  """
+  Name of the iterable term whose elements expose this name, or null when the term binds at the top level. An 'element' term is only writable inside a comprehension over that iterable, qualified by the loop variable — e.g. latency_ms with iterableName 'spans' is written any(s.latency_ms > 1000 for s in spans), never bare.
+  """
+  iterableName: String
+}
+
 type FreeformAnnotationConfig implements Node & AnnotationConfigBase {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -2055,8 +2142,16 @@ type GenerativeModel implements Node & ModelInterface {
   updatedAt: DateTime!
   startTime: DateTime
   tokenPrices: [TokenPrice!]!
+
+  """
+  Total cost for this model. Narrowing by project or time range is only answered on the topModelsByCost and topModelsByToken paths, which precompute the scoped summary; any other caller passing projectId or timeRange gets an error. Unlike costDetailSummaryEntries, this field cannot yet resolve an arbitrary scope.
+  """
   costSummary(projectId: ID, timeRange: TimeRange): SpanCostSummary!
-  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+
+  """
+  Cost and token counts for this model, broken down by token type. Both arguments are optional filters: projectId limits the breakdown to spans in one project, timeRange to spans that started within it, and omitting both returns the model's usage across all projects and time.
+  """
+  costDetailSummaryEntries(projectId: ID, timeRange: TimeRange): [SpanCostDetailSummaryEntry!]!
   lastUsedAt: DateTime
 }
 
@@ -2338,6 +2433,10 @@ input ModelsInput {
   openaiApiType: OpenAIApiType = null
 }
 
+input MontyConfigInput {
+  language: Language! = PYTHON
+}
+
 type Mutation {
   createAnnotationConfig(input: CreateAnnotationConfigInput!): CreateAnnotationConfigPayload!
   updateAnnotationConfig(input: UpdateAnnotationConfigInput!): UpdateAnnotationConfigPayload!
@@ -2391,6 +2490,7 @@ type Mutation {
   dismissExperiment(experimentId: ID!): DismissExperimentPayload!
   reinstateExperiment(experimentId: ID!): ReinstateExperimentPayload!
   patchExperiment(input: PatchExperimentInput!): PatchExperimentPayload!
+  setExperimentBaseline(experimentId: ID!, baseline: Boolean!): SetExperimentBaselinePayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
   createGenerativeModelCustomProvider(input: CreateGenerativeModelCustomProviderMutationInput!): CreateGenerativeModelCustomProviderMutationPayload!
   patchGenerativeModelCustomProvider(input: PatchGenerativeModelCustomProviderMutationInput!): PatchGenerativeModelCustomProviderMutationPayload!
@@ -2399,6 +2499,22 @@ type Mutation {
   createModel(input: CreateModelMutationInput!): CreateModelMutationPayload!
   updateModel(input: UpdateModelMutationInput!): UpdateModelMutationPayload!
   deleteModel(input: DeleteModelMutationInput!): DeleteModelMutationPayload!
+  revokeOAuth2Grant(input: RevokeOAuth2GrantInput!): RevokeOAuth2GrantMutationPayload!
+
+  """
+  Delete every span annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectSpanAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
+
+  """
+  Delete every trace annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectTraceAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
+
+  """
+  Delete every session annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectSessionAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
   createProject(input: CreateProjectInput!): ProjectMutationPayload!
   deleteProject(id: ID!): Query!
   clearProject(input: ClearProjectInput!): Query!
@@ -2447,6 +2563,19 @@ type Mutation {
 interface Node {
   """The Globally Unique ID of this object"""
   id: ID!
+}
+
+type OAuth2Grant implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  user: User!
+  clientName: String!
+  isFirstParty: Boolean!
+  clientId: String!
+  scopes: [String!]!
+  createdAt: DateTime!
+  expiresAt: DateTime
+  lastUsedAt: DateTime
 }
 
 enum OpenAIApiType {
@@ -2674,17 +2803,61 @@ type Project implements Node {
 
   """Whether the project has any trace data."""
   hasTraces: Boolean!
+
+  """
+  Number of spans in the project. sessionFilterCondition restricts the result to the sessions matching a session filter expression (see sessionFilterVocabulary). It is an expression, not a substring of the session's input/output.
+  """
   recordCount(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Int!
+
+  """
+  Number of traces in the project. sessionFilterCondition restricts the result to the sessions matching a session filter expression (see sessionFilterVocabulary). It is an expression, not a substring of the session's input/output.
+  """
   traceCount(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Int!
   tokenCountTotal(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountPrompt(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Float!
+
+  """
+  Token cost totals across the project's spans. sessionFilterCondition restricts the result to the sessions matching a session filter expression (see sessionFilterVocabulary). It is an expression, not a substring of the session's input/output.
+  """
   costSummary(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): SpanCostSummary!
+
+  """
+  Quantile (e.g. p50, p99) of trace latency in milliseconds. sessionFilterCondition restricts the result to the sessions matching a session filter expression (see sessionFilterVocabulary). It is an expression, not a substring of the session's input/output.
+  """
   latencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
+
+  """
+  Quantile (e.g. p50, p99) of span latency in milliseconds. sessionFilterCondition restricts the result to the sessions matching a session filter expression (see sessionFilterVocabulary). It is an expression, not a substring of the session's input/output.
+  """
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
   trace(traceId: ID!): Trace
-  spans(timeRange: TimeRange, first: Int!, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
-  sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String): ProjectSessionConnection!
+  spans(first: Int!, timeRange: TimeRange, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
+
+  """
+  Sessions in the project. The time range filter uses interval-overlap semantics: a session is included iff [startTime, endTime] intersects [timeRange.start, timeRange.end), i.e. the session had activity inside the window. Long-running sessions therefore appear in every window they overlap. sessionFilterCondition is a session filter expression (see sessionFilterVocabulary).
+  """
+  sessions(first: Int!, timeRange: TimeRange, after: String, sort: ProjectSessionSort, sessionFilterCondition: String): ProjectSessionConnection!
+
+  """
+  Number of sessions in the project, optionally filtered by a time range or a session filter expression.
+  """
+  sessionCount(timeRange: TimeRange, sessionFilterCondition: String): Int!
+
+  """
+  Average session duration in milliseconds, i.e. the mean of end time minus start time across sessions, optionally filtered by a time range or a session filter expression (see sessionFilterVocabulary).
+  """
+  averageSessionDurationMs(timeRange: TimeRange, sessionFilterCondition: String): Float
+
+  """
+  Average number of traces per session, optionally filtered by a time range or a session filter expression (see sessionFilterVocabulary).
+  """
+  averageTracesPerSession(timeRange: TimeRange, sessionFilterCondition: String): Float
+
+  """
+  Quantile (e.g. p50, p99) of session duration in milliseconds, i.e. end time minus start time, optionally filtered by a time range or a session filter expression (see sessionFilterVocabulary).
+  """
+  sessionDurationMsQuantile(probability: Float!, timeRange: TimeRange, sessionFilterCondition: String): Float
 
   """
   Names of all available annotations for traces. (The list contains no duplicates.)
@@ -2701,13 +2874,71 @@ type Project implements Node {
   """
   sessionAnnotationNames: [String!]!
 
+  """
+  Names of span annotations with a score or label in the requested time range.
+  """
+  spanAnnotationMetricNames(timeRange: TimeRange!): [String!]!
+
+  """
+  Names of trace annotations with a score or label in the requested time range.
+  """
+  traceAnnotationMetricNames(timeRange: TimeRange!): [String!]!
+
+  """
+  Names of session annotations with a score or label in the requested time range.
+  """
+  sessionAnnotationMetricNames(timeRange: TimeRange!): [String!]!
+
+  """
+  Span annotation names along with the number of span annotations that have been added for each name in this project.
+  """
+  spanAnnotationNameCounts: [AnnotationNameCount!]!
+
+  """
+  Trace annotation names along with the number of trace annotations that have been added for each name in this project.
+  """
+  traceAnnotationNameCounts: [AnnotationNameCount!]!
+
+  """
+  Session annotation names along with the number of session annotations that have been added for each name in this project.
+  """
+  sessionAnnotationNameCounts: [AnnotationNameCount!]!
+
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
+
+  """
+  Summary (score and label fractions) of a trace annotation across the project's traces. sessionFilterCondition restricts the result to the sessions matching a session filter expression (see sessionFilterVocabulary). It is an expression, not a substring of the session's input/output.
+  """
   traceAnnotationSummary(annotationName: String!, filterCondition: String, sessionFilterCondition: String, timeRange: TimeRange): AnnotationSummary
+
+  """
+  Summary (score and label fractions) of a span annotation across the project's spans. sessionFilterCondition restricts the result to the sessions matching a session filter expression (see sessionFilterVocabulary). It is an expression, not a substring of the session's input/output.
+  """
   spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): AnnotationSummary
+
+  """
+  Summary (score and label fractions) of a session annotation across the project's sessions, optionally filtered by a time range or a session filter expression (see sessionFilterVocabulary).
+  """
+  sessionAnnotationSummary(annotationName: String!, timeRange: TimeRange, sessionFilterCondition: String): AnnotationSummary
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
+
+  """
+  How a span filter condition relates to root-span scoping, so clients need not parse the DSL. Structural only; use `validateSpanFilterCondition` to check validity.
+  """
+  analyzeSpanFilterCondition(condition: String!): SpanFilterConditionAnalysis!
+
+  """
+  Validate a session filter expression without executing it. A condition that fails to compile returns isValid=false with an errorMessage; a condition that compiles but references names not observed in this project (e.g. an annotation name) returns isValid=true with advisory warnings.
+  """
+  validateSessionFilterCondition(condition: String!): ValidationResult!
+
+  """
+  The bindable terms of the session filter expression language for this project, for autocomplete, agent discovery, and docs. Static terms derive from the filter compiler's own bindings so they cannot drift from what compiles; observed per-project names (session annotations, root-span attribute paths) are folded in. Observed names come from the project's 1000 most recently started sessions; root-span attributes are sampled newest-first within that window up to a 2 MiB scan budget. This is a discovery aid rather than a complete list: a name that only older sessions carry drops out of the suggestions once 1000 newer sessions exist, and still filters correctly when typed by hand.
+  """
+  sessionFilterVocabulary: [FilterVocabularyTerm!]!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
@@ -2721,6 +2952,9 @@ type Project implements Node {
   spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
   traceAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
   sessionAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
+  spanAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
+  traceAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
+  sessionAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
   topModelsByCost(timeRange: TimeRange!): [GenerativeModel!]!
   topModelsByTokenCount(timeRange: TimeRange!): [GenerativeModel!]!
 }
@@ -2774,6 +3008,11 @@ type ProjectSession implements Node {
   numTracesWithError: Int!
   firstInput: SpanIOValue
   lastOutput: SpanIOValue
+
+  """
+  The first non-null "user.id" span attribute in the session, identifying the end user of the traced application.
+  """
+  userId: String
   tokenUsage: TokenUsage!
   traces(first: Int!, last: Int, after: String, before: String): TraceConnection!
   traceLatencyMsQuantile(probability: Float!): Float
@@ -2827,10 +3066,10 @@ type ProjectSessionAnnotation implements Node & Annotation {
   """The identifier of the annotation."""
   identifier: String!
 
-  """The date and time the annotation was created."""
+  """The date and time when the annotation was created."""
   createdAt: DateTime!
 
-  """The date and time the annotation was last updated."""
+  """The date and time when the annotation was last updated."""
   updatedAt: DateTime!
 
   """The user that produced the annotation."""
@@ -2946,7 +3185,18 @@ type Prompt implements Node {
   description: String
   metadata: JSON!
   createdAt: DateTime!
+
+  """
+  The user that created the prompt, i.e. the author of its first version.
+  """
+  createdBy: User
+
+  """
+  The user that last updated the prompt, i.e. the author of its latest version.
+  """
+  updatedBy: User
   version(versionId: ID = null, tagName: Identifier = null): PromptVersion!
+  versionCount: Int!
   versionTags: [PromptVersionTag!]!
   promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
   sourcePrompt: Prompt
@@ -3115,6 +3365,9 @@ type PromptLabel implements Node {
   name: String!
   description: String
   color: String
+
+  """The number of prompts that this label is applied to."""
+  usageCount: Int!
 }
 
 type PromptLabelAssociationMutationPayload {
@@ -3393,6 +3646,7 @@ type Query {
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!
+  oauth2Grants: [OAuth2Grant!]!
   systemApiKeys: [SystemApiKey!]!
   projects(first: Int = 50, last: Int, after: String, before: String, sort: ProjectSort, filter: ProjectFilter): ProjectConnection!
   projectsLastUpdatedAt: DateTime
@@ -3404,6 +3658,11 @@ type Query {
   node(id: ID!): Node!
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
+
+  """
+  Search top-level resources (projects, datasets, experiments, and prompts) by name or description.
+  """
+  searchResources(query: String!, limitPerType: Int! = 5): [SearchResult!]!
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
   datasetLabels(
     first: Int = 50
@@ -3496,6 +3755,15 @@ enum RevisionKind {
   DELETE
 }
 
+input RevokeOAuth2GrantInput {
+  id: ID!
+}
+
+type RevokeOAuth2GrantMutationPayload {
+  grantId: ID!
+  query: Query!
+}
+
 type SandboxBackendInfo {
   backendType: SandboxBackendType!
   displayName: String!
@@ -3507,6 +3775,8 @@ type SandboxBackendInfo {
   supportsEnvVars: Boolean!
   internetAccess: InternetAccessMode!
   supportsDependencies: Boolean!
+  languageDialect: SandboxLanguageDialect!
+  runtimeNotes: String!
   credentialSpecs: [SandboxProviderCredentialSpec!]!
 }
 
@@ -3525,6 +3795,7 @@ enum SandboxBackendType {
   VERCEL
   DENO
   MODAL
+  MONTY
 }
 
 type SandboxConfig implements Node {
@@ -3572,6 +3843,7 @@ input SandboxConfigVariantInput @oneOf {
   vercel: VercelConfigInput
   wasm: WASMConfigInput
   modal: ModalConfigInput
+  monty: MontyConfigInput
 }
 
 """
@@ -3587,6 +3859,11 @@ input SandboxDeploymentVariantInput @oneOf {
 enum SandboxHostingType {
   LOCAL
   HOSTED
+}
+
+enum SandboxLanguageDialect {
+  FULL
+  RESTRICTED
 }
 
 type SandboxProvider implements Node {
@@ -3611,6 +3888,11 @@ type SandboxProviderCredentialSpec {
   description: String!
   isRequired: Boolean!
 }
+
+"""
+An entity returned by global search. One of the searchable resource types: Project, Dataset, Experiment, or Prompt.
+"""
+union SearchResult = Project | Dataset | Experiment | Prompt
 
 type Secret implements Node {
   """The Globally Unique ID of this object"""
@@ -3697,6 +3979,12 @@ type SetDatasetLabelsMutationPayload {
   dataset: Dataset!
 }
 
+type SetExperimentBaselinePayload {
+  dataset: Dataset!
+  experiment: Experiment!
+  previousBaselineExperiment: Experiment
+}
+
 input SetPromptLabelsInput {
   promptId: ID!
   promptLabelIds: [ID!]!
@@ -3745,6 +4033,11 @@ type Span implements Node {
 
   """Metadata as a JSON string"""
   metadata: String
+
+  """
+  The "user.id" attribute of the span, identifying the end user of the traced application.
+  """
+  userId: String
   numDocuments: Int
 
   """
@@ -3980,6 +4273,13 @@ type SpanEvent {
   attributes: JSON!
 }
 
+type SpanFilterConditionAnalysis {
+  """
+  Whether a root predicate (`parent_span is None` or `parent_id is None`) binds every row the condition can match. `true` is a guarantee; `false` means not established, not that non-root spans are admitted.
+  """
+  selectsRootSpansOnly: Boolean!
+}
+
 type SpanIOValue {
   mimeType: MimeType!
 
@@ -4205,6 +4505,11 @@ type Trace implements Node {
   projectSessionId: ID
   session: ProjectSession
   rootSpan: Span
+
+  """
+  The first non-null "user.id" span attribute in the trace, identifying the end user of the traced application.
+  """
+  userId: String
   numSpans: Int!
 
   """
@@ -4509,6 +4814,9 @@ type User implements Node {
   authMethod: AuthMethod!
   role: UserRole!
   apiKeys: [UserApiKey!]!
+  oauth2Grants: [OAuth2Grant!]!
+  apiKeyCount: Int!
+  oauth2GrantCount: Int!
   isManagementUser: Boolean!
 }
 
@@ -4567,6 +4875,7 @@ enum UserRoleInput {
 type ValidationResult {
   isValid: Boolean!
   errorMessage: String
+  warnings: [String!]!
 }
 
 input VercelConfigInput {

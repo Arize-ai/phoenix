@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<97f6a7e5ffcb27e2911ba52e0d033048>>
+ * @generated SignedSource<<7ceec7fef80ad3705b7eabf1d015db3e>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -28,7 +27,7 @@ var v0 = {
   "storageKey": null
 },
 v1 = [
-  (v0/*: any*/),
+  (v0/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -87,7 +86,7 @@ return {
         "kind": "LinkedField",
         "name": "systemApiKeys",
         "plural": true,
-        "selections": (v1/*: any*/),
+        "selections": (v1/*:: as any*/),
         "storageKey": null
       },
       {
@@ -105,26 +104,26 @@ return {
             "kind": "LinkedField",
             "name": "apiKeys",
             "plural": true,
-            "selections": (v1/*: any*/),
+            "selections": (v1/*:: as any*/),
             "storageKey": null
           },
-          (v0/*: any*/)
+          (v0/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "e74fe5502ea6e732c2aecb5cef899623",
+    "cacheID": "b0f21df4cede50ae3e7c37051be79a04",
     "id": null,
     "metadata": {},
     "name": "SystemAPIKeysTableQuery",
     "operationKind": "query",
-    "text": "query SystemAPIKeysTableQuery {\n  ...SystemAPIKeysTableFragment\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  viewer {\n    ...APIKeysTableFragment\n    id\n  }\n}\n"
+    "text": "query SystemAPIKeysTableQuery {\n  ...SystemAPIKeysTableFragment\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  viewer {\n    ...ViewerAPIKeysListFragment\n    id\n  }\n}\n\nfragment ViewerAPIKeysListFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "459f07f740e1b27f3839eedd3eff3083";
+(node as any).hash = "e6aa59faf8f449c0eb954a4e4b14761b";
 
 export default node;

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<c45c25a6c9eade2eaae88c05cc6704e0>>
+ * @generated SignedSource<<84020433bc7555bfb98ae64c155dcf90>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -52,7 +51,7 @@ v3 = {
   "variableName": "timeRange"
 },
 v4 = [
-  (v3/*: any*/)
+  (v3/*:: as any*/)
 ],
 v5 = [
   {
@@ -66,8 +65,8 @@ v5 = [
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -75,7 +74,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -96,15 +95,15 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "ProjectStatsQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -129,14 +128,14 @@ return {
             "selections": [
               {
                 "alias": "timeRangeTraceCount",
-                "args": (v4/*: any*/),
+                "args": (v4/*:: as any*/),
                 "kind": "ScalarField",
                 "name": "traceCount",
                 "storageKey": null
               },
               {
                 "alias": null,
-                "args": (v4/*: any*/),
+                "args": (v4/*:: as any*/),
                 "concreteType": "SpanCostSummary",
                 "kind": "LinkedField",
                 "name": "costSummary",
@@ -149,7 +148,7 @@ return {
                     "kind": "LinkedField",
                     "name": "total",
                     "plural": false,
-                    "selections": (v5/*: any*/),
+                    "selections": (v5/*:: as any*/),
                     "storageKey": null
                   },
                   {
@@ -159,7 +158,7 @@ return {
                     "kind": "LinkedField",
                     "name": "prompt",
                     "plural": false,
-                    "selections": (v5/*: any*/),
+                    "selections": (v5/*:: as any*/),
                     "storageKey": null
                   },
                   {
@@ -169,7 +168,7 @@ return {
                     "kind": "LinkedField",
                     "name": "completion",
                     "plural": false,
-                    "selections": (v5/*: any*/),
+                    "selections": (v5/*:: as any*/),
                     "storageKey": null
                   }
                 ],
@@ -183,7 +182,7 @@ return {
                     "name": "probability",
                     "value": 0.5
                   },
-                  (v3/*: any*/)
+                  (v3/*:: as any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "latencyMsQuantile",
@@ -197,7 +196,7 @@ return {
                     "name": "probability",
                     "value": 0.99
                   },
-                  (v3/*: any*/)
+                  (v3/*:: as any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "latencyMsQuantile",

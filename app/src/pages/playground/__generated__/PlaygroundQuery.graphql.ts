@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<afe2035812d59e33aeef88825b7c2946>>
+ * @generated SignedSource<<880cbb9d094338749c407df0b1f432d1>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -63,7 +62,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "PlaygroundQuery",
-    "selections": (v0/*: any*/),
+    "selections": (v0/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -72,7 +71,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "PlaygroundQuery",
-    "selections": (v0/*: any*/)
+    "selections": (v0/*:: as any*/)
   },
   "params": {
     "cacheID": "f19ebe151a3a9794fa2566c66751d259",

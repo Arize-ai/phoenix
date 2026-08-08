@@ -21,7 +21,6 @@ import {
   LinkButton,
   Loading,
   Menu,
-  MenuEmpty,
   MenuFooter,
   MenuHeader,
   MenuHeaderTitle,
@@ -32,6 +31,7 @@ import {
   type Selection,
   useFilter,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import type { UseDatasetLabelMutationsParams } from "@phoenix/components/dataset/useDatasetLabelMutations";
 import { useDatasetLabelMutations } from "@phoenix/components/dataset/useDatasetLabelMutations";
@@ -57,7 +57,7 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
       <Button
         variant={variant}
         size="M"
-        leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
+        leadingVisual={<Icon svg={<Icons.PriceTags />} />}
         aria-label="Configure dataset labels"
       >
         Label
@@ -199,7 +199,8 @@ function DatasetLabelList({
               <Button
                 variant="quiet"
                 size="S"
-                leadingVisual={<Icon svg={<Icons.ChevronLeft />} />}
+                aria-label="Back to labels"
+                leadingVisual={<Icon svg={<Icons.ChevronLeftSmall />} />}
                 onPress={() => setMode("apply")}
               />
             ) : undefined
@@ -209,7 +210,8 @@ function DatasetLabelList({
               <Button
                 variant="quiet"
                 size="S"
-                leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+                aria-label="Create new label"
+                leadingVisual={<Icon svg={<Icons.Plus />} />}
                 onPress={() => setMode("create")}
               />
             ) : undefined
@@ -233,7 +235,12 @@ function DatasetLabelList({
               selectionMode="multiple"
               selectedKeys={selected}
               onSelectionChange={onSelectionChange}
-              renderEmptyState={() => <MenuEmpty>No labels found</MenuEmpty>}
+              renderEmptyState={() => (
+                <CompactEmptyState
+                  icon={<Icon svg={<Icons.PriceTags />} />}
+                  description="No labels"
+                />
+              )}
             >
               {({ id, name, color }) => (
                 <MenuItem

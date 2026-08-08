@@ -108,7 +108,7 @@ function DatasetEvaluatorDetailsPageContent({
           <Button
             variant="primary"
             onPress={() => setIsEditSlideoverOpen(true)}
-            leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+            leadingVisual={<Icon svg={<Icons.Edit />} />}
           >
             Edit
           </Button>

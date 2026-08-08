@@ -53,8 +53,8 @@ export const ReadOnlyContinuousConfig = ({
     <div
       css={css`
         border-radius: var(--global-rounding-medium);
-        padding: var(--global-dimension-static-size-200);
-        margin-top: var(--global-dimension-static-size-50);
+        padding: var(--global-dimension-size-200);
+        margin-top: var(--global-dimension-size-50);
         border: 1px solid var(--global-border-color-default);
       `}
     >

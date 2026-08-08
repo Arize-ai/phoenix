@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<b81254593eb3518e6a20ea29571c36ec>>
+ * @generated SignedSource<<376245cef500c79a035f9f171a3fd2cf>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -41,7 +40,6 @@ export type SpanAside_span$data = {
   };
   readonly startTime: string;
   readonly tokenCountTotal: number | null;
-  readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup" | "SpanAsideAnnotationList_span" | "TraceHeaderRootSpanAnnotationsFragment">;
   readonly " $fragmentType": "SpanAside_span";
 };
 export type SpanAside_span$key = {
@@ -77,7 +75,7 @@ return {
   "metadata": null,
   "name": "SpanAside_span",
   "selections": [
-    (v0/*: any*/),
+    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -86,7 +84,7 @@ return {
       "name": "project",
       "plural": false,
       "selections": [
-        (v0/*: any*/),
+        (v0/*:: as any*/),
         {
           "args": null,
           "kind": "FragmentSpread",
@@ -119,7 +117,7 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v0/*: any*/)
+                        (v0/*:: as any*/)
                       ],
                       "type": "Node",
                       "abstractKey": "__isNode"
@@ -127,7 +125,7 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v1/*: any*/),
+                        (v1/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -195,7 +193,7 @@ return {
                           "name": "upperBound",
                           "storageKey": null
                         },
-                        (v2/*: any*/)
+                        (v2/*:: as any*/)
                       ],
                       "type": "ContinuousAnnotationConfig",
                       "abstractKey": null
@@ -203,8 +201,8 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v1/*: any*/),
-                        (v2/*: any*/),
+                        (v1/*:: as any*/),
+                        (v2/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -255,21 +253,6 @@ return {
       "kind": "ScalarField",
       "name": "tokenCountTotal",
       "storageKey": null
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "TraceHeaderRootSpanAnnotationsFragment"
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "SpanAsideAnnotationList_span"
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "AnnotationSummaryGroup"
     }
   ],
   "type": "Span",
@@ -277,6 +260,6 @@ return {
 };
 })();
 
-(node as any).hash = "87690ad6c936ad1bf3581fd411e71b68";
+(node as any).hash = "733e417c51d5f7a5f000eb7e16c1fc2e";
 
 export default node;

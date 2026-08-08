@@ -5,28 +5,34 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
-import { usePreferencesContext } from "@phoenix/contexts";
 
-export function SideNavToggleButton() {
-  const { isSideNavExpanded, setIsSideNavExpanded } = usePreferencesContext(
-    (state) => ({
-      isSideNavExpanded: state.isSideNavExpanded,
-      setIsSideNavExpanded: state.setIsSideNavExpanded,
-    })
-  );
+export function SideNavToggleButton({
+  isExpanded,
+  isDisabled,
+  onExpandedChange,
+}: {
+  isExpanded: boolean;
+  isDisabled: boolean;
+  onExpandedChange: (isExpanded: boolean) => void;
+}) {
   return (
     <TooltipTrigger>
       <IconButton
         size="S"
-        onPress={() => setIsSideNavExpanded(!isSideNavExpanded)}
-        aria-label={isSideNavExpanded ? "Collapse side" : "Expand side"}
+        onPress={() => onExpandedChange(!isExpanded)}
+        aria-label={
+          isExpanded ? "Collapse side navigation" : "Expand side navigation"
+        }
+        isDisabled={isDisabled}
       >
-        <Icon
-          svg={isSideNavExpanded ? <Icons.SlideOut /> : <Icons.SlideIn />}
-        />
+        <Icon svg={isExpanded ? <Icons.SlideOut /> : <Icons.SlideIn />} />
       </IconButton>
       <Tooltip placement="bottom" offset={10}>
-        {isSideNavExpanded ? "Collapse" : "Expand"}
+        {isDisabled
+          ? "Side navigation is collapsed at this screen size"
+          : isExpanded
+            ? "Collapse"
+            : "Expand"}
       </Tooltip>
     </TooltipTrigger>
   );

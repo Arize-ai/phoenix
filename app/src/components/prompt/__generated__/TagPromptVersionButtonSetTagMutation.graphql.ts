@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<c87d6f7d547852da71812625de131105>>
+ * @generated SignedSource<<b3fa0ad79902b6037342a6dd66bfbf41>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -69,14 +68,14 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "TagPromptVersionButtonSetTagMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "PromptVersionTagMutationPayload",
         "kind": "LinkedField",
         "name": "setPromptVersionTag",
@@ -92,7 +91,7 @@ return {
             "selections": [
               {
                 "alias": "prompt",
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -125,13 +124,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "TagPromptVersionButtonSetTagMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "PromptVersionTagMutationPayload",
         "kind": "LinkedField",
         "name": "setPromptVersionTag",
@@ -147,7 +146,7 @@ return {
             "selections": [
               {
                 "alias": "prompt",
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -187,7 +186,7 @@ return {
                                 "name": "node",
                                 "plural": false,
                                 "selections": [
-                                  (v3/*: any*/),
+                                  (v3/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -217,7 +216,7 @@ return {
                                     "name": "user",
                                     "plural": false,
                                     "selections": [
-                                      (v3/*: any*/),
+                                      (v3/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -243,7 +242,7 @@ return {
                                     "name": "tags",
                                     "plural": true,
                                     "selections": [
-                                      (v3/*: any*/),
+                                      (v3/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -267,7 +266,7 @@ return {
                     "type": "Prompt",
                     "abstractKey": null
                   },
-                  (v3/*: any*/)
+                  (v3/*:: as any*/)
                 ],
                 "storageKey": null
               }

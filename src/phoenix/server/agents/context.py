@@ -47,18 +47,14 @@ class ProjectContext(_ChatContextBase):
 
     ``span_filter`` carries the project-scoped span filter expression when the
     span filter field is mounted — empty string when the field is mounted with
-    no condition applied, ``None`` when the field is not present at all.
-
-    ``root_spans_only`` carries the current state of the spans-table root vs.
-    all toggle when that toggle is mounted — ``True`` when the table is
-    restricted to root spans, ``False`` when it shows every span, ``None``
-    when the toggle is not present (e.g. on the traces tab).
+    no condition applied, ``None`` when the field is not present at all. It
+    describes the view in full, root-span scoping included (which is expressed
+    within the filter DSL as ``parent_id is None``).
     """
 
     type: Literal["project"]
     project_node_id: str = Field(alias="projectNodeId")
     span_filter: str | None = Field(default=None, alias="spanFilter")
-    root_spans_only: bool | None = Field(default=None, alias="rootSpansOnly")
 
 
 class TraceContext(_ChatContextBase):
@@ -73,6 +69,21 @@ class SessionContext(_ChatContextBase):
     type: Literal["session"]
     project_node_id: str = Field(alias="projectNodeId")
     session_node_id: str = Field(alias="sessionNodeId")
+
+
+class PromptContext(_ChatContextBase):
+    """Prompt the user is currently viewing."""
+
+    type: Literal["prompt"]
+    prompt_node_id: str = Field(alias="promptNodeId")
+
+
+class PromptVersionContext(_ChatContextBase):
+    """Prompt version the user is currently viewing."""
+
+    type: Literal["prompt_version"]
+    prompt_node_id: str = Field(alias="promptNodeId")
+    prompt_version_node_id: str = Field(alias="promptVersionNodeId")
 
 
 class AgentSpanContext(_ChatContextBase):
@@ -248,6 +259,8 @@ class ChatContext(
             | ProjectContext
             | TraceContext
             | SessionContext
+            | PromptContext
+            | PromptVersionContext
             | AgentSpanContext
             | PlaygroundContext
             | CodeEvaluatorContext
@@ -269,6 +282,8 @@ class ResolvedContexts:
     project: ProjectContext | None = None
     trace: TraceContext | None = None
     session: SessionContext | None = None
+    prompt: PromptContext | None = None
+    prompt_version: PromptVersionContext | None = None
     span: AgentSpanContext | None = None
     playground: PlaygroundContext | None = None
     code_evaluator: CodeEvaluatorContext | None = None
@@ -299,6 +314,10 @@ def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
             resolved.trace = context_value
         elif isinstance(context_value, SessionContext):
             resolved.session = context_value
+        elif isinstance(context_value, PromptContext):
+            resolved.prompt = context_value
+        elif isinstance(context_value, PromptVersionContext):
+            resolved.prompt_version = context_value
         elif isinstance(context_value, AgentSpanContext):
             resolved.span = context_value
         elif isinstance(context_value, GraphQLContext):

@@ -55,3 +55,12 @@ class DatasetLabel(Node):
                 (self.id, models.DatasetLabel.color),
             )
         return val
+
+    @strawberry.field(
+        description="The number of datasets that this label is applied to.",
+    )  # type: ignore
+    async def usage_count(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        return await info.context.data_loaders.dataset_label_usage_counts.load(self.id)

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<9c055cca3660f26e247e0bebcaa77d60>>
+ * @generated SignedSource<<1277306c3c28f2ed7bc032975716f270>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -20,6 +19,7 @@ export type ProjectsPageProjectMetricsQuery$variables = {
 export type ProjectsPageProjectMetricsQuery$data = {
   readonly project: {
     readonly latencyMsP50?: number | null;
+    readonly sessionCount?: number;
     readonly traceCount?: number;
   };
 };
@@ -53,16 +53,24 @@ v2 = {
   "name": "timeRange",
   "variableName": "timeRange"
 },
-v3 = {
+v3 = [
+  (v2/*:: as any*/)
+],
+v4 = {
   "kind": "InlineFragment",
   "selections": [
     {
       "alias": null,
-      "args": [
-        (v2/*: any*/)
-      ],
+      "args": (v3/*:: as any*/),
       "kind": "ScalarField",
       "name": "traceCount",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": (v3/*:: as any*/),
+      "kind": "ScalarField",
+      "name": "sessionCount",
       "storageKey": null
     },
     {
@@ -73,7 +81,7 @@ v3 = {
           "name": "probability",
           "value": 0.5
         },
-        (v2/*: any*/)
+        (v2/*:: as any*/)
       ],
       "kind": "ScalarField",
       "name": "latencyMsQuantile",
@@ -85,20 +93,20 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ProjectsPageProjectMetricsQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/)
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -108,13 +116,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ProjectsPageProjectMetricsQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -127,7 +135,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v3/*: any*/),
+          (v4/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -141,16 +149,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fe700bb5c4a22149fbc01725d5fd0c27",
+    "cacheID": "553ac50ff40ac07db72e898c674e3c53",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageProjectMetricsQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageProjectMetricsQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      traceCount(timeRange: $timeRange)\n      latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectsPageProjectMetricsQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      traceCount(timeRange: $timeRange)\n      sessionCount(timeRange: $timeRange)\n      latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a3d9bb6d55795e9afa84514d8d1dcba1";
+(node as any).hash = "cf6f06fed15329c04328ddacfbde14d0";
 
 export default node;

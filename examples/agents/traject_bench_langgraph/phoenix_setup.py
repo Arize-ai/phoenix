@@ -27,9 +27,13 @@ PHOENIX_PROJECT_NAME = "traject-bench-langgraph"
 def _resolve_endpoint(default: str) -> str:
     """Resolve OTLP traces endpoint, preferring PHOENIX_COLLECTOR_ENDPOINT env var.
 
-    Appends `/v1/traces` if the env var points at a base URL.
+    Falls back to PHOENIX_ENDPOINT (the Phoenix base URL) so a single variable can
+    configure both the UI link and trace export. Appends `/v1/traces` if the value
+    points at a base URL.
     """
-    env_endpoint = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT")
+    env_endpoint = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT") or os.environ.get(
+        "PHOENIX_ENDPOINT"
+    )
     if not env_endpoint:
         return default
     env_endpoint = env_endpoint.rstrip("/")
@@ -41,9 +45,13 @@ def _resolve_endpoint(default: str) -> str:
 def phoenix_ui_url() -> str:
     """Return the Phoenix UI base URL (without the OTLP `/v1/traces` suffix).
 
-    Uses PHOENIX_COLLECTOR_ENDPOINT if set, otherwise the local default.
+    Prefers PHOENIX_ENDPOINT, then PHOENIX_COLLECTOR_ENDPOINT, then the local default.
     """
-    base = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT", PHOENIX_UI_URL_DEFAULT).rstrip("/")
+    base = (
+        os.environ.get("PHOENIX_ENDPOINT")
+        or os.environ.get("PHOENIX_COLLECTOR_ENDPOINT")
+        or PHOENIX_UI_URL_DEFAULT
+    ).rstrip("/")
     if base.endswith("/v1/traces"):
         base = base[: -len("/v1/traces")]
     return base

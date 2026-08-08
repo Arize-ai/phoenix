@@ -31,12 +31,13 @@ import { Skeleton } from "@phoenix/components/core/loading";
 import type { ExecutionState } from "@phoenix/components/core/types";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { ExperimentRunAnnotationFiltersList } from "@phoenix/pages/experiment/ExperimentRunAnnotationFiltersList";
+import { assertUnreachable } from "@phoenix/typeUtils";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 const listCSS = css`
   display: flex;
   flex-direction: column;
-  padding: var(--global-dimension-static-size-100);
+  padding: var(--global-dimension-size-100);
   border-top: var(--global-border-size-thin) solid var(--global-color-gray-100);
   background-color: var(--global-color-gray-50);
 `;
@@ -45,7 +46,7 @@ const listItemCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--global-dimension-static-size-50);
+  gap: var(--global-dimension-size-50);
   min-height: 32px;
 `;
 
@@ -112,6 +113,8 @@ function getItemName(item: AnnotationListItem): string {
       return item.name;
     case "error":
       return item.error.evaluatorName;
+    default:
+      return assertUnreachable(item);
   }
 }
 
@@ -300,7 +303,7 @@ export function ExperimentRunCellAnnotationsList(
               <DialogTrigger>
                 <TooltipTrigger>
                   <IconButton size="S" aria-label="Filter by annotation">
-                    <Icon svg={<Icons.FunnelOutline />} />
+                    <Icon svg={<Icons.ListFilter />} />
                   </IconButton>
                   <Tooltip>
                     <TooltipArrow />
@@ -420,7 +423,7 @@ function AnnotationErrorItem({
               <Text weight="heavy" color="danger" css={nameTextCSS}>
                 {error.evaluatorName}
               </Text>
-              <Icon svg={<Icons.AlertTriangleOutline />} color="danger" />
+              <Icon svg={<Icons.AlertTriangle />} color="danger" />
             </Flex>
           </button>
         </Pressable>
