@@ -21,9 +21,7 @@ import sys
 
 import _board as B
 
-OK = "✅"
-WARN = "⚠️"
-NONE = "➖"
+OK, WARN, NONE = B.OK, B.WARN, B.NONE
 
 # High enough to cover every open issue in the repo. If a run ever hits it, the
 # check says so rather than quietly under-reporting untracked work.
@@ -150,7 +148,7 @@ def print_hygiene(h: dict, current: B.Sprint, nxt: B.Sprint | None) -> None:
 def print_load(ld: dict, current: B.Sprint) -> None:
     print(
         f"\n=== TICKET LOAD ===  (healthy band: {B.MIN_TICKETS}-{B.MAX_TICKETS} "
-        f"tickets, roster @{B.ORG}/{B.ROSTER_TEAM})"
+        f"tickets, roster {B.ROSTER_LABEL})"
     )
     print(f"\n  {'person':<22}{'sprint':>8}{'total':>8}   state")
     print(f"  {'-' * 50}")
@@ -171,7 +169,7 @@ def print_load(ld: dict, current: B.Sprint) -> None:
             print(f"      {p}: {ld['total_counts'][p]}")
 
     if ld["off_roster"]:
-        print(f"\n  {NONE} Sprint work assigned outside @{B.ORG}/{B.ROSTER_TEAM}:")
+        print(f"\n  {NONE} Sprint work assigned outside {B.ROSTER_LABEL}:")
         for p, n in sorted(ld["off_roster"].items(), key=lambda kv: -kv[1]):
             print(f"      {p}: {n}")
 

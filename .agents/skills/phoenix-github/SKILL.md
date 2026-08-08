@@ -36,6 +36,7 @@ on **#45**.
 | Close out a sprint / roll slipped tickets | [Sprint Operations](#sprint-operations) |
 | Check the board is up to date | [Board Hygiene](#board-hygiene) |
 | Check nobody is starving or buried | [Ticket Load Health](#ticket-load-health) |
+| Run a standup — recent work and work in flight per person | [Standup](#standup) |
 | Keep roadmap epics current / flag ones needing planning | [Roadmap Health](#roadmap-health) |
 | File a roadmap epic | [Roadmap Issues](#roadmap-issues) |
 | Add an epic to the roadmap board (#45) | [Putting the Epic on the Roadmap Board](#putting-the-epic-on-the-roadmap-board) |
@@ -47,7 +48,7 @@ on **#45**.
 
 ## Tooling
 
-Four bundled scripts under `scripts/` back the tech-lead workflows. They read
+Five bundled scripts under `scripts/` back the tech-lead workflows. They read
 the roster, the sprint calendar, and all field IDs **live** — nothing about a
 person, sprint, or ticket is hardcoded.
 
@@ -58,6 +59,8 @@ cd .agents/skills/phoenix-github/scripts
 ./snapshot.sh board.json     # ~60-90s, walks the whole board once
 ./health.py   board.json     # hygiene + load report (read-only)
 ./rollover.py board.json     # sprint rollover plan (dry run by default)
+./standup.py  board.json     # per-person did/doing report (read-only;
+                             # snapshot optional but recommended)
 
 # Roadmap board (#45) — small, fetches live
 ./roadmap.py                 # roadmap audit (dry run by default)
@@ -78,8 +81,12 @@ Board #45 is ~75 items — one page — so `roadmap.py` just fetches it each run
 Every script that writes is **dry-run by default** and takes `--apply`.
 
 Tunable via env vars: `PHOENIX_MIN_TICKETS` (3), `PHOENIX_MAX_TICKETS` (15),
-`PHOENIX_ROSTER_TEAM` (`oss-eng`), `PHOENIX_PROJECT_NUMBER` (42),
-`PHOENIX_SNAPSHOT_MAX_AGE_MIN` (120), `PHOENIX_ISSUE_LIMIT` (5000).
+`PHOENIX_ROSTER_TEAM` (`oss-eng`; comma-separated list of org teams),
+`PHOENIX_ROSTER_EXCLUDE` (empty; comma-separated logins to omit from all
+reporting), `PHOENIX_STANDUP_DAYS` (2), `PHOENIX_PROJECT_NUMBER` (42),
+`PHOENIX_SNAPSHOT_MAX_AGE_MIN` (120),
+`PHOENIX_ISSUE_LIMIT` (5000). Local overrides for these live in
+`.claude/settings.local.json` (`env` block), not in the scripts.
 
 ---
 
@@ -180,8 +187,10 @@ Goal: **keep everyone fed at all times.** Every person on the roster should be
 carrying between **3 and 15** tickets. Under 3 means they are about to run dry;
 over 15 means they are buried and the queue is not real.
 
-Roster is the live membership of **`@Arize-ai/oss-eng`**, so it self-updates as
-the team changes.
+Roster is the live membership of the `PHOENIX_ROSTER_TEAM` team(s) (default
+**`@Arize-ai/oss-eng`**), so it self-updates as the teams change. Logins listed
+in `PHOENIX_ROSTER_EXCLUDE` are dropped from the roster and filtered out of
+snapshot assignee data at parse time, so they never appear in any report.
 
 ```bash
 ./health.py board.json --section load
@@ -217,6 +226,35 @@ gh issue edit 14541 --repo Arize-ai/phoenix --remove-assignee <login>
 Prefer moving *ready, well-scoped* tickets to a starving teammate over inventing
 new ones. Tickets labelled `good-agent-issue` are already scoped tightly enough
 to hand off cleanly.
+
+---
+
+## Standup
+
+`standup.py` answers the two standup questions for every roster person:
+
+- **did** — merged PRs they authored and closed issues they were assigned,
+  inside the lookback window (default 2 days). Queried live from GitHub search.
+- **doing** — their open PRs, plus (with a snapshot) their board items in
+  **In progress** or **Needs Review**. Without a snapshot it falls back to open
+  assigned issues updated inside the window, which is noisier.
+
+```bash
+./snapshot.sh board.json
+./standup.py board.json          # recommended: board statuses make "doing" real
+./standup.py                     # defaults to board.json; if the file is
+                                 # missing, falls back to live-only mode
+```
+
+| Flag | Effect |
+|---|---|
+| `--days N` | Lookback window in days (default 2, `PHOENIX_STANDUP_DAYS`) |
+| `--person X` | Only this login; repeatable, accepts non-roster logins too |
+| `--json` | Machine-readable output |
+
+Read-only — it never mutates the board or issues. When presenting the report,
+lead with people whose **did** is empty *and* whose **doing** is empty or
+stale: they are the ones a standup exists to catch.
 
 ---
 
