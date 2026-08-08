@@ -181,8 +181,6 @@ export function ColumnSelectorMenu({
     [columns, draftColumnOrder]
   );
   const trimmedQuery = searchQuery.trim();
-  // Drives both the filtering below and the empty state's "no matches" vs
-  // "no columns at all" wording, so the two can't disagree.
   const isFiltering = trimmedQuery.length > 0;
   const filteredColumns = useMemo(() => {
     if (!isFiltering) {
@@ -211,11 +209,7 @@ export function ColumnSelectorMenu({
         />
       </MenuHeader>
       <div css={columnSelectorBodyCSS}>
-        {/* The search field is a plain input, not an Autocomplete, so React
-            Aria announces nothing as the list narrows. This region is mounted
-            for the life of the menu (live regions added at the same time as
-            their content announce unreliably) and stays silent until the user
-            actually searches. */}
+        {/* Live region for search result count announcements. */}
         <VisuallyHidden role="status">
           {isFiltering
             ? `${filteredColumns.length} ${
@@ -224,10 +218,7 @@ export function ColumnSelectorMenu({
             : ""}
         </VisuallyHidden>
         {filteredColumns.length === 0 ? (
-          // Without this the list renders as an empty <ul> and the popover
-          // collapses to just the search header, reading as a broken menu.
-          // The search input is not inside an Autocomplete, so the filtered
-          // state has to be passed explicitly rather than auto-detected.
+          // Empty state when there are no columns or the search matched none.
           <CompactEmptyState
             icon={<Icon svg={<Icons.Column />} />}
             description="No columns"
