@@ -335,7 +335,7 @@ async def test_a_name_offered_by_both_a_table_and_a_derived_relation_is_refused_
 async def test_the_same_collision_is_refused_by_postgresql(
     analytics_postgres_db: DbSessionFactory,
 ) -> None:
-    """The other half of the premise. Claimed on both engines, so pinned on both."""
+    """The other half of the premise `DERIVED_PROJECTION` rests on."""
     with pytest.raises(AnalyticsSqlError) as caught:
         await execute_analytics_sql(
             analytics_postgres_db,

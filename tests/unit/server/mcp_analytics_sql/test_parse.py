@@ -790,6 +790,7 @@ class TestTimestampComparisonCoverage:
         "sql,dialect",
         [
             ("SELECT id FROM spans WHERE start_time IS DISTINCT FROM '{}'", "sqlite"),
+            ("SELECT id FROM spans WHERE start_time IS NOT DISTINCT FROM '{}'", "sqlite"),
             ("SELECT id FROM spans WHERE start_time IS '{}'", "sqlite"),
             ("SELECT CASE start_time WHEN '{}' THEN 1 ELSE 0 END FROM spans", "sqlite"),
             ("SELECT id FROM spans WHERE start_time = ANY(ARRAY['{}'])", "postgresql"),
@@ -821,17 +822,18 @@ class TestTimestampComparisonCoverage:
             ("SELECT id FROM spans WHERE (start_time, id) = ('{}', 1)", "postgresql"),
             ("SELECT id FROM spans WHERE (start_time) BETWEEN ('{}') AND ('2026-02-01')", "sqlite"),
             ("SELECT id FROM spans WHERE (start_time) IN (('{}'))", "sqlite"),
-            ("SELECT id FROM spans WHERE start_time IS NOT DISTINCT FROM '{}'", "sqlite"),
+            # Rows nested inside rows, and rows spelled as VALUES. One pass of
+            # unwrapping answers only the depth it happens to meet.
+            ("SELECT id FROM spans WHERE (id, (name, start_time)) = (1, ('x', '{}'))", "sqlite"),
+            ("SELECT id FROM spans WHERE ((start_time, id), 0) = (('{}', 1), 0)", "sqlite"),
+            ("SELECT id FROM spans WHERE start_time IN (VALUES ('{}'))", "sqlite"),
+            ("SELECT id FROM spans WHERE (id, start_time) IN ((1, '{}'))", "sqlite"),
         ],
     )
     def test_grouping_and_row_syntax_do_not_hide_an_operand(self, sql: str, dialect: str) -> None:
-        """Both checks match on the operand node, so a caller's parentheses
-        presented them a `Paren` and neither engaged -- the whole machinery
-        defeated by punctuation anyone is free to add.
-
-        Executed on SQLite over a stored `2026-01-01 10:30:00`, the ISO spelling
-        matched no rows while the stored spelling matched, which is the silent
-        wrong answer this refusal exists to prevent.
+        """Both checks match on the operand node, so an operand left wrapped is
+        one they cannot see -- and on SQLite the ISO spelling then matches no
+        rows where the stored spelling matches, answering wrong in silence.
         """
         result = try_parse_and_admit(
             sql.format("2026-01-01T10:30:00"), dialect=cast(DialectName, dialect)
@@ -843,7 +845,8 @@ class TestTimestampComparisonCoverage:
     def test_an_aware_literal_behind_grouping_is_still_rewritten(self) -> None:
         ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)
         tree = parse_one(
-            "SELECT id FROM spans WHERE (start_time, id) = ('2026-01-01T00:00:00Z', 1)",
+            "SELECT id FROM spans WHERE (id, (name, start_time)) "
+            "= (1, ('x', '2026-01-01T00:00:00Z'))",
             read="sqlite",
         )
 
@@ -864,9 +867,8 @@ class TestTimestampComparisonCoverage:
         """`= ANY(SELECT ...)` compares against what the subquery returns, so a
         value written inside it sits beside that subquery's own columns.
 
-        Pairing it with the outer timestamp column refused valid PostgreSQL, told
-        the caller to replace a real column reference with a string, and on
-        SQLite rewrote a literal they were comparing against their own data.
+        Pairing it with the outer timestamp column refuses valid PostgreSQL and
+        rewrites a literal the caller is comparing against their own data.
         """
         assert try_parse_and_admit(sql, dialect="postgresql").outcome is AdmissionOutcome.ADMIT
 
@@ -970,11 +972,10 @@ class TestStructuralPolicyIsDefaultDeny:
         literal beside one was neither refused nor rewritten and the comparison
         quietly answered wrong.
 
-        The three sets are written out rather than derived from each other. An
-        earlier form subtracted one from the allowlist to get the other, which
-        made the covering assertion a tautology: an unclassified class was
-        silently absorbed, so the check could not fail for the case it exists
-        for. It is asserted here that the union is exactly the allowlist.
+        The three sets are written out rather than derived from each other, and
+        their union is asserted equal to the allowlist. Deriving one by
+        subtraction makes that assertion a tautology, which absorbs exactly the
+        unclassified class it exists to catch.
         """
         comparing = {
             "EQ",
@@ -1063,11 +1064,11 @@ class TestStructuralPolicyIsDefaultDeny:
             "WithinGroup",
         }
 
-        assert comparing | transparent | not_comparing == _ALLOWED_STRUCTURAL_CLASSES, (
-            "unclassified: "
-            f"{sorted(_ALLOWED_STRUCTURAL_CLASSES - comparing - transparent - not_comparing)}; "
-            "classified but not admitted: "
-            f"{sorted(comparing | transparent | not_comparing - _ALLOWED_STRUCTURAL_CLASSES)}"
+        classified = comparing | transparent | not_comparing
+
+        assert classified == _ALLOWED_STRUCTURAL_CLASSES, (
+            f"unclassified: {sorted(_ALLOWED_STRUCTURAL_CLASSES - classified)}; "
+            f"classified but not admitted: {sorted(classified - _ALLOWED_STRUCTURAL_CLASSES)}"
         )
 
         # Every comparing class must actually yield pairs, so the classification
