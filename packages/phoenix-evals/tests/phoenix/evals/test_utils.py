@@ -1,16 +1,46 @@
 # type: ignore
 
 import json
+from io import BytesIO
+from unittest.mock import patch
+from urllib.error import URLError
+from zipfile import ZipFile
 
 import pandas as pd
 import pytest
 from jsonpath_ng.exceptions import JsonPathParserError
 
 from phoenix.evals.utils import (
+    BENCHMARK_DATASET_DOWNLOAD_TIMEOUT_SECONDS,
+    download_benchmark_dataset,
     extract_with_jsonpath,
     remap_eval_input,
     to_annotation_dataframe,
 )
+
+
+def test_download_benchmark_dataset_uses_timeout() -> None:
+    jsonl_file_name = "dataset.jsonl"
+    zip_buffer = BytesIO()
+    with ZipFile(zip_buffer, "w") as zip_file:
+        zip_file.writestr(jsonl_file_name, '{"input": "hello"}\n')
+
+    with patch("phoenix.evals.utils.urlopen") as mock_urlopen:
+        mock_urlopen.return_value.__enter__.return_value.read.return_value = zip_buffer.getvalue()
+
+        dataframe = download_benchmark_dataset("task", "dataset")
+
+    assert dataframe.to_dict(orient="records") == [{"input": "hello"}]
+    mock_urlopen.assert_called_once_with(
+        "http://storage.googleapis.com/arize-phoenix-assets/evals/task/dataset.jsonl.zip",
+        timeout=BENCHMARK_DATASET_DOWNLOAD_TIMEOUT_SECONDS,
+    )
+
+
+def test_download_benchmark_dataset_wraps_network_errors() -> None:
+    with patch("phoenix.evals.utils.urlopen", side_effect=URLError("timed out")):
+        with pytest.raises(ValueError, match='Could not download dataset "dataset"'):
+            download_benchmark_dataset("task", "dataset")
 
 
 class TestRemapEvalInput:

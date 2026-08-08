@@ -5,13 +5,15 @@ import os
 import warnings
 from io import BytesIO
 from typing import Any, Callable, Dict, List, Mapping, Optional, Set, Union
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 from zipfile import ZipFile
 
 import pandas as pd
 from jsonpath_ng import parse  # type: ignore
 from jsonpath_ng.exceptions import JsonPathParserError  # type: ignore
+
+BENCHMARK_DATASET_DOWNLOAD_TIMEOUT_SECONDS = 30
 
 
 def download_benchmark_dataset(task: str, dataset_name: str) -> "pd.DataFrame":
@@ -27,13 +29,17 @@ def download_benchmark_dataset(task: str, dataset_name: str) -> "pd.DataFrame":
     jsonl_file_name = f"{dataset_name}.jsonl"
     url = f"http://storage.googleapis.com/arize-phoenix-assets/evals/{task}/{jsonl_file_name}.zip"
     try:
-        with urlopen(url) as response:
+        with urlopen(url, timeout=BENCHMARK_DATASET_DOWNLOAD_TIMEOUT_SECONDS) as response:
             zip_byte_stream = BytesIO(response.read())
             with ZipFile(zip_byte_stream) as zip_file:
                 with zip_file.open(jsonl_file_name) as jsonl_file:
                     return pd.DataFrame(map(json.loads, jsonl_file.readlines()))
     except HTTPError:
         raise ValueError(f'Dataset "{dataset_name}" for "{task}" task does not exist.')
+    except (TimeoutError, URLError) as error:
+        raise ValueError(
+            f'Could not download dataset "{dataset_name}" for "{task}" task.'
+        ) from error
 
 
 def emoji_guard(emoji: str, fallback: str = "") -> str:
