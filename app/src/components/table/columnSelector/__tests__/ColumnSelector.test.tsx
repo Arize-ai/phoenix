@@ -1,7 +1,6 @@
 import { act } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
-import { userEvent } from "storybook/test";
 
 import type { ColumnSelectorColumn } from "../ColumnSelector";
 import { ColumnSelectorMenu } from "../ColumnSelector";
@@ -18,13 +17,9 @@ const DEBOUNCE_MS = 200;
 describe("ColumnSelectorMenu", () => {
   let container: HTMLDivElement;
   let root: Root;
-  let user: ReturnType<typeof userEvent.setup>;
 
   beforeEach(() => {
     vi.useFakeTimers();
-    // Without this, `user.type` awaits real timers that the fake clock never
-    // advances, and every interaction hangs until the test times out.
-    user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -48,11 +43,22 @@ describe("ColumnSelectorMenu", () => {
     });
   }
 
-  /** Types into the search field and lets the debounced change land. */
+  /**
+   * Sets the search value directly and advances past the debounce. Prefer this
+   * over `user.type` under fake timers — typing waits on real delays that the
+   * fake clock never advances, which hangs the suite.
+   */
   async function search(query: string) {
     const input = container.querySelector("input");
     expect(input).not.toBeNull();
-    await user.type(input!, query);
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value"
+      )?.set;
+      setValue?.call(input!, query);
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
     await act(async () => {
       vi.advanceTimersByTime(DEBOUNCE_MS);
     });
