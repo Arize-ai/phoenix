@@ -624,7 +624,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/experiments/{experiment_id}/tags/{tag_name}": {
+    "/v1/experiments/{experiment_id}/tags/{tag_identifier}": {
         parameters: {
             query?: never;
             header?: never;
@@ -636,7 +636,7 @@ export interface paths {
         post?: never;
         /**
          * Remove a tag from an experiment
-         * @description Remove a tag from the experiment that owns it. This operation is idempotent and never steals a tag from another experiment: if the experiment does not currently own the tag, the request is a no-op.
+         * @description Remove a tag, identified by its node ID or name, from the experiment that owns it. This operation is idempotent and never steals a tag from another experiment: if the experiment does not currently own the tag, the request is a no-op.
          */
         delete: operations["deleteExperimentTag"];
         options?: never;
@@ -3115,6 +3115,11 @@ export interface components {
         };
         /** ExperimentTag */
         ExperimentTag: {
+            /**
+             * Id
+             * @description The node ID of the tag
+             */
+            id: string;
             /**
              * Name
              * @description The name of the tag
@@ -8550,8 +8555,8 @@ export interface operations {
             path: {
                 /** @description The ID of the experiment */
                 experiment_id: string;
-                /** @description The name of the tag to remove */
-                tag_name: string;
+                /** @description The node ID or name of the tag to remove */
+                tag_identifier: string;
             };
             cookie?: never;
         };
@@ -8582,7 +8587,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Invalid experiment ID or tag name */
+            /** @description Invalid experiment ID or tag identifier */
             422: {
                 headers: {
                     [name: string]: unknown;

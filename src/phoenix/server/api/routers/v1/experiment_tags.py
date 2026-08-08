@@ -6,7 +6,7 @@ The dataset-scoped "movable pointer" semantics these routes expose live in
 mutation shares.
 """
 
-from typing import Optional
+from typing import Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Path
 from pydantic import Field, ValidationError
@@ -25,6 +25,7 @@ from phoenix.server.api.experiment_tags import (
 )
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import ResponseBody, add_errors_to_responses
+from phoenix.server.api.types.ExperimentTag import ExperimentTag as ExperimentTagNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
@@ -33,6 +34,7 @@ router = APIRouter(tags=["experiments"])
 
 
 class ExperimentTag(V1RoutesBaseModel):
+    id: str = Field(description="The node ID of the tag")
     name: str = Field(description="The name of the tag")
     description: Optional[str] = Field(description="The description of the tag")
 
@@ -75,6 +77,39 @@ async def _get_experiment(session: AsyncSession, experiment_id: str) -> models.E
     return experiment
 
 
+def _to_experiment_tag(tag: models.ExperimentTag) -> ExperimentTag:
+    return ExperimentTag(
+        id=str(GlobalID(ExperimentTagNodeType.__name__, str(tag.id))),
+        name=tag.name,
+        description=tag.description,
+    )
+
+
+async def _resolve_experiment_tag_name(
+    session: AsyncSession,
+    *,
+    experiment: models.Experiment,
+    tag_identifier: str,
+) -> Optional[str]:
+    try:
+        tag_id = from_global_id_with_expected_type(
+            GlobalID.from_id(tag_identifier), ExperimentTagNodeType.__name__
+        )
+    except ValueError:
+        try:
+            return str(Identifier.model_validate(tag_identifier))
+        except ValidationError:
+            raise HTTPException(status_code=422, detail=f"Invalid tag identifier: {tag_identifier}")
+    return cast(
+        Optional[str],
+        await session.scalar(
+            select(models.ExperimentTag.name)
+            .where(models.ExperimentTag.id == tag_id)
+            .where(models.ExperimentTag.dataset_id == experiment.dataset_id)
+        ),
+    )
+
+
 @router.get(
     "/experiments/{experiment_id}/tags",
     operation_id="listExperimentTags",
@@ -101,15 +136,13 @@ async def list_experiment_tags(
     async with request.app.state.db() as session:
         experiment = await _get_experiment(session, experiment_id)
         tags = (
-            await session.execute(
-                select(models.ExperimentTag.name, models.ExperimentTag.description)
+            await session.scalars(
+                select(models.ExperimentTag)
                 .where(models.ExperimentTag.experiment_id == experiment.id)
                 .order_by(models.ExperimentTag.name)
             )
         ).all()
-    return ListExperimentTagsResponseBody(
-        data=[ExperimentTag(name=name, description=description) for name, description in tags]
-    )
+    return ListExperimentTagsResponseBody(data=[_to_experiment_tag(tag) for tag in tags])
 
 
 @router.post(
@@ -169,25 +202,30 @@ async def set_experiment_tag(
             user_id=user_id,
             dialect=request.app.state.db.dialect,
         )
-    return SetExperimentTagResponseBody(
-        data=ExperimentTag(name=name, description=request_body.description)
-    )
+        tag = await session.scalar(
+            select(models.ExperimentTag)
+            .where(models.ExperimentTag.dataset_id == experiment.dataset_id)
+            .where(models.ExperimentTag.name == name)
+        )
+        assert tag is not None
+        response_tag = _to_experiment_tag(tag)
+    return SetExperimentTagResponseBody(data=response_tag)
 
 
 @router.delete(
-    "/experiments/{experiment_id}/tags/{tag_name}",
+    "/experiments/{experiment_id}/tags/{tag_identifier}",
     operation_id="deleteExperimentTag",
     summary="Remove a tag from an experiment",
     description=(
-        "Remove a tag from the experiment that owns it. This operation is idempotent and "
-        "never steals a tag from another experiment: if the experiment does not currently "
-        "own the tag, the request is a no-op."
+        "Remove a tag, identified by its node ID or name, from the experiment that owns it. "
+        "This operation is idempotent and never steals a tag from another experiment: if "
+        "the experiment does not currently own the tag, the request is a no-op."
     ),
     status_code=204,
     responses=add_errors_to_responses(
         [
             {"status_code": 404, "description": "Experiment not found"},
-            {"status_code": 422, "description": "Invalid experiment ID or tag name"},
+            {"status_code": 422, "description": "Invalid experiment ID or tag identifier"},
         ]
     ),
     response_description="No content returned on successful tag removal",
@@ -195,13 +233,15 @@ async def set_experiment_tag(
 async def delete_experiment_tag(
     request: Request,
     experiment_id: str = Path(description="The ID of the experiment"),
-    tag_name: str = Path(description="The name of the tag to remove"),
+    tag_identifier: str = Path(description="The node ID or name of the tag to remove"),
 ) -> Response:
-    try:
-        name = str(Identifier.model_validate(tag_name))
-    except ValidationError:
-        raise HTTPException(status_code=422, detail=f"Invalid tag name: {tag_name}")
     async with request.app.state.db() as session:
         experiment = await _get_experiment(session, experiment_id)
-        await remove_experiment_tag(session, experiment=experiment, name=name)
+        name = await _resolve_experiment_tag_name(
+            session,
+            experiment=experiment,
+            tag_identifier=tag_identifier,
+        )
+        if name is not None:
+            await remove_experiment_tag(session, experiment=experiment, name=name)
     return Response(status_code=204)

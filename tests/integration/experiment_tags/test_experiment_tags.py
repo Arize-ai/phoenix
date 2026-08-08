@@ -84,6 +84,20 @@ def _baseline_experiment_id(
     return str(baseline["id"]) if baseline else None
 
 
+def _experiment_tag(app: _AppInfo, auth: _SecurityArtifact, tag_id: str) -> dict[str, Any]:
+    resp, _ = _gql(
+        app,
+        auth,
+        query=(
+            "query ($id: ID!) { node(id: $id) { ... on ExperimentTag {"
+            "  id experimentId name description"
+            "} } }"
+        ),
+        variables={"id": tag_id},
+    )
+    return dict(resp["data"]["node"])
+
+
 class TestExperimentTagsThroughGraphQL:
     def test_assigning_baseline_is_visible_to_graphql(
         self, _app: _AppInfo, _get_user: _GetUser
@@ -101,12 +115,18 @@ class TestExperimentTagsThroughGraphQL:
             json={"name": "baseline", "description": "passed the quality gate"},
         )
         assert assigned.status_code == 200, assigned.text
+        tag = assigned.json()["data"]
+        assert GlobalID.from_id(tag["id"]).type_name == "ExperimentTag"
 
         assert _is_baseline(_app, user, experiment_id)
         assert _baseline_experiment_id(_app, user, dataset_id) == experiment_id
-        assert client.get(f"v1/experiments/{experiment_id}/tags").json()["data"] == [
-            {"name": "baseline", "description": "passed the quality gate"}
-        ]
+        assert _experiment_tag(_app, user, tag["id"]) == {
+            "id": tag["id"],
+            "experimentId": experiment_id,
+            "name": "baseline",
+            "description": "passed the quality gate",
+        }
+        assert client.get(f"v1/experiments/{experiment_id}/tags").json()["data"] == [tag]
 
     def test_assigning_baseline_moves_it_off_the_previous_experiment(
         self, _app: _AppInfo, _get_user: _GetUser
@@ -135,15 +155,16 @@ class TestExperimentTagsThroughGraphQL:
         non_owner = _create_experiment(_app, user, dataset_id)
         client = _httpx_client(_app, user)
 
-        client.post(f"v1/experiments/{owner}/tags", json={"name": "baseline"})
+        assigned = client.post(f"v1/experiments/{owner}/tags", json={"name": "baseline"})
+        tag_id = assigned.json()["data"]["id"]
 
-        # Clearing from a non-owner leaves the baseline where it is.
-        assert client.delete(f"v1/experiments/{non_owner}/tags/baseline").status_code == 204
+        # Clearing by node ID from a non-owner leaves the baseline where it is.
+        assert client.delete(f"v1/experiments/{non_owner}/tags/{tag_id}").status_code == 204
         assert _baseline_experiment_id(_app, user, dataset_id) == owner
 
-        # Clearing from the owner is idempotent.
-        for _ in range(2):
-            assert client.delete(f"v1/experiments/{owner}/tags/baseline").status_code == 204
+        # Clearing by node ID or name from the owner is idempotent.
+        for tag_identifier in (tag_id, "baseline"):
+            assert client.delete(f"v1/experiments/{owner}/tags/{tag_identifier}").status_code == 204
             assert not _is_baseline(_app, user, owner)
             assert _baseline_experiment_id(_app, user, dataset_id) is None
 
@@ -198,14 +219,15 @@ class TestExperimentTagAuthorization:
         member = _get_user(_app, _MEMBER)
         dataset_id = _create_dataset_with_example(_app, member)
         experiment_id = _create_experiment(_app, member, dataset_id)
-        _httpx_client(_app, member).post(
+        assigned = _httpx_client(_app, member).post(
             f"v1/experiments/{experiment_id}/tags", json={"name": "baseline"}
         )
+        tag = assigned.json()["data"]
 
         viewer = _httpx_client(_app, _get_user(_app, _VIEWER))
         listed = viewer.get(f"v1/experiments/{experiment_id}/tags")
         assert listed.status_code == 200, listed.text
-        assert listed.json()["data"] == [{"name": "baseline", "description": None}]
+        assert listed.json()["data"] == [tag]
         assigned = viewer.post(f"v1/experiments/{experiment_id}/tags", json={"name": "candidate"})
         assert assigned.status_code == 403, assigned.text
         removed = viewer.delete(f"v1/experiments/{experiment_id}/tags/baseline")

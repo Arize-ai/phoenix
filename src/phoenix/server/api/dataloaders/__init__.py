@@ -197,6 +197,7 @@ class DataLoaders:
     experiment_expected_run_counts: ExperimentExpectedRunCountsDataLoader
     last_experiment_errors: LastExperimentErrorsDataLoader
     experiment_fields: TableFieldsDataLoader
+    experiment_tag_fields: TableFieldsDataLoader
     experiment_repeated_run_group_annotation_summaries: (
         ExperimentRepeatedRunGroupAnnotationSummariesDataLoader
     )
@@ -358,6 +359,7 @@ def build_data_loaders(
         experiment_expected_run_counts=ExperimentExpectedRunCountsDataLoader(db),
         last_experiment_errors=LastExperimentErrorsDataLoader(db),
         experiment_fields=TableFieldsDataLoader(db, models.Experiment),
+        experiment_tag_fields=TableFieldsDataLoader(db, models.ExperimentTag),
         experiment_repeated_run_group_annotation_summaries=ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(
             db
         ),

@@ -2066,6 +2066,14 @@ input ExperimentRunSort {
   dir: SortDir!
 }
 
+type ExperimentTag implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  experimentId: ID!
+  name: Identifier!
+  description: String
+}
+
 type FailureDetail {
   workItem: ExperimentLogWorkItemId
   errorType: String!

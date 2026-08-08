@@ -257,6 +257,7 @@ class ExperimentRun(TypedDict):
 
 
 class ExperimentTag(TypedDict):
+    id: str
     name: str
     description: Optional[str]
 

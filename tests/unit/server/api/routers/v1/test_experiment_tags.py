@@ -25,6 +25,10 @@ def _experiment_gid(rowid: int) -> str:
     return str(GlobalID("Experiment", str(rowid)))
 
 
+def _experiment_tag_gid(rowid: int) -> str:
+    return str(GlobalID("ExperimentTag", str(rowid)))
+
+
 @pytest.fixture
 async def _experiments(db: DbSessionFactory) -> _Experiments:
     async with db() as session:
@@ -80,10 +84,14 @@ class TestSetExperimentTag:
             json={"name": "baseline", "description": "promoted from CI"},
         )
         assert assigned.status_code == 200, assigned.text
-        assert assigned.json()["data"] == {"name": "baseline", "description": "promoted from CI"}
+        assigned_tag = assigned.json()["data"]
+        assert assigned_tag["name"] == "baseline"
+        assert assigned_tag["description"] == "promoted from CI"
+        tag_global_id = GlobalID.from_id(assigned_tag["id"])
+        assert tag_global_id.type_name == "ExperimentTag"
 
         listed = await httpx_client.get(f"v1/experiments/{experiment_id}/tags")
-        assert listed.json()["data"] == [{"name": "baseline", "description": "promoted from CI"}]
+        assert listed.json()["data"] == [assigned_tag]
 
         # Re-assigning is idempotent and replaces the description.
         reassigned = await httpx_client.post(
@@ -91,9 +99,10 @@ class TestSetExperimentTag:
             json={"name": "baseline"},
         )
         assert reassigned.status_code == 200, reassigned.text
-        assert reassigned.json()["data"] == {"name": "baseline", "description": None}
+        reassigned_tag = reassigned.json()["data"]
+        assert reassigned_tag == {**assigned_tag, "description": None}
         listed = await httpx_client.get(f"v1/experiments/{experiment_id}/tags")
-        assert listed.json()["data"] == [{"name": "baseline", "description": None}]
+        assert listed.json()["data"] == [reassigned_tag]
 
         removed = await httpx_client.delete(f"v1/experiments/{experiment_id}/tags/baseline")
         assert removed.status_code == 204, removed.text
@@ -107,16 +116,19 @@ class TestSetExperimentTag:
         db: DbSessionFactory,
     ) -> None:
         first, second = _experiments.experiment, _experiments.sibling
+        assigned_tags = []
         for experiment_id in (first, second):
             resp = await httpx_client.post(
                 f"v1/experiments/{experiment_id}/tags", json={"name": "baseline"}
             )
             assert resp.status_code == 200, resp.text
+            assigned_tags.append(resp.json()["data"])
 
         # The tag is a dataset-scoped pointer, so exactly one experiment owns it.
+        assert assigned_tags[0]["id"] == assigned_tags[1]["id"]
         assert (await httpx_client.get(f"v1/experiments/{first}/tags")).json()["data"] == []
         assert (await httpx_client.get(f"v1/experiments/{second}/tags")).json()["data"] == [
-            {"name": "baseline", "description": None}
+            assigned_tags[1]
         ]
         async with db() as session:
             tags = (
@@ -131,14 +143,19 @@ class TestSetExperimentTag:
         httpx_client: httpx.AsyncClient,
         _experiments: _Experiments,
     ) -> None:
+        assigned_tags = []
         for experiment_id in (_experiments.experiment, _experiments.other_dataset):
             resp = await httpx_client.post(
                 f"v1/experiments/{experiment_id}/tags", json={"name": "baseline"}
             )
             assert resp.status_code == 200, resp.text
-        for experiment_id in (_experiments.experiment, _experiments.other_dataset):
+            assigned_tags.append(resp.json()["data"])
+        assert assigned_tags[0]["id"] != assigned_tags[1]["id"]
+        for experiment_id, assigned_tag in zip(
+            (_experiments.experiment, _experiments.other_dataset), assigned_tags
+        ):
             listed = await httpx_client.get(f"v1/experiments/{experiment_id}/tags")
-            assert listed.json()["data"] == [{"name": "baseline", "description": None}]
+            assert listed.json()["data"] == [assigned_tag]
 
     async def test_baseline_is_rejected_for_ephemeral_experiments(
         self,
@@ -178,28 +195,63 @@ class TestSetExperimentTag:
         # Tag names must be identifiers, on the request body and in the path alike.
         assert (await httpx_client.post(tags, json={"name": "Not Ok"})).status_code == 422
         assert (await httpx_client.delete(f"{tags}/Not Ok")).status_code == 422
+        assert (await httpx_client.delete(f"{tags}/{_experiment_gid(1)}")).status_code == 422
 
 
 class TestDeleteExperimentTag:
+    async def test_tag_id_is_scoped_to_the_experiment_dataset(
+        self,
+        httpx_client: httpx.AsyncClient,
+        _experiments: _Experiments,
+    ) -> None:
+        owner_tag = (
+            await httpx_client.post(
+                f"v1/experiments/{_experiments.experiment}/tags", json={"name": "baseline"}
+            )
+        ).json()["data"]
+        other_dataset_tag = (
+            await httpx_client.post(
+                f"v1/experiments/{_experiments.other_dataset}/tags", json={"name": "baseline"}
+            )
+        ).json()["data"]
+
+        response = await httpx_client.delete(
+            f"v1/experiments/{_experiments.experiment}/tags/{other_dataset_tag['id']}"
+        )
+
+        assert response.status_code == 204, response.text
+        owner_tags = await httpx_client.get(f"v1/experiments/{_experiments.experiment}/tags")
+        other_dataset_tags = await httpx_client.get(
+            f"v1/experiments/{_experiments.other_dataset}/tags"
+        )
+        assert owner_tags.json()["data"] == [owner_tag]
+        assert other_dataset_tags.json()["data"] == [other_dataset_tag]
+
     async def test_removal_is_idempotent_and_never_steals_the_tag(
         self,
         httpx_client: httpx.AsyncClient,
         _experiments: _Experiments,
     ) -> None:
         owner, non_owner = _experiments.experiment, _experiments.sibling
-        await httpx_client.post(f"v1/experiments/{owner}/tags", json={"name": "baseline"})
+        assigned = await httpx_client.post(
+            f"v1/experiments/{owner}/tags", json={"name": "baseline"}
+        )
+        tag = assigned.json()["data"]
 
-        # Removing from an experiment that does not own the tag is a no-op.
-        no_op = await httpx_client.delete(f"v1/experiments/{non_owner}/tags/baseline")
+        # Removing by node ID from an experiment that does not own the tag is a no-op.
+        no_op = await httpx_client.delete(f"v1/experiments/{non_owner}/tags/{tag['id']}")
         assert no_op.status_code == 204, no_op.text
-        assert (await httpx_client.get(f"v1/experiments/{owner}/tags")).json()["data"] == [
-            {"name": "baseline", "description": None}
-        ]
+        assert (await httpx_client.get(f"v1/experiments/{owner}/tags")).json()["data"] == [tag]
 
         for _ in range(2):
-            removed = await httpx_client.delete(f"v1/experiments/{owner}/tags/baseline")
+            removed = await httpx_client.delete(f"v1/experiments/{owner}/tags/{tag['id']}")
             assert removed.status_code == 204, removed.text
             assert (await httpx_client.get(f"v1/experiments/{owner}/tags")).json()["data"] == []
+
+        unknown_tag = await httpx_client.delete(
+            f"v1/experiments/{owner}/tags/{_experiment_tag_gid(999_999)}"
+        )
+        assert unknown_tag.status_code == 204, unknown_tag.text
 
     async def test_unknown_experiment_is_404(
         self,

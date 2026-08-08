@@ -3914,13 +3914,13 @@
         }
       }
     },
-    "/v1/experiments/{experiment_id}/tags/{tag_name}": {
+    "/v1/experiments/{experiment_id}/tags/{tag_identifier}": {
       "delete": {
         "tags": [
           "experiments"
         ],
         "summary": "Remove a tag from an experiment",
-        "description": "Remove a tag from the experiment that owns it. This operation is idempotent and never steals a tag from another experiment: if the experiment does not currently own the tag, the request is a no-op.",
+        "description": "Remove a tag, identified by its node ID or name, from the experiment that owns it. This operation is idempotent and never steals a tag from another experiment: if the experiment does not currently own the tag, the request is a no-op.",
         "operationId": "deleteExperimentTag",
         "parameters": [
           {
@@ -3935,15 +3935,15 @@
             "description": "The ID of the experiment"
           },
           {
-            "name": "tag_name",
+            "name": "tag_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The name of the tag to remove",
-              "title": "Tag Name"
+              "description": "The node ID or name of the tag to remove",
+              "title": "Tag Identifier"
             },
-            "description": "The name of the tag to remove"
+            "description": "The node ID or name of the tag to remove"
           }
         ],
         "responses": {
@@ -3978,7 +3978,7 @@
                 }
               }
             },
-            "description": "Invalid experiment ID or tag name"
+            "description": "Invalid experiment ID or tag identifier"
           }
         }
       }
@@ -11954,6 +11954,11 @@
       },
       "ExperimentTag": {
         "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The node ID of the tag"
+          },
           "name": {
             "type": "string",
             "title": "Name",
@@ -11974,6 +11979,7 @@
         },
         "type": "object",
         "required": [
+          "id",
           "name",
           "description"
         ],
