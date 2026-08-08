@@ -251,7 +251,11 @@ This blocks: a plugin-owned root, a trace ID known before the trial runs, fail-c
 
 The plugin submits any prebuilt root after child execution. Phoenix handles either arrival order for parent/child linkage and cumulative metrics, but the trace's project is fixed by whichever span arrives **first** — so a misrouted child pins the whole trial trace to the wrong project, and §5.1 routing must be correct before any child is emitted. The root's status represents infrastructure outcome, not whether behavioral reward was zero; note that child error statuses still roll up into the root's cumulative error count.
 
-Each physical retry emits its own trace. Only the terminal attempt's trace is linked to the logical experiment run. Earlier attempts' traces remain in the project with no run linking them. Presenting or suppressing those orphans is an open question, not a settled design.
+Each physical retry emits its own trace, because every attempt receives a fresh trial UUID. Only the terminal attempt's trace is linked to the logical experiment run; earlier attempts' traces remain in the experiment's project with no run linking them. A trial that failed twice before succeeding therefore leaves three traces and one run, and project-level rollups such as token cost count all three.
+
+This is accepted rather than solved. Routing non-terminal attempts elsewhere is not possible in the supported path: spans are emitted while the attempt is running, terminality is only known after Harbor decides to retry, and Phoenix cannot relocate spans afterwards. These traces also have diagnostic value — an infrastructure failure that took two retries is often the thing worth inspecting.
+
+To keep them attributable, the adapter must write `harbor.trial.id` as a **span** attribute, which §5.2 already requires for correlation queries. An orphan trace is then filterable back to the logical trial it belonged to. Attempt number cannot be labelled today because the attempt index is owned by Harbor's trial queue; the upstream terminal-attempt event would supply it.
 
 Multi-trace fallbacks are out of scope for the prototype. Phoenix renders exactly one trace per experiment run, so recording auxiliary trace IDs in the run output envelope would store inert data and would not satisfy the single-trial-trace goal.
 
