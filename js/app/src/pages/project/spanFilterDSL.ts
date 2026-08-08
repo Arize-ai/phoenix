@@ -88,23 +88,62 @@ export const coreSpanFilterCompletions: Completion[] = [
     detail: "duration in milliseconds",
     info: "Latency (i.e. duration) in milliseconds",
   },
+  // One entry per member, matching `llm.token_count.*` and `cumulative_token_count.*`
+  // below. CodeMirror matches on `label`, so a member named only in another entry's
+  // `info` is one a user can reach by guessing and not by typing.
   {
     label: "span.total_cost",
     type: "variable",
     detail: "cost of this span",
-    info: "Total cost recorded for this span. 0 when no cost is configured, never null. Also span.prompt_cost and span.completion_cost.",
+    info: "Total cost recorded for this span. 0 when no cost is configured, never null.",
+  },
+  {
+    label: "span.prompt_cost",
+    type: "variable",
+    detail: "prompt cost of this span",
+    info: "Cost of this span's prompt tokens. 0 when no cost is configured, never null.",
+  },
+  {
+    label: "span.completion_cost",
+    type: "variable",
+    detail: "completion cost of this span",
+    info: "Cost of this span's completion tokens. 0 when no cost is configured, never null.",
   },
   {
     label: "span.total_tokens",
     type: "variable",
     detail: "tokens of this span",
-    info: "Total tokens recorded for this span. 0 when none are recorded, never null. Also span.prompt_tokens and span.completion_tokens.",
+    info: "Total tokens recorded for this span. 0 when none are recorded, never null.",
+  },
+  {
+    label: "span.prompt_tokens",
+    type: "variable",
+    detail: "prompt tokens of this span",
+    info: "Prompt tokens recorded for this span. 0 when none are recorded, never null.",
+  },
+  {
+    label: "span.completion_tokens",
+    type: "variable",
+    detail: "completion tokens of this span",
+    info: "Completion tokens recorded for this span. 0 when none are recorded, never null.",
   },
   {
     label: "span.total_cost_per_token",
     type: "variable",
     detail: "cost rate of this span",
-    info: "Cost per token for this span. Null when the span has no cost row or no tokens, so it fails every comparison — test for it with `is None`. Also span.prompt_cost_per_token and span.completion_cost_per_token.",
+    info: "Cost per token for this span. Null when the span has no cost row or no tokens, so it fails every comparison — test for it with `is None`.",
+  },
+  {
+    label: "span.prompt_cost_per_token",
+    type: "variable",
+    detail: "prompt cost rate of this span",
+    info: "Prompt cost per token for this span. Null when the span has no cost row or no prompt tokens, so it fails every comparison — test for it with `is None`.",
+  },
+  {
+    label: "span.completion_cost_per_token",
+    type: "variable",
+    detail: "completion cost rate of this span",
+    info: "Completion cost per token for this span. Null when the span has no cost row or no completion tokens, so it fails every comparison — test for it with `is None`.",
   },
   {
     label: "span.cost_details",
