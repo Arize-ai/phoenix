@@ -143,8 +143,11 @@ from phoenix.tracers import (
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
 
-# Bound on the shielded trace write in `_persist_agent_traces`, matching
-# the experiment runner's shielded DB writes.
+# Arbitrary in the seconds range; nothing downstream derives it. On SQLite every
+# session serializes on one process-wide `asyncio.Lock` that waits indefinitely,
+# so the bound is what keeps a disconnected turn's bookkeeping out of the way of
+# live requests. It therefore fires under load, not only on a broken database,
+# and no larger value avoids that.
 _TRACE_PERSIST_TIMEOUT_SECONDS = 5
 
 _PXI_INSTRUMENTATION_SCOPE = InstrumentationScope("phoenix.server.pxi")
@@ -844,10 +847,10 @@ async def _persist_db_traces_and_emit_event(
 def _tracer_scope(tracer: Tracer | None) -> AbstractAsyncContextManager[object]:
     """Bound a tracer's lifetime, or do nothing when trace recording is off.
 
-    Leaving the block releases the tracer, so teardown depends on no statement
-    inside it running. It is also what drains the remote exporter, on a worker
-    thread and necessarily after everything in the block — so a hung collector
-    cannot delay the local write, and there is no flush left to order by hand.
+    Leaving the block releases the tracer, so the release does not depend on
+    any statement inside the block running. The release is also what drains the
+    remote exporter. It runs on a worker thread, after everything in the block,
+    so a hung collector cannot delay the local write.
     """
     return nullcontext() if tracer is None else tracer
 
@@ -864,17 +867,17 @@ async def _persist_agent_traces(
     would replace the one already in flight, and a turn whose traces cannot be
     written still produced its answer. Failures are logged instead.
 
-    Teardown is not done here — the ``with`` block owning the tracer releases
-    it, so nothing this function does can skip it.
+    Releasing the tracer belongs to the ``with`` block that owns it, so nothing
+    this function does can skip teardown.
 
-    Both phases are shielded because the usual failure is a client
-    disconnecting, which cancels this scope: unshielded, the first suspending
-    ``await`` raises ``CancelledError`` straight through ``except Exception``
-    and the traces are lost. ``_persist_run`` shields the same way.
+    The project lookup and the write are shielded: a client disconnect cancels
+    this scope, and unshielded the first suspending ``await`` would raise
+    ``CancelledError`` straight through ``except Exception``, losing the
+    traces.
     """
     try:
-        # Bounded as well as shielded, so a stalled database cannot pile up
-        # handlers on a burst of disconnects. Expiry is a `TimeoutError`, so it
+        # Bounded as well as shielded, so a slow database cannot pile up
+        # handlers on a burst of disconnects. Expiry raises `TimeoutError` and
         # logs like any other write failure.
         with anyio.fail_after(_TRACE_PERSIST_TIMEOUT_SECONDS, shield=True):
             project_id = await _ensure_project_exists(request.app.state.db, project_name)

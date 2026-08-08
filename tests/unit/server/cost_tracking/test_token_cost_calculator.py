@@ -23,20 +23,19 @@ def _attributes(prompt_tokens: Any) -> dict[str, Any]:
     """Span attributes carrying `prompt_tokens` at `llm.token_count.prompt`.
 
     Nested, because that is how spans store attributes and how
-    `get_attribute_value` reads them — it walks the dotted key through nested
-    dicts and finds nothing in a flat `{"llm.token_count.prompt": ...}` mapping.
-    A test written flat would fall back to the base rate for the wrong reason
-    and assert nothing about the threshold.
+    `get_attribute_value` reads them. It walks the dotted key through nested
+    dicts and finds nothing in a flat `{"llm.token_count.prompt": ...}` mapping,
+    so a flat test would fall back to the base rate for the wrong reason and
+    assert nothing about the threshold.
     """
     return {"llm": {"token_count": {"prompt": prompt_tokens}}}
 
 
 def _calculator() -> ThresholdBasedTokenCostCalculator:
-    """A tier-priced calculator shaped like the ones the manifest now ships.
+    """A tier-priced calculator shaped like the ones the manifest ships.
 
-    Every flagship model in `model_cost_manifest.json` (claude-sonnet-4*,
-    gemini-2.5-pro, gpt-5.*) carries this customization on all four of its token
-    prices, keyed on the prompt token count.
+    The flagship models in `model_cost_manifest.json` carry this customization
+    on all four of their token prices, keyed on the prompt token count.
     """
     return ThresholdBasedTokenCostCalculator(
         base_rate=BASE_RATE,
@@ -80,10 +79,10 @@ class TestThresholdBasedTokenCostCalculator:
 
         OTLP preserves whatever type the client sent, so this attribute can
         arrive as a string, a list, or anything else. Comparing one of those
-        against the threshold used to raise `TypeError`, and because every span
-        ingestion path catches and logs per span, the span silently lost its
-        whole cost record. `get_aggregated_tokens` reads the same attribute and
-        falls back the same way.
+        against the threshold raises `TypeError`, and every span ingestion path
+        catches and logs per span, so the span would lose its whole cost
+        record. `get_aggregated_tokens` reads the same attribute and falls back
+        the same way.
         """
         cost = _calculator().calculate_cost(_attributes(value), TOKENS)
         assert cost == pytest.approx(TOKENS * BASE_RATE)

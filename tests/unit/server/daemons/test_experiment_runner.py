@@ -1089,11 +1089,11 @@ class TestEvalWorkItemPersistsErrorAnnotation:
 
 class TestWorkItemsReleaseTheirTracer:
     """One tracer is built per work item, and each holds every span it captured.
-
     An experiment over 1,000 examples that never releases retains 1,000 of them
-    for the life of the process. The failure path is the one worth pinning: both
-    items catch and report their errors rather than propagating, so nothing about
-    the exception forces the release.
+    for the life of the process.
+
+    These cover the failure path: both items catch and report their errors
+    rather than propagating, so nothing about the exception forces the release.
     """
 
     @staticmethod

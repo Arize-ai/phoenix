@@ -161,15 +161,14 @@ class TestTracerScope:
 
 
 class TestEveryAgentEndpointScopesItsTracer:
-    """The agents router is the heaviest `Tracer` owner — one per turn, holding
-    every span with its full message history — and it is the only owner with no
-    runtime lifecycle test. Each endpoint needs app state, authentication, a
-    built model and a constructed agent before it reaches the tracer, so none is
-    reachable from a unit test.
+    """The agents router is the heaviest `Tracer` owner: one per turn, holding
+    every span with its full message history. Each endpoint needs app state,
+    authentication, a built model and a constructed agent before it reaches the
+    tracer, so none is reachable from a unit test.
 
-    Guard the release structurally instead. Without this, deleting an
-    `async with` is invisible: replacing all three with `_tracer_scope(None)`
-    leaves this suite entirely green while no tracer is ever released.
+    These assertions read the source instead, checking that every endpoint that
+    builds a tracer also scopes it. Nothing else in this suite would notice an
+    `async with` going missing.
     """
 
     ENDPOINTS = ("run_server_agent", "chat", "summarize_endpoint")
@@ -261,10 +260,10 @@ class TestPersistAgentTraces:
                 )
 
     async def test_a_disconnected_client_does_not_lose_the_write(self) -> None:
-        """The commonest failure: the client goes away mid-turn and cancels the
-        scope this runs in. Unshielded, the first suspending `await` raises
-        `CancelledError` before the database is reached and the turn's traces
-        are lost even though the turn produced its answer.
+        """A client going away mid-turn cancels the scope this runs in.
+        Unshielded, the first suspending `await` raises `CancelledError` before
+        the database is reached, and the turn's traces are lost even though the
+        turn produced its answer.
         """
         persisted: list[object] = []
 
@@ -298,9 +297,10 @@ class TestPersistAgentTraces:
 
         The assertion is on elapsed time rather than an enclosing deadline. The
         bound lives inside the shield that protects the write from a client
-        disconnect, and that shield swallows an outer cancellation too — so an
-        enclosing `fail_after` can never fire, and dropping the bound would make
-        this test slow instead of making it fail.
+        disconnect, and that shield swallows an outer cancellation as well, so
+        an enclosing `fail_after` can never fire. Without the elapsed-time
+        assertion, dropping the bound would make this test slow rather than
+        failing.
         """
 
         async def _hang(db: object, name: str) -> int:

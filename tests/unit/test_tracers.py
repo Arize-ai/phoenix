@@ -103,8 +103,8 @@ class TestTracerLifecycle:
     """A `Tracer` is request-scoped and must not outlive the block that owns it.
 
     One is built per agent turn, per experiment work item, and per playground
-    stream, and each holds every span it captured — with full message histories,
-    since the span limits are raised so nothing is evicted.
+    stream. Each holds every span it captured, including full message
+    histories: the span limits are raised so that nothing is evicted.
     """
 
     @staticmethod
@@ -112,11 +112,11 @@ class TestTracerLifecycle:
         return Tracer(span_cost_calculator=cast(SpanCostCalculator, Mock()))
 
     def test_provider_does_not_register_an_atexit_handler(self) -> None:
-        """`TracerProvider`'s `shutdown_on_exit` default has to stay off here.
+        """`shutdown_on_exit` has to stay disabled on a per-request provider.
 
-        It does `atexit.register(provider.shutdown)`, which stores a bound
-        method and so pins the provider for the life of the process. That is
-        meant for one process-wide provider, not for one per request.
+        The SDK default registers `atexit.register(provider.shutdown)`, which
+        stores a bound method and pins the provider for the life of the
+        process. That suits one process-wide provider, not one per request.
         """
         tracer = self._tracer()
         assert tracer.tracer_provider._atexit_handler is None
@@ -139,12 +139,12 @@ class TestTracerLifecycle:
         tracer.shutdown()
 
     def test_leaving_the_block_releases_the_captured_spans(self) -> None:
-        """`shutdown()` alone does not: it reaches `_BufferedSpanExporter.shutdown()`,
-        which returns without touching the buffer. Only `clear()` empties it, so
-        `__exit__` has to do both or the message histories stay reachable.
+        """`shutdown()` alone does not release them.
 
-        See `test_a_span_ending_during_the_drain_is_still_released` for why the
-        two run in the order they do.
+        It reaches `_BufferedSpanExporter.shutdown()`, which returns without
+        touching the buffer. Only `clear()` empties it, so `__exit__` does
+        both. `test_a_span_ending_during_the_drain_is_still_released` covers
+        the order the two run in.
         """
         with self._tracer() as tracer:
             with tracer.start_as_current_span("operation"):
@@ -154,7 +154,7 @@ class TestTracerLifecycle:
 
     def test_the_block_releases_on_an_exception_path(self) -> None:
         """The work items re-raise cancellation through this block, and the
-        traceback pins the frame — so release cannot wait on the frame dying.
+        traceback pins the frame. Release cannot wait on the frame dying.
         """
         tracer = self._tracer()
         with patch.object(tracer.tracer_provider, "shutdown") as shutdown:
@@ -215,7 +215,7 @@ class TestTracerLifecycle:
     async def test_async_block_releases_under_cancellation(self) -> None:
         """A client disconnecting cancels the scope the release runs in. Without
         the shield in `__aexit__` the `await` raises before the release happens
-        and the tracer is never torn down at all.
+        and the tracer is never torn down.
         """
         exporter = _SlowExporter()
         tracer = self._remote_tracer(exporter)
@@ -231,7 +231,7 @@ class TestTracerLifecycle:
         assert tracer._self_exporter.get_finished_spans() == []
 
     async def test_async_block_skips_the_thread_without_a_remote_exporter(self) -> None:
-        """Nothing to drain locally, so the hop would buy nothing."""
+        """There is no remote queue to drain, so the thread hop serves no purpose."""
         tracer = self._tracer()
         with patch("anyio.to_thread.run_sync") as run_sync:
             async with tracer:
@@ -243,9 +243,9 @@ class TestTracerLifecycle:
     def test_a_span_ending_during_the_drain_is_still_released(self) -> None:
         """`shutdown()` has to run before `clear()`, not after.
 
-        With a remote exporter the shutdown drains the batch queue, and
-        `SimpleSpanProcessor` keeps filling the buffer for as long as the
-        collector takes — it has no shutdown check. Clearing first leaves
+        With a remote exporter the shutdown drains the batch queue.
+        `SimpleSpanProcessor` has no shutdown check, so it keeps filling the
+        buffer for as long as the collector takes. Clearing first leaves
         whatever ended inside that window reachable, and the window is as wide
         as the collector is slow.
         """
@@ -255,8 +255,8 @@ class TestTracerLifecycle:
         failures: list[BaseException] = []
 
         def _end_a_span_mid_drain() -> None:
-            # Nothing here reaches pytest on its own — an exception in this
-            # thread would leave the test passing on a window it never opened.
+            # Failures on this thread do not reach pytest. Uncaptured, they
+            # would leave the test passing on a window it never opened.
             try:
                 assert exporter.draining.wait(5), "the release never reached the drain"
                 with tracer.start_as_current_span("ended-during-the-drain"):
@@ -276,10 +276,9 @@ class TestTracerLifecycle:
         assert tracer._self_exporter.get_finished_spans() == []
 
     def test_a_teardown_failure_does_not_replace_the_original_error(self) -> None:
-        """`_persist_agent_traces` already learned this one level up: a failure
-        while tearing down must not stand in for the failure the block is
-        unwinding, or the caller sees a broken exporter instead of the agent
-        error — or instead of a cancellation.
+        """A failure while tearing down must not stand in for the failure the
+        block is unwinding. Otherwise the caller sees a broken exporter in
+        place of the agent error, or in place of a cancellation.
         """
         tracer = self._tracer()
         with patch.object(
@@ -313,9 +312,9 @@ class TestTracerLifecycle:
                     pass
 
     def test_a_tracer_cannot_be_reused_after_its_block(self) -> None:
-        """The failure this prevents is silent: the first release stops the batch
-        processor but not `SimpleSpanProcessor`, so a second block's spans reach
-        the local buffer while remote export refuses them.
+        """The first release stops the batch processor but not
+        `SimpleSpanProcessor`, so a second block's spans would reach the local
+        buffer while remote export refuses them.
         """
         tracer = self._tracer()
         with tracer:

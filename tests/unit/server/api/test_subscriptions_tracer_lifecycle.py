@@ -7,11 +7,9 @@ from phoenix.server.api.subscriptions import _stream_single_chat_completion
 
 
 class TestStreamSingleChatCompletionReleasesItsTracer:
-    """The playground stream is the owner that previously tore its tracer down
-    on no path at all, so it is the one most worth pinning.
-
-    A `Tracer` holds every span it captured, message histories included, and one
-    is built per stream.
+    """The playground builds one `Tracer` per stream, and each holds every span
+    it captured, message histories included. The stream has to release its
+    tracer on every path it can leave by: completion, failure, and abandonment.
     """
 
     @staticmethod
