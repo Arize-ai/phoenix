@@ -318,8 +318,7 @@ async def test_a_name_offered_by_both_a_table_and_a_derived_relation_is_refused_
     projects the name, and cannot tell that a base table offers it too. That is
     safe only because the engine refuses the collision rather than resolving it
     toward the base table -- which would make the admission a read of a column
-    the schema withholds. Measured here rather than assumed; PostgreSQL refuses
-    it in the same four positions.
+    the schema withholds.
     """
     db, db_path = analytics_sqlite_db
     with pytest.raises(AnalyticsSqlError) as caught:
@@ -327,6 +326,20 @@ async def test_a_name_offered_by_both_a_table_and_a_derived_relation_is_refused_
             db,
             ExecuteParams(sql="SELECT user_id FROM datasets, (SELECT 1 AS user_id) q"),
             sqlite_db_path=db_path,
+        )
+
+    assert "ambiguous" in caught.value.message.casefold()
+
+
+@pytest.mark.postgresql
+async def test_the_same_collision_is_refused_by_postgresql(
+    analytics_postgres_db: DbSessionFactory,
+) -> None:
+    """The other half of the premise. Claimed on both engines, so pinned on both."""
+    with pytest.raises(AnalyticsSqlError) as caught:
+        await execute_analytics_sql(
+            analytics_postgres_db,
+            ExecuteParams(sql="SELECT user_id FROM datasets, (SELECT 1 AS user_id) q"),
         )
 
     assert "ambiguous" in caught.value.message.casefold()

@@ -813,6 +813,46 @@ class TestTimestampComparisonCoverage:
         assert "time of day" in result.detail
 
     @pytest.mark.parametrize(
+        "sql,dialect",
+        [
+            ("SELECT id FROM spans WHERE (start_time) = ('{}')", "sqlite"),
+            ("SELECT id FROM spans WHERE (start_time) = ('{}')", "postgresql"),
+            ("SELECT id FROM spans WHERE (start_time, id) = ('{}', 1)", "sqlite"),
+            ("SELECT id FROM spans WHERE (start_time, id) = ('{}', 1)", "postgresql"),
+            ("SELECT id FROM spans WHERE (start_time) BETWEEN ('{}') AND ('2026-02-01')", "sqlite"),
+            ("SELECT id FROM spans WHERE (start_time) IN (('{}'))", "sqlite"),
+            ("SELECT id FROM spans WHERE start_time IS NOT DISTINCT FROM '{}'", "sqlite"),
+        ],
+    )
+    def test_grouping_and_row_syntax_do_not_hide_an_operand(self, sql: str, dialect: str) -> None:
+        """Both checks match on the operand node, so a caller's parentheses
+        presented them a `Paren` and neither engaged -- the whole machinery
+        defeated by punctuation anyone is free to add.
+
+        Executed on SQLite over a stored `2026-01-01 10:30:00`, the ISO spelling
+        matched no rows while the stored spelling matched, which is the silent
+        wrong answer this refusal exists to prevent.
+        """
+        result = try_parse_and_admit(
+            sql.format("2026-01-01T10:30:00"), dialect=cast(DialectName, dialect)
+        )
+
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert "time of day" in result.detail
+
+    def test_an_aware_literal_behind_grouping_is_still_rewritten(self) -> None:
+        ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)
+        tree = parse_one(
+            "SELECT id FROM spans WHERE (start_time, id) = ('2026-01-01T00:00:00Z', 1)",
+            read="sqlite",
+        )
+
+        rendered = rewrite(tree, ctx).sql(dialect="sqlite")
+
+        assert "2026-01-01 00:00:00" in rendered
+        assert "timestamp_literals" in ctx.applied
+
+    @pytest.mark.parametrize(
         "sql",
         [
             "SELECT id FROM spans WHERE start_time = ANY(SELECT created_at FROM datasets "
@@ -925,11 +965,16 @@ class TestStructuralPolicyIsDefaultDeny:
         """Forces the timestamp decision when a construct is admitted, not later.
 
         Admitting a construct and deciding whether it compares values are two
-        lists kept in agreement by hand, and three spellings had drifted between
+        lists kept in agreement by hand, and spellings kept drifting between
         them -- each admitted, none reaching the timestamp machinery, so a naive
         literal beside one was neither refused nor rewritten and the comparison
-        quietly answered wrong. Adding a class below without classifying it here
-        fails, which is the only point at which the answer is cheap.
+        quietly answered wrong.
+
+        The three sets are written out rather than derived from each other. An
+        earlier form subtracted one from the allowlist to get the other, which
+        made the covering assertion a tautology: an unclassified class was
+        silently absorbed, so the check could not fail for the case it exists
+        for. It is asserted here that the union is exactly the allowlist.
         """
         comparing = {
             "EQ",
@@ -945,19 +990,97 @@ class TestStructuralPolicyIsDefaultDeny:
             "In",
             "Any",
         }
-        # Everything else: operators, clauses, identifiers and containers. A
-        # value compared under one of these reaches a comparison node first.
-        not_comparing = _ALLOWED_STRUCTURAL_CLASSES - comparing
+        # Carry operands through without comparing anything themselves, so a
+        # value inside one must be unwrapped to reach the checks. Missing this
+        # category let a pair of parentheses defeat the whole machinery.
+        transparent = {"Paren", "Tuple"}
+        # Operators, clauses, identifiers, literals and containers. A value
+        # compared under one of these reaches a comparison node first.
+        not_comparing = {
+            "Add",
+            "Alias",
+            "All",
+            "Block",
+            "Boolean",
+            "CTE",
+            "Column",
+            "Copy",
+            "Credentials",
+            "Cube",
+            "DPipe",
+            "DataType",
+            "Distinct",
+            "Div",
+            "Dot",
+            "Drop",
+            "Escape",
+            "Except",
+            "Fetch",
+            "Filter",
+            "From",
+            "Glob",
+            "Group",
+            "GroupingSets",
+            "Having",
+            "Identifier",
+            "Intersect",
+            "Interval",
+            "Into",
+            "JSONKeyValue",
+            "JSONPath",
+            "JSONPathKey",
+            "JSONPathRoot",
+            "Join",
+            "Lateral",
+            "Like",
+            "Limit",
+            "LimitOptions",
+            "Literal",
+            "Lock",
+            "Mod",
+            "Mul",
+            "Neg",
+            "Not",
+            "Null",
+            "ObjectIdentifier",
+            "Offset",
+            "Order",
+            "Ordered",
+            "Rollup",
+            "Select",
+            "Star",
+            "Sub",
+            "Subquery",
+            "Table",
+            "TableAlias",
+            "Union",
+            "Values",
+            "Var",
+            "Where",
+            "Window",
+            "WindowSpec",
+            "With",
+            "WithinGroup",
+        }
 
-        assert comparing <= _ALLOWED_STRUCTURAL_CLASSES, (
-            f"classified but not admitted: {sorted(comparing - _ALLOWED_STRUCTURAL_CLASSES)}"
+        assert comparing | transparent | not_comparing == _ALLOWED_STRUCTURAL_CLASSES, (
+            "unclassified: "
+            f"{sorted(_ALLOWED_STRUCTURAL_CLASSES - comparing - transparent - not_comparing)}; "
+            "classified but not admitted: "
+            f"{sorted(comparing | transparent | not_comparing - _ALLOWED_STRUCTURAL_CLASSES)}"
         )
-        assert comparing | not_comparing == _ALLOWED_STRUCTURAL_CLASSES
 
-        # Each comparing class must actually yield pairs, so the classification
-        # cannot be satisfied by naming a class the enumeration ignores.
+        # Every comparing class must actually yield pairs, so the classification
+        # cannot be satisfied by naming a class the enumeration ignores. `Any`
+        # and the orderings share a shape, so one probe stands for each group.
         for sql, name in [
             ("SELECT id FROM spans WHERE start_time = 'x'", "EQ"),
+            ("SELECT id FROM spans WHERE start_time <> 'x'", "NEQ"),
+            ("SELECT id FROM spans WHERE start_time > 'x'", "GT"),
+            ("SELECT id FROM spans WHERE start_time >= 'x'", "GTE"),
+            ("SELECT id FROM spans WHERE start_time < 'x'", "LT"),
+            ("SELECT id FROM spans WHERE start_time <= 'x'", "LTE"),
+            ("SELECT id FROM spans WHERE start_time IS NOT DISTINCT FROM 'x'", "NullSafeEQ"),
             ("SELECT id FROM spans WHERE start_time IS DISTINCT FROM 'x'", "NullSafeNEQ"),
             ("SELECT id FROM spans WHERE start_time IS 'x'", "Is"),
             ("SELECT id FROM spans WHERE start_time IN ('x')", "In"),
@@ -966,6 +1089,20 @@ class TestStructuralPolicyIsDefaultDeny:
             root = parse_one(sql, read="sqlite")
             pairs = [p for node in root.walk() for p in _timestamp_comparison_pairs(node)]
             assert pairs, f"{name} is classified as comparing but yields no pairs"
+
+        # Asserted on the value the quantifier holds, not merely on the pair
+        # count: the comparison node yields its own operands either way, so
+        # "some pairs exist" passes with the unwrap removed.
+        any_root = parse_one(
+            "SELECT id FROM spans WHERE start_time = ANY(ARRAY['x'])", read="postgres"
+        )
+        held = [
+            operand
+            for node in any_root.walk()
+            for _, operand in _timestamp_comparison_pairs(node)
+            if isinstance(operand, exp.Literal) and operand.this == "x"
+        ]
+        assert held, "Any is classified as comparing but the value it holds is never reached"
 
     def test_a_lossy_shape_keeps_its_own_message(self) -> None:
         """The structural policy runs after the lossy-shape checks, which name
