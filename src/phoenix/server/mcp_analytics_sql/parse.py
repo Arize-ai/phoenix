@@ -57,6 +57,16 @@ def parse_sql(sql: str, *, dialect: DialectName) -> exp.Expression:
         statements = parse(sql, read=sqlglot_read_dialect(dialect))
     except ParseError as exc:
         raise admission_error_from_outcome("parse_error", str(exc)) from exc
+    except RecursionError as exc:
+        # The parser descends recursively, so nesting deep enough exhausts the
+        # stack instead of failing to parse -- about a hundred parentheses, which
+        # is a short string to send. Left uncaught it escapes the error envelope
+        # and reaches the caller as a masked internal failure, which is the one
+        # answer this surface is built not to give.
+        raise AnalyticsSqlError(
+            code=ErrorCode.PARSE_ERROR,
+            message="SQL is nested too deeply to parse. Simplify the expression.",
+        ) from exc
     if len(statements) != 1:
         raise AnalyticsSqlError(
             code=ErrorCode.MULTI_STATEMENT,
@@ -388,14 +398,25 @@ _TIMESTAMP_COMPARISONS = (
 
 
 def _strip_parens(node: Optional[exp.Expression]) -> Optional[exp.Expression]:
-    """The operand a comparison actually has, with grouping removed.
+    """The operand a comparison actually has, with wrapping removed.
 
-    Parentheses are not part of what is compared, and both consumers match on
-    the node itself, so an operand left wrapped is an operand they cannot see.
+    Both consumers match on the node itself, so an operand left wrapped is an
+    operand they cannot see. Grouping is never part of what is compared, and a
+    cast of a literal is that literal -- `CAST('2026-01-01' AS TEXT)` states a
+    value, it does not compute one.
+
+    A cast of anything else is left alone. Unwrapping it would put a check on
+    the far side of an expression the caller wrote deliberately, which is the
+    standing limit described on `_timestamp_comparison_pairs`.
     """
-    while isinstance(node, exp.Paren):
-        node = node.this
-    return node
+    while True:
+        if isinstance(node, exp.Paren):
+            node = node.this
+            continue
+        if isinstance(node, exp.Cast) and isinstance(_strip_parens(node.this), exp.Literal):
+            node = node.this
+            continue
+        return node
 
 
 def _timestamp_comparison_pairs(
@@ -409,10 +430,21 @@ def _timestamp_comparison_pairs(
     belongs here: `CASE col WHEN value` and `= ANY(...)` are decided exactly like
     `col = value`, and a quantifier holds its values rather than being one.
 
-    Operands are reduced rather than matched as written, so grouping and row
-    syntax do not hide one. What a pair cannot be reduced to a bare column and
-    value is left as it is, and the consumers ignore it -- an expression on the
-    column side is the standing limit, not a spelling this can reach.
+    Operands are reduced rather than matched as written, so grouping, casts of
+    literals and row syntax do not hide one.
+
+    The standing limit is on both sides and is the same limit: a pair that does
+    not reduce to a bare column beside a bare value is left as it is, and the
+    consumers ignore it. `date(start_time) = '...'` and `start_time = '...' ||
+    ''` are both outside, because in each the caller wrote an expression that
+    computes a value rather than naming one, and rewriting a literal beside it
+    would change a comparison they authored. A value the query has to run to
+    produce -- a scalar subquery, `VALUES` reached through one -- is outside for
+    the same reason the quantifier's subquery is.
+
+    On SQLite that limit is a wrong answer rather than an error, because text
+    comparison succeeds against the wrong spelling. It is the first place to
+    look when a caller reports a timestamp predicate matching nothing.
     """
     if isinstance(node, _TIMESTAMP_COMPARISONS):
         pairs = [(node.this, node.expression), (node.expression, node.this)]
