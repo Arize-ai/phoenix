@@ -233,6 +233,31 @@ class TestHiddenColumnsAreRefused:
 
         assert f"Did you mean {expected}" in caught.value.message
 
+    @pytest.mark.parametrize(
+        "sql,withheld",
+        [
+            ("SELECT user_idd FROM datasets", "user_id"),
+            ("SELECT gradient_start_colr FROM projects", "gradient_start_color"),
+            ("SELECT trace_retention_policy_idd FROM projects", "trace_retention_policy_id"),
+        ],
+    )
+    def test_a_near_miss_on_a_withheld_name_is_not_answered_with_it(
+        self, sql: str, withheld: str
+    ) -> None:
+        """The suggestion pool is the point at which this surface could name a
+        column it declines to show. An exact spelling already confirms the name;
+        a near miss must not, or the pool becomes a way to enumerate them.
+
+        Asserted on the suggestion clause alone. The message necessarily echoes
+        the caller's own spelling, so a whole-message search for the withheld
+        name answers a different question than this one.
+        """
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql(sql, allowlist=load_allowlist(), dialect="sqlite")
+        suggestion = caught.value.message.partition("Did you mean")[2]
+
+        assert not suggestion, f"suggested {suggestion!r} for a near miss on {withheld}"
+
     def test_the_alias_collision_refusal_claims_nothing_about_binding(self) -> None:
         """It binds to the alias in the shape that reaches this message, so
         describing the outcome as uncertain would be false -- and any binding
@@ -786,6 +811,24 @@ class TestTimestampComparisonCoverage:
 
         assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
         assert "time of day" in result.detail
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT id FROM spans WHERE start_time = ANY(SELECT created_at FROM datasets "
+            "WHERE name = '2026-01-01 00:00:00')",
+            'SELECT id FROM spans WHERE start_time = ANY(SELECT "created_at" FROM datasets)',
+        ],
+    )
+    def test_a_value_inside_an_any_subquery_belongs_to_that_subquery(self, sql: str) -> None:
+        """`= ANY(SELECT ...)` compares against what the subquery returns, so a
+        value written inside it sits beside that subquery's own columns.
+
+        Pairing it with the outer timestamp column refused valid PostgreSQL, told
+        the caller to replace a real column reference with a string, and on
+        SQLite rewrote a literal they were comparing against their own data.
+        """
+        assert try_parse_and_admit(sql, dialect="postgresql").outcome is AdmissionOutcome.ADMIT
 
     @pytest.mark.parametrize(
         "sql",
