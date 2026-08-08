@@ -390,10 +390,8 @@ _TIMESTAMP_COMPARISONS = (
 def _strip_parens(node: Optional[exp.Expression]) -> Optional[exp.Expression]:
     """The operand a comparison actually has, with grouping removed.
 
-    Parentheses are not part of what is being compared, but both consumers match
-    on the node itself, so `(start_time) = ('...')` presented them a pair of
-    `Paren`s and neither check engaged -- the whole timestamp machinery defeated
-    by grouping the caller is free to add.
+    Parentheses are not part of what is compared, and both consumers match on
+    the node itself, so an operand left wrapped is an operand they cannot see.
     """
     while isinstance(node, exp.Paren):
         node = node.this
@@ -411,19 +409,18 @@ def _timestamp_comparison_pairs(
     belongs here: `CASE col WHEN value` and `= ANY(...)` are decided exactly like
     `col = value`, and a quantifier holds its values rather than being one.
 
-    Operands are unwrapped rather than matched as written, so grouping and row
-    syntax cannot hide one. A row comparison decides element against element, so
-    that is how its pairs are formed.
+    Operands are reduced rather than matched as written, so grouping and row
+    syntax do not hide one. What a pair cannot be reduced to a bare column and
+    value is left as it is, and the consumers ignore it -- an expression on the
+    column side is the standing limit, not a spelling this can reach.
     """
     if isinstance(node, _TIMESTAMP_COMPARISONS):
         pairs = [(node.this, node.expression), (node.expression, node.this)]
         for column, other in ((node.this, node.expression), (node.expression, node.this)):
             if isinstance(other, exp.Any):
-                # Bounded at the subquery edge. `= ANY(SELECT ...)` compares
-                # against what the subquery returns, so a value written inside it
-                # is beside that subquery's own columns, not beside this one --
-                # pairing them refuses valid SQL and, on SQLite, rewrote a
-                # literal the caller was comparing against their own data.
+                # Bounded at the subquery edge: `= ANY(SELECT ...)` compares
+                # against what the subquery returns, so a value written inside
+                # it is beside that subquery's columns, not beside this one.
                 pairs.extend(
                     (column, held)
                     for held in _within_scope(other, exp.Expression)
@@ -434,8 +431,17 @@ def _timestamp_comparison_pairs(
         return _unwrapped([(node.this, node.args.get("low")), (node.this, node.args.get("high"))])
     if isinstance(node, exp.In):
         # A comparison spelled as a list, so a member is decided the way a
-        # literal beside `=` is, and only against the left operand.
-        return _unwrapped((node.this, member) for member in node.expressions)
+        # literal beside `=` is, and only against the left operand. `VALUES`
+        # holds rows rather than values, so its rows are the members; a
+        # subquery's are not, and live in `query` where this does not reach.
+        members: list[Optional[exp.Expression]] = []
+        for member in node.expressions:
+            unwrapped = _strip_parens(member)
+            if isinstance(unwrapped, exp.Values):
+                members.extend(unwrapped.expressions)
+            else:
+                members.append(unwrapped)
+        return _unwrapped((node.this, member) for member in members)
     if isinstance(node, exp.Case) and node.this is not None:
         # Only the operand form. `CASE WHEN col = value` builds a real comparison
         # node and is covered above; this spelling compares without one.
@@ -446,18 +452,30 @@ def _timestamp_comparison_pairs(
 def _unwrapped(
     pairs: Iterable[tuple[Optional[exp.Expression], Optional[exp.Expression]]],
 ) -> list[tuple[Optional[exp.Expression], Optional[exp.Expression]]]:
-    """Strip grouping, and split a row comparison into its element comparisons."""
+    """Reduce each pair to the operands actually compared.
+
+    Applied until neither side can be reduced further, because one pass answers
+    only the depth it happens to meet: a row nested inside a row is still a pair
+    of rows, and stopping there leaves the operand inside it unexamined.
+    """
     out: list[tuple[Optional[exp.Expression], Optional[exp.Expression]]] = []
-    for left, right in pairs:
+    pending = list(pairs)
+    while pending:
+        left, right = pending.pop()
         left, right = _strip_parens(left), _strip_parens(right)
+        # `(a, b) = (x, y)` compares a with x and b with y. Callers reach for
+        # this to compare several columns at once, and one of them being a
+        # timestamp is exactly the case that must not slip through.
         if isinstance(left, exp.Tuple) and isinstance(right, exp.Tuple):
-            # `(a, b) = (x, y)` compares a with x and b with y. Callers reach
-            # for this to compare several columns at once, and one of them being
-            # a timestamp is exactly the case that must not slip through.
-            out.extend(
-                (_strip_parens(a), _strip_parens(b))
-                for a, b in zip(left.expressions, right.expressions)
-            )
+            pending.extend(zip(left.expressions, right.expressions))
+            continue
+        # A one-element row beside a scalar is that element. `IN (VALUES (x))`
+        # spells a single value this way.
+        if isinstance(left, exp.Tuple) and len(left.expressions) == 1:
+            pending.append((left.expressions[0], right))
+            continue
+        if isinstance(right, exp.Tuple) and len(right.expressions) == 1:
+            pending.append((left, right.expressions[0]))
             continue
         out.append((left, right))
     return out
