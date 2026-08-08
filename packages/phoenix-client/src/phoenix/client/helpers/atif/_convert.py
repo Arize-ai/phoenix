@@ -26,6 +26,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 from phoenix.client.__generated__ import v1
 
 _PARENT_SPAN_CONTEXT_KEY = "_phoenix_parent_span_context"
+_IS_EXTERNAL_PARENT_SPAN_CONTEXT_KEY = "_phoenix_is_external_parent_span_context"
 
 
 def _sha256_span_id(seed: str) -> str:
@@ -144,17 +145,19 @@ def _get_parent_span_context(
 ) -> Optional[tuple[str, str]]:
     """Return the parent span context for a trajectory if a subagent ref links it."""
     parent_ctx = trajectory.get(_PARENT_SPAN_CONTEXT_KEY)
-    if (
+    has_parent_ctx = (
         isinstance(parent_ctx, tuple)
         and len(parent_ctx) == 2
         and all(isinstance(value, str) for value in parent_ctx)
-    ):
+    )
+    is_external_parent = trajectory.get(_IS_EXTERNAL_PARENT_SPAN_CONTEXT_KEY) is True
+    if has_parent_ctx and not is_external_parent:
         return parent_ctx
     for key in _trajectory_lookup_keys(trajectory):
-        parent_ctx = ref_map.get(key)
-        if parent_ctx is not None:
-            return parent_ctx
-    return None
+        ref_parent_ctx = ref_map.get(key)
+        if ref_parent_ctx is not None:
+            return ref_parent_ctx
+    return parent_ctx if has_parent_ctx else None
 
 
 def _flatten_atif_trajectories(
@@ -176,6 +179,14 @@ def _flatten_atif_trajectories(
         inherited_session_id: Optional[str] = None,
         parent_span_context: Optional[tuple[str, str]] = None,
     ) -> None:
+        if parent_span_context is None:
+            top_level_parent_ctx = trajectory.get(_PARENT_SPAN_CONTEXT_KEY)
+            if (
+                isinstance(top_level_parent_ctx, tuple)
+                and len(top_level_parent_ctx) == 2
+                and all(isinstance(value, str) for value in top_level_parent_ctx)
+            ):
+                parent_span_context = top_level_parent_ctx
         effective_session_id = _trajectory_session_id(trajectory, inherited_session_id)
         if "session_id" not in trajectory and inherited_session_id:
             trajectory_for_conversion: Mapping[str, Any] = {

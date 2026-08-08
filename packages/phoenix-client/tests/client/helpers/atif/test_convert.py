@@ -9,6 +9,10 @@ from typing import Any, Dict, List
 
 import pytest
 
+from phoenix.client.helpers.atif import (
+    AtifParentSpanContext,
+    convert_atif_trajectories_to_spans,
+)
 from phoenix.client.helpers.atif._convert import (
     _base_session_id,
     _build_subagent_ref_map,
@@ -87,6 +91,123 @@ class TestDeterministicIds:
     def test_different_input_different_output(self) -> None:
         assert _sha256_trace_id("a") != _sha256_trace_id("b")
         assert _sha256_span_id("a") != _sha256_span_id("b")
+
+
+class TestPublicBatchConversion:
+    common_parent_span_context: AtifParentSpanContext = {
+        "trace_id": "0123456789abcdef0123456789abcdef",
+        "span_id": "0123456789abcdef",
+    }
+
+    def test_top_level_roots_use_caller_parent(
+        self,
+        simple_trajectory: Dict[str, Any],
+        multi_tool_trajectory: Dict[str, Any],
+    ) -> None:
+        spans = convert_atif_trajectories_to_spans(
+            [simple_trajectory, multi_tool_trajectory],
+            common_parent_span_context=self.common_parent_span_context,
+        )
+
+        roots = [
+            span
+            for span in spans
+            if span.get("parent_id") == self.common_parent_span_context["span_id"]
+        ]
+        assert len(roots) == 2
+        assert {span["name"] for span in roots} == {
+            simple_trajectory["agent"]["name"],
+            multi_tool_trajectory["agent"]["name"],
+        }
+        assert {span["context"]["trace_id"] for span in spans} == {
+            self.common_parent_span_context["trace_id"]
+        }
+
+    def test_embedded_subagent_relationship_precedes_caller_parent(
+        self, v17_embedded_subagents: Dict[str, Any]
+    ) -> None:
+        spans = convert_atif_trajectories_to_spans(
+            [v17_embedded_subagents],
+            common_parent_span_context=self.common_parent_span_context,
+        )
+
+        parent_root = [span for span in spans if span["name"] == "orchestrator"][0]
+        child_root = [span for span in spans if span["name"] == "researcher"][0]
+        parent_tool = [span for span in spans if span["name"] == "delegate_research"][0]
+        assert parent_root.get("parent_id") == self.common_parent_span_context["span_id"]
+        assert child_root.get("parent_id") == parent_tool["context"]["span_id"]
+        assert child_root.get("parent_id") != self.common_parent_span_context["span_id"]
+        assert child_root["context"]["trace_id"] == self.common_parent_span_context["trace_id"]
+
+    def test_cross_document_subagent_relationship_precedes_caller_parent(
+        self, subagent_fixture: Dict[str, Any]
+    ) -> None:
+        spans = convert_atif_trajectories_to_spans(
+            [subagent_fixture["parent"], subagent_fixture["child"]],
+            common_parent_span_context=self.common_parent_span_context,
+        )
+
+        parent_root = [span for span in spans if span["name"] == "orchestrator"][0]
+        child_root = [span for span in spans if span["name"] == "summarizer"][0]
+        parent_tool = [span for span in spans if span["name"] == "delegate_summary"][0]
+        assert parent_root.get("parent_id") == self.common_parent_span_context["span_id"]
+        assert child_root.get("parent_id") == parent_tool["context"]["span_id"]
+        assert child_root["context"]["trace_id"] == self.common_parent_span_context["trace_id"]
+
+    def test_pre_v17_shared_session_collision_is_avoided_by_trajectory_ids(self) -> None:
+        def trajectory(agent_name: str, message: str) -> Dict[str, Any]:
+            return {
+                "schema_version": "ATIF-v1.6",
+                "session_id": "shared-run",
+                "agent": {"name": agent_name, "version": "1.0"},
+                "steps": [
+                    {"step_id": 1, "source": "user", "message": message},
+                    {"step_id": 2, "source": "agent", "message": "done"},
+                ],
+            }
+
+        trajectory_a = trajectory("agent-a", "first")
+        trajectory_b = trajectory("agent-b", "second")
+        colliding_spans = convert_atif_trajectories_to_spans([trajectory_a, trajectory_b])
+        colliding_ids = [span["context"]["span_id"] for span in colliding_spans]
+        assert len(set(colliding_ids)) < len(colliding_ids)
+
+        distinct_spans = convert_atif_trajectories_to_spans(
+            [
+                {**trajectory_a, "trajectory_id": "trajectory-a"},
+                {**trajectory_b, "trajectory_id": "trajectory-b"},
+            ]
+        )
+        distinct_ids = [span["context"]["span_id"] for span in distinct_spans]
+        assert len(set(distinct_ids)) == len(distinct_ids)
+
+    def test_conversion_ids_are_deterministic(self, simple_trajectory: Dict[str, Any]) -> None:
+        # If steps omit timestamps, generated timestamps can differ between calls;
+        # span and trace IDs remain deterministic.
+        without_timestamps = {
+            **simple_trajectory,
+            "steps": [
+                {key: value for key, value in step.items() if key != "timestamp"}
+                for step in simple_trajectory["steps"]
+            ],
+        }
+        first = convert_atif_trajectories_to_spans(
+            [without_timestamps],
+            common_parent_span_context=self.common_parent_span_context,
+        )
+        second = convert_atif_trajectories_to_spans(
+            [without_timestamps],
+            common_parent_span_context=self.common_parent_span_context,
+        )
+        assert [span["context"] for span in first] == [span["context"] for span in second]
+
+    def test_does_not_mutate_caller_input(self, simple_trajectory: Dict[str, Any]) -> None:
+        original = json.loads(json.dumps(simple_trajectory))
+        convert_atif_trajectories_to_spans(
+            [simple_trajectory],
+            common_parent_span_context=self.common_parent_span_context,
+        )
+        assert simple_trajectory == original
 
 
 class TestSimpleTrajectoryConversion:

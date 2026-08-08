@@ -10,7 +10,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from phoenix.client.helpers.atif import upload_atif_trajectories_as_spans
+from phoenix.client.helpers.atif import (
+    convert_atif_trajectories_to_spans,
+    upload_atif_trajectories_as_spans,
+)
 from phoenix.client.helpers.atif._convert import (
     _sha256_span_id,
     _sha256_trace_id,
@@ -45,6 +48,20 @@ def v17_embedded_subagents() -> Dict[str, Any]:
 
 
 class TestUploadIntegration:
+    def test_uploader_uses_unchanged_conversion_output(
+        self, simple_trajectory: Dict[str, Any]
+    ) -> None:
+        mock_client = MagicMock()
+        expected_spans = convert_atif_trajectories_to_spans([simple_trajectory])
+
+        upload_atif_trajectories_as_spans(
+            mock_client,
+            [simple_trajectory],
+            project_name="default",
+        )
+
+        assert mock_client.spans.log_spans.call_args.kwargs["spans"] == expected_spans
+
     def test_calls_log_spans_with_correct_project(self, simple_trajectory: Dict[str, Any]) -> None:
         mock_client = MagicMock()
         mock_client.spans.log_spans.return_value = {
