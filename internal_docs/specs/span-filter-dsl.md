@@ -141,6 +141,30 @@ declared element fields. `len` takes a list comprehension, the rest take a
 generator — inherited from CPython, where `len` needs a sized argument. The
 grain declares one collection, `span.cost_details`.
 
+**Inside a comprehension the dialect is strict**, unlike the grain around it.
+The outer surface is permissive because its accepted conditions are a
+compatibility promise; a collection scope is new and owes nothing, so it gets
+the family's typed dialect — every sub-expression resolves to a type before SQL
+is built, and a mismatch is rejected by name. `any(x.cost > 'abc' for x in
+span.cost_details)` is refused here and `latency_ms > '100'` is not, and that
+asymmetry is deliberate.
+
+Three consequences worth stating, because each is stricter than the enclosing
+grain:
+
+- **The filtered row is not reachable.** `span.<member>` and bare span names are
+  rejected inside a comprehension rather than compiled — compare them outside
+  and conjoin: `span.total_cost > 1 and any(...)`.
+- **Casts follow the family, not the grain.** `int(...)` is refused outright
+  rather than aliased to `float(...)`, and casting a term to the type it already
+  has is refused as a no-op. All three still compile outside a comprehension.
+- **An `if` clause is a condition**, so a bare text field is not one.
+
+A rejection here never suggests `attributes[...]`. The element scope has no
+dynamic namespace, and an attribute path written inside one compiles and then
+fails when the query is built, so the advice would be a trap rather than a
+remedy.
+
 Empty-collection results follow CPython: `all(())` is true, `len(())` and
 `sum(())` are `0`. `max(())`/`min(())` raise in Python and are NULL here, which
 fails every comparison — the language cannot raise per row.
@@ -230,12 +254,29 @@ Closure is the point. A bare identifier falls back to the dynamic namespace, so
 a misspelling silently matches nothing; nothing lies beneath a reserved root, so
 `span.totl_cost` is rejected by name with a suggestion. The cost of that
 property is that reserving a root is a **breaking change** for conditions that
-keyed an attribute under it (§6 of the design principles) — `attributes['span.x']`
-now errors rather than resolving. It fails loudly, which is the better half of
+keyed an attribute under it (§6 of the design principles): the bare dotted
+spelling `span.x` used to read `attributes['span']['x']` and now errors.
+
+Only that spelling breaks, and the migration preserves the JSON path exactly —
+rewrite `span.x` as `attributes['span']['x']`. Both subscript spellings are
+untouched, and they are *different keys*: `attributes['span']['x']` is the nested
+path `$."span"."x"` that `span.x` meant, while `attributes['span.x']` is the flat
+key `$."span.x"` that it never meant. Neither errors, before or after.
+
+It fails loudly, which is the better half of
 the trade, and the root was chosen because neither OTel nor OpenInference
 defines attributes under `span.`. Any future root must be checked the same way:
 `session.` in particular is a real semantic-convention key
 (`SpanAttributes.SESSION_ID`) and is *not* free to reserve.
+
+**Cross-grain convention.** A grain-scoped rollup carries the grain prefix only
+where the grain requires one. The session grain spells the same concept bare
+(`total_cost`), because `reject_unbound_names=True` left those names free; the
+span grain cannot, because a bare name there already resolves to an attribute
+path. So the rule is *not* "every grain prefixes" — it is that a permissive
+grain reserves a root and a strict grain does not need to. A new grain should
+follow whichever half its `reject_unbound_names` puts it in, rather than
+matching whichever grain shipped most recently.
 
 Once a root is reserved, adding members to it later is additive: an unknown
 member already errors, so admitting one cannot change what an accepted
@@ -1500,10 +1541,13 @@ and, where possible, suggest the repair.
 | Traversal past a reserved root's member | ``​`span.total_cost.x` is not supported: `span` exposes its fields directly (`span.<field>`) and cannot be traversed further`` |
 | Bare reserved root | ``​`span` can only be used as `span.<field>`​`` |
 | Collection in value position | ``​`span.cost_details` is a collection and can only be iterated, e.g. `any(x.<field> == "..." for x in span.cost_details)`​`` |
-| Reserved root as a loop variable | ``​`span` is reserved and cannot be a loop variable`` |
-| Reduction without a comprehension | ``​`len(...)` takes a comprehension over span.cost_details, e.g. …`` |
+| Reduction without a comprehension | ``​`len(...)` takes a comprehension over span.cost_details, e.g. `len([x for x in span.cost_details])`​`` (the example is per kind) |
 | Unknown iterable | ``invalid iterable `cost_details`, did you mean "span.cost_details"?`` |
 | Unknown element field | ``invalid field `d.nope`, expected one of cost, cost_per_token, is_prompt, token_type, or tokens`` |
+| Element field where a top-level name was written | ``​`latency_ms` is a span-level term, not a span.cost_details element field; …`` |
+| Reserved root inside a comprehension | ``​`span.total_cost` reads the filtered row, which is not reachable inside a comprehension over `span.cost_details`; …`` |
+| Element operand type | ``cannot compare `x.cost` (a number) with `'abc'` (text)`` |
+| Reduction over a non-number | ``​`sum(...)` reduces numbers, and `x.token_type` is text; …`` |
 | Unknown annotation member | ``invalid eval attribute `.x` in `...`, expected `.score` or …`` |
 | Empty annotation name | ``missing eval name in `evals['']`​`` |
 | Unsupported construct | `invalid expression: <source>` |
