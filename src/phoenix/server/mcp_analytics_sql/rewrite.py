@@ -576,7 +576,7 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     query_local = query_local_columns(root, allowlist=ctx.allowlist)
 
     for node in list(root.find_all(exp.Column)):
-        if (node.name or "").lower() == "latency_ms" and id(node) not in query_local:
+        if (node.name or "").lower() == "latency_ms" and not query_local.is_local(node):
             table_name = node.table or ""
             start = exp.column("start_time", table=table_name or None)
             end = exp.column("end_time", table=table_name or None)
@@ -748,7 +748,7 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
         return (
             isinstance(node, exp.Column)
             and (node.name or "").lower() == GRAPHQL_NODE_ID_COLUMN
-            and id(node) not in query_local
+            and not query_local.is_local(node)
         )
 
     def type_for(node: exp.Column) -> Optional[str]:

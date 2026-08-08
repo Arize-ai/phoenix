@@ -161,7 +161,7 @@ def _check_double_quoted_timestamp_operands(
     ) -> Optional[str]:
         if not isinstance(column, exp.Column) or (column.name or "").casefold() not in columns:
             return None
-        if id(column) in local:
+        if local.is_local(column):
             return None
         if not isinstance(operand, exp.Column) or operand.table:
             return None
@@ -440,11 +440,18 @@ class Locality(Enum):
 
     The distinction is the kind of evidence, not its strength. The two
     ``DERIVED_`` categories are structural: the reference resolves into a
-    relation the query itself builds, so it is not the base table's column under
-    any engine's rules. ``OUTPUT_ALIAS`` is a claim about binding precedence --
-    that this engine resolves the name against the select list before the input
-    columns -- which is true, measured on both, and is a model of the engine
-    rather than a fact about the tree.
+    relation the query itself builds. ``OUTPUT_ALIAS`` models where a name binds,
+    and the rule differs by clause -- a bare ``ORDER BY`` key takes the select
+    list before the input columns, while ``GROUP BY`` takes an input column when
+    one carries the name and the alias only otherwise. Both measured on both
+    engines. That makes it a model of the engine rather than a fact about the
+    tree, which is why disclosure checks decline it.
+
+    ``DERIVED_PROJECTION`` is the weaker of the two structural cases: an
+    unqualified name a derived relation projects can also be offered by a base
+    table in the same scope, and then which one it means is an engine question.
+    Both engines refuse that collision as ambiguous rather than resolving it,
+    which a test pins -- so the category never has to answer it.
     """
 
     DERIVED_QUALIFIED = "derived_qualified"
@@ -453,13 +460,39 @@ class Locality(Enum):
 
 
 #: Evidence a disclosure check may act on. Excluding `OUTPUT_ALIAS` ends a class
-#: of defect rather than another instance of it: both alias-precedence bugs found
-#: so far were cases where the model was subtly wrong, and a wrong skip here is a
-#: withheld column read, while a wrong skip in a rewrite is a rewrite not done.
+#: of defect rather than another instance of it: an alias-precedence rule that is
+#: subtly wrong then costs a rewrite that was not done, never a withheld column
+#: that was read.
 STRUCTURAL = frozenset({Locality.DERIVED_QUALIFIED, Locality.DERIVED_PROJECTION})
 
 
-def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> dict[int, Locality]:
+@dataclass(frozen=True)
+class ColumnLocality:
+    """Which references are query-local, asked at the bar the caller needs.
+
+    Three questions rather than one lookup, because the obvious spelling of "is
+    this local" is the permissive one, and a disclosure check that reaches for it
+    fails open. There is no membership test here: a consumer has to name the bar
+    it is asking at, so choosing the wrong one is a visible decision rather than
+    the default.
+    """
+
+    _by_reference: dict[int, Locality]
+
+    def is_local(self, node: exp.Expression) -> bool:
+        """Any evidence at all. For decisions whose wrong answer is a wrong row."""
+        return id(node) in self._by_reference
+
+    def is_structurally_local(self, node: exp.Expression) -> bool:
+        """Only evidence from the shape of the query. For disclosure decisions."""
+        return self._by_reference.get(id(node)) in STRUCTURAL
+
+    def is_alias_bound(self, node: exp.Expression) -> bool:
+        """The reference was matched against a select list rather than a relation."""
+        return self._by_reference.get(id(node)) is Locality.OUTPUT_ALIAS
+
+
+def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> ColumnLocality:
     """``id()`` of every column reference that resolves to something query-local.
 
     An advertised column that is not stored -- ``latency_ms``, ``graphql_node_id``
@@ -504,7 +537,7 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> dict[i
     """
     scope_root = build_scope(root)
     if scope_root is None:
-        return {}
+        return ColumnLocality({})
     # Required rather than optional. Omitting it emptied `offered`, which made
     # the GROUP BY rule mark every alias-matching name local -- do-no-harm for
     # a rewrite, and fail-open for the hidden-column check, which consumes the
@@ -589,7 +622,7 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> dict[i
                 name = (column.name or "").lower()
                 if not column.table and name in output_aliases and name not in offered:
                     local.setdefault(id(column), Locality.OUTPUT_ALIAS)
-    return local
+    return ColumnLocality(local)
 
 
 def _timestamp_literals(
@@ -610,7 +643,7 @@ def _timestamp_literals(
             if (
                 isinstance(column, exp.Column)
                 and (column.name or "").casefold() in columns
-                and id(column) not in local
+                and not local.is_local(column)
                 and isinstance(literal, exp.Literal)
                 and literal.is_string
             ):
@@ -904,8 +937,7 @@ def _check_hidden_columns(
             for source in scope.sources.values()
         )
         for column in scope.expression.find_all(exp.Column):
-            locality = localities.get(id(column))
-            if locality in STRUCTURAL or isinstance(column.this, exp.Star):
+            if localities.is_structurally_local(column) or isinstance(column.this, exp.Star):
                 continue
             name = column.name.casefold()
             qualifier = column.table or ""
@@ -928,7 +960,7 @@ def _check_hidden_columns(
             for table_name in candidates:
                 folded = {c.casefold() for c in allowlist.table_specs[table_name].hidden_columns}
                 if name in folded:
-                    if locality is Locality.OUTPUT_ALIAS:
+                    if localities.is_alias_bound(column):
                         # States the collision and the fix, and asserts nothing
                         # about where the name binds. It binds to the alias in
                         # the shape that reaches here, so a message describing
@@ -967,7 +999,7 @@ def _check_hidden_columns(
             # alias evidence can be spent here. Declining it in this branch too
             # would refuse `SELECT count(*) AS n FROM spans ORDER BY n`, where
             # the name is the caller's own and no table was ever consulted.
-            if locality is Locality.OUTPUT_ALIAS:
+            if localities.is_alias_bound(column):
                 continue
             if any(_offers_column(allowlist, table_name, name) for table_name in candidates):
                 continue
