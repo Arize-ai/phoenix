@@ -190,7 +190,18 @@ REJECTED = [
     # span-grain wording and is wrong here -- an attribute path inside a comprehension
     # compiles and then fails at query-build time, so a rejection must never steer a user
     # into it.
-    ("any(d.cost > 0 for detail in span.cost_details)", "invalid field `d.cost`"),
+    ("any(d.cost > 0 for detail in span.cost_details)", "`d.cost` is not reachable"),
+    # Nothing dotted or subscripted reaches out of an element scope, whatever it would have
+    # meant outside: the attribute namespace, a legacy spelling, and a cast over one all
+    # reject here. Each of these typed and compiled before, then raised `NameError` when the
+    # query was built -- the element eval globals bind element columns and nothing else.
+    ("any(d.cost > attributes['x'] for d in span.cost_details)", "is not reachable"),
+    ("any(d.cost > metadata['x'] for d in span.cost_details)", "is not reachable"),
+    ("any(d.cost > float(attributes['x']) for d in span.cost_details)", "is not reachable"),
+    ("any(d.token_type in attributes['x'] for d in span.cost_details)", "is not reachable"),
+    ("any(cumulative_token_count.total > 5 for d in span.cost_details)", "is not reachable"),
+    ("any(context.span_id == 'abc' for d in span.cost_details)", "is not reachable"),
+    ("sum(d.cost for d in span.cost_details if metadata['x'] > 1) > 1", "is not reachable"),
     (
         "any(d.cost > span.total_cost for d in span.cost_details)",
         "reads the filtered row, which is not reachable inside a comprehension",
