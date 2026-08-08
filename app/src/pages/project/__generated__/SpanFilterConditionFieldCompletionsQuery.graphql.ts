@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<42e3916460ea455d8500c8a45d27cc55>>
+ * @generated SignedSource<<f8f74699cea0cb97b569f270f46136f0>>
  * @lightSyntaxTransform
  */
 
@@ -14,6 +14,7 @@ export type SpanFilterConditionFieldCompletionsQuery$variables = {
 export type SpanFilterConditionFieldCompletionsQuery$data = {
   readonly project: {
     readonly spanAnnotationNames?: ReadonlyArray<string>;
+    readonly traceAnnotationsNames?: ReadonlyArray<string>;
   };
 };
 export type SpanFilterConditionFieldCompletionsQuery = {
@@ -44,6 +45,13 @@ v2 = {
       "args": null,
       "kind": "ScalarField",
       "name": "spanAnnotationNames",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "traceAnnotationsNames",
       "storageKey": null
     }
   ],
@@ -108,16 +116,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "aca99bac9b518896d8a938950c38cfee",
+    "cacheID": "8fbc0d55a070853915d60bfab32b1627",
     "id": null,
     "metadata": {},
     "name": "SpanFilterConditionFieldCompletionsQuery",
     "operationKind": "query",
-    "text": "query SpanFilterConditionFieldCompletionsQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      spanAnnotationNames\n    }\n    id\n  }\n}\n"
+    "text": "query SpanFilterConditionFieldCompletionsQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      spanAnnotationNames\n      traceAnnotationsNames\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7c2cd0975f2ce4a700edbd5e99962179";
+(node as any).hash = "0c288ee7dbf8a31ce13c566f6bea327c";
 
 export default node;
