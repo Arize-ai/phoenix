@@ -274,9 +274,11 @@ A run is **behaviorally completed** when Harbor produced a verifier judgement fo
 
 Infrastructure status and behavioral completion are independent. A run can be behaviorally completed and still have `infra_ok = 0`.
 
+`reward` is dense over behaviorally completed runs with one exception: a verifier emitting several unnamed reward values yields no aggregate, so that run carries diagnostics only. Consumers computing cross-task summaries should treat `reward` coverage as a quantity to check, not assume.
+
 | Score | Coverage | Purpose |
 |---|---|---|
-| `reward` | Every behaviorally completed run | Harbor's aggregate behavioral score; suitable for cross-task summaries |
+| `reward` | Every behaviorally completed run with a determinable aggregate | Harbor's aggregate behavioral score; suitable for cross-task summaries |
 | `infra_ok` | Every attempted run | Infrastructure success rate |
 | `verifier.<reward_key>` | Only where Harbor emits it | Other final-verifier diagnostics |
 | `<step_name>.<reward_key>` | Only where Harbor emits it | Step-level diagnosis within a task |
@@ -285,7 +287,9 @@ Rules:
 
 - Read scores from `step_results` as well as the final verifier result.
 - Determine infrastructure status from the top-level result and every step result. Any recorded exception makes `infra_ok = 0`; a valid behavioral reward of zero with no exception keeps `infra_ok = 1`.
-- Use the final verifier's `reward` value as Harbor's aggregate when present. If `reward` is absent, accept the sole final-verifier value as the aggregate. Multiple final values without `reward` are ambiguous and fail that trial before its run or evaluations are written.
+- Use the final verifier's `reward` value as Harbor's aggregate when present. If `reward` is absent and exactly one final value exists, use it. If `reward` is absent and several final values exist, the aggregate is undetermined: record the run and its `verifier.<reward_key>` diagnostics, write **no** dense `reward` for that trial, and emit a prominent warning naming the trial, the task, and the sorted keys found. Never select an aggregate by key order.
+
+  **Tradeoff, open to revision.** Harbor's own leaderboard resolves this case by taking the first value in dictionary order, which is reproducible but semantically arbitrary. Halting the job instead would guarantee that every recorded `reward` is meaningful, but the remedy — fixing the task — changes its digest, mints a new dataset version, and therefore forces a full re-run rather than a resume. Degrading preserves that compute at the cost of making `reward` silently incomplete: a cross-task pass rate then covers only the well-keyed tasks. Revisit if unnamed multi-key rewards prove common enough that summaries become misleading; the stricter behavior is a small change confined to trial normalization.
 - Store other final-verifier rewards as `verifier.<reward_key>` and step rewards as `<step_name>.<reward_key>`. Validate reserved/generated name collisions before writing.
 - Store step rewards in their original numeric scale.
 - Keep infrastructure failures separate from behavioral failures.
@@ -308,6 +312,10 @@ Phoenix can calculate token cost and latency from traces. Pass rate, pass^k, con
 | Evaluation | Run and evaluation name |
 | ATIF trace | Deterministic from the complete Harbor job and logical trial identity |
 | OTLP attempt trace | Deterministic from the Harbor job and physical trial-attempt identity |
+
+A Harbor job is one execution, and a single job spans every configured agent and model. One job with N agent/model configurations therefore produces N experiments over one dataset, which is the intended comparison axis; the plugin never blurs distinct agents or models into a single experiment.
+
+The job ID is part of experiment identity because it discriminates between separate executions, not between agents. Two executions of an unchanged benchmark must produce two experiments: Phoenix runs are unique on `(experiment, example, repetition)` and successful runs are immutable, so a second execution sharing the first execution's experiment would collide on every repetition and fail with nowhere to record its results. The alternatives — per-execution repetition offsets, or discarding the newer run — would break deterministic repetition numbering or lose data. Comparison over time is therefore expressed as additional experiments on the same dataset, which is Phoenix's native model.
 
 Harbor does not expose the logical repetition number directly. The compatibility adapter derives repetitions from the resolved trial plan at job start, where attempts are created in a stable outer loop. It walks the trial plan once in order and assigns a counter keyed by `(experiment identity, task ID)`. It never assigns repetitions by completion order. Physical Harbor retries keep the same logical repetition even though Harbor assigns each retry a new trial UUID.
 
@@ -361,8 +369,10 @@ Pass settings through Harbor's `--plugin-kwarg` option.
 | `endpoint` | `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix endpoint |
 | `api_key` | `PHOENIX_API_KEY` | Phoenix authentication |
 | `trace_mode` | `atif` | `atif`, `otlp`, or `none` |
-| `experiment_name_template` | `{job_name}-{job_id:.8} · {agent}` | Experiment naming |
+| `experiment_name_template` | `{job_name} · {agent} · {model}` | Experiment naming |
 | `project` | experiment's project | Optional trace-project override |
+
+Experiment names must distinguish agent/model configurations, because telling them apart in Phoenix's compare view is the point of splitting them. `{job_name}` defaults to a Harbor timestamp, which keeps successive executions readable. When two configurations in one job would still produce the same name — for example the same agent and model differing only in skills, environment, or kwargs — append a short prefix of the configuration digest to each colliding name.
 
 In OTLP mode the plugin does not inject exporter configuration. The user supplies endpoint, credentials, and `openinference.project.name` through Harbor's per-agent environment, and the plugin validates them at job start (§5.1).
 
