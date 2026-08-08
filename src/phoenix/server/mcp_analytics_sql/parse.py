@@ -377,7 +377,31 @@ def _refused_cast_target(target: exp.Expression) -> Optional[str]:
 _TIMESTAMP_COMPARISONS = (exp.EQ, exp.NEQ, exp.GT, exp.GTE, exp.LT, exp.LTE)
 
 
-def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> set[int]:
+class Locality(Enum):
+    """Why a reference is query-local, which decides who may act on it.
+
+    The distinction is the kind of evidence, not its strength. The two
+    ``DERIVED_`` categories are structural: the reference resolves into a
+    relation the query itself builds, so it is not the base table's column under
+    any engine's rules. ``OUTPUT_ALIAS`` is a claim about binding precedence --
+    that this engine resolves the name against the select list before the input
+    columns -- which is true, measured on both, and is a model of the engine
+    rather than a fact about the tree.
+    """
+
+    DERIVED_QUALIFIED = "derived_qualified"
+    DERIVED_PROJECTION = "derived_projection"
+    OUTPUT_ALIAS = "output_alias"
+
+
+#: Evidence a disclosure check may act on. Excluding `OUTPUT_ALIAS` ends a class
+#: of defect rather than another instance of it: both alias-precedence bugs found
+#: so far were cases where the model was subtly wrong, and a wrong skip here is a
+#: withheld column read, while a wrong skip in a rewrite is a rewrite not done.
+STRUCTURAL = frozenset({Locality.DERIVED_QUALIFIED, Locality.DERIVED_PROJECTION})
+
+
+def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> dict[int, Locality]:
     """``id()`` of every column reference that resolves to something query-local.
 
     An advertised column that is not stored -- ``latency_ms``, ``graphql_node_id``
@@ -412,17 +436,24 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> set[in
     shadowing a withheld column reach it: ``SELECT name AS user_id FROM datasets
     GROUP BY user_id`` groups by the real ``user_id`` and was admitted, which
     discloses that column's distribution.
+
+    Each reference is returned with the category of evidence that made it local,
+    because the consumers disagree about which evidence is enough. A rewrite that
+    wrongly skips a reference leaves the statement alone; a disclosure check that
+    wrongly skips one reads a withheld column. Only the third case above models
+    engine binding precedence, and only that case is refused a disclosure check's
+    trust -- which ends the class rather than correcting another instance of it.
     """
     scope_root = build_scope(root)
     if scope_root is None:
-        return set()
+        return {}
     # Required rather than optional. Omitting it emptied `offered`, which made
     # the GROUP BY rule mark every alias-matching name local -- do-no-harm for
     # a rewrite, and fail-open for the hidden-column check, which consumes the
     # same set. A default that is conservative for one caller and dangerous
     # for another is not a default.
     table_specs = allowlist.table_specs
-    local: set[int] = set()
+    local: dict[int, Locality] = {}
     for scope in scope_root.traverse():
         derived_aliases: set[str] = set()
         derived_projections: set[str] = set()
@@ -443,10 +474,10 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> set[in
             table = (column.table or "").lower()
             if table:
                 if table in derived_aliases:
-                    local.add(id(column))
+                    local[id(column)] = Locality.DERIVED_QUALIFIED
                 continue
             if (column.name or "").lower() in derived_projections:
-                local.add(id(column))
+                local[id(column)] = Locality.DERIVED_PROJECTION
         order_clause = select.args.get("order") if select else None
         if order_clause is not None:
             for ordered in order_clause.find_all(exp.Ordered):
@@ -463,7 +494,10 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> set[in
                     and not key.table
                     and (key.name or "").lower() in output_aliases
                 ):
-                    local.add(id(key))
+                    # setdefault, so a reference that also has structural
+                    # evidence keeps it rather than being downgraded to the
+                    # category disclosure checks decline.
+                    local.setdefault(id(key), Locality.OUTPUT_ALIAS)
         # GROUP BY takes the input column when one carries the name and the
         # output alias only otherwise, so it is local only in the second case.
         # Marking it local unconditionally let an alias shadowing a withheld
@@ -485,7 +519,7 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> set[in
             for column in group_clause.find_all(exp.Column):
                 name = (column.name or "").lower()
                 if not column.table and name in output_aliases and name not in offered:
-                    local.add(id(column))
+                    local.setdefault(id(column), Locality.OUTPUT_ALIAS)
     return local
 
 
@@ -698,7 +732,10 @@ def _check_hidden_columns(
     # A CTE column, a subquery projection or an output alias is the caller's own
     # name for their own value, and resolving it against a base table's schema
     # refuses a statement that never touched one.
-    local = query_local_columns(root, allowlist=allowlist)
+    #
+    # Read by category below, because the two checks here have opposite safe
+    # directions and must not accept the same evidence. See `Locality`.
+    localities = query_local_columns(root, allowlist=allowlist)
     try:
         scope_root = build_scope(root)
     except SqlglotError as exc:
@@ -810,7 +847,8 @@ def _check_hidden_columns(
             for source in scope.sources.values()
         )
         for column in scope.expression.find_all(exp.Column):
-            if id(column) in local or isinstance(column.this, exp.Star):
+            locality = localities.get(id(column))
+            if locality in STRUCTURAL or isinstance(column.this, exp.Star):
                 continue
             name = column.name.casefold()
             qualifier = column.table or ""
@@ -833,6 +871,20 @@ def _check_hidden_columns(
             for table_name in candidates:
                 folded = {c.casefold() for c in allowlist.table_specs[table_name].hidden_columns}
                 if name in folded:
+                    if locality is Locality.OUTPUT_ALIAS:
+                        # Refused on the category, not on a reading of where this
+                        # name binds. The alias makes the reference ambiguous to
+                        # a reader as well, and the caller's fix is to rename it.
+                        return AdmissionResult(
+                            AdmissionOutcome.COLUMN_NOT_ALLOWED,
+                            f"{table_name}.{name}",
+                            message=(
+                                f"An output alias named {name} shadows a column of "
+                                f"{table_name} that is not part of the analytics schema, "
+                                "so which one this sorts or groups by depends on where the "
+                                "name appears. Rename the alias."
+                            ),
+                        )
                     return AdmissionResult(
                         AdmissionOutcome.COLUMN_NOT_ALLOWED, f"{table_name}.{name}"
                     )
@@ -851,6 +903,12 @@ def _check_hidden_columns(
             # in scope and refused if *no* candidate offers the name, which is
             # the conservative direction: a name that resolves nowhere is a
             # mistake, and one that resolves somewhere is admitted.
+            # Past the hidden check, so the strict bar has been met and the
+            # alias evidence can be spent here. Declining it in this branch too
+            # would refuse `SELECT count(*) AS n FROM spans ORDER BY n`, where
+            # the name is the caller's own and no table was ever consulted.
+            if locality is Locality.OUTPUT_ALIAS:
+                continue
             if any(_offers_column(allowlist, table_name, name) for table_name in candidates):
                 continue
             # Unknown to the manifest. That is a refusal when the allowlisted

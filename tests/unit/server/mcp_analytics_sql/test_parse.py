@@ -31,9 +31,12 @@ from sqlglot import exp, parse, parse_one
 from phoenix.server.mcp_analytics_sql.allowlist import DialectName, load_allowlist
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp_analytics_sql.parse import (
+    STRUCTURAL,
     AdmissionOutcome,
     AdmissionResult,
+    Locality,
     admit_sql,
+    query_local_columns,
     try_parse_and_admit,
 )
 from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
@@ -924,13 +927,66 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
 
         assert result.outcome is AdmissionOutcome.COLUMN_NOT_ALLOWED
 
-    def test_a_bare_alias_sort_key_still_binds_to_the_output(self) -> None:
+    def test_an_alias_shadowing_a_withheld_column_is_refused_even_when_it_binds(self) -> None:
+        """Refused on the category of evidence, not on where the name binds.
+
+        A bare sort key really does bind to the output -- measured on both
+        engines -- so this refuses a statement that would have been harmless.
+        The trade is deliberate: the check declines alias-precedence evidence
+        outright, so no future correction to that model can turn into a
+        disclosure. Renaming the alias recovers the query, and only an alias
+        colliding with a withheld name is affected.
+        """
         result = try_parse_and_admit(
             "SELECT id AS gradient_start_color FROM projects ORDER BY gradient_start_color",
             dialect="sqlite",
         )
 
-        assert result.outcome is AdmissionOutcome.ADMIT
+        assert result.outcome is AdmissionOutcome.COLUMN_NOT_ALLOWED
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT count(*) AS n FROM spans ORDER BY n",
+            "SELECT name AS lbl, count(*) AS n FROM datasets GROUP BY lbl ORDER BY n",
+            "SELECT id AS v FROM datasets GROUP BY v",
+        ],
+    )
+    def test_an_alias_that_shadows_nothing_withheld_is_still_admitted(self, sql: str) -> None:
+        """The strict bar applies to the disclosure check alone.
+
+        Applying it to the unknown-column check as well would refuse ordinary
+        aliasing, where the name is the caller's own and no table was consulted.
+        """
+        assert try_parse_and_admit(sql, dialect="sqlite").outcome is AdmissionOutcome.ADMIT
+
+    def test_the_resolver_categorises_alias_evidence_apart_from_structural(self) -> None:
+        """The invariant the split exists to hold.
+
+        Both alias-precedence defects found so far were wrong readings of where
+        a name binds. Pinning the shape of the answer rather than each reading
+        is what stops the next one from being a disclosure: the category is what
+        the check consults, so a reference marked local by the select list can
+        never be mistaken for one that resolves into a derived relation.
+        """
+        allowlist = load_allowlist()
+
+        alias = query_local_columns(
+            parse_one(
+                "SELECT id AS gradient_start_color FROM projects ORDER BY gradient_start_color",
+                read="sqlite",
+            ),
+            allowlist=allowlist,
+        )
+        assert set(alias.values()) == {Locality.OUTPUT_ALIAS}
+        assert not set(alias.values()) & STRUCTURAL
+
+        derived = query_local_columns(
+            parse_one("SELECT q.user_id FROM (SELECT 1 AS user_id) q", read="sqlite"),
+            allowlist=allowlist,
+        )
+        assert set(derived.values()) <= STRUCTURAL
+        assert derived, "a qualified reference into a subquery is structural evidence"
 
     def test_the_rewrite_still_leaves_a_bare_alias_alone(self) -> None:
         rendered = rewrite(
