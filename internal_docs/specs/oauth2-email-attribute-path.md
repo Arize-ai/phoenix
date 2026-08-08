@@ -165,24 +165,25 @@ PHOENIX_OAUTH2_{IDP}_EMAIL_ATTRIBUTE_PATH=preferred_username
 import jmespath
 from phoenix.auth import sanitize_email
 
+
 def extract_email(user_claims: dict, email_attribute_path: str) -> str | None:
     """Extract email from user claims using configured path.
-    
+
     Args:
         user_claims: Merged claims from ID token and/or UserInfo endpoint
         email_attribute_path: JMESPath expression (default: "email")
-    
+
     Returns:
         Extracted email string (lowercased), or None if not found/empty
     """
     if not email_attribute_path:
         email_attribute_path = "email"
-    
+
     value = jmespath.search(email_attribute_path, user_claims)
-    
+
     if isinstance(value, str) and value.strip():
         return sanitize_email(value)  # trim + lowercase
-    
+
     return None
 ```
 
@@ -239,7 +240,7 @@ Environment variable parsing:
 ```python
 email_attribute_path = getenv(
     f"PHOENIX_OAUTH2_{idp_name.upper()}_EMAIL_ATTRIBUTE_PATH",
-    None  # None means use default "email"
+    None,  # None means use default "email"
 )
 ```
 

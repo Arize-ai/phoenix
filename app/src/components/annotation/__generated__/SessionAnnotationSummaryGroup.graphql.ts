@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<90a2cf7f7e7bb2fb1e1776f3bf9ec62a>>
+ * @generated SignedSource<<7eec6b23a71844a8e56bd98fdd1dde6b>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -103,7 +102,7 @@ return {
       "name": "project",
       "plural": false,
       "selections": [
-        (v0/*: any*/),
+        (v0/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -145,8 +144,8 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v0/*: any*/),
-                        (v1/*: any*/),
+                        (v0/*:: as any*/),
+                        (v1/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -162,8 +161,8 @@ return {
                           "name": "values",
                           "plural": true,
                           "selections": [
-                            (v2/*: any*/),
-                            (v3/*: any*/)
+                            (v2/*:: as any*/),
+                            (v3/*:: as any*/)
                           ],
                           "storageKey": null
                         }
@@ -191,10 +190,10 @@ return {
       "name": "sessionAnnotations",
       "plural": true,
       "selections": [
-        (v0/*: any*/),
-        (v1/*: any*/),
-        (v2/*: any*/),
-        (v3/*: any*/),
+        (v0/*:: as any*/),
+        (v1/*:: as any*/),
+        (v2/*:: as any*/),
+        (v3/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -274,7 +273,7 @@ return {
               "name": "fraction",
               "storageKey": null
             },
-            (v2/*: any*/)
+            (v2/*:: as any*/)
           ],
           "storageKey": null
         },
@@ -285,7 +284,7 @@ return {
           "name": "meanScore",
           "storageKey": null
         },
-        (v1/*: any*/)
+        (v1/*:: as any*/)
       ],
       "storageKey": null
     }

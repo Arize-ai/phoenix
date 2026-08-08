@@ -140,14 +140,13 @@ function AgentChatSurface({
     ? getSessionDisplayName(activeSession)
     : EMPTY_SESSION_DISPLAY_NAME;
 
-  if (!isAgentAssistantEnabled) {
+  if (!isAgentAssistantEnabled || !isOpen) {
     return null;
   }
 
-  return (
+  return renderFrame(
     <AgentChatController
       key={`${activeSessionId}-${chatApiUrl}`}
-      isOpen={isOpen}
       activeSessionId={activeSessionId}
       orderedSessions={orderedSessions}
       showSessionHistory={showSessionHistory}
@@ -163,13 +162,11 @@ function AgentChatSurface({
       setPosition={setPosition}
       isPositionChangeDisabled={isPositionChangeDisabled}
       handleModelChange={handleModelChange}
-      renderFrame={renderFrame}
     />
   );
 }
 
 function AgentChatController({
-  isOpen,
   activeSessionId,
   orderedSessions,
   showSessionHistory,
@@ -185,9 +182,7 @@ function AgentChatController({
   setPosition,
   isPositionChangeDisabled,
   handleModelChange,
-  renderFrame,
 }: {
-  isOpen: boolean;
   activeSessionId: string | null;
   orderedSessions: ReturnType<typeof useAgentChatPanelState>["orderedSessions"];
   showSessionHistory: ReturnType<
@@ -209,7 +204,6 @@ function AgentChatController({
   handleModelChange: ReturnType<
     typeof useAgentChatPanelState
   >["handleModelChange"];
-  renderFrame: (children: ReactNode) => ReactNode;
 }) {
   const {
     messages,
@@ -220,6 +214,7 @@ function AgentChatController({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
+    retryMessage,
     rewindToMessage,
     forkFromMessage,
   } = useAgentChat({
@@ -228,11 +223,7 @@ function AgentChatController({
     modelSelection,
   });
 
-  if (!isOpen) {
-    return null;
-  }
-
-  return renderFrame(
+  return (
     <>
       <AgentChatHeader
         sessionDisplayName={sessionDisplayName}
@@ -250,6 +241,7 @@ function AgentChatController({
       {/* Catch runaway suspense triggers that aren't handled locally */}
       <Suspense fallback={<Loading />}>
         <ChatView
+          key={activeSessionId ?? "no-session"}
           sessionId={activeSessionId}
           messages={messages}
           sendMessage={sendMessage}
@@ -259,6 +251,7 @@ function AgentChatController({
           pendingElicitation={pendingElicitation}
           handleElicitationSubmit={handleElicitationSubmit}
           handleElicitationCancel={handleElicitationCancel}
+          retryMessage={retryMessage}
           rewindToMessage={rewindToMessage}
           forkFromMessage={forkFromMessage}
           modelMenuValue={menuValue}

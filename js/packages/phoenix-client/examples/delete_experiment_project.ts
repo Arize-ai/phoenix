@@ -12,7 +12,7 @@ import { deleteExperiment } from "../src/experiments/deleteExperiment";
  *   npx tsx examples/delete_experiment_project.ts
  *
  * Optional env vars:
- *   PHOENIX_BASE_URL  (default: http://localhost:6006)
+ *   PHOENIX_ENDPOINT  (default: http://localhost:6006)
  *   PHOENIX_API_KEY
  */
 
@@ -26,7 +26,7 @@ async function listProjectNames(
 }
 
 async function main() {
-  // createClient reads PHOENIX_BASE_URL and PHOENIX_API_KEY from the environment automatically
+  // createClient reads PHOENIX_ENDPOINT and PHOENIX_API_KEY from the environment automatically
   const client = createClient();
 
   // --- Setup: one shared dataset for both experiments ---

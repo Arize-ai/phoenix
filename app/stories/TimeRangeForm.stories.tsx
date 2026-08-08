@@ -40,7 +40,7 @@ export const InAPopOver = () => {
   const timeRangeString = timeRangeFormatter(timeRange);
   return (
     <DialogTrigger isOpen>
-      <Button size="S" leadingVisual={<Icon svg={<Icons.CalendarOutline />} />}>
+      <Button size="S" leadingVisual={<Icon svg={<Icons.Calendar />} />}>
         {timeRangeString}
       </Button>
       <Popover placement="bottom end">

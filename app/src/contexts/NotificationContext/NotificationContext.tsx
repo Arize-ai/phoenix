@@ -108,3 +108,23 @@ export const useNotifySuccess = () => {
     []
   );
 };
+
+/**
+ * Trigger a notification with the error variant.
+ *
+ * @param params Notification parameters.
+ * @returns A callback that triggers a notification. The callback returns a key that can be later used to programmatically dismiss the notification.
+ */
+export const useNotifyError = () => {
+  return useCallback(
+    ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
+      toastQueue.add(
+        {
+          ...params,
+          variant: "error",
+        },
+        expireMs === null ? undefined : { timeout: expireMs }
+      ),
+    []
+  );
+};

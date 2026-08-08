@@ -5,18 +5,27 @@ import {
   useCallback,
   useDeferredValue,
   useEffect,
-  useMemo,
+  useEffectEvent,
+  useRef,
+  useState,
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
-import { Outlet, useLocation, useNavigate, useParams } from "react-router";
+import {
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router";
 
 import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
 import {
   ConnectedTimeRangeSelector,
+  type TimeRangeISOStrings,
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
-import { useProjectContext } from "@phoenix/contexts/ProjectContext";
+import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
@@ -34,6 +43,8 @@ import {
   ProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
 import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
+import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
+import { type SettledSpanFilterSeed, spanFilterSeed } from "./spanFilterSeed";
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -65,8 +76,8 @@ const mainCSS = css`
 
 export function ProjectPage() {
   const { projectId } = useParams();
-  const { timeRange } = useTimeRange();
-  const deferredTimeRange = useDeferredValue(timeRange);
+  const { timeRangeISOStrings } = useTimeRange();
+  const deferredTimeRangeISOStrings = useDeferredValue(timeRangeISOStrings);
   return (
     <>
       <TopNavActions>
@@ -76,7 +87,7 @@ export function ProjectPage() {
         <ProjectPageContent
           key={projectId}
           projectId={projectId as string}
-          timeRange={deferredTimeRange}
+          timeRangeISOStrings={deferredTimeRangeISOStrings}
         />
       </Suspense>
     </>
@@ -106,34 +117,53 @@ const TAB_PATH_BY_INDEX = Object.fromEntries(
 
 export function ProjectPageContent({
   projectId,
-  timeRange,
+  timeRangeISOStrings,
 }: {
   projectId: string;
-  timeRange: OpenTimeRange;
+  timeRangeISOStrings: TimeRangeISOStrings;
 }) {
   return (
     <StreamStateProvider>
-      <ProjectPageContentBody projectId={projectId} timeRange={timeRange} />
+      <ProjectPageContentBody
+        projectId={projectId}
+        timeRangeISOStrings={timeRangeISOStrings}
+      />
     </StreamStateProvider>
   );
 }
 
+/** Whether the URL already carries this condition. */
+function urlAlreadyHasCondition(condition: string): boolean {
+  return (
+    new URLSearchParams(window.location.search).get(
+      SPAN_FILTER_CONDITION_PARAM
+    ) === condition
+  );
+}
+
+/**
+ * The URL's condition when it needs no server answer, else null.
+ *
+ * Reads `location` rather than taking the search string, so the `useState`
+ * initializers below close over nothing local. The React Compiler hoists those
+ * initializers out of the component, and a captured local does not survive it.
+ */
+function settledSeedFromUrl(fallback: string): SettledSpanFilterSeed | null {
+  const seed = spanFilterSeed(
+    new URLSearchParams(window.location.search).get(
+      SPAN_FILTER_CONDITION_PARAM
+    ) ?? fallback
+  );
+  return seed.requiresServerValidation ? null : seed;
+}
+
 function ProjectPageContentBody({
   projectId,
-  timeRange,
+  timeRangeISOStrings,
 }: {
   projectId: string;
-  timeRange: OpenTimeRange;
+  timeRangeISOStrings: TimeRangeISOStrings;
 }) {
-  const treatOrphansAsRoots = useProjectContext(
-    (state) => state.treatOrphansAsRoots
-  );
-  const timeRangeVariable = useMemo(() => {
-    return {
-      start: timeRange?.start?.toISOString(),
-      end: timeRange?.end?.toISOString(),
-    };
-  }, [timeRange]);
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
   const data = useLazyLoadQuery<ProjectPageQueryType>(
@@ -149,17 +179,27 @@ function ProjectPageContentBody({
     `,
     {
       id: projectId as string,
-      timeRange: timeRangeVariable,
+      timeRange: timeRangeISOStrings,
     },
     {
       fetchPolicy: "store-and-network",
-      fetchKey: `${projectId}-${timeRangeVariable.start}-${timeRangeVariable.end}`,
+      fetchKey: `${projectId}-${timeRangeISOStrings.start}-${timeRangeISOStrings.end}`,
     }
   );
   const [tracesQueryReference, loadTracesQuery] =
     useQueryLoader<ProjectPageTracesQueryType>(ProjectPageQueriesTracesQuery);
   const [spansQueryReference, loadSpansQuery] =
     useQueryLoader<ProjectPageSpansQueryType>(ProjectPageQueriesSpansQuery);
+  // Classified during the first render, not in the effect that follows it.
+  // A condition needing no server answer must never leave the page in the
+  // pending state, or the filter field mounts standalone for a frame and then
+  // moves into the table.
+  const [spansFilterSeed, setSpansFilterSeed] =
+    useState<SettledSpanFilterSeed | null>(() =>
+      settledSeedFromUrl(DEFAULT_SPAN_FILTER_CONDITION)
+    );
+  const [tracesFilterSeed, setTracesFilterSeed] =
+    useState<SettledSpanFilterSeed | null>(() => settledSeedFromUrl(""));
   const [sessionsQueryReference, loadSessionsQuery] =
     useQueryLoader<ProjectPageSessionsQueryType>(
       ProjectPageQueriesSessionsQuery
@@ -170,40 +210,154 @@ function ProjectPageContentBody({
     );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // React Router recreates this setter on every location change. The resolvers
+  // below are handed to the filter field, whose validation effect keys on their
+  // identity -- depending on the setter directly would revalidate on every URL
+  // write, and each pass would load and dispose another query.
+  const setSearchParamsRef = useRef(setSearchParams);
   useEffect(() => {
-    startTransition(() => {
-      if (tabIndex === TAB_INDEX_MAP.spans) {
+    setSearchParamsRef.current = setSearchParams;
+  }, [setSearchParams]);
+  // Read at load time rather than depended on, so a live window sliding
+  // forward does not reload the preload -- see the note on the tab loader.
+  const timeRangeRef = useRef(timeRangeISOStrings);
+  useEffect(() => {
+    timeRangeRef.current = timeRangeISOStrings;
+  }, [timeRangeISOStrings]);
+
+  /**
+   * Load the spans table from a condition whose validity and root scope are
+   * both settled. Called for the conditions this app classifies itself, and by
+   * `ProjectSpansPage` once the field has validated one it cannot.
+   *
+   * `persistToUrl` is false whenever the seed is not something the user asked
+   * for -- a fallback after validation failed, or this tab's own default when
+   * the URL named no condition. A fallback leaves the rejected text in the URL
+   * so it stays visible and editable while the field reports why it failed; a
+   * default is left out entirely, so the other tab does not inherit it.
+   */
+  const resolveSpansSeed = useCallback(
+    (seed: SettledSpanFilterSeed, persistToUrl = true) => {
+      startTransition(() => {
+        setSpansFilterSeed(seed);
+        // Before the new condition re-keys `SpanFiltersProvider` and it re-reads
+        // the URL, or a condition typed while waiting loses to the stale one
+        // still in the address bar. An empty condition is as writable as any
+        // other -- a present-but-empty param means deliberately cleared, while
+        // an absent one seeds the tab's default -- though when it arrived from
+        // the URL the already-has-it check makes the write a no-op.
+        if (persistToUrl && !urlAlreadyHasCondition(seed.condition)) {
+          setSearchParamsRef.current(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.set(SPAN_FILTER_CONDITION_PARAM, seed.condition);
+              return next;
+            },
+            { replace: true }
+          );
+        }
         loadSpansQuery({
-          id: projectId as string,
-          timeRange: timeRangeVariable,
-          orphanSpanAsRootSpan: treatOrphansAsRoots,
+          id: projectId,
+          timeRange: timeRangeRef.current,
+          filterCondition: seed.condition || null,
+          rootSpansOnly: seed.rootSpansOnly,
         });
-      } else if (tabIndex === TAB_INDEX_MAP.traces) {
+      });
+    },
+    [projectId, loadSpansQuery]
+  );
+
+  // Load the preloaded query backing the active tab's table. The time range is
+  // read at load time (via an effect event, so it is not a reactive trigger)
+  // rather than tracked as a dependency: live "last-N" windows slide forward on
+  // a timer. Reloading a parent on every slide could replace the live
+  // connection with stale rows (see issue #14216). The tables instead own
+  // time-range and filter liveness through their own `refetch`; parent preloads
+  // need only an initial window and reload solely on project or tab changes.
+  /** As `resolveSpansSeed`, for the traces tab. */
+  const resolveTracesSeed = useCallback(
+    (seed: SettledSpanFilterSeed, persistToUrl = true) => {
+      startTransition(() => {
+        setTracesFilterSeed(seed);
+        if (persistToUrl && !urlAlreadyHasCondition(seed.condition)) {
+          setSearchParamsRef.current(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.set(SPAN_FILTER_CONDITION_PARAM, seed.condition);
+              return next;
+            },
+            { replace: true }
+          );
+        }
         loadTracesQuery({
-          id: projectId as string,
-          timeRange: timeRangeVariable,
+          id: projectId,
+          timeRange: timeRangeRef.current,
+          filterCondition: seed.condition || null,
         });
-      } else if (tabIndex === TAB_INDEX_MAP.sessions) {
+      });
+    },
+    [projectId, loadTracesQuery]
+  );
+
+  const loadTableQueryForTab = useEffectEvent(
+    (currentTabIndex: number, currentProjectId: string) => {
+      if (currentTabIndex === TAB_INDEX_MAP.spans) {
+        // A seed this app can classify loads now. Anything else needs the
+        // server, and asking needs the filter field, which `ProjectSpansPage`
+        // mounts on its own while this stays null. Nothing is fetched until
+        // the condition is known good.
+        const fromUrl = searchParams.get(SPAN_FILTER_CONDITION_PARAM);
+        const seed = spanFilterSeed(fromUrl ?? DEFAULT_SPAN_FILTER_CONDITION);
+        // Returning to a tab whose rows already answer this condition is not a
+        // reason to reload it. Re-resolving would tear the table down and
+        // rebuild it for the same result.
+        if (
+          spansQueryReference &&
+          spansFilterSeed?.condition === seed.condition
+        ) {
+          return;
+        }
+        if (seed.requiresServerValidation) {
+          setSpansFilterSeed(null);
+        } else {
+          // Persist only a condition the URL already carried. The two tabs
+          // share one param but default differently -- spans to root spans,
+          // traces to every span -- so writing a tab's own default would
+          // impose it on the other one at the next tab switch.
+          resolveSpansSeed(seed, fromUrl !== null);
+        }
+      } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
+        const fromUrl = searchParams.get(SPAN_FILTER_CONDITION_PARAM);
+        const seed = spanFilterSeed(fromUrl ?? "");
+        if (
+          tracesQueryReference &&
+          tracesFilterSeed?.condition === seed.condition
+        ) {
+          return;
+        }
+        if (seed.requiresServerValidation) {
+          setTracesFilterSeed(null);
+        } else {
+          resolveTracesSeed(seed, fromUrl !== null);
+        }
+      } else if (currentTabIndex === TAB_INDEX_MAP.sessions) {
         loadSessionsQuery({
-          id: projectId as string,
-          timeRange: timeRangeVariable,
+          id: currentProjectId,
+          timeRange: timeRangeISOStrings,
         });
-      } else if (tabIndex === TAB_INDEX_MAP.config) {
+      } else if (currentTabIndex === TAB_INDEX_MAP.config) {
         loadProjectConfigQuery({
-          id: projectId as string,
+          id: currentProjectId,
         });
       }
+    }
+  );
+  useEffect(() => {
+    startTransition(() => {
+      loadTableQueryForTab(tabIndex, projectId as string);
     });
-  }, [
-    loadTracesQuery,
-    projectId,
-    timeRangeVariable,
-    tabIndex,
-    loadSpansQuery,
-    loadSessionsQuery,
-    loadProjectConfigQuery,
-    treatOrphansAsRoots,
-  ]);
+  }, [tabIndex, projectId]);
 
   const onTabChange = useCallback(
     (index: number) => {
@@ -228,8 +382,12 @@ function ProjectPageContentBody({
       <ProjectPageQueryReferenceContext.Provider
         value={{
           spansQueryReference: spansQueryReference ?? null,
+          spansFilterSeed,
+          resolveSpansSeed,
           sessionsQueryReference: sessionsQueryReference ?? null,
           tracesQueryReference: tracesQueryReference ?? null,
+          tracesFilterSeed,
+          resolveTracesSeed,
           projectConfigQueryReference: projectConfigQueryReference ?? null,
         }}
       >

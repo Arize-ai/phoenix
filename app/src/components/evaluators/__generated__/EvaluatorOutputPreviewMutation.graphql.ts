@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<f265274a9bc155843a993a38a3cd3f1b>>
+ * @generated SignedSource<<a9d2c215deb9a580c79d59b7bce228f9>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -28,10 +27,25 @@ export type EvaluatorPreviewItemInput = {
   inputMapping: EvaluatorInputMappingInput;
 };
 export type EvaluatorPreviewInput = {
-  builtInEvaluatorId?: string | null;
-  codeEvaluatorId?: string | null;
-  inlineCodeEvaluator?: InlineCodeEvaluatorInput | null;
-  inlineLlmEvaluator?: InlineLLMEvaluatorInput | null;
+  builtInEvaluatorId: string;
+  codeEvaluatorId?: never;
+  inlineCodeEvaluator?: never;
+  inlineLlmEvaluator?: never;
+} | {
+  builtInEvaluatorId?: never;
+  codeEvaluatorId?: never;
+  inlineCodeEvaluator?: never;
+  inlineLlmEvaluator: InlineLLMEvaluatorInput;
+} | {
+  builtInEvaluatorId?: never;
+  codeEvaluatorId: string;
+  inlineCodeEvaluator?: never;
+  inlineLlmEvaluator?: never;
+} | {
+  builtInEvaluatorId?: never;
+  codeEvaluatorId?: never;
+  inlineCodeEvaluator: InlineCodeEvaluatorInput;
+  inlineLlmEvaluator?: never;
 };
 export type InlineLLMEvaluatorInput = {
   description?: string | null;
@@ -58,9 +72,17 @@ export type PromptMessageInput = {
   role: PromptMessageRole;
 };
 export type ContentPartInput = {
-  text?: TextContentValueInput | null;
-  toolCall?: ToolCallContentValueInput | null;
-  toolResult?: ToolResultContentValueInput | null;
+  text: TextContentValueInput;
+  toolCall?: never;
+  toolResult?: never;
+} | {
+  text?: never;
+  toolCall: ToolCallContentValueInput;
+  toolResult?: never;
+} | {
+  text?: never;
+  toolCall?: never;
+  toolResult: ToolResultContentValueInput;
 };
 export type TextContentValueInput = {
   text: string;
@@ -79,10 +101,25 @@ export type ToolResultContentValueInput = {
   toolCallId: string;
 };
 export type PromptInvocationParametersInput = {
-  anthropic?: PromptAnthropicInvocationParametersInput | null;
-  aws?: PromptAwsInvocationParametersInput | null;
-  google?: PromptGoogleInvocationParametersInput | null;
-  openai?: PromptOpenAIInvocationParametersInput | null;
+  anthropic?: never;
+  aws?: never;
+  google?: never;
+  openai: PromptOpenAIInvocationParametersInput;
+} | {
+  anthropic: PromptAnthropicInvocationParametersInput;
+  aws?: never;
+  google?: never;
+  openai?: never;
+} | {
+  anthropic?: never;
+  aws?: never;
+  google: PromptGoogleInvocationParametersInput;
+  openai?: never;
+} | {
+  anthropic?: never;
+  aws: PromptAwsInvocationParametersInput;
+  google?: never;
+  openai?: never;
 };
 export type PromptOpenAIInvocationParametersInput = {
   extraBody?: any | null;
@@ -109,9 +146,17 @@ export type PromptAnthropicOutputConfigInput = {
   effort?: AnthropicOutputConfigEffort | null;
 };
 export type PromptAnthropicThinkingConfigInput = {
-  adaptive?: AnthropicThinkingAdaptiveInput | null;
-  disabled?: AnthropicThinkingDisabledMarkerInput | null;
-  enabled?: AnthropicThinkingEnabledInput | null;
+  adaptive?: never;
+  disabled: AnthropicThinkingDisabledMarkerInput;
+  enabled?: never;
+} | {
+  adaptive?: never;
+  disabled?: never;
+  enabled: AnthropicThinkingEnabledInput;
+} | {
+  adaptive: AnthropicThinkingAdaptiveInput;
+  disabled?: never;
+  enabled?: never;
 };
 export type AnthropicThinkingDisabledMarkerInput = {
   disabled?: boolean;
@@ -150,8 +195,11 @@ export type PromptToolsInput = {
   tools: ReadonlyArray<PromptToolInput>;
 };
 export type PromptToolInput = {
-  function?: PromptToolFunctionDefinitionInput | null;
-  raw?: any | null;
+  function: PromptToolFunctionDefinitionInput;
+  raw?: never;
+} | {
+  function?: never;
+  raw: any;
 };
 export type PromptToolFunctionDefinitionInput = {
   description?: string | null;
@@ -160,10 +208,25 @@ export type PromptToolFunctionDefinitionInput = {
   strict?: boolean | null;
 };
 export type PromptToolChoiceInput = {
-  functionName?: string | null;
-  none?: boolean | null;
-  oneOrMore?: boolean | null;
-  zeroOrMore?: boolean | null;
+  functionName?: never;
+  none: boolean;
+  oneOrMore?: never;
+  zeroOrMore?: never;
+} | {
+  functionName?: never;
+  none?: never;
+  oneOrMore?: never;
+  zeroOrMore: boolean;
+} | {
+  functionName?: never;
+  none?: never;
+  oneOrMore: boolean;
+  zeroOrMore?: never;
+} | {
+  functionName: string;
+  none?: never;
+  oneOrMore?: never;
+  zeroOrMore?: never;
 };
 export type PromptResponseFormatJSONSchemaInput = {
   jsonSchema: PromptResponseFormatJSONSchemaDefinitionInput;
@@ -176,9 +239,17 @@ export type PromptResponseFormatJSONSchemaDefinitionInput = {
   strict?: boolean | null;
 };
 export type AnnotationConfigInput = {
-  categorical?: CategoricalAnnotationConfigInput | null;
-  continuous?: ContinuousAnnotationConfigInput | null;
-  freeform?: FreeformAnnotationConfigInput | null;
+  categorical: CategoricalAnnotationConfigInput;
+  continuous?: never;
+  freeform?: never;
+} | {
+  categorical?: never;
+  continuous: ContinuousAnnotationConfigInput;
+  freeform?: never;
+} | {
+  categorical?: never;
+  continuous?: never;
+  freeform: FreeformAnnotationConfigInput;
 };
 export type CategoricalAnnotationConfigInput = {
   description?: string | null;
@@ -344,20 +415,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "EvaluatorOutputPreviewMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "EvaluatorOutputPreviewMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "21c50ac32de88b602547d5fb2308de53",

@@ -1,38 +1,42 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHttp } from "@arizeai/phoenix-testing";
+import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { addSpanAnnotation } from "../../src/spans/addSpanAnnotation";
+import { createTestClient } from "../testUtils";
 
-// Create mock POST function
-const mockPOST = vi.fn();
+const http = createHttp();
 
-// Mock the fetch module
-vi.mock("openapi-fetch", () => ({
-  default: () => ({
-    POST: mockPOST.mockResolvedValue({
-      data: {
-        data: [{ id: "test-id-1" }],
-      },
-      error: null,
-    }),
-    use: () => {},
-  }),
-}));
+let server: Server;
+
+beforeAll(async () => {
+  server = await createMockServer();
+  server.listen({ onUnhandledRequest: "error" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
 
 describe("addSpanAnnotation", () => {
-  beforeEach(() => {
-    // Clear all mocks before each test
-    vi.clearAllMocks();
-    // Reset default mock behavior
-    mockPOST.mockResolvedValue({
-      data: {
-        data: [{ id: "test-id-1" }],
-      },
-      error: null,
-    });
-  });
-
   it("should add a span annotation with all fields", async () => {
+    let receivedSyncQueryParam: string | null = null;
+    let receivedRequestBody: unknown;
+
+    server.use(
+      http.post("/v1/span_annotations", async ({ request, response }) => {
+        receivedSyncQueryParam = new URL(request.url).searchParams.get("sync");
+        receivedRequestBody = await request.json();
+        return response(200).json({ data: [{ id: "test-id-1" }] });
+      })
+    );
+
     const result = await addSpanAnnotation({
+      client: createTestClient(),
       spanAnnotation: {
         spanId: "123abc",
         name: "quality_score",
@@ -46,10 +50,33 @@ describe("addSpanAnnotation", () => {
     });
 
     expect(result).toEqual({ id: "test-id-1" });
+    expect(receivedSyncQueryParam).toBe("true");
+    expect(receivedRequestBody).toEqual({
+      data: [
+        {
+          span_id: "123abc",
+          name: "quality_score",
+          annotator_kind: "LLM",
+          result: {
+            label: "good",
+            score: 0.95,
+          },
+          metadata: { source: "test" },
+          identifier: "test-identifier",
+        },
+      ],
+    });
   });
 
   it("should add a span annotation with explanation", async () => {
+    server.use(
+      http.post("/v1/span_annotations", ({ response }) =>
+        response(200).json({ data: [{ id: "test-id-1" }] })
+      )
+    );
+
     const result = await addSpanAnnotation({
+      client: createTestClient(),
       spanAnnotation: {
         spanId: "123abc",
         name: "quality_score",
@@ -63,7 +90,14 @@ describe("addSpanAnnotation", () => {
   });
 
   it("should add a span annotation with minimum required fields", async () => {
+    server.use(
+      http.post("/v1/span_annotations", ({ response }) =>
+        response(200).json({ data: [{ id: "test-id-1" }] })
+      )
+    );
+
     const result = await addSpanAnnotation({
+      client: createTestClient(),
       spanAnnotation: {
         spanId: "123abc",
         name: "quality_score",
@@ -76,13 +110,18 @@ describe("addSpanAnnotation", () => {
   });
 
   it("should return null when sync=false (default)", async () => {
-    // Mock server returns no data for async calls
-    mockPOST.mockResolvedValueOnce({
-      data: undefined,
-      error: undefined,
-    });
+    let receivedSyncQueryParam: string | null = null;
+
+    server.use(
+      http.post("/v1/span_annotations", ({ request, response }) => {
+        receivedSyncQueryParam = new URL(request.url).searchParams.get("sync");
+        // The server returns no inserted IDs for asynchronous inserts.
+        return response(200).json({ data: [] });
+      })
+    );
 
     const result = await addSpanAnnotation({
+      client: createTestClient(),
       spanAnnotation: {
         spanId: "123abc",
         name: "quality_score",
@@ -92,11 +131,14 @@ describe("addSpanAnnotation", () => {
     });
 
     expect(result).toBeNull();
+    expect(receivedSyncQueryParam).toBe("false");
   });
 
   it("should throw error when no result fields are provided", async () => {
+    // Validation fails client-side before any request is made.
     await expect(
       addSpanAnnotation({
+        client: createTestClient(),
         spanAnnotation: {
           spanId: "123abc",
           name: "quality_score",

@@ -1,0 +1,163 @@
+---
+title: "User Friction"
+description: "Detect when a user expresses friction with an assistant's preceding behavior."
+---
+
+## Overview
+
+The **User Friction** evaluator classifies whether the latest user message
+expresses friction with an assistant's preceding behavior. It detects
+corrections, retries after an unsuccessful response, frustration, and
+challenges to unrequested or unexplained actions.
+
+Use it to monitor conversational assistants, identify turns worth reviewing,
+and measure whether product changes reduce expressed user friction.
+
+<Info>
+`no_friction` means no friction was expressed. It does not prove that the user
+was satisfied; users often abandon conversations without saying why.
+</Info>
+
+## Supported Levels
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | Apply when a span contains the preceding conversation and latest user message. |
+| **Trace** | Yes | Useful when each trace represents one conversational turn. |
+| **Session** | Yes | Evaluate each user turn after the first using the preceding session history. |
+
+**Relevant span kinds:** AGENT, CHAIN, and LLM spans that preserve multi-turn
+conversation history.
+
+## Input Requirements
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `conversation` | `string` | Human-readable conversation before the target user message. |
+| `user_message` / `userMessage` | `string` | Latest user message to classify. |
+
+Keep the target message separate from `conversation`. Include enough preceding
+history to distinguish retries and corrections from ordinary follow-ups. Render
+tool activity compactly and remove non-human payloads before evaluation.
+
+## Output Interpretation
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"friction"` or `"no_friction"` | Classification result |
+| `score` | `1.0` or `0.0` | `1.0` means expressed friction |
+| `explanation` | `string` | Judge reasoning |
+| `direction` | `"minimize"` | Lower aggregate scores are better |
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import UserFrictionEvaluator
+
+    evaluator = UserFrictionEvaluator(
+        llm=LLM(provider="openai", model="gpt-4o-mini"),
+        temperature=0.0,
+    )
+
+    scores = evaluator.evaluate({
+        "conversation": (
+            "User: Show orders from this week.\n"
+            "Assistant: Here are last month's orders."
+        ),
+        "user_message": "No, I asked for this week.",
+    })
+
+    print(scores[0])
+    # Score(name='user_friction', score=1.0, label='friction', ...)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createUserFrictionEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const evaluator = createUserFrictionEvaluator({
+      model: openai("gpt-4o-mini"),
+    });
+
+    const result = await evaluator.evaluate({
+      conversation:
+        "User: Show orders from this week.\nAssistant: Here are last month's orders.",
+      userMessage: "No, I asked for this week.",
+    });
+
+    console.log(result);
+    // { score: 1, label: "friction", explanation: "..." }
+    ```
+  </Tab>
+</Tabs>
+
+## Using Input Mapping
+
+Map your trace or dataset fields into the evaluator's two-field contract. The
+conversation should end immediately before the target user message.
+
+```python
+input_mapping = {
+    "conversation": lambda row: render_messages(row["messages"][:-1]),
+    "user_message": lambda row: row["messages"][-1]["content"],
+}
+
+scores = evaluator.evaluate(dataset_row, input_mapping)
+```
+
+See [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping) for
+additional mapping options.
+
+## Viewing and Modifying the Prompt
+
+The default prompt is maintained in the
+[classification evaluator config](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/USER_FRICTION_CLASSIFICATION_EVALUATOR_CONFIG.yaml).
+Adapt it when your application has domain-specific conversational conventions.
+
+```typescript
+import {
+  createUserFrictionEvaluator,
+} from "@arizeai/phoenix-evals";
+
+const evaluator = createUserFrictionEvaluator({
+  model,
+  promptTemplate: `Conversation: {{conversation}}
+Latest user message: {{userMessage}}
+Does the latest message express friction?`,
+  choices: { friction: 1, no_friction: 0 },
+});
+```
+
+## Configuration
+
+For model and provider options, see
+[Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+## Using with Phoenix
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+- [Logging LLM Evaluations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## Benchmarks
+
+On a 40-example public synthetic benchmark using `gpt-4o-mini`, the default
+prompt achieves 0.97 accuracy, 0.98 macro precision, 0.97 macro recall, and
+0.97 macro F1. See
+[user_friction.eval.ts](https://github.com/Arize-ai/phoenix/blob/main/js/benchmarks/evals-benchmarks/src/user_friction.eval.ts)
+for the categorized example set.
+
+## API Reference
+
+- **Python:** [UserFrictionEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript:** [createUserFrictionEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
+
+## Related
+
+- [Refusal Evaluator](/docs/phoenix/evaluation/pre-built-metrics/refusal)
+- [Correctness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/correctness)

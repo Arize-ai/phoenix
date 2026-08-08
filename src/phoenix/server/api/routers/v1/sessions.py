@@ -12,8 +12,9 @@ from starlette.requests import Request
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, token_counts_by_session
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.db.session_aggregates import SESSION_ROWID, token_counts_by_session
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
@@ -215,9 +216,11 @@ async def get_session(
             .order_by(models.Trace.start_time.asc())
         )
         traces = list((await db_session.scalars(traces_stmt)).all())
-        token_counts_rows = await db_session.execute(token_counts_by_session([project_session.id]))
+        token_counts_rows = await db_session.execute(
+            token_counts_by_session().as_grouped_subquery([project_session.id])
+        )
         token_counts: dict[int, tuple[int, int]] = {
-            row.id_: (row.prompt, row.completion) for row in token_counts_rows
+            row._mapping[SESSION_ROWID]: (row.prompt, row.completion) for row in token_counts_rows
         }
     data = _to_session_data(project_session, traces, token_counts)
     return GetSessionResponseBody(data=data)
@@ -407,9 +410,11 @@ async def list_project_sessions(
             if trace.project_session_rowid is not None:
                 traces_by_session[trace.project_session_rowid].append(trace)
 
-        token_counts_rows = await db_session.execute(token_counts_by_session(session_ids))
+        token_counts_rows = await db_session.execute(
+            token_counts_by_session().as_grouped_subquery(session_ids)
+        )
         token_counts: dict[int, tuple[int, int]] = {
-            row.id_: (row.prompt, row.completion) for row in token_counts_rows
+            row._mapping[SESSION_ROWID]: (row.prompt, row.completion) for row in token_counts_rows
         }
 
         data = [

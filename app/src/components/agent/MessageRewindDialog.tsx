@@ -29,12 +29,12 @@ function getConfirmationCopy({
 }): ConfirmationCopy {
   if (mode === "fork") {
     return {
-      title: "Fork conversation",
+      title: "Branch conversation",
       description:
         role === "user"
-          ? "Create a new chat from this point. This message is removed from the new chat and placed back in the input so you can edit and re-send it. The current chat is left unchanged."
-          : "Create a new chat that ends at this response. The current chat is left unchanged.",
-      confirmLabel: "Fork conversation",
+          ? "Create a new chat branch from this point. This message is removed from the new branch and placed back in the input so you can edit and re-send it. The current chat is left unchanged."
+          : "Create a new chat branch that ends at this response. The current chat is left unchanged.",
+      confirmLabel: "Branch conversation",
     };
   }
   return {
@@ -69,7 +69,7 @@ const confirmationActionsCSS = css`
 
 /**
  * Inline confirmation shown in place of the prompt input before rewinding or
- * forking a conversation at a chosen message.
+ * branching a conversation at a chosen message.
  *
  * This is intentionally an inline panel rather than a React Aria modal. Opening
  * a modal flips the app's global open-modal observer, which re-parents the

@@ -7,15 +7,25 @@ export type { GradientCircleRadioProps } from "./GradientCircleRadio";
 export { GradientCircleRadioGroup } from "./GradientCircleRadioGroup";
 export type { GradientCircleRadioGroupProps } from "./GradientCircleRadioGroup";
 
+export { ProjectItemContent } from "./ProjectItemContent";
+export type { ProjectItemContentProps } from "./ProjectItemContent";
+
 export {
-  PythonIntegrations,
-  TypeScriptIntegrations,
-  TypeScriptPlatformIntegrations,
-} from "./Integrations";
+  ProjectSelectionMenu,
+  sortProjectsByName,
+} from "./ProjectSelectionMenu";
+export type {
+  ProjectSelectionMenuProject,
+  ProjectSelectionMenuProps,
+} from "./ProjectSelectionMenu";
+
+export { ProjectToken } from "./ProjectToken";
+export type { ProjectTokenProps } from "./ProjectToken";
+
+export { useAllProjects } from "./useAllProjects";
+
 export * from "./IntegrationIcons";
 export { ProjectMenu } from "./ProjectMenu";
 export type { ProjectMenuProps } from "./ProjectMenu";
-export { PythonProjectGuide } from "./PythonProjectGuide";
-export { TypeScriptProjectGuide } from "./TypeScriptProjectGuide";
 export * from "./hosting";
 export * from "./integrationSnippets";

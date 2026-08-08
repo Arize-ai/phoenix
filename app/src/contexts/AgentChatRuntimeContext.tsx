@@ -3,6 +3,7 @@ import type { ChatStatus } from "ai";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 
+import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
@@ -54,11 +55,13 @@ export function shouldRetainChatRuntime({
   activeSessionId,
   liveSessionIds,
   status,
+  hasPendingToolOutput = false,
 }: {
   sessionId: string;
   activeSessionId: string | null;
   liveSessionIds: Set<string>;
   status: ChatStatus;
+  hasPendingToolOutput?: boolean;
 }) {
   if (!liveSessionIds.has(sessionId)) {
     return false;
@@ -68,7 +71,9 @@ export function shouldRetainChatRuntime({
     return true;
   }
 
-  return status === "submitted" || status === "streaming";
+  return (
+    status === "submitted" || status === "streaming" || hasPendingToolOutput
+  );
 }
 
 const AgentChatRuntimeContext = createContext<AgentChatRuntime | null>(null);
@@ -139,6 +144,8 @@ export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
               activeSessionId,
               liveSessionIds: liveSessionIdSet,
               status: entry.chat.status,
+              hasPendingToolOutput:
+                getUnresolvedToolCalls(entry.chat.messages).length > 0,
             })
           ) {
             continue;

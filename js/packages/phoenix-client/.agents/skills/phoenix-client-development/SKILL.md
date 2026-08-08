@@ -1,8 +1,6 @@
 ---
 name: phoenix-client-development
-description: >
-  Guide for the phoenix-client TypeScript package — experiment lifecycle,
-  tracer provider management, and test conventions.
+description: "Development guide for the @arizeai/phoenix-client TypeScript SDK — run and resume experiments, manage OpenTelemetry tracer providers with stack-based attach/detach, and write vitest unit and integration tests. Use when adding features to phoenix-client, debugging experiment lifecycle or provider cleanup, modifying dataset/prompt/session/span APIs, or writing tests for the js/packages/phoenix-client/ directory."
 license: Apache-2.0
 metadata:
   author: oss@arize.com

@@ -42,6 +42,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     OptimizationDirection,
 )
+from phoenix.db.types.token_price_customization import TokenPriceCustomizationParser
 from phoenix.db.types.trace_retention import (
     MaxDaysRule,
     TraceRetentionCronExpression,
@@ -83,6 +84,8 @@ class Facilitator:
             _ensure_builtin_evaluators,
             _ensure_user_feedback_annotation_config,
             _ensure_sandbox_providers,
+            _ensure_oauth2_clients,
+            _delete_expired_oauth2_authorization_codes,
             _delete_expired_childless_records,
         ):
             await fn(self._db)
@@ -155,6 +158,51 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
             )
             session.add(admin_user)
         await session.flush()
+
+
+PHOENIX_CLI_OAUTH2_CLIENT_ID = "phoenix-cli"
+PHOENIX_CLI_OAUTH2_CLIENT_NAME = "Phoenix CLI"
+PHOENIX_CLI_OAUTH2_REDIRECT_URIS = ["http://127.0.0.1/callback"]
+
+
+async def _ensure_oauth2_clients(db: DbSessionFactory) -> None:
+    """Idempotently seed and reconcile the first-party Phoenix CLI OAuth2 client."""
+    async with db() as session:
+        existing = await session.scalar(
+            sa.select(models.OAuth2Client).where(
+                models.OAuth2Client.client_id == PHOENIX_CLI_OAUTH2_CLIENT_ID
+            )
+        )
+        if existing is not None:
+            if existing.redirect_uris != PHOENIX_CLI_OAUTH2_REDIRECT_URIS:
+                existing.redirect_uris = list(PHOENIX_CLI_OAUTH2_REDIRECT_URIS)
+            return
+        session.add(
+            models.OAuth2Client(
+                client_id=PHOENIX_CLI_OAUTH2_CLIENT_ID,
+                name=PHOENIX_CLI_OAUTH2_CLIENT_NAME,
+                redirect_uris=list(PHOENIX_CLI_OAUTH2_REDIRECT_URIS),
+                grant_types=["authorization_code", "refresh_token"],
+                token_endpoint_auth_method="none",
+                is_first_party=True,
+            )
+        )
+        await session.flush()
+
+
+async def _delete_expired_oauth2_authorization_codes(db: DbSessionFactory) -> None:
+    """Remove authorization codes past their TTL so unredeemed approvals leave no residue."""
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        deleted_ids = (
+            await session.scalars(
+                sa.delete(models.OAuth2AuthorizationCode)
+                .where(models.OAuth2AuthorizationCode.expires_at <= now)
+                .returning(models.OAuth2AuthorizationCode.id)
+            )
+        ).all()
+        if deleted_ids:
+            logger.info("Deleted %s expired OAuth2 authorization codes", len(deleted_ids))
 
 
 async def _get_system_user_id(db: DbSessionFactory) -> None:
@@ -544,6 +592,9 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                 if not (base_rate := manifest_token_price.get("base_rate")):
                     continue
 
+                customization = TokenPriceCustomizationParser.parse(
+                    manifest_token_price.get("customization")
+                )
                 key = _TokenTypeKey(
                     manifest_token_price["token_type"],
                     manifest_token_price["is_prompt"],
@@ -555,13 +606,18 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                         token_type=manifest_token_price["token_type"],
                         is_prompt=manifest_token_price["is_prompt"],
                         base_rate=base_rate,
+                        customization=customization,
                     )
                     model.token_prices.append(token_price)
                     token_prices_changed = True
-                elif token_price.base_rate != base_rate:
-                    # Update existing price if rate has changed
-                    token_price.base_rate = base_rate
-                    token_prices_changed = True
+                else:
+                    # Update existing price if the rate or customization changed
+                    if token_price.base_rate != base_rate:
+                        token_price.base_rate = base_rate
+                        token_prices_changed = True
+                    if token_price.customization != customization:
+                        token_price.customization = customization
+                        token_prices_changed = True
 
             # Remove any token prices that are no longer in the manifest
             # These are prices that weren't popped from the token_prices dict above

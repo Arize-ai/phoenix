@@ -1,6 +1,8 @@
 import type { Dispatch, PropsWithChildren, SetStateAction } from "react";
 import { createContext, useContext, useState } from "react";
 
+import { useLabelFilterSearchParams } from "@phoenix/hooks";
+
 export type PromptsFilterContext = {
   filter: string;
   setFilter: Dispatch<SetStateAction<string>>;
@@ -14,9 +16,10 @@ export const promptsFilterContext = createContext<PromptsFilterContext | null>(
 
 export const PromptsFilterProvider = ({ children }: PropsWithChildren) => {
   const [filter, setFilter] = useState("");
-  const [selectedPromptLabelIds, setSelectedPromptLabelIds] = useState<
-    string[]
-  >([]);
+  // The label filter is persisted to the URL so it can be shared and survive
+  // reloads.
+  const [selectedPromptLabelIds, setSelectedPromptLabelIds] =
+    useLabelFilterSearchParams();
   return (
     <promptsFilterContext.Provider
       value={{

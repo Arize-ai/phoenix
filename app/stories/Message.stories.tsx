@@ -122,7 +122,7 @@ The inner function "closes over" the \`count\` variable, keeping it alive across
               onPress={() => setLiked((v) => !v)}
             >
               <Icon
-                svg={<Icons.ThumbsUpOutline />}
+                svg={<Icons.ThumbsUp />}
                 color={liked ? "blue-700" : "inherit"}
               />
             </MessageAction>
@@ -132,7 +132,7 @@ The inner function "closes over" the \`count\` variable, keeping it alive across
               onPress={() => setDisliked((v) => !v)}
             >
               <Icon
-                svg={<Icons.ThumbsDownOutline />}
+                svg={<Icons.ThumbsDown />}
                 color={disliked ? "red-700" : "inherit"}
               />
             </MessageAction>
@@ -141,7 +141,7 @@ The inner function "closes over" the \`count\` variable, keeping it alive across
               tooltip="Copy to clipboard"
               onPress={() => {}}
             >
-              <Icon svg={<Icons.DuplicateOutline />} />
+              <Icon svg={<Icons.Duplicate />} />
             </MessageAction>
           </MessageActions>
         </MessageToolbar>
@@ -228,7 +228,7 @@ export const WithBranching: Story = {
                 tooltip="Copy to clipboard"
                 onPress={() => {}}
               >
-                <Icon svg={<Icons.DuplicateOutline />} />
+                <Icon svg={<Icons.Duplicate />} />
               </MessageAction>
             </MessageActions>
           </MessageToolbar>
@@ -324,12 +324,12 @@ function greet(name: string): string {
               onPress={() => toggleLike("msg-1")}
             >
               <Icon
-                svg={<Icons.ThumbsUpOutline />}
+                svg={<Icons.ThumbsUp />}
                 color={liked["msg-1"] ? "blue-700" : "inherit"}
               />
             </MessageAction>
             <MessageAction label="Copy" tooltip="Copy" onPress={() => {}}>
-              <Icon svg={<Icons.DuplicateOutline />} />
+              <Icon svg={<Icons.Duplicate />} />
             </MessageAction>
           </MessageActions>
         </MessageToolbar>
@@ -387,12 +387,12 @@ TypeScript is essentially JavaScript with guardrails.`}
                 onPress={() => toggleLike("msg-2")}
               >
                 <Icon
-                  svg={<Icons.ThumbsUpOutline />}
+                  svg={<Icons.ThumbsUp />}
                   color={liked["msg-2"] ? "blue-700" : "inherit"}
                 />
               </MessageAction>
               <MessageAction label="Copy" tooltip="Copy" onPress={() => {}}>
-                <Icon svg={<Icons.DuplicateOutline />} />
+                <Icon svg={<Icons.Duplicate />} />
               </MessageAction>
             </MessageActions>
           </MessageToolbar>

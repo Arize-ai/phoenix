@@ -3,6 +3,8 @@ title: "OpenAI Agents SDK Tracing"
 description: "Use Phoenix and OpenAI Agents SDK for powerful multi-agent tracing"
 ---
 
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
 <Note>Looking for TypeScript? See the [TypeScript guide](/docs/phoenix/integrations/typescript/openai-agents).</Note>
 
 ## 1. Install
@@ -19,17 +21,7 @@ Add your OpenAI API key as an environment variable:
 export OPENAI_API_KEY=[your_key_here]
 ```
 
-Use the register function to connect your application to Phoenix:
-
-```python
-from phoenix.otel import register
-
-# configure the Phoenix tracer
-tracer_provider = register(
-  project_name="agents", # Default is 'default'
-  auto_instrument=True # Auto-instrument your app based on installed dependencies
-)
-```
+<RegisterTracerPython projectName="agents" />
 
 Run your `agents`code.
 

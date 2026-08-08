@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<a7e46202b2920e34af6610ddfcd1af98>>
+ * @generated SignedSource<<ca2ca16a2981dff93a9076f994665bcb>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -57,7 +56,7 @@ return {
         "name": "userApiKeys",
         "plural": true,
         "selections": [
-          (v0/*: any*/),
+          (v0/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -101,7 +100,7 @@ return {
                 "name": "username",
                 "storageKey": null
               },
-              (v0/*: any*/)
+              (v0/*:: as any*/)
             ],
             "storageKey": null
           }

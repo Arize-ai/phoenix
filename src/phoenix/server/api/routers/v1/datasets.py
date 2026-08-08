@@ -1292,6 +1292,11 @@ async def _parse_form_data(
     )
 
 
+class DatasetExampleSource(V1RoutesBaseModel):
+    span_id: str
+    span_node_id: str
+
+
 class DatasetExample(V1RoutesBaseModel):
     id: str
     node_id: str
@@ -1299,6 +1304,7 @@ class DatasetExample(V1RoutesBaseModel):
     output: dict[str, Any]
     metadata: dict[str, Any]
     updated_at: datetime
+    source: Optional[DatasetExampleSource] = None
 
 
 class ListDatasetExamplesData(V1RoutesBaseModel):
@@ -1413,6 +1419,8 @@ async def get_dataset_examples(
             select(
                 models.DatasetExample,
                 models.DatasetExampleRevision,
+                models.Span.id,
+                models.Span.span_id,
             )
             .join(
                 models.DatasetExampleRevision,
@@ -1422,6 +1430,7 @@ async def get_dataset_examples(
                 subquery,
                 (subquery.c.max_id == models.DatasetExampleRevision.id),
             )
+            .outerjoin(models.Span, models.DatasetExample.span_rowid == models.Span.id)
             .filter(models.DatasetExample.dataset_id == resolved_dataset_id)
             .filter(models.DatasetExampleRevision.revision_kind != "DELETE")
             .order_by(models.DatasetExample.id.asc())
@@ -1458,8 +1467,21 @@ async def get_dataset_examples(
                 output=revision.output,
                 metadata=revision.metadata_,
                 updated_at=revision.created_at,
+                source=(
+                    DatasetExampleSource(
+                        span_id=span_id,
+                        span_node_id=str(GlobalID("Span", str(span_rowid))),
+                    )
+                    if span_rowid is not None and span_id is not None
+                    else None
+                ),
             )
-            async for example, revision in await session.stream(query)
+            async for (
+                example,
+                revision,
+                span_rowid,
+                span_id,
+            ) in await session.stream(query)
         ]
     return ListDatasetExamplesResponseBody(
         data=ListDatasetExamplesData(

@@ -6,6 +6,7 @@ export {
   SpanStatusCode,
 } from "@opentelemetry/api";
 export { suppressTracing } from "@opentelemetry/core";
+export { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 export { registerInstrumentations } from "@opentelemetry/instrumentation";
 export { type Instrumentation } from "@opentelemetry/instrumentation";
 export { type NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
@@ -19,5 +20,6 @@ export * from "@arizeai/openinference-core";
 
 // Phoenix abstractions
 export * from "./createNoOpProvider";
+export * from "./lazyOpenInferenceSpanProcessor";
 export * from "./register";
 export * from "./utils";

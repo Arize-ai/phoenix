@@ -421,6 +421,160 @@ async def test_create_freeform_annotation_config_with_invalid_bounds_returns_exp
     assert "Lower bound must be strictly less than upper bound" in response.text
 
 
+async def _create_project(httpx_client: AsyncClient, name: str) -> str:
+    response = await httpx_client.post("/v1/projects", json={"name": name})
+    assert response.status_code == 200, response.text
+    return str(response.json()["data"]["id"])
+
+
+async def _create_config(httpx_client: AsyncClient, name: str) -> dict[str, Any]:
+    response = await httpx_client.post(
+        "/v1/annotation_configs",
+        json={
+            "name": name,
+            "type": AnnotationType.CATEGORICAL.value,
+            "description": "Human review rubric",
+            "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+            "values": [
+                {"label": "helpful", "score": 1.0},
+                {"label": "not_helpful", "score": 0.0},
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+    data: dict[str, Any] = response.json()["data"]
+    return data
+
+
+async def test_assign_annotation_config_to_project_is_idempotent_and_listable(
+    httpx_client: AsyncClient,
+) -> None:
+    project_id = await _create_project(httpx_client, "assign-project")
+    config = await _create_config(httpx_client, "assign-config")
+    base = f"/v1/projects/{project_id}/annotation_configs"
+    item = f"{base}/{config['id']}"
+
+    # Assign returns 200 and echoes the assigned config.
+    response = await httpx_client.put(item)
+    assert response.status_code == 200, response.text
+    assert response.json()["data"] == config
+
+    # Re-assigning an already-assigned config is an idempotent no-op that still returns 200.
+    response = await httpx_client.put(item)
+    assert response.status_code == 200, response.text
+    assert response.json()["data"] == config
+
+    # The config now shows up in the project's list (paginated, same item shape as the collection).
+    response = await httpx_client.get(base)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["data"] == [config]
+    assert body["next_cursor"] is None
+
+
+async def test_assign_and_list_annotation_configs_by_name(
+    httpx_client: AsyncClient,
+) -> None:
+    await _create_project(httpx_client, "by-name-project")
+    config = await _create_config(httpx_client, "by-name-config")
+    base = "/v1/projects/by-name-project/annotation_configs"
+
+    # Both the project and the config identifiers accept a name as well as a GlobalID.
+    response = await httpx_client.put(f"{base}/by-name-config")
+    assert response.status_code == 200, response.text
+    assert response.json()["data"] == config
+
+    response = await httpx_client.get(base)
+    assert response.status_code == 200, response.text
+    assert response.json()["data"] == [config]
+
+
+async def test_unassign_annotation_config_from_project(
+    httpx_client: AsyncClient,
+) -> None:
+    project_id = await _create_project(httpx_client, "unassign-project")
+    config = await _create_config(httpx_client, "unassign-config")
+    config_id = config["id"]
+    base = f"/v1/projects/{project_id}/annotation_configs"
+    item = f"{base}/{config_id}"
+
+    await httpx_client.put(item)
+
+    # Unassigning removes the link without deleting the underlying config.
+    response = await httpx_client.delete(item)
+    assert response.status_code == 204, response.text
+    assert (await httpx_client.get(base)).json()["data"] == []
+    assert (await httpx_client.get(f"/v1/annotation_configs/{config_id}")).status_code == 200
+
+    # Unassigning a config that is not assigned is an idempotent no-op (204).
+    response = await httpx_client.delete(item)
+    assert response.status_code == 204, response.text
+
+
+async def test_set_project_annotation_configs_replaces_the_whole_set(
+    httpx_client: AsyncClient,
+) -> None:
+    project_id = await _create_project(httpx_client, "bulk-project")
+    config_a = await _create_config(httpx_client, "bulk-config-a")
+    config_b = await _create_config(httpx_client, "bulk-config-b")
+    config_c = await _create_config(httpx_client, "bulk-config-c")
+    base = f"/v1/projects/{project_id}/annotation_configs"
+
+    # Start with A assigned.
+    await httpx_client.put(f"{base}/{config_a['id']}")
+
+    # Replace the set with {B, C}: A is removed, B and C are added.
+    body = {"annotation_config_ids": [config_b["id"], config_c["id"]]}
+    response = await httpx_client.put(base, json=body)
+    assert response.status_code == 200, response.text
+    assert {item["id"] for item in response.json()["data"]} == {config_b["id"], config_c["id"]}
+
+    response = await httpx_client.get(base)
+    assert {item["id"] for item in response.json()["data"]} == {config_b["id"], config_c["id"]}
+
+    # An empty array clears all assignments.
+    response = await httpx_client.put(base, json={"annotation_config_ids": []})
+    assert response.status_code == 200, response.text
+    assert response.json()["data"] == []
+    assert (await httpx_client.get(base)).json()["data"] == []
+
+
+async def test_assign_with_missing_project_or_config_returns_404(
+    httpx_client: AsyncClient,
+) -> None:
+    project_id = await _create_project(httpx_client, "missing-project")
+    config = await _create_config(httpx_client, "missing-config")
+
+    # Unknown project.
+    response = await httpx_client.put(
+        f"/v1/projects/does-not-exist/annotation_configs/{config['id']}"
+    )
+    assert response.status_code == 404, response.text
+
+    # Unknown config.
+    response = await httpx_client.put(
+        f"/v1/projects/{project_id}/annotation_configs/does-not-exist"
+    )
+    assert response.status_code == 404, response.text
+
+
+async def test_set_project_annotation_configs_with_unknown_id_returns_422(
+    httpx_client: AsyncClient,
+) -> None:
+    project_id = await _create_project(httpx_client, "bulk-422-project")
+    base = f"/v1/projects/{project_id}/annotation_configs"
+
+    # A malformed (non-GlobalID) value in the body is a 422.
+    response = await httpx_client.put(base, json={"annotation_config_ids": ["not-a-global-id"]})
+    assert response.status_code == 422, response.text
+
+    # A well-formed GlobalID that refers to a nonexistent config is also a 422.
+    config = await _create_config(httpx_client, "bulk-422-config")
+    await httpx_client.delete(f"/v1/annotation_configs/{config['id']}")
+    response = await httpx_client.put(base, json={"annotation_config_ids": [config["id"]]})
+    assert response.status_code == 422, response.text
+
+
 @pytest.fixture
 async def annotation_configs(db: DbSessionFactory) -> list[models.AnnotationConfig]:
     """

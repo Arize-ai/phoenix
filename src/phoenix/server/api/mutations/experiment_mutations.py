@@ -2,20 +2,26 @@ import asyncio
 from datetime import datetime, timezone
 
 import strawberry
-from sqlalchemy import delete, or_, update
+from sqlalchemy import delete, or_, select, update
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
+from strawberry.dataloader import DataLoader
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.config import EXPERIMENT_TOGGLE_COOLDOWN
 from phoenix.db import models
 from phoenix.db.helpers import get_eval_trace_ids_for_experiments, get_project_names_for_experiments
+from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError
+from phoenix.server.api.exceptions import BadRequest, Conflict, CustomGraphQLError
+from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
 from phoenix.server.api.input_types.DeleteExperimentsInput import DeleteExperimentsInput
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.PatchExperimentInput import PatchExperimentInput
+from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.ExperimentJob import ExperimentJob
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -51,6 +57,13 @@ class ReinstateExperimentPayload:
 @strawberry.type
 class PatchExperimentPayload:
     experiment: Experiment
+
+
+@strawberry.type
+class SetExperimentBaselinePayload:
+    dataset: Dataset
+    experiment: Experiment
+    previous_baseline_experiment: Experiment | None = None
 
 
 @strawberry.type
@@ -251,6 +264,82 @@ class ExperimentMutationMixin:
                 raise BadRequest(f"Experiment {input.experiment_id} not found")
         return PatchExperimentPayload(experiment=to_gql_experiment(experiment))
 
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def set_experiment_baseline(
+        self,
+        info: Info[Context, None],
+        experiment_id: GlobalID,
+        baseline: bool,
+    ) -> SetExperimentBaselinePayload:
+        experiment_rowid = from_global_id_with_expected_type(experiment_id, Experiment.__name__)
+        async with info.context.db() as session:
+            experiment = await session.get(models.Experiment, experiment_rowid)
+            if experiment is None:
+                raise BadRequest(f"Experiment {experiment_id} not found")
+            if baseline and experiment.is_ephemeral:
+                raise BadRequest("Ephemeral experiments cannot be marked as baseline")
+            previous_baseline_experiment_id = await session.scalar(
+                select(models.ExperimentTag.experiment_id)
+                .where(models.ExperimentTag.dataset_id == experiment.dataset_id)
+                .where(models.ExperimentTag.name == BASELINE_EXPERIMENT_TAG_NAME)
+            )
+            previous_baseline_experiment = None
+            if baseline:
+                if (
+                    previous_baseline_experiment_id is not None
+                    and previous_baseline_experiment_id != experiment.id
+                ):
+                    previous_baseline_experiment = await session.get(
+                        models.Experiment, previous_baseline_experiment_id
+                    )
+                await session.execute(
+                    insert_on_conflict(
+                        {
+                            "experiment_id": experiment.id,
+                            "dataset_id": experiment.dataset_id,
+                            "user_id": info.context.user_id,
+                            "name": BASELINE_EXPERIMENT_TAG_NAME,
+                            "description": None,
+                        },
+                        table=models.ExperimentTag,
+                        dialect=info.context.db.dialect,
+                        unique_by=("dataset_id", "name"),
+                        set_={
+                            "experiment_id": experiment.id,
+                            "user_id": info.context.user_id,
+                            "description": None,
+                        },
+                    )
+                )
+            else:
+                await session.execute(
+                    delete(models.ExperimentTag)
+                    .where(models.ExperimentTag.dataset_id == experiment.dataset_id)
+                    .where(models.ExperimentTag.name == BASELINE_EXPERIMENT_TAG_NAME)
+                    .where(models.ExperimentTag.experiment_id == experiment.id)
+                )
+            try:
+                await session.commit()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict("Failed to update experiment baseline.")
+        loader = info.context.data_loaders.experiment_baseline_tags
+        _clear_and_prime_experiment_baseline_tag(loader, experiment.id, baseline)
+        if previous_baseline_experiment is not None:
+            _clear_and_prime_experiment_baseline_tag(
+                loader,
+                previous_baseline_experiment.id,
+                False,
+            )
+        return SetExperimentBaselinePayload(
+            dataset=Dataset(id=experiment.dataset_id),
+            experiment=to_gql_experiment(experiment, is_baseline=baseline),
+            previous_baseline_experiment=(
+                to_gql_experiment(previous_baseline_experiment, is_baseline=False)
+                if previous_baseline_experiment is not None
+                else None
+            ),
+        )
+
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_experiments(
         self,
@@ -308,3 +397,15 @@ class ExperimentMutationMixin:
                 to_gql_experiment(experiments[experiment_id]) for experiment_id in experiment_ids
             ]
         )
+
+
+def _clear_and_prime_experiment_baseline_tag(
+    loader: DataLoader[int, bool],
+    experiment_id: int,
+    is_baseline: bool,
+) -> None:
+    try:
+        loader.clear(experiment_id)
+    except KeyError:
+        pass
+    loader.prime(experiment_id, is_baseline)

@@ -1,34 +1,42 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHttp } from "@arizeai/phoenix-testing";
+import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { addTraceAnnotation } from "../../src/traces/addTraceAnnotation";
+import { createTestClient } from "../testUtils";
 
-const mockPOST = vi.fn();
+const http = createHttp();
 
-vi.mock("openapi-fetch", () => ({
-  default: () => ({
-    POST: mockPOST.mockResolvedValue({
-      data: {
-        data: [{ id: "test-id-1" }],
-      },
-      error: null,
-    }),
-    use: () => {},
-  }),
-}));
+let server: Server;
+
+beforeAll(async () => {
+  server = await createMockServer();
+  server.listen({ onUnhandledRequest: "error" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
 
 describe("addTraceAnnotation", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockPOST.mockResolvedValue({
-      data: {
-        data: [{ id: "test-id-1" }],
-      },
-      error: null,
-    });
-  });
-
   it("should add a trace annotation with all fields", async () => {
+    let receivedSyncQuery: string | null = null;
+    let receivedRequestBody: unknown;
+
+    server.use(
+      http.post("/v1/trace_annotations", async ({ request, response }) => {
+        receivedSyncQuery = new URL(request.url).searchParams.get("sync");
+        receivedRequestBody = await request.json();
+        return response(200).json({ data: [{ id: "test-id-1" }] });
+      })
+    );
+
     const result = await addTraceAnnotation({
+      client: createTestClient(),
       traceAnnotation: {
         traceId: "abc123",
         name: "correctness",
@@ -42,25 +50,30 @@ describe("addTraceAnnotation", () => {
     });
 
     expect(result).toEqual({ id: "test-id-1" });
-    expect(mockPOST).toHaveBeenCalledWith("/v1/trace_annotations", {
-      params: { query: { sync: true } },
-      body: {
-        data: [
-          {
-            trace_id: "abc123",
-            name: "correctness",
-            annotator_kind: "HUMAN",
-            result: { label: "correct", score: 1.0 },
-            metadata: { reviewer: "alice" },
-            identifier: "test-identifier",
-          },
-        ],
-      },
+    expect(receivedSyncQuery).toBe("true");
+    expect(receivedRequestBody).toEqual({
+      data: [
+        {
+          trace_id: "abc123",
+          name: "correctness",
+          annotator_kind: "HUMAN",
+          result: { label: "correct", score: 1.0 },
+          metadata: { reviewer: "alice" },
+          identifier: "test-identifier",
+        },
+      ],
     });
   });
 
   it("should add a trace annotation with explanation only", async () => {
+    server.use(
+      http.post("/v1/trace_annotations", ({ response }) =>
+        response(200).json({ data: [{ id: "test-id-1" }] })
+      )
+    );
+
     const result = await addTraceAnnotation({
+      client: createTestClient(),
       traceAnnotation: {
         traceId: "abc123",
         name: "correctness",
@@ -74,12 +87,17 @@ describe("addTraceAnnotation", () => {
   });
 
   it("should return null when sync=false (default)", async () => {
-    mockPOST.mockResolvedValueOnce({
-      data: undefined,
-      error: undefined,
-    });
+    let receivedSyncQuery: string | null = null;
+
+    server.use(
+      http.post("/v1/trace_annotations", ({ request, response }) => {
+        receivedSyncQuery = new URL(request.url).searchParams.get("sync");
+        return response(200).json({ data: [] });
+      })
+    );
 
     const result = await addTraceAnnotation({
+      client: createTestClient(),
       traceAnnotation: {
         traceId: "abc123",
         name: "correctness",
@@ -88,11 +106,13 @@ describe("addTraceAnnotation", () => {
     });
 
     expect(result).toBeNull();
+    expect(receivedSyncQuery).toBe("false");
   });
 
   it("should throw when no result fields are provided", async () => {
     await expect(
       addTraceAnnotation({
+        client: createTestClient(),
         traceAnnotation: {
           traceId: "abc123",
           name: "correctness",
@@ -106,6 +126,7 @@ describe("addTraceAnnotation", () => {
   it("should reject the reserved name 'note'", async () => {
     await expect(
       addTraceAnnotation({
+        client: createTestClient(),
         traceAnnotation: {
           traceId: "abc123",
           name: "note",

@@ -141,7 +141,7 @@ export function PlaygroundExperimentRunDetailsDialog({
                 css={css`
                   overflow-y: auto;
                   height: 100%;
-                  padding: var(--global-dimension-static-size-200);
+                  padding: var(--global-dimension-size-200);
                 `}
               >
                 <View
@@ -170,12 +170,12 @@ export function PlaygroundExperimentRunDetailsDialog({
                       )}
                       <ul
                         css={css`
-                          margin-top: var(--global-dimension-static-size-100);
+                          margin-top: var(--global-dimension-size-100);
                           display: flex;
                           flex-direction: column;
                           justify-content: flex-start;
                           align-items: flex-end;
-                          gap: var(--global-dimension-static-size-100);
+                          gap: var(--global-dimension-size-100);
                         `}
                       >
                         {run.annotations?.edges.map((edge) => (
@@ -219,7 +219,7 @@ function RunLatency({
 function RunError({ error }: { error: string }) {
   return (
     <Flex direction="row" gap="size-50" alignItems="center">
-      <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
+      <Icon svg={<Icons.AlertCircle />} color="danger" />
       <Text color="danger">{error}</Text>
     </Flex>
   );

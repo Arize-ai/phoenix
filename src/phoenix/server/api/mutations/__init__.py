@@ -17,6 +17,10 @@ from phoenix.server.api.mutations.generative_model_custom_provider_mutations imp
     GenerativeModelCustomProviderMutationMixin,
 )
 from phoenix.server.api.mutations.model_mutations import ModelMutationMixin
+from phoenix.server.api.mutations.oauth2_grant_mutations import OAuth2GrantMutationMixin
+from phoenix.server.api.mutations.project_annotations_mutations import (
+    ProjectAnnotationMutationMixin,
+)
 from phoenix.server.api.mutations.project_mutations import ProjectMutationMixin
 from phoenix.server.api.mutations.project_session_annotations_mutations import (
     ProjectSessionAnnotationMutationMixin,
@@ -49,6 +53,8 @@ class Mutation(
     ExperimentMutationMixin,
     GenerativeModelCustomProviderMutationMixin,
     ModelMutationMixin,
+    OAuth2GrantMutationMixin,
+    ProjectAnnotationMutationMixin,
     ProjectMutationMixin,
     ProjectTraceRetentionPolicyMutationMixin,
     PromptMutationMixin,

@@ -15,7 +15,7 @@ const gradientCircleRadioGroupCSS = css`
   align-items: center;
   width: fit-content;
   gap: var(--global-dimension-size-100);
-  font-size: var(--global-dimension-static-font-size-100);
+  font-size: var(--global-dimension-font-size-100);
 
   &[data-direction="row"] {
     flex-direction: row;
@@ -50,8 +50,8 @@ const gradientCircleRadioGroupCSS = css`
 
   &:has(.gradient-circle-radio[data-focus-visible]) {
     border-radius: var(--global-rounding-small);
-    outline: 1px solid var(--global-color-primary);
-    outline-offset: var(--global-dimension-size-50);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
 `;
 

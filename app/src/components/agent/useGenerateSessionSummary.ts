@@ -1,10 +1,14 @@
 import { useCallback, useRef } from "react";
 
+import { toServerSafeUIMessages } from "@phoenix/agent/chat/serverSafeMessages";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import type { components, paths } from "@phoenix/api/__generated__/v1";
 import { authApiFetch } from "@phoenix/api/authApiFetch";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
-import { getEffectiveTraceRecordingSettings } from "@phoenix/store/agentStore";
+import {
+  getEffectiveAttachUserId,
+  getEffectiveTraceRecordingSettings,
+} from "@phoenix/store/agentStore";
 
 const SUMMARIZE_PATH =
   "/agents/{agent_id}/sessions/{session_id}/summary" as const satisfies keyof paths;
@@ -20,18 +24,26 @@ async function fetchSummary({
   messages,
   ingestTraces,
   exportRemoteTraces,
+  attachUserId,
 }: {
   sessionId: string;
   modelSelection: AgentModelSelection;
   messages: AgentUIMessage[];
   ingestTraces: boolean;
   exportRemoteTraces: boolean;
+  attachUserId: boolean;
 }): Promise<string> {
   const { data, response } = await authApiFetch.POST(SUMMARIZE_PATH, {
     params: {
       path: { agent_id: ASSISTANT_AGENT_ID, session_id: sessionId },
     },
-    body: { messages, ingestTraces, exportRemoteTraces, model: modelSelection },
+    body: {
+      messages: toServerSafeUIMessages(messages),
+      ingestTraces,
+      exportRemoteTraces,
+      attachUserId,
+      model: modelSelection,
+    },
   });
   if (!response.ok || !data) {
     throw new Error(`summarize request failed: ${response.status}`);
@@ -81,6 +93,10 @@ export function useGenerateSessionSummary() {
         messages: session.messages,
         ingestTraces: traceRecording.ingestTraces,
         exportRemoteTraces: traceRecording.exportRemoteTraces,
+        attachUserId: getEffectiveAttachUserId({
+          agentsConfig: state.agentsConfig,
+          observability: state.observability,
+        }),
       })
         .then((summary) => {
           if (summary) {

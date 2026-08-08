@@ -47,6 +47,8 @@ export function deriveRouteContexts(
   const projectNodeId = params["projectId"];
   const otelTraceId = params["traceId"];
   const sessionNodeId = params["sessionId"];
+  const promptNodeId = params["promptId"];
+  const promptVersionNodeId = params["versionId"];
   const routeSpanNodeId = params["spanId"];
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
   const selectedTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
@@ -66,6 +68,18 @@ export function deriveRouteContexts(
 
   if (projectNodeId && sessionNodeId) {
     contexts.push({ type: "session", projectNodeId, sessionNodeId });
+  }
+
+  if (promptNodeId) {
+    contexts.push({ type: "prompt", promptNodeId });
+  }
+
+  if (promptNodeId && promptVersionNodeId) {
+    contexts.push({
+      type: "prompt_version",
+      promptNodeId,
+      promptVersionNodeId,
+    });
   }
 
   if (selectedSpanNodeId) {

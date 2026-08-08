@@ -25,6 +25,10 @@ type SpanTokenCostsProps = {
    * The size of the icon and text
    */
   size?: TextProps["size"];
+  /**
+   * The color of the text
+   */
+  color?: TextProps["color"];
 };
 
 /**
@@ -34,7 +38,12 @@ export function SpanTokenCosts(props: SpanTokenCostsProps) {
   return (
     <TooltipTrigger>
       <Pressable>
-        <TokenCosts size={props.size} role="button" tabIndex={0}>
+        <TokenCosts
+          size={props.size}
+          color={props.color}
+          role="button"
+          tabIndex={0}
+        >
           {props.totalCost}
         </TokenCosts>
       </Pressable>

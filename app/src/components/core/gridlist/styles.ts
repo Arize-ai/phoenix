@@ -12,14 +12,14 @@ export const gridListCss = css`
   padding: var(--global-menu-item-gap);
   &:focus-visible {
     border-radius: var(--global-rounding-small);
-    outline: 2px solid var(--global-color-primary);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: 0px;
   }
   &[data-empty] {
     align-items: center;
     justify-content: center;
     display: flex;
-    padding: var(--global-dimension-static-size-100);
+    padding: var(--global-dimension-size-100);
   }
 
   .react-aria-GridListSection {
@@ -66,7 +66,7 @@ export const gridListItemCss = css`
 
   .GridListItem__content {
     padding: var(--global-menu-item-gap);
-    padding-left: var(--global-dimension-static-size-100);
+    padding-left: var(--global-dimension-size-100);
     border-radius: var(--global-rounding-small);
 
     &:hover {
@@ -76,8 +76,7 @@ export const gridListItemCss = css`
 `;
 
 export const gridListSectionTitleCss = css`
-  padding: var(--global-dimension-static-size-50)
-    var(--global-dimension-static-size-100) 0;
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100) 0;
 `;
 
 export const gridListSectionCss = css`

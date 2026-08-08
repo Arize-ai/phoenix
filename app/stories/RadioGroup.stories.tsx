@@ -53,13 +53,13 @@ const AsIconTemplate: StoryFn<RadioGroupProps> = (args) => (
     <View width="600px" padding="size-200">
       <RadioGroup aria-label="RadioGroupWithIcons" {...args}>
         <Radio aria-label="Option 1" value="1">
-          <Icon svg={<Icons.Info />} />
+          <Icon svg={<Icons.InfoFilled />} />
         </Radio>
         <Radio aria-label="Option 2" value="2">
-          <Icon svg={<Icons.Info />} />
+          <Icon svg={<Icons.InfoFilled />} />
         </Radio>
         <Radio aria-label="Option 3" value="3">
-          <Icon svg={<Icons.Info />} />
+          <Icon svg={<Icons.InfoFilled />} />
         </Radio>
       </RadioGroup>
     </View>

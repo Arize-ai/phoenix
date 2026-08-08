@@ -56,7 +56,7 @@ Use this journal as the input to axial-coding.
 
 Prefer linking to the specific span that exhibits the issue over the parent trace whenever possible — span links land the user on the exact node, while a trace link forces them to hunt for the relevant span. Fall back to a trace link only when no single span captures the issue (e.g., a trajectory problem spanning many spans).
 
-Use Phoenix's root-relative redirect URLs with the OpenTelemetry IDs returned by GraphQL — no project lookup required. Read the OTel IDs from the `spanId` and `traceId` GraphQL fields (the hex OTel IDs), **not** the `id` field (which is a Relay node ID and will not resolve):
+Use Phoenix's root-relative redirect URLs with the OpenTelemetry IDs returned by GraphQL — no project lookup required. Read the hex OTel IDs from `Span.spanId` and `Trace.traceId`, **not** the `id` field (which is a Relay node ID and will not resolve). A `Span` has no `traceId` field — read it via the nested `trace { traceId }`:
 
 - Span: `[short description](/redirects/spans/<spanId>)`
 - Trace: `[short description](/redirects/traces/<traceId>)`

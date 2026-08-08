@@ -3,6 +3,8 @@ from statistics import mean
 from typing import Any
 
 import pytest
+import sqlalchemy
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -103,6 +105,73 @@ async def test_experiment_resolver_returns_is_ephemeral(
     )
     assert not response.errors
     assert response.data == {"experiment": {"isEphemeral": expected_is_ephemeral}}
+
+
+@pytest.fixture
+async def experiments_with_baseline_tag(
+    db: DbSessionFactory,
+    empty_dataset: Any,
+) -> None:
+    async with db() as session:
+        session.add_all(
+            [
+                models.Experiment(
+                    id=910,
+                    dataset_id=1,
+                    dataset_version_id=1,
+                    name="baseline",
+                    repetitions=1,
+                    metadata_={},
+                ),
+                models.Experiment(
+                    id=911,
+                    dataset_id=1,
+                    dataset_version_id=1,
+                    name="candidate",
+                    repetitions=1,
+                    metadata_={},
+                ),
+                models.ExperimentTag(
+                    experiment_id=910,
+                    dataset_id=1,
+                    name="baseline",
+                    description=None,
+                ),
+            ]
+        )
+        await session.flush()
+
+
+async def test_experiment_resolver_returns_is_baseline(
+    gql_client: AsyncGraphQLClient,
+    experiments_with_baseline_tag: Any,
+) -> None:
+    query = """
+      query ($baselineExperimentId: ID!, $candidateExperimentId: ID!) {
+        baselineExperiment: node(id: $baselineExperimentId) {
+          ... on Experiment {
+            isBaseline
+          }
+        }
+        candidateExperiment: node(id: $candidateExperimentId) {
+          ... on Experiment {
+            isBaseline
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "baselineExperimentId": str(GlobalID(type_name=Experiment.__name__, node_id=str(910))),
+            "candidateExperimentId": str(GlobalID(type_name=Experiment.__name__, node_id=str(911))),
+        },
+    )
+    assert not response.errors
+    assert response.data == {
+        "baselineExperiment": {"isBaseline": True},
+        "candidateExperiment": {"isBaseline": False},
+    }
 
 
 @pytest.mark.parametrize(
@@ -617,6 +686,10 @@ class TestExperimentAnnotationSummaries:
                         meanScore
                         count
                         errorCount
+                        labelFractions {
+                          label
+                          fraction
+                        }
                       }
                     }
                   }
@@ -653,6 +726,7 @@ class TestExperimentAnnotationSummaries:
                                         "meanScore": 1.0,
                                         "count": 2,
                                         "errorCount": 0,
+                                        "labelFractions": [{"label": "label-1", "fraction": 1.0}],
                                     },
                                     {
                                         "annotationName": "annotation-name-3",
@@ -661,6 +735,7 @@ class TestExperimentAnnotationSummaries:
                                         "meanScore": None,
                                         "count": 4,
                                         "errorCount": 4,
+                                        "labelFractions": [],
                                     },
                                 ],
                             }
@@ -676,6 +751,10 @@ class TestExperimentAnnotationSummaries:
                                         "meanScore": 1 / 3,
                                         "count": 6,
                                         "errorCount": 0,
+                                        "labelFractions": [
+                                            {"label": "label-0", "fraction": 2 / 3},
+                                            {"label": "label-1", "fraction": 1 / 3},
+                                        ],
                                     },
                                     {
                                         "annotationName": "annotation-name-2",
@@ -684,6 +763,10 @@ class TestExperimentAnnotationSummaries:
                                         "meanScore": 3 / 4,
                                         "count": 4,
                                         "errorCount": 1,
+                                        "labelFractions": [
+                                            {"label": "label-0", "fraction": 1 / 4},
+                                            {"label": "label-1", "fraction": 1 / 4},
+                                        ],
                                     },
                                 ],
                             }
@@ -693,16 +776,264 @@ class TestExperimentAnnotationSummaries:
             }
         }
 
-    async def test_dataset_resolver_returns_expected_values(
+    async def test_filters_summaries_by_annotation_name(
         self,
         gql_client: AsyncGraphQLClient,
         experiments_with_runs_and_annotations: Any,
     ) -> None:
         query = """
+          query ($datasetId: ID!, $annotationName: String) {
+            dataset: node(id: $datasetId) {
+              ... on Dataset {
+                experiments {
+                  edges {
+                    experiment: node {
+                      annotationSummaries(annotationName: $annotationName) {
+                        annotationName
+                        meanScore
+                        labelFractions { label fraction }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "datasetId": str(GlobalID(type_name="Dataset", node_id="1")),
+                "annotationName": "annotation-name-2",
+            },
+        )
+
+        assert not response.errors
+        assert response.data == {
+            "dataset": {
+                "experiments": {
+                    "edges": [
+                        {"experiment": {"annotationSummaries": []}},
+                        {"experiment": {"annotationSummaries": []}},
+                        {
+                            "experiment": {
+                                "annotationSummaries": [
+                                    {
+                                        "annotationName": "annotation-name-2",
+                                        "meanScore": 3 / 4,
+                                        "labelFractions": [
+                                            {"label": "label-0", "fraction": 1 / 4},
+                                            {"label": "label-1", "fraction": 1 / 4},
+                                        ],
+                                    }
+                                ]
+                            }
+                        },
+                    ]
+                }
+            }
+        }
+
+    async def test_loads_label_fractions_only_when_selected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        experiments_with_runs_and_annotations: Any,
+    ) -> None:
+        annotation_query_count = 0
+
+        @sqlalchemy.event.listens_for(sqlalchemy.engine.Engine, "before_cursor_execute")
+        def count_annotation_queries(
+            conn: Any,
+            cursor: Any,
+            statement: str,
+            parameters: Any,
+            context: Any,
+            executemany: bool,
+        ) -> None:
+            nonlocal annotation_query_count
+            if "experiment_run_annotations" in statement:
+                annotation_query_count += 1
+
+        query = """
+          query ($datasetId: ID!, $includeLabelFractions: Boolean!) {
+            dataset: node(id: $datasetId) {
+              ... on Dataset {
+                experiments {
+                  edges {
+                    experiment: node {
+                      annotationSummaries(annotationName: "annotation-name-1") {
+                        annotationName
+                        meanScore
+                        labelFractions @include(if: $includeLabelFractions) {
+                          label
+                          fraction
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+        try:
+            response = await gql_client.execute(
+                query=query,
+                variables={
+                    "datasetId": str(GlobalID(type_name="Dataset", node_id="1")),
+                    "includeLabelFractions": False,
+                },
+            )
+            assert not response.errors
+            # Omitting the nested field preserves the pre-existing single
+            # annotation-summary statement for every experiment in the batch.
+            assert annotation_query_count == 1
+
+            annotation_query_count = 0
+            response = await gql_client.execute(
+                query=query,
+                variables={
+                    "datasetId": str(GlobalID(type_name="Dataset", node_id="1")),
+                    "includeLabelFractions": True,
+                },
+            )
+            assert not response.errors
+            # All requested experiment/name pairs share one additional label
+            # statement rather than resolving labels with an N+1 query.
+            assert annotation_query_count == 2
+        finally:
+            sqlalchemy.event.remove(
+                sqlalchemy.engine.Engine,
+                "before_cursor_execute",
+                count_annotation_queries,
+            )
+
+    async def test_label_fractions_weight_dataset_examples_instead_of_repetitions(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        experiments_with_runs_and_annotations: Any,
+    ) -> None:
+        async with db() as session:
+            annotations = (
+                await session.scalars(
+                    select(models.ExperimentRunAnnotation)
+                    .join(models.ExperimentRun)
+                    .where(models.ExperimentRun.experiment_id == 1)
+                    .where(models.ExperimentRun.dataset_example_id == 2)
+                    .where(models.ExperimentRunAnnotation.name == "annotation-name-1")
+                    .order_by(models.ExperimentRunAnnotation.id)
+                )
+            ).all()
+            for annotation in annotations[1:]:
+                await session.delete(annotation)
+
+        query = """
+          query ($experimentId: ID!) {
+            experiment: node(id: $experimentId) {
+              ... on Experiment {
+                annotationSummaries(annotationName: "annotation-name-1") {
+                  labelFractions { label fraction }
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "experimentId": str(GlobalID(type_name="Experiment", node_id="1")),
+            },
+        )
+
+        assert not response.errors
+        assert response.data == {
+            "experiment": {
+                "annotationSummaries": [
+                    {
+                        "labelFractions": [
+                            {"label": "label-0", "fraction": 2 / 3},
+                            {"label": "label-1", "fraction": 1 / 3},
+                        ]
+                    }
+                ]
+            }
+        }
+
+    async def test_label_fractions_include_result_bearing_errors(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        experiments_with_runs_and_annotations: Any,
+    ) -> None:
+        async with db() as session:
+            annotation = await session.scalar(
+                select(models.ExperimentRunAnnotation)
+                .join(models.ExperimentRun)
+                .where(models.ExperimentRun.experiment_id == 1)
+                .where(models.ExperimentRunAnnotation.name == "annotation-name-2")
+                .where(models.ExperimentRunAnnotation.error.is_not(None))
+            )
+            assert annotation is not None
+            annotation.score = 0
+            annotation.label = "label-error"
+
+        query = """
+          query ($experimentId: ID!) {
+            experiment: node(id: $experimentId) {
+              ... on Experiment {
+                annotationSummaries(annotationName: "annotation-name-2") {
+                  labelFractions { label fraction }
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "experimentId": str(GlobalID(type_name="Experiment", node_id="1")),
+            },
+        )
+
+        assert not response.errors
+        assert response.data == {
+            "experiment": {
+                "annotationSummaries": [
+                    {
+                        "labelFractions": [
+                            {"label": "label-0", "fraction": 1 / 4},
+                            {"label": "label-1", "fraction": 1 / 4},
+                            {"label": "label-error", "fraction": 1 / 2},
+                        ]
+                    }
+                ]
+            }
+        }
+
+    async def test_dataset_resolver_returns_expected_values(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        experiments_with_runs_and_annotations: Any,
+    ) -> None:
+        async with db() as session:
+            experiment = await session.get(models.Experiment, 2)
+            assert experiment is not None
+            experiment.is_ephemeral = True
+
+        query = """
           query ($datasetId: ID!) {
             dataset: node(id: $datasetId) {
               ... on Dataset {
                 experimentAnnotationSummaries {
+                  annotationName
+                  minScore
+                  maxScore
+                }
+                allExperimentAnnotationSummaries: experimentAnnotationSummaries(
+                  includeEphemeral: true
+                ) {
                   annotationName
                   minScore
                   maxScore
@@ -721,6 +1052,18 @@ class TestExperimentAnnotationSummaries:
         assert response.data == {
             "dataset": {
                 "experimentAnnotationSummaries": [
+                    {
+                        "annotationName": "annotation-name-1",
+                        "minScore": 0.0,
+                        "maxScore": 1.0,
+                    },
+                    {
+                        "annotationName": "annotation-name-2",
+                        "minScore": 0.0,
+                        "maxScore": 1.0,
+                    },
+                ],
+                "allExperimentAnnotationSummaries": [
                     {
                         "annotationName": "annotation-name-1",
                         "minScore": 0.0,

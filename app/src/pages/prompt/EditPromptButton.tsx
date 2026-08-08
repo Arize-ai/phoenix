@@ -121,7 +121,7 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
     <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
       <Button
         size="S"
-        leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Settings />} />}
         variant="quiet"
         aria-label="configure prompt"
       />

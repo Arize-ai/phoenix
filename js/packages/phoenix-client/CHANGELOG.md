@@ -1,5 +1,136 @@
 # @arizeai/phoenix-client
 
+## 7.3.0
+
+### Minor Changes
+
+- d04f0fc: Introduce `PHOENIX_ENDPOINT` as the canonical base URL for API access, alongside `PHOENIX_COLLECTOR_ENDPOINT` for trace export.
+
+  Previously the TypeScript client read only `PHOENIX_HOST`, so pointing `PHOENIX_COLLECTOR_ENDPOINT` at a remote Phoenix and then reading spans back silently targeted `http://localhost:6006`. The client's base URL now resolves `PHOENIX_ENDPOINT` first, then the trace-export variables `PHOENIX_COLLECTOR_ENDPOINT` and `OTEL_EXPORTER_OTLP_ENDPOINT` (any `/v1/traces` path is stripped), then the legacy `PHOENIX_HOST` — matching the Python client rung for rung, so the same environment reaches the same server from either language.
+
+  `PHOENIX_BASE_URL` is honored below the trace-export variables as an undocumented compatibility fallback. The client docs advertised that name for years while no code read it, so values set from those docs did nothing; placing it below the other variables means those configurations start working without retargeting anyone who set both. It is also no longer enough on its own to displace a discovered `.env.phoenix`, so a stale value left in a shell cannot redirect a project that `px setup` configured.
+
+  Empty and whitespace-only values now count as unset everywhere in the resolution chains, so `export PHOENIX_ENDPOINT=` falls through to the next variable instead of stranding every consumer on localhost.
+
+  Experiment and test-suite tracing follow the same rules as `register()`: a client created with an explicit `baseUrl` exports its spans to that server, and a client whose base URL came from the environment lets the trace-export variables decide. An unparseable endpoint in a discovered `.env.phoenix` now falls back with a warning instead of aborting the run, and the cross-tier credential warning fires on this path too.
+
+  `@arizeai/phoenix-config` gains `ENV_PHOENIX_ENDPOINT`, `ENV_OTEL_EXPORTER_OTLP_ENDPOINT`, `ENV_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `getBaseUrlFromEnvironment[WithSource]()`, `getBaseUrlFromValues()` (same precedence over an injected env record), `getTraceExportEndpointFromEnvironment()`, and `PHOENIX_CONNECTION_ENV_KEYS` (for test env hygiene).
+
+### Patch Changes
+
+- Updated dependencies [d04f0fc]
+- Updated dependencies [5420522]
+  - @arizeai/phoenix-config@0.5.0
+  - @arizeai/phoenix-otel@2.2.0
+
+## 7.2.0
+
+### Minor Changes
+
+- 59aa7cb: Add a `getProjects` helper to the new `@arizeai/phoenix-client/projects` entry point. It lists projects with automatic cursor pagination and accepts an optional `nameContains` filter, which maps to the `name_contains` query parameter on `GET /v1/projects` (case-insensitive substring match, requires Phoenix server >= 17.16.0).
+
+## 7.1.1
+
+### Patch Changes
+
+- e35712a: Re-release to recover from a failed publish (versions were already on npm)
+
+## 7.1.0
+
+### Minor Changes
+
+- df7057a: Add `spanIds` filter to `getSpans`, allowing spans to be fetched by span ID (requires Phoenix server >= 19.6.0)
+
+## 7.0.1
+
+### Patch Changes
+
+- a6c3f88: Fix `resumeExperiment` and `resumeEvaluation` leaking detached workers on the first error. Both used `Promise.all([producer, ...workers])`, which rejects the instant one worker throws (e.g. under `stopOnFirstError`) while the remaining concurrent workers and the producer keep running — hitting the API and logging after the function has already returned or thrown. They now drain every task with `Promise.allSettled` and classify rejections by priority, so no background work outlives the call. This also fixes intermittent CI teardown errors (`Closing rpc while "onUserConsoleLog" was pending`) caused by that late console output.
+
+## 7.0.0
+
+### Major Changes
+
+- 4867e34: Require AI SDK v7 for `@arizeai/phoenix-client`. The optional `ai` peer dependency now requires v7 (`^7.0.0`, previously `^6.0.90`). AI SDK v7 no longer emits OpenTelemetry spans through the global tracer provider on its own — to trace AI SDK calls made inside experiment tasks, pass the `@ai-sdk/otel` integration per call, constructed inside the task: `generateText({ ..., telemetry: { integrations: [new OpenTelemetry()] } })` (see `examples/run_experiment_with_ai_sdk.ts`). Phoenix evaluators from `@arizeai/phoenix-evals` are traced automatically and need no setup. Core client APIs retain Node.js 18 compatibility; AI SDK v7-backed features require the Node.js version supported by AI SDK v7. Type-checking the published declarations now requires TypeScript >= 5.3: the `.d.ts` files for the prompts entry use `with { "resolution-mode": "import" }` import attributes, which older TypeScript versions cannot parse (and `skipLibCheck` does not suppress).
+
+## 6.14.2
+
+### Patch Changes
+
+- Updated dependencies [dc451a6]
+  - @arizeai/phoenix-otel@2.1.0
+
+## 6.14.1
+
+### Patch Changes
+
+- Updated dependencies [30f0827]
+  - @arizeai/phoenix-otel@2.0.0
+
+## 6.14.0
+
+### Minor Changes
+
+- d6b1cbb: Add a reusable refreshable-credential fetch wrapper to the Phoenix TypeScript
+  client, use it for OAuth-authenticated CLI API and PXI requests, and keep each
+  profile bound to the endpoint that issued its OAuth tokens.
+
+## 6.13.0
+
+### Minor Changes
+
+- f94067b: Add px setup script for agent onboarding
+
+### Patch Changes
+
+- Updated dependencies [f94067b]
+  - @arizeai/phoenix-config@0.4.0
+  - @arizeai/phoenix-otel@1.2.0
+
+## 6.12.2
+
+### Patch Changes
+
+- Updated dependencies [c0ab6a9]
+  - @arizeai/phoenix-config@0.3.0
+  - @arizeai/phoenix-otel@1.1.1
+
+## 6.12.1
+
+### Patch Changes
+
+- Updated dependencies [1e7d9fc]
+  - @arizeai/phoenix-config@0.2.0
+  - @arizeai/phoenix-otel@1.1.0
+
+## 6.12.0
+
+### Minor Changes
+
+- 7947440: Add `logSpans` to `@arizeai/phoenix-client/spans`, mirroring the Python client's `log_spans` API. It submits spans directly to a project using Phoenix's simplified span structure (the same shape returned by `getSpans`), without requiring OpenTelemetry. Throws a new `SpanCreationError` with `invalidSpans`/`duplicateSpans` details if any span in the request is invalid or a duplicate.
+
+## 6.11.2
+
+### Patch Changes
+
+- 7afa183: Fix `PHOENIX_TEST_TRACKING=false` not reliably disabling recording in vitest/jest eval suites. The flag is now read robustly (tolerating surrounding quotes and whitespace) and latches off for the whole process the first time it is seen disabled, so one suite can no longer re-enable recording for the others by mutating the environment mid-run. The run and annotation upload paths also honor the flag directly as a safeguard.
+
+## 6.11.1
+
+### Patch Changes
+
+- a027ada: Rename the CI eval testing env var `PHOENIX_TEST_TRACING` to `PHOENIX_TEST_TRACKING` so it matches the internal "tracking" terminology (`isTrackingEnabled`, `SuiteState.trackingDisabled`). The behavior is unchanged: set `PHOENIX_TEST_TRACKING=false` to run a suite locally without syncing datasets, experiments, runs, or annotations to Phoenix.
+
+  **Beta breaking change:** if you adopted the beta testing API in 6.11.0 and set `PHOENIX_TEST_TRACING=false`, update it to `PHOENIX_TEST_TRACKING=false`. The old name is no longer read.
+
+## 6.11.0
+
+### Minor Changes
+
+- 7efabf6: **Beta:** Add a vitest/jest-based CI eval testing API to `@arizeai/phoenix-client`. New `./vitest`, `./vitest/reporter`, `./jest`, and `./jest/reporter` entrypoints expose a Phoenix reporter (scoreboard + results table), acceptance-criteria support with an optimization `direction` ("maximize"/"minimize"), and tracing that records runs back to Phoenix. `jest` and `vitest` are added as optional peer dependencies.
+
+  This API is in beta and may change in a future release.
+
 ## 6.10.1
 
 ### Patch Changes

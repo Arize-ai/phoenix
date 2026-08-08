@@ -6,14 +6,14 @@ export const comboBoxCSS = css`
   &[data-size="M"] {
     --combobox-input-height: var(--global-input-height-s);
     --combobox-vertical-padding: 6px;
-    --combobox-start-padding: var(--global-dimension-static-size-100);
-    --combobox-end-padding: var(--global-dimension-static-size-50);
+    --combobox-start-padding: var(--global-dimension-size-100);
+    --combobox-end-padding: var(--global-dimension-size-50);
   }
   &[data-size="L"] {
     --combobox-input-height: var(--global-input-height-m);
     --combobox-vertical-padding: 10px;
-    --combobox-start-padding: var(--global-dimension-static-size-200);
-    --combobox-end-padding: var(--global-dimension-static-size-100);
+    --combobox-start-padding: var(--global-dimension-size-200);
+    --combobox-end-padding: var(--global-dimension-size-100);
   }
   color: var(--global-text-color-900);
   &[data-required] {
@@ -77,14 +77,13 @@ export const comboBoxItemCSS = css`
   align-items: center;
   justify-content: space-between;
   color: var(--global-text-color-900);
-  padding: var(--global-dimension-static-size-100)
-    var(--global-dimension-static-size-200);
-  font-size: var(--global-dimension-static-font-size-100);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+  font-size: var(--global-dimension-font-size-100);
   cursor: pointer;
   position: relative;
   & > .icon-wrap.menu-item__selected-checkmark {
-    height: var(--global-dimension-static-size-200);
-    width: var(--global-dimension-static-size-200);
+    height: var(--global-dimension-size-200);
+    width: var(--global-dimension-size-200);
   }
   &[href] {
     text-decoration: none;

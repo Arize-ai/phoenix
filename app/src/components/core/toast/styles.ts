@@ -39,10 +39,10 @@ const slideInFromTop = keyframes`
  */
 export const toastRegionCSS = css`
   position: fixed;
-  top: var(--global-dimension-static-size-200);
+  top: var(--global-dimension-size-200);
   left: 50%;
   width: 400px;
-  max-width: calc(100vw - var(--global-dimension-static-size-400));
+  max-width: calc(100vw - var(--global-dimension-size-400));
   transform: translateX(-50%);
   outline: none;
   z-index: ${PORTALED_OVERLAY_Z_INDEX};
@@ -106,9 +106,8 @@ export const toastPositionerCSS = css`
 export const toastCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--global-dimension-static-size-100);
-  padding: var(--global-dimension-static-size-100)
-    var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-100);
   border-radius: 8px;
   outline: none;
   width: 100%;
@@ -145,8 +144,14 @@ export const toastCSS = css`
   }
 
   &[data-focus-visible] {
-    outline: 2px solid slateblue;
-    outline-offset: 2px;
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  [slot="close"][data-hovered],
+  [slot="close"][data-pressed] {
+    background-color: transparent;
+    color: inherit;
   }
 
   .toast-action-container {
@@ -183,38 +188,11 @@ export const toastCSS = css`
       font-weight: bold;
       display: flex;
       flex-direction: row;
-      gap: var(--global-dimension-static-size-50);
+      gap: var(--global-dimension-size-50);
     }
 
     [slot="description"] {
       color: var(--toast-color);
-    }
-  }
-
-  .react-aria-Button[slot="close"] {
-    flex: 0 0 auto;
-    background: none;
-    border: none;
-    appearance: none;
-    border-radius: 50%;
-    height: 18px;
-    width: 18px;
-    border: none;
-    color: var(--toast-color);
-    padding: 0;
-    outline: none;
-
-    &[data-focus-visible] {
-      border: 1px solid var(--global-input-field-border-color-active);
-      background: var(--toast-background-color);
-    }
-
-    &[data-hovered] {
-      background: var(--toast-background-color);
-    }
-
-    &[data-pressed] {
-      background: var(--toast-background-color);
     }
   }
 `;

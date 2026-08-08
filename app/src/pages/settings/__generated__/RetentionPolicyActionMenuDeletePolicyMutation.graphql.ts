@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<97370abae2d7bf869ce7cf52931c8dad>>
+ * @generated SignedSource<<86e5c85529eaea51d113ec28597573bf>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -98,8 +97,8 @@ v8 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -107,7 +106,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "ProjectTraceRetentionPolicyMutationPayload",
         "kind": "LinkedField",
         "name": "deleteProjectTraceRetentionPolicy",
@@ -137,7 +136,7 @@ return {
             "name": "node",
             "plural": false,
             "selections": [
-              (v3/*: any*/)
+              (v3/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -151,15 +150,15 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "RetentionPolicyActionMenuDeletePolicyMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "ProjectTraceRetentionPolicyMutationPayload",
         "kind": "LinkedField",
         "name": "deleteProjectTraceRetentionPolicy",
@@ -175,7 +174,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v4/*: any*/),
+                "args": (v4/*:: as any*/),
                 "concreteType": "ProjectTraceRetentionPolicyConnection",
                 "kind": "LinkedField",
                 "name": "projectTraceRetentionPolicies",
@@ -197,8 +196,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v5/*: any*/),
+                          (v3/*:: as any*/),
+                          (v5/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -214,11 +213,11 @@ return {
                             "name": "rule",
                             "plural": false,
                             "selections": [
-                              (v6/*: any*/),
+                              (v6/*:: as any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v7/*: any*/)
+                                  (v7/*:: as any*/)
                                 ],
                                 "type": "TraceRetentionRuleMaxCount",
                                 "abstractKey": null
@@ -226,7 +225,7 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v8/*: any*/)
+                                  (v8/*:: as any*/)
                                 ],
                                 "type": "TraceRetentionRuleMaxDays",
                                 "abstractKey": null
@@ -234,8 +233,8 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v8/*: any*/),
-                                  (v7/*: any*/)
+                                  (v8/*:: as any*/),
+                                  (v7/*:: as any*/)
                                 ],
                                 "type": "TraceRetentionRuleMaxDaysOrCount",
                                 "abstractKey": null
@@ -245,7 +244,7 @@ return {
                           },
                           {
                             "alias": null,
-                            "args": null,
+                            "args": (v4/*:: as any*/),
                             "concreteType": "ProjectConnection",
                             "kind": "LinkedField",
                             "name": "projects",
@@ -267,8 +266,22 @@ return {
                                     "name": "node",
                                     "plural": false,
                                     "selections": [
-                                      (v5/*: any*/),
-                                      (v3/*: any*/)
+                                      (v5/*:: as any*/),
+                                      (v3/*:: as any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "gradientStartColor",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "gradientEndColor",
+                                        "storageKey": null
+                                      }
                                     ],
                                     "storageKey": null
                                   }
@@ -276,9 +289,9 @@ return {
                                 "storageKey": null
                               }
                             ],
-                            "storageKey": null
+                            "storageKey": "projects(first:1000)"
                           },
-                          (v6/*: any*/)
+                          (v6/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -322,7 +335,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v4/*: any*/),
+                "args": (v4/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "RetentionPoliciesTable_projectTraceRetentionPolicies",
@@ -340,7 +353,7 @@ return {
             "name": "node",
             "plural": false,
             "selections": [
-              (v3/*: any*/),
+              (v3/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -372,12 +385,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "25d6433327bd55427c59288866e3f402",
+    "cacheID": "6f755f111587e062dece0fe51a3e5bdb",
     "id": null,
     "metadata": {},
     "name": "RetentionPolicyActionMenuDeletePolicyMutation",
     "operationKind": "mutation",
-    "text": "mutation RetentionPolicyActionMenuDeletePolicyMutation(\n  $policyId: ID!\n) {\n  deleteProjectTraceRetentionPolicy(input: {id: $policyId}) {\n    query {\n      ...RetentionPoliciesTable_policies\n    }\n    node {\n      id\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_policies on Query {\n  projectTraceRetentionPolicies(first: 1000) {\n    edges {\n      node {\n        ...RetentionPoliciesTable_retentionPolicy\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy {\n  id\n  name\n  cronExpression\n  rule {\n    __typename\n    ... on TraceRetentionRuleMaxCount {\n      maxCount\n    }\n    ... on TraceRetentionRuleMaxDays {\n      maxDays\n    }\n    ... on TraceRetentionRuleMaxDaysOrCount {\n      maxDays\n      maxCount\n    }\n  }\n  projects {\n    edges {\n      node {\n        name\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation RetentionPolicyActionMenuDeletePolicyMutation(\n  $policyId: ID!\n) {\n  deleteProjectTraceRetentionPolicy(input: {id: $policyId}) {\n    query {\n      ...RetentionPoliciesTable_policies\n    }\n    node {\n      id\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_policies on Query {\n  projectTraceRetentionPolicies(first: 1000) {\n    edges {\n      node {\n        ...RetentionPoliciesTable_retentionPolicy\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy {\n  id\n  name\n  cronExpression\n  rule {\n    __typename\n    ... on TraceRetentionRuleMaxCount {\n      maxCount\n    }\n    ... on TraceRetentionRuleMaxDays {\n      maxDays\n    }\n    ... on TraceRetentionRuleMaxDaysOrCount {\n      maxDays\n      maxCount\n    }\n  }\n  projects(first: 1000) {\n    edges {\n      node {\n        name\n        id\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n}\n"
   }
 };
 })();

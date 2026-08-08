@@ -1,0 +1,84 @@
+# Phoenix eval CI recipe (pytest).
+#
+# Copy this file to .github/workflows/eval-ci.yml in your repository.
+# It installs the Phoenix pytest plugin, runs your marked eval suite, and gates
+# the job on pytest's exit code. The plugin records each marked test as a run in
+# a Phoenix experiment and prints a per-experiment summary to the terminal at the
+# end of the run.
+#
+# The only contracts this recipe relies on are pytest's exit code and the
+# terminal summary it prints. Both are stable across plugin versions.
+
+name: eval-ci
+
+on:
+  pull_request:
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # The pytest extra activates the pytest11 plugin entry point. Add
+      # arize-phoenix-evals if your tests use @pytest.mark.phoenix(evaluators=...)
+      # or px.evaluate(...).
+      - name: Install dependencies
+        run: pip install "arize-phoenix-client[pytest]" pytest
+
+      - name: Run eval suite
+        env:
+          # Where the plugin sends experiment runs.
+          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+        # The job fails when any marked test fails (pytest's nonzero exit).
+        run: pytest tests/evals
+
+  # OPTIONAL example: post the printed summary back to the PR as a single,
+  # upserted comment. This is an example consumer of the terminal summary, not a
+  # maintained Phoenix artifact — adapt it to your needs. The hidden marker lets
+  # the step find and update its own previous comment instead of adding a new one.
+  #
+  # comment:
+  #   runs-on: ubuntu-latest
+  #   needs: evals
+  #   if: always()
+  #   permissions:
+  #     pull-requests: write
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-python@v5
+  #       with:
+  #         python-version: "3.12"
+  #     - run: pip install "arize-phoenix-client[pytest]" pytest
+  #     - name: Capture summary
+  #       env:
+  #         PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+  #         PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+  #       # Keep the terminal summary lines; let pytest's exit code flow through.
+  #       run: pytest tests/evals | tee phoenix-summary.txt
+  #       continue-on-error: true
+  #     - name: Upsert PR comment
+  #       uses: actions/github-script@v7
+  #       with:
+  #         script: |
+  #           const fs = require('fs');
+  #           const marker = '<!-- phoenix-eval-ci -->';
+  #           const summary = fs.readFileSync('phoenix-summary.txt', 'utf8');
+  #           const body = `${marker}\n## Phoenix eval summary\n\n\`\`\`\n${summary}\n\`\`\``;
+  #           const { owner, repo } = context.repo;
+  #           const issue_number = context.issue.number;
+  #           const comments = await github.paginate(
+  #             github.rest.issues.listComments, { owner, repo, issue_number });
+  #           const existing = comments.find(c => c.body.includes(marker));
+  #           if (existing) {
+  #             await github.rest.issues.updateComment(
+  #               { owner, repo, comment_id: existing.id, body });
+  #           } else {
+  #             await github.rest.issues.createComment(
+  #               { owner, repo, issue_number, body });
+  #           }

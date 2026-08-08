@@ -45,7 +45,7 @@ scores[0].pretty_print()
 # With input mapping for nested data
 scores = evaluator.evaluate(
     {"data": {"query": "How do I reset?", "response": "Go to settings > reset."}},
-    input_mapping={"input": "data.query", "output": "data.response"}
+    input_mapping={"input": "data.query", "output": "data.response"},
 )
 scores[0].pretty_print()
 ```
@@ -85,10 +85,15 @@ helpfulness_evaluator = create_classifier(
 )
 
 # Prepare your dataframe
-df = pd.DataFrame([
-    {"input": "How do I reset my password?", "output": "Go to settings > account > reset password."},
-    {"input": "What's the weather like?", "output": "I can help you with password resets."},
-])
+df = pd.DataFrame(
+    [
+        {
+            "input": "How do I reset my password?",
+            "output": "Go to settings > account > reset password.",
+        },
+        {"input": "What's the weather like?", "output": "I can help you with password resets."},
+    ]
+)
 
 # Evaluate the dataframe
 results_df = evaluate_dataframe(

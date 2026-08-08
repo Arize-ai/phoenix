@@ -1,13 +1,24 @@
 import type * as PhoenixOtel from "@arizeai/phoenix-otel";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { type componentsV1, createHttp } from "@arizeai/phoenix-testing";
+import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
-import { createClient, type PhoenixClient } from "../../src/client";
+import type { PhoenixClient } from "../../src/client";
 import * as getExperimentInfoModule from "../../src/experiments/getExperimentInfo";
 import { asExperimentEvaluator } from "../../src/experiments/helpers";
 import { resumeEvaluation } from "../../src/experiments/resumeEvaluation";
 import type { EvaluatorParams } from "../../src/types/experiments";
+import { createTestClient } from "../testUtils";
 
-vi.mock("../../src/client");
 vi.mock("@arizeai/phoenix-otel", async (importOriginal) => ({
   ...(await importOriginal<typeof PhoenixOtel>()),
   attachGlobalTracerProvider: vi.fn(() => ({
@@ -67,6 +78,28 @@ vi.mock("@arizeai/phoenix-otel", async (importOriginal) => ({
   Tracer: vi.fn(),
 }));
 
+type IncompleteExperimentEvaluation =
+  componentsV1["schemas"]["IncompleteExperimentEvaluation"];
+type UpsertExperimentEvaluationRequestBody =
+  componentsV1["schemas"]["UpsertExperimentEvaluationRequestBody"];
+
+const http = createHttp();
+
+let server: Server;
+
+beforeAll(async () => {
+  server = await createMockServer();
+  server.listen({ onUnhandledRequest: "error" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
+
 const mockExperimentInfo = {
   id: "exp-1",
   datasetId: "dataset-1",
@@ -82,51 +115,106 @@ const mockExperimentInfo = {
   missingRunCount: 0,
 };
 
-const mockIncompleteEvaluations = [
-  {
-    experiment_run: {
-      id: "run-1",
-      experiment_id: "exp-1",
-      dataset_example_id: "ex-1",
-      repetition_number: 1,
-      output: { text: "Hello, Alice!" },
-      start_time: new Date().toISOString(),
-      end_time: new Date().toISOString(),
-      error: null,
-      trace_id: "task-trace-id-1",
-    },
-    dataset_example: {
-      id: "ex-1",
-      input: { name: "Alice" },
-      output: { text: "Hello, Alice!" },
-      metadata: {},
-    },
-    evaluation_names: ["correctness", "relevance"],
+const aliceIncompleteEvaluation: IncompleteExperimentEvaluation = {
+  experiment_run: {
+    id: "run-1",
+    experiment_id: "exp-1",
+    dataset_example_id: "ex-1",
+    repetition_number: 1,
+    output: { text: "Hello, Alice!" },
+    start_time: new Date().toISOString(),
+    end_time: new Date().toISOString(),
+    error: null,
+    trace_id: "task-trace-id-1",
   },
-  {
-    experiment_run: {
-      id: "run-2",
-      experiment_id: "exp-1",
-      dataset_example_id: "ex-2",
-      repetition_number: 1,
-      output: { text: "Hi, Bob!" },
-      start_time: new Date().toISOString(),
-      end_time: new Date().toISOString(),
-      error: null,
-      trace_id: null,
-    },
-    dataset_example: {
-      id: "ex-2",
-      input: { name: "Bob" },
-      output: { text: "Hello, Bob!" },
-      metadata: {},
-    },
-    evaluation_names: ["correctness"],
+  dataset_example: {
+    id: "ex-1",
+    node_id: "ex-1",
+    input: { name: "Alice" },
+    output: { text: "Hello, Alice!" },
+    metadata: {},
+    updated_at: new Date().toISOString(),
   },
+  evaluation_names: ["correctness", "relevance"],
+};
+
+const bobIncompleteEvaluation: IncompleteExperimentEvaluation = {
+  experiment_run: {
+    id: "run-2",
+    experiment_id: "exp-1",
+    dataset_example_id: "ex-2",
+    repetition_number: 1,
+    output: { text: "Hi, Bob!" },
+    start_time: new Date().toISOString(),
+    end_time: new Date().toISOString(),
+    error: null,
+    trace_id: null,
+  },
+  dataset_example: {
+    id: "ex-2",
+    node_id: "ex-2",
+    input: { name: "Bob" },
+    output: { text: "Hello, Bob!" },
+    metadata: {},
+    updated_at: new Date().toISOString(),
+  },
+  evaluation_names: ["correctness"],
+};
+
+const mockIncompleteEvaluations: IncompleteExperimentEvaluation[] = [
+  aliceIncompleteEvaluation,
+  bobIncompleteEvaluation,
 ];
 
+/**
+ * Serves incomplete-evaluations pages in order. Each page's `next_cursor` is
+ * the index of the following page, so the handler can resolve any cursor the
+ * client sends back. Captures the cursors and path params it receives.
+ */
+function serveIncompleteEvaluationPages(
+  pages: readonly IncompleteExperimentEvaluation[][]
+) {
+  const receivedCursors: (string | null)[] = [];
+  const receivedExperimentIds: string[] = [];
+  server.use(
+    http.get(
+      "/v1/experiments/{experiment_id}/incomplete-evaluations",
+      ({ params, query, response }) => {
+        receivedExperimentIds.push(params.experiment_id);
+        const cursor = query.get("cursor");
+        receivedCursors.push(cursor);
+        const pageIndex = cursor === null ? 0 : Number(cursor);
+        const hasNextPage = pageIndex + 1 < pages.length;
+        return response(200).json({
+          data: pages[pageIndex] ?? [],
+          next_cursor: hasNextPage ? String(pageIndex + 1) : null,
+        });
+      }
+    )
+  );
+  return { receivedCursors, receivedExperimentIds };
+}
+
+/**
+ * Captures every evaluation submission, echoing back a created evaluation.
+ */
+function captureEvaluationPosts() {
+  const receivedBodies: UpsertExperimentEvaluationRequestBody[] = [];
+  server.use(
+    http.post("/v1/experiment_evaluations", async ({ request, response }) => {
+      receivedBodies.push(await request.json());
+      return response(200).json({ data: { id: "eval-123" } });
+    })
+  );
+  return { receivedBodies };
+}
+
 describe("resumeEvaluation", () => {
-  let mockClient: PhoenixClient;
+  let client: PhoenixClient;
+  let incompleteEvaluationRequests: ReturnType<
+    typeof serveIncompleteEvaluationPages
+  >;
+  let evaluationPosts: ReturnType<typeof captureEvaluationPosts>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -136,36 +224,14 @@ describe("resumeEvaluation", () => {
       mockExperimentInfo
     );
 
-    // Create mock client
-    mockClient = {
-      GET: vi.fn(),
-      POST: vi.fn(),
-      config: {
-        baseUrl: "http://localhost:6006",
-      },
-    };
+    client = createTestClient();
 
-    // Mock client.GET for incomplete evaluations
-    mockClient.GET.mockImplementation((url: string) => {
-      if (url.includes("incomplete-evaluations")) {
-        return Promise.resolve({
-          data: {
-            data: mockIncompleteEvaluations,
-            next_cursor: null,
-          },
-        });
-      }
-      return Promise.resolve({ data: {} });
-    });
-
-    // Mock client.POST for evaluation results
-    mockClient.POST.mockResolvedValue({
-      data: {
-        id: "eval-123",
-      },
-    });
-
-    vi.mocked(createClient).mockReturnValue(mockClient);
+    // Default handlers: a single page of incomplete evaluations and a capture
+    // of submitted evaluation results. Tests can override with server.use().
+    incompleteEvaluationRequests = serveIncompleteEvaluationPages([
+      mockIncompleteEvaluations,
+    ]);
+    evaluationPosts = captureEvaluationPosts();
   });
 
   it("should resume incomplete evaluations with single-output evaluators", async () => {
@@ -200,7 +266,7 @@ describe("resumeEvaluation", () => {
     await resumeEvaluation({
       experimentId: "exp-1",
       evaluators: [correctnessEvaluator, relevanceEvaluator],
-      client: mockClient,
+      client,
     });
 
     // Each evaluator should be called exactly once per matching incomplete evaluation
@@ -219,35 +285,29 @@ describe("resumeEvaluation", () => {
 
     // Should fetch experiment info
     expect(getExperimentInfoModule.getExperimentInfo).toHaveBeenCalledWith({
-      client: mockClient,
+      client,
       experimentId: "exp-1",
     });
 
     // Should fetch incomplete evaluations
-    expect(mockClient.GET).toHaveBeenCalledWith(
-      "/v1/experiments/{experiment_id}/incomplete-evaluations",
-      expect.objectContaining({
-        params: expect.objectContaining({
-          path: { experiment_id: "exp-1" },
-        }),
-      })
-    );
+    expect(incompleteEvaluationRequests.receivedExperimentIds).toEqual([
+      "exp-1",
+    ]);
 
     // Should submit evaluation results
     // run-1 needs: correctness, relevance (2 evals)
     // run-2 needs: correctness (1 eval)
     // Total: 3 evaluations
-    expect(mockClient.POST).toHaveBeenCalledTimes(3);
-    expect(mockClient.POST).toHaveBeenCalledWith(
-      "/v1/experiment_evaluations",
-      expect.objectContaining({
-        body: expect.objectContaining({
+    expect(evaluationPosts.receivedBodies).toHaveLength(3);
+    for (const receivedBody of evaluationPosts.receivedBodies) {
+      expect(receivedBody).toEqual(
+        expect.objectContaining({
           experiment_run_id: expect.any(String),
           name: expect.any(String),
           annotator_kind: expect.any(String),
-        }),
-      })
-    );
+        })
+      );
+    }
   });
 
   it("should handle pagination of incomplete evaluations", async () => {
@@ -257,54 +317,23 @@ describe("resumeEvaluation", () => {
       evaluate: async () => ({ score: 1, label: "correct" }),
     });
 
-    // Mock pagination: first call returns cursor, second returns no cursor
-    mockClient.GET.mockImplementation(
-      (url: string, options?: { params?: { query?: { cursor?: string } } }) => {
-        if (url.includes("incomplete-evaluations")) {
-          const cursor = options?.params?.query?.cursor;
-          if (!cursor) {
-            // First page
-            return Promise.resolve({
-              data: {
-                data: [mockIncompleteEvaluations[0]],
-                next_cursor: "cursor-1",
-              },
-            });
-          } else {
-            // Second page
-            return Promise.resolve({
-              data: {
-                data: [mockIncompleteEvaluations[1]],
-                next_cursor: null,
-              },
-            });
-          }
-        }
-        return Promise.resolve({ data: {} });
-      }
-    );
+    // Pagination: first page returns a cursor, second returns no cursor
+    const pagedRequests = serveIncompleteEvaluationPages([
+      [aliceIncompleteEvaluation],
+      [bobIncompleteEvaluation],
+    ]);
 
     await resumeEvaluation({
       experimentId: "exp-1",
       evaluators: [evaluator],
-      client: mockClient,
+      client,
     });
 
     // Should fetch incomplete evaluations twice (pagination)
-    const incompleteEvalsCalls = mockClient.GET.mock.calls.filter(
-      (call: unknown[]) =>
-        (call[0] as string).includes("incomplete-evaluations")
-    );
-    expect(incompleteEvalsCalls).toHaveLength(2);
+    expect(pagedRequests.receivedCursors).toHaveLength(2);
 
-    // Second call should include cursor
-    expect(incompleteEvalsCalls[1][1]).toMatchObject({
-      params: {
-        query: expect.objectContaining({
-          cursor: "cursor-1",
-        }),
-      },
-    });
+    // Second call should include the cursor returned by the first page
+    expect(pagedRequests.receivedCursors[1]).toBe("1");
   });
 
   it("should handle empty incomplete evaluations", async () => {
@@ -314,27 +343,17 @@ describe("resumeEvaluation", () => {
       evaluate: async () => ({ score: 1, label: "correct" }),
     });
 
-    // Mock no incomplete evaluations
-    mockClient.GET.mockImplementation((url: string) => {
-      if (url.includes("incomplete-evaluations")) {
-        return Promise.resolve({
-          data: {
-            data: [],
-            next_cursor: null,
-          },
-        });
-      }
-      return Promise.resolve({ data: {} });
-    });
+    // No incomplete evaluations
+    serveIncompleteEvaluationPages([[]]);
 
     await resumeEvaluation({
       experimentId: "exp-1",
       evaluators: [evaluator],
-      client: mockClient,
+      client,
     });
 
     // Should not submit any evaluation results
-    expect(mockClient.POST).not.toHaveBeenCalled();
+    expect(evaluationPosts.receivedBodies).toHaveLength(0);
   });
 
   it("should handle evaluator failures gracefully", async () => {
@@ -355,7 +374,7 @@ describe("resumeEvaluation", () => {
     await resumeEvaluation({
       experimentId: "exp-1",
       evaluators: [failingEvaluator],
-      client: mockClient,
+      client,
     });
 
     // Evaluator should be called exactly once per incomplete evaluation, even for failures
@@ -363,7 +382,7 @@ describe("resumeEvaluation", () => {
     expect(failingFn).toHaveBeenCalledTimes(2);
 
     // Should still attempt all evaluations even if some fail
-    expect(mockClient.POST).toHaveBeenCalled();
+    expect(evaluationPosts.receivedBodies.length).toBeGreaterThan(0);
   });
 
   it("should validate inputs", async () => {
@@ -372,7 +391,7 @@ describe("resumeEvaluation", () => {
       resumeEvaluation({
         experimentId: "exp-1",
         evaluators: [],
-        client: mockClient,
+        client,
       })
     ).rejects.toThrow("Must specify at least one evaluator");
   });
@@ -393,7 +412,7 @@ describe("resumeEvaluation", () => {
       experimentId: "exp-1",
       evaluators: [evaluator],
       concurrency: 10,
-      client: mockClient,
+      client,
     });
     const endTime = Date.now();
 
@@ -431,7 +450,7 @@ describe("resumeEvaluation", () => {
           experimentId: "exp-1",
           evaluators: [evaluator],
           stopOnFirstError: true,
-          client: mockClient,
+          client,
         })
       ).rejects.toThrow("Evaluator failed for Alice");
 
@@ -445,7 +464,7 @@ describe("resumeEvaluation", () => {
         experimentId: "exp-1",
         evaluators: [evaluator],
         stopOnFirstError: false,
-        client: mockClient,
+        client,
       });
 
       expect(evaluateFn).toHaveBeenCalledTimes(2);
@@ -453,52 +472,56 @@ describe("resumeEvaluation", () => {
 
     it("should stop fetching new pages when stopOnFirstError is triggered", async () => {
       // Create more data to ensure pagination
-      const largeDataset = Array.from({ length: 100 }, (_, i) => ({
-        experiment_run: {
-          id: `run-${i}`,
-          experiment_id: "exp-1",
-          dataset_example_id: `ex-${i}`,
-          repetition_number: 1,
-          output: { text: i === 0 ? "Hello, Alice!" : "Hello, Bob!" },
-          start_time: new Date().toISOString(),
-          end_time: new Date().toISOString(),
-          error: null,
-          trace_id: null,
-        },
-        dataset_example: {
-          id: `ex-${i}`,
-          input: { name: i === 0 ? "Alice" : "Bob" },
-          output: { text: `Hello, ${i === 0 ? "Alice" : "Bob"}!` },
-          metadata: {},
-          updated_at: new Date().toISOString(),
-        },
-        evaluation_names: ["correctness"],
-      }));
+      const largeDataset: IncompleteExperimentEvaluation[] = Array.from(
+        { length: 100 },
+        (_unused, exampleIndex) => ({
+          experiment_run: {
+            id: `run-${exampleIndex}`,
+            experiment_id: "exp-1",
+            dataset_example_id: `ex-${exampleIndex}`,
+            repetition_number: 1,
+            output: {
+              text: exampleIndex === 0 ? "Hello, Alice!" : "Hello, Bob!",
+            },
+            start_time: new Date().toISOString(),
+            end_time: new Date().toISOString(),
+            error: null,
+            trace_id: null,
+          },
+          dataset_example: {
+            id: `ex-${exampleIndex}`,
+            node_id: `ex-${exampleIndex}`,
+            input: { name: exampleIndex === 0 ? "Alice" : "Bob" },
+            output: {
+              text: `Hello, ${exampleIndex === 0 ? "Alice" : "Bob"}!`,
+            },
+            metadata: {},
+            updated_at: new Date().toISOString(),
+          },
+          evaluation_names: ["correctness"],
+        })
+      );
 
-      // Mock pagination with multiple pages
+      // Pagination with multiple pages, sliced by the requested limit
       let pageCount = 0;
-      mockClient.GET.mockImplementation(
-        (
-          url: string,
-          options?: { params?: { query?: { cursor?: string; limit?: number } } }
-        ) => {
-          if (url.includes("incomplete-evaluations")) {
+      server.use(
+        http.get(
+          "/v1/experiments/{experiment_id}/incomplete-evaluations",
+          ({ query, response }) => {
             pageCount++;
-            const limit = options?.params?.query?.limit ?? 50;
-            const cursor = options?.params?.query?.cursor;
-            const startIdx = cursor ? parseInt(cursor) : 0;
-            const endIdx = Math.min(startIdx + limit, largeDataset.length);
+            const limitParam = query.get("limit");
+            const limit = limitParam === null ? 50 : Number(limitParam);
+            const cursor = query.get("cursor");
+            const startIndex = cursor === null ? 0 : Number(cursor);
+            const endIndex = Math.min(startIndex + limit, largeDataset.length);
 
-            return Promise.resolve({
-              data: {
-                data: largeDataset.slice(startIdx, endIdx),
-                next_cursor:
-                  endIdx < largeDataset.length ? String(endIdx) : null,
-              },
+            return response(200).json({
+              data: largeDataset.slice(startIndex, endIndex),
+              next_cursor:
+                endIndex < largeDataset.length ? String(endIndex) : null,
             });
           }
-          return Promise.resolve({ data: {} });
-        }
+        )
       );
 
       const { evaluator } = createFailingEvaluator();
@@ -508,7 +531,7 @@ describe("resumeEvaluation", () => {
           experimentId: "exp-1",
           evaluators: [evaluator],
           stopOnFirstError: true,
-          client: mockClient,
+          client,
         })
       ).rejects.toThrow("Evaluator failed for Alice");
 
@@ -523,16 +546,13 @@ describe("resumeEvaluation", () => {
           experimentId: "exp-1",
           evaluators: [evaluator],
           stopOnFirstError: true,
-          client: mockClient,
+          client,
         })
       ).rejects.toThrow();
 
-      expect(mockClient.POST).toHaveBeenCalledWith(
-        "/v1/experiment_evaluations",
+      expect(evaluationPosts.receivedBodies).toContainEqual(
         expect.objectContaining({
-          body: expect.objectContaining({
-            error: "Evaluator failed for Alice",
-          }),
+          error: "Evaluator failed for Alice",
         })
       );
     });
@@ -566,7 +586,7 @@ describe("resumeEvaluation", () => {
           evaluators: [failingEvaluator],
           stopOnFirstError: true,
           concurrency: 5,
-          client: mockClient,
+          client,
         });
       } catch {
         // Expected to throw
@@ -582,7 +602,7 @@ describe("resumeEvaluation", () => {
       await resumeEvaluation({
         experimentId: "exp-1",
         evaluators: [evaluator],
-        client: mockClient,
+        client,
       });
 
       expect(evaluateFn).toHaveBeenCalledTimes(2);

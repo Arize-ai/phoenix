@@ -43,7 +43,6 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import {
   Tooltip,
@@ -115,7 +114,7 @@ import {
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
-import { PlaygroundInstanceProgressIndicator } from "./PlaygroundInstanceProgressIndicator";
+import { PlaygroundOutputHeader } from "./PlaygroundOutputHeader";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import type { PartialOutputToolCall } from "./PlaygroundToolCall";
 import { PlaygroundToolCall } from "./PlaygroundToolCall";
@@ -222,7 +221,7 @@ function CellRunStatus({
         color: var(--global-text-color-500);
       `}
     >
-      <Icon svg={<Icons.MinusCircleOutline />} />
+      <Icon svg={<Icons.MinusCircle />} />
       <Text color="inherit">Cancelled</Text>
     </Flex>
   );
@@ -293,7 +292,7 @@ function EmptyExampleOutput({
     content = <ParagraphSkeleton lines={4} />;
     cellTopContent = (
       <Flex direction="row" gap="size-100" alignItems="center">
-        <Icon svg={<Icons.LoaderOutline />} />
+        <Icon svg={<Icons.Loader />} />
         <Text color="text-500">Queued</Text>
       </Flex>
     );
@@ -385,7 +384,7 @@ function ExampleOutputContent({
             isDisabled={!hasExperimentRun}
             onPress={onViewExperimentRunDetailsPress}
           >
-            <Icon svg={<Icons.ExpandOutline />} />
+            <Icon svg={<Icons.Expand />} />
           </IconButton>
           <Tooltip>
             <TooltipArrow />
@@ -748,19 +747,7 @@ function PlaygroundInstanceOutputColumnHeader({
 
   return (
     <Flex direction="column" gap="size-50" width="100%">
-      <Flex
-        direction="row"
-        gap="size-100"
-        alignItems="center"
-        justifyContent="space-between"
-        width="100%"
-      >
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <AlphabeticIndexIcon index={index} size="XS" />
-          <span>Output</span>
-        </Flex>
-        <PlaygroundInstanceProgressIndicator instanceId={instanceId} />
-      </Flex>
+      <PlaygroundOutputHeader instanceId={instanceId} index={index} />
       <ExperimentCostAndLatencySummary
         executionState={costExecutionState}
         experiment={costSummary}
@@ -1073,7 +1060,7 @@ export function PlaygroundDatasetExamplesTable({
           case "%other":
             return;
           default:
-            return assertUnreachable(chatCompletion);
+            assertUnreachable(chatCompletion);
         }
       },
     [
@@ -1094,7 +1081,7 @@ export function PlaygroundDatasetExamplesTable({
 
   useEffect(() => {
     if (!hasSomeRunIds) {
-      return;
+      return undefined;
     }
     const { instances } = playgroundStore.getState();
     setApiError(null);
@@ -1276,7 +1263,7 @@ export function PlaygroundDatasetExamplesTable({
   // This is subject to a race condition where a new dataset version is created after the playground experiments were run.
   // We ignore this edge case for now.
   const datasetVersionId = useMemo(() => {
-    return dataset.latestVersions?.edges[0].version.id ?? "";
+    return dataset.latestVersions?.edges[0]?.version.id ?? "";
   }, [dataset.latestVersions?.edges]);
 
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {

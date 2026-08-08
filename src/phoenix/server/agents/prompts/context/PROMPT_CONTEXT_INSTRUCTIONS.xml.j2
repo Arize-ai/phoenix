@@ -1,0 +1,5 @@
+<phoenix_prompt_context>
+  <description>The saved prompt the user is currently viewing.</description>
+  <prompt_node_id format="phoenix_node_id">{{ prompt.prompt_node_id | sanitize(enclosing_tag="prompt_node_id", max_chars=128) | e }}</prompt_node_id>
+  <guidance>Use this prompt context to answer questions about the saved prompt, its configuration, labels, versions, and prompt history. If a phoenix_prompt_version_context is also present, it is the specific version currently selected.</guidance>
+</phoenix_prompt_context>

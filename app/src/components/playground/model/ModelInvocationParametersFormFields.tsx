@@ -101,7 +101,7 @@ export function ModelInvocationParametersFormFields(
     <div css={modelParametersFormCSS}>
       {!requiredInvocationParametersConfigured ? (
         <Flex direction="row" gap="size-100">
-          <Icon color="danger" svg={<Icons.InfoOutline />} />
+          <Icon color="danger" svg={<Icons.Info />} />
           <Text color="danger">
             Some required invocation parameters are not configured.
           </Text>

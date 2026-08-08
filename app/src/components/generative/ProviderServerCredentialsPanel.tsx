@@ -26,6 +26,7 @@ export type ProviderServerCredentialsPanelProvider = {
   readonly name: string;
   readonly key: string;
   readonly credentialRequirements: readonly ProviderCredentialRequirement[];
+  readonly credentialsSet: boolean;
 };
 
 // Form values type for react-hook-form
@@ -34,16 +35,21 @@ type ServerCredentialsFormValues = Record<string, string>;
 export function ProviderServerCredentialsPanel({
   provider,
   onCredentialsUpdated,
+  onSaved,
 }: {
   provider: ProviderServerCredentialsPanelProvider;
   onCredentialsUpdated?: () => void;
+  /**
+   * Called after the credentials are successfully saved
+   */
+  onSaved?: () => void;
 }) {
   return (
     <>
       <View paddingBottom="size-100">
         <Text size="XS" color="text-700">
-          Credentials are encrypted and stored in the database. These are shared
-          across all users and override environment variables.
+          Shared with all users. Stored encrypted and overrides server
+          environment variables.
         </Text>
       </View>
       <Suspense fallback={<Text color="text-700">Loading...</Text>}>
@@ -51,6 +57,7 @@ export function ProviderServerCredentialsPanel({
           <ServerCredentials
             provider={provider}
             onCredentialsUpdated={onCredentialsUpdated}
+            onSaved={onSaved}
           />
         </Form>
       </Suspense>
@@ -61,9 +68,11 @@ export function ProviderServerCredentialsPanel({
 function ServerCredentials({
   provider,
   onCredentialsUpdated,
+  onSaved,
 }: {
   provider: ProviderServerCredentialsPanelProvider;
   onCredentialsUpdated?: () => void;
+  onSaved?: () => void;
 }) {
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
@@ -135,13 +144,16 @@ function ServerCredentials({
     savedServerValues[envVarName] = serverSecretMap.get(envVarName) ?? "";
   });
 
-  const { control, handleSubmit, reset } = useForm<ServerCredentialsFormValues>(
-    {
-      defaultValues: savedServerValues,
-      values: savedServerValues, // Syncs form when server data changes after refetch
-      mode: "onChange",
-    }
-  );
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { isDirty },
+  } = useForm<ServerCredentialsFormValues>({
+    defaultValues: savedServerValues,
+    values: savedServerValues, // Syncs form when server data changes after refetch
+    mode: "onChange",
+  });
 
   const [commit, isCommitting] =
     useMutation<ProviderServerCredentialsPanelUpsertOrDeleteSecretsMutation>(
@@ -178,6 +190,7 @@ function ServerCredentials({
           title: "Secrets updated",
           message: `${secretsToUpsert.length} secret(s) updated`,
         });
+        onSaved?.();
       },
       onError: (error) => {
         setError(error instanceof Error ? error.message : String(error));
@@ -236,9 +249,20 @@ function ServerCredentials({
     );
   }
 
+  const setViaServerEnvironment =
+    provider.credentialsSet &&
+    existingSecretKeys.length === 0 &&
+    providerUnparsableSecrets.length === 0;
+
   return (
     <Flex direction="column" gap="size-100">
       {error && <Alert variant="danger">{error}</Alert>}
+      {setViaServerEnvironment && (
+        <Alert variant="info">
+          Set via a server environment variable. This can only be cleared by
+          removing the environment variable on the server.
+        </Alert>
+      )}
       {providerUnparsableSecrets.map(({ envVarName, parseError }) => (
         <Alert key={envVarName} variant="danger" title={envVarName}>
           {parseError}
@@ -287,12 +311,12 @@ function ServerCredentials({
             isDisabled={isCommitting}
             onPress={handleDelete}
           >
-            Delete
+            Clear
           </Button>
         )}
         <Button
-          variant="primary"
-          isDisabled={isCommitting}
+          variant={isDirty ? "primary" : "default"}
+          isDisabled={!isDirty || isCommitting}
           isPending={isCommitting}
           onPress={() => handleSubmit(onSubmit)()}
         >

@@ -1,7 +1,7 @@
 import type { Meta, StoryFn } from "@storybook/react";
 import { Group, Panel } from "react-resizable-panels";
 
-import { Card, Text, Token, View } from "@phoenix/components";
+import { Button, Card, Text, Token, View } from "@phoenix/components";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 
 const meta: Meta = {
@@ -137,5 +137,36 @@ const WithCustomTitleTemplate: StoryFn = (args) => (
 
 export const WithCustomTitle: Meta<typeof TitledPanel> = {
   render: WithCustomTitleTemplate,
+  args: {},
+};
+
+const WithActionsTemplate: StoryFn = (args) => (
+  <Card title="TitledPanel with Actions">
+    <View {...bodyStyle}>
+      <Group orientation="vertical">
+        <TitledPanel
+          title="Prompts"
+          extra={<Button size="S">Compare</Button>}
+          {...args}
+        >
+          <View padding="size-200">
+            <Text>
+              Actions stay clickable without toggling the panel, even while
+              collapsed
+            </Text>
+          </View>
+        </TitledPanel>
+        <TitledPanel resizable title="Output" {...args}>
+          <View padding="size-200">
+            <Text>This is the output panel</Text>
+          </View>
+        </TitledPanel>
+      </Group>
+    </View>
+  </Card>
+);
+
+export const WithActions: Meta<typeof TitledPanel> = {
+  render: WithActionsTemplate,
   args: {},
 };

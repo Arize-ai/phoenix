@@ -20,10 +20,9 @@ Execute GraphQL operations against Phoenix.
 ${permissionsLine}
 
 Recommended flow:
-  1. cat /phoenix/agent-start.md
-  2. if needed, cat /phoenix/graphql/current-page.md
-  3. start with a tiny query or a file from /phoenix/graphql/recipes/ or /phoenix/graphql/examples/
-  4. add filters, sorting, and deeper fields only after the base query works
+  1. load the phoenix-graphql skill (load_skill) for schema entrypoints and query patterns
+  2. start with a tiny query or an introspection query to confirm the schema
+  3. add filters, sorting, and deeper fields only after the base query works
 
 Options:
   --vars <json>         JSON object of GraphQL variables

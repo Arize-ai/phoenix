@@ -17,10 +17,12 @@ import {
   ChartTooltipItem,
   InteractiveLegend,
   TimeRangeChartBrush,
+  compactChartMargin,
+  compactTimeXAxisProps,
+  compactYAxisProps,
   defaultCartesianGridProps,
-  defaultLegendProps,
-  defaultTimeXAxisProps,
-  defaultYAxisProps,
+  defaultTooltipProps,
+  compactLegendProps,
   useBinTimeTickFormatter,
   useCategoryChartColors,
   useInteractiveLegend,
@@ -29,6 +31,10 @@ import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import {
+  PROJECT_METRICS_CHART_SYNC_ID,
+  useMetricQueryFetchOptions,
+} from "@phoenix/pages/project/metrics/types";
 import {
   costFormatter,
   floatShortFormatter,
@@ -107,7 +113,8 @@ export function TraceTokenCostTimeSeries({
         scale,
         utcOffsetMinutes,
       },
-    }
+    },
+    useMetricQueryFetchOptions()
   );
 
   const chartData = (data.project.traceTokenCostTimeSeries?.data ?? []).map(
@@ -136,39 +143,30 @@ export function TraceTokenCostTimeSeries({
         <ChartEmptyStateOverlay
           isEmpty={!hasData}
           message="No data in this time range"
+          chartType="bar"
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
-              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+              margin={compactChartMargin}
               barSize={10}
-              syncId={"projectMetrics"}
+              syncId={PROJECT_METRICS_CHART_SYNC_ID}
               {...chartProps}
             >
-              <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+              <CartesianGrid {...defaultCartesianGridProps} />
               <XAxis
-                {...defaultTimeXAxisProps}
+                {...compactTimeXAxisProps}
                 domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
                 tickFormatter={(x) => timeTickFormatter(new Date(x))}
               />
               <YAxis
-                {...defaultYAxisProps}
-                width={70}
-                tickFormatter={(x) => floatShortFormatter(x)}
-                label={{
-                  value: "Cost (USD)",
-                  angle: -90,
-                  dx: -28,
-                  style: {
-                    textAnchor: "middle",
-                    fill: "var(--chart-axis-label-color)",
-                  },
-                }}
+                {...compactYAxisProps}
+                tickFormatter={(x) => `$${floatShortFormatter(x)}`}
               />
               <Tooltip
                 content={TooltipContent}
                 // TODO formalize this
-                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+                {...defaultTooltipProps}
               />
               <Bar
                 dataKey="prompt"
@@ -185,7 +183,7 @@ export function TraceTokenCostTimeSeries({
               />
 
               <InteractiveLegend
-                {...defaultLegendProps}
+                {...compactLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
                 iconType="circle"
                 iconSize={8}

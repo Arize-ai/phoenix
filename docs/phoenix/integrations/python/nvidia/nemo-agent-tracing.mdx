@@ -3,6 +3,8 @@ title: "NeMo Agent Toolkit Tracing"
 description: Instrument and observe NVIDIA NeMo Agent Toolkit workflows
 ---
 
+import StartPhoenix from "../../../../snippets/start-phoenix.mdx";
+
 Phoenix provides seamless observability and tracing for NVIDIA NeMo Agent Toolkit workflows. This guide walks you through setting up telemetry to view traces in the Phoenix UI.
 
 ## Install
@@ -15,31 +17,27 @@ uv pip install -e '.[phoenix]'
 
 ## Setup
 
-### Step 1: Start the Phoenix Server
+<Steps>
+  <Step title={<span className="step-title">Start Phoenix</span>}>
+    <StartPhoenix />
+  </Step>
 
-Run the following command to start Phoenix server locally:
+  <Step title={<span className="step-title">Configure Your Workflow</span>}>
+    Update your workflow configuration file to include the telemetry settings. Add the following to your workflow configuration:
 
-```bash
-phoenix serve
-```
+    ```yaml
+    general:
+      telemetry:
+        tracing:
+          phoenix:
+            _type: phoenix
+            endpoint: http://localhost:6006/v1/traces
+            project: my_workflow_project
+    ```
 
-Phoenix should now be accessible at `http://0.0.0.0:6006`.
-
-### Step 2: Configure Your Workflow
-
-Update your workflow configuration file to include the telemetry settings. Add the following to your workflow configuration:
-
-```yaml
-general:
-  telemetry:
-    tracing:
-      phoenix:
-        _type: phoenix
-        endpoint: http://localhost:6006/v1/traces
-        project: my_workflow_project
-```
-
-This setup enables tracing through Phoenix at `http://localhost:6006/v1/traces`, with traces grouped into your specified project.
+    This setup enables tracing through Phoenix at `http://localhost:6006/v1/traces`, with traces grouped into your specified project.
+  </Step>
+</Steps>
 
 ## Run Your Workflow
 

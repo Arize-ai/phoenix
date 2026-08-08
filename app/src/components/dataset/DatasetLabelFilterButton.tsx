@@ -11,7 +11,6 @@ import {
   Input,
   Loading,
   Menu,
-  MenuEmpty,
   MenuFooter,
   MenuHeader,
   MenuItem,
@@ -21,6 +20,7 @@ import {
   type Selection,
   useFilter,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 
 import type { DatasetLabelFilterButtonQuery } from "./__generated__/DatasetLabelFilterButtonQuery.graphql";
@@ -38,7 +38,7 @@ export function DatasetLabelFilterButton(props: DatasetLabelFilterButtonProps) {
       <Button
         variant="default"
         size="M"
-        leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
+        leadingVisual={<Icon svg={<Icons.PriceTags />} />}
         trailingVisual={
           selectedLabelIds.length > 0 ? (
             <Counter>{selectedLabelIds.length}</Counter>
@@ -93,10 +93,10 @@ function DatasetLabelFilterContent({
 
   const handleSelectionChange = (selection: Selection) => {
     if (selection === "all") {
+      onSelectionChange(labels.map((l) => l.id));
       return;
     }
-    const newLabelIds = [...selection] as string[];
-    onSelectionChange(newLabelIds);
+    onSelectionChange([...selection] as string[]);
   };
 
   const handleClear = () => {
@@ -118,7 +118,12 @@ function DatasetLabelFilterContent({
           selectionMode="multiple"
           selectedKeys={selectedLabelIds}
           onSelectionChange={handleSelectionChange}
-          renderEmptyState={() => <MenuEmpty>No labels found</MenuEmpty>}
+          renderEmptyState={() => (
+            <CompactEmptyState
+              icon={<Icon svg={<Icons.PriceTags />} />}
+              description="No labels"
+            />
+          )}
         >
           {({ id, name, color }) => (
             <MenuItem
@@ -134,7 +139,12 @@ function DatasetLabelFilterContent({
         </Menu>
       </Autocomplete>
       <MenuFooter>
-        <Button variant="quiet" size="S" onPress={handleClear}>
+        <Button
+          variant="quiet"
+          size="S"
+          onPress={handleClear}
+          isDisabled={selectedLabelIds.length === 0}
+        >
           Clear All
         </Button>
       </MenuFooter>

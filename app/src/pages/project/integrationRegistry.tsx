@@ -387,7 +387,12 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     icon: <VercelSVG />,
     configs: {
       TypeScript: {
-        packages: ["@arizeai/phoenix-otel", "ai", "@ai-sdk/openai"],
+        packages: [
+          "@arizeai/phoenix-otel",
+          "ai",
+          "@ai-sdk/otel",
+          "@ai-sdk/openai",
+        ],
         getImplementationCode: getVercelAiSdkCodeTypescript,
         envVars: OPENAI_ENV,
         docsHref:

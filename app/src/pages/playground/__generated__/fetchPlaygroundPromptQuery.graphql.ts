@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<c217c42a61ca077948d934bbdad65919>>
+ * @generated SignedSource<<dc5d0a1aad502fc62865286cda797418>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -239,7 +238,7 @@ v14 = {
 v15 = {
   "kind": "InlineFragment",
   "selections": [
-    (v10/*: any*/),
+    (v10/*:: as any*/),
     {
       "alias": "openaiMaxTokens",
       "args": null,
@@ -254,9 +253,9 @@ v15 = {
       "name": "maxCompletionTokens",
       "storageKey": null
     },
-    (v11/*: any*/),
-    (v12/*: any*/),
-    (v13/*: any*/),
+    (v11/*:: as any*/),
+    (v12/*:: as any*/),
+    (v13/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -278,7 +277,7 @@ v15 = {
       "name": "reasoningEffort",
       "storageKey": null
     },
-    (v14/*: any*/)
+    (v14/*:: as any*/)
   ],
   "type": "PromptOpenAIInvocationParameters",
   "abstractKey": null
@@ -300,9 +299,9 @@ v17 = {
       "name": "maxTokens",
       "storageKey": null
     },
-    (v10/*: any*/),
-    (v13/*: any*/),
-    (v16/*: any*/),
+    (v10/*:: as any*/),
+    (v13/*:: as any*/),
+    (v16/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -329,7 +328,7 @@ v17 = {
       "name": "thinking",
       "plural": false,
       "selections": [
-        (v9/*: any*/),
+        (v9/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -382,7 +381,7 @@ v17 = {
       ],
       "storageKey": null
     },
-    (v14/*: any*/)
+    (v14/*:: as any*/)
   ],
   "type": "PromptAnthropicInvocationParameters",
   "abstractKey": null
@@ -390,7 +389,7 @@ v17 = {
 v18 = {
   "kind": "InlineFragment",
   "selections": [
-    (v10/*: any*/),
+    (v10/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -398,10 +397,10 @@ v18 = {
       "name": "maxOutputTokens",
       "storageKey": null
     },
-    (v16/*: any*/),
-    (v12/*: any*/),
-    (v11/*: any*/),
-    (v13/*: any*/),
+    (v16/*:: as any*/),
+    (v12/*:: as any*/),
+    (v11/*:: as any*/),
+    (v13/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -455,9 +454,9 @@ v19 = {
       "name": "maxTokens",
       "storageKey": null
     },
-    (v10/*: any*/),
-    (v13/*: any*/),
-    (v16/*: any*/)
+    (v10/*:: as any*/),
+    (v13/*:: as any*/),
+    (v16/*:: as any*/)
   ],
   "type": "PromptAwsInvocationParameters",
   "abstractKey": null
@@ -474,14 +473,14 @@ v20 = {
       "kind": "InlineDataFragmentSpread",
       "name": "PromptInvocationParametersReadableFragment",
       "selections": [
-        (v9/*: any*/),
-        (v15/*: any*/),
-        (v17/*: any*/),
-        (v18/*: any*/),
-        (v19/*: any*/)
+        (v9/*:: as any*/),
+        (v15/*:: as any*/),
+        (v17/*:: as any*/),
+        (v18/*:: as any*/),
+        (v19/*:: as any*/)
       ],
       "args": null,
-      "argumentDefinitions": ([]/*: any*/)
+      "argumentDefinitions": ([]/*:: as any*/)
     }
   ],
   "storageKey": null
@@ -494,8 +493,8 @@ v21 = {
   "name": "customProvider",
   "plural": false,
   "selections": [
-    (v2/*: any*/),
-    (v3/*: any*/)
+    (v2/*:: as any*/),
+    (v3/*:: as any*/)
   ],
   "storageKey": null
 },
@@ -522,8 +521,8 @@ v23 = {
       "name": "jsonSchema",
       "plural": false,
       "selections": [
-        (v3/*: any*/),
-        (v5/*: any*/),
+        (v3/*:: as any*/),
+        (v5/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -531,7 +530,7 @@ v23 = {
           "name": "schema",
           "storageKey": null
         },
-        (v22/*: any*/)
+        (v22/*:: as any*/)
       ],
       "storageKey": null
     }
@@ -571,7 +570,7 @@ v25 = {
           "name": "content",
           "plural": true,
           "selections": [
-            (v9/*: any*/),
+            (v9/*:: as any*/),
             {
               "kind": "InlineFragment",
               "selections": [
@@ -608,7 +607,7 @@ v25 = {
                   "name": "toolCall",
                   "plural": false,
                   "selections": [
-                    (v24/*: any*/),
+                    (v24/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -617,7 +616,7 @@ v25 = {
                       "name": "toolCall",
                       "plural": false,
                       "selections": [
-                        (v3/*: any*/),
+                        (v3/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -646,7 +645,7 @@ v25 = {
                   "name": "toolResult",
                   "plural": false,
                   "selections": [
-                    (v24/*: any*/),
+                    (v24/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -679,8 +678,8 @@ v26 = {
   "name": "template",
   "plural": false,
   "selections": [
-    (v9/*: any*/),
-    (v25/*: any*/),
+    (v9/*:: as any*/),
+    (v25/*:: as any*/),
     {
       "kind": "InlineFragment",
       "selections": [
@@ -714,7 +713,7 @@ v27 = {
       "name": "tools",
       "plural": true,
       "selections": [
-        (v9/*: any*/),
+        (v9/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -726,8 +725,8 @@ v27 = {
               "name": "function",
               "plural": false,
               "selections": [
-                (v3/*: any*/),
-                (v5/*: any*/),
+                (v3/*:: as any*/),
+                (v5/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -735,7 +734,7 @@ v27 = {
                   "name": "parameters",
                   "storageKey": null
                 },
-                (v22/*: any*/)
+                (v22/*:: as any*/)
               ],
               "storageKey": null
             }
@@ -818,14 +817,14 @@ v30 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "fetchPlaygroundPromptQuery",
     "selections": [
       {
         "alias": "prompt",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -834,13 +833,13 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
-              (v2/*: any*/),
-              (v3/*: any*/),
-              (v4/*: any*/),
-              (v5/*: any*/),
+              (v2/*:: as any*/),
+              (v3/*:: as any*/),
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
               {
                 "alias": null,
-                "args": (v6/*: any*/),
+                "args": (v6/*:: as any*/),
                 "concreteType": "PromptVersion",
                 "kind": "LinkedField",
                 "name": "version",
@@ -850,25 +849,25 @@ return {
                     "kind": "InlineDataFragmentSpread",
                     "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion",
                     "selections": [
-                      (v2/*: any*/),
-                      (v7/*: any*/),
-                      (v8/*: any*/),
-                      (v20/*: any*/),
-                      (v21/*: any*/),
-                      (v23/*: any*/),
-                      (v26/*: any*/),
-                      (v27/*: any*/)
+                      (v2/*:: as any*/),
+                      (v7/*:: as any*/),
+                      (v8/*:: as any*/),
+                      (v20/*:: as any*/),
+                      (v21/*:: as any*/),
+                      (v23/*:: as any*/),
+                      (v26/*:: as any*/),
+                      (v27/*:: as any*/)
                     ],
                     "args": null,
                     "argumentDefinitions": []
                   },
-                  (v2/*: any*/),
-                  (v5/*: any*/),
-                  (v7/*: any*/),
-                  (v8/*: any*/),
-                  (v20/*: any*/),
-                  (v28/*: any*/),
-                  (v29/*: any*/),
+                  (v2/*:: as any*/),
+                  (v5/*:: as any*/),
+                  (v7/*:: as any*/),
+                  (v8/*:: as any*/),
+                  (v20/*:: as any*/),
+                  (v28/*:: as any*/),
+                  (v29/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -877,12 +876,12 @@ return {
                     "name": "tags",
                     "plural": true,
                     "selections": [
-                      (v3/*: any*/),
-                      (v30/*: any*/)
+                      (v3/*:: as any*/),
+                      (v30/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v23/*: any*/),
+                  (v23/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -891,12 +890,12 @@ return {
                     "name": "template",
                     "plural": false,
                     "selections": [
-                      (v9/*: any*/),
-                      (v25/*: any*/)
+                      (v9/*:: as any*/),
+                      (v25/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v27/*: any*/)
+                  (v27/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -913,37 +912,37 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "fetchPlaygroundPromptQuery",
     "selections": [
       {
         "alias": "prompt",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v9/*: any*/),
-          (v2/*: any*/),
+          (v9/*:: as any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v3/*: any*/),
-              (v4/*: any*/),
-              (v5/*: any*/),
+              (v3/*:: as any*/),
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
               {
                 "alias": null,
-                "args": (v6/*: any*/),
+                "args": (v6/*:: as any*/),
                 "concreteType": "PromptVersion",
                 "kind": "LinkedField",
                 "name": "version",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
-                  (v7/*: any*/),
-                  (v8/*: any*/),
+                  (v2/*:: as any*/),
+                  (v7/*:: as any*/),
+                  (v8/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -952,25 +951,25 @@ return {
                     "name": "invocationParameters",
                     "plural": false,
                     "selections": [
-                      (v9/*: any*/),
+                      (v9/*:: as any*/),
                       {
                         "kind": "TypeDiscriminator",
                         "abstractKey": "__isPromptInvocationParameters"
                       },
-                      (v15/*: any*/),
-                      (v17/*: any*/),
-                      (v18/*: any*/),
-                      (v19/*: any*/)
+                      (v15/*:: as any*/),
+                      (v17/*:: as any*/),
+                      (v18/*:: as any*/),
+                      (v19/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v21/*: any*/),
-                  (v23/*: any*/),
-                  (v26/*: any*/),
-                  (v27/*: any*/),
-                  (v5/*: any*/),
-                  (v28/*: any*/),
-                  (v29/*: any*/),
+                  (v21/*:: as any*/),
+                  (v23/*:: as any*/),
+                  (v26/*:: as any*/),
+                  (v27/*:: as any*/),
+                  (v5/*:: as any*/),
+                  (v28/*:: as any*/),
+                  (v29/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -979,9 +978,9 @@ return {
                     "name": "tags",
                     "plural": true,
                     "selections": [
-                      (v3/*: any*/),
-                      (v30/*: any*/),
-                      (v2/*: any*/)
+                      (v3/*:: as any*/),
+                      (v30/*:: as any*/),
+                      (v2/*:: as any*/)
                     ],
                     "storageKey": null
                   }

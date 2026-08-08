@@ -177,8 +177,8 @@ def create_evaluator(
             function into an `EvaluationResult`. This allows configuring the evaluation
             payload by setting a label, score and explanation. By default, numeric outputs will
             be recorded as scores, boolean outputs will be recorded as scores and labels, and
-            string outputs will be recorded as labels. If the output is a 2-tuple, the first item
-            will be recorded as the score and the second item will recorded as the explanation.
+            string outputs will be recorded as labels. A 2-tuple is recorded as (score, label);
+            a 3-tuple is recorded as (score, label, explanation).
 
     Examples:
         Configuring an evaluator that returns a boolean
@@ -210,16 +210,18 @@ def create_evaluator(
                 label = res.choices[0].message.content
                 return label
 
-        Configuring an evaluator that returns a score and explanation
+        Configuring an evaluator that returns a score, label, and explanation
 
         .. code-block:: python
             from textdistance import levenshtein
 
             @create_evaluator(kind="CODE", name="levenshtein-distance")
-            def ld(output: str, expected: str) -> tuple[float, str]:
+            def ld(output: str, expected: str) -> tuple[float, str, str]:
+                distance = levenshtein(output, expected)
                 return (
-                    levenshtein(output, expected),
-                    f"Levenshtein distance between {output} and {expected}"
+                    distance,
+                    "match" if distance == 0 else "mismatch",
+                    f"Levenshtein distance between {output} and {expected}",
                 )
     """
     if scorer is None:

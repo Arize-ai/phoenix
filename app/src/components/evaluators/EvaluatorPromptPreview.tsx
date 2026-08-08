@@ -136,7 +136,7 @@ function EvaluatorPromptPreviewErrorFallback(
   return (
     <View padding="size-200">
       <Flex direction="row" gap="size-100" alignItems="start">
-        <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
+        <Icon svg={<Icons.AlertCircle />} color="danger" />
         <Flex direction="column" gap="size-50">
           <Text weight="heavy" color="danger">
             Unable to render template preview
@@ -278,8 +278,8 @@ function MessageCard({ role, content }: { role: string; content: string }) {
       <pre
         css={css`
           white-space: pre-wrap;
-          padding-left: var(--global-dimension-static-size-200);
-          padding-right: var(--global-dimension-static-size-200);
+          padding-left: var(--global-dimension-size-200);
+          padding-right: var(--global-dimension-size-200);
         `}
       >
         {content}

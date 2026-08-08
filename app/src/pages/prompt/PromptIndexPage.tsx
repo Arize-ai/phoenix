@@ -109,10 +109,11 @@ function PromptIndexPageAside({
     <View
       flex="none"
       width={400}
+      height="100%"
       borderStartColor="default"
       borderStartWidth="thin"
     >
-      <View padding="size-200">
+      <View padding="size-200" overflow="auto" height="100%">
         <Flex
           direction="row"
           justifyContent="space-between"

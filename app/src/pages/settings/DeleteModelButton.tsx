@@ -144,7 +144,7 @@ export function DeleteModelButton({
     >
       <Button
         variant="danger"
-        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Trash />} />}
         aria-label="Delete model"
         onPress={handleOpen}
         size="S"

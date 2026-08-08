@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<db419a279335b279387c0e2d880ad5ed>>
+ * @generated SignedSource<<58b18c2ccde398348d7f6292cfc211c7>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -20,12 +19,61 @@ export type CreateSandboxConfigInput = {
   timeout?: number | null;
 };
 export type SandboxConfigVariantInput = {
-  daytona?: DaytonaConfigInput | null;
-  deno?: DenoConfigInput | null;
-  e2b?: E2BConfigInput | null;
-  modal?: ModalConfigInput | null;
-  vercel?: VercelConfigInput | null;
-  wasm?: WASMConfigInput | null;
+  daytona?: never;
+  deno?: never;
+  e2b: E2BConfigInput;
+  modal?: never;
+  monty?: never;
+  vercel?: never;
+  wasm?: never;
+} | {
+  daytona: DaytonaConfigInput;
+  deno?: never;
+  e2b?: never;
+  modal?: never;
+  monty?: never;
+  vercel?: never;
+  wasm?: never;
+} | {
+  daytona?: never;
+  deno: DenoConfigInput;
+  e2b?: never;
+  modal?: never;
+  monty?: never;
+  vercel?: never;
+  wasm?: never;
+} | {
+  daytona?: never;
+  deno?: never;
+  e2b?: never;
+  modal?: never;
+  monty?: never;
+  vercel: VercelConfigInput;
+  wasm?: never;
+} | {
+  daytona?: never;
+  deno?: never;
+  e2b?: never;
+  modal?: never;
+  monty?: never;
+  vercel?: never;
+  wasm: WASMConfigInput;
+} | {
+  daytona?: never;
+  deno?: never;
+  e2b?: never;
+  modal: ModalConfigInput;
+  monty?: never;
+  vercel?: never;
+  wasm?: never;
+} | {
+  daytona?: never;
+  deno?: never;
+  e2b?: never;
+  modal?: never;
+  monty: MontyConfigInput;
+  vercel?: never;
+  wasm?: never;
 };
 export type E2BConfigInput = {
   dependencies?: DependenciesInput | null;
@@ -65,6 +113,9 @@ export type ModalConfigInput = {
   dependencies?: DependenciesInput | null;
   envVars?: ReadonlyArray<EnvVarInput>;
   internetAccess?: InternetAccessInput | null;
+  language?: Language;
+};
+export type MontyConfigInput = {
   language?: Language;
 };
 export type SandboxConfigDialogCreateSandboxConfigMutation$variables = {
@@ -148,14 +199,14 @@ v8 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SandboxConfigDialogCreateSandboxConfigMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "CreateSandboxConfigPayload",
         "kind": "LinkedField",
         "name": "createSandboxConfig",
@@ -186,13 +237,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SandboxConfigDialogCreateSandboxConfigMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "CreateSandboxConfigPayload",
         "kind": "LinkedField",
         "name": "createSandboxConfig",
@@ -214,8 +265,8 @@ return {
                 "name": "sandboxBackends",
                 "plural": true,
                 "selections": [
-                  (v2/*: any*/),
-                  (v3/*: any*/),
+                  (v2/*:: as any*/),
+                  (v3/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -230,7 +281,7 @@ return {
                     "name": "dependencyHints",
                     "storageKey": null
                   },
-                  (v4/*: any*/),
+                  (v4/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -269,6 +320,20 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "languageDialect",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "runtimeNotes",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "SandboxProviderCredentialSpec",
                     "kind": "LinkedField",
                     "name": "credentialSpecs",
@@ -281,8 +346,8 @@ return {
                         "name": "key",
                         "storageKey": null
                       },
-                      (v3/*: any*/),
-                      (v5/*: any*/),
+                      (v3/*:: as any*/),
+                      (v5/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -304,10 +369,10 @@ return {
                 "name": "sandboxProviders",
                 "plural": true,
                 "selections": [
-                  (v6/*: any*/),
-                  (v2/*: any*/),
-                  (v4/*: any*/),
-                  (v7/*: any*/),
+                  (v6/*:: as any*/),
+                  (v2/*:: as any*/),
+                  (v4/*:: as any*/),
+                  (v7/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -316,9 +381,9 @@ return {
                     "name": "configs",
                     "plural": true,
                     "selections": [
-                      (v6/*: any*/),
-                      (v8/*: any*/),
-                      (v5/*: any*/),
+                      (v6/*:: as any*/),
+                      (v8/*:: as any*/),
+                      (v5/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -333,7 +398,7 @@ return {
                         "name": "timeout",
                         "storageKey": null
                       },
-                      (v7/*: any*/),
+                      (v7/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -350,7 +415,7 @@ return {
                             "name": "envVars",
                             "plural": true,
                             "selections": [
-                              (v8/*: any*/),
+                              (v8/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -422,12 +487,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bdf5a4a9f1ea75cef26f725b84b763fc",
+    "cacheID": "499fcddcca9f3818991dfb3c0766b589",
     "id": null,
     "metadata": {},
     "name": "SandboxConfigDialogCreateSandboxConfigMutation",
     "operationKind": "mutation",
-    "text": "mutation SandboxConfigDialogCreateSandboxConfigMutation(\n  $input: CreateSandboxConfigInput!\n) {\n  createSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation SandboxConfigDialogCreateSandboxConfigMutation(\n  $input: CreateSandboxConfigInput!\n) {\n  createSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    languageDialect\n    runtimeNotes\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();

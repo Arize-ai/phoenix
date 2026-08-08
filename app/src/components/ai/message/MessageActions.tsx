@@ -13,7 +13,7 @@ import type { MessageActionsProps } from "./types";
  * <MessageToolbar>
  *   <MessageActions>
  *     <MessageAction label="Copy" tooltip="Copy" onPress={handleCopy}>
- *       <Icon svg={<Icons.DuplicateOutline />} />
+ *       <Icon svg={<Icons.Duplicate />} />
  *     </MessageAction>
  *   </MessageActions>
  * </MessageToolbar>

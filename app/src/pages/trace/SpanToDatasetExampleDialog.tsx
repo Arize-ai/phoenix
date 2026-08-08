@@ -155,13 +155,7 @@ export function SpanToDatasetExampleDialog({
                 }}
                 leadingVisual={
                   <Icon
-                    svg={
-                      isCommitting ? (
-                        <Icons.LoadingOutline />
-                      ) : (
-                        <Icons.PlusOutline />
-                      )
-                    }
+                    svg={isCommitting ? <Icons.Loading /> : <Icons.Plus />}
                   />
                 }
               >

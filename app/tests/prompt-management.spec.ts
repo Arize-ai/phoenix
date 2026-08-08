@@ -21,8 +21,8 @@ test.describe("Prompt Management", () => {
     await page.getByPlaceholder("Select or enter new prompt").click();
     const promptName = `chatbot-${randomUUID()}`;
     await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
-    await page.getByLabel("Prompt Description").click();
-    await page.getByLabel("Prompt Description").fill("very kind chatbot");
+    await page.getByLabel("Description (optional)").click();
+    await page.getByLabel("Description (optional)").fill("very kind chatbot");
     await page.getByRole("button", { name: "Create Prompt" }).click();
 
     // After saving, the URL should contain the promptId
@@ -46,8 +46,8 @@ test.describe("Prompt Management", () => {
     await page.getByPlaceholder("Select or enter new prompt").click();
     const promptName = `chatbot-${randomUUID()}`;
     await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
-    await page.getByLabel("Prompt Description").click();
-    await page.getByLabel("Prompt Description").fill("very kind chatbot");
+    await page.getByLabel("Description (optional)").click();
+    await page.getByLabel("Description (optional)").fill("very kind chatbot");
     await page.getByRole("button", { name: "Create Prompt" }).click();
 
     // Capture the promptId from the URL after creation
@@ -80,7 +80,7 @@ test.describe("Prompt Management", () => {
     await page.getByRole("button", { name: "Save" }).click();
 
     // Save the prompt
-    await page.getByLabel("Change Description").fill("very angry chatbot");
+    await page.getByLabel("Description (optional)").fill("very angry chatbot");
     await page.getByRole("button", { name: "Update Prompt" }).click();
 
     // After updating, verify the URL still tracks the same prompt
@@ -109,7 +109,9 @@ test.describe("Prompt Management", () => {
     await page.getByRole("button", { name: "Save Prompt" }).click();
     await page.getByPlaceholder("Select or enter new prompt").click();
     await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
-    await page.getByLabel("Prompt Description").fill("table row test prompt");
+    await page
+      .getByLabel("Description (optional)")
+      .fill("table row test prompt");
     await page.getByRole("button", { name: "Create Prompt" }).click();
     await expect(page).toHaveURL(/promptId=/);
 
@@ -120,6 +122,32 @@ test.describe("Prompt Management", () => {
       has: page.getByRole("link", { name: promptName }),
     });
     await expect(row).toBeVisible();
+
+    const descriptionHeader = page.getByRole("columnheader", {
+      name: "description",
+    });
+    await expect(descriptionHeader).toBeVisible();
+    await expect(row.getByRole("cell").first()).toHaveCSS(
+      "white-space",
+      "nowrap"
+    );
+
+    await page.getByRole("button", { name: "Columns" }).click();
+    await page
+      .getByLabel("Columns", { exact: true })
+      .getByText("description", { exact: true })
+      .click();
+    await expect(descriptionHeader).not.toBeVisible();
+
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Columns" })).toBeVisible();
+    await expect(descriptionHeader).not.toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(() => localStorage.getItem("arize-phoenix-prompts-table"))
+      )
+      .toContain('"columnVisibility":{"description":false}');
+
     await row.getByRole("link", { name: promptName }).click();
 
     await expect(page.getByRole("heading", { name: promptName })).toBeVisible();

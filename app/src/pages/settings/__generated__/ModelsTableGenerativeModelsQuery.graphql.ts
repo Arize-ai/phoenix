@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<af7a11ba7f800ff619c9a34c974884fb>>
+ * @generated SignedSource<<3eea245f16aabb5c7374b1edb0be45c0>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -63,13 +62,13 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ModelsTableGenerativeModelsQuery",
     "selections": [
       {
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "kind": "FragmentSpread",
         "name": "ModelsTable_generativeModels"
       }
@@ -79,13 +78,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ModelsTableGenerativeModelsQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "GenerativeModelConnection",
         "kind": "LinkedField",
         "name": "generativeModels",
@@ -107,7 +106,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
+                  (v2/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -164,7 +163,7 @@ return {
                     "name": "lastUsedAt",
                     "storageKey": null
                   },
-                  (v3/*: any*/),
+                  (v3/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -180,7 +179,7 @@ return {
                         "name": "tokenType",
                         "storageKey": null
                       },
-                      (v3/*: any*/),
+                      (v3/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -216,7 +215,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v2/*: any*/)
+                  (v2/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -253,7 +252,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "filters": null,
         "handle": "connection",
         "key": "ModelsTable_generativeModels",

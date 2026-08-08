@@ -1,13 +1,13 @@
 import type { Chat } from "@ai-sdk/react";
-import type { UIMessage } from "ai";
 
+import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import type { components } from "@phoenix/api/__generated__/v1";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import type { AgentCapabilities, AgentCapabilityKey } from "../capabilities";
 
-export type AddToolOutput = Chat<UIMessage>["addToolOutput"];
-export type AppendMessagePart = (part: UIMessage["parts"][number]) => void;
+export type AddToolOutput = Chat<AgentUIMessage>["addToolOutput"];
+export type AppendMessagePart = (part: AgentUIMessage["parts"][number]) => void;
 
 type ToolCallProviderMetadata =
   components["schemas"]["ToolCallProviderMetadata"];

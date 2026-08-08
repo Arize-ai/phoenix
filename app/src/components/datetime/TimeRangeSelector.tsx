@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
-import { useFilter, useInteractOutside } from "react-aria";
+import { useFilter, useFocusVisible, useInteractOutside } from "react-aria";
 import { Autocomplete, Input } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 
@@ -66,9 +66,16 @@ const timeRangeSelectorCSS = css`
   /* Match the standard input field: a single border-color change for both
      hover and focus so the two states read consistently. */
   &:hover:not([data-disabled]),
-  &:focus-within:not([data-disabled]),
   &[data-presets-open]:not([data-disabled]) {
     border-color: var(--global-input-field-border-color-active);
+  }
+  &:focus-within:not([data-disabled]) {
+    border-color: var(--global-input-field-border-color-active);
+  }
+  &:has(:focus-visible):not([data-disabled]),
+  &[data-focus-visible]:not([data-disabled]) {
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
   &[data-disabled] {
     opacity: var(--global-opacity-disabled);
@@ -231,6 +238,8 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const [popoverWidth, setPopoverWidth] = useState<string | undefined>();
   const [searchText, setSearchText] = useState("");
   const { contains } = useFilter({ sensitivity: "base" });
+  const { isFocusVisible } = useFocusVisible({ isTextInput: true });
+  const hasKeyboardFocusRing = isEditing && isFocusVisible;
   const closePresets = useCallback(() => {
     setIsPresetsOpen(false);
     setIsCalendarPickerOpen(false);
@@ -255,8 +264,9 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
         return;
       }
       setIsEditing(false);
+      closePresets();
     });
-  }, [getFocusedElementWithin]);
+  }, [closePresets, getFocusedElementWithin]);
   const blurFocusedTimeRangeElement = useCallback(() => {
     getFocusedElementWithin()?.blur();
   }, [getFocusedElementWithin]);
@@ -402,6 +412,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
         css={timeRangeSelectorCSS}
         data-size={size}
         data-disabled={isDisabled || undefined}
+        data-focus-visible={hasKeyboardFocusRing || undefined}
         data-presets-open={isPresetsOpen || undefined}
         role="group"
         aria-label="Time range"
@@ -526,6 +537,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                 <Input
                   ref={searchInputRef}
                   placeholder='Search or type "25m"'
+                  onBlur={closeEditingIfFocusOutside}
                 />
               </SearchField>
               <ListBox
@@ -585,7 +597,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                 size="S"
                 variant="quiet"
                 css={calendarOptionCSS}
-                leadingVisual={<Icon svg={<Icons.CalendarOutline />} />}
+                leadingVisual={<Icon svg={<Icons.Calendar />} />}
                 onPress={() => setIsCalendarPickerOpen(true)}
               >
                 Pick from a calendar

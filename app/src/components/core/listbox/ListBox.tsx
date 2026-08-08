@@ -15,7 +15,7 @@ const listBoxCSS = css`
   box-sizing: border-box;
 
   &[data-focus-visible] {
-    outline: 2px solid var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: -1px;
   }
 
@@ -41,7 +41,7 @@ const listBoxCSS = css`
     flex-direction: column;
 
     &[data-focus-visible] {
-      outline: 2px solid var(--focus-ring-color);
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
       outline-offset: -2px;
     }
 

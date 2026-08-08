@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<6694e7ebb9356a610a190b2b8a3d79db>>
+ * @generated SignedSource<<447e5e77541187e5dab58a8fbc0c2762>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -84,20 +83,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SpanToDatasetExampleDialogAddExampleToDatasetMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SpanToDatasetExampleDialogAddExampleToDatasetMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "d93c9d47668fc266ba09ecb14c2b72ae",

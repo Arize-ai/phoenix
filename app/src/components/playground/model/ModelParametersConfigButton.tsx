@@ -46,7 +46,7 @@ function EnvVarRoutingInfo({
         borderColor="gray-400"
       >
         <Flex direction="row" gap="size-100" alignItems="center">
-          <Icon svg={<Icons.InfoOutline />} color="info" />
+          <Icon svg={<Icons.Info />} color="info" />
           <Flex direction="column" gap="size-25">
             <Text size="S" color="text-700">
               From environment variable
@@ -134,7 +134,7 @@ export function ModelParametersConfigButton(
         variant="default"
         size="S"
         aria-label="Configure model parameters"
-        leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Options />} />}
       />
       <Popover
         css={css`

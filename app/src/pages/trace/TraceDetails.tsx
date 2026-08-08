@@ -14,6 +14,8 @@ import invariant from "tiny-invariant";
 
 import {
   Flex,
+  Icon,
+  Icons,
   LinkButton,
   Loading,
   RichTooltip,
@@ -25,6 +27,7 @@ import {
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
+import { TokenCostsDetails } from "@phoenix/components/trace/TokenCostsDetails";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
@@ -32,14 +35,14 @@ import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
-import { RichTokenBreakdown } from "../../components/RichTokenCostBreakdown";
 import type {
   TraceDetailsQuery,
   TraceDetailsQuery$data,
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { SpanDetails } from "./SpanDetails";
-import { TraceHeaderRootSpanAnnotations } from "./TraceHeaderRootSpanAnnotations";
+import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
+import { TraceHeaderTraceAnnotations } from "./TraceHeaderTraceAnnotations";
 
 type RootSpan = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
@@ -66,6 +69,7 @@ export function TraceDetails(props: TraceDetailsProps) {
         project: node(id: $id) {
           ... on Project {
             trace(traceId: $traceId) {
+              id
               projectSessionId
               ...ConnectedTraceTree
               rootSpans: spans(
@@ -133,6 +137,7 @@ export function TraceDetails(props: TraceDetailsProps) {
     >
       <TraceHeader
         projectId={projectId}
+        traceNodeId={data.project.trace.id}
         rootSpan={rootSpan}
         latencyMs={traceLatencyMs}
         costSummary={costSummary}
@@ -169,13 +174,17 @@ export function TraceDetails(props: TraceDetailsProps) {
         </Panel>
         <Separator css={compactResizeHandleCSS} />
         <Panel id="span-details">
-          <ScrollingTabsWrapper>
-            {selectedSpanNodeId ? (
-              <Suspense fallback={<Loading />}>
-                <SpanDetails spanNodeId={selectedSpanNodeId} />
-              </Suspense>
-            ) : null}
-          </ScrollingTabsWrapper>
+          {/* above the span details, so a collapse the reader asked for holds
+              as they move between spans in the tree */}
+          <SpanInfoCardsProvider>
+            <ScrollingTabsWrapper>
+              {selectedSpanNodeId ? (
+                <Suspense fallback={<Loading />}>
+                  <SpanDetails spanNodeId={selectedSpanNodeId} />
+                </Suspense>
+              ) : null}
+            </ScrollingTabsWrapper>
+          </SpanInfoCardsProvider>
         </Panel>
       </Group>
     </main>
@@ -184,12 +193,14 @@ export function TraceDetails(props: TraceDetailsProps) {
 
 function TraceHeader({
   rootSpan,
+  traceNodeId,
   latencyMs,
   costSummary,
   sessionId,
   projectId,
 }: {
   rootSpan: RootSpan | null;
+  traceNodeId: string;
   latencyMs: number | null;
   costSummary?: CostSummary | null;
   sessionId?: string | null;
@@ -247,22 +258,10 @@ function TraceHeader({
             <RichTooltip placement="bottom">
               <TooltipArrow />
               <View width="size-3600">
-                <RichTokenBreakdown
-                  valueLabel="cost"
-                  totalValue={costSummary?.total?.cost ?? 0}
-                  formatter={costFormatter}
-                  segments={[
-                    {
-                      name: "Prompt",
-                      value: costSummary?.prompt?.cost ?? 0,
-                      color: "rgba(254, 119, 99, 1)",
-                    },
-                    {
-                      name: "Completion",
-                      value: costSummary?.completion?.cost ?? 0,
-                      color: "rgba(98, 104, 239, 1)",
-                    },
-                  ]}
+                <TokenCostsDetails
+                  total={costSummary?.total?.cost ?? 0}
+                  prompt={costSummary?.prompt?.cost ?? 0}
+                  completion={costSummary?.completion?.cost ?? 0}
                 />
               </View>
             </RichTooltip>
@@ -278,9 +277,11 @@ function TraceHeader({
             <Text size="L">--</Text>
           )}
         </Flex>
-        {rootSpan ? (
-          <TraceHeaderRootSpanAnnotations spanId={rootSpan.id} />
-        ) : null}
+        <Suspense fallback={null}>
+          <Flex direction="row" alignItems="stretch" alignSelf="stretch">
+            <TraceHeaderTraceAnnotations traceId={traceNodeId} />
+          </Flex>
+        </Suspense>
         {sessionId && (
           <span
             css={css`
@@ -291,6 +292,7 @@ function TraceHeader({
             <LinkButton
               size="S"
               variant="primary"
+              leadingVisual={<Icon svg={<Icons.MessagesSquare />} />}
               to={{
                 pathname: `/projects/${projectId}/sessions/${sessionId}`,
                 search: sessionSearch,
@@ -342,7 +344,9 @@ function ScrollingPanelContent({ children }: PropsWithChildren) {
       data-testid="scrolling-panel-content"
       css={css`
         height: 100%;
-        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
       `}
     >
       {children}

@@ -94,8 +94,8 @@ export function ExperimentComparePage() {
   );
   useAdvertiseAgentContext(advertisedDatasetContext);
   const [searchParams] = useSearchParams();
-  const { baseExperimentId = undefined, compareExperimentIds } = useMemo(() => {
-    const [baseExperimentId = undefined, ...compareExperimentIds] =
+  const { baseExperimentId, compareExperimentIds } = useMemo(() => {
+    const [baseExperimentId, ...compareExperimentIds] =
       searchParams.getAll("experimentId");
     return { baseExperimentId, compareExperimentIds };
   }, [searchParams]);
@@ -330,6 +330,7 @@ export function SelectedCompareExperiments({
                     id
                     sequenceNumber
                     name
+                    isBaseline
                   }
                 }
               }
@@ -361,6 +362,7 @@ export function SelectedCompareExperiments({
           key={experiment.id}
           color={getExperimentColor(experimentIndex)}
           name={experiment.name}
+          isBaseline={experiment.isBaseline}
         />
       ))}
     </Flex>

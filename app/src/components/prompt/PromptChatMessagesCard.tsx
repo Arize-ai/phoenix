@@ -11,6 +11,7 @@ import {
   ChatTemplateMessageToolCallPart,
   ChatTemplateMessageToolResultPart,
 } from "@phoenix/components/prompt/ChatTemplateMessageCard";
+import { getMessagePreview } from "@phoenix/components/prompt/chatTemplateMessagePreview";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { openInferenceModelProviderToPhoenixModelProvider } from "@phoenix/pages/playground/playgroundUtils";
@@ -89,6 +90,7 @@ export function PromptChatMessages({
   if (template.__typename === "%other") {
     throw new Error("Unknown template type" + template.__typename);
   }
+  return null;
 }
 
 function ChatMessageContentPart({
@@ -160,7 +162,11 @@ function ChatMessages({
           message.content.length === 1 &&
           message.content.find(asTextPart) != null;
         return (
-          <ChatTemplateMessageCard key={i} role={message.role as string}>
+          <ChatTemplateMessageCard
+            key={i}
+            role={message.role as string}
+            preview={getMessagePreview(message)}
+          >
             {message.content.map((content, i) => (
               <ChatMessageContentPart
                 key={`${i}-${content.__typename}`}

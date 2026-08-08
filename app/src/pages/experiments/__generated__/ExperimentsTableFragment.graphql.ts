@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<9eb9a209d799798dd9fb30d414409f7c>>
+ * @generated SignedSource<<4eaeab798f70be49bd132345482c0968>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -55,6 +54,7 @@ export type ExperimentsTableFragment$data = {
         readonly errorRate: number | null;
         readonly expectedRunCount: number;
         readonly id: string;
+        readonly isBaseline: boolean;
         readonly job: {
           readonly status: ExperimentJobStatus;
         } | null;
@@ -144,7 +144,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -154,7 +154,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [
         "node"
@@ -168,7 +168,7 @@ return {
   },
   "name": "ExperimentsTableFragment",
   "selections": [
-    (v1/*: any*/),
+    (v1/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -177,7 +177,7 @@ return {
       "name": "experimentAnnotationSummaries",
       "plural": true,
       "selections": [
-        (v2/*: any*/),
+        (v2/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -219,8 +219,8 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*: any*/),
-                (v3/*: any*/),
+                (v1/*:: as any*/),
+                (v3/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -233,6 +233,13 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "description",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "isBaseline",
                   "storageKey": null
                 },
                 {
@@ -292,7 +299,7 @@ return {
                   "name": "project",
                   "plural": false,
                   "selections": [
-                    (v1/*: any*/)
+                    (v1/*:: as any*/)
                   ],
                   "storageKey": null
                 },
@@ -320,8 +327,8 @@ return {
                           "name": "node",
                           "plural": false,
                           "selections": [
-                            (v1/*: any*/),
-                            (v3/*: any*/),
+                            (v1/*:: as any*/),
+                            (v3/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -353,7 +360,7 @@ return {
                       "kind": "LinkedField",
                       "name": "total",
                       "plural": false,
-                      "selections": (v4/*: any*/),
+                      "selections": (v4/*:: as any*/),
                       "storageKey": null
                     },
                     {
@@ -363,7 +370,7 @@ return {
                       "kind": "LinkedField",
                       "name": "prompt",
                       "plural": false,
-                      "selections": (v4/*: any*/),
+                      "selections": (v4/*:: as any*/),
                       "storageKey": null
                     },
                     {
@@ -373,7 +380,7 @@ return {
                       "kind": "LinkedField",
                       "name": "completion",
                       "plural": false,
-                      "selections": (v4/*: any*/),
+                      "selections": (v4/*:: as any*/),
                       "storageKey": null
                     }
                   ],
@@ -387,7 +394,7 @@ return {
                   "name": "annotationSummaries",
                   "plural": true,
                   "selections": [
-                    (v2/*: any*/),
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -520,6 +527,6 @@ return {
 };
 })();
 
-(node as any).hash = "f030ce18df72171c2246907cda544324";
+(node as any).hash = "13f75158c220eb8e198b35d2c30bba40";
 
 export default node;

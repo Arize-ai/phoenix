@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<d0dfba1d0966dfb91113922acc79497b>>
+ * @generated SignedSource<<be7328bdca311e3ddd23ff18f2899ce0>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -83,7 +82,7 @@ return {
         "count": "count",
         "cursor": "cursor",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -93,7 +92,7 @@ return {
           "cursor": "cursor"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [],
       "operation": SettingsSecretsPageRefetchQuery_graphql
@@ -125,7 +124,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*: any*/),
+                (v1/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -148,7 +147,7 @@ return {
                   "name": "user",
                   "plural": false,
                   "selections": [
-                    (v1/*: any*/),
+                    (v1/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -174,7 +173,7 @@ return {
                   "name": "value",
                   "plural": false,
                   "selections": [
-                    (v2/*: any*/),
+                    (v2/*:: as any*/),
                     {
                       "kind": "InlineFragment",
                       "selections": [
@@ -206,7 +205,7 @@ return {
                   ],
                   "storageKey": null
                 },
-                (v2/*: any*/)
+                (v2/*:: as any*/)
               ],
               "storageKey": null
             },

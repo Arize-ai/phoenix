@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { KeyboardEvent, PropsWithChildren, ReactNode } from "react";
+import type { KeyboardEvent, PropsWithChildren, ReactNode, Ref } from "react";
 import type { PopoverProps } from "react-aria-components";
 import {
   Header,
@@ -9,6 +9,7 @@ import {
   type MenuProps as AriaMenuProps,
   MenuTrigger as AriaMenuTrigger,
 } from "react-aria-components";
+import type { AriaMenuOptions } from "react-aria/useMenu";
 
 import { classNames } from "@phoenix/utils/classNames";
 
@@ -16,7 +17,6 @@ import { Heading, Text } from "../content";
 import { Icon, Icons } from "../icon";
 import { Flex } from "../layout";
 import { Popover } from "../overlay";
-import { View } from "../view";
 
 const menuCSS = css`
   --menu-min-width: 250px;
@@ -28,16 +28,17 @@ const menuCSS = css`
   overflow-y: auto;
   overflow-x: hidden;
   padding: var(--global-menu-item-gap);
+  /* The menu container itself takes focus when opened before focus moves to an
+     item. Suppress the container-level focus ring — keyboard focus is already
+     indicated on the focused item — so the whole menu doesn't get outlined. */
   &:focus-visible {
-    border-radius: var(--global-rounding-small);
-    outline: 2px solid var(--global-color-primary);
-    outline-offset: 0px;
+    outline: none;
   }
   &[data-empty] {
     align-items: center;
     justify-content: center;
     display: flex;
-    padding: var(--global-dimension-static-size-100);
+    padding: var(--global-dimension-size-100);
   }
 
   .react-aria-MenuSection {
@@ -80,11 +81,26 @@ type MenuKeyboardProps = {
   onKeyDown?: (e: KeyboardEvent<HTMLDivElement>) => void;
 };
 
+/**
+ * Options React Aria Components forwards to `useMenu` but leaves out of its own
+ * prop types. Sourced from `useMenu` so a rename or removal upstream is a build
+ * error here rather than a silent behavior change.
+ */
+type MenuAriaPassthroughProps = {
+  /**
+   * Whether pressing Escape clears the menu's selection. Set to "none" for a
+   * menu whose selection is a persisted setting rather than a transient
+   * filter, so Escape closes the menu instead of wiping the setting.
+   * @default "clearSelection"
+   */
+  escapeKeyBehavior?: AriaMenuOptions<never>["escapeKeyBehavior"];
+};
+
 export const Menu = <T extends object>({
   className,
   onKeyDown,
   ...props
-}: AriaMenuProps<T> & MenuKeyboardProps) => {
+}: AriaMenuProps<T> & MenuKeyboardProps & MenuAriaPassthroughProps) => {
   return (
     <AriaMenu
       className={classNames("react-aria-Menu", className)}
@@ -97,11 +113,12 @@ export const Menu = <T extends object>({
 };
 
 const menuItemCss = css`
-  padding: var(--global-dimension-static-size-50);
+  padding: var(--global-dimension-size-50);
   border-radius: var(--global-rounding-small);
   outline: none;
   cursor: default;
   color: var(--global-text-color-900);
+  text-decoration: none;
   position: relative;
   display: flex;
 
@@ -153,16 +170,20 @@ export const MenuItem = <T extends object>({
   className,
   trailingContent,
   leadingContent,
+  ref,
   ...props
 }: AriaMenuItemProps<T> & {
   trailingContent?: ReactNode;
   leadingContent?: ReactNode;
+  /** The rendered item element, e.g. to make the item a drag-and-drop sortable. */
+  ref?: Ref<HTMLDivElement>;
 }) => {
   const textValue =
     props.textValue ||
     (typeof props.children === "string" ? props.children : undefined);
   return (
     <AriaMenuItem
+      ref={ref}
       {...props}
       css={menuItemCss}
       className={classNames("react-aria-MenuItem", className)}
@@ -175,7 +196,7 @@ export const MenuItem = <T extends object>({
             {isSelected && <Icon svg={<Icons.Checkmark />} />}
             {selectionMode !== "none" && !isSelected && (
               <Icon
-                svg={<Icons.CheckmarkOutline />}
+                svg={<Icons.Checkmark />}
                 css={css`
                   visibility: hidden;
                 `}
@@ -191,7 +212,7 @@ export const MenuItem = <T extends object>({
             </MenuItemContent>
             {/* TODO: this doesn't have a good way to reserve space for the chevron
             in menus where only some items are nestable */}
-            {hasSubmenu && <Icon svg={<Icons.ChevronRight />} />}
+            {hasSubmenu && <Icon svg={<Icons.ChevronRightSmall />} />}
           </>
         );
       }}
@@ -221,7 +242,7 @@ const MenuItemContent = ({
       `}
     >
       {leadingContent ? (
-        <Flex alignItems="center" gap="var(--global-menu-item-gap)">
+        <Flex alignItems="center" gap="var(--global-menu-item-content-gap)">
           {leadingContent} {children}
         </Flex>
       ) : (
@@ -258,8 +279,8 @@ const menuContainerCss = css`
 export const MenuContainer = ({
   children,
   placement = "bottom end",
-  minHeight = 300,
-  maxHeight = 650,
+  minHeight = "var(--global-menu-min-height)",
+  maxHeight = "var(--global-menu-max-height-large)",
   maxWidth = 450,
   ...popoverProps
 }: PropsWithChildren &
@@ -291,8 +312,7 @@ export const MenuContainer = ({
 };
 
 const menuSectionTitleCss = css`
-  padding: var(--global-dimension-static-size-50)
-    var(--global-dimension-static-size-100) 0;
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100) 0;
 `;
 
 export const MenuSectionTitle = ({
@@ -335,25 +355,29 @@ export const MenuSectionTitle = ({
 export const MenuHeader = ({ children }: PropsWithChildren) => {
   return (
     <div
+      className="menu-header"
       css={css`
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
 
-        /* Add vertical padding to quiet SearchFields in header */
-        .search-field[data-variant="quiet"] .react-aria-Input,
-        .search-field[data-variant="quiet"]
-          .react-aria-Input[data-hovered]:not([data-disabled]):not(
-            [data-invalid]
-          ) {
+        /* Draw the divider under (and, when stacked, between) quiet
+           SearchFields in the header by re-coloring the field's own border.
+           Scope with the block class (&.menu-header ...) so this wins over the
+           quiet variant's border resets in EVERY interaction state — rest,
+           hover, and focus. Without the extra specificity the variant's
+           :focused reset ties on specificity and wins on source order, so a
+           focused (e.g. autoFocused) search field silently loses its divider.
+           Invalid fields keep their danger border. */
+        &.menu-header
+          .search-field[data-variant="quiet"]
+          .react-aria-Input:not([data-invalid]) {
           border-bottom-color: var(--global-menu-border-color);
         }
-        * + .search-field[data-variant="quiet"] .react-aria-Input,
-        *
+        &.menu-header
+          *
           + .search-field[data-variant="quiet"]
-          .react-aria-Input[data-hovered]:not([data-disabled]):not(
-            [data-invalid]
-          ) {
+          .react-aria-Input:not([data-invalid]) {
           border-top-color: var(--global-menu-border-color);
         }
       `}
@@ -395,7 +419,7 @@ export const MenuHeaderTitle = ({
       minHeight={30}
       data-testid="menu-header-title"
       css={css`
-        padding: var(--global-dimension-static-size-100);
+        padding: var(--global-dimension-size-100);
         border-bottom: 1px solid var(--global-menu-border-color);
       `}
     >
@@ -406,7 +430,7 @@ export const MenuHeaderTitle = ({
         css={css`
           flex: 1 1 auto;
           width: 100%;
-          padding-left: var(--global-dimension-static-size-50);
+          padding-left: var(--global-dimension-size-50);
         `}
       >
         {children}
@@ -440,34 +464,16 @@ export const MenuFooter = ({ children }: PropsWithChildren) => {
   return (
     <div
       css={css`
-        padding: var(--global-dimension-static-size-100);
+        padding: var(--global-dimension-size-100);
         border-top: 1px solid var(--global-menu-border-color);
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
-        gap: var(--global-dimension-static-size-50);
+        gap: var(--global-dimension-size-50);
       `}
     >
       {children}
     </div>
-  );
-};
-
-/**
- * A component to render a consistent empty state message inside a Menu.
- * Use this with the `renderEmptyState` prop on Menu or ListBox components.
- * @example
- * <Menu renderEmptyState={() => <MenuEmpty>No items found</MenuEmpty>}>
- *   ...
- * </Menu>
- */
-export const MenuEmpty = ({ children }: PropsWithChildren) => {
-  return (
-    <View padding="size-200">
-      <Text color="text-700" size="S">
-        {children}
-      </Text>
-    </View>
   );
 };
 

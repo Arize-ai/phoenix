@@ -24,6 +24,7 @@ spec:
       labels:
         app: {{ include "phoenix.fullname" . }}
     spec:
+      terminationGracePeriodSeconds: {{ .Values.deployment.terminationGracePeriodSeconds }}
       {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
       serviceAccountName: {{ .Values.serviceAccount.name | default (include "phoenix.fullname" .) }}
       {{- end }}

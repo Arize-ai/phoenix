@@ -1,4 +1,5 @@
 import type { components } from "@phoenix/api/__generated__/v1";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 /**
  * Agent context types advertised to the PXI chat agent.
@@ -70,6 +71,10 @@ export function agentContextKey(context: AgentContext): string {
       return `trace:${context.projectNodeId}:${context.otelTraceId}`;
     case "session":
       return `session:${context.projectNodeId}:${context.sessionNodeId}`;
+    case "prompt":
+      return `prompt:${context.promptNodeId}`;
+    case "prompt_version":
+      return `prompt_version:${context.promptNodeId}:${context.promptVersionNodeId}`;
     case "span": {
       const project = context.projectNodeId ?? "";
       const span = context.spanNodeId
@@ -83,5 +88,7 @@ export function agentContextKey(context: AgentContext): string {
       return "web_access";
     case "subagents":
       return "subagents";
+    default:
+      return assertUnreachable(context);
   }
 }

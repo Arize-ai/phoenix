@@ -17,6 +17,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     batch_span_annotate,
     cancel_playground_run,
     clone_prompt_instance,
+    create_annotation_config,
     create_dataset,
     create_dataset_label,
     create_dataset_split,
@@ -68,6 +69,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     set_variable_values,
     submit_code_evaluator_draft,
     submit_llm_evaluator_draft,
+    update_annotation_config,
     write_prompt_tools,
 )
 from phoenix.server.agents.capabilities.tools.external.add_dataset_examples import (
@@ -89,6 +91,9 @@ from phoenix.server.agents.capabilities.tools.external.cancel_playground_run imp
 )
 from phoenix.server.agents.capabilities.tools.external.clone_prompt_instance import (
     ClonePromptInstanceCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.create_annotation_config import (
+    CreateAnnotationConfigCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.create_dataset import (
     CreateDatasetCapability,
@@ -241,6 +246,9 @@ from phoenix.server.agents.capabilities.tools.external.submit_code_evaluator_dra
 from phoenix.server.agents.capabilities.tools.external.submit_llm_evaluator_draft import (
     SubmitLlmEvaluatorDraftCapability,
 )
+from phoenix.server.agents.capabilities.tools.external.update_annotation_config import (
+    UpdateAnnotationConfigCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.write_prompt_tools import (
     WritePromptToolsCapability,
 )
@@ -273,6 +281,8 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         delete_dataset_labels.TOOL_DEFINITION,
         add_prompt_instance.TOOL_DEFINITION,
         batch_span_annotate.TOOL_DEFINITION,
+        create_annotation_config.TOOL_DEFINITION,
+        update_annotation_config.TOOL_DEFINITION,
         bash.TOOL_DEFINITION,
         cancel_playground_run.TOOL_DEFINITION,
         clone_prompt_instance.TOOL_DEFINITION,
@@ -390,6 +400,8 @@ def get_external_tool_capability_function(
             instructions=prompts.read_dataset_evaluator_definition_tool
         ),
         PatchExperimentCapability(instructions=prompts.patch_experiment_tool),
+        CreateAnnotationConfigCapability(instructions=prompts.create_annotation_config_tool),
+        UpdateAnnotationConfigCapability(instructions=prompts.update_annotation_config_tool),
         OpenCodeEvaluatorFormCapability(instructions=prompts.open_code_evaluator_form_tool),
         OpenLlmEvaluatorFormCapability(instructions=prompts.open_llm_evaluator_form_tool),
         ReadCodeEvaluatorDraftCapability(instructions=prompts.read_code_evaluator_draft_tool),
@@ -433,6 +445,8 @@ __all__ = [
     "CreateDatasetCapability",
     "AddPromptInstanceCapability",
     "BatchSpanAnnotateCapability",
+    "CreateAnnotationConfigCapability",
+    "UpdateAnnotationConfigCapability",
     "BashCapability",
     "CancelPlaygroundRunCapability",
     "ClonePromptInstanceCapability",

@@ -155,7 +155,7 @@ export function PlaygroundTool({
           <CopyToClipboardButton text={toolDefinitionString} />
           <Button
             aria-label="Delete tool"
-            leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+            leadingVisual={<Icon svg={<Icons.Trash />} />}
             size="S"
             onPress={deleteTool}
           />

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<2c565894a48180a9e2a2bbff18b5dfdf>>
+ * @generated SignedSource<<81a847bbae04fd5c75c837b60ea2e79b>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -69,14 +68,14 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "NewPromptVersionTagDialogMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "PromptVersionTagMutationPayload",
         "kind": "LinkedField",
         "name": "setPromptVersionTag",
@@ -92,7 +91,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -118,13 +117,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "NewPromptVersionTagDialogMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "PromptVersionTagMutationPayload",
         "kind": "LinkedField",
         "name": "setPromptVersionTag",
@@ -140,7 +139,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -164,7 +163,7 @@ return {
                         "name": "tags",
                         "plural": true,
                         "selections": [
-                          (v3/*: any*/),
+                          (v3/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -179,7 +178,7 @@ return {
                     "type": "PromptVersion",
                     "abstractKey": null
                   },
-                  (v3/*: any*/)
+                  (v3/*:: as any*/)
                 ],
                 "storageKey": null
               }

@@ -67,7 +67,7 @@ export function PlaygroundExperimentSettingsButton({
       <Button
         size="S"
         aria-label="Experiment Settings"
-        leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Options />} />}
         isDisabled={isDisabled}
       />
       <Popover style={{ width: "400px" }}>

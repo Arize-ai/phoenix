@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<44599d63dec71b15b614dd054a10e54a>>
+ * @generated SignedSource<<ab28cf6158717bcf5f87488551163026>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -109,8 +108,8 @@ v5 = {
   "storageKey": null
 },
 v6 = [
-  (v2/*: any*/),
-  (v3/*: any*/)
+  (v2/*:: as any*/),
+  (v3/*:: as any*/)
 ],
 v7 = {
   "alias": null,
@@ -134,19 +133,19 @@ v7 = {
       "name": "profilePictureUrl",
       "storageKey": null
     },
-    (v2/*: any*/)
+    (v2/*:: as any*/)
   ],
   "storageKey": null
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "GlobalEvaluatorsTableEvaluatorsQuery",
     "selections": [
       {
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "kind": "FragmentSpread",
         "name": "GlobalEvaluatorsTable_evaluators"
       }
@@ -156,13 +155,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "GlobalEvaluatorsTableEvaluatorsQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "EvaluatorConnection",
         "kind": "LinkedField",
         "name": "evaluators",
@@ -195,8 +194,8 @@ return {
                     "kind": "TypeDiscriminator",
                     "abstractKey": "__isEvaluator"
                   },
-                  (v2/*: any*/),
-                  (v3/*: any*/),
+                  (v2/*:: as any*/),
+                  (v3/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -204,7 +203,7 @@ return {
                     "name": "kind",
                     "storageKey": null
                   },
-                  (v4/*: any*/),
+                  (v4/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -212,7 +211,7 @@ return {
                     "name": "createdAt",
                     "storageKey": null
                   },
-                  (v5/*: any*/),
+                  (v5/*:: as any*/),
                   {
                     "alias": null,
                     "args": [
@@ -242,7 +241,7 @@ return {
                             "kind": "LinkedField",
                             "name": "node",
                             "plural": false,
-                            "selections": (v6/*: any*/),
+                            "selections": (v6/*:: as any*/),
                             "storageKey": null
                           }
                         ],
@@ -259,10 +258,10 @@ return {
                     "name": "datasetEvaluators",
                     "plural": true,
                     "selections": [
-                      (v2/*: any*/),
-                      (v3/*: any*/),
-                      (v4/*: any*/),
-                      (v5/*: any*/),
+                      (v2/*:: as any*/),
+                      (v3/*:: as any*/),
+                      (v4/*:: as any*/),
+                      (v5/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -270,10 +269,10 @@ return {
                         "kind": "LinkedField",
                         "name": "dataset",
                         "plural": false,
-                        "selections": (v6/*: any*/),
+                        "selections": (v6/*:: as any*/),
                         "storageKey": null
                       },
-                      (v7/*: any*/)
+                      (v7/*:: as any*/)
                     ],
                     "storageKey": null
                   },
@@ -287,7 +286,7 @@ return {
                         "kind": "LinkedField",
                         "name": "prompt",
                         "plural": false,
-                        "selections": (v6/*: any*/),
+                        "selections": (v6/*:: as any*/),
                         "storageKey": null
                       },
                       {
@@ -298,8 +297,8 @@ return {
                         "name": "promptVersionTag",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v2/*: any*/)
+                          (v3/*:: as any*/),
+                          (v2/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -325,11 +324,11 @@ return {
                             "name": "modelProvider",
                             "storageKey": null
                           },
-                          (v2/*: any*/)
+                          (v2/*:: as any*/)
                         ],
                         "storageKey": null
                       },
-                      (v7/*: any*/)
+                      (v7/*:: as any*/)
                     ],
                     "type": "LLMEvaluator",
                     "abstractKey": null
@@ -337,7 +336,7 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v7/*: any*/)
+                      (v7/*:: as any*/)
                     ],
                     "type": "CodeEvaluator",
                     "abstractKey": null
@@ -397,7 +396,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "filters": [
           "sort",
           "filter"
