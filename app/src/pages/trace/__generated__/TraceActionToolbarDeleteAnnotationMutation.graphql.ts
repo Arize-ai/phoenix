@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d5e8ebea65f12b26b9ba2f075d96ce85>>
+ * @generated SignedSource<<8072ed88b90e9e0149e344b5b6369a9f>>
  * @lightSyntaxTransform
  */
 
@@ -9,137 +9,90 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type TraceFeedbackActionToolbarCreateAnnotationMutation$variables = {
-  identifier: string;
-  label: string;
-  score: number;
+export type TraceActionToolbarDeleteAnnotationMutation$variables = {
+  annotationId: string;
   traceId: string;
 };
-export type TraceFeedbackActionToolbarCreateAnnotationMutation$data = {
-  readonly createTraceAnnotations: {
+export type TraceActionToolbarDeleteAnnotationMutation$data = {
+  readonly deleteTraceAnnotations: {
     readonly query: {
       readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup" | "TraceFeedbackActionToolbar_trace">;
+        readonly " $fragmentSpreads": FragmentRefs<"TraceActionToolbar_trace" | "TraceAnnotationSummaryGroup">;
       };
     };
   };
 };
-export type TraceFeedbackActionToolbarCreateAnnotationMutation = {
-  response: TraceFeedbackActionToolbarCreateAnnotationMutation$data;
-  variables: TraceFeedbackActionToolbarCreateAnnotationMutation$variables;
+export type TraceActionToolbarDeleteAnnotationMutation = {
+  response: TraceActionToolbarDeleteAnnotationMutation$data;
+  variables: TraceActionToolbarDeleteAnnotationMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "identifier"
+  "name": "annotationId"
 },
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "label"
-},
-v2 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "score"
-},
-v3 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
   "name": "traceId"
 },
-v4 = [
+v2 = [
   {
-    "items": [
+    "fields": [
       {
-        "fields": [
-          {
-            "kind": "Literal",
-            "name": "annotatorKind",
-            "value": "HUMAN"
-          },
+        "items": [
           {
             "kind": "Variable",
-            "name": "identifier",
-            "variableName": "identifier"
-          },
-          {
-            "kind": "Variable",
-            "name": "label",
-            "variableName": "label"
-          },
-          {
-            "kind": "Literal",
-            "name": "metadata",
-            "value": {}
-          },
-          {
-            "kind": "Literal",
-            "name": "name",
-            "value": "user_feedback"
-          },
-          {
-            "kind": "Variable",
-            "name": "score",
-            "variableName": "score"
-          },
-          {
-            "kind": "Literal",
-            "name": "source",
-            "value": "APP"
-          },
-          {
-            "kind": "Variable",
-            "name": "traceId",
-            "variableName": "traceId"
+            "name": "annotationIds.0",
+            "variableName": "annotationId"
           }
         ],
-        "kind": "ObjectValue",
-        "name": "input.0"
+        "kind": "ListValue",
+        "name": "annotationIds"
       }
     ],
-    "kind": "ListValue",
+    "kind": "ObjectValue",
     "name": "input"
   }
 ],
-v5 = [
+v3 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "traceId"
   }
 ],
-v6 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v7 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v8 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v9 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v10 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -150,20 +103,18 @@ return {
   "fragment": {
     "argumentDefinitions": [
       (v0/*:: as any*/),
-      (v1/*:: as any*/),
-      (v2/*:: as any*/),
-      (v3/*:: as any*/)
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "TraceFeedbackActionToolbarCreateAnnotationMutation",
+    "name": "TraceActionToolbarDeleteAnnotationMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v4/*:: as any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "TraceAnnotationMutationPayload",
         "kind": "LinkedField",
-        "name": "createTraceAnnotations",
+        "name": "deleteTraceAnnotations",
         "plural": false,
         "selections": [
           {
@@ -176,7 +127,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v5/*:: as any*/),
+                "args": (v3/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -193,7 +144,7 @@ return {
                       {
                         "args": null,
                         "kind": "FragmentSpread",
-                        "name": "TraceFeedbackActionToolbar_trace"
+                        "name": "TraceActionToolbar_trace"
                       }
                     ],
                     "type": "Trace",
@@ -215,20 +166,18 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v3/*:: as any*/),
       (v1/*:: as any*/),
-      (v2/*:: as any*/),
       (v0/*:: as any*/)
     ],
     "kind": "Operation",
-    "name": "TraceFeedbackActionToolbarCreateAnnotationMutation",
+    "name": "TraceActionToolbarDeleteAnnotationMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v4/*:: as any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "TraceAnnotationMutationPayload",
         "kind": "LinkedField",
-        "name": "createTraceAnnotations",
+        "name": "deleteTraceAnnotations",
         "plural": false,
         "selections": [
           {
@@ -241,14 +190,14 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v5/*:: as any*/),
+                "args": (v3/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v6/*:: as any*/),
-                  (v7/*:: as any*/),
+                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -260,7 +209,7 @@ return {
                         "name": "project",
                         "plural": false,
                         "selections": [
-                          (v7/*:: as any*/),
+                          (v5/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -285,7 +234,7 @@ return {
                                     "name": "node",
                                     "plural": false,
                                     "selections": [
-                                      (v6/*:: as any*/),
+                                      (v4/*:: as any*/),
                                       {
                                         "kind": "InlineFragment",
                                         "selections": [
@@ -303,8 +252,8 @@ return {
                                       {
                                         "kind": "InlineFragment",
                                         "selections": [
-                                          (v7/*:: as any*/),
-                                          (v8/*:: as any*/),
+                                          (v5/*:: as any*/),
+                                          (v6/*:: as any*/),
                                           {
                                             "alias": null,
                                             "args": null,
@@ -320,8 +269,8 @@ return {
                                             "name": "values",
                                             "plural": true,
                                             "selections": [
-                                              (v9/*:: as any*/),
-                                              (v10/*:: as any*/)
+                                              (v7/*:: as any*/),
+                                              (v8/*:: as any*/)
                                             ],
                                             "storageKey": null
                                           }
@@ -332,7 +281,7 @@ return {
                                       {
                                         "kind": "InlineFragment",
                                         "selections": [
-                                          (v7/*:: as any*/)
+                                          (v5/*:: as any*/)
                                         ],
                                         "type": "Node",
                                         "abstractKey": "__isNode"
@@ -357,10 +306,10 @@ return {
                         "name": "traceAnnotations",
                         "plural": true,
                         "selections": [
+                          (v5/*:: as any*/),
+                          (v6/*:: as any*/),
                           (v7/*:: as any*/),
                           (v8/*:: as any*/),
-                          (v9/*:: as any*/),
-                          (v10/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -397,7 +346,7 @@ return {
                                 "name": "profilePictureUrl",
                                 "storageKey": null
                               },
-                              (v7/*:: as any*/)
+                              (v5/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -448,7 +397,7 @@ return {
                                 "name": "fraction",
                                 "storageKey": null
                               },
-                              (v9/*:: as any*/)
+                              (v7/*:: as any*/)
                             ],
                             "storageKey": null
                           },
@@ -459,7 +408,7 @@ return {
                             "name": "meanScore",
                             "storageKey": null
                           },
-                          (v8/*:: as any*/)
+                          (v6/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -483,8 +432,8 @@ return {
                         "name": "traceAnnotations",
                         "plural": true,
                         "selections": [
+                          (v5/*:: as any*/),
                           (v7/*:: as any*/),
-                          (v9/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -511,16 +460,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d53d1b8ae65654afae430a4286385b33",
+    "cacheID": "ad483918035d86524582dd30cc837e78",
     "id": null,
     "metadata": {},
-    "name": "TraceFeedbackActionToolbarCreateAnnotationMutation",
+    "name": "TraceActionToolbarDeleteAnnotationMutation",
     "operationKind": "mutation",
-    "text": "mutation TraceFeedbackActionToolbarCreateAnnotationMutation(\n  $traceId: ID!\n  $label: String!\n  $score: Float!\n  $identifier: String!\n) {\n  createTraceAnnotations(input: [{traceId: $traceId, name: \"user_feedback\", annotatorKind: HUMAN, label: $label, score: $score, metadata: {}, source: APP, identifier: $identifier}]) {\n    query {\n      node(id: $traceId) {\n        __typename\n        ... on Trace {\n          ...TraceAnnotationSummaryGroup\n          ...TraceFeedbackActionToolbar_trace\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  traceAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  traceAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TraceFeedbackActionToolbar_trace on Trace {\n  id\n  viewerUserFeedbackAnnotations: traceAnnotations(filter: {include: {names: [\"user_feedback\"]}}) {\n    id\n    label\n    identifier\n  }\n}\n"
+    "text": "mutation TraceActionToolbarDeleteAnnotationMutation(\n  $traceId: ID!\n  $annotationId: ID!\n) {\n  deleteTraceAnnotations(input: {annotationIds: [$annotationId]}) {\n    query {\n      node(id: $traceId) {\n        __typename\n        ... on Trace {\n          ...TraceAnnotationSummaryGroup\n          ...TraceActionToolbar_trace\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment TraceActionToolbar_trace on Trace {\n  id\n  viewerUserFeedbackAnnotations: traceAnnotations(filter: {include: {names: [\"user_feedback\"]}}) {\n    id\n    label\n    identifier\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  traceAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  traceAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e8b33490883ddc36d9c04063ca2d66f6";
+(node as any).hash = "cb9f88e0750df069b3308c7e0764897c";
 
 export default node;
