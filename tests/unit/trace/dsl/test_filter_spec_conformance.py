@@ -115,9 +115,10 @@ ACCEPTED = [
     # breaking change -- so its current meaning is pinned here on purpose.
     "parent == 'x'",
     # `span.<field>` is a reserved root over a closed set of members reading this
-    # span's own cost row. Reserving it was a breaking change for conditions that
-    # keyed `attributes['span.*']`, taken deliberately; the members are pinned here
-    # and the shapes beneath the root are pinned in REJECTED.
+    # span's own cost row. Reserving it broke exactly one spelling -- the bare dotted
+    # `span.x`, which used to read `attributes['span']['x']` -- taken deliberately.
+    # Both subscript spellings survive and are pinned below; they are different keys,
+    # and neither is what the break touched.
     "span.total_cost > 0.1",
     "span.prompt_cost + span.completion_cost == span.total_cost",
     "span.total_tokens > 100",
@@ -136,6 +137,17 @@ ACCEPTED = [
     "len([d for d in span.cost_details]) > 2",
     "max(d.cost_per_token for d in span.cost_details) > 0.001",
     "any(d.cost > 1 for d in span.cost_details) and span.total_cost > 5",
+    # A boolean element field is a condition on its own, and stays one under `not` and
+    # inside `and`. These three used to disagree: the bare form was accepted while the
+    # other two were refused as "not a condition", because the span-vocabulary operand
+    # rules cannot see element fields and were still walking this scope.
+    "all(d.is_prompt for d in span.cost_details)",
+    "any(not d.is_prompt for d in span.cost_details)",
+    "any(d.cost > 0 and d.is_prompt for d in span.cost_details)",
+    # A membership list is exempt from numeric coercion because the element language has
+    # already typed its elements against the needle -- pinned here so the exemption and the
+    # pass it relies on cannot drift apart.
+    "any(d.cost in [1, 2] for d in span.cost_details)",
     # A loop variable may be named after the root; inside the body it *is* that name, as
     # in Python. The iterable stays unshadowed, because Python evaluates the outermost
     # `for` clause's iterable in the enclosing scope -- so this one line reads the root on
@@ -169,6 +181,34 @@ REJECTED = [
     # Unshadowed, `span.cost` is a root reference and `cost` is not a member of the root.
     # The shadowed spelling is accepted -- see ACCEPTED.
     ("any(span.cost > 1 for d in span.cost_details)", "invalid field `span.cost`"),
+    # Inside a comprehension the element language types itself, and it is the family's
+    # strict dialect rather than the permissive one around it. Each of these compiled to
+    # SQL before that pass was wired up: the first two reached `__call__` as a `NameError`,
+    # and the rest reached the database as a comparison no backend agrees about.
+    #
+    # Note what the first two do *not* say. Advising `attributes[...]` would be the natural
+    # span-grain wording and is wrong here -- an attribute path inside a comprehension
+    # compiles and then fails at query-build time, so a rejection must never steer a user
+    # into it.
+    ("any(d.cost > 0 for detail in span.cost_details)", "invalid field `d.cost`"),
+    (
+        "any(d.cost > span.total_cost for d in span.cost_details)",
+        "reads the filtered row, which is not reachable inside a comprehension",
+    ),
+    ("any(d.cost > latency_ms for d in span.cost_details)", "is a span-level term"),
+    ("any(d.cost > 'abc' for d in span.cost_details)", "cannot compare"),
+    ("sum(d.token_type for d in span.cost_details) > 0", "reduces numbers"),
+    ("any(d.is_prompt == 'yes' for d in span.cost_details)", "cannot compare"),
+    ("any(d.cost in ['a', 'b'] for d in span.cost_details)", "a list is all text or all numbers"),
+    # Casting inside the element scope follows the family dialect too, which is stricter
+    # than the span grain's own: `int(...)` is refused outright rather than aliased to
+    # `float(...)`, and casting a term to the type it already has is a no-op the strict
+    # dialect names. Outside a comprehension all three still compile, unchanged.
+    ("any(int(d.cost) > 1 for d in span.cost_details)", "would not truncate"),
+    ("any(float(d.cost) > 1 for d in span.cost_details)", "cannot cast a number"),
+    ("any(str(d.token_type) == 'a' for d in span.cost_details)", "cannot cast text"),
+    # An `if` clause is a condition, so a bare text field is not one.
+    ("sum(d.cost for d in span.cost_details if d.token_type) > 1", "expected a condition"),
     # A resolved member is typed identically on both sides of the compiler, so it
     # rejects exactly as a bare column does -- the two encodings of one rule, pinned
     # against each other (`latency_ms > '100'` is the same row, below).
@@ -254,10 +294,20 @@ REJECTED = [
     # an empty eval name can never match an annotation
     ("evals[''] == 'x'", "missing eval name"),
     # calls other than the three casts
-    # Still rejected, but by the comprehension rules rather than the call whitelist:
-    # `len` is a reduction at this grain now, so the message names what it takes instead
-    # of calling the whole expression invalid. Rejection preserved, wording improved.
-    ("len(name) > 1", r"`len\(\.\.\.\)` takes a comprehension"),
+    # Still rejected, but by the comprehension rules rather than the call whitelist: `len`
+    # is a reduction at this grain now, so the message names what it takes instead of
+    # calling the whole expression invalid.
+    #
+    # The example is pinned, not just the prefix, because a per-kind example is the whole
+    # point of it: one shared template used to suggest a generator here, which `len`
+    # rejects, and a predicate element for `sum`/`max`/`min`, which reduce a value. Each
+    # suggestion is now a form this validator accepts.
+    (
+        "len(name) > 1",
+        r"takes a comprehension over span\.cost_details, e\.g\. `len\(\[x for x in span\.cost_details\]\)`",
+    ),  # noqa: E501
+    ("sum(name) > 1", r"e\.g\. `sum\(x\.<field> for x in span\.cost_details\)`"),
+    ("any(name)", r"e\.g\. `any\(x\.<field> == \"\.\.\.\" for x in span\.cost_details\)`"),
     ("name.upper() == 'X'", "invalid expression"),
     ("[x for x in name]", "invalid expression"),
     # annotation members
