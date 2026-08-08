@@ -403,22 +403,22 @@ def _sqlite_authorizer(
                     "reading the database catalog is not permitted; "
                     "use describeSqlSchema to discover tables and columns",
                 )
-            # A relation this statement declared, read without a database name.
-            # Ahead of the table check because the two collide: a caller CTE
-            # named after a Phoenix table is a legitimate query, and denying it
-            # here refused the statement and logged it as an admission bypass --
-            # a security incident that never happened.
-            #
-            # The gate is what keeps this from weakening the check. It is not
-            # that base-table reads carry a database name; a bare table-level
-            # read, which `count(*)` emits, carries None like any transient.
-            # It is that while a CTE named `X` is in scope, the only way to name
-            # the base table is `main.X`, and a qualified read does carry
-            # 'main'. So `main.users` is denied exactly as before.
-            if dbname is None and table in introduced_relations:
-                return sqlite3.SQLITE_OK
             # A real table that is not allowlisted is refused however the read
-            # presents, with or without a database name.
+            # presents, with or without a database name, and ahead of every
+            # accept below.
+            #
+            # An earlier revision put the declared-relation accept first, gated
+            # on `dbname is None`, to stop a caller's CTE being reported as an
+            # admission bypass. Both halves of that were wrong. A caller CTE
+            # shadowing a table emits no authorizer event at all -- SQLite
+            # resolves it before this callback sees anything -- so the accept
+            # was not what let those statements run. And a table-level read,
+            # which `count(*)` emits, presents as `(table, '', None, None)`:
+            # `dbname is None` is true for the *physical* table, so the gate
+            # accepted `count(*)` over a forbidden table whenever a caller
+            # aliased any subquery to its name. `introduced_relations` is a flat
+            # set of caller-chosen strings, which is not a basis for skipping
+            # the one check that exists to catch an admission bypass.
             if table in _phoenix_table_names() and table not in allow_tables:
                 return deny(
                     ErrorCode.RELATION_NOT_ALLOWED,
@@ -427,6 +427,12 @@ def _sqlite_authorizer(
                     "describeSqlSchema lists the tables that are",
                     kind="bypass",
                 )
+            # A relation this statement declared: the derived tables the rewrites
+            # wrap real tables in, and caller CTEs and subqueries. Reached only
+            # for names that are not withheld Phoenix tables, so accepting here
+            # cannot excuse one.
+            if table in introduced_relations:
+                return sqlite3.SQLITE_OK
             # A table-valued function is reported as a read of a pseudo-table
             # named after the function. Its rows come from the JSON value passed
             # in, not from storage, so the table allowlist has nothing to say
@@ -847,15 +853,6 @@ async def _execute_postgres(
         )
 
 
-# Columns each rewrite writes into the statement that the caller never named.
-# When the engine cannot resolve one of these, the caller cannot act on the
-# message: the column is not in their text, and the one they did write is the
-# advertised name the rewrite replaced.
-_REWRITE_INTRODUCED_COLUMNS: dict[str, frozenset[str]] = {
-    "latency_ms": frozenset({"start_time", "end_time"}),
-    "graphql_node_id": frozenset({"id"}),
-}
-
 # `no such column: ts.start_time` on SQLite, `column ts.start_time does not
 # exist` on PostgreSQL. Both may qualify the name; the qualifier is the relation
 # the rewrite attached itself to and is worth repeating back.
@@ -877,11 +874,16 @@ def _rewrite_attribution(exc: BaseException, ctx: RewriteContext) -> Optional[An
     match = _UNRESOLVED_COLUMN.search(str(exc))
     if match is None:
         return None
-    column = match.group("column").lower()
-    for rewrite_name in ctx.applied:
-        if column not in _REWRITE_INTRODUCED_COLUMNS.get(rewrite_name, frozenset()):
-            continue
-        qualifier = match.group("qualifier")
+    column = match.group("column")
+    qualifier = match.group("qualifier")
+    # Matched against what a substitution actually wrote, qualifier included.
+    # Keying on the bare column name instead blamed a rewrite for the caller's
+    # own mistake: `id`, `start_time` and `end_time` are ordinary column names,
+    # so an unrelated typo like `q.id` drew "this is a defect in the rewrite"
+    # whenever the node-id pass had fired anywhere in the statement.
+    written = f"{qualifier}.{column}" if qualifier else column
+    rewrite_name = ctx.substituted_columns.get(written)
+    if rewrite_name is not None:
         relation = f"`{qualifier}`" if qualifier else "the relation it was selected from"
         return AnalyticsSqlError(
             code=ErrorCode.EXECUTION_ERROR,

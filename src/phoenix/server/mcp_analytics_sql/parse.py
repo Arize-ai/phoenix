@@ -251,12 +251,14 @@ def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
 #: admitted whatever nobody had thought about.
 _ALLOWED_STRUCTURAL_CLASSES: frozenset[str] = frozenset(
     """
-    Add Alias All Any Between Block CTE Column Copy Credentials DPipe DataType
-    Distinct Div Dot Drop EQ Escape Except Fetch Filter From GT GTE Glob Group
-    Having Identifier In Intersect Into Is JSONKeyValue JSONPath JSONPathKey
-    JSONPathRoot Join LT LTE Lateral Like Limit LimitOptions Literal Lock Mod Mul
-    NEQ Neg Not Null ObjectIdentifier Offset Order Ordered Paren Select Star Sub
-    Subquery Table TableAlias Union Var Where Window WindowSpec With WithinGroup
+    Add Alias All Any Between Block Boolean CTE Column Copy Credentials Cube
+    DPipe DataType Distinct Div Dot Drop EQ Escape Except Fetch Filter From GT
+    GTE Glob Group GroupingSets Having Identifier In Interval Intersect Into Is
+    JSONKeyValue JSONPath JSONPathKey JSONPathRoot Join LT LTE Lateral Like Limit
+    LimitOptions Literal Lock Mod Mul NEQ Neg Not Null NullSafeEQ NullSafeNEQ
+    ObjectIdentifier Offset Order Ordered Paren Rollup Select Star Sub Subquery
+    Table TableAlias Tuple Union Values Var Where Window WindowSpec With
+    WithinGroup
     """.split()
 )
 
@@ -757,12 +759,26 @@ def _check_hidden_columns(
             qualifier = column.table or ""
             if qualifier:
                 candidates = [by_reference[qualifier]] if qualifier in by_reference else []
-            elif foreign_source:
-                continue
             else:
                 candidates = list(dict.fromkeys(by_reference.values()))
             if not candidates:
                 continue
+            # A hidden column is refused wherever it could have come from, and a
+            # foreign source does not change that. Skipping the whole scope when
+            # one is present let a trivial cross-join launder every hidden
+            # column: `SELECT user_id FROM datasets, (SELECT 1) q` is unqualified,
+            # so it took the foreign-source path and was never checked.
+            #
+            # A derived relation that genuinely projects the name is already
+            # excluded above -- `local` covers it -- so reaching here with a
+            # hidden name means the allowlisted table is the only source that
+            # offers it.
+            for table_name in candidates:
+                folded = {c.casefold() for c in allowlist.table_specs[table_name].hidden_columns}
+                if name in folded:
+                    return AdmissionResult(
+                        AdmissionOutcome.COLUMN_NOT_ALLOWED, f"{table_name}.{name}"
+                    )
             # An allowlist, not a hidden-column denylist. The two agree on every
             # column the manifest knows about, and differ on one it does not:
             # under a denylist a column that exists and is described nowhere is
@@ -780,12 +796,17 @@ def _check_hidden_columns(
             # mistake, and one that resolves somewhere is admitted.
             if any(_offers_column(allowlist, table_name, name) for table_name in candidates):
                 continue
-            for table_name in candidates:
-                folded = {c.casefold() for c in allowlist.table_specs[table_name].hidden_columns}
-                if name in folded:
-                    return AdmissionResult(
-                        AdmissionOutcome.COLUMN_NOT_ALLOWED, f"{table_name}.{name}"
-                    )
+            # Unknown to the manifest. That is a refusal when the allowlisted
+            # tables are the only thing in scope, and not when something else
+            # could have projected it -- a table-valued function names columns
+            # the manifest has never heard of, and `json_each(attributes)`
+            # projecting `key` is a shape the schema teaches.
+            #
+            # Reached only for names that are not hidden, since those returned
+            # above. So a foreign source can supply a name we do not know; it
+            # cannot launder one we withheld.
+            if not qualifier and foreign_source:
+                continue
             return AdmissionResult(
                 AdmissionOutcome.COLUMN_NOT_ALLOWED,
                 f"{candidates[0]}.{name}",

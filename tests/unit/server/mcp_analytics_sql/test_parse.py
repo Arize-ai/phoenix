@@ -766,3 +766,68 @@ class TestStructuralPolicyIsDefaultDeny:
 
         assert "decimal" in result.detail
         assert "not part of the permitted grammar" not in result.detail
+
+
+class TestHiddenColumnsSurviveForeignSources:
+    """A source the manifest does not know cannot launder a withheld column.
+
+    The allowlist inversion added an escape so a table-valued function could
+    project names the manifest never declared. Written as a whole-scope skip, it
+    meant any query cross-joining a derived table admitted every hidden column
+    unqualified -- and admission is the only gate for those, since the SQLite
+    authorizer is table-level and the plan gate reads relations.
+    """
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT user_id FROM datasets, (SELECT 1 AS k) sub",
+            "SELECT user_id FROM datasets, json_each('[1,2,3]')",
+            "SELECT gradient_start_color FROM projects p, (SELECT 1 AS k) sub",
+            "SELECT user_id FROM datasets",
+        ],
+    )
+    def test_a_hidden_column_is_refused_whatever_shares_the_scope(self, sql: str) -> None:
+        result = try_parse_and_admit(sql, dialect="sqlite")
+
+        assert result.outcome is AdmissionOutcome.COLUMN_NOT_ALLOWED, sql
+
+    def test_a_name_only_the_foreign_source_could_provide_still_admits(self) -> None:
+        """The case the escape exists for. It is not hidden, so it is not
+        withheld -- it is simply unknown to the manifest."""
+        result = try_parse_and_admit(
+            "SELECT key FROM spans, json_each(spans.attributes)", dialect="sqlite"
+        )
+
+        assert result.outcome is AdmissionOutcome.ADMIT
+
+
+class TestMainstreamGrammarIsNotRefused:
+    """The structural floor must not exclude ordinary analytics SQL.
+
+    Each of these executes on its engine and was admitted before the policy was
+    inverted; none was covered by the corpus, so the omission would have shipped
+    silently.
+    """
+
+    @pytest.mark.parametrize(
+        "sql,dialect",
+        [
+            ("SELECT id FROM spans WHERE 1 = 1 AND NOT TRUE", "sqlite"),
+            (
+                "SELECT id FROM spans WHERE start_time > "
+                "CAST('2026-01-01' AS TIMESTAMP) - INTERVAL '7 days'",
+                "postgresql",
+            ),
+            ("SELECT v.k FROM (VALUES ('a'), ('b')) AS v(k)", "postgresql"),
+            ("SELECT id FROM spans WHERE name IS DISTINCT FROM 'x'", "postgresql"),
+            ("SELECT id FROM spans WHERE (trace_rowid, span_kind) IN ((1, 'LLM'))", "postgresql"),
+            ("SELECT name, COUNT(*) FROM spans GROUP BY ROLLUP(name)", "postgresql"),
+            ("SELECT name, COUNT(*) FROM spans GROUP BY CUBE(name)", "postgresql"),
+            ("SELECT name, COUNT(*) FROM spans GROUP BY GROUPING SETS ((name), ())", "postgresql"),
+        ],
+    )
+    def test_it_admits(self, sql: str, dialect: str) -> None:
+        result = try_parse_and_admit(sql, dialect=cast(DialectName, dialect))
+
+        assert "not part of the permitted grammar" not in result.detail, sql
