@@ -2,6 +2,7 @@ from decimal import Decimal
 
 import pytest
 from sqlalchemy import text
+from sqlglot import parse_one
 
 from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
@@ -15,7 +16,7 @@ from phoenix.server.mcp_analytics_sql.normalize import (
     LOSSY_CONVERSION_NOTES,
     normalize_row_values,
 )
-from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext
+from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
 from phoenix.server.types import DbSessionFactory
 
 
@@ -289,61 +290,64 @@ class TestEstimatedRowsIsReadBelowTheLimit:
 class TestRewriteAttribution:
     """A column a rewrite introduced is not a column the caller can act on.
 
-    The shapes that used to reach this are closed by the shared resolver, so the
-    attribution is exercised directly: it is the backstop for the next rewrite
-    that substitutes an advertised column, not a description of a live defect.
-    See C6 and Part 8 of the correctness boundary document.
+    Attribution matches what a substitution actually wrote, qualifier included.
+    Keying on the bare column name blamed a rewrite for the caller's own typo:
+    `id`, `start_time` and `end_time` are ordinary names a caller writes too.
     """
 
     @staticmethod
-    def _ctx(applied: list[str]) -> RewriteContext:
+    def _ctx_after(sql: str) -> RewriteContext:
+        """A context populated the way production populates it -- by running the
+        passes -- rather than by hand, so the test cannot drift from the code."""
         ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)
-        ctx.applied.extend(applied)
+        rewrite(parse_one(sql, read="sqlite"), ctx)
         return ctx
 
     def test_names_the_rewrite_the_column_and_the_workaround(self) -> None:
-        error = _rewrite_attribution(
-            Exception("no such column: t.start_time"), self._ctx(["latency_ms"])
-        )
+        ctx = self._ctx_after("SELECT AVG(s.latency_ms) FROM spans s")
+
+        error = _rewrite_attribution(Exception("no such column: s.start_time"), ctx)
 
         assert error is not None
         assert error.identifiers == ("latency_ms",)
-        assert "latency_ms" in error.message
         assert "start_time" in error.message
-        assert "`t`" in error.message
+        assert "`s`" in error.message
         assert "another name" in error.message
         assert "defect in the rewrite" in error.message
 
-    def test_unqualified_column_is_attributed_too(self) -> None:
-        error = _rewrite_attribution(
-            Exception("no such column: start_time"), self._ctx(["latency_ms"])
-        )
+    def test_an_unqualified_substitution_is_attributed(self) -> None:
+        ctx = self._ctx_after("SELECT latency_ms FROM spans")
+
+        error = _rewrite_attribution(Exception("no such column: start_time"), ctx)
 
         assert error is not None
         assert error.identifiers == ("latency_ms",)
 
-    def test_postgres_wording_is_recognised(self) -> None:
-        error = _rewrite_attribution(
-            Exception("column q.id does not exist"), self._ctx(["graphql_node_id"])
-        )
+    def test_a_callers_own_typo_is_not_blamed_on_the_rewrite(self) -> None:
+        """`id` is what the node-id pass writes and also an ordinary column name.
+        Matching on the name alone answered a caller's mistyped `q.id` with
+        "this is a defect in the rewrite", which is the failure this whole
+        mechanism exists to prevent."""
+        ctx = self._ctx_after("SELECT graphql_node_id FROM projects")
+        assert ctx.substituted_columns, "the node-id pass should have recorded what it wrote"
 
-        assert error is not None
-        assert error.identifiers == ("graphql_node_id",)
+        assert _rewrite_attribution(Exception("no such column: q.id"), ctx) is None
+
+    def test_a_different_qualifier_is_not_attributed(self) -> None:
+        ctx = self._ctx_after("SELECT AVG(s.latency_ms) FROM spans s")
+
+        assert _rewrite_attribution(Exception("no such column: zz.start_time"), ctx) is None
 
     def test_a_column_no_rewrite_introduced_is_not_attributed(self) -> None:
-        assert (
-            _rewrite_attribution(
-                Exception("no such column: nonexistent"), self._ctx(["latency_ms"])
-            )
-            is None
-        )
+        ctx = self._ctx_after("SELECT AVG(s.latency_ms) FROM spans s")
 
-    def test_a_rewrite_that_did_not_run_is_not_blamed(self) -> None:
-        """`start_time` is a real column; without the rewrite applied, an error
-        naming it is the caller's own."""
-        assert (
-            _rewrite_attribution(Exception("no such column: t.start_time"), self._ctx([])) is None
-        )
+        assert _rewrite_attribution(Exception("no such column: nonexistent"), ctx) is None
+
+    def test_a_rewrite_that_did_not_run_records_nothing(self) -> None:
+        ctx = self._ctx_after("SELECT id FROM spans")
+
+        assert ctx.substituted_columns == {}
+        assert _rewrite_attribution(Exception("no such column: s.start_time"), ctx) is None
 
     async def test_the_shape_that_provoked_this_now_runs(
         self, analytics_sqlite_db: tuple[DbSessionFactory, str]

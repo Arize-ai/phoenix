@@ -52,6 +52,12 @@ class RewriteContext:
     # generator alone, with no pass recorded and the text still changed.
     caller_sql: str = ""
     executed_sql: str = ""
+    # Column references a substitution wrote into the tree, keyed by the exact
+    # text the engine would name if it cannot resolve one, mapped to the pass
+    # that wrote it. Recorded rather than inferred: matching an engine error on
+    # column *name* alone blames a rewrite for the caller's own typo, since
+    # `id`, `start_time` and `end_time` are ordinary names a caller also writes.
+    substituted_columns: dict[str, str] = field(default_factory=dict)
 
 
 _JSON_TEXT_ORDERING_NOTE = (
@@ -557,6 +563,8 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
             table_name = node.table or ""
             start = exp.column("start_time", table=table_name or None)
             end = exp.column("end_time", table=table_name or None)
+            for written in (start, end):
+                ctx.substituted_columns[written.sql()] = "latency_ms"
             changed = True
             if ctx.dialect == "postgresql":
                 # Subtracting two timestamps gives an interval; EXTRACT(EPOCH ...)
@@ -754,13 +762,12 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
         type_name = type_for(column)
         if type_name is None:
             continue
+        written = exp.column("id", table=column.table or None)
+        ctx.substituted_columns[written.sql()] = "graphql_node_id"
         payload = exp.Concat(
             expressions=[
                 exp.Literal.string(f"{type_name}:"),
-                exp.Cast(
-                    this=exp.column("id", table=column.table or None),
-                    to=exp.DataType.build("TEXT"),
-                ),
+                exp.Cast(this=written, to=exp.DataType.build("TEXT")),
             ]
         )
         if ctx.dialect == "sqlite":
