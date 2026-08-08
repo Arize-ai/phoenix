@@ -171,14 +171,7 @@ def _check_double_quoted_timestamp_operands(
         return None
 
     for node in root.walk():
-        candidates: list[tuple[Optional[exp.Expression], Optional[exp.Expression]]] = []
-        if isinstance(node, _TIMESTAMP_COMPARISONS):
-            candidates = [(node.this, node.expression), (node.expression, node.this)]
-        elif isinstance(node, exp.Between):
-            candidates = [(node.this, node.args.get("low")), (node.this, node.args.get("high"))]
-        elif isinstance(node, exp.In):
-            candidates = [(node.this, member) for member in node.expressions]
-        for column, operand in candidates:
+        for column, operand in _timestamp_comparison_pairs(node):
             text = offender(column, operand)
             if text is not None:
                 return AdmissionResult(
@@ -374,7 +367,56 @@ def _refused_cast_target(target: exp.Expression) -> Optional[str]:
 # Comparisons a timestamp literal can appear in. LIKE and GLOB are deliberately
 # absent: there the string form is the point, and a caller matching a prefix has
 # not made the mistake this refuses.
-_TIMESTAMP_COMPARISONS = (exp.EQ, exp.NEQ, exp.GT, exp.GTE, exp.LT, exp.LTE)
+#: Binary comparisons whose operands are decided against each other. `IS DISTINCT
+#: FROM` belongs here for the same reason `=` does -- it is a comparison whose
+#: null handling differs, not a different kind of operation -- and its absence
+#: meant a literal beside it got neither the naive refusal nor the storage-format
+#: rewrite. `_timestamp_comparison_pairs` covers the spellings that compare
+#: without producing one of these nodes.
+_TIMESTAMP_COMPARISONS = (
+    exp.EQ,
+    exp.NEQ,
+    exp.GT,
+    exp.GTE,
+    exp.LT,
+    exp.LTE,
+    exp.NullSafeEQ,
+    exp.NullSafeNEQ,
+    # SQLite's `IS` is `=` for non-null operands, so a literal beside it is
+    # compared like any other. `IS NULL` reaches here too and is ignored,
+    # because a null operand is not a string literal.
+    exp.Is,
+)
+
+
+def _timestamp_comparison_pairs(
+    node: exp.Expression,
+) -> list[tuple[Optional[exp.Expression], Optional[exp.Expression]]]:
+    """Every (compared-against, operand) pair a node establishes.
+
+    One enumeration for both consumers below, because they ask the same question
+    of the same tree and answering it twice is how a spelling gets covered by one
+    and not the other. A construct that compares without spelling a comparison
+    belongs here: `CASE col WHEN value` and `= ANY(...)` are decided exactly like
+    `col = value`, and a quantifier holds its values rather than being one.
+    """
+    if isinstance(node, _TIMESTAMP_COMPARISONS):
+        pairs = [(node.this, node.expression), (node.expression, node.this)]
+        for column, other in ((node.this, node.expression), (node.expression, node.this)):
+            if isinstance(other, exp.Any):
+                pairs.extend((column, held) for held in other.walk() if held is not other)
+        return pairs
+    if isinstance(node, exp.Between):
+        return [(node.this, node.args.get("low")), (node.this, node.args.get("high"))]
+    if isinstance(node, exp.In):
+        # A comparison spelled as a list, so a member is decided the way a
+        # literal beside `=` is, and only against the left operand.
+        return [(node.this, member) for member in node.expressions]
+    if isinstance(node, exp.Case) and node.this is not None:
+        # Only the operand form. `CASE WHEN col = value` builds a real comparison
+        # node and is covered above; this spelling compares without one.
+        return [(node.this, when.this) for when in node.args.get("ifs") or []]
+    return []
 
 
 class Locality(Enum):
@@ -548,20 +590,8 @@ def _timestamp_literals(
                 found.append(literal)
 
     for node in root.walk():
-        if isinstance(node, _TIMESTAMP_COMPARISONS):
-            collect(node.this, node.expression)
-        elif isinstance(node, exp.Between):
-            collect(node.this, node.args.get("low"))
-            collect(node.this, node.args.get("high"))
-        elif isinstance(node, exp.In):
-            # Every member, and only against the left operand -- `IN` is a
-            # comparison spelled as a list, so a literal in it is decided the
-            # same way one beside `=` is. Uncovered until now, so a caller
-            # listing instants got neither the naive-literal refusal nor the
-            # storage-format rewrite, and the comparison quietly matched nothing
-            # on SQLite.
-            for member in node.expressions:
-                collect(node.this, member)
+        for column, operand in _timestamp_comparison_pairs(node):
+            collect(column, operand)
     return found
 
 

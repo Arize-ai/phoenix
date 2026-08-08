@@ -31,10 +31,12 @@ from sqlglot import exp, parse, parse_one
 from phoenix.server.mcp_analytics_sql.allowlist import DialectName, load_allowlist
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp_analytics_sql.parse import (
+    _ALLOWED_STRUCTURAL_CLASSES,
     STRUCTURAL,
     AdmissionOutcome,
     AdmissionResult,
     Locality,
+    _timestamp_comparison_pairs,
     admit_sql,
     query_local_columns,
     try_parse_and_admit,
@@ -711,6 +713,48 @@ class TestTimestampComparisonCoverage:
         assert "2026-01-01 00:00:00" in rendered
         assert "timestamp_literals" in ctx.applied
 
+    @pytest.mark.parametrize(
+        "sql,dialect",
+        [
+            ("SELECT id FROM spans WHERE start_time IS DISTINCT FROM '{}'", "sqlite"),
+            ("SELECT id FROM spans WHERE start_time IS '{}'", "sqlite"),
+            ("SELECT CASE start_time WHEN '{}' THEN 1 ELSE 0 END FROM spans", "sqlite"),
+            ("SELECT id FROM spans WHERE start_time = ANY(ARRAY['{}'])", "postgresql"),
+        ],
+    )
+    def test_a_naive_literal_is_refused_in_a_comparison_that_is_not_spelled_as_one(
+        self, sql: str, dialect: str
+    ) -> None:
+        """Each of these compares without producing a comparison node, or with
+        one the enumeration had not named, so each admitted a naive literal.
+
+        Executed, that is silent: `IS DISTINCT FROM` over a stored instant
+        returned every row including the one naming it, because the caller's ISO
+        spelling never equals the stored space-separated form.
+        """
+        result = try_parse_and_admit(
+            sql.format("2026-01-01T10:30:00"), dialect=cast(DialectName, dialect)
+        )
+
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert "time of day" in result.detail
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT id FROM spans WHERE start_time IS DISTINCT FROM '{}'",
+            "SELECT CASE start_time WHEN '{}' THEN 1 ELSE 0 END FROM spans",
+        ],
+    )
+    def test_an_aware_literal_is_rewritten_in_those_same_spellings(self, sql: str) -> None:
+        ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)
+        tree = parse_one(sql.format("2026-01-01T00:00:00Z"), read="sqlite")
+
+        rendered = rewrite(tree, ctx).sql(dialect="sqlite")
+
+        assert "2026-01-01 00:00:00" in rendered
+        assert "timestamp_literals" in ctx.applied
+
     def test_a_double_quoted_operand_is_refused(self) -> None:
         """SQLite reads it as an identifier, so it is not a literal and every
         check above looks past it."""
@@ -785,6 +829,52 @@ class TestStructuralPolicyIsDefaultDeny:
 
         assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
         assert construct in result.detail
+
+    def test_every_admitted_construct_is_classified_as_comparing_or_not(self) -> None:
+        """Forces the timestamp decision when a construct is admitted, not later.
+
+        Admitting a construct and deciding whether it compares values are two
+        lists kept in agreement by hand, and three spellings had drifted between
+        them -- each admitted, none reaching the timestamp machinery, so a naive
+        literal beside one was neither refused nor rewritten and the comparison
+        quietly answered wrong. Adding a class below without classifying it here
+        fails, which is the only point at which the answer is cheap.
+        """
+        comparing = {
+            "EQ",
+            "NEQ",
+            "GT",
+            "GTE",
+            "LT",
+            "LTE",
+            "NullSafeEQ",
+            "NullSafeNEQ",
+            "Is",
+            "Between",
+            "In",
+            "Any",
+        }
+        # Everything else: operators, clauses, identifiers and containers. A
+        # value compared under one of these reaches a comparison node first.
+        not_comparing = _ALLOWED_STRUCTURAL_CLASSES - comparing
+
+        assert comparing <= _ALLOWED_STRUCTURAL_CLASSES, (
+            f"classified but not admitted: {sorted(comparing - _ALLOWED_STRUCTURAL_CLASSES)}"
+        )
+        assert comparing | not_comparing == _ALLOWED_STRUCTURAL_CLASSES
+
+        # Each comparing class must actually yield pairs, so the classification
+        # cannot be satisfied by naming a class the enumeration ignores.
+        for sql, name in [
+            ("SELECT id FROM spans WHERE start_time = 'x'", "EQ"),
+            ("SELECT id FROM spans WHERE start_time IS DISTINCT FROM 'x'", "NullSafeNEQ"),
+            ("SELECT id FROM spans WHERE start_time IS 'x'", "Is"),
+            ("SELECT id FROM spans WHERE start_time IN ('x')", "In"),
+            ("SELECT id FROM spans WHERE start_time BETWEEN 'x' AND 'y'", "Between"),
+        ]:
+            root = parse_one(sql, read="sqlite")
+            pairs = [p for node in root.walk() for p in _timestamp_comparison_pairs(node)]
+            assert pairs, f"{name} is classified as comparing but yields no pairs"
 
     def test_a_lossy_shape_keeps_its_own_message(self) -> None:
         """The structural policy runs after the lossy-shape checks, which name
