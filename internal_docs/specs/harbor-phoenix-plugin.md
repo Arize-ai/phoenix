@@ -195,9 +195,17 @@ The function takes no client, so no async variant is needed; the plugin awaits t
 
 The plugin creates one deterministic trial-level AGENT root, converts saved ATIF trajectories beneath it, and submits the root and children to the experiment's Phoenix project. Harbor-specific identity, root creation, and replay recovery stay in the plugin rather than the general client.
 
-The plugin injects a deterministic `trajectory_id` derived from the full logical trial identity and stable step ordinal onto an in-memory copy of every trajectory that lacks one, without modifying the source file. This is **mandatory, not a legacy fallback**: when a trajectory has no `trajectory_id`, span IDs are seeded from `session_id` alone, so two step trajectories of one multi-step trial that share a session ID produce identical span IDs even under an explicit trial root — which, per the ingestion rules below, is silent data loss. Producer-supplied trajectory and session identities are preserved when present.
+The plugin injects a deterministic `trajectory_id` derived from the full logical trial identity and stable step ordinal onto an in-memory copy of every trajectory, without modifying the source file. It also namespaces the trajectory's `session_id` with the same trial identity, preserving any producer value as a readable suffix.
 
-Whether Harbor agents emit `trajectory_id` at all, and how unique their `session_id` values are in practice, has not been characterized against a supported Harbor release. See §11.
+Both are **mandatory and unconditional**, not fallbacks for older producers. Source analysis of Harbor v0.18.0 establishes why:
+
+- **No Harbor agent sets `trajectory_id`.** It is absent from every shipped example, including ATIF-v1.7 ones. Without it, pre-v1.7 trajectories seed their span IDs from `session_id` alone.
+- **All steps of a multi-step trial share one `session_id`.** The agent is constructed once per trial and generates its session identifier in its constructor; every step reuses that instance. So the sharing that causes span-ID collisions is structural, not incidental.
+- **Several agents emit a constant `session_id`.** One hardcodes a fixed literal on every trajectory it writes; four others fall back to `"unknown"`. For those, an un-namespaced identity collides across every trial in every job.
+
+Namespacing the session identity is required separately from `trajectory_id` because Phoenix derives a span's session from `session_id` on its own path, and resolves session rows **without a project filter**. Preserving a constant producer value verbatim would therefore group unrelated trials — across jobs, datasets and projects — into a single Phoenix session.
+
+Both injected identities must be globally unique and reproducible across replays: unique because Phoenix resolves traces and sessions in a global namespace, and reproducible because a resumed job has to regenerate identical span IDs for the upload to stay idempotent. Deriving them from the Harbor job ID, task ID, repetition and step ordinal satisfies both.
 
 For a multi-step task, the plugin creates one trial-level trace and places each step trajectory beneath the same root. One logical trial therefore appears as one experiment run with one trace.
 
@@ -451,8 +459,9 @@ This design depends on behavior that is either private to Harbor or not yet prob
 | The resolved task and trial plan is readable from Harbor's private job-plan attributes with a stable shape | Verified against 0.18.0, 0.20.0, and main | Ingestion breaks on a Harbor refactor with no public-API change |
 | Retry terminality can be reconstructed from START counts plus the public retry config | Verified by source across three versions; not a public Harbor promise | Intermediate attempts ingested as terminal, or terminal attempts skipped |
 | A raised trial-end hook error stops the job and cancels siblings | Derived from source and an isolated hook probe; **not** proven in a container-backed job | Fail-closed guarantee weaker than specified |
-| Harbor agents emit ATIF `trajectory_id`, and `session_id` values are unique per step | **Not probed.** Stage 0 characterized file locations only | Span-ID collisions, silently dropped spans |
+| No Harbor agent emits ATIF `trajectory_id`; all steps of a trial share one `session_id`; some agents emit a constant `session_id` | **Established** from v0.18.0 source and shipped trajectory examples | Already accounted for: identity injection is unconditional |
 | Per-step ATIF file layout for multi-step tasks | Observed, not asserted as a Harbor contract | Missing or misparented step trajectories |
+| The above holds for every ATIF-supporting agent | Roughly ten of ~28 sampled directly, plus the shared base-class construction pattern | A further constant-`session_id` agent would already be handled by unconditional namespacing |
 | Phoenix rejects any span batch containing an already-persisted span ID, and silently drops in-batch duplicates | Verified in Phoenix source | Replay either fails loudly or loses spans |
 
 Known gap with no plugin-side remedy: if Harbor crashes between persisting an intermediate retry attempt and starting its retry, resume may treat that attempt as completed work. This is upstream and is one reason to prefer a queue-owned terminal-attempt event.
