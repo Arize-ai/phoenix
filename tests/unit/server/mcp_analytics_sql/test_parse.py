@@ -32,6 +32,7 @@ from phoenix.server.mcp_analytics_sql.allowlist import DialectName, load_allowli
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp_analytics_sql.parse import (
     _ALLOWED_STRUCTURAL_CLASSES,
+    MAX_TREE_DEPTH,
     AdmissionOutcome,
     AdmissionResult,
     _timestamp_comparison_pairs,
@@ -52,6 +53,19 @@ def _load_corpus() -> list[dict[str, str]]:
 
 
 CORPUS = _load_corpus()
+
+
+def _depth_of(sql: str, dialect: str) -> int:
+    root = parse_one(sql, read="postgres" if dialect == "postgresql" else dialect)
+    deepest, stack = 0, [(root, 0)]
+    while stack:
+        node, depth = stack.pop()
+        deepest = max(deepest, depth)
+        for value in node.args.values():
+            for item in value if isinstance(value, list) else [value]:
+                if isinstance(item, exp.Expression):
+                    stack.append((item, depth + 1))
+    return deepest
 
 
 def _outcome(result: AdmissionResult) -> str:
@@ -876,6 +890,38 @@ class TestTimestampComparisonCoverage:
         result = try_parse_and_admit(sql, dialect="sqlite")
 
         assert result.outcome is AdmissionOutcome.PARSE_ERROR
+
+    @pytest.mark.parametrize("levels", [90, 150, 400])
+    def test_a_tree_too_deep_for_a_later_stage_is_refused_at_admission(self, levels: int) -> None:
+        """Guarding the parser alone leaves the class open.
+
+        Every stage after it walks the tree recursively, so a statement the
+        parser accepts can still exhaust the stack in the generator -- and there
+        the failure is not a refusal but the masked internal failure the guard
+        exists to prevent. Ninety nested subqueries parse and then die in
+        `render`, so the whole pipeline is exercised here rather than admission
+        alone.
+        """
+        sql = "SELECT id FROM " + "(SELECT id FROM " * levels + "spans" + ")" * levels
+        allowlist = load_allowlist()
+
+        with pytest.raises(AnalyticsSqlError) as caught:
+            root = admit_sql(sql, allowlist=allowlist, dialect="sqlite")[0]
+            ctx = RewriteContext(allowlist=allowlist, dialect="sqlite", row_limit=5)
+            rewrite(root, ctx).sql(dialect="sqlite")
+
+        assert caught.value.code in (ErrorCode.UNSUPPORTED_SYNTAX, ErrorCode.PARSE_ERROR)
+
+    def test_the_depth_bound_is_far_above_anything_real(self) -> None:
+        """A bound picked by feel is a bound that refuses a real query one day.
+
+        The deepest statement in the corpus and the liveness suite is nine
+        levels; the generator fails somewhere above 258.
+        """
+        deepest = max(_depth_of(case["sql"], case.get("dialect", DIALECT)) for case in CORPUS)
+
+        assert deepest * 5 < MAX_TREE_DEPTH, f"corpus reached depth {deepest}"
+        assert MAX_TREE_DEPTH < 258, "must stay below what the generator survives"
 
     def test_an_aware_literal_behind_grouping_is_still_rewritten(self) -> None:
         ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)

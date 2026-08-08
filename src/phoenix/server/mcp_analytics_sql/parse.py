@@ -78,7 +78,42 @@ def parse_sql(sql: str, *, dialect: DialectName) -> exp.Expression:
             code=ErrorCode.UNSUPPORTED_SYNTAX,
             message=f"Only SELECT/set operations are supported (root={type(root).__name__}).",
         )
+    if _tree_depth(root) > MAX_TREE_DEPTH:
+        raise AnalyticsSqlError(
+            code=ErrorCode.UNSUPPORTED_SYNTAX,
+            message=(
+                f"SQL is nested more than {MAX_TREE_DEPTH} levels deep. "
+                "Simplify the statement, or split it into CTEs."
+            ),
+        )
     return root
+
+
+#: How deep a statement may nest. Every stage after parsing walks the tree
+#: recursively -- admission, the rewrites, and the generator -- so a tree the
+#: parser accepts can still exhaust the stack in one of them, where the error is
+#: not a refusal but a masked internal failure. Bounding the tree once bounds all
+#: of them, and is checked rather than trusted.
+#:
+#: Chosen against measurement rather than by feel: the deepest statement in the
+#: corpus and the liveness suite is 9 levels, and the generator fails somewhere
+#: above 258. This sits an order of magnitude above real usage and well below the
+#: floor of what breaks.
+MAX_TREE_DEPTH = 100
+
+
+def _tree_depth(root: exp.Expression) -> int:
+    """Deepest path in the tree, walked iteratively so measuring cannot recurse."""
+    deepest = 0
+    stack: list[tuple[exp.Expression, int]] = [(root, 0)]
+    while stack:
+        node, depth = stack.pop()
+        deepest = max(deepest, depth)
+        for value in node.args.values():
+            for item in value if isinstance(value, list) else [value]:
+                if isinstance(item, exp.Expression):
+                    stack.append((item, depth + 1))
+    return deepest
 
 
 # Node classes that are callable-shaped but are not exp.Func, so the function
