@@ -16,11 +16,8 @@ from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
     build_anthropic_prompt_cache_capability,
 )
-from phoenix.server.agents.capabilities.skills import SkillsCapability, SkillsToolset
 from phoenix.server.agents.capabilities.tools.internal import CallSubAgentCapability
-from phoenix.server.agents.capabilities.tools.internal.bash import (
-    BashCapability,
-)
+from phoenix.server.agents.capabilities.tools.internal.bash import BashCapability
 from phoenix.server.agents.capabilities.tools.internal.write_span_note import (
     WriteSpanNoteCapability,
 )
@@ -81,8 +78,9 @@ def build_server_agent(
         BashCapability(
             schema=schema,
             build_graphql_context=build_graphql_context,
-            instructions=resolved_prompts.bash_tool.render(),
+            instructions=resolved_prompts.bash_tool,
             allow_mutations=allow_mutations,
+            internal_skills=[PHOENIX_GRAPHQL_SKILL, SPAN_CODING_SKILL],
         ),
         WriteSpanNoteCapability(
             db=db,
@@ -94,17 +92,6 @@ def build_server_agent(
             is_viewer=is_viewer,
         ),
     ]
-    capabilities.append(
-        SkillsCapability(
-            toolset=SkillsToolset[None](
-                skills=[PHOENIX_GRAPHQL_SKILL, SPAN_CODING_SKILL],
-                load_skill_template=resolved_prompts.load_skill,
-                load_skill_tool_template=resolved_prompts.load_skill_tool,
-                read_skill_resource_tool_template=resolved_prompts.read_skill_resource_tool,
-            ),
-            instructions=resolved_prompts.skills,
-        )
-    )
     if docs_mcp_server is not None:
         capabilities.append(
             MintlifyDocsMCPCapability[None](

@@ -7,6 +7,28 @@
     - Built-in shell commands are available; do not assume apt, brew, pnpm, uv, git, or other host binaries exist.
     - Language runtimes such as python, python3, and node are not available.
   </constraints>
+  {% if internal_skills %}
+  <skills>
+    <description>Skills are domain-specific instructions for particular tasks, mounted read-only at {{ skills_root }} as one directory per skill. Each holds a SKILL.md, and sometimes a resources/ directory of supporting references.</description>
+    <available_skills>
+      {% for skill in internal_skills | sort(attribute='name') %}
+      <skill>
+        <name>{{ skill.name | sanitize(enclosing_tag="skill", max_chars=128) }}</name>
+        <description>{{ skill.description | sanitize(enclosing_tag="skill", max_chars=512, preserve_newlines=True) }}</description>
+        <directory>{{ skills_root }}/{{ skill.name | sanitize(enclosing_tag="skill", max_chars=128) }}/</directory>
+      </skill>
+      {% endfor %}
+    </available_skills>
+    <usage>
+      - When a task falls within a skill's domain, `cat` that skill's SKILL.md before acting, then follow its guidance.
+      - A SKILL.md may reference supporting files by relative path (e.g. `resources/sessions.md`). Resolve those against that skill's directory above; paths are not resolved relative to your working directory. Read them only when the SKILL.md points you at them.
+      - Glob patterns are NOT expanded anywhere in this shell. Patterns such as `{{ skills_root }}/*/SKILL.md` and `/home/user/workspace/*.json` stay literal instead of matching files. Use the exact directories listed above, `ls`, `find`, or explicit paths.
+      - Writes under {{ skills_root }} are rejected. Copy a file into /home/user/workspace if you need to modify it.
+      - Read each SKILL.md at most once per session; it stays in the conversation afterwards.
+      - Use progressive disclosure: read only what you need, when you need it.
+    </usage>
+  </skills>
+  {% endif %}
   <phoenix-gql>
     - phoenix-gql executes GraphQL operations against the Phoenix GraphQL API. Run `phoenix-gql --help` for usage and current permissions.
     - It is read-only by default: only `query` operations are permitted. Mutations and subscriptions are rejected unless mutations have been explicitly enabled.
