@@ -2256,6 +2256,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/dataset_labels"),
     (400, "POST", "v1/datasets/upload"),
     (422, "POST", "v1/datasets/fake-id-{}/experiments"),
+    (422, "POST", "v1/datasets/fake-id-{}/splits"),
     (422, "POST", "v1/document_annotations"),
     (422, "POST", "v1/experiment_evaluations"),
     (422, "POST", "v1/experiments/fake-id-{}/runs"),
@@ -2281,12 +2282,14 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "PATCH", "v1/experiments/fake-id-{}"),
     (422, "PATCH", "v1/dataset_labels/fake-id-{}"),
     (422, "PATCH", "v1/prompts/fake-id-{}"),
+    (422, "PATCH", "v1/datasets/fake-id-{}/splits/test-split"),
     # DELETE routes
     (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
     (404, "DELETE", "v1/projects/{0}/annotation_configs/{0}"),
     (422, "DELETE", "v1/dataset_labels/fake-id-{}"),
     (422, "DELETE", "v1/datasets/fake-id-{}/labels/test-label"),
     (422, "DELETE", "v1/datasets/fake-id-{}"),
+    (422, "DELETE", "v1/datasets/fake-id-{}/splits/test-split"),
     (422, "DELETE", "v1/experiments/fake-id-{}"),
     (404, "DELETE", "v1/sessions/fake-id-{}"),
     (404, "DELETE", "v1/spans/fake-id-{}"),
@@ -2393,6 +2396,7 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
         path = re.sub(r"\{[^}]*\}", "{id}", path)
         path = re.sub(r"/tags/test-tag$", "/tags/{id}", path)
         path = re.sub(r"/labels/test-label$", "/labels/{id}", path)
+        path = re.sub(r"/splits/test-split$", "/splits/{id}", path)
         return path
 
     # Map normalized paths back to original paths for error reporting

@@ -118,6 +118,14 @@ class CreateDatasetLabelRequestBody(TypedDict):
     description: NotRequired[str]
 
 
+class CreateDatasetSplitRequestBody(TypedDict):
+    name: str
+    description: NotRequired[str]
+    color: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+    example_ids: NotRequired[Sequence[str]]
+
+
 class CreateExperimentRequestBody(TypedDict):
     name: NotRequired[str]
     description: NotRequired[str]
@@ -198,6 +206,17 @@ class DatasetLabel(TypedDict):
     name: str
     description: Optional[str]
     color: str
+
+
+class DatasetSplit(TypedDict):
+    id: str
+    name: str
+    description: Optional[str]
+    color: str
+    metadata: Mapping[str, Any]
+    example_count: int
+    created_at: str
+    updated_at: str
 
 
 class DatasetVersion(TypedDict):
@@ -1005,6 +1024,19 @@ class UpdateDatasetLabelResponseBody(TypedDict):
     data: DatasetLabel
 
 
+class UpdateDatasetSplitRequestBody(TypedDict):
+    name: NotRequired[str]
+    description: NotRequired[str]
+    color: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+    add_example_ids: NotRequired[Sequence[str]]
+    remove_example_ids: NotRequired[Sequence[str]]
+
+
+class UpdateDatasetSplitResponseBody(TypedDict):
+    data: DatasetSplit
+
+
 class UpdateExperimentRequestBody(TypedDict):
     name: NotRequired[str]
     description: NotRequired[str]
@@ -1239,6 +1271,10 @@ class CreateChatCompletionRequestBody(TypedDict):
 
 class CreateDatasetLabelResponseBody(TypedDict):
     data: DatasetLabel
+
+
+class CreateDatasetSplitResponseBody(TypedDict):
+    data: DatasetSplit
 
 
 class CreateExperimentResponseBody(TypedDict):
