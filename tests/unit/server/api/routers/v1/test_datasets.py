@@ -4818,6 +4818,33 @@ async def test_update_dataset_split_duplicate_name_conflict(
     assert response.status_code == 409
 
 
+async def test_update_dataset_split_duplicate_name_with_membership_edit_conflict(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """A duplicate rename combined with a membership edit must still return 409, not 500.
+
+    Regression test: membership queries autoflush the pending name change, so
+    the IntegrityError can surface outside the final flush.
+    """
+    dataset_id, example_ids = await _create_dataset_with_examples(
+        httpx_client, "ds_patch_conflict_membership", 2
+    )
+    await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={"name": "train"},
+    )
+    other = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={"name": "test"},
+    )
+    other_id = other.json()["data"]["id"]
+    response = await httpx_client.patch(
+        url=f"/v1/datasets/{dataset_id}/splits/{other_id}",
+        json={"name": "train", "add_example_ids": example_ids[:1]},
+    )
+    assert response.status_code == 409
+
+
 async def test_delete_dataset_split(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,

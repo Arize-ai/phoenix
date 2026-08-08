@@ -1762,6 +1762,26 @@ async def update_dataset_split(
                 detail=f"Dataset split with ID {split_id} not found", status_code=404
             )
 
+        # Perform all reads before mutating the split: subsequent queries would
+        # otherwise autoflush pending changes and surface integrity errors
+        # (e.g. a duplicate name) outside the try/except below.
+        remove_rowids = await _resolve_dataset_example_rowids(
+            session, dataset.id, request_body.remove_example_ids
+        )
+        add_rowids = await _resolve_dataset_example_rowids(
+            session, dataset.id, request_body.add_example_ids
+        )
+        already_present = set(
+            await session.scalars(
+                select(models.DatasetSplitDatasetExample.dataset_example_id).where(
+                    models.DatasetSplitDatasetExample.dataset_split_id == split_rowid,
+                    models.DatasetSplitDatasetExample.dataset_example_id.in_(add_rowids),
+                )
+            )
+            if add_rowids
+            else []
+        )
+
         # Only fields explicitly present in the request are changed; an omitted
         # field is left untouched. An explicit null clears the description (the
         # only nullable column) and is ignored for the non-nullable columns.
@@ -1774,26 +1794,11 @@ async def update_dataset_split(
         if "metadata" in fields_set and isinstance(request_body.metadata, dict):
             split.metadata_ = request_body.metadata
 
-        remove_rowids = await _resolve_dataset_example_rowids(
-            session, dataset.id, request_body.remove_example_ids
-        )
-        add_rowids = await _resolve_dataset_example_rowids(
-            session, dataset.id, request_body.add_example_ids
-        )
-        # Add first, then remove, so an example listed in both arrays ends up
-        # removed (removal wins). Adding an example already in the split is a
-        # no-op; removing one that isn't a member is a no-op.
-        if add_rowids:
-            already_present = set(
-                await session.scalars(
-                    select(models.DatasetSplitDatasetExample.dataset_example_id).where(
-                        models.DatasetSplitDatasetExample.dataset_split_id == split_rowid,
-                        models.DatasetSplitDatasetExample.dataset_example_id.in_(add_rowids),
-                    )
-                )
-            )
-            to_add = [rowid for rowid in add_rowids if rowid not in already_present]
-            if to_add:
+        try:
+            # Add first, then remove, so an example listed in both arrays ends
+            # up removed (removal wins). Adding an example already in the split
+            # is a no-op; removing one that isn't a member is a no-op.
+            if to_add := [rowid for rowid in add_rowids if rowid not in already_present]:
                 await session.execute(
                     insert(models.DatasetSplitDatasetExample),
                     [
@@ -1801,18 +1806,17 @@ async def update_dataset_split(
                         for rowid in to_add
                     ],
                 )
-                await session.flush()
-        if remove_rowids:
-            await session.execute(
-                delete(models.DatasetSplitDatasetExample).where(
-                    models.DatasetSplitDatasetExample.dataset_split_id == split_rowid,
-                    models.DatasetSplitDatasetExample.dataset_example_id.in_(remove_rowids),
+            if remove_rowids:
+                await session.execute(
+                    delete(models.DatasetSplitDatasetExample).where(
+                        models.DatasetSplitDatasetExample.dataset_split_id == split_rowid,
+                        models.DatasetSplitDatasetExample.dataset_example_id.in_(remove_rowids),
+                    )
                 )
-            )
-
-        try:
             await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            # Membership inserts are pre-filtered against existing rows, so an
+            # integrity error here can only be the unique name constraint.
             await session.rollback()
             raise HTTPException(
                 detail="A dataset split with this name already exists",
@@ -1821,6 +1825,7 @@ async def update_dataset_split(
         await session.refresh(split)
         example_count = await _dataset_scoped_example_count(session, split_rowid, dataset.id)
         data = _to_dataset_split(split, example_count=example_count)
+
     return UpdateDatasetSplitResponseBody(data=data)
 
 
