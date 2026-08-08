@@ -410,9 +410,10 @@ def _sqlite_authorizer(
             # An earlier revision put the declared-relation accept first, gated
             # on `dbname is None`, to stop a caller's CTE being reported as an
             # admission bypass. Both halves of that were wrong. A caller CTE
-            # shadowing a table emits no authorizer event at all -- SQLite
-            # resolves it before this callback sees anything -- so the accept
-            # was not what let those statements run. And a table-level read,
+            # shadowing a table emits no *read* event -- SQLite resolves the
+            # name before any read is authorized, and the only event it does
+            # deliver is a SELECT naming the CTE -- so the accept was not what
+            # let those statements run. And a table-level read,
             # which `count(*)` emits, presents as `(table, '', None, None)`:
             # `dbname is None` is true for the *physical* table, so the gate
             # accepted `count(*)` over a forbidden table whenever a caller
@@ -427,10 +428,13 @@ def _sqlite_authorizer(
                     "describeSqlSchema lists the tables that are",
                     kind="bypass",
                 )
-            # A relation this statement declared: the derived tables the rewrites
-            # wrap real tables in, and caller CTEs and subqueries. Reached only
-            # for names that are not withheld Phoenix tables, so accepting here
-            # cannot excuse one.
+            # A relation this statement declared. Kept because a read reported
+            # against such a name must not be refused for being unknown to the
+            # manifest; no probed shape produces one, since a read through a
+            # CTE or subquery names the base table instead, so treat this as a
+            # backstop for shapes not enumerated rather than a described case.
+            # Reached only for names that are not withheld Phoenix tables, so
+            # accepting here cannot excuse one.
             if table in introduced_relations:
                 return sqlite3.SQLITE_OK
             # A table-valued function is reported as a read of a pseudo-table

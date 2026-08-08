@@ -843,9 +843,9 @@ class TestGroupByBindsToTheInputColumn:
     """
 
     def test_an_alias_shadowing_a_hidden_column_does_not_reach_it(self) -> None:
-        """Measured: with rows (a,1) (a,2) (b,1), `GROUP BY user_id` under this
-        alias yields two groups -- it grouped by the real column, disclosing its
-        distribution."""
+        """Measured with `name` held constant and user_id 1,2,3, so the group
+        count discriminates: grouping by the alias would give one group and it
+        gave three -- the withheld column's distribution."""
         result = try_parse_and_admit(
             "SELECT name AS user_id, COUNT(*) FROM datasets GROUP BY user_id", dialect="sqlite"
         )

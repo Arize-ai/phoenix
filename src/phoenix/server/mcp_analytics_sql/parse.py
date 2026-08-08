@@ -238,11 +238,15 @@ def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
 #: considered was admitted by default. Three defects were found in that seam in
 #: one night, none of them by a check.
 #:
-#: Derived from evidence rather than from opinion: every entry is a class
-#: produced by parsing a statement this surface already ships, tests or teaches
-#: -- the admission corpus, the schema's worked examples, the liveness suite,
-#: and a battery covering the ordinary analytics grammar (predicates, CASE,
-#: windows, joins, set operations, grouping, JSON and timestamp comparisons).
+#: Two provenances, and they are not equally strong. Most entries were produced
+#: by parsing statements this surface ships, tests or teaches -- the admission
+#: corpus, the schema's worked examples, the liveness suite. The rest are
+#: completions: classes added because refusing them would be arbitrary beside
+#: one that was observed (`GTE` beside `GT`, `NullSafeEQ` beside `NullSafeNEQ`,
+#: `Intersect` and `Except` beside `Union`), or because a review found ordinary
+#: analytics SQL refused. An audit of the observed set puts eleven of the
+#: seventy-eight in that second group, which is worth knowing when reading a
+#: refusal: an entry here is not proof anyone exercised it.
 #:
 #: It is therefore a floor, not a survey. The parser defines several hundred
 #: structural classes and this names sixty-odd; a legitimate construct nobody
