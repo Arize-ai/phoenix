@@ -2601,7 +2601,19 @@ class CodeEvaluatorRunner(BaseEvaluator):
         return ({}, None)
 
     def _build_python_harness(self, mapped_inputs: dict[str, Any]) -> str:
+        # `repr()` renders any JSON-derived value as a native Python literal --
+        # except non-finite floats. `repr(float("nan"))` is the bare token
+        # `nan`, and `repr(float("inf"))` / `repr(float("-inf"))` are `inf` /
+        # `-inf`: valid *expressions* only when those names are bound, not
+        # literals. NaN/Infinity are legal IEEE-754 doubles that legitimately
+        # reach here from real span/trace data (e.g. a computed ratio that hit
+        # division by zero), so without this import the generated script
+        # fails with `NameError: name 'nan' is not defined` while merely
+        # constructing `_inputs`, before the user's `evaluate()` ever runs --
+        # surfacing to the caller as an opaque "no result markers found"
+        # rather than a clear error.
         return (
+            f"from math import inf, nan\n"
             f"{self._source_code}\n\n"
             f"import json as _json\n"
             f"_inputs = {mapped_inputs!r}\n"
