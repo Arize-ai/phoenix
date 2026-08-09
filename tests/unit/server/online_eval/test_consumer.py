@@ -830,7 +830,9 @@ async def test_configuration_versions_are_resolved_once_per_claim_batch(
     consumer = OnlineEvalConsumer(
         db,
         decrypt=lambda value: value,
-        max_concurrency=1,
+        # The batch runs concurrently; SQLite needs its database work serialized, which
+        # is the db semaphore's job in a deployed consumer too.
+        db_semaphore=asyncio.Semaphore(1),
     )
     await consumer._cycle()
 

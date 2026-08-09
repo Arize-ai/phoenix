@@ -398,16 +398,12 @@ new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Default
 """
 ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE = "PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE"
 """
-The maximum number of work units an online-eval consumer claims per tick. Together with
+The maximum number of work units an online-eval consumer claims per tick, and so the
+per-replica evaluation concurrency: a consumer runs its whole claimed batch at once and
+waits for all of it before claiming again. Together with
 PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS this bounds per-replica evaluation
 throughput at claim_batch_size / tick_interval evaluations per second. Defaults to 10.
 """
-ENV_PHOENIX_ONLINE_EVAL_SPAN_CONSUMER_CONCURRENCY = "PHOENIX_ONLINE_EVAL_SPAN_CONSUMER_CONCURRENCY"
-"""Maximum concurrent work-unit tasks in the span consumer. Defaults to 10."""
-ENV_PHOENIX_ONLINE_EVAL_SESSION_CONSUMER_CONCURRENCY = (
-    "PHOENIX_ONLINE_EVAL_SESSION_CONSUMER_CONCURRENCY"
-)
-"""Maximum concurrent work-unit tasks in the session consumer. Defaults to 10."""
 ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY"
 """Maximum aggregate evaluator executions across online-eval consumers. Defaults to 10."""
 ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY"
@@ -3578,14 +3574,6 @@ def _online_eval_positive_int(name: str, default: int) -> int:
             f"{value}. Value must be a positive integer."
         )
     return value
-
-
-def get_env_online_eval_span_consumer_concurrency() -> int:
-    return _online_eval_positive_int(ENV_PHOENIX_ONLINE_EVAL_SPAN_CONSUMER_CONCURRENCY, 10)
-
-
-def get_env_online_eval_session_consumer_concurrency() -> int:
-    return _online_eval_positive_int(ENV_PHOENIX_ONLINE_EVAL_SESSION_CONSUMER_CONCURRENCY, 10)
 
 
 def get_env_online_eval_max_evaluator_concurrency() -> int:

@@ -1,7 +1,9 @@
 """Online-eval consumer daemon.
 
 Runs on every replica; instances compete for work through coordinator claims.
-Each cycle claims a batch of work units and processes them concurrently:
+Each cycle claims a batch of work units and processes them concurrently — the
+batch size is therefore the per-replica evaluation concurrency, since a cycle
+awaits its whole batch before claiming again:
 hydrate behind the staleness guard (stale units are expired, never executed),
 evaluate with lease heartbeats, write annotations, then complete — or fail
 with a cooldown. Shutdown gives in-flight evals a grace period, then cancels
@@ -206,7 +208,6 @@ class OnlineEvalConsumer(DaemonTask):
         tick_interval_seconds: float = TICK_INTERVAL_SECONDS,
         claim_batch_size: int = CLAIM_BATCH_SIZE,
         execution_deadline_seconds: float = EXECUTION_DEADLINE_SECONDS,
-        max_concurrency: int = CLAIM_BATCH_SIZE,
         evaluator_semaphore: Optional[asyncio.Semaphore] = None,
         db_semaphore: Optional[asyncio.Semaphore] = None,
     ) -> None:
@@ -230,8 +231,7 @@ class OnlineEvalConsumer(DaemonTask):
         self._tick_interval_seconds = tick_interval_seconds
         self._claim_batch_size = claim_batch_size
         self._execution_deadline_seconds = execution_deadline_seconds
-        self._consumer_semaphore = asyncio.Semaphore(max_concurrency)
-        self._evaluator_semaphore = evaluator_semaphore or asyncio.Semaphore(max_concurrency)
+        self._evaluator_semaphore = evaluator_semaphore or asyncio.Semaphore(claim_batch_size)
         self._db_semaphore = db_semaphore
         self._pending_tasks: set[asyncio.Task[None]] = set()
         self._publish_metrics = get_env_enable_prometheus()
@@ -320,7 +320,7 @@ class OnlineEvalConsumer(DaemonTask):
             # Nothing awaits between here and the last create_task, so every claimed
             # unit is covered either by this handler or by its own task.
             tasks = [
-                asyncio.create_task(self._process_unit_with_limit(unit, configuration))
+                asyncio.create_task(self._process_unit(unit, configuration))
                 for unit, configuration in zip(units, configurations, strict=True)
             ]
         except asyncio.CancelledError:
@@ -345,14 +345,6 @@ class OnlineEvalConsumer(DaemonTask):
             return await operation()
         async with self._db_semaphore:
             return await operation()
-
-    async def _process_unit_with_limit(
-        self,
-        unit: ClaimedWorkUnit,
-        configuration: Optional[ConfigurationSnapshotOutcome] = None,
-    ) -> None:
-        async with self._consumer_semaphore:
-            await self._process_unit(unit, configuration)
 
     async def _process_unit(
         self,

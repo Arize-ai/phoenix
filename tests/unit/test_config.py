@@ -181,18 +181,6 @@ class TestGetEnvOnlineEval:
                 1,
             ),
             (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_SPAN_CONSUMER_CONCURRENCY,
-                phoenix_config.get_env_online_eval_span_consumer_concurrency,
-                "1",
-                1,
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_SESSION_CONSUMER_CONCURRENCY,
-                phoenix_config.get_env_online_eval_session_consumer_concurrency,
-                "1",
-                1,
-            ),
-            (
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY,
                 phoenix_config.get_env_online_eval_max_evaluator_concurrency,
                 "1",
@@ -262,16 +250,6 @@ class TestGetEnvOnlineEval:
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING,
                 phoenix_config.get_env_online_eval_max_session_outstanding,
                 "-1",
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_SPAN_CONSUMER_CONCURRENCY,
-                phoenix_config.get_env_online_eval_span_consumer_concurrency,
-                "0",
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_SESSION_CONSUMER_CONCURRENCY,
-                phoenix_config.get_env_online_eval_session_consumer_concurrency,
-                "0",
             ),
             (
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY,

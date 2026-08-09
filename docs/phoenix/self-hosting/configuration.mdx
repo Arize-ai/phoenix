@@ -109,9 +109,7 @@ session sweeper, and consumers:
 | `PHOENIX_ONLINE_EVAL_RETENTION_SECONDS` | `604800` | Retains terminal work rows for this many seconds before cleanup. |
 | `PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING` | `10000` | Stops span-work materialization at this number of pending, running, and retryable-error units. |
 | `PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING` | `10000` | Stops session-work materialization at this number of pending, running, and retryable-error units. |
-| `PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE` | `10` | Limits the number of work units each consumer claims per cycle. |
-| `PHOENIX_ONLINE_EVAL_SPAN_CONSUMER_CONCURRENCY` | `10` | Limits concurrent span work-unit tasks per replica. |
-| `PHOENIX_ONLINE_EVAL_SESSION_CONSUMER_CONCURRENCY` | `10` | Limits concurrent session work-unit tasks per replica. |
+| `PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE` | `10` | Work units each consumer claims per cycle, and so its per-replica evaluation concurrency. |
 | `PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY` | `10` | Limits aggregate evaluator calls across both consumers per replica. |
 | `PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY` | `5` | Limits aggregate database phases across both consumers per replica. |
 | `PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS` | `5` | Sets the delay between claim cycles. Together with claim batch size, this bounds per-replica claim throughput. |
