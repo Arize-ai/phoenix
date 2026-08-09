@@ -49,7 +49,6 @@ from phoenix.server.online_eval import consumer as consumer_module
 from phoenix.server.online_eval import executor as executor_module
 from phoenix.server.online_eval.consumer import (
     OnlineEvalConsumer,
-    is_transient_error,
 )
 from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS, ClaimedWorkUnit
 from phoenix.server.online_eval.criteria_resolution import (
@@ -70,6 +69,7 @@ from phoenix.server.online_eval.executor import (
     session_eval_context,
     span_eval_context,
 )
+from phoenix.server.online_eval.failure_policy import is_transient_error
 from phoenix.server.online_eval.session_policy import (
     MAX_SESSION_EVAL_TURNS,
     SessionTranscriptPolicy,

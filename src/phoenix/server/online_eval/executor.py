@@ -51,6 +51,7 @@ from phoenix.server.online_eval.derivation import (
     STALE_FINGERPRINT_ERROR,
     config_fingerprint,
 )
+from phoenix.server.online_eval.failure_policy import FailureDisposition
 from phoenix.server.online_eval.session_policy import (
     SessionTranscriptPolicy,
     session_criteria_is_schedulable,
@@ -76,14 +77,20 @@ class EvalExecutionError(Exception):
 class EvaluatorResultValidationError(EvalExecutionError):
     """The evaluator returned a result that violates its output contract."""
 
-    online_eval_error_code = "EVALUATOR_RESULT_INVALID"
-    online_eval_count_attempt = True
+    online_eval_disposition = FailureDisposition(
+        count_attempt=True,
+        code="EVALUATOR_RESULT_INVALID",
+    )
 
 
 class PublicationClaimLostError(EvalExecutionError):
     """The work unit is no longer eligible for publication."""
 
-    online_eval_terminal_code = "PUBLICATION_CLAIM_LOST"
+    online_eval_disposition = FailureDisposition(
+        count_attempt=True,
+        terminal=True,
+        code="PUBLICATION_CLAIM_LOST",
+    )
 
 
 class TranscriptTooLargeError(Exception):

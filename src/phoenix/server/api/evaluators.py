@@ -62,6 +62,7 @@ from phoenix.server.api.input_types.PromptVersionInput import (
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.monty_runtime import MontyServiceError
+from phoenix.server.online_eval.failure_policy import FailureDisposition
 from phoenix.server.sandbox import (  # noqa: E402
     MissingSecretError,
     SecretsContext,
@@ -91,34 +92,48 @@ logger = logging.getLogger(__name__)
 class RenderedMessageTooLargeError(Exception):
     """Rendered LLM messages exceed the configured online-eval limit."""
 
-    online_eval_terminal_code = "RENDERED_MESSAGE_TOO_LARGE"
+    online_eval_disposition = FailureDisposition(
+        count_attempt=True,
+        terminal=True,
+        code="RENDERED_MESSAGE_TOO_LARGE",
+    )
 
 
 class SandboxPayloadTooLargeError(Exception):
     """Rendered sandbox source exceeds the configured online-eval limit."""
 
-    online_eval_terminal_code = "SANDBOX_PAYLOAD_TOO_LARGE"
+    online_eval_disposition = FailureDisposition(
+        count_attempt=True,
+        terminal=True,
+        code="SANDBOX_PAYLOAD_TOO_LARGE",
+    )
 
 
 class SandboxBackendTimeoutError(TimeoutError):
     """The sandbox backend reported its own execution timeout."""
 
-    online_eval_error_code = "SANDBOX_BACKEND_TIMEOUT"
-    online_eval_count_attempt = False
+    online_eval_disposition = FailureDisposition(
+        count_attempt=False,
+        code="SANDBOX_BACKEND_TIMEOUT",
+    )
 
 
 class SandboxRunnerTimeoutError(TimeoutError):
     """The evaluator runner's guard deadline expired."""
 
-    online_eval_error_code = "SANDBOX_RUNNER_TIMEOUT"
-    online_eval_count_attempt = True
+    online_eval_disposition = FailureDisposition(
+        count_attempt=True,
+        code="SANDBOX_RUNNER_TIMEOUT",
+    )
 
 
 class SandboxBackendExecutionError(Exception):
     """A sandbox backend returned an unsuccessful execution outcome."""
 
-    online_eval_error_code = "SANDBOX_BACKEND_ERROR"
-    online_eval_count_attempt = True
+    online_eval_disposition = FailureDisposition(
+        count_attempt=True,
+        code="SANDBOX_BACKEND_ERROR",
+    )
 
 
 def _mask_attrs(

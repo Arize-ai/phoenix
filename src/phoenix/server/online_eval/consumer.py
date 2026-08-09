@@ -19,8 +19,6 @@ from enum import Enum
 from secrets import token_hex
 from typing import Any, Awaitable, Callable, Optional, TypeVar
 
-import httpx
-
 from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
 from phoenix.server.dml_event import DmlEvent
@@ -38,6 +36,7 @@ from phoenix.server.online_eval.executor import (
     OnlineEvalExecutor,
     OnlineEvalStoragePaused,
 )
+from phoenix.server.online_eval.failure_policy import FailureDisposition, classify
 from phoenix.server.prometheus import (
     ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS,
     ONLINE_EVAL_EXPIRED_WORK_UNITS,
@@ -59,7 +58,6 @@ DRAIN_TIMEOUT_SECONDS = 10.0
 EXECUTION_DEADLINE_SECONDS = 600.0
 _CONSUMER_GROUP = "default"
 
-_TRANSIENT_HTTP_STATUS_CODES = frozenset({408, 429})
 _TRANSITION_RETRY_DELAYS_SECONDS = (1.0, 2.0, 4.0)
 
 
@@ -82,8 +80,12 @@ class EvalExecutionTimeout(Exception):
         super().__init__(f"{cause.value}: exceeded {deadline_seconds:g}s deadline")
 
     @property
-    def count_attempt(self) -> bool:
-        return self.cause is ExecutionTimeoutCause.EVALUATOR_DEADLINE_EXCEEDED
+    def online_eval_disposition(self) -> FailureDisposition:
+        # A provider that never answered is the provider's outage, not this unit's
+        # fault; an evaluator that ran too long is.
+        return FailureDisposition(
+            count_attempt=self.cause is ExecutionTimeoutCause.EVALUATOR_DEADLINE_EXCEEDED
+        )
 
 
 async def _cancel_and_await(task: asyncio.Task[Any]) -> None:
@@ -92,97 +94,6 @@ async def _cancel_and_await(task: asyncio.Task[Any]) -> None:
         await task
     except asyncio.CancelledError:
         pass
-
-
-def is_transient_error(exc: BaseException) -> bool:
-    """Best-effort classification of failures that heal on their own —
-    provider outages, rate limits, network partitions. Transient failures
-    retry after a flat cooldown WITHOUT counting toward MAX_ATTEMPTS, so an
-    outage longer than the retry budget cannot permanently exhaust queued
-    work. Anything unrecognized counts attempts as usual, which keeps poison
-    units bounded (fail-safe default). Walks the exception chain so wrapped
-    errors (e.g. ``EvalExecutionError`` raised from an httpx timeout)
-    classify by their root cause."""
-    seen: set[int] = set()
-    node: Optional[BaseException] = exc
-    while node is not None and id(node) not in seen:
-        seen.add(id(node))
-        # asyncio.TimeoutError is an alias of TimeoutError on 3.11+ but a
-        # distinct class on 3.10.
-        if isinstance(node, (ConnectionError, TimeoutError, asyncio.TimeoutError)):
-            return True
-        if isinstance(node, httpx.TransportError):
-            return True
-        # Provider SDK errors (openai, anthropic, ...) expose status_code
-        # directly; httpx.HTTPStatusError exposes it via .response.
-        status_code = getattr(node, "status_code", None)
-        if status_code is None:
-            status_code = getattr(getattr(node, "response", None), "status_code", None)
-        if isinstance(status_code, int) and (
-            status_code >= 500 or status_code in _TRANSIENT_HTTP_STATUS_CODES
-        ):
-            return True
-        if node.__cause__ is not None:
-            node = node.__cause__
-        elif node.__suppress_context__:
-            node = None
-        else:
-            node = node.__context__
-    return False
-
-
-def _exception_chain(exc: BaseException) -> list[BaseException]:
-    chain: list[BaseException] = []
-    seen: set[int] = set()
-    node: Optional[BaseException] = exc
-    while node is not None and id(node) not in seen:
-        seen.add(id(node))
-        chain.append(node)
-        if node.__cause__ is not None:
-            node = node.__cause__
-        elif node.__suppress_context__:
-            node = None
-        else:
-            node = node.__context__
-    return chain
-
-
-def _terminal_error(exc: BaseException) -> Optional[tuple[str, str]]:
-    for node in _exception_chain(exc):
-        code = getattr(node, "online_eval_terminal_code", None)
-        if isinstance(code, str):
-            return code, str(node)
-    return None
-
-
-def _typed_failure_policy(exc: BaseException) -> Optional[tuple[bool, str]]:
-    for node in _exception_chain(exc):
-        count_attempt = getattr(node, "online_eval_count_attempt", None)
-        code = getattr(node, "online_eval_error_code", None)
-        if isinstance(count_attempt, bool) and isinstance(code, str):
-            detail = str(node)
-            return count_attempt, detail if detail.startswith(f"{code}:") else f"{code}: {detail}"
-    return None
-
-
-def _is_provider_transient_error(
-    hydrated: Optional[HydratedWorkUnit],
-    exc: BaseException,
-) -> bool:
-    if hydrated is None or hydrated.evaluator_kind != "LLM":
-        return False
-    llm_client = getattr(hydrated.evaluator, "llm_client", None)
-    if llm_client is None:
-        return False
-    for node in _exception_chain(exc):
-        if not isinstance(node, Exception):
-            continue
-        try:
-            if llm_client.is_rate_limit_error(node) or llm_client.is_transient_error(node):
-                return True
-        except Exception:
-            continue
-    return False
 
 
 class OnlineEvalConsumer(DaemonTask):
@@ -447,10 +358,11 @@ class OnlineEvalConsumer(DaemonTask):
                     "claim was lost"
                 )
         except Exception as exc:
-            if terminal_error := _terminal_error(exc):
-                code, detail = terminal_error
+            disposition = classify(exc, hydrated_work_unit)
+            if disposition.terminal:
                 logger.error(
-                    f"Online-eval work unit {unit.work_unit_id} reached terminal state {code}",
+                    f"Online-eval work unit {unit.work_unit_id} reached terminal state "
+                    f"{disposition.code}",
                     exc_info=exc,
                 )
                 expired = await self._retry_transition(
@@ -459,7 +371,7 @@ class OnlineEvalConsumer(DaemonTask):
                     transition=lambda: self._coordinator.expire(
                         work_unit_id=unit.work_unit_id,
                         claimed_by=self._consumer_id,
-                        error=f"{code}: {detail}",
+                        error=disposition.error,
                     ),
                 )
                 if not expired:
@@ -468,18 +380,8 @@ class OnlineEvalConsumer(DaemonTask):
                         "recorded after its claim was lost"
                     )
                 return
-            timeout = exc if isinstance(exc, EvalExecutionTimeout) else None
-            typed_policy = _typed_failure_policy(exc)
-            if timeout is not None:
-                count_attempt = timeout.count_attempt
-                error = str(timeout)
-            elif typed_policy is not None:
-                count_attempt, error = typed_policy
-            else:
-                count_attempt = not (
-                    _is_provider_transient_error(hydrated_work_unit, exc) or is_transient_error(exc)
-                )
-                error = str(exc)
+            count_attempt = disposition.count_attempt
+            error = disposition.error
             transient = not count_attempt
             logger.exception(
                 f"Online-eval work unit {unit.work_unit_id} failed "
