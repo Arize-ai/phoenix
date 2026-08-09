@@ -812,6 +812,9 @@ class ProjectSession(HasId):
         UtcTimeStamp,
         nullable=True,
     )
+    # Deliberately one-way: once content is destroyed, nothing sets this back to true.
+    # Re-admitting a trimmed session would need a design for what its earlier
+    # evaluations mean, which does not exist yet.
     content_complete: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
