@@ -1,8 +1,9 @@
 from decimal import Decimal
+from typing import cast
 
 import pytest
 from sqlalchemy import text
-from sqlglot import parse_one
+from sqlglot import exp, parse_one
 
 from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
@@ -303,7 +304,7 @@ class TestRewriteAttribution:
         """A context populated the way production populates it -- by running the
         passes -- rather than by hand, so the test cannot drift from the code."""
         ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=500)
-        rewrite(parse_one(sql, read="sqlite"), ctx)
+        rewrite(cast(exp.Expression, parse_one(sql, read="sqlite")), ctx)
         return ctx
 
     def test_names_the_rewrite_the_column_and_the_workaround(self) -> None:

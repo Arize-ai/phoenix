@@ -250,11 +250,12 @@ def render_schema_ddl(
     tables: Optional[list[str]] = None,
     detail: str = "brief",
     search: Optional[str] = None,
-    dialect: DialectName = "postgresql",
+    dialect: str = "postgresql",
 ) -> str:
     """Render the selected part of the allowlisted schema as DDL text."""
     manifest = manifest_document()
-    allowlist = load_allowlist(dialect)
+    dialect_name = cast(DialectName, dialect)
+    allowlist = load_allowlist(dialect_name)
     chunks: list[str] = []
 
     for area_name in [area] if area else list(manifest["areas"]):
@@ -268,9 +269,9 @@ def render_schema_ddl(
             spec = allowlist.table_specs.get(table_name)
             if spec is None or (search and not _matches(spec, search)):
                 continue
-            block = _render_table(spec, dialect=dialect, detail=detail, allowlist=allowlist)
+            block = _render_table(spec, dialect=dialect_name, detail=detail, allowlist=allowlist)
             if detail != "brief":
-                block += _render_curation(spec, dialect)
+                block += _render_curation(spec, dialect_name)
             rendered.append("\n".join(block))
         if rendered:
             # Brief entries are single lines, so blank lines between them would
@@ -287,7 +288,7 @@ def _matches(spec: TableSpec, search: str) -> bool:
     return any(needle in column.name.lower() for column in spec.exposed_columns)
 
 
-def validate_ddl(ddl: str, dialect: DialectName) -> None:
+def validate_ddl(ddl: str, dialect: str) -> None:
     """Raise if any rendered statement fails to parse.
 
     Generated DDL fails quietly in ways handwritten DDL does not -- a comment

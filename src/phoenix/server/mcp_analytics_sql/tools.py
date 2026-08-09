@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
-from phoenix.server.mcp_analytics_sql.allowlist import DialectName, load_allowlist
+from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
 from phoenix.server.mcp_analytics_sql.catalog import (
     cached_engine_info,
     reflect_indexes,
@@ -309,7 +309,7 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         # detail to act on them. At "brief" the caller is still choosing tables
         # and cannot yet write the expression an index would require.
         if detail == "full":
-            allowlist = load_allowlist(cast(DialectName, db.dialect.value))
+            allowlist = load_allowlist(db.dialect.value)
             # Narrowed by `area` as well as `tables`. Filtering on `tables`
             # alone meant asking for one area still returned every index in the
             # deployment, so a telemetry request came back carrying experiment

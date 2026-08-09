@@ -58,7 +58,11 @@ CORPUS = _load_corpus()
 
 def _depth_of(sql: str, dialect: str) -> int:
     """Measured with the real metric, so a change to it cannot pass unnoticed here."""
-    return _tree_depth(parse_one(sql, read="postgres" if dialect == "postgresql" else dialect))
+    return _tree_depth(
+        cast(
+            exp.Expression, parse_one(sql, read="postgres" if dialect == "postgresql" else dialect)
+        )
+    )
 
 
 def _outcome(result: AdmissionResult) -> str:
@@ -792,7 +796,7 @@ class TestTimestampComparisonCoverage:
             "SELECT id FROM spans WHERE start_time IN ('2026-01-01T00:00:00Z')", read="sqlite"
         )
 
-        rendered = rewrite(tree, ctx).sql(dialect="sqlite")
+        rendered = rewrite(cast(exp.Expression, tree), ctx).sql(dialect="sqlite")
 
         assert "2026-01-01 00:00:00" in rendered
         assert "timestamp_literals" in ctx.applied
@@ -947,7 +951,7 @@ class TestTimestampComparisonCoverage:
             read="sqlite",
         )
 
-        rendered = rewrite(tree, ctx).sql(dialect="sqlite")
+        rendered = rewrite(cast(exp.Expression, tree), ctx).sql(dialect="sqlite")
 
         assert "2026-01-01 00:00:00" in rendered
         assert "timestamp_literals" in ctx.applied
@@ -980,7 +984,7 @@ class TestTimestampComparisonCoverage:
         ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=500)
         tree = parse_one(sql.format("2026-01-01T00:00:00Z"), read="sqlite")
 
-        rendered = rewrite(tree, ctx).sql(dialect="sqlite")
+        rendered = rewrite(cast(exp.Expression, tree), ctx).sql(dialect="sqlite")
 
         assert "2026-01-01 00:00:00" in rendered
         assert "timestamp_literals" in ctx.applied
@@ -1043,7 +1047,7 @@ class TestStructuralPolicyIsDefaultDeny:
         """The allowlist is a floor derived from evidence, so the constructs it
         was derived from must keep working -- on both backends."""
         for dialect in ("postgresql", "sqlite"):
-            result = self._admit(sql, cast(DialectName, dialect))
+            result = self._admit(sql, dialect)
             assert result.outcome is AdmissionOutcome.ADMIT, f"{dialect}: {sql} -> {result.detail}"
 
     @pytest.mark.parametrize(
@@ -1228,7 +1232,7 @@ class TestStructuralPolicyIsDefaultDeny:
         """The structural policy runs after the lossy-shape checks, which name
         the hazard and a spelling that works. Told only that `HexString` is not
         in the grammar, a caller learns nothing."""
-        result = self._admit("SELECT id FROM spans WHERE id = 0x1f", cast(DialectName, "sqlite"))
+        result = self._admit("SELECT id FROM spans WHERE id = 0x1f", "sqlite")
 
         assert "decimal" in result.detail
         assert "not part of the permitted grammar" not in result.detail
@@ -1419,7 +1423,9 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
             "SELECT id AS n FROM projects ORDER BY (SELECT s.name FROM spans s ORDER BY n LIMIT 1)",
             read="sqlite",
         )
-        locality = query_local_columns(root, allowlist=load_allowlist("sqlite"))
+        locality = query_local_columns(
+            cast(exp.Expression, root), allowlist=load_allowlist("sqlite")
+        )
 
         assert not any(locality.is_local(column) for column in root.find_all(exp.Column))
 
@@ -1438,14 +1444,14 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
             "SELECT id AS gradient_start_color FROM projects ORDER BY gradient_start_color",
             read="sqlite",
         )
-        alias = query_local_columns(alias_root, allowlist=allowlist)
+        alias = query_local_columns(cast(exp.Expression, alias_root), allowlist=allowlist)
         marked = [c for c in alias_root.find_all(exp.Column) if alias.is_local(c)]
         assert marked, "the bare sort key is local"
         assert all(alias.is_alias_bound(c) for c in marked)
         assert not any(alias.is_structurally_local(c) for c in marked)
 
         derived_root = parse_one("SELECT q.user_id FROM (SELECT 1 AS user_id) q", read="sqlite")
-        derived = query_local_columns(derived_root, allowlist=allowlist)
+        derived = query_local_columns(cast(exp.Expression, derived_root), allowlist=allowlist)
         structural = [c for c in derived_root.find_all(exp.Column) if derived.is_local(c)]
         assert structural, "a qualified reference into a subquery is structural evidence"
         assert all(derived.is_structurally_local(c) for c in structural)
@@ -1477,7 +1483,9 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
         reaches for it fails open -- which is how both alias defects reached the
         hidden-column check. Naming the bar is the whole point of the type."""
         locality = query_local_columns(
-            parse_one("SELECT id AS v FROM projects ORDER BY v", read="sqlite"),
+            cast(
+                exp.Expression, parse_one("SELECT id AS v FROM projects ORDER BY v", read="sqlite")
+            ),
             allowlist=load_allowlist("sqlite"),
         )
 
@@ -1486,7 +1494,12 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
 
     def test_the_rewrite_still_leaves_a_bare_alias_alone(self) -> None:
         rendered = rewrite(
-            parse_one("SELECT id, 1 AS latency_ms FROM spans ORDER BY latency_ms", read="sqlite"),
+            cast(
+                exp.Expression,
+                parse_one(
+                    "SELECT id, 1 AS latency_ms FROM spans ORDER BY latency_ms", read="sqlite"
+                ),
+            ),
             RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=500),
         ).sql(dialect="sqlite")
 

@@ -469,7 +469,7 @@ def _strip_parens(node: Optional[exp.Expression]) -> Optional[exp.Expression]:
 
 
 def _timestamp_comparison_pairs(
-    node: exp.Expression,
+    node: exp.Expr,
 ) -> list[tuple[Optional[exp.Expression], Optional[exp.Expression]]]:
     """Every (compared-against, operand) pair a node establishes.
 
@@ -715,8 +715,9 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> Column
                 continue
             if (column.name or "").lower() in derived_projections:
                 local[id(column)] = Locality.DERIVED_PROJECTION
+        scope_root_expression = select if select is not None else set_operation
         order_clause = (
-            (select or set_operation).args.get("order") if (select or set_operation) else None
+            scope_root_expression.args.get("order") if scope_root_expression is not None else None
         )
         if order_clause is not None:
             for ordered in _within_scope(order_clause, exp.Ordered):
@@ -752,10 +753,12 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> Column
                 if isinstance(source, exp.Table) and source.name in table_specs
                 for virtual in table_specs[source.name].virtual_columns
             }
-            for column in _within_scope(group_clause, exp.Column):
-                name = (column.name or "").lower()
-                if not column.table and name in output_aliases and name not in offered:
-                    local.setdefault(id(column), Locality.OUTPUT_ALIAS)
+            for group_column in _within_scope(group_clause, exp.Column):
+                if not isinstance(group_column, exp.Column):
+                    continue
+                name = (group_column.name or "").lower()
+                if not group_column.table and name in output_aliases and name not in offered:
+                    local.setdefault(id(group_column), Locality.OUTPUT_ALIAS)
     return ColumnLocality(local)
 
 
