@@ -36,10 +36,9 @@ Data wrangling and corpus building (LangChain / LlamaIndex / HaluEval / MS MARCO
 - `wrangle_*.ipynb` — dataset preparation notebooks.
 
 ### `ddl/`
-- `generate_ddl_postgresql.py` — extract DDL from a PostgreSQL Phoenix DB into a deterministic `postgresql_schema.sql`, validated with `pglast`. PEP 723 script.
-- `postgresql_schema.sql` — checked-in canonical schema.
-- `generate_ddl_sqlite.py` — extract DDL from a SQLite Phoenix DB into a deterministic `sqlite_schema.sql`, validated by replaying it into a fresh in-memory database and re-rendering it. PEP 723 script.
-- `sqlite_schema.sql` — checked-in canonical schema.
+- `generate_ddl_postgresql.py` — extract DDL from a PostgreSQL Phoenix DB into `src/phoenix/db/ddl/postgresql_schema.sql`, validated with `pglast`. PEP 723 script.
+- `generate_ddl_sqlite.py` — extract DDL from a SQLite Phoenix DB into `src/phoenix/db/ddl/sqlite_schema.sql`, validated by replaying it into a fresh in-memory database and re-rendering it. PEP 723 script.
+- The checked-in canonical schema assets live in `src/phoenix/db/ddl/`.
 - `compare_schemas.py` — assert both dialects describe the same tables, columns, explicitly created indexes, and CHECK/UNIQUE/FOREIGN KEY constraint names; each generator only validates against its own database, so nothing else catches the two files drifting apart. Names are normalized for PostgreSQL's 63-byte identifier cap, which SQLite does not share. Constraint-backed indexes and PRIMARY KEY names are excluded because the dialects legitimately differ there. PEP 723 script.
 
 ### `docker/devops/`

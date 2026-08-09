@@ -267,6 +267,7 @@ artifacts = [
   "src/phoenix/server/generative_ui",
   "src/phoenix/server/agents/prompts",
   "src/phoenix/db/migrations",
+  "src/phoenix/db/ddl",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
   "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
@@ -290,6 +291,7 @@ artifacts = [
   "src/phoenix/server/generative_ui",
   "src/phoenix/server/agents/prompts",
   "src/phoenix/db/migrations",
+  "src/phoenix/db/ddl",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
   "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
