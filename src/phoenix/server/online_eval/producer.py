@@ -138,6 +138,37 @@ async def resolve_criteria_bulk(
             .all()
         )
 
+    # A prompt version's custom provider is a mutable pointer: editing the provider's
+    # connection config changes what answers the evaluation without changing the prompt
+    # version. Resolve it to (provider id, updated_at) so the fingerprint moves with it.
+    custom_provider_refs: dict[int, tuple[int, str]] = {}
+    prompt_version_ids = set(tagged_prompt_version_ids.values()) | set(
+        latest_prompt_version_ids.values()
+    )
+    if prompt_version_ids:
+        custom_provider_refs = {
+            prompt_version_id: (custom_provider_id, updated_at.isoformat())
+            for prompt_version_id, custom_provider_id, updated_at in (
+                (
+                    await session.execute(
+                        select(
+                            models.PromptVersion.id,
+                            models.GenerativeModelCustomProvider.id,
+                            models.GenerativeModelCustomProvider.updated_at,
+                        )
+                        .join(
+                            models.GenerativeModelCustomProvider,
+                            models.PromptVersion.custom_provider_id
+                            == models.GenerativeModelCustomProvider.id,
+                        )
+                        .where(models.PromptVersion.id.in_(prompt_version_ids))
+                    )
+                )
+                .tuples()
+                .all()
+            )
+        }
+
     latest_code_versions = await latest_code_evaluator_versions_by_evaluator_id(
         list(code_evaluators),
         session,
@@ -151,6 +182,8 @@ async def resolve_criteria_bulk(
                 version_ref = tagged_prompt_version_ids.get(evaluator.prompt_version_tag_id)
             else:
                 version_ref = latest_prompt_version_ids.get(evaluator.prompt_id)
+            if (custom_provider_ref := custom_provider_refs.get(version_ref)) is not None:
+                version_ref = [version_ref, *custom_provider_ref]
         elif isinstance(evaluator, models.CodeEvaluator):
             version = latest_code_versions.get(evaluator.id)
             version_ref = version.id if version is not None else None

@@ -6,8 +6,23 @@ import pytest
 from sqlalchemy import func, select, update
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationValue,
+    CategoricalOutputConfig,
+    OptimizationDirection,
+)
 from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import (
+    PromptChatTemplate,
+    PromptMessage,
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
+    PromptTemplateFormat,
+    PromptTemplateType,
+)
 from phoenix.server.api.evaluators import ContainsEvaluator
+from phoenix.server.encryption import EncryptionService
 from phoenix.server.online_eval import producer as producer_module
 from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS
 from phoenix.server.online_eval.db_coordinator import (
@@ -228,6 +243,91 @@ async def test_builtin_implementation_version_changes_fingerprint(
         assert second is not None
 
     assert config_fingerprint(first) != config_fingerprint(second)
+
+
+async def test_llm_custom_provider_edit_changes_fingerprint(
+    db: DbSessionFactory,
+) -> None:
+    """A custom provider's connection config decides what actually answers the evaluation,
+    so editing it must move the fingerprint even though the prompt version is unchanged."""
+    async with db() as session:
+        project = await _add_project(session)
+        provider = models.GenerativeModelCustomProvider(
+            name=f"provider-{token_hex(4)}",
+            provider="openai",
+            sdk="OPENAI",
+            config=EncryptionService().encrypt(b'{"base_url": "https://vendor.example"}'),
+        )
+        session.add(provider)
+        await session.flush()
+
+        prompt = models.Prompt(
+            name=Identifier(root=f"prompt-{token_hex(4)}"),
+            description=None,
+            prompt_versions=[
+                models.PromptVersion(
+                    template_type=PromptTemplateType.CHAT,
+                    template_format=PromptTemplateFormat.MUSTACHE,
+                    template=PromptChatTemplate(
+                        type="chat",
+                        messages=[PromptMessage(role="user", content="Good? {{output}}")],
+                    ),
+                    invocation_parameters=PromptOpenAIInvocationParameters(
+                        type="openai", openai=PromptOpenAIInvocationParametersContent()
+                    ),
+                    tools=None,
+                    response_format=None,
+                    model_provider=ModelProvider.OPENAI,
+                    model_name="gpt-4",
+                    metadata_={},
+                    custom_provider_id=provider.id,
+                )
+            ],
+        )
+        evaluator = models.LLMEvaluator(
+            name=Identifier(root=f"eval-{token_hex(4)}"),
+            description=None,
+            kind="LLM",
+            output_configs=[
+                CategoricalOutputConfig(
+                    type="CATEGORICAL",
+                    name="quality",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description=None,
+                    values=[
+                        CategoricalAnnotationValue(label="good", score=1.0),
+                        CategoricalAnnotationValue(label="bad", score=0.0),
+                    ],
+                )
+            ],
+            prompt=prompt,
+        )
+        session.add(evaluator)
+        await session.flush()
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            filter_condition="",
+            sampling_rate=1.0,
+            evaluation_target="SPAN",
+        )
+        session.add(criteria)
+        await session.flush()
+
+        before = await resolve_criteria(session, criteria, evaluator)
+        assert before is not None
+
+        # Repoint the provider at a different endpoint. The prompt version — and so the
+        # pre-fix version_ref — is untouched.
+        provider.config = EncryptionService().encrypt(b'{"base_url": "https://self.hosted"}')
+        provider.updated_at = _now() + timedelta(minutes=1)
+        await session.flush()
+
+        after = await resolve_criteria(session, criteria, evaluator)
+        assert after is not None
+
+    assert config_fingerprint(before) != config_fingerprint(after)
 
 
 async def test_unregistered_builtin_cannot_resolve_criteria(
