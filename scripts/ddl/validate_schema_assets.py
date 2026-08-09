@@ -5,11 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from phoenix.db.ddl import parse_schema_asset
-from phoenix.db.ddl.loader import DialectName
+from phoenix.db.helpers import SupportedSQLDialectName
 
 ROOT = Path(__file__).resolve().parents[2]
 DDL_DIRECTORY = ROOT / "src/phoenix/db/ddl"
-SCHEMA_ASSETS: tuple[tuple[DialectName, str], ...] = (
+SCHEMA_ASSETS: tuple[tuple[SupportedSQLDialectName, str], ...] = (
     ("postgresql", "postgresql_schema.sql"),
     ("sqlite", "sqlite_schema.sql"),
 )

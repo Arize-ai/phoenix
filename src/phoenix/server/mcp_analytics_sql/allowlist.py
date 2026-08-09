@@ -5,13 +5,14 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Literal, Mapping, Optional, cast
+from typing import Any, Mapping, Optional, cast
 
 from sqlglot import exp
 
 from phoenix.db.ddl import load_dialect_schema
+from phoenix.db.helpers import SupportedSQLDialectName
 
-DialectName = Literal["postgresql", "sqlite"]
+DialectName = SupportedSQLDialectName
 
 
 def sqlglot_read_dialect(dialect: DialectName) -> str:
