@@ -480,8 +480,8 @@ because SQLAlchemy's reflection silently drops expression indexes — which are
 exactly the ones a caller must reproduce.
 
 The manifest supplies what the database cannot know: which area a table belongs
-to, what one row means, how to reach the project, which JSON paths are
-populated, which columns are omitted, and which are virtual.
+to, what one row means, how to reach the project, which columns are omitted,
+and which are virtual.
 
 The PostgreSQL schema is resolved against the connection rather than assumed,
 by the rule [#14172](https://github.com/Arize-ai/phoenix/pull/14172)
@@ -492,9 +492,9 @@ the table is — the two diverge once `search_path` gains a leading entry after
 migration. Both tools use the same resolution, because a schema published by
 one and read by the other must be the same schema.
 
-What remains unverifiable is `time_column`, `blessed_attribute_paths`, `grain`
-and `column_notes`. `time_column` is the consequential one: it decides silently
-which relations a caller's window filters.
+What remains unverifiable is `time_column`, `grain` and `column_notes`.
+`time_column` is the consequential one: it decides silently which relations a
+caller's window filters.
 
 ## Consumption model
 

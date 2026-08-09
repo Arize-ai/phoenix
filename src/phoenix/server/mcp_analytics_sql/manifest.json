@@ -15,10 +15,6 @@
         "spans": {
           "time_column": "start_time",
           "promoted_columns_note": "Prefer llm_token_count_* over JSON for per-span tokens; never SUM cumulative_* across spans. Promotion happens only when span_kind='LLM': a span of any other kind that carries llm.token_count.* in attributes has NULL in these columns and in cumulative_*, so a total over a whole project can undercount unless the JSON is consulted for non-LLM kinds.",
-          "blessed_attribute_paths": [
-            "attributes.session.id",
-            "attributes.user.id"
-          ],
           "virtual_columns": [
             "latency_ms"
           ],

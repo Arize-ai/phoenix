@@ -23,7 +23,6 @@ import asyncio
 import pytest
 from sqlalchemy import text
 
-from phoenix.server.mcp_analytics_sql.ddl import render_schema_ddl
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError
 from phoenix.server.mcp_analytics_sql.execute import ExecuteParams, execute_analytics_sql
 from phoenix.server.mcp_analytics_sql.teaching import describe_sql_schema
@@ -792,27 +791,3 @@ async def test_portable_function_classes_are_executable_on_sqlite(
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
     assert result.envelope["row_count"] > 0
-
-
-async def test_published_json_paths_execute(
-    analytics_sqlite_db: tuple[DbSessionFactory, str],
-) -> None:
-    """A path the schema publishes has to run, not merely be admitted.
-
-    `attributes.session.id` -- the logical form the manifest stores -- passes
-    admission and then fails at the engine, so admission alone cannot show that
-    a published path is usable. Executing it can.
-    """
-    db, db_path = analytics_sqlite_db
-    ddl = render_schema_ddl(tables=["spans"], detail="detailed", dialect="sqlite")
-    paths = [
-        line.split("-- populated JSON path:", 1)[1].strip()
-        for line in ddl.splitlines()
-        if "-- populated JSON path:" in line
-    ]
-    assert paths, "spans publishes blessed attribute paths; the test is vacuous without them"
-    for path in paths:
-        result = await execute_analytics_sql(
-            db, ExecuteParams(sql=f"SELECT {path} AS v FROM spans"), sqlite_db_path=db_path
-        )
-        assert result.envelope["row_count"] > 0, f"{path!r} executed, but evaluated over nothing"

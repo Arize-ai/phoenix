@@ -579,7 +579,6 @@ class TableSpec:
     quoted_columns: frozenset[str] = frozenset()
     time_column: Optional[str] = None
     virtual_columns: frozenset[str] = frozenset()
-    blessed_attribute_paths: frozenset[str] = frozenset()
     promoted_columns_note: Optional[str] = None
     # Short notes for columns whose name and type mislead. Curation, not schema:
     # the database cannot say that `parent_id` holds a `span_id`.
@@ -664,7 +663,6 @@ def load_allowlist(dialect: SupportedSQLDialectName) -> Allowlist:
                 # rather than the manifest because it tracks the API's type names,
                 # not the database schema.
                 virtual_columns=virtual_columns,
-                blessed_attribute_paths=frozenset(table.get("blessed_attribute_paths", [])),
                 promoted_columns_note=table.get("promoted_columns_note"),
                 column_notes=MappingProxyType(dict(table.get("column_notes", {}))),
             )
