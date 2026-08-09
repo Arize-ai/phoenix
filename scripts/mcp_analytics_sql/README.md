@@ -88,9 +88,8 @@ surface defect.
 ### 2. Restart the server after any change
 
 Nothing here is hot-reloaded. Both what the surface describes and what it admits
-are derived from a single cached read of `manifest.json` (`_manifest_text`,
-`@lru_cache`), so editing the manifest under a live server changes neither until
-it restarts. Python changes obviously need one too.
+are derived from the immutable `manifest.py` curation singleton and cached
+allowlists, so editing it under a live server changes neither until it restarts.
 
 The two used to have different lifetimes, which let a server describe a schema it
 would not execute. They are deliberately joined now; keep them that way if you

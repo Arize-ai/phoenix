@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Literal, Optional
+from typing import Optional
 
-from phoenix.server.mcp_analytics_sql.ddl import render_schema_ddl, validate_ddl
+from phoenix.server.mcp_analytics_sql.ddl import DetailLevel, render_schema_ddl, validate_ddl
 
 logger = logging.getLogger(__name__)
-
-DetailLevel = Literal["brief", "detailed", "full"]
 
 BRIEF_BYTE_BUDGET = 8_192
 DETAILED_BYTE_BUDGET = 32_768

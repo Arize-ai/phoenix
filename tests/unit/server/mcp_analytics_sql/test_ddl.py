@@ -10,7 +10,7 @@ from phoenix.db.ddl import load_dialect_schema
 from phoenix.db.ddl.loader import TableSchema
 from phoenix.db.helpers import SupportedSQLDialectName
 from phoenix.server.mcp_analytics_sql.allowlist import Allowlist, TableSpec, load_allowlist
-from phoenix.server.mcp_analytics_sql.ddl import render_schema_ddl, validate_ddl
+from phoenix.server.mcp_analytics_sql.ddl import DetailLevel, render_schema_ddl, validate_ddl
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp_analytics_sql.parse import admit, parse_sql, render
 from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
@@ -68,7 +68,7 @@ def test_postgresql_unqualification_only_changes_table_syntax() -> None:
 
 @pytest.mark.parametrize("backend", DIALECTS)
 @pytest.mark.parametrize("detail", DETAILS)
-def test_every_rendering_parses(backend: str, detail: str) -> None:
+def test_every_rendering_parses(backend: str, detail: DetailLevel) -> None:
     """Generated DDL fails in ways handwritten DDL does not.
 
     Both defects this renderer actually shipped were invisible in the output: a
@@ -244,11 +244,26 @@ def test_allowlist_rejects_case_insensitive_physical_virtual_collisions(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """SQLite has case-insensitive identifiers, so a virtual overlay cannot share one."""
-    import json
+    from types import MappingProxyType
 
     from phoenix.server.mcp_analytics_sql import allowlist as allowlist_module
+    from phoenix.server.mcp_analytics_sql.manifest import (
+        AnalyticsSqlManifest,
+        Area,
+        TableCuration,
+    )
 
-    manifest = {"areas": {"test": {"tables": {"widgets": {"virtual_columns": ["mixedcase"]}}}}}
+    test_manifest = AnalyticsSqlManifest(
+        areas=MappingProxyType(
+            {
+                "test": Area(
+                    tables=MappingProxyType(
+                        {"widgets": TableCuration(virtual_columns=frozenset({"mixedcase"}))}
+                    )
+                )
+            }
+        )
+    )
     schema = {
         "widgets": TableSchema(
             create_table_ddl='CREATE TABLE widgets ("MixedCase" TEXT);',
@@ -256,7 +271,7 @@ def test_allowlist_rejects_case_insensitive_physical_virtual_collisions(
             quoted_columns=frozenset({"MixedCase"}),
         )
     }
-    monkeypatch.setattr(allowlist_module, "_manifest_text", lambda: json.dumps(manifest))
+    monkeypatch.setattr(allowlist_module, "manifest", lambda: test_manifest)
     monkeypatch.setattr(allowlist_module, "load_dialect_schema", lambda dialect: schema)
     allowlist_module.load_allowlist.cache_clear()
     try:

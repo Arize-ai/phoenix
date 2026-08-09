@@ -11,12 +11,13 @@ from sqlglot import exp
 import phoenix.db.engines  # noqa: F401  (imported for its extension setup)
 from phoenix.db.helpers import SupportedSQLDialectName
 from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
-from phoenix.server.mcp_analytics_sql.catalog import _body as _index_body
 from phoenix.server.mcp_analytics_sql.catalog import (
+    ReflectedIndex,
     _classify,
     _sqlite_shape,
     indexed_json_accessors,
 )
+from phoenix.server.mcp_analytics_sql.catalog import _body as _index_body
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError
 from phoenix.server.mcp_analytics_sql.parse import (
     AdmissionOutcome,
@@ -285,7 +286,21 @@ def test_rewrite_matches_whatever_spelling_was_indexed(
     lets one query text serve all of them; assuming a convention would silently
     return every deployment that chose differently to a full scan.
     """
-    reflected = {"spans": [{"on": f"({indexed_expression})"}]} if indexed_expression else {}
+    reflected = (
+        {
+            "spans": [
+                ReflectedIndex(
+                    table="spans",
+                    name="ix_user",
+                    body=f"({indexed_expression})",
+                    kind="expression",
+                    unique=False,
+                )
+            ]
+        }
+        if indexed_expression
+        else {}
+    )
     ctx = _ctx("sqlite")
     ctx.indexed_json_accessors = indexed_json_accessors(reflected)
     root = parse_sql(

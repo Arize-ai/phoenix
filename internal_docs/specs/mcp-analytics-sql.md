@@ -108,7 +108,7 @@ Two consequences follow, and both are deliberate:
 - **The table is the data boundary.** Every physical column in an allowlisted
   table is queryable; data excluded from the surface is excluded by leaving its
   table out of the allowlist. See [Physical schema and
-  curation](#decision-physical-schema-comes-from-packaged-ddl-curation-from-the-manifest).
+  curation](#decision-physical-schema-comes-from-packaged-ddl-curation-from-typed-python).
 - **Contention is the residual risk.** With SQLite the execution width is 1, so
   one slow query serialises every other analytics request until its deadline.
   The row limit, byte caps and deadline bound each query; they do not bound
@@ -482,7 +482,7 @@ SQLite execution width is 1 — one statement runs at a time regardless.
 Read-your-writes is not guaranteed on the pooled path, which is stated on
 `DbSessionFactory.read` — it already was not, against a PostgreSQL replica.
 
-### Decision: physical schema comes from packaged DDL, curation from the manifest
+### Decision: physical schema comes from packaged DDL, curation from typed Python
 
 The generated PostgreSQL and SQLite schema assets under `src/phoenix/db/ddl/`
 are packaged with Phoenix and are the runtime source for physical `CREATE
@@ -504,12 +504,12 @@ Indexes are different: `full` detail reads them live from `pg_get_indexdef` or
 whose exact spelling a caller must reproduce. `brief` and `detailed` do not read
 the live catalog.
 
-The manifest supplies policy and curation only: the table/area allowlist, grain,
-time-column labels, virtual-column declarations, promoted-column guidance and
-semantic column notes. `graphql_node_id` applicability is additionally derived
-from the GraphQL type mapping in code. Raw physical foreign keys remain in the
-DDL even when they name nonallowlisted tables; admission still applies the
-global table allowlist.
+The immutable `manifest.py` module supplies policy and curation only: the
+table/area allowlist, grain, time-column labels, virtual-column declarations,
+promoted-column guidance and semantic column notes. `graphql_node_id`
+applicability is additionally derived from the GraphQL type mapping in code.
+Raw physical foreign keys remain in the DDL even when they name nonallowlisted
+tables; admission still applies the global table allowlist.
 
 The PostgreSQL schema is resolved against the connection rather than assumed,
 by the rule [#14172](https://github.com/Arize-ai/phoenix/pull/14172)

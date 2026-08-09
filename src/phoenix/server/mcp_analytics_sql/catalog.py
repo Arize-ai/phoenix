@@ -33,7 +33,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Literal, Mapping, NamedTuple, Optional, Sequence, cast
 
 from sqlalchemy import text
 
@@ -47,6 +47,8 @@ logger = logging.getLogger(__name__)
 # Enough to describe a deliberately indexed workload, small enough that a
 # pathological installation cannot crowd out the schema it accompanies.
 MAX_REFLECTED_INDEXES = 40
+IndexKind = Literal["expression", "partial", "composite"]
+JsonAccessorKind = Literal["json_extract", "->", "->>"]
 
 _PG_INDEXES = """
 SELECT t.relname AS table_name,
@@ -98,14 +100,20 @@ class ReflectedIndex:
     table: str
     name: str
     body: str
-    kind: str  # "expression" | "partial" | "composite"
+    kind: IndexKind
     unique: bool
 
-    def as_payload(self) -> dict[str, Any]:
-        entry: dict[str, Any] = {"name": self.name, "on": self.body, "kind": self.kind}
-        if self.unique:
-            entry["unique"] = True
-        return entry
+
+class IndexedJsonAccessor(NamedTuple):
+    kind: JsonAccessorKind
+    path_literal: str
+
+
+@dataclass(frozen=True)
+class EngineInfo:
+    name: str
+    version: str
+    extensions: tuple[str, ...] = ()
 
 
 # WORKAROUND, remove when SQLGlot binds a cast to the operand of a JSON operator
@@ -140,7 +148,7 @@ def _body(definition: str) -> str:
     return _IMPLICIT_ARRAY_CAST.sub(r"\1", body)
 
 
-def _classify(*, is_expression: bool, is_partial: bool, column_count: int) -> Optional[str]:
+def _classify(*, is_expression: bool, is_partial: bool, column_count: int) -> Optional[IndexKind]:
     """Name the reason this index is worth publishing, or None if it is not.
 
     The order matters: an index can be both an expression and partial, and the
@@ -195,7 +203,7 @@ def _sqlite_shape(body: str) -> tuple[bool, bool, int]:
 
 async def reflect_indexes(
     db: DbSessionFactory, *, tables: frozenset[str], pg_schema: str = "public"
-) -> dict[str, list[dict[str, Any]]]:
+) -> dict[str, list[ReflectedIndex]]:
     """Read indexes for the allowlisted tables, keeping only the informative ones.
 
     Reflection is best-effort. A caller asked for the schema, and a catalog that
@@ -210,9 +218,9 @@ async def reflect_indexes(
         logger.debug("analytics sql: index reflection unavailable", exc_info=True)
         return {}
 
-    by_table: dict[str, list[dict[str, Any]]] = {}
+    by_table: dict[str, list[ReflectedIndex]] = {}
     for index in rows[:MAX_REFLECTED_INDEXES]:
-        by_table.setdefault(index.table, []).append(index.as_payload())
+        by_table.setdefault(index.table, []).append(index)
     if len(rows) > MAX_REFLECTED_INDEXES:
         logger.debug(
             "analytics sql: reflected %d of %d indexes (capped)", MAX_REFLECTED_INDEXES, len(rows)
@@ -309,8 +317,8 @@ def _logical_path(path_literal: str) -> Optional[tuple[str, ...]]:
 
 
 def indexed_json_accessors(
-    indexes: dict[str, list[dict[str, Any]]], *, table: str = "spans"
-) -> dict[tuple[str, ...], tuple[str, str]]:
+    indexes: Mapping[str, Sequence[ReflectedIndex]], *, table: str = "spans"
+) -> dict[tuple[str, ...], IndexedJsonAccessor]:
     """Map each indexed JSON path to the accessor and literal that reach its index.
 
     A query uses an expression index only by reproducing the indexed expression,
@@ -324,17 +332,18 @@ def indexed_json_accessors(
     literal to emit, so the rewrite reconstructs the indexed expression rather
     than approximating it.
     """
-    accessors: dict[tuple[str, ...], tuple[str, str]] = {}
+    accessors: dict[tuple[str, ...], IndexedJsonAccessor] = {}
     for entry in indexes.get(table, []):
-        body = entry.get("on") or ""
-        for _column, literal in _JSON_FUNCTION_CALL.findall(body):
+        for _column, literal in _JSON_FUNCTION_CALL.findall(entry.body):
             path = _logical_path(literal)
             if path is not None:
-                accessors.setdefault(path, ("json_extract", literal))
-        for _column, operator, literal in _JSON_OPERATOR.findall(body):
+                accessors.setdefault(path, IndexedJsonAccessor("json_extract", literal))
+        for _column, operator, literal in _JSON_OPERATOR.findall(entry.body):
             path = _logical_path(literal)
             if path is not None:
-                accessors.setdefault(path, (operator, literal))
+                accessors.setdefault(
+                    path, IndexedJsonAccessor(cast(JsonAccessorKind, operator), literal)
+                )
     return accessors
 
 
@@ -342,12 +351,12 @@ def indexed_json_accessors(
 # two queries a second apart, so they are read once and reused. The alternative
 # is a catalog round trip on every statement to learn something that is almost
 # always the same answer.
-_ACCESSOR_CACHE: dict[str, dict[tuple[str, ...], tuple[str, str]]] = {}
+_ACCESSOR_CACHE: dict[str, dict[tuple[str, ...], IndexedJsonAccessor]] = {}
 
 
 async def cached_indexed_json_accessors(
     db: DbSessionFactory, *, tables: frozenset[str], pg_schema: str = "public"
-) -> dict[tuple[str, ...], tuple[str, str]]:
+) -> dict[tuple[str, ...], IndexedJsonAccessor]:
     """The indexed-accessor map for this database, read at most once per process.
 
     Reflection failing yields an empty map, which is a rewrite that forgoes the
@@ -418,10 +427,10 @@ async def resolve_pg_schema(db: DbSessionFactory) -> str:
     return resolved
 
 
-_ENGINE_CACHE: dict[str, dict[str, Any]] = {}
+_ENGINE_CACHE: dict[str, EngineInfo] = {}
 
 
-async def cached_engine_info(db: DbSessionFactory) -> dict[str, Any]:
+async def cached_engine_info(db: DbSessionFactory) -> Optional[EngineInfo]:
     """The engine version, and on SQLite the extensions loaded into it.
 
     Version alone is minor: the allowlist already decides what may be called, so
@@ -438,20 +447,19 @@ async def cached_engine_info(db: DbSessionFactory) -> dict[str, Any]:
     key = db.dialect.value
     cached = _ENGINE_CACHE.get(key)
     if cached is None:
-        info: dict[str, Any] = {}
         try:
             async with db.read() as session:
                 if key == "postgresql":
-                    info["version"] = (await session.execute(text("SHOW server_version"))).scalar()
+                    version = (await session.execute(text("SHOW server_version"))).scalar()
                 else:
-                    info["version"] = (
-                        await session.execute(text("SELECT sqlite_version()"))
-                    ).scalar()
-                    info["extensions"] = list(SQLEAN_EXTENSIONS)
+                    version = (await session.execute(text("SELECT sqlite_version()"))).scalar()
         except Exception:
             logger.debug("analytics sql: engine info unavailable", exc_info=True)
-            return {}
-        info["name"] = "PostgreSQL" if key == "postgresql" else "SQLite"
-        _ENGINE_CACHE[key] = info
-        cached = info
+            return None
+        cached = EngineInfo(
+            name="PostgreSQL" if key == "postgresql" else "SQLite",
+            version=str(version) if version is not None else "",
+            extensions=SQLEAN_EXTENSIONS if key == "sqlite" else (),
+        )
+        _ENGINE_CACHE[key] = cached
     return cached

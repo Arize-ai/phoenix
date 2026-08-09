@@ -28,7 +28,7 @@ deployment does not have. It is used to check the text, not to produce it.
 from __future__ import annotations
 
 import re
-from typing import Optional, cast
+from typing import Literal, Optional, cast
 
 import sqlglot
 
@@ -37,12 +37,13 @@ from phoenix.db.helpers import SupportedSQLDialectName
 from phoenix.server.mcp_analytics_sql.allowlist import (
     TableSpec,
     load_allowlist,
-    manifest_document,
 )
+from phoenix.server.mcp_analytics_sql.manifest import manifest
 
-__all__ = ["render_schema_ddl", "validate_ddl"]
+__all__ = ["DetailLevel", "render_schema_ddl", "validate_ddl"]
 
 _SQLGLOT_DIALECT = {"postgresql": "postgres", "sqlite": "sqlite"}
+DetailLevel = Literal["brief", "detailed", "full"]
 _POSTGRES_PUBLIC_TABLE_REFERENCE = re.compile(
     r"\b(?:CREATE\s+TABLE|REFERENCES)\s+public\.", re.IGNORECASE
 )
@@ -94,7 +95,7 @@ def _unqualify_postgresql_ddl(create_table_ddl: str) -> str:
     return "".join(parts)
 
 
-def _render_table(spec: TableSpec, *, detail: str, create_table_ddl: str) -> list[str]:
+def _render_table(spec: TableSpec, *, detail: DetailLevel, create_table_ddl: str) -> list[str]:
     if detail == "brief":
         # A catalogue rather than a schema: names and meanings only, because a
         # caller at this stage is still choosing which table to ask about and
@@ -124,21 +125,21 @@ def render_schema_ddl(
     *,
     area: Optional[str] = None,
     tables: Optional[list[str]] = None,
-    detail: str = "brief",
+    detail: DetailLevel = "brief",
     search: Optional[str] = None,
     dialect: str = "postgresql",
 ) -> str:
     """Render the selected part of the allowlisted schema as DDL text."""
-    manifest = manifest_document()
+    curation = manifest()
     dialect_name = cast(SupportedSQLDialectName, dialect)
     allowlist = load_allowlist(dialect_name)
     schema = load_dialect_schema(dialect_name)
     chunks: list[str] = []
 
-    for area_name in [area] if area else list(manifest["areas"]):
-        if area_name not in manifest["areas"]:
+    for area_name in [area] if area else curation.areas:
+        if area_name not in curation.areas:
             continue
-        area_tables = manifest["areas"][area_name]["tables"]
+        area_tables = curation.areas[area_name].tables
         rendered: list[str] = []
         for table_name in tables or list(area_tables):
             if table_name not in area_tables:
