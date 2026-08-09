@@ -376,7 +376,7 @@ async def test_lapsed_unit_is_claimed_exactly_max_attempts_times(db: DbSessionFa
     assert await coordinator.claim(claimed_by="consumer-4", limit=1) == []
 
 
-async def test_lag_reports_counts_frontier_gap_and_oldest_pending_age(
+async def test_lag_reports_counts_and_oldest_pending_age(
     db: DbSessionFactory,
 ) -> None:
     coordinator = DbEvalWorkCoordinator(db)
@@ -387,7 +387,6 @@ async def test_lag_reports_counts_frontier_gap_and_oldest_pending_age(
     assert empty.retryable_error_count == 0
     assert empty.exhausted_error_count == 0
     assert empty.expired_count == 0
-    assert empty.frontier_gap == 0
     assert empty.oldest_pending_age_seconds is None
 
     unit_ids = await _seed_work_units(db, 7)
@@ -426,14 +425,6 @@ async def test_lag_reports_counts_frontier_gap_and_oldest_pending_age(
             .where(models.EvalWorkUnit.id == unit_ids[6])
             .values(status="EXPIRED", error="pending TTL exceeded")
         )
-        session.add(
-            models.EvalWorkCursor(
-                evaluation_target="SPAN",
-                consumer_group="default",
-                produced_through_id=5,
-                observed_high_water_id=12,
-            )
-        )
 
     lag = await coordinator.lag()
     assert lag.pending_count == 2
@@ -441,7 +432,6 @@ async def test_lag_reports_counts_frontier_gap_and_oldest_pending_age(
     assert lag.retryable_error_count == 1
     assert lag.exhausted_error_count == 1
     assert lag.expired_count == 1
-    assert lag.frontier_gap == 7
     assert lag.oldest_pending_age_seconds is not None
     assert 100.0 <= lag.oldest_pending_age_seconds < 300.0
 
@@ -508,7 +498,6 @@ async def test_session_claim_lifecycle_and_lag(db: DbSessionFactory) -> None:
     assert lag.running_count == 2
     assert lag.retryable_error_count == 1
     assert lag.exhausted_error_count == 1
-    assert lag.frontier_gap == 0
     assert lag.oldest_pending_age_seconds is not None
     assert 100.0 <= lag.oldest_pending_age_seconds < 300.0
 

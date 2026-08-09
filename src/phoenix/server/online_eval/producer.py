@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 
 from phoenix.config import (
+    get_env_enable_prometheus,
     get_env_online_eval_backstop_interval_seconds,
     get_env_online_eval_backstop_lookback_span_ids,
     get_env_online_eval_frontier_lag_seconds,
@@ -43,6 +44,10 @@ from phoenix.server.online_eval.derivation import (
     annotation_identifier,
     config_fingerprint,
     sample_key,
+)
+from phoenix.server.prometheus import (
+    ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS,
+    ONLINE_EVAL_INGEST_SPANS_PER_SECOND,
 )
 from phoenix.server.types import DaemonTask, DbSessionFactory
 from phoenix.trace.dsl.filter import SpanFilter
@@ -146,6 +151,8 @@ class OnlineEvalProducer(DaemonTask):
         self._max_outstanding = get_env_online_eval_max_outstanding()
         self._last_backstop_at = time.monotonic()
         self._lease_held = False
+        self._publish_metrics = get_env_enable_prometheus()
+        self._last_ingest_sample: Optional[tuple[int, datetime]] = None
 
     async def _run(self) -> None:
         try:
@@ -536,6 +543,7 @@ class OnlineEvalProducer(DaemonTask):
         async with self._db() as session:
             high_water = await session.scalar(select(func.max(models.Span.id)))
             if high_water is None or high_water <= produced_through_id:
+                self._publish_frontier_gap(0)
                 return
             # Stamp the observation with a timestamp taken AFTER the high-water
             # read, never the tick-start time: the reap/gate/materialize work
@@ -554,6 +562,28 @@ class OnlineEvalProducer(DaemonTask):
                 )
                 .values(observed_high_water_id=high_water, observed_at=observed_at)
             )
+        self._publish_frontier_gap(high_water - produced_through_id)
+        self._publish_ingest_rate(high_water, observed_at)
+
+    def _publish_frontier_gap(self, gap: int) -> None:
+        """How far the arrival log has run ahead of what this producer has materialized."""
+        if self._publish_metrics:
+            ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS.set(gap)
+
+    def _publish_ingest_rate(self, high_water: int, observed_at: datetime) -> None:
+        """Span arrival rate, differenced across this producer's own observations.
+
+        Sampled at the producer's tick because the producer is what observes the
+        watermark; reading it from a consumer took the sample at the wrong cadence and
+        went dark whenever consumers did.
+        """
+        previous, self._last_ingest_sample = self._last_ingest_sample, (high_water, observed_at)
+        if not self._publish_metrics or previous is None:
+            return
+        last_high_water, last_observed_at = previous
+        elapsed = (observed_at - last_observed_at).total_seconds()
+        if elapsed > 0:
+            ONLINE_EVAL_INGEST_SPANS_PER_SECOND.set(max(high_water - last_high_water, 0) / elapsed)
 
     async def _backstop_sweep(
         self,

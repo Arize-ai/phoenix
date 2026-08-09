@@ -29,7 +29,6 @@ from phoenix.server.online_eval.coordinator import (
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, annotation_identifier
 from phoenix.server.types import DbSessionFactory
 
-_CONSUMER_GROUP = "default"
 TRANSIENT_RETRY_MAX_AGE_SECONDS = 86_400.0
 
 _WorkUnitModel = type[models.EvalWorkUnit] | type[models.EvalSessionWorkUnit]
@@ -350,22 +349,6 @@ class DbEvalWorkCoordinator:
                 .order_by(work_unit_model.created_at)
                 .limit(1)
             )
-            cursor = None
-            if self._evaluation_target == "SPAN":
-                cursor = (
-                    await session.execute(
-                        select(
-                            models.EvalWorkCursor.produced_through_id,
-                            models.EvalWorkCursor.observed_high_water_id,
-                        ).where(
-                            models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                            models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                        )
-                    )
-                ).first()
-        frontier_gap = 0
-        if cursor is not None and cursor.observed_high_water_id is not None:
-            frontier_gap = max(cursor.observed_high_water_id - cursor.produced_through_id, 0)
         oldest_pending_age_seconds = (
             max((now - oldest_work_created_at).total_seconds(), 0.0)
             if oldest_work_created_at is not None
@@ -377,6 +360,5 @@ class DbEvalWorkCoordinator:
             retryable_error_count=counts.get(("ERROR", False), 0),
             exhausted_error_count=counts.get(("ERROR", True), 0),
             expired_count=counts.get(("EXPIRED", False), 0),
-            frontier_gap=frontier_gap,
             oldest_pending_age_seconds=oldest_pending_age_seconds,
         )

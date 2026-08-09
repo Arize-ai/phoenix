@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
 from sqlalchemy import func, select, update
@@ -30,7 +31,10 @@ from phoenix.server.online_eval.coordinator import (
     LEASE_ATTEMPTS_EXHAUSTED_ERROR,
     LEASE_TTL_SECONDS,
 )
-from phoenix.server.online_eval.criteria_resolution import resolve_criteria
+from phoenix.server.online_eval.criteria_resolution import (
+    resolve_criteria,
+    resolve_criteria_bulk,
+)
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
@@ -485,11 +489,10 @@ async def test_active_criteria_are_bulk_resolved_once(
         await _seed_criteria(db, project_id)
 
     call_sizes: list[int] = []
-    resolve_bulk = producer_module.resolve_criteria_bulk
 
     async def _counting_resolver(*args: Any, **kwargs: Any) -> Any:
         call_sizes.append(len(args[1]))
-        return await resolve_bulk(*args, **kwargs)
+        return await resolve_criteria_bulk(*args, **kwargs)
 
     monkeypatch.setattr(producer_module, "resolve_criteria_bulk", _counting_resolver)
 
@@ -1496,3 +1499,45 @@ async def test_renew_lease_refreshes_claimed_at(db: DbSessionFactory) -> None:
 
     cursor = await _get_cursor(db, cursor_id)
     assert cursor.claimed_at == renewed_at
+
+
+async def test_producer_publishes_its_own_frontier_and_ingest_gauges(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both gauges describe the arrival log the producer owns and are sampled at its
+    own tick, so they keep reporting whether or not any consumer is running.
+    """
+    monkeypatch.setattr(producer_module, "get_env_enable_prometheus", lambda: True)
+    frontier_gap = Mock()
+    ingest_rate = Mock()
+    monkeypatch.setattr(producer_module, "ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS", frontier_gap)
+    monkeypatch.setattr(producer_module, "ONLINE_EVAL_INGEST_SPANS_PER_SECOND", ingest_rate)
+
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        await _add_span(session, trace)
+    await _seed_criteria(db, project.id)
+
+    producer = OnlineEvalProducer(db)
+    producer._frontier_lag_seconds = 0.0
+
+    # Cold start pins the watermark at the current high water, so nothing is behind.
+    await producer._tick()
+    frontier_gap.set.assert_called_once_with(0)
+    ingest_rate.set.assert_not_called()
+
+    # One arrival puts the log ahead of the watermark and takes the first sample.
+    async with db() as session:
+        await _add_span(session, await session.get(models.Trace, trace.id))
+    await producer._tick()
+    assert frontier_gap.set.call_args.args[0] == 1
+    ingest_rate.set.assert_not_called()
+
+    # The second sample is what a rate can be differenced from.
+    async with db() as session:
+        await _add_span(session, await session.get(models.Trace, trace.id))
+    await producer._tick()
+    ingest_rate.set.assert_called_once()
+    assert ingest_rate.set.call_args.args[0] > 0

@@ -20,7 +20,6 @@ from secrets import token_hex
 from typing import Any, Awaitable, Callable, Optional, TypeVar
 
 import httpx
-from sqlalchemy import select
 
 from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
@@ -42,8 +41,6 @@ from phoenix.server.online_eval.executor import (
 from phoenix.server.prometheus import (
     ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS,
     ONLINE_EVAL_EXPIRED_WORK_UNITS,
-    ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS,
-    ONLINE_EVAL_INGEST_SPANS_PER_SECOND,
     ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS,
     ONLINE_EVAL_PENDING_WORK_UNITS,
     ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS,
@@ -230,7 +227,6 @@ class OnlineEvalConsumer(DaemonTask):
         self._db_semaphore = db_semaphore
         self._pending_tasks: set[asyncio.Task[None]] = set()
         self._publish_metrics = get_env_enable_prometheus()
-        self._last_ingest_sample: Optional[tuple[int, datetime]] = None
 
     async def _run(self) -> None:
         while self._running:
@@ -259,31 +255,6 @@ class OnlineEvalConsumer(DaemonTask):
         ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS.labels(**labels).set(
             lag.oldest_pending_age_seconds or 0.0
         )
-        if self._evaluation_target != "SPAN":
-            return
-        ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS.set(lag.frontier_gap)
-        async with self._db.read() as session:
-            sample = (
-                await session.execute(
-                    select(
-                        models.EvalWorkCursor.observed_high_water_id,
-                        models.EvalWorkCursor.observed_at,
-                    ).where(
-                        models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                        models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                    )
-                )
-            ).first()
-        if sample is None or sample.observed_high_water_id is None or sample.observed_at is None:
-            return
-        if self._last_ingest_sample is not None:
-            last_high_water, last_observed_at = self._last_ingest_sample
-            elapsed = (sample.observed_at - last_observed_at).total_seconds()
-            if elapsed > 0:
-                ONLINE_EVAL_INGEST_SPANS_PER_SECOND.set(
-                    max(sample.observed_high_water_id - last_high_water, 0) / elapsed
-                )
-        self._last_ingest_sample = (sample.observed_high_water_id, sample.observed_at)
 
     async def stop(self) -> None:
         self._running = False
