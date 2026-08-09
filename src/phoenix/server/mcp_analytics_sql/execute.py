@@ -9,7 +9,7 @@ import sqlite3
 import threading
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from typing import Any, Optional, cast
 
@@ -513,19 +513,14 @@ async def execute_analytics_sql(
             ),
         )
 
-    allowlist = load_allowlist()
+    allowlist = load_allowlist(dialect)
     if dialect == "postgresql":
         # Resolved against the connection, not assumed. With the schema variable
         # unset and the tables reached through `search_path`, a hardcoded
         # "public" names a schema that does not hold them, and every rewritten
         # relation is then qualified wrong.
         schema = await resolve_pg_schema(db)
-        allowlist = Allowlist(
-            tables=allowlist.tables,
-            table_specs=allowlist.table_specs,
-            areas=allowlist.areas,
-            pg_schema=schema,
-        )
+        allowlist = replace(allowlist, pg_schema=schema)
 
     call_id = _next_call_id()
     await EXECUTION_SEMAPHORE.acquire(dialect)

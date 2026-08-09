@@ -2,24 +2,16 @@
 
 from phoenix.db.ddl.loader import (
     DialectSchema,
-    ForeignKey,
-    PhysicalCatalog,
     PhysicalColumn,
-    PhysicalTable,
     SchemaAssetError,
-    TableSection,
+    TableSchema,
     load_dialect_schema,
-    load_physical_catalog,
 )
 
 __all__ = [
     "DialectSchema",
-    "ForeignKey",
-    "PhysicalCatalog",
     "PhysicalColumn",
-    "PhysicalTable",
     "SchemaAssetError",
-    "TableSection",
+    "TableSchema",
     "load_dialect_schema",
-    "load_physical_catalog",
 ]
