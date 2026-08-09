@@ -1374,6 +1374,7 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
         "sql",
         [
             "SELECT count(*) AS n FROM spans ORDER BY n",
+            "SELECT count(*) AS spans FROM spans ORDER BY spans",
             "SELECT name AS lbl, count(*) AS n FROM datasets GROUP BY lbl ORDER BY n",
             "SELECT id AS v FROM datasets GROUP BY v",
         ],
