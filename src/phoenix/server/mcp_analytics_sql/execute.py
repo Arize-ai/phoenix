@@ -431,8 +431,8 @@ def _sqlite_authorizer(
             # manifest; no probed shape produces one, since a read through a
             # CTE or subquery names the base table instead, so treat this as a
             # backstop for shapes not enumerated rather than a described case.
-            # Reached only for names that are not withheld Phoenix tables, so
-            # accepting here cannot excuse one.
+            # Reached only for statement-local names, not persisted Phoenix
+            # tables, so accepting here cannot bypass table admission.
             if table in introduced_relations:
                 return sqlite3.SQLITE_OK
             # A table-valued function is reported as a read of a pseudo-table

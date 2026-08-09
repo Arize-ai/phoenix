@@ -21,13 +21,9 @@ def minimal_admission_allowlist() -> Allowlist:
     uses -- with the failure showing up as tests passing, which is the worst
     direction for it to fail in.
 
-    Columns are taken from the real specs for the same reason. They used to be
-    `columns=()`, which left `hidden_columns` empty on every table, so
-    `_check_hidden_columns` returned at its first line and the corpus could not
-    express a column outcome at all -- it contained no `column_not_allowed`
-    entry and structurally could not. Three of the four column bypasses this
-    surface has had were therefore invisible to the one file whose job is to
-    record what must stay refused.
+    Physical and virtual columns are taken from the real specs so the corpus
+    exercises the DDL-derived schema used in production. A hand-maintained
+    substitute would make column validation tests certify a different surface.
     """
     real = load_allowlist("sqlite").table_specs
     specs = {
@@ -36,7 +32,6 @@ def minimal_admission_allowlist() -> Allowlist:
             area="test",
             grain="",
             columns=real[name].columns,
-            hidden_columns=real[name].hidden_columns,
             # Advertised and not stored, so absent from `columns`. Dropping them
             # here made the column policy refuse `latency_ms`, which is a column
             # the schema teaches -- the fixture's omission, not the policy's.

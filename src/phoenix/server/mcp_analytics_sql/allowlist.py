@@ -441,9 +441,8 @@ ALLOWED_ANON_FUNCTIONS_BY_DIALECT: dict[DialectName, frozenset[str]] = {
             # Whole-value conversion, for building a document from values
             # already read. The whole-row spelling these also permit --
             # `row_to_json(s)` where `s` names a relation -- stays out of reach:
-            # the row-valued rule in `_check_hidden_columns` refuses a bare
-            # relation reference wherever it appears, so a serialised row cannot
-            # carry columns `SELECT *` omits.
+            # the row-valued rule in `_check_column_references` refuses a bare
+            # relation reference wherever it appears.
             "to_jsonb",
             "to_json",
             "row_to_json",
@@ -566,41 +565,21 @@ PLAN_GATE_ALLOWED_FUNCTIONS: frozenset[str] = UNNEST_FUNCTIONS | frozenset(
 
 
 @dataclass(frozen=True)
-class ColumnSpec:
-    name: str
-    type: str
-    nullable: bool
-
-
-@dataclass(frozen=True)
 class TableSpec:
     name: str
     area: str
     grain: str
-    columns: tuple[ColumnSpec, ...]
+    # Physical columns are sourced from the generated DDL, which is the
+    # authoritative dialect-specific schema. Their order matters for `*`;
+    # metadata beyond their names belongs in the DDL itself.
+    columns: tuple[str, ...]
     time_column: Optional[str] = None
     virtual_columns: frozenset[str] = frozenset()
     blessed_attribute_paths: frozenset[str] = frozenset()
     promoted_columns_note: Optional[str] = None
-    # Columns that exist and are left out of the analytics schema: display
-    # attributes like a project's gradient colours, and foreign keys to tables
-    # this surface does not expose, whose integer values resolve to nothing a
-    # caller can reach. Curation, not confidentiality -- every one of them is
-    # readable through the GraphQL API by the same caller, and anything
-    # genuinely restricted is absent from the allowlist rather than listed here.
-    #
-    # Declared separately from `columns` rather than deleted from it, so the
-    # drift check against the SQLAlchemy models keeps comparing complete lists:
-    # a column dropped by a migration must still fail that test rather than
-    # look like one that was left out on purpose.
-    hidden_columns: frozenset[str] = frozenset()
     # Short notes for columns whose name and type mislead. Curation, not schema:
     # the database cannot say that `parent_id` holds a `span_id`.
     column_notes: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
-
-    @property
-    def exposed_columns(self) -> tuple[ColumnSpec, ...]:
-        return tuple(c for c in self.columns if c.name not in self.hidden_columns)
 
 
 @dataclass(frozen=True)
@@ -646,14 +625,7 @@ def load_allowlist(dialect: DialectName) -> Allowlist:
                 raise ValueError(
                     f"Allowlisted table {table_name!r} is missing from the DDL assets."
                 )
-            columns = tuple(
-                ColumnSpec(
-                    name=column.name,
-                    type="UNKNOWN",
-                    nullable=column.nullable,
-                )
-                for column in physical_table.columns
-            )
+            columns = tuple(column.name for column in physical_table.columns)
             table_specs[table_name] = TableSpec(
                 name=table_name,
                 area=area_name,
@@ -668,7 +640,6 @@ def load_allowlist(dialect: DialectName) -> Allowlist:
                 | ({GRAPHQL_NODE_ID_COLUMN} if table_name in TABLE_GRAPHQL_TYPES else frozenset()),
                 blessed_attribute_paths=frozenset(table.get("blessed_attribute_paths", [])),
                 promoted_columns_note=table.get("promoted_columns_note"),
-                hidden_columns=frozenset(table.get("hidden_columns", [])),
                 column_notes=MappingProxyType(dict(table.get("column_notes", {}))),
             )
             names.add(table_name)

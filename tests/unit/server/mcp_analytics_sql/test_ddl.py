@@ -120,7 +120,7 @@ def test_no_table_outside_the_allowlist_is_ever_rendered(backend: str) -> None:
 
     Naming a table the executor refuses costs a round trip and teaches nothing.
     """
-    allowlist = load_allowlist("sqlite")
+    allowlist = load_allowlist(backend)
     ddl = render_schema_ddl(detail="detailed", dialect=backend)
     parsed = sqlglot.parse(ddl, dialect="postgres" if backend == "postgresql" else "sqlite")
     for statement in parsed:
@@ -177,8 +177,8 @@ def test_keys_and_uniqueness_are_rendered(backend: str) -> None:
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
-def test_physical_ddl_keeps_columns_curated_out_of_star_expansion(backend: str) -> None:
-    """Teaching is the exact physical table asset, not the query projection."""
+def test_physical_ddl_includes_every_project_column(backend: str) -> None:
+    """Teaching exposes the exact physical table asset."""
     ddl = render_schema_ddl(tables=["projects"], detail="detailed", dialect=backend)
     physical = load_dialect_schema(backend).tables["projects"].create_table_ddl
     assert "gradient_start_color" in physical
@@ -187,18 +187,13 @@ def test_physical_ddl_keeps_columns_curated_out_of_star_expansion(backend: str) 
     assert "trace_retention_policy_id" in ddl
 
 
-def test_the_manifest_still_lists_every_real_column() -> None:
-    """Hiding is declared beside the column list, never by deleting from it.
-
-    Deleting would make a column dropped by a migration indistinguishable from
-    one deliberately withheld, and `test_manifest_matches_sqlalchemy_metadata`
-    would stop catching real drift.
-    """
+def test_allowlist_physical_columns_come_from_the_ddl_asset() -> None:
     spec = load_allowlist("sqlite").table_specs["projects"]
-    listed = {column.name for column in spec.columns}
-    assert {"gradient_start_color", "trace_retention_policy_id"} <= listed
-    assert spec.hidden_columns <= listed
-    assert not any(c.name in spec.hidden_columns for c in spec.exposed_columns)
+    expected = tuple(
+        column.name for column in load_dialect_schema("sqlite").tables["projects"].columns
+    )
+    assert spec.columns == expected
+    assert {"gradient_start_color", "trace_retention_policy_id"} <= set(spec.columns)
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
@@ -283,17 +278,20 @@ def test_an_empty_selection_says_which_filter_matched_nothing() -> None:
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
-def test_star_expansion_matches_the_query_projection(backend: DialectName) -> None:
-    """Star expansion is the allowlisted query projection, not physical DDL."""
+def test_star_expansion_matches_physical_ddl_and_virtual_columns(backend: DialectName) -> None:
+    """Star expansion preserves DDL order and appends query-only overlays."""
     import sqlglot
 
     from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, _expand_stars
 
-    allowlist = load_allowlist("sqlite")
+    allowlist = load_allowlist(backend)
     sqlglot_dialect = "postgres" if backend == "postgresql" else "sqlite"
     for table in sorted(allowlist.tables):
         spec = allowlist.table_specs[table]
-        expected = [column.name for column in spec.exposed_columns] + sorted(spec.virtual_columns)
+        expected = [
+            *(column.name for column in load_dialect_schema(backend).tables[table].columns),
+            *sorted(spec.virtual_columns),
+        ]
         ctx = RewriteContext(
             dialect=backend,
             allowlist=allowlist,

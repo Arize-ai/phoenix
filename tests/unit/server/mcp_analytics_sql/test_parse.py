@@ -100,28 +100,6 @@ def test_corpus_is_not_shrinking() -> None:
     assert len(set(keys)) == len(keys), "duplicate statement/dialect pair in corpus"
 
 
-def test_the_corpus_can_express_a_column_outcome() -> None:
-    """Guard against the fixture silently disarming the column rule again.
-
-    The fixture built its tables with `columns=()`, so `hidden_columns` was
-    empty everywhere and `_check_hidden_columns` returned at its first line.
-    The corpus therefore held no `column_not_allowed` entry and structurally
-    could not: three of the four column bypasses this surface has had were
-    invisible to the file whose job is to record what must stay refused.
-
-    Asserted on the fixture rather than on the entries, because an entry can be
-    deleted while the capability remains -- and the capability is what was
-    missing.
-    """
-    hidden = {
-        column
-        for spec in minimal_admission_allowlist().table_specs.values()
-        for column in spec.hidden_columns
-    }
-    assert hidden, "the corpus allowlist has no omitted columns, so it cannot test the rule"
-    assert any(case["expect"] == "column_not_allowed" for case in CORPUS)
-
-
 def test_admitted_statements_render_without_comments() -> None:
     """Comments must not reach the database, whatever they contain.
 
@@ -161,68 +139,24 @@ def test_parser_contract() -> None:
     assert "payload" not in tree.sql(dialect="postgres", comments=False)
 
 
-class TestHiddenColumnsAreRefused:
-    """A schema that omits a column must be backed by an executor that refuses it.
-
-    Otherwise the omission is decoration: `describeSqlSchema` stops showing
-    `user_id` while `SELECT user_id FROM datasets` keeps returning it, and the
-    document and the executor disagree about what the surface is. That gap is
-    the defect this whole surface has produced most often -- two policy layers,
-    each verified alone.
-
-    Consistency is the whole reason, not secrecy. These columns are display
-    attributes and foreign keys into tables the surface does not expose, and
-    every one is readable through GraphQL by the same caller.
-    """
+class TestDdlColumnsAreQueryable:
+    """Every physical DDL column is admitted alongside virtual overlays."""
 
     @pytest.mark.parametrize(
-        "sql,expected",
+        "sql",
         [
-            ("SELECT user_id FROM datasets", "datasets.user_id"),
-            ("SELECT d.user_id FROM datasets AS d", "datasets.user_id"),
-            ("SELECT gradient_start_color FROM projects", "projects.gradient_start_color"),
-            (
-                "SELECT p.trace_retention_policy_id FROM projects p",
-                "projects.trace_retention_policy_id",
-            ),
-            (
-                "SELECT id FROM projects WHERE gradient_end_color = '#fff'",
-                "projects.gradient_end_color",
-            ),
-            ("SELECT count(*) FROM datasets GROUP BY user_id", "datasets.user_id"),
+            "SELECT user_id FROM datasets",
+            "SELECT d.user_id FROM datasets AS d",
+            "SELECT gradient_start_color FROM projects",
+            "SELECT p.trace_retention_policy_id FROM projects p",
+            "SELECT id FROM projects WHERE gradient_end_color = '#fff'",
+            "SELECT count(*) FROM datasets GROUP BY user_id",
         ],
     )
-    def test_a_hidden_column_is_refused_wherever_it_appears(self, sql: str, expected: str) -> None:
-        allowlist = load_allowlist("sqlite")
-        with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql(sql, allowlist=allowlist, dialect="sqlite")
-        assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
-        assert expected in (caught.value.admission_detail or "")
+    def test_formerly_hidden_columns_are_queryable(self, sql: str) -> None:
+        admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="sqlite")
 
-    def test_the_refusal_names_the_column_rather_than_denying_it_exists(self) -> None:
-        """A caller told "no such column" retries near spellings; this stops it.
-
-        The message says the column exists and was left out for answering no
-        analytical question -- which is the actual reason. Wording it as though
-        the column were withheld invited the reading that this is a
-        confidentiality boundary, and it is not: every omitted column is
-        readable through GraphQL by the same caller.
-        """
-        with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql(
-                "SELECT user_id FROM datasets", allowlist=load_allowlist("sqlite"), dialect="sqlite"
-            )
-        assert "exists but is not part of the analytics schema" in caught.value.message
-        assert "answers no analytical question" in caught.value.message
-
-    def test_a_column_that_does_not_exist_is_not_described_as_withheld(self) -> None:
-        """The two reach one outcome and must not share one sentence.
-
-        Told a typo "exists and was left out", a caller stops -- when trying the
-        spelling it meant is exactly what it should do. So the unknown-column
-        case supplies its own wording and a suggestion drawn from the manifest,
-        which cannot propose a column the caller may not read.
-        """
+    def test_an_unknown_column_has_a_suggestion(self) -> None:
         with pytest.raises(AnalyticsSqlError) as caught:
             admit_sql(
                 "SELECT span_kindd FROM spans", allowlist=load_allowlist("sqlite"), dialect="sqlite"
@@ -230,7 +164,6 @@ class TestHiddenColumnsAreRefused:
         assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
         assert "is not a column of that table" in caught.value.message
         assert "Did you mean span_kind" in caught.value.message
-        assert "exists but is not part of" not in caught.value.message
 
     @pytest.mark.parametrize(
         "sql,expected",
@@ -249,60 +182,17 @@ class TestHiddenColumnsAreRefused:
         assert f"Did you mean {expected}" in caught.value.message
 
     @pytest.mark.parametrize(
-        "sql,withheld",
+        "sql,physical",
         [
             ("SELECT user_idd FROM datasets", "user_id"),
             ("SELECT gradient_start_colr FROM projects", "gradient_start_color"),
             ("SELECT trace_retention_policy_idd FROM projects", "trace_retention_policy_id"),
         ],
     )
-    def test_a_near_miss_on_a_withheld_name_is_not_answered_with_it(
-        self, sql: str, withheld: str
-    ) -> None:
-        """The suggestion pool is the point at which this surface could name a
-        column it declines to show. An exact spelling already confirms the name;
-        a near miss must not, or the pool becomes a way to enumerate them.
-
-        Asserted on the suggestion clause alone. The message necessarily echoes
-        the caller's own spelling, so a whole-message search for the withheld
-        name answers a different question than this one.
-        """
+    def test_a_near_miss_on_a_physical_name_is_suggested(self, sql: str, physical: str) -> None:
         with pytest.raises(AnalyticsSqlError) as caught:
             admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="sqlite")
-        suggestion = caught.value.message.partition("Did you mean")[2]
-
-        assert not suggestion, f"suggested {suggestion!r} for a near miss on {withheld}"
-
-    def test_the_alias_collision_refusal_claims_nothing_about_binding(self) -> None:
-        """It binds to the alias in the shape that reaches this message, so
-        describing the outcome as uncertain would be false -- and any binding
-        claim is one more thing to keep true as the modelled rules are refined.
-        """
-        with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql(
-                "SELECT id AS gradient_start_color FROM projects ORDER BY gradient_start_color",
-                allowlist=load_allowlist("sqlite"),
-                dialect="sqlite",
-            )
-        message = caught.value.message
-
-        assert "Rename the alias" in message
-        for claim in ("depends on", "sorts or groups", "ambiguous", "may bind", "might"):
-            assert claim not in message
-
-    def test_a_group_by_alias_over_a_withheld_name_keeps_the_stock_wording(self) -> None:
-        """GROUP BY binds to the input column when one carries the name, so this
-        reference is the withheld column itself rather than an alias collision,
-        and the two refusals must not be worded alike."""
-        with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql(
-                "SELECT name AS gradient_start_color FROM projects GROUP BY gradient_start_color",
-                allowlist=load_allowlist("sqlite"),
-                dialect="sqlite",
-            )
-
-        assert "exists but is not part of the analytics schema" in caught.value.message
-        assert "Rename the alias" not in caught.value.message
+        assert f"Did you mean {physical}" in caught.value.message
 
     def test_an_unqualified_reference_is_reported_against_every_table_checked(self) -> None:
         """Naming one of them would assert something narrower than what was tested."""
@@ -322,20 +212,11 @@ class TestHiddenColumnsAreRefused:
             "SELECT s.name FROM spans s JOIN traces t ON s.trace_rowid = t.id",
         ],
     )
-    def test_exposed_columns_are_untouched(self, sql: str) -> None:
+    def test_physical_columns_are_untouched(self, sql: str) -> None:
         admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="sqlite")
 
 
-class TestHiddenColumnsResistCaseVariation:
-    """The table rule is an allowlist; this one is a denylist, and they fail opposite ways.
-
-    An unrecognised table spelling is refused because nothing matched. An
-    unrecognised *column* spelling was admitted for the same reason -- and both
-    engines resolve unquoted identifiers case-insensitively, so a single capital
-    letter returned exactly the data the lowercase spelling is refused for.
-    Reproduced end to end on both backends before this was closed.
-    """
-
+class TestPhysicalColumnsAreCaseInsensitive:
     @pytest.mark.parametrize(
         "sql",
         [
@@ -348,10 +229,8 @@ class TestHiddenColumnsResistCaseVariation:
             "SELECT count(*) FROM datasets GROUP BY USER_ID",
         ],
     )
-    def test_case_variants_of_a_hidden_column_are_refused(self, sql: str) -> None:
-        with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
-        assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
+    def test_case_variants_of_a_physical_column_are_admitted(self, sql: str) -> None:
+        admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
 
     def test_the_table_allowlist_was_already_closed_under_case(self) -> None:
         """Recorded so the asymmetry that caused this is visible, not inferred."""
@@ -361,17 +240,7 @@ class TestHiddenColumnsResistCaseVariation:
             assert caught.value.code is ErrorCode.RELATION_NOT_ALLOWED
 
 
-class TestJoinsCannotLaunderAHiddenColumn:
-    """`USING` and NATURAL JOIN equate columns without writing an `exp.Column`.
-
-    Scanning column references missed both. That was not merely a read: joining
-    a caller-supplied VALUES list `USING (gradient_start_color)` returns one row
-    per match, so a candidate list recovers the withheld value row by row, and
-    an integer key like `user_id` falls to a single query. Reproduced against
-    both live backends before this was closed -- PostgreSQL returned
-    (project_id, hidden_colour) pairs.
-    """
-
+class TestJoinStructure:
     @pytest.mark.parametrize(
         "sql",
         [
@@ -382,13 +251,11 @@ class TestJoinsCannotLaunderAHiddenColumn:
             "SELECT d.id FROM datasets d JOIN (SELECT 1 AS user_id) g USING (user_id)",
         ],
     )
-    def test_using_a_hidden_column_is_refused(self, sql: str) -> None:
-        with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
-        assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
+    def test_using_a_physical_column_is_admitted(self, sql: str) -> None:
+        admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
 
     def test_natural_join_is_refused_outright(self) -> None:
-        """It names nothing, so nothing can be inspected -- there is no safe subset."""
+        """Its implicit keys change when the physical schema evolves."""
         with pytest.raises(AnalyticsSqlError) as caught:
             admit_sql(
                 "SELECT count(*) FROM datasets NATURAL JOIN dataset_versions",
@@ -398,7 +265,7 @@ class TestJoinsCannotLaunderAHiddenColumn:
         assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
         assert "NATURAL JOIN" in caught.value.message
 
-    def test_using_an_exposed_column_still_works(self) -> None:
+    def test_using_a_physical_column_still_works(self) -> None:
         admit_sql(
             "SELECT count(*) FROM spans JOIN traces USING (id)",
             allowlist=load_allowlist("sqlite"),
@@ -1238,15 +1105,8 @@ class TestStructuralPolicyIsDefaultDeny:
         assert "not part of the permitted grammar" not in result.detail
 
 
-class TestHiddenColumnsSurviveForeignSources:
-    """A source the manifest does not know cannot launder a withheld column.
-
-    The allowlist inversion added an escape so a table-valued function could
-    project names the manifest never declared. Written as a whole-scope skip, it
-    meant any query cross-joining a derived table admitted every hidden column
-    unqualified -- and admission is the only gate for those, since the SQLite
-    authorizer is table-level and the plan gate reads relations.
-    """
+class TestPhysicalColumnsWithForeignSources:
+    """A physical column remains valid when another source shares its scope."""
 
     @pytest.mark.parametrize(
         "sql",
@@ -1257,14 +1117,13 @@ class TestHiddenColumnsSurviveForeignSources:
             "SELECT user_id FROM datasets",
         ],
     )
-    def test_a_hidden_column_is_refused_whatever_shares_the_scope(self, sql: str) -> None:
+    def test_a_physical_column_is_admitted_whatever_shares_the_scope(self, sql: str) -> None:
         result = try_parse_and_admit(sql, dialect="sqlite")
 
-        assert result.outcome is AdmissionOutcome.COLUMN_NOT_ALLOWED, sql
+        assert result.outcome is AdmissionOutcome.ADMIT, sql
 
     def test_a_name_only_the_foreign_source_could_provide_still_admits(self) -> None:
-        """The case the escape exists for. It is not hidden, so it is not
-        withheld -- it is simply unknown to the manifest."""
+        """Query-local sources can provide names absent from the DDL."""
         result = try_parse_and_admit(
             "SELECT key FROM spans, json_each(spans.attributes)", dialect="sqlite"
         )
@@ -1304,23 +1163,19 @@ class TestMainstreamGrammarIsNotRefused:
 
 
 class TestGroupByBindsToTheInputColumn:
-    """`ORDER BY` and `GROUP BY` are not symmetric, and treating them alike leaked.
+    """`ORDER BY` and `GROUP BY` are not symmetric.
 
     Both engines resolve a bare `GROUP BY` name against the input columns first,
     falling back to an output alias only when no source column carries it.
-    `ORDER BY` prefers the output alias. Marking both query-local let an alias
-    shadowing a withheld column reach the real one.
+    `ORDER BY` prefers the output alias.
     """
 
-    def test_an_alias_shadowing_a_hidden_column_does_not_reach_it(self) -> None:
-        """Measured with `name` held constant and user_id 1,2,3, so the group
-        count discriminates: grouping by the alias would give one group and it
-        gave three -- the withheld column's distribution."""
+    def test_an_alias_shadowing_a_physical_column_is_admitted(self) -> None:
         result = try_parse_and_admit(
             "SELECT name AS user_id, COUNT(*) FROM datasets GROUP BY user_id", dialect="sqlite"
         )
 
-        assert result.outcome is AdmissionOutcome.COLUMN_NOT_ALLOWED
+        assert result.outcome is AdmissionOutcome.ADMIT
 
     @pytest.mark.parametrize(
         "sql",
@@ -1340,10 +1195,8 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
     """An alias binds in ORDER BY only when the sort key is the bare name.
 
     Inside an expression both engines resolve to the input column, so treating
-    every column beneath the clause as query-local let a shadowing alias reach a
-    withheld one. Measured on rows (1,'zzz') (2,'aaa') (3,'mmm'):
-    `ORDER BY gradient_start_color || ''` returned 2,3,1 -- the hidden column's
-    order -- while the bare alias returned 1,2,3.
+    every column beneath the clause as query-local would rewrite an input
+    virtual column as an output alias.
     """
 
     @pytest.mark.parametrize(
@@ -1354,29 +1207,20 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
             "CAST(gradient_start_color AS TEXT)",
         ],
     )
-    def test_an_expression_sort_key_reaches_the_real_column_and_is_refused(self, key: str) -> None:
+    def test_an_expression_sort_key_reaches_the_real_column(self, key: str) -> None:
         result = try_parse_and_admit(
             f"SELECT id AS gradient_start_color FROM projects ORDER BY {key}", dialect="sqlite"
         )
 
-        assert result.outcome is AdmissionOutcome.COLUMN_NOT_ALLOWED
+        assert result.outcome is AdmissionOutcome.ADMIT
 
-    def test_an_alias_shadowing_a_withheld_column_is_refused_even_when_it_binds(self) -> None:
-        """Refused on the category of evidence, not on where the name binds.
-
-        A bare sort key really does bind to the output -- measured on both
-        engines -- so this refuses a statement that would have been harmless.
-        The trade is deliberate: the check declines alias-precedence evidence
-        outright, so no future correction to that model can turn into a
-        disclosure. Renaming the alias recovers the query, and only an alias
-        colliding with a withheld name is affected.
-        """
+    def test_an_alias_shadowing_a_physical_column_is_admitted(self) -> None:
         result = try_parse_and_admit(
             "SELECT id AS gradient_start_color FROM projects ORDER BY gradient_start_color",
             dialect="sqlite",
         )
 
-        assert result.outcome is AdmissionOutcome.COLUMN_NOT_ALLOWED
+        assert result.outcome is AdmissionOutcome.ADMIT
 
     @pytest.mark.parametrize(
         "sql",
@@ -1387,12 +1231,7 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
             "SELECT id AS v FROM datasets GROUP BY v",
         ],
     )
-    def test_an_alias_that_shadows_nothing_withheld_is_still_admitted(self, sql: str) -> None:
-        """The strict bar applies to the disclosure check alone.
-
-        Applying it to the unknown-column check as well would refuse ordinary
-        aliasing, where the name is the caller's own and no table was consulted.
-        """
+    def test_an_alias_that_shadows_no_physical_column_is_admitted(self, sql: str) -> None:
         assert try_parse_and_admit(sql, dialect="sqlite").outcome is AdmissionOutcome.ADMIT
 
     @pytest.mark.parametrize(
@@ -1432,11 +1271,9 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
     def test_the_resolver_categorises_alias_evidence_apart_from_structural(self) -> None:
         """The invariant the split exists to hold.
 
-        Both alias-precedence defects found so far were wrong readings of where
-        a name binds. Pinning the shape of the answer rather than each reading
-        is what stops the next one from being a disclosure: the category is what
-        the check consults, so a reference marked local by the select list can
-        never be mistaken for one that resolves into a derived relation.
+        The rewrite substitutes virtual columns only when they resolve to a
+        base relation, so alias and derived-relation evidence must remain
+        distinguishable.
         """
         allowlist = load_allowlist("sqlite")
 
@@ -1473,15 +1310,12 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
         category cannot say which one it means -- and does not have to, because
         both engines refuse the collision as ambiguous instead of resolving it
         toward the base table. Measured in all four positions on SQLite and
-        PostgreSQL. If an engine ever resolved it silently, this admission would
-        become a withheld-column read, and this test is what would notice.
+        PostgreSQL.
         """
         assert try_parse_and_admit(sql, dialect="sqlite").outcome is AdmissionOutcome.ADMIT
 
     def test_the_locality_answer_cannot_be_asked_by_membership(self) -> None:
-        """The permissive spelling is the obvious one, so a disclosure check that
-        reaches for it fails open -- which is how both alias defects reached the
-        hidden-column check. Naming the bar is the whole point of the type."""
+        """Consumers must choose the locality evidence appropriate to their use."""
         locality = query_local_columns(
             cast(
                 exp.Expression, parse_one("SELECT id AS v FROM projects ORDER BY v", read="sqlite")
