@@ -1046,9 +1046,11 @@ def _check_hidden_columns(
                     "Name the column, or expand the function in the FROM clause.",
                 )
         for column in scope.expression.find_all(exp.Column):
-            if not column.table and column.name.casefold() in {
-                reference.casefold() for reference in by_reference
-            }:
+            if (
+                not column.table
+                and not localities.is_alias_bound(column)
+                and column.name.casefold() in {reference.casefold() for reference in by_reference}
+            ):
                 return AdmissionResult(
                     AdmissionOutcome.UNSUPPORTED_SYNTAX,
                     f"{column.name!r} names a table here, so it selects the whole row "
