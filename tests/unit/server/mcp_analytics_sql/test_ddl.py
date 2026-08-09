@@ -7,19 +7,23 @@ import sqlglot
 from sqlglot import exp
 
 from phoenix.db.ddl import load_dialect_schema
-from phoenix.server.mcp_analytics_sql.allowlist import DialectName, load_allowlist
+from phoenix.db.ddl.loader import TableSchema
+from phoenix.db.helpers import SupportedSQLDialectName
+from phoenix.server.mcp_analytics_sql.allowlist import Allowlist, TableSpec, load_allowlist
 from phoenix.server.mcp_analytics_sql.ddl import render_schema_ddl, validate_ddl
-from phoenix.server.mcp_analytics_sql.parse import AdmissionOutcome
+from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
+from phoenix.server.mcp_analytics_sql.parse import AdmissionOutcome, admit, parse_sql, render
+from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
 
 # Named `backend` rather than `dialect` on purpose: the unit conftest skips any
 # test with a `dialect` parameter set to "postgresql" when running against SQLite,
 # on the assumption it needs that database. These render text and touch none.
-DIALECTS: list[DialectName] = ["sqlite", "postgresql"]
+DIALECTS: list[SupportedSQLDialectName] = ["sqlite", "postgresql"]
 DETAILS: list[Literal["brief", "detailed", "full"]] = ["brief", "detailed", "full"]
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
-def test_detailed_output_starts_with_the_raw_schema_asset(backend: DialectName) -> None:
+def test_detailed_output_starts_with_the_raw_schema_asset(backend: SupportedSQLDialectName) -> None:
     """Physical definitions come from the active dialect asset without synthesis."""
     raw = load_dialect_schema(backend)["spans"].create_table_ddl
     ddl = render_schema_ddl(tables=["spans"], detail="detailed", dialect=backend)
@@ -147,7 +151,7 @@ def test_filters_narrow_the_rendering() -> None:
         for ln in searched.splitlines()
         if ln.startswith("-- ") and ": " in ln and not ln.startswith("-- area:")
     ]
-    assert matched == ["-- spans: One row per span"]
+    assert matched == ["-- spans: One OpenTelemetry span"]
 
 
 def test_brief_is_a_catalogue_and_detailed_is_a_schema() -> None:
@@ -155,7 +159,7 @@ def test_brief_is_a_catalogue_and_detailed_is_a_schema() -> None:
     brief = render_schema_ddl(detail="brief", dialect="sqlite")
     detailed = render_schema_ddl(detail="detailed", dialect="sqlite")
     assert "CREATE TABLE" not in brief
-    assert "-- spans: One row per span" in brief
+    assert "-- spans: One OpenTelemetry span" in brief
     assert "CREATE TABLE spans" in detailed
     assert len(brief) < len(detailed)
 
@@ -192,6 +196,74 @@ def test_allowlist_physical_columns_come_from_the_ddl_asset() -> None:
     expected = load_dialect_schema("sqlite")["projects"].columns
     assert spec.columns == expected
     assert {"gradient_start_color", "trace_retention_policy_id"} <= set(spec.columns)
+
+
+def test_postgresql_quoted_physical_columns_keep_their_case_semantics() -> None:
+    """The loader records physical quoting rather than treating case as presentation."""
+    spec = TableSpec(
+        name="generated_widget",
+        area="test",
+        grain="",
+        columns=("id", "MixedCase"),
+        quoted_columns=frozenset({"MixedCase"}),
+    )
+    allowlist = Allowlist(
+        tables=frozenset({"generated_widget"}),
+        table_specs={"generated_widget": spec},
+        areas={"test": frozenset({"generated_widget"})},
+        pg_schema="public",
+    )
+
+    admitted = admit(
+        parse_sql('SELECT "MixedCase" FROM generated_widget', dialect="postgresql"),
+        allowlist=allowlist,
+        dialect="postgresql",
+    )
+    assert render(admitted, dialect="postgresql") == 'SELECT "MixedCase" FROM generated_widget'
+
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit(
+            parse_sql("SELECT mixedcase FROM generated_widget", dialect="postgresql"),
+            allowlist=allowlist,
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
+
+    expanded = rewrite(
+        admit(
+            parse_sql("SELECT * FROM generated_widget AS w", dialect="postgresql"),
+            allowlist=allowlist,
+            dialect="postgresql",
+        ),
+        RewriteContext(allowlist=allowlist, dialect="postgresql", row_limit=10),
+    )
+    assert 'w."MixedCase"' in render(expanded, dialect="postgresql")
+
+
+def test_allowlist_rejects_case_insensitive_physical_virtual_collisions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SQLite has case-insensitive identifiers, so a virtual overlay cannot share one."""
+    import json
+
+    from phoenix.server.mcp_analytics_sql import allowlist as allowlist_module
+
+    manifest = {"areas": {"test": {"tables": {"widgets": {"virtual_columns": ["mixedcase"]}}}}}
+    schema = {
+        "widgets": TableSchema(
+            create_table_ddl='CREATE TABLE widgets ("MixedCase" TEXT);',
+            columns=("MixedCase",),
+            quoted_columns=frozenset({"MixedCase"}),
+        )
+    }
+    monkeypatch.setattr(allowlist_module, "_manifest_text", lambda: json.dumps(manifest))
+    monkeypatch.setattr(allowlist_module, "load_dialect_schema", lambda dialect: schema)
+    allowlist_module.load_allowlist.cache_clear()
+    try:
+        with pytest.raises(ValueError, match="physical/virtual column collisions"):
+            allowlist_module.load_allowlist("sqlite")
+    finally:
+        allowlist_module.load_allowlist.cache_clear()
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
@@ -276,7 +348,9 @@ def test_an_empty_selection_says_which_filter_matched_nothing() -> None:
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
-def test_star_expansion_matches_physical_ddl_and_virtual_columns(backend: DialectName) -> None:
+def test_star_expansion_matches_physical_ddl_and_virtual_columns(
+    backend: SupportedSQLDialectName,
+) -> None:
     """Star expansion preserves DDL order and appends query-only overlays."""
     import sqlglot
 
@@ -385,7 +459,7 @@ def test_published_json_paths_are_expressions_a_caller_can_run(backend: str) -> 
     assert paths, "spans publishes blessed attribute paths; the test is vacuous without them"
     for path in paths:
         result = try_parse_and_admit(
-            f"SELECT {path} AS v FROM spans", dialect=cast(DialectName, backend)
+            f"SELECT {path} AS v FROM spans", dialect=cast(SupportedSQLDialectName, backend)
         )
         assert result.outcome is AdmissionOutcome.ADMIT, f"{path!r} -> {result.detail}"
         assert "." not in path.split("'")[0], f"{path!r} is a logical path, not an expression"

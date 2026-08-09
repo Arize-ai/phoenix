@@ -67,6 +67,18 @@ def test_parser_supports_quoted_generated_identifiers(
     assert schema["order"].columns == expected_columns
 
 
+def test_parser_normalizes_quoted_schema_markers_and_sqlite_table_options() -> None:
+    schema = parse_schema_asset(
+        '-- Table: "public"."Mi""xed"\n'
+        'CREATE TABLE "public"."Mi""xed" ("MixedCase" TEXT) WITHOUT ROWID, STRICT;\n',
+        "sqlite",
+    )
+
+    assert list(schema) == ['Mi"xed']
+    assert schema['Mi"xed'].columns == ("MixedCase",)
+    assert schema['Mi"xed'].quoted_columns == frozenset({"MixedCase"})
+
+
 def test_table_ddl_excludes_following_indexes() -> None:
     table = load_dialect_schema("sqlite")["spans"]
 

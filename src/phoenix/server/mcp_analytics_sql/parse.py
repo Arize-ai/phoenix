@@ -10,11 +10,11 @@ from sqlglot import exp, parse
 from sqlglot.errors import ErrorLevel, ParseError, SqlglotError, UnsupportedError
 from sqlglot.optimizer.scope import build_scope
 
+from phoenix.db.helpers import SupportedSQLDialectName
 from phoenix.server.mcp_analytics_sql.allowlist import (
     ALLOWED_CAST_TYPES,
     EXCLUDED_FUNC_CLASSES,
     Allowlist,
-    DialectName,
     allowed_func_classes,
     sqlglot_read_dialect,
 )
@@ -52,7 +52,7 @@ class AdmissionResult:
 ALLOWED_ROOTS = (exp.Select, exp.Union, exp.Intersect, exp.Except)
 
 
-def parse_sql(sql: str, *, dialect: DialectName) -> exp.Expression:
+def parse_sql(sql: str, *, dialect: SupportedSQLDialectName) -> exp.Expression:
     try:
         statements = parse(sql, read=sqlglot_read_dialect(dialect))
     except ParseError as exc:
@@ -818,7 +818,7 @@ def _check_timestamp_literals(
 
 
 def _check_functions(
-    root: exp.Expression, *, allowlist: Allowlist, dialect: DialectName
+    root: exp.Expression, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
 ) -> Optional[AdmissionResult]:
     allowed_anon = allowlist.allowed_anon_functions(dialect)
     allowed_classes = allowed_func_classes(dialect)
@@ -913,7 +913,7 @@ def _check_base_tables(root: exp.Expression, *, allowlist: Allowlist) -> Optiona
 
 
 def _check_column_references(
-    root: exp.Expression, *, allowlist: Allowlist
+    root: exp.Expression, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
 ) -> Optional[AdmissionResult]:
     """Validate base-table column references and preserve structural protections.
 
@@ -1015,7 +1015,7 @@ def _check_column_references(
         for column in scope.expression.find_all(exp.Column):
             if localities.is_structurally_local(column) or isinstance(column.this, exp.Star):
                 continue
-            name = column.name.casefold()
+            name = column.name or ""
             qualifier = column.table or ""
             if qualifier:
                 candidates = [by_reference[qualifier]] if qualifier in by_reference else []
@@ -1030,7 +1030,9 @@ def _check_column_references(
             # schema match.
             if localities.is_alias_bound(column):
                 continue
-            if any(_offers_column(allowlist, table_name, name) for table_name in candidates):
+            if any(
+                _offers_column(allowlist, table_name, column, dialect) for table_name in candidates
+            ):
                 continue
             # Unknown to the manifest. That is a refusal when the allowlisted
             # tables are the only thing in scope, and not when something else
@@ -1059,7 +1061,7 @@ def _check_column_references(
                     for virtual in allowlist.table_specs[table_name].virtual_columns
                 }
             )
-            near = get_close_matches(name, offered_here, n=3, cutoff=0.7)
+            near = get_close_matches(name.casefold(), offered_here, n=3, cutoff=0.7)
             suggestion = f" Did you mean {', '.join(near)}?" if near else ""
             # An unqualified reference was checked against every table in scope,
             # so naming one of them would assert something narrower than what
@@ -1080,7 +1082,12 @@ def _check_column_references(
     return None
 
 
-def _offers_column(allowlist: Allowlist, table_name: str, folded_name: str) -> bool:
+def _offers_column(
+    allowlist: Allowlist,
+    table_name: str,
+    reference: exp.Column,
+    dialect: SupportedSQLDialectName,
+) -> bool:
     """Whether this table exposes a physical or virtual column under this name.
 
     Virtual columns are advertised and not stored, so they are offered here and
@@ -1088,12 +1095,28 @@ def _offers_column(allowlist: Allowlist, table_name: str, folded_name: str) -> b
     refuses the columns the surface exists to provide.
     """
     spec = allowlist.table_specs[table_name]
-    return folded_name in {column.casefold() for column in spec.columns} | {
-        virtual.casefold() for virtual in spec.virtual_columns
-    }
+    name = reference.name or ""
+    if name.casefold() in {virtual.casefold() for virtual in spec.virtual_columns}:
+        return True
+    if dialect == "sqlite":
+        return name.casefold() in {column.casefold() for column in spec.columns}
+
+    # PostgreSQL folds unquoted identifiers to lower-case but preserves quoted
+    # spelling. The DDL loader retains which physical names were quoted, so the
+    # policy admits `"MixedCase"` only when it exactly names that column and
+    # refuses the different physical name `mixedcase`.
+    identifier = reference.this
+    is_quoted = isinstance(identifier, exp.Identifier) and bool(identifier.args.get("quoted"))
+    if is_quoted:
+        return name in spec.columns
+    return any(
+        name.casefold() == physical and physical == physical.lower() for physical in spec.columns
+    )
 
 
-def admit(root: exp.Expression, *, allowlist: Allowlist, dialect: DialectName) -> exp.Expression:
+def admit(
+    root: exp.Expression, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
+) -> exp.Expression:
     for node in root.walk():
         if isinstance(node, (exp.Insert, exp.Update, exp.Delete, exp.Drop, exp.Create)):
             raise admission_error_from_outcome("not_read_only", type(node).__name__)
@@ -1115,7 +1138,7 @@ def admit(root: exp.Expression, *, allowlist: Allowlist, dialect: DialectName) -
         or _check_double_quoted_timestamp_operands(root, allowlist=allowlist)
         or _check_functions(root, allowlist=allowlist, dialect=dialect)
         or _check_base_tables(root, allowlist=allowlist)
-        or _check_column_references(root, allowlist=allowlist)
+        or _check_column_references(root, allowlist=allowlist, dialect=dialect)
         or _check_timestamp_literals(root, allowlist=allowlist)
     )
     if failure is not None:
@@ -1125,7 +1148,7 @@ def admit(root: exp.Expression, *, allowlist: Allowlist, dialect: DialectName) -
     return root
 
 
-def render(root: exp.Expression, *, dialect: DialectName) -> str:
+def render(root: exp.Expression, *, dialect: SupportedSQLDialectName) -> str:
     """Render the admitted tree, refusing rather than degrading.
 
     sqlglot warns and emits what it can when the target cannot express a node,
@@ -1158,7 +1181,7 @@ def admit_sql(
     sql: str,
     *,
     allowlist: Allowlist,
-    dialect: DialectName,
+    dialect: SupportedSQLDialectName,
 ) -> tuple[exp.Expression, str]:
     root = parse_sql(sql, dialect=dialect)
     root = admit(root, allowlist=allowlist, dialect=dialect)
@@ -1168,7 +1191,7 @@ def admit_sql(
 def try_parse_and_admit(
     sql: str,
     *,
-    dialect: DialectName = "postgresql",
+    dialect: SupportedSQLDialectName = "postgresql",
     allowlist: Optional[Allowlist] = None,
 ) -> AdmissionResult:
     """Parse and admit SQL, returning a structured outcome instead of raising."""

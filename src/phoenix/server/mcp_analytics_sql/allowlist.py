@@ -12,10 +12,8 @@ from sqlglot import exp
 from phoenix.db.ddl import load_dialect_schema
 from phoenix.db.helpers import SupportedSQLDialectName
 
-DialectName = SupportedSQLDialectName
 
-
-def sqlglot_read_dialect(dialect: DialectName) -> str:
+def sqlglot_read_dialect(dialect: SupportedSQLDialectName) -> str:
     return "postgres" if dialect == "postgresql" else dialect
 
 
@@ -93,7 +91,7 @@ ALLOWED_FUNC_CLASSES: frozenset[type[exp.Func]] = frozenset(
 # ``percentile_cont(...) WITHIN GROUP (...)`` under the SQLite dialect even though
 # SQLite has no such grammar. Admitting on class alone would therefore accept a
 # statement that fails at execution, so the decision is made per dialect.
-ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[DialectName, frozenset[type[exp.Func]]] = {
+ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[exp.Func]]] = {
     "postgresql": ALLOWED_FUNC_CLASSES
     | frozenset(
         {
@@ -178,7 +176,7 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[DialectName, frozenset[type[exp.Func]]] = 
 }
 
 
-def allowed_func_classes(dialect: DialectName) -> frozenset[type[exp.Func]]:
+def allowed_func_classes(dialect: SupportedSQLDialectName) -> frozenset[type[exp.Func]]:
     return ALLOWED_FUNC_CLASSES_BY_DIALECT[dialect]
 
 
@@ -386,7 +384,7 @@ ALLOWED_ANON_FUNCTIONS_COMMON: frozenset[str] = frozenset(
     }
 )
 
-ALLOWED_ANON_FUNCTIONS_BY_DIALECT: dict[DialectName, frozenset[str]] = {
+ALLOWED_ANON_FUNCTIONS_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[str]] = {
     "postgresql": ALLOWED_ANON_FUNCTIONS_COMMON
     | frozenset(
         {
@@ -574,6 +572,11 @@ class TableSpec:
     # authoritative dialect-specific schema. Their order matters for `*`;
     # metadata beyond their names belongs in the DDL itself.
     columns: tuple[str, ...]
+    # The generator deliberately emits quoted identifiers when bare SQL would
+    # bind a different PostgreSQL name. Keep that fact through to star expansion;
+    # rebuilding a `MixedCase` column as an unquoted identifier silently changes
+    # it to `mixedcase`.
+    quoted_columns: frozenset[str] = frozenset()
     time_column: Optional[str] = None
     virtual_columns: frozenset[str] = frozenset()
     blessed_attribute_paths: frozenset[str] = frozenset()
@@ -591,7 +594,7 @@ class Allowlist:
     pg_schema: str
     anon_functions: Optional[frozenset[str]] = None
 
-    def allowed_anon_functions(self, dialect: DialectName) -> frozenset[str]:
+    def allowed_anon_functions(self, dialect: SupportedSQLDialectName) -> frozenset[str]:
         if self.anon_functions is not None:
             return self.anon_functions
         return ALLOWED_ANON_FUNCTIONS_BY_DIALECT[dialect]
@@ -613,7 +616,7 @@ def _manifest_text() -> str:
 
 
 @lru_cache
-def load_allowlist(dialect: DialectName) -> Allowlist:
+def load_allowlist(dialect: SupportedSQLDialectName) -> Allowlist:
     raw = json.loads(_manifest_text())
     schema = load_dialect_schema(dialect)
     table_specs: dict[str, TableSpec] = {}
@@ -626,18 +629,41 @@ def load_allowlist(dialect: DialectName) -> Allowlist:
                 raise ValueError(
                     f"Allowlisted table {table_name!r} is missing from the DDL assets."
                 )
+            virtual_columns = frozenset(table.get("virtual_columns", [])) | (
+                {GRAPHQL_NODE_ID_COLUMN} if table_name in TABLE_GRAPHQL_TYPES else frozenset()
+            )
+            physical_by_folded_name = {
+                column.casefold(): column for column in physical_table.columns
+            }
+            collisions = sorted(
+                virtual
+                for virtual in virtual_columns
+                if virtual.casefold() in physical_by_folded_name
+            )
+            if collisions:
+                # SQLite identifiers are case-insensitive regardless of quoting,
+                # and this surface serves both SQLite and PostgreSQL. Rejecting
+                # the overlap here avoids a virtual rewrite shadowing a physical
+                # column in one backend while selecting the other in PostgreSQL.
+                raise ValueError(
+                    f"Allowlisted table {table_name!r} has physical/virtual column collisions: "
+                    + ", ".join(
+                        f"{physical_by_folded_name[virtual.casefold()]!r} and {virtual!r}"
+                        for virtual in collisions
+                    )
+                )
             table_specs[table_name] = TableSpec(
                 name=table_name,
                 area=area_name,
                 grain=table.get("grain", ""),
                 columns=physical_table.columns,
+                quoted_columns=physical_table.quoted_columns,
                 time_column=table.get("time_column"),
                 # Derived columns come from the manifest, plus the node id for
                 # tables that have a GraphQL type -- that mapping lives in code
                 # rather than the manifest because it tracks the API's type names,
                 # not the database schema.
-                virtual_columns=frozenset(table.get("virtual_columns", []))
-                | ({GRAPHQL_NODE_ID_COLUMN} if table_name in TABLE_GRAPHQL_TYPES else frozenset()),
+                virtual_columns=virtual_columns,
                 blessed_attribute_paths=frozenset(table.get("blessed_attribute_paths", [])),
                 promoted_columns_note=table.get("promoted_columns_note"),
                 column_notes=MappingProxyType(dict(table.get("column_notes", {}))),

@@ -33,8 +33,8 @@ from typing import Optional, cast
 import sqlglot
 
 from phoenix.db.ddl import load_dialect_schema
+from phoenix.db.helpers import SupportedSQLDialectName
 from phoenix.server.mcp_analytics_sql.allowlist import (
-    DialectName,
     TableSpec,
     load_allowlist,
     manifest_document,
@@ -101,11 +101,11 @@ def _render_table(spec: TableSpec, *, detail: str, create_table_ddl: str) -> lis
         # cannot use a column list yet. Rendered as comments, not as
         # `CREATE TABLE spans (...)`, which reads like DDL but is not valid SQL
         # and would teach an ellipsis that no backend accepts.
-        return [f"-- {spec.name}: {spec.grain}"]
+        return [f"-- {spec.name}: {spec.grain}" if spec.grain else f"-- {spec.name}"]
     return [create_table_ddl]
 
 
-def _blessed_path_expression(path: str, dialect: DialectName) -> str:
+def _blessed_path_expression(path: str, dialect: SupportedSQLDialectName) -> str:
     """A blessed attribute path as the expression a caller has to write.
 
     The manifest stores a logical path, `attributes.session.id`. That is not SQL
@@ -128,7 +128,7 @@ def _blessed_path_expression(path: str, dialect: DialectName) -> str:
     return f"json_extract({column}, '$.{route}')"
 
 
-def _render_curation(spec: TableSpec, dialect: DialectName = "postgresql") -> list[str]:
+def _render_curation(spec: TableSpec, dialect: SupportedSQLDialectName = "postgresql") -> list[str]:
     """Render non-relational curation comments for one table."""
 
     lines: list[str] = []
@@ -155,7 +155,7 @@ def render_schema_ddl(
 ) -> str:
     """Render the selected part of the allowlisted schema as DDL text."""
     manifest = manifest_document()
-    dialect_name = cast(DialectName, dialect)
+    dialect_name = cast(SupportedSQLDialectName, dialect)
     allowlist = load_allowlist(dialect_name)
     schema = load_dialect_schema(dialect_name)
     chunks: list[str] = []

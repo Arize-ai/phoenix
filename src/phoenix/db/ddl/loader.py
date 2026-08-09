@@ -32,6 +32,7 @@ class TableSchema:
 
     create_table_ddl: str
     columns: tuple[str, ...]
+    quoted_columns: frozenset[str]
 
 
 def _identifier(token: str) -> str:
@@ -78,6 +79,21 @@ def _consume_identifier(text: str, start: int = 0) -> tuple[str, int]:
     return text[token_start:index], index
 
 
+def _parse_qualified_identifier(text: str) -> str:
+    """Decode a generated identifier path and return its canonical base name."""
+    token, index = _consume_identifier(text)
+    base_name = _identifier(token)
+    while True:
+        while index < len(text) and text[index].isspace():
+            index += 1
+        if index == len(text):
+            return base_name
+        if text[index] != ".":
+            raise SchemaAssetError("Expected a schema-qualified identifier")
+        token, index = _consume_identifier(text, index + 1)
+        base_name = _identifier(token)
+
+
 def _parse_create_table(section: str) -> tuple[re.Match[str], str, int]:
     """Locate one CREATE TABLE statement and return its name and body start."""
 
@@ -85,15 +101,16 @@ def _parse_create_table(section: str) -> tuple[re.Match[str], str, int]:
     if match is None:
         raise SchemaAssetError("DDL section must contain a CREATE TABLE statement")
 
-    name_token, index = _consume_identifier(section, match.end())
+    index = match.end()
+    name_token, index = _consume_identifier(section, index)
     table_name = _identifier(name_token)
-    while index < len(section) and section[index].isspace():
-        index += 1
-    if index < len(section) and section[index] == ".":
-        name_token, index = _consume_identifier(section, index + 1)
-        table_name = _identifier(name_token)
+    while True:
         while index < len(section) and section[index].isspace():
             index += 1
+        if index == len(section) or section[index] != ".":
+            break
+        name_token, index = _consume_identifier(section, index + 1)
+        table_name = _identifier(name_token)
     if index == len(section) or section[index] != "(":
         raise SchemaAssetError("CREATE TABLE name must be followed by an opening parenthesis")
     return match, table_name, index + 1
@@ -131,6 +148,35 @@ def _find_statement_end(text: str, start: int) -> int:
             return index + 1
         index += 1
     raise SchemaAssetError("Generated CREATE TABLE statement has no terminator")
+
+
+def _find_matching_parenthesis(text: str, opening: int) -> int:
+    """Return the closing parenthesis for the table body beginning at ``opening``."""
+    quote: str | None = None
+    depth = 0
+    index = opening
+    while index < len(text):
+        character = text[index]
+        if quote is not None:
+            if character == quote:
+                if index + 1 < len(text) and text[index + 1] == quote:
+                    index += 2
+                    continue
+                quote = None
+            index += 1
+            continue
+        if character in {"'", '"', "`"}:
+            quote = character
+        elif character == "[":
+            quote = "]"
+        elif character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+            if depth == 0:
+                return index
+        index += 1
+    raise SchemaAssetError("CREATE TABLE has an unterminated table body")
 
 
 def _split_definitions(body: str) -> tuple[str, ...]:
@@ -185,20 +231,23 @@ def _parse_table_section(name: str, section: str, dialect: SupportedSQLDialectNa
     statement_end = _find_statement_end(section, match.start())
     raw_statement = section[match.start() : statement_end]
     create_table_ddl = raw_statement.strip()
-    statement = raw_statement.removesuffix(";").rstrip()
-    if not statement.endswith(")"):
-        raise SchemaAssetError(f"{dialect} DDL section {name!r} has an unterminated table body")
-    body = statement[body_start - match.start() : -1]
+    body_end = _find_matching_parenthesis(section, body_start - 1)
+    body = section[body_start:body_end]
     columns: list[str] = []
+    quoted_columns: set[str] = set()
     for definition in _split_definitions(body):
         first, _ = _consume_identifier(definition)
         if first[0] in {'"', "`", "["} or first.upper() not in _CONSTRAINT_PREFIXES:
-            columns.append(_identifier(first))
+            column = _identifier(first)
+            columns.append(column)
+            if first[0] in {'"', "`", "["}:
+                quoted_columns.add(column)
     if not columns:
         raise SchemaAssetError(f"{dialect} DDL section {name!r} has no columns")
     return TableSchema(
         create_table_ddl=create_table_ddl,
         columns=tuple(columns),
+        quoted_columns=frozenset(quoted_columns),
     )
 
 
@@ -211,7 +260,12 @@ def parse_schema_asset(text: str, dialect: SupportedSQLDialectName) -> Mapping[s
 
     tables: dict[str, TableSchema] = {}
     for index, marker in enumerate(markers):
-        name = marker.group("name").strip()
+        try:
+            name = _parse_qualified_identifier(marker.group("name"))
+        except SchemaAssetError as error:
+            raise SchemaAssetError(
+                f"{dialect} DDL table marker {marker.group('name')!r} is not an identifier"
+            ) from error
         if name in tables:
             raise SchemaAssetError(f"{dialect} DDL asset has duplicate table marker {name!r}")
         section_end = markers[index + 1].start() if index + 1 < len(markers) else len(text)

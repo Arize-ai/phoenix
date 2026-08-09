@@ -20,14 +20,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import TextClause
 
 from phoenix.config import get_env_database_connection_str
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, SupportedSQLDialectName
 from phoenix.server.mcp_analytics_sql.allowlist import (
     PLAN_GATE_ALLOWED_FUNCTIONS,
     SQLITE_TABLE_VALUED_FUNCTIONS,
     SRF_NODE_TYPES,
     UNNEST_FUNCTIONS,
     Allowlist,
-    DialectName,
     load_allowlist,
     sqlite_authorizer_functions,
 )
@@ -77,15 +76,17 @@ SQLITE_TIMEOUT_SECONDS = 30
 
 @dataclass
 class ExecutionSemaphore:
-    _width_by_dialect: dict[DialectName, int] = field(
+    _width_by_dialect: dict[SupportedSQLDialectName, int] = field(
         default_factory=lambda: {"postgresql": 4, "sqlite": 1}
     )
     _queue_size: int = 8
-    _locks: dict[DialectName, asyncio.Semaphore] = field(default_factory=dict)
-    _waiting: dict[DialectName, int] = field(default_factory=lambda: {"postgresql": 0, "sqlite": 0})
+    _locks: dict[SupportedSQLDialectName, asyncio.Semaphore] = field(default_factory=dict)
+    _waiting: dict[SupportedSQLDialectName, int] = field(
+        default_factory=lambda: {"postgresql": 0, "sqlite": 0}
+    )
     _guard: asyncio.Lock = field(default_factory=asyncio.Lock)
 
-    async def acquire(self, dialect: DialectName) -> None:
+    async def acquire(self, dialect: SupportedSQLDialectName) -> None:
         async with self._guard:
             if self._waiting[dialect] >= self._queue_size:
                 # Logged, not merely returned. Saturation is the one failure the
@@ -125,7 +126,7 @@ class ExecutionSemaphore:
             # observe a torn value on a single-threaded loop.
             self._waiting[dialect] -= 1
 
-    def release(self, dialect: DialectName) -> None:
+    def release(self, dialect: SupportedSQLDialectName) -> None:
         lock = self._locks.get(dialect)
         if lock is not None:
             lock.release()
@@ -499,7 +500,7 @@ async def execute_analytics_sql(
     *,
     sqlite_db_path: Optional[str] = None,
 ) -> ExecuteResult:
-    dialect: DialectName = (
+    dialect: SupportedSQLDialectName = (
         "postgresql" if db.dialect is SupportedSQLDialect.POSTGRESQL else "sqlite"
     )
     if dialect == "sqlite" and sqlite_db_path is None:
