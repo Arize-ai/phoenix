@@ -774,6 +774,9 @@ class OnlineEvalProducer(DaemonTask):
         criteria: _ActiveCriteria,
         span_ids: list[int],
     ) -> None:
+        if not span_ids:
+            return
+        await self._stamp_work_materialized(session, criteria.criteria_id)
         records = [
             {
                 "span_rowid": span_rowid,
@@ -820,3 +823,22 @@ class OnlineEvalProducer(DaemonTask):
                     on_conflict=OnConflict.DO_NOTHING,
                 )
             )
+
+    async def _stamp_work_materialized(self, session: AsyncSession, criteria_id: int) -> None:
+        """Record that this criteria has produced evaluation work, once and for good.
+
+        The stamp is what the evaluationTarget lock reads, so it must survive the work
+        rows that retention will eventually delete. updated_at is carried forward
+        explicitly: this is a producer bookkeeping write, not a configuration change.
+        """
+        await session.execute(
+            update(models.ProjectEvaluatorCriteria)
+            .where(
+                models.ProjectEvaluatorCriteria.id == criteria_id,
+                models.ProjectEvaluatorCriteria.work_materialized_at.is_(None),
+            )
+            .values(
+                work_materialized_at=datetime.now(timezone.utc),
+                updated_at=models.ProjectEvaluatorCriteria.updated_at,
+            )
+        )

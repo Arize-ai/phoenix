@@ -1277,6 +1277,7 @@ CREATE TABLE public.project_evaluator_criteria (
     evaluation_target VARCHAR NOT NULL,
     input_mapping JSONB,
     enabled BOOLEAN NOT NULL DEFAULT true,
+    work_materialized_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_project_evaluator_criteria PRIMARY KEY (id),
