@@ -377,7 +377,7 @@ class UpdateDatasetLLMEvaluatorInput:
     dataset_evaluator_id: GlobalID
     dataset_id: GlobalID
     name: Identifier
-    description: Optional[str] = None
+    description: Optional[str] = UNSET
     prompt_version_id: Optional[GlobalID] = UNSET
     prompt_version: ChatPromptVersionInput
     output_configs: list[AnnotationConfigInput]
@@ -477,7 +477,7 @@ class UpdateProjectLLMEvaluatorInput:
     evaluation_target: EvaluationTarget
     filter_condition: str
     enabled: Optional[bool] = UNSET
-    description: Optional[str] = None
+    description: Optional[str] = UNSET
     prompt_version_id: Optional[GlobalID] = UNSET
 
 
@@ -773,8 +773,10 @@ class EvaluatorMutationMixin:
                 if pair is None:
                     raise NotFound(f"LLM project evaluator not found: {input.project_evaluator_id}")
                 criteria, evaluator = pair
+                shared_evaluator_changed = False
                 if criteria.name != name:
                     evaluator.name = await _generate_unique_evaluator_name(session, name)
+                    shared_evaluator_changed = True
 
                 selected_version: Optional[models.PromptVersion] = None
                 if input.prompt_version_id is not UNSET and input.prompt_version_id is not None:
@@ -809,12 +811,17 @@ class EvaluatorMutationMixin:
                     session.add(prompt_version)
                     await session.flush()
                     final_prompt_version_id = prompt_version.id
+                    shared_evaluator_changed = True
 
-                evaluator.description = input.description
-                evaluator.output_configs = output_configs
-                evaluator.user_id = user_id
-                evaluator.prompt_id = target_prompt_id
-                evaluator.updated_at = datetime.now(timezone.utc)
+                if input.description is not UNSET and evaluator.description != input.description:
+                    evaluator.description = input.description
+                    shared_evaluator_changed = True
+                if evaluator.output_configs != output_configs:
+                    evaluator.output_configs = output_configs
+                    shared_evaluator_changed = True
+                if evaluator.prompt_id != target_prompt_id:
+                    evaluator.prompt_id = target_prompt_id
+                    shared_evaluator_changed = True
                 try:
                     validate_consistent_llm_evaluator_and_prompt_version(prompt_version, evaluator)
                 except ValueError as error:
@@ -827,14 +834,24 @@ class EvaluatorMutationMixin:
                         prompt_id=target_prompt_id,
                         prompt_version_id=final_prompt_version_id,
                     )
+                    shared_evaluator_changed = True
                 else:
                     prompt_version_tag = await session.get(
                         models.PromptVersionTag, evaluator.prompt_version_tag_id
                     )
                     if prompt_version_tag is None:
                         raise NotFound("Prompt version tag was not found")
-                    prompt_version_tag.prompt_id = target_prompt_id
-                    prompt_version_tag.prompt_version_id = final_prompt_version_id
+                    if (
+                        prompt_version_tag.prompt_id != target_prompt_id
+                        or prompt_version_tag.prompt_version_id != final_prompt_version_id
+                    ):
+                        prompt_version_tag.prompt_id = target_prompt_id
+                        prompt_version_tag.prompt_version_id = final_prompt_version_id
+                        shared_evaluator_changed = True
+
+                if shared_evaluator_changed:
+                    evaluator.user_id = user_id
+                    evaluator.updated_at = datetime.now(timezone.utc)
 
                 criteria.name = name
                 criteria.filter_condition = input.filter_condition
@@ -1450,6 +1467,7 @@ class EvaluatorMutationMixin:
                     f"LLM evaluator not found for DatasetEvaluator {input.dataset_evaluator_id}"
                 )
             dataset_evaluator, llm_evaluator, prompt_version_tag = dataset_evaluator_triplet
+            shared_evaluator_changed = False
 
             # Handle prompt_version_id if provided
             target_prompt_id = llm_evaluator.prompt_id
@@ -1470,11 +1488,17 @@ class EvaluatorMutationMixin:
                 if provided_prompt_version.prompt_id != llm_evaluator.prompt_id:
                     target_prompt_id = provided_prompt_version.prompt_id
                     llm_evaluator.prompt_id = target_prompt_id
+                    shared_evaluator_changed = True
                 # Update the prompt_version_tag to point to the provided prompt_version
                 if llm_evaluator.prompt_version_tag_id is not None:
                     if prompt_version_tag is not None:
-                        prompt_version_tag.prompt_id = target_prompt_id
-                        prompt_version_tag.prompt_version_id = provided_prompt_version_id
+                        if (
+                            prompt_version_tag.prompt_id != target_prompt_id
+                            or prompt_version_tag.prompt_version_id != provided_prompt_version_id
+                        ):
+                            prompt_version_tag.prompt_id = target_prompt_id
+                            prompt_version_tag.prompt_version_id = provided_prompt_version_id
+                            shared_evaluator_changed = True
                     else:
                         raise NotFound(
                             f"Prompt version tag with id {llm_evaluator.prompt_version_tag_id} "
@@ -1502,25 +1526,25 @@ class EvaluatorMutationMixin:
 
                 target_prompt_id = new_prompt.id
                 llm_evaluator.prompt_id = target_prompt_id
+                shared_evaluator_changed = True
                 # Use the newly created prompt_version for comparison (it will always be "new")
                 active_prompt_version = prompt_version
 
             dataset_evaluator.name = evaluator_name
-            dataset_evaluator.description = (
-                input.description if isinstance(input.description, str) else None
-            )
+            if input.description is not UNSET:
+                dataset_evaluator.description = input.description
             dataset_evaluator.output_configs = list(output_configs)
             if input.input_mapping is None:
                 raise BadRequest("input_mapping is required")
             dataset_evaluator.input_mapping = input.input_mapping.to_orm()
             dataset_evaluator.user_id = user_id
 
-            llm_evaluator.description = (
-                input.description if isinstance(input.description, str) else None
-            )
-            llm_evaluator.output_configs = list(output_configs)
-            llm_evaluator.updated_at = datetime.now(timezone.utc)
-            llm_evaluator.user_id = user_id
+            if input.description is not UNSET and llm_evaluator.description != input.description:
+                llm_evaluator.description = input.description
+                shared_evaluator_changed = True
+            if llm_evaluator.output_configs != list(output_configs):
+                llm_evaluator.output_configs = list(output_configs)
+                shared_evaluator_changed = True
 
             if new_prompt is not None:
                 # We already created a new prompt above
@@ -1533,6 +1557,7 @@ class EvaluatorMutationMixin:
                 if create_new_prompt_version:
                     prompt_version.prompt_id = target_prompt_id
                     session.add(prompt_version)
+                    shared_evaluator_changed = True
 
             try:
                 validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
@@ -1554,9 +1579,18 @@ class EvaluatorMutationMixin:
             if final_prompt_version_id is not None:
                 if llm_evaluator.prompt_version_tag_id is not None:
                     if prompt_version_tag is not None:
-                        prompt_version_tag.prompt_version_id = final_prompt_version_id
-                        # Ensure prompt_id matches
-                        prompt_version_tag.prompt_id = target_prompt_id
+                        if (
+                            prompt_version_tag.prompt_version_id != final_prompt_version_id
+                            or prompt_version_tag.prompt_id != target_prompt_id
+                        ):
+                            prompt_version_tag.prompt_version_id = final_prompt_version_id
+                            # Ensure prompt_id matches
+                            prompt_version_tag.prompt_id = target_prompt_id
+                            shared_evaluator_changed = True
+
+            if shared_evaluator_changed:
+                llm_evaluator.updated_at = datetime.now(timezone.utc)
+                llm_evaluator.user_id = user_id
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id),

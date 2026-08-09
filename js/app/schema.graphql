@@ -5222,7 +5222,7 @@ input UpdateDatasetLLMEvaluatorInput {
   datasetEvaluatorId: ID!
   datasetId: ID!
   name: Identifier!
-  description: String = null
+  description: String
   promptVersionId: ID
   promptVersion: ChatPromptVersionInput!
   outputConfigs: [AnnotationConfigInput!]!
@@ -5272,7 +5272,7 @@ input UpdateProjectLLMEvaluatorInput {
   evaluationTarget: EvaluationTarget!
   filterCondition: String!
   enabled: Boolean
-  description: String = null
+  description: String
   promptVersionId: ID
 }
 
