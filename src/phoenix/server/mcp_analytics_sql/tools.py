@@ -40,8 +40,9 @@ def _preamble(dialect: str, engine: Optional[dict[str, Any]]) -> str:
     """
     lines = [f"-- Phoenix analytics SQL. Write {dialect} SQL against the tables below."]
     lines.append(
-        "-- Only allowlisted tables emitted below are queryable. FOREIGN KEY targets outside this "
-        "surface are descriptive; queries against them are refused."
+        "-- The global allowlisted schema defines queryable tables, even when this response is "
+        "filtered. Raw FOREIGN KEY targets outside that allowlist are descriptive; queries "
+        "against them are refused."
     )
     if engine:
         version = f" {engine['version']}" if engine.get("version") else ""

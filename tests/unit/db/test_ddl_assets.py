@@ -1,6 +1,6 @@
 import pytest
 
-from phoenix.db.ddl import load_dialect_schema
+from phoenix.db.ddl import load_dialect_schema, parse_schema_asset
 
 
 def test_generated_assets_have_unique_marker_delimited_table_sections() -> None:
@@ -39,6 +39,32 @@ def test_active_schema_normalizes_quoted_column_identifiers() -> None:
     schema = load_dialect_schema("sqlite")
 
     assert "key" in schema["builtin_evaluators"].columns
+
+
+@pytest.mark.parametrize(
+    ("table_ddl", "expected_columns"),
+    [
+        (
+            'CREATE TABLE "order" ("display name" TEXT, "quoted ""name""" INTEGER);',
+            ("display name", 'quoted "name"'),
+        ),
+        (
+            "CREATE TABLE `order` (`display name` TEXT, `quoted ``name``` INTEGER);",
+            ("display name", "quoted `name`"),
+        ),
+        (
+            "CREATE TABLE [order] ([display name] TEXT, [quoted ]]name] INTEGER);",
+            ("display name", "quoted ]name"),
+        ),
+    ],
+)
+def test_parser_supports_quoted_generated_identifiers(
+    table_ddl: str, expected_columns: tuple[str, ...]
+) -> None:
+    schema = parse_schema_asset(f"-- Table: order\n{table_ddl}\n", "sqlite")
+
+    assert schema["order"].create_table_ddl == table_ddl
+    assert schema["order"].columns == expected_columns
 
 
 def test_table_ddl_excludes_following_indexes() -> None:

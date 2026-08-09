@@ -5,6 +5,7 @@ from mcp.types import TextContent
 from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp_analytics_sql.execute import _success_envelope
+from phoenix.server.mcp_analytics_sql.parse import AdmissionOutcome, try_parse_and_admit
 from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext
 from phoenix.server.mcp_analytics_sql.tools import register_analytics_sql_tools
 from phoenix.server.types import DbSessionFactory
@@ -42,8 +43,22 @@ async def test_schema_carries_the_invariants_the_envelope_does_not(
     assert "sqlite_progress_handler" in text or "statement_timeout" in text
     assert "rows by default" in text and "max" in text
     assert "bytes per row" in text and "per response" in text
-    assert "Only allowlisted tables emitted below are queryable" in text
-    assert "FOREIGN KEY targets outside this surface are descriptive" in text
+    assert "global allowlisted schema defines queryable tables" in text
+    assert "FOREIGN KEY targets outside that allowlist are descriptive" in text
+
+
+async def test_filtered_schema_does_not_limit_the_global_allowlist(analytics_mcp: FastMCP) -> None:
+    """A filter affects discovery output, not the executor's allowlisted surface."""
+    result = await analytics_mcp.call_tool(
+        "describeSqlSchema", {"tables": ["spans"], "detail": "detailed"}
+    )
+    text = "".join(block.text for block in result.content if isinstance(block, TextContent))
+
+    assert "CREATE TABLE spans" in text
+    assert "CREATE TABLE traces" not in text
+    assert "global allowlisted schema defines queryable tables" in text
+    admission = try_parse_and_admit("SELECT id FROM traces", dialect="sqlite")
+    assert admission.outcome is AdmissionOutcome.ADMIT, admission.detail
 
 
 async def test_schema_is_returned_as_text_without_a_structured_mirror(
