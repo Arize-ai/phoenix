@@ -8,6 +8,8 @@ from typing import Any, Literal, Optional, cast
 
 from sqlglot import exp
 
+from phoenix.db.ddl import load_physical_catalog
+
 DialectName = Literal["postgresql", "sqlite"]
 
 
@@ -629,24 +631,20 @@ AREA_ROOTS: dict[str, str] = {
 def _foreign_key_edges(tables: frozenset[str]) -> dict[str, list[tuple[str, str, str]]]:
     """Foreign keys between allowlisted tables, as (column, target_table, target_column).
 
-    Derived from the mapped schema rather than recorded in the manifest, so it
-    cannot drift from the database it describes. Keys pointing at tables outside
-    the allowlist are dropped: `span_annotations.user_id` references a table this
-    surface never exposes, and advertising the edge would invite a join that
-    admission then refuses.
+    Derived from the packaged DDL rather than the ORM models or manifest, so the
+    admission and teaching surfaces share the same physical schema. Keys pointing
+    at tables outside the allowlist are dropped from join hints: they remain in
+    the raw descriptive DDL, but advertising one would invite a join admission
+    refuses.
     """
-    from phoenix.db import models
-
+    catalog = load_physical_catalog()
     edges: dict[str, list[tuple[str, str, str]]] = {name: [] for name in tables}
     for name in tables:
-        table = models.Base.metadata.tables.get(name)
-        if table is None:
-            continue
-        for column in table.columns:
-            for fk in column.foreign_keys:
-                target = fk.column.table.name
-                if target in tables:
-                    edges[name].append((column.name, target, fk.column.name))
+        for foreign_key in catalog.tables[name].foreign_keys:
+            if foreign_key.target_table in tables:
+                edges[name].append(
+                    (foreign_key.column, foreign_key.target_table, foreign_key.target_column)
+                )
     return edges
 
 
@@ -693,18 +691,24 @@ def _manifest_text() -> str:
 @lru_cache
 def load_allowlist() -> Allowlist:
     raw = json.loads(_manifest_text())
+    catalog = load_physical_catalog()
     table_specs: dict[str, TableSpec] = {}
     areas: dict[str, frozenset[str]] = {}
     for area_name, area in raw["areas"].items():
         names: set[str] = set()
         for table_name, table in area.get("tables", {}).items():
+            physical_table = catalog.tables.get(table_name)
+            if physical_table is None:
+                raise ValueError(
+                    f"Allowlisted table {table_name!r} is missing from the DDL assets."
+                )
             columns = tuple(
                 ColumnSpec(
-                    name=col["name"],
-                    type=col["type"],
-                    nullable=bool(col["nullable"]),
+                    name=column.name,
+                    type="UNKNOWN",
+                    nullable=column.nullable,
                 )
-                for col in table["columns"]
+                for column in physical_table.columns
             )
             table_specs[table_name] = TableSpec(
                 name=table_name,
