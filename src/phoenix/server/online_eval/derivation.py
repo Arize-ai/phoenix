@@ -87,6 +87,9 @@ def sample_key(span_id: int) -> float:
     A span is sampled for a criteria iff ``sample_key(span_id) < sampling_rate``. The
     key is deliberately unsalted and shared across all criteria so lower-rate samples
     nest inside higher-rate ones (every 20% sample is a subset of every 60% sample).
+
+    Span-only, and only because sampling is: a SESSION criteria with a sampling rate
+    below 1 is refused as unschedulable rather than sampled.
     """
     digest = hashlib.sha256(str(span_id).encode("ascii")).digest()
     # Top 53 bits only: dividing the full digest by 2**256 can round up to exactly 1.0,
