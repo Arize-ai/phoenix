@@ -11,7 +11,7 @@ from phoenix.server.mcp_analytics_sql.catalog import (
     reflect_indexes,
     resolve_pg_schema,
 )
-from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError
+from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp_analytics_sql.execute import (
     BYTE_LIMIT,
     DEFAULT_ROW_LIMIT,
@@ -111,7 +111,7 @@ def _render_indexes(indexes: dict[str, list[dict[str, Any]]]) -> str:
     return "\n".join(lines)
 
 
-# The envelope's shape, stated where a consumer can read it per field.
+# The result's shapes, stated where a consumer can read them per field.
 #
 # FastMCP derives an output schema from the return annotation when none is
 # given, and `dict[str, Any]` yields `{"type": "object"}` -- true, and empty. It
@@ -123,7 +123,7 @@ def _render_indexes(indexes: dict[str, list[dict[str, Any]]]) -> str:
 # for every caller, which is a poor trade for a documentation guarantee; the
 # drift is caught in CI instead, by a test comparing a real envelope's keys
 # against these properties.
-_EXECUTE_SQL_OUTPUT_SCHEMA: dict[str, Any] = {
+_EXECUTE_SQL_SUCCESS_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": [
         "columns",
@@ -203,6 +203,42 @@ _EXECUTE_SQL_OUTPUT_SCHEMA: dict[str, Any] = {
             ),
         },
     },
+}
+
+_EXECUTE_SQL_ERROR_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["error"],
+    "properties": {
+        "error": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "enum": [code.value for code in ErrorCode],
+                    "description": "Machine-readable reason the SQL statement was refused.",
+                },
+                "message": {
+                    "type": "string",
+                    "description": (
+                        "Explanation of the refusal and, when available, how to correct it."
+                    ),
+                },
+                "identifiers": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Relations, columns, or functions involved in the refusal.",
+                },
+            },
+        },
+    },
+}
+
+_EXECUTE_SQL_OUTPUT_SCHEMA: dict[str, Any] = {
+    # FastMCP requires the root schema to be an object even when that object
+    # has multiple valid shapes.
+    "type": "object",
+    "oneOf": [_EXECUTE_SQL_SUCCESS_SCHEMA, _EXECUTE_SQL_ERROR_SCHEMA],
 }
 
 
@@ -319,7 +355,8 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
     ) -> dict[str, Any]:
         """Execute read-only analytics SQL against allowlisted Phoenix tables.
 
-        Returns the columns, the rows, and what was applied to get them.
+        Returns either the columns, rows, and applied limits, or an error
+        envelope when the SQL cannot be accepted.
 
         `row_count_is_partial` is the authoritative answer to whether the result
         was truncated: one row beyond the limit is fetched, and the flag is set
@@ -340,4 +377,4 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
             )
             return result.envelope
         except AnalyticsSqlError as exc:
-            raise ToolError(exc.to_envelope()) from exc
+            return exc.to_envelope()
