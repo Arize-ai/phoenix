@@ -253,11 +253,14 @@ class SessionEvalSweeper(DaemonTask):
         if self._publish_metrics:
             ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS.inc()
         materialized_work_count = 0
+        eligible_pair_count = 0
         renewed: Optional[int] = None
         try:
             async with self._db() as session:
                 database_now = await self._database_now(session)
-                materialized_work_count = await self._sweep(session, database_now)
+                materialized_work_count, eligible_pair_count = await self._sweep(
+                    session, database_now
+                )
                 renewed_at = await self._database_now(session)
                 renewed = await session.scalar(
                     update(models.EvalWorkLease)
@@ -283,6 +286,7 @@ class SessionEvalSweeper(DaemonTask):
             else:
                 ONLINE_EVAL_SESSION_SWEEP_SUCCESSES.inc()
                 ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS.inc(materialized_work_count)
+                await self._publish_eligibility_metrics(eligible_pair_count)
         return renewed is not None
 
     async def _database_now(self, session: AsyncSession) -> datetime:
@@ -328,21 +332,20 @@ class SessionEvalSweeper(DaemonTask):
             )
         return criteria_rows
 
-    async def _sweep(self, session: AsyncSession, database_now: datetime) -> int:
+    async def _sweep(self, session: AsyncSession, database_now: datetime) -> tuple[int, int]:
+        """Materialize this tick's work, returning (work created, pairs found eligible)."""
         criteria = await self._load_criteria(session)
         work_budget = await self._admission_budget(session)
         if work_budget == 0:
-            return 0
+            return 0, 0
         eligible_pairs, eligible_pair_count = await self._load_eligible_pairs(
             session,
             database_now,
             criteria,
             limit=min(work_budget, _MAX_ELIGIBLE_PAIRS_PER_TICK),
         )
-        if self._publish_metrics:
-            await self._publish_eligibility_metrics(session, database_now, eligible_pair_count)
         if not eligible_pairs:
-            return 0
+            return 0, eligible_pair_count
 
         criteria_by_id = {criterion.criteria_id: criterion for criterion in criteria}
         rowids_by_criteria: defaultdict[int, list[int]] = defaultdict(list)
@@ -361,7 +364,7 @@ class SessionEvalSweeper(DaemonTask):
                     )
                 )
                 inserted_count += result.rowcount  # type: ignore[attr-defined]
-        return inserted_count
+        return inserted_count, eligible_pair_count
 
     async def _load_eligible_pairs(
         self,
@@ -467,13 +470,26 @@ class SessionEvalSweeper(DaemonTask):
         ]
         return pairs, eligible_pair_count
 
-    async def _publish_eligibility_metrics(
+    async def _publish_eligibility_metrics(self, eligible_pair_count: int) -> None:
+        """Publish the sweep's observation gauges from a session of its own.
+
+        Reporting is not materialization: this runs after the work has been committed
+        and the lease renewed, over its own read session, so a failing aggregate costs
+        a stale gauge rather than the sweep that already succeeded.
+        """
+        ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG.set(eligible_pair_count)
+        try:
+            async with self._db.read() as session:
+                database_now = await self._database_now(session)
+                await self._publish_watermark_lag(session, database_now)
+        except Exception:
+            logger.exception("Failed to publish session evaluation watermark lag")
+
+    async def _publish_watermark_lag(
         self,
         session: AsyncSession,
         database_now: datetime,
-        eligible_pair_count: int,
     ) -> None:
-        ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG.set(eligible_pair_count)
         if self._db.dialect is SupportedSQLDialect.SQLITE:
             lag_seconds = (
                 cast(func.julianday(models.ProjectSession.last_span_ingested_at), Float)
