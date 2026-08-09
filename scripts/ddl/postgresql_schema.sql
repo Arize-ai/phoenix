@@ -22,7 +22,7 @@ CREATE TABLE public.annotation_configs (
 -- ------------------------
 CREATE TABLE public.eval_work_cursors (
     id bigserial NOT NULL,
-    grain VARCHAR NOT NULL,
+    evaluation_target VARCHAR NOT NULL,
     consumer_group VARCHAR NOT NULL,
     produced_through_id BIGINT NOT NULL DEFAULT '0'::bigint,
     observed_high_water_id BIGINT,
@@ -32,9 +32,9 @@ CREATE TABLE public.eval_work_cursors (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_eval_work_cursors PRIMARY KEY (id),
-    CONSTRAINT uq_eval_work_cursors_grain_consumer_group
-        UNIQUE (grain, consumer_group),
-    CHECK (((grain)::text = ANY ((ARRAY[
+    CONSTRAINT uq_eval_work_cursors_evaluation_target_consumer_group
+        UNIQUE (evaluation_target, consumer_group),
+    CHECK (((evaluation_target)::text = ANY ((ARRAY[
             'SPAN'::character varying,
             'TRACE'::character varying,
             'SESSION'::character varying
@@ -166,6 +166,7 @@ CREATE TABLE public.project_sessions (
     project_id INTEGER NOT NULL,
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    last_span_ingested_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_project_sessions PRIMARY KEY (id),
     CONSTRAINT uq_project_sessions_session_id
         UNIQUE (session_id),
@@ -177,6 +178,8 @@ CREATE TABLE public.project_sessions (
 
 CREATE INDEX ix_project_sessions_project_id_end_time ON public.project_sessions
     USING btree (project_id, end_time DESC);
+CREATE INDEX ix_project_sessions_project_id_last_span_ingested_at ON public.project_sessions
+    USING btree (project_id, last_span_ingested_at) WHERE (last_span_ingested_at IS NOT NULL);
 CREATE INDEX ix_project_sessions_project_id_start_time ON public.project_sessions
     USING btree (project_id, start_time DESC);
 
