@@ -65,8 +65,8 @@ settles.
 - **Engine behaviour passes through.** *Case:* `->>` returns a typed value on
   SQLite and text on PostgreSQL, so `max` over a numeric JSON path answers
   `130000` on one and `'9'` on the other. Both engines are behaving as
-  specified, so we neither reconcile it nor refuse it, and the schema teaches
-  the cast.
+  specified, so we neither reconcile it nor refuse it; the result notes warn
+  when an ordering-sensitive extraction is left uncast.
 - **Capability may differ, and a refusal must be actionable.** *Case:*
   `percentile_cont(...) WITHIN GROUP` has no SQLite grammar. The gap is the
   engine's, so the construct is admitted on PostgreSQL and refused on SQLite
@@ -105,8 +105,10 @@ could not get elsewhere.
 
 Two consequences follow, and both are deliberate:
 
-- **Omitted columns are curation, not secrecy.** See
-  [Column omission](#decision-columns-are-omitted-for-being-uninformative).
+- **The table is the data boundary.** Every physical column in an allowlisted
+  table is queryable; data excluded from the surface is excluded by leaving its
+  table out of the allowlist. See [Physical schema and
+  curation](#decision-physical-schema-comes-from-packaged-ddl-curation-from-the-manifest).
 - **Contention is the residual risk.** With SQLite the execution width is 1, so
   one slow query serialises every other analytics request until its deadline.
   The row limit, byte caps and deadline bound each query; they do not bound
@@ -192,33 +194,32 @@ tree](#decision-allowlist-the-parsed-tree-not-the-statement-text).
 
 Over the parsed tree, never over text. Four dimensions are **allowlists** —
 node classes, function classes and names per dialect, relations, and cast
-targets. Columns are **not**: they are a case-folded *denylist* of the columns
-the manifest omits, so a name in neither list is admitted and only the engine
-rejects it. `SELECT this_column_does_not_exist FROM spans` reaches PostgreSQL.
+targets. Base-table columns are a fifth positive catalog: for the requested
+dialect, each reference must name a physical column derived from the packaged
+DDL asset or an applicable virtual overlay. Unknown names are refused before
+execution, with nearby physical and virtual names offered as corrections.
 
-The two directions are mixed, and that is the standing weakness recorded in
-[Open questions](#open-questions), not a resolved one. An allowlist fails
-closed on an unfamiliar input and a denylist fails open, which is why an
-unrecognised table spelling is refused while an unrecognised column spelling is
-not.
+Query-local relations remain different. A CTE, subquery, output alias or
+table-valued function defines its own columns, so those names cannot be
+validated against a base-table asset. Unqualified references in a scope that
+also contains such a source are allowed where that source could have projected
+the name; qualified base-table references still fail closed.
 
-One defect in that area has been fixed, and it is worth stating what it did and
-did not settle. The denylist compared column names case-sensitively while both
-engines resolve unquoted identifiers case-insensitively, so `SELECT
-GRADIENT_START_COLOR` and `SELECT USER_ID` returned exactly the data their
-lowercase spellings are refused for. Both sides are now case-folded. That
-closed one spelling of a *known* omitted column; it did not change the
-direction of the check, and a column nobody has thought to omit is still
-admitted by default.
+Identifier matching follows the target engine. SQLite identifiers are
+case-insensitive. PostgreSQL folds unquoted identifiers to lower case and
+preserves quoted spelling, so the DDL loader retains which physical columns
+were quoted. `NATURAL JOIN` is refused because its implicit keys change when a
+physical schema evolves. Whole-row and composite-field references are also
+refused so the policy continues to reason over explicit columns.
 
 ### Stage 3 — rewrite
 
 Seven passes, in this order. The order is load-bearing, not incidental:
 
-1. **Star expansion** — `*` becomes the exposed column list plus virtual
-   columns, so it matches what the schema advertises. First, because it *emits*
-   `latency_ms` and `graphql_node_id` for the next two passes to resolve;
-   reversing it would send them to the engine unsubstituted.
+1. **Star expansion** — `*` becomes the ordered physical DDL columns followed
+   by the applicable virtual overlays. First, because it *emits* `latency_ms`
+   and `graphql_node_id` for the next two passes to resolve; reversing it would
+   send them to the engine unsubstituted.
 2. **`latency_ms`** — substituted with a per-dialect expression.
 3. **`graphql_node_id`** — decoded in a predicate, built in a projection, with
    the type resolved per reference through the qualifier.
@@ -226,11 +227,11 @@ Seven passes, in this order. The order is load-bearing, not incidental:
    re-emitted in the layout the backend compares correctly. PostgreSQL parses
    its own literals, so this is SQLite-only in effect; on both dialects a bare
    date is recorded in `notes` as having been read as UTC.
-4. **JSON canonicalisation** (SQLite only) — accessors are rewritten to the
+5. **JSON canonicalisation** (SQLite only) — accessors are rewritten to the
    spelling the deployment's expression indexes use.
-5. **Schema qualification** — allowlisted relations are qualified with the
+6. **Schema qualification** — allowlisted relations are qualified with the
    resolved PostgreSQL schema.
-6. **Limit injection** — `row_limit + 1`, so truncation is detectable rather
+7. **Limit injection** — `row_limit + 1`, so truncation is detectable rather
    than assumed.
 
 ### Stage 4 — post-rewrite check
@@ -304,7 +305,7 @@ caller wrote: `?` reports `jsonb_contains`, which is not PostgreSQL's function f
 it, and `@?` reports `j_s_o_n_b_path_exists`, which is not a name that exists
 anywhere. `sql_names()` has no function spelling for an operator, so the fallback
 snake-cases the class. Both halves of that — the silent gap and the unactionable
-message — belong to [open question 3](#open-questions).
+message — belong to [open question 1](#open-questions).
 
 Which divergences are acceptable is settled by [who authored the
 behaviour](#correctness-who-authored-the-behaviour). Two consequences of that
@@ -317,8 +318,10 @@ quietly different number is not.
 Engine semantics are not ours to reconcile, and trying would be worse than
 leaving them alone. Making `->>` agree across the two backends would mean
 either overriding a database's documented behaviour or degrading the backend
-that already does the useful thing. The schema's populated-path comments are
-where a caller learns that a path is numeric and needs a cast.
+that already does the useful thing. The execution envelope warns when an
+ordering-sensitive operation uses an uncast JSON extraction; where a live
+expression index exists, the full-detail schema also publishes the exact
+indexed spelling.
 
 So an asymmetry is a decision, and is recorded as one. `admission_corpus.jsonl`
 carries the same statement twice, once per dialect, with the outcome and the
@@ -365,27 +368,40 @@ Neither mitigation reaches the other source of a changed meaning, which is the
 parse itself. A pass can only be as correct as the tree it is handed. A tree
 that already misrepresents the caller's statement will be rewritten faithfully
 into a statement that misrepresents it too, and both mitigations above will
-report success. See [open question 6](#open-questions).
+report success. See [open question 3](#open-questions).
 
 ### Decision: the schema is DDL, not JSON
 
-`describeSqlSchema` returns `CREATE TABLE` statements with `--` comments.
+At `brief`, `describeSqlSchema` returns a comment-only table catalogue. At
+`detailed` and `full`, it selects the requested dialect's packaged `CREATE
+TABLE` statements and appends `--` curation comments. PostgreSQL's `public.`
+qualification is removed from `CREATE TABLE` and `REFERENCES` syntax because
+caller SQL must use unqualified table names; the rest of each physical
+statement is preserved.
 
-- **Measured:** fewer tokens than the equivalent JSON, which repeats
+- **Measured:** fewer tokens than an equivalent JSON catalog, which repeats
   `name`/`type`/`nullable` for every column. The figure moved as the renderer
   gained constraints and column notes; `ddl.py` carries the current one, and
   this document deliberately does not restate it, because two copies of a
   measurement drift and neither says what was compared.
-- **Structural:** a JSON type is an abstraction and DDL is not. The manifest
-  calls `start_time` a `datetime`, which is true of both backends and useful to
-  neither — it is `TIMESTAMP` on SQLite and `TIMESTAMP WITH TIME ZONE` on
-  PostgreSQL, and a caller writing a comparison needs the real one.
+- **Structural:** a JSON type is an abstraction and DDL is not. The dialect
+  assets directly report that `start_time` is `TIMESTAMP` on SQLite and
+  `TIMESTAMP WITH TIME ZONE` on PostgreSQL, which a caller writing a comparison
+  or cast needs to know.
 - **Native:** it is the form the caller writes back.
 
-Curation the database cannot supply — areas, grain, join paths, populated JSON
-paths, per-column notes — rides along as comments. The rendering is parsed
-before it is returned, because a generator emits text that reads like DDL and
-is not, and the caller cannot tell because it is prose to them.
+Curation the physical DDL cannot supply — areas, grain, virtual-column
+declarations, time-column labels, promoted-column guidance and semantic column
+notes — rides along as comments. Virtual columns are comments rather than
+members of the physical `CREATE TABLE`; rewrite makes them behave as columns in
+queries.
+
+Raw foreign keys are preserved. A selected table may therefore describe a
+reference to a table outside the analytics allowlist. That target is useful
+physical context, not permission to query it: the preamble states that the
+global allowlist defines queryable tables, and admission refuses the target.
+The rendering is parsed before it is returned because text that looks like DDL
+can still be invalid, and the caller cannot tell because it is prose to them.
 
 ### Decision: the schema is text, the result is a dict
 
@@ -419,26 +435,20 @@ Those are properties of the surface, so `describeSqlSchema` carries them
 instead — once per call of that tool, which a caller makes far less often than
 it runs a query.
 
-### Decision: columns are omitted for being uninformative
+### Decision: every physical column of an allowlisted table is queryable
 
-`hidden_columns` lists display attributes — a project's gradient colours — and
-foreign keys into tables this surface does not expose, whose integer values
-resolve to nothing a caller can reach.
+The allowlist curates tables, not columns. Once a table is admitted, every
+physical column in its dialect DDL asset is advertised, accepted by admission
+and included in `SELECT *`; applicable virtual overlays are appended after the
+physical columns. Display attributes and foreign keys to nonallowlisted tables
+are therefore visible as values even though the referenced table itself remains
+unqueryable.
 
-**This is curation, not confidentiality.** Every omitted column is readable
-through GraphQL by the same caller. Anything genuinely restricted is absent
-from the allowlist entirely rather than listed here.
-
-The omission is nonetheless *enforced* — absent from the DDL, absent from
-`SELECT *`, and refused by admission — because a schema that omits a column and
-an executor that returns it disagree about what the surface is. Consistency is
-the reason, not secrecy, and the error message says so.
-
-An omitted column is declared beside the column list rather than deleted from
-it. That keeps the drift check against the SQLAlchemy models comparing complete
-lists on both sides. The reason to want that is a column dropped by a migration:
-it must fail the drift test, rather than resemble a column somebody omitted on
-purpose.
+This keeps schema teaching, admission and star expansion on one catalog.
+Unknown base-table columns fail closed, while a migration that adds a physical
+column intentionally adds it to the surface when the regenerated asset lands.
+Anything genuinely outside the surface must live in a table that is not
+allowlisted.
 
 ### Decision: no default time window
 
@@ -472,16 +482,34 @@ SQLite execution width is 1 — one statement runs at a time regardless.
 Read-your-writes is not guaranteed on the pooled path, which is stated on
 `DbSessionFactory.read` — it already was not, against a PostgreSQL replica.
 
-### Decision: physical facts come from the database, curation from the manifest
+### Decision: physical schema comes from packaged DDL, curation from the manifest
 
-Column names, types and nullability are compiled from the SQLAlchemy models per
-dialect. Indexes are read live from `pg_get_indexdef` and `sqlite_master.sql`,
-because SQLAlchemy's reflection silently drops expression indexes — which are
-exactly the ones a caller must reproduce.
+The generated PostgreSQL and SQLite schema assets under `src/phoenix/db/ddl/`
+are packaged with Phoenix and are the runtime source for physical `CREATE
+TABLE` text and ordered column names. The loader indexes deterministic `--
+Table: <name>` sections, requires exactly one matching `CREATE TABLE`, extracts
+columns without round-tripping the statement through SQLGlot, preserves quoted
+identifier semantics, and returns immutable per-dialect catalogs. Loading the
+analytics allowlist fails if an allowlisted table is absent or if a virtual
+column collides case-insensitively with a physical one.
 
-The manifest supplies what the database cannot know: which area a table belongs
-to, what one row means, how to reach the project, which columns are omitted,
-and which are virtual.
+The generators remain under `scripts/ddl/`. `make schema-ddl` regenerates both
+canonical assets, validates that the loader can consume them, and compares the
+dialects for table, ordered-column, explicit-index and named-constraint drift.
+CI runs that target and then requires a clean Git diff, so migrations that
+change the physical schema must update the checked-in assets.
+
+Indexes are different: `full` detail reads them live from `pg_get_indexdef` or
+`sqlite_master.sql`, because expression-index definitions are deployment facts
+whose exact spelling a caller must reproduce. `brief` and `detailed` do not read
+the live catalog.
+
+The manifest supplies policy and curation only: the table/area allowlist, grain,
+time-column labels, virtual-column declarations, promoted-column guidance and
+semantic column notes. `graphql_node_id` applicability is additionally derived
+from the GraphQL type mapping in code. Raw physical foreign keys remain in the
+DDL even when they name nonallowlisted tables; admission still applies the
+global table allowlist.
 
 The PostgreSQL schema is resolved against the connection rather than assumed,
 by the rule [#14172](https://github.com/Arize-ai/phoenix/pull/14172)
@@ -489,12 +517,12 @@ established for database usage statistics: the environment variable when set,
 otherwise the schema an unqualified `projects` reference resolves from. Not
 `current_schema()`, which reports where a `CREATE` would land rather than where
 the table is — the two diverge once `search_path` gains a leading entry after
-migration. Both tools use the same resolution, because a schema published by
-one and read by the other must be the same schema.
+migration. Execution and full-detail index reflection use the same resolution,
+so the indexes published for a table belong to the relation queries read.
 
-What remains unverifiable is `time_column`, `grain` and `column_notes`.
-`time_column` is the consequential one: it decides silently which relations a
-caller's window filters.
+The curation fields remain hand-authored. `time_column` is a teaching label
+rendered as a comment; it does not inject or alter a query window. `grain`,
+promoted-column guidance and column notes likewise affect only schema teaching.
 
 ## Consumption model
 
@@ -526,20 +554,11 @@ for. That is the case `output_schema=None` on `describeSqlSchema` addresses.
 
 ## Testing strategy
 
-The dominant defect class in this surface has been **two policy layers with a
-transformer between them, each verified alone and never against each other**.
-
-Two properties of that class shape the suite. Defects have been introduced by
-the fix for an earlier defect: the first version of the `::text[]` workaround
-matched the cast anywhere in an index body, which broke
-`array_length('{a,b}'::text[], 1)` — a cast that resolves a polymorphic
-argument rather than a JSON path. And defects have survived a test that
-appeared to cover them: the admission corpus built every fixture table with no
-columns at all, so its column entries exercised a check that returned at its
-first line.
-
-The suite is therefore organised against the class rather than against the
-individual failures, which are recorded in the commits that fixed them:
+The dominant defect class in this surface has been **multiple policy layers
+with a transformer between them, each verified alone and never against each
+other**. The suite therefore tests agreement between the catalogs, policy,
+rewrites and engine backstops rather than only testing each component in
+isolation:
 
 - **Admission corpus** (`admission_corpus.jsonl`) — data rather than code, one
   entry per construct that ever slipped through, with the outcome it must now
@@ -550,16 +569,26 @@ individual failures, which are recorded in the commits that fixed them:
   and the authorizer agree and nothing about whether the construct computes.
 - **Node coverage** — pins the reachable non-`Func` expression classes, since
   several bypasses came from classes that are not what they appear.
-- **Document-versus-executor** — `SELECT *` expansion is compared against the
-  rendered DDL for every table, so the two lists cannot drift apart. This is
-  the check that exists, and it is static. Submitting every advertised column,
-  join hint and `CHECK` literal through the executor is *not* automated. That
-  was done by hand during review, and it is what found the surface refusing its
-  own output: `describeSqlSchema` published an index expression containing
-  `'{session,id}'::text[]` under a heading telling the caller to reproduce it
-  exactly, while admission refused every array cast target. A reader should not
-  assume CI would catch the next one.
-- **Rendered DDL parses** — a generator fails in ways handwritten DDL does not.
+- **DDL assets** — loader tests cover marker-delimited sections, exact
+  `CREATE TABLE` extraction, ordered and quoted columns, immutability, and
+  exclusion of following index statements. `make schema-ddl` validates both
+  generated assets, compares their logical shape, and CI rejects any
+  regeneration diff.
+- **Document-versus-executor** — `SELECT *` expansion is compared for every
+  table against the active dialect asset's ordered physical columns plus the
+  applicable virtual overlays. Representative physical columns, including
+  display and out-of-surface foreign-key fields, are submitted through
+  admission, and unknown names must be refused with useful suggestions.
+- **Rendered DDL parses** — every detail level and dialect is parsed before it
+  is returned. Tests additionally pin that detailed output begins with the
+  selected physical asset, that virtual overlays remain comments, and that raw
+  foreign keys may describe nonallowlisted targets.
+
+Submitting every advertised column, foreign key and `CHECK` literal through the
+executor is still not automated. Full-detail indexes are live deployment data,
+so the tests instead pin the parser workaround used to publish their
+expressions. A reader should not assume CI would catch every future
+document-versus-engine mismatch.
 
 ### Seeing it run
 
@@ -568,7 +597,8 @@ Both snippets below paste whole into the MCP Inspector. The surface is driven in
 deserialized dict rather than a form to fill in.
 
 `describeSqlSchema` at `full` detail is the call worth making, because `full` is
-the only level that reads the live catalog:
+the only level that reads the live catalog. Its table DDL still comes from the
+packaged dialect asset; the live read supplies the deployment's indexes:
 
 ```python
 return await call_tool(
@@ -632,32 +662,17 @@ appended so a truncated answer is detectable rather than assumed.
 
 Ordered by how much they would change the design.
 
-1. **The boundary is drawn in the parser, over identifiers, while the data is
-   reachable through values.** Four rounds of review produced four different
-   ways to reach an omitted column: case variation, `USING`/`NATURAL JOIN`,
-   row-valued references (`SELECT p FROM projects p`), and a table alias
-   shadowing a CTE name. Each was fixed; the shape that produces them was not.
-   The alternative is to make the *relation* the boundary — a dedicated role, a
-   schema of views projecting only exposed columns, `GRANT SELECT` on views
-   only — so that omission is projection rather than parsing. This matters less
-   than it would if the omissions were confidential, which they are not.
-
-2. **There is no positive column policy.** Tables are allowlisted; columns are
-   denylisted. A column added to an allowlisted table by a future migration is
-   exposed by default, and the manifest drift test is a CI control rather than
-   a runtime one.
-
-3. **One policy, ten enumerations, four vocabularies.** "Which computations may
+1. **One policy, ten enumerations, four vocabularies.** "Which computations may
    run" is written down in ten places, expressed as SQLGlot classes, caller
    spellings, SQLite authorizer names, and PostgreSQL plan identifiers. No set
    is derived from another; agreement is maintained by tests, and four
    divergences are recorded in the code comments. A generated capability table
    would make a missing cell fail at import.
 
-5. **Results are not marked as untrusted content**, though they carry
+2. **Results are not marked as untrusted content**, though they carry
    attacker-influenced text into a model holding destructive tools.
 
-6. **SQLGlot parses the PostgreSQL JSON operators as accessors rather than as
+3. **SQLGlot parses the PostgreSQL JSON operators as accessors rather than as
    binary operators.** `->`, `->>`, `#>`, `#>>` and `?` are entries in SQLGlot's
    `COLUMN_OPERATORS`, so they bind at the tightest precedence tier and their
    right operand is parsed inconsistently. PostgreSQL puts them in the "any
@@ -722,7 +737,7 @@ Ordered by how much they would change the design.
    pin on `sqlglot==30.14.0` moves past the fix, the refusal because a corrected
    parser distinguishes the two readings it exists to separate.
 
-7. **The plan gate and the SQLite authorizer are not equivalent backstops**
+4. **The plan gate and the SQLite authorizer are not equivalent backstops**
    (see [Stage 6](#stage-6--engine-backstops)).
 
 ## References
