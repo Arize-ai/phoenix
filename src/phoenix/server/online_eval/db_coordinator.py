@@ -24,6 +24,8 @@ from phoenix.server.online_eval.coordinator import (
     LEASE_ATTEMPTS_EXHAUSTED_ERROR,
     LEASE_TTL_SECONDS,
     ClaimedWorkUnit,
+    PublicationClaimLostError,
+    PublicationWrite,
     QueueLag,
 )
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, annotation_identifier
@@ -83,12 +85,16 @@ class DbEvalWorkCoordinator:
         self._db = db
         self._evaluation_target = evaluation_target
         self._max_attempts = max_attempts
+        # Only SESSION work carries a coverage watermark: a span is evaluated whole,
+        # while a session is evaluated up to the content the transcript actually read.
+        self._coverage_column: Optional[InstrumentedAttribute[datetime]] = None
         if evaluation_target == "SPAN":
             self._work_unit_model: _WorkUnitModel = models.EvalWorkUnit
             self._target_row_column: InstrumentedAttribute[int] = models.EvalWorkUnit.span_rowid
         elif evaluation_target == "SESSION":
             self._work_unit_model = models.EvalSessionWorkUnit
             self._target_row_column = models.EvalSessionWorkUnit.project_session_rowid
+            self._coverage_column = models.EvalSessionWorkUnit.evaluated_through
         else:
             raise ValueError(
                 "Online evaluation work coordination supports SPAN and SESSION targets"
@@ -219,6 +225,48 @@ class DbEvalWorkCoordinator:
             already_status="DONE",
             status="DONE",
         )
+
+    async def publish(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+        write: PublicationWrite,
+        coverage_watermark: Optional[datetime] = None,
+    ) -> None:
+        work_unit_model = self._work_unit_model
+        if coverage_watermark is not None and self._coverage_column is None:
+            raise ValueError(
+                f"{self._evaluation_target} work units do not carry a coverage watermark"
+            )
+        publishable = (
+            work_unit_model.id == work_unit_id,
+            work_unit_model.claimed_by == claimed_by,
+            work_unit_model.status == "RUNNING",
+            work_unit_model.criteria_id.in_(
+                select(models.ProjectEvaluatorCriteria.id).where(
+                    models.ProjectEvaluatorCriteria.enabled
+                )
+            ),
+        )
+        async with self._db() as session:
+            if coverage_watermark is not None:
+                assert self._coverage_column is not None
+                result = await session.execute(
+                    update(work_unit_model)
+                    .where(*publishable)
+                    .values({self._coverage_column: coverage_watermark})
+                )
+                fenced = bool(result.rowcount == 1)  # type: ignore[attr-defined]
+            else:
+                fenced = (
+                    await session.scalar(select(work_unit_model.id).where(*publishable))
+                ) is not None
+            if not fenced:
+                raise PublicationClaimLostError(
+                    f"work unit {work_unit_id} is no longer owned and live"
+                )
+            await write(session)
 
     async def fail(
         self,

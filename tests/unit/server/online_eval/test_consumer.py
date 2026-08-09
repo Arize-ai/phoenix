@@ -50,7 +50,11 @@ from phoenix.server.online_eval import executor as executor_module
 from phoenix.server.online_eval.consumer import (
     OnlineEvalConsumer,
 )
-from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS, ClaimedWorkUnit
+from phoenix.server.online_eval.coordinator import (
+    LEASE_TTL_SECONDS,
+    ClaimedWorkUnit,
+    PublicationClaimLostError,
+)
 from phoenix.server.online_eval.criteria_resolution import (
     resolve_criteria,
     resolve_criteria_bulk,
@@ -64,7 +68,6 @@ from phoenix.server.online_eval.executor import (
     HydrationFailure,
     HydrationFailureReason,
     OnlineEvalExecutor,
-    PublicationClaimLostError,
     TranscriptTooLargeError,
     session_eval_context,
     span_eval_context,
@@ -524,6 +527,21 @@ async def _materialize_session_unit(
         return unit.id, fingerprint
 
 
+def _executor(
+    db: DbSessionFactory,
+    *,
+    evaluation_target: models.EvaluationTarget = "SPAN",
+    **kwargs: Any,
+) -> OnlineEvalExecutor:
+    """An executor publishing through a coordinator bound to the same target."""
+    return OnlineEvalExecutor(
+        db,
+        coordinator=DbEvalWorkCoordinator(db, evaluation_target=evaluation_target),
+        decrypt=lambda value: value,
+        **kwargs,
+    )
+
+
 async def _get_unit(db: DbSessionFactory, unit_id: int) -> models.EvalWorkUnit:
     async with db() as session:
         unit = await session.get(models.EvalWorkUnit, unit_id)
@@ -611,7 +629,7 @@ async def test_session_publication_closes_the_scheduled_watermark(
         stored_session.last_span_ingested_at = datetime.now(timezone.utc) - timedelta(minutes=5)
         annotation_name = criteria.name.root
 
-    executor = OnlineEvalExecutor(db, decrypt=lambda value: value)
+    executor = _executor(db, evaluation_target="SESSION")
     await executor.evaluate_and_annotate(
         unit,
         _hydrated_stub(
@@ -622,12 +640,15 @@ async def test_session_publication_closes_the_scheduled_watermark(
         ),
     )
 
+    # Publication records the coverage watermark and leaves the claim held; completing
+    # is the caller's next step, exactly as it is for spans.
     stored = await _get_session_unit(db, unit_id)
-    assert stored.status == "DONE"
+    assert stored.status == "RUNNING"
     assert stored.evaluated_through == scheduled_at
     (annotation,) = await _session_annotations(db)
     assert annotation.identifier == annotation_identifier(fingerprint)
     assert await coordinator.complete(work_unit_id=unit_id, claimed_by="consumer")
+    assert (await _get_session_unit(db, unit_id)).status == "DONE"
 
     await SessionEvalSweeper(db)._tick()
     async with db() as session:
@@ -1314,11 +1335,7 @@ async def test_session_code_hydration_supplies_configured_payload_cap(
     monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES", "2048")
     monkeypatch.setattr(executor_module, "build_sandbox_backend", _build_backend)
     monkeypatch.setattr(executor_module, "CodeEvaluatorRunner", _build_runner)
-    executor = OnlineEvalExecutor(
-        db,
-        decrypt=lambda value: value,
-        sandbox_session_manager=cast(Any, manager),
-    )
+    executor = _executor(db, sandbox_session_manager=cast(Any, manager))
 
     hydrated = await executor.hydrate(unit)
 
@@ -1360,11 +1377,7 @@ async def test_span_code_hydration_supplies_configured_payload_cap(
     monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES", "2048")
     monkeypatch.setattr(executor_module, "build_sandbox_backend", _build_backend)
     monkeypatch.setattr(executor_module, "CodeEvaluatorRunner", _build_runner)
-    executor = OnlineEvalExecutor(
-        db,
-        decrypt=lambda value: value,
-        sandbox_session_manager=cast(Any, manager),
-    )
+    executor = _executor(db, sandbox_session_manager=cast(Any, manager))
 
     hydrated = await executor.hydrate(unit)
 
@@ -1511,11 +1524,7 @@ async def test_code_criteria_input_mapping_override_is_used_during_execution(
         return _StubSandboxBackend()
 
     monkeypatch.setattr(executor_module, "build_sandbox_backend", _build_backend)
-    executor = OnlineEvalExecutor(
-        db,
-        decrypt=lambda value: value,
-        sandbox_session_manager=cast(Any, manager),
-    )
+    executor = _executor(db, sandbox_session_manager=cast(Any, manager))
     hydrated = await executor.hydrate(unit)
     assert isinstance(hydrated, HydratedWorkUnit)
 
@@ -1607,7 +1616,7 @@ async def test_reclaimed_execution_writes_one_annotation_and_one_insert_event(
     assert reclaimed.identifier == first_claim.identifier
 
     events: SimpleQueue[DmlEvent] = SimpleQueue()
-    executor = OnlineEvalExecutor(db, decrypt=lambda b: b, event_queue=events)
+    executor = _executor(db, event_queue=events)
     first_hydrated = await executor.hydrate(first_claim)
     reclaimed_hydrated = await executor.hydrate(reclaimed)
     assert isinstance(first_hydrated, HydratedWorkUnit)
@@ -1634,7 +1643,7 @@ async def test_llm_incomplete_result_set_writes_nothing(db: DbSessionFactory) ->
         evaluator_kind="LLM",
         output_configs=output_configs,
     )
-    executor = OnlineEvalExecutor(db, decrypt=lambda value: value)
+    executor = _executor(db)
     unit = await _claim_materialized_unit(
         db,
         project_id=project.id,
@@ -1660,7 +1669,7 @@ async def test_duplicate_output_name_writes_nothing(db: DbSessionFactory) -> Non
         evaluator_kind="LLM",
         output_configs=[_output_config("quality")],
     )
-    executor = OnlineEvalExecutor(db, decrypt=lambda value: value)
+    executor = _executor(db)
     unit = await _claim_materialized_unit(
         db,
         project_id=project.id,
@@ -1689,7 +1698,7 @@ async def test_invalid_categorical_label_writes_nothing(
         evaluator_kind="LLM",
         output_configs=[_output_config("quality")],
     )
-    executor = OnlineEvalExecutor(db, decrypt=lambda value: value)
+    executor = _executor(db)
     unit = await _claim_materialized_unit(
         db,
         project_id=project.id,
@@ -1721,7 +1730,7 @@ async def test_code_mixed_result_set_writes_nothing(db: DbSessionFactory) -> Non
         evaluator_kind="CODE",
         output_configs=output_configs,
     )
-    executor = OnlineEvalExecutor(db, decrypt=lambda value: value)
+    executor = _executor(db)
     unit = await _claim_materialized_unit(
         db,
         project_id=project.id,
@@ -1749,7 +1758,7 @@ async def test_complete_result_set_is_written_atomically(db: DbSessionFactory) -
         evaluator_kind="CODE",
         output_configs=output_configs,
     )
-    executor = OnlineEvalExecutor(db, decrypt=lambda value: value)
+    executor = _executor(db)
     unit = await _claim_materialized_unit(
         db,
         project_id=project.id,
@@ -1779,7 +1788,7 @@ async def test_deleted_criteria_cannot_publish_annotation(db: DbSessionFactory) 
         evaluator_kind="LLM",
         output_configs=[_output_config("quality")],
     )
-    executor = OnlineEvalExecutor(db, decrypt=lambda value: value)
+    executor = _executor(db)
     async with db() as session:
         criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
         assert criteria is not None

@@ -1,7 +1,8 @@
 """Execution glue for claimed online-eval work units: criteria-first hydration,
 target context assembly, evaluator invocation, and idempotent annotation writes.
-Session publication completes work atomically; other lifecycle transitions stay
-with the caller.
+Publication runs through the coordinator, which fences the claim and records any
+coverage watermark in the same transaction; every lifecycle transition, including
+completion, stays with the coordinator and its caller.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, AsyncIterator, Callable, Literal, Optional, Sequence
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 from strawberry.relay import GlobalID
@@ -45,7 +46,7 @@ from phoenix.server.dml_event import (
     ProjectSessionAnnotationInsertEvent,
     SpanAnnotationInsertEvent,
 )
-from phoenix.server.online_eval.coordinator import ClaimedWorkUnit
+from phoenix.server.online_eval.coordinator import ClaimedWorkUnit, EvalWorkCoordinator
 from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
 from phoenix.server.online_eval.derivation import (
     STALE_FINGERPRINT_ERROR,
@@ -80,16 +81,6 @@ class EvaluatorResultValidationError(EvalExecutionError):
     online_eval_disposition = FailureDisposition(
         count_attempt=True,
         code="EVALUATOR_RESULT_INVALID",
-    )
-
-
-class PublicationClaimLostError(EvalExecutionError):
-    """The work unit is no longer eligible for publication."""
-
-    online_eval_disposition = FailureDisposition(
-        count_attempt=True,
-        terminal=True,
-        code="PUBLICATION_CLAIM_LOST",
     )
 
 
@@ -290,6 +281,7 @@ class OnlineEvalExecutor:
         self,
         db: DbSessionFactory,
         *,
+        coordinator: EvalWorkCoordinator,
         decrypt: Callable[[bytes], bytes],
         sandbox_session_manager: Optional[SandboxSessionManager] = None,
         event_queue: Optional[CanPutItem[DmlEvent]] = None,
@@ -297,6 +289,7 @@ class OnlineEvalExecutor:
         db_semaphore: Optional[asyncio.Semaphore] = None,
     ) -> None:
         self._db = db
+        self._coordinator = coordinator
         self._decrypt = decrypt
         self._sandbox_session_manager = sandbox_session_manager
         self._event_queue = event_queue
@@ -813,7 +806,7 @@ class OnlineEvalExecutor:
     async def evaluate_and_annotate(
         self, unit: ClaimedWorkUnit, hydrated: HydratedWorkUnit
     ) -> None:
-        """Run the eval and write successful results as target annotations under
+        """Run the eval and publish successful results as target annotations under
         the unit's identifier. DO_NOTHING makes the write first-write-wins, so
         re-runs of the same unit are no-ops. Raises before writing unless the
         evaluator returns one complete, error-free result set. No DB session is
@@ -888,77 +881,42 @@ class OnlineEvalExecutor:
             for result in results
         ]
         if records:
+            annotation_table: type[models.SpanAnnotation] | type[models.ProjectSessionAnnotation]
+            if unit.evaluation_target == "SPAN":
+                annotation_table = models.SpanAnnotation
+                unique_by = ("name", "span_rowid", "identifier")
+            else:
+                annotation_table = models.ProjectSessionAnnotation
+                unique_by = ("name", "project_session_id", "identifier")
+            inserted_ids: Sequence[int] = ()
+
+            async def _write_annotations(session: AsyncSession) -> None:
+                nonlocal inserted_ids
+                inserted_ids = (
+                    await session.scalars(
+                        insert_on_conflict(
+                            *records,
+                            table=annotation_table,
+                            dialect=self._db.dialect,
+                            unique_by=unique_by,
+                            on_conflict=OnConflict.DO_NOTHING,
+                        ).returning(annotation_table.id)
+                    )
+                ).all()
+
             async with self._db_phase():
                 if self._db.should_not_insert_or_update:
                     raise OnlineEvalStoragePaused
-                async with self._db() as session:
-                    if unit.evaluation_target == "SPAN":
-                        owned_work_unit_id = await session.scalar(
-                            select(models.EvalWorkUnit.id)
-                            .join(
-                                models.ProjectEvaluatorCriteria,
-                                models.ProjectEvaluatorCriteria.id
-                                == models.EvalWorkUnit.criteria_id,
-                            )
-                            .where(
-                                models.EvalWorkUnit.id == unit.work_unit_id,
-                                models.EvalWorkUnit.status == "RUNNING",
-                                models.EvalWorkUnit.claimed_by == unit.claimed_by,
-                                models.ProjectEvaluatorCriteria.enabled,
-                            )
-                        )
-                        publication_fence_succeeded = owned_work_unit_id is not None
-                    else:
-                        publication_values: dict[str, Any] = {"status": "DONE"}
-                        if (
-                            coverage_watermark := _transcript_coverage_watermark(hydrated)
-                        ) is not None:
-                            publication_values["evaluated_through"] = coverage_watermark
-                        transition_result = await session.execute(
-                            update(models.EvalSessionWorkUnit)
-                            .where(
-                                models.EvalSessionWorkUnit.id == unit.work_unit_id,
-                                models.EvalSessionWorkUnit.status == "RUNNING",
-                                models.EvalSessionWorkUnit.claimed_by == unit.claimed_by,
-                                models.EvalSessionWorkUnit.criteria_id.in_(
-                                    select(models.ProjectEvaluatorCriteria.id).where(
-                                        models.ProjectEvaluatorCriteria.enabled
-                                    )
-                                ),
-                            )
-                            .values(**publication_values)
-                        )
-                        publication_fence_succeeded = bool(
-                            transition_result.rowcount == 1  # type: ignore[attr-defined]
-                        )
-                    if not publication_fence_succeeded:
-                        raise PublicationClaimLostError(
-                            f"work unit {unit.work_unit_id} is no longer owned and live"
-                        )
-                    if unit.evaluation_target == "SPAN":
-                        inserted_ids = (
-                            await session.scalars(
-                                insert_on_conflict(
-                                    *records,
-                                    table=models.SpanAnnotation,
-                                    dialect=self._db.dialect,
-                                    unique_by=("name", "span_rowid", "identifier"),
-                                    on_conflict=OnConflict.DO_NOTHING,
-                                ).returning(models.SpanAnnotation.id)
-                            )
-                        ).all()
-                    else:
-                        inserted_ids = (
-                            await session.scalars(
-                                insert_on_conflict(
-                                    *records,
-                                    table=models.ProjectSessionAnnotation,
-                                    dialect=self._db.dialect,
-                                    unique_by=("name", "project_session_id", "identifier"),
-                                    on_conflict=OnConflict.DO_NOTHING,
-                                ).returning(models.ProjectSessionAnnotation.id)
-                            )
-                        ).all()
+                await self._coordinator.publish(
+                    work_unit_id=unit.work_unit_id,
+                    claimed_by=unit.claimed_by,
+                    write=_write_annotations,
+                    coverage_watermark=(
+                        _transcript_coverage_watermark(hydrated)
+                        if unit.evaluation_target == "SESSION"
+                        else None
+                    ),
+                )
             # DO_NOTHING returns only rows actually inserted, so a deduped
             # re-run emits no event and dataloader caches aren't re-invalidated.
             if self._event_queue is not None and inserted_ids:

@@ -15,16 +15,32 @@ Work-unit lifecycle:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Protocol
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from phoenix.db import models
+from phoenix.server.online_eval.failure_policy import FailureDisposition
 
 LEASE_TTL_SECONDS = 90
 HEARTBEAT_INTERVAL_SECONDS = 30
 LEASE_ATTEMPTS_EXHAUSTED_ERROR = "lease lapsed with attempts exhausted"
+
+PublicationWrite = Callable[[AsyncSession], Awaitable[None]]
+"""Writes one unit's results, inside the transaction that fenced its publication."""
+
+
+class PublicationClaimLostError(Exception):
+    """A work unit stopped being publishable before its results could be written."""
+
+    online_eval_disposition = FailureDisposition(
+        count_attempt=True,
+        terminal=True,
+        code="PUBLICATION_CLAIM_LOST",
+    )
 
 
 @dataclass(frozen=True)
@@ -91,6 +107,28 @@ class EvalWorkCoordinator(Protocol):
         """Transition a claimed unit RUNNING -> DONE. Returns True when the unit is
         already DONE so callers can safely retry an ambiguous commit. Returns False for
         any other lost claim."""
+        ...
+
+    async def publish(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+        write: PublicationWrite,
+        coverage_watermark: Optional[datetime] = None,
+    ) -> None:
+        """Fence a claimed unit for publication and run ``write`` in that transaction.
+
+        The fence is stricter than a lifecycle transition's: the unit must still be
+        owned and RUNNING, *and* its criteria still enabled — a result must not be
+        published under a configuration that has since been turned off. Where the target
+        keeps a coverage watermark, it records how much of the target the published
+        result actually read and is written in the same transaction; a watermark that
+        outlived its annotation would claim coverage no result describes.
+
+        Raises ``PublicationClaimLostError`` when the fence fails. Does not complete the
+        unit — publication and completion are separate steps, so a lost acknowledgement
+        re-runs an idempotent write rather than a lost result."""
         ...
 
     async def fail(
