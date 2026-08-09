@@ -50,6 +50,10 @@ from phoenix.server.online_eval.consumer import (
     is_transient_error,
 )
 from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS, ClaimedWorkUnit
+from phoenix.server.online_eval.criteria_resolution import (
+    resolve_criteria,
+    resolve_criteria_bulk,
+)
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.derivation import annotation_identifier, config_fingerprint
 from phoenix.server.online_eval.executor import (
@@ -64,7 +68,6 @@ from phoenix.server.online_eval.executor import (
     session_eval_context,
     span_eval_context,
 )
-from phoenix.server.online_eval.producer import resolve_criteria, resolve_criteria_bulk
 from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
 from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory

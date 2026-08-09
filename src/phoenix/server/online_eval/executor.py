@@ -48,13 +48,13 @@ from phoenix.server.dml_event import (
     SpanAnnotationInsertEvent,
 )
 from phoenix.server.online_eval.coordinator import ClaimedWorkUnit
+from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
 from phoenix.server.online_eval.derivation import (
     MAX_SESSION_EVAL_TURNS,
     STALE_FINGERPRINT_ERROR,
     TRANSCRIPT_POLICY_VERSION,
     config_fingerprint,
 )
-from phoenix.server.online_eval.producer import resolve_criteria_bulk
 from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
 from phoenix.server.sandbox import SecretsContext, build_sandbox_backend
 from phoenix.server.sandbox.session_manager import SandboxSessionManager

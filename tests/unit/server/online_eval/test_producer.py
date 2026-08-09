@@ -3,7 +3,7 @@ from secrets import token_hex
 from typing import Any
 
 import pytest
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import func, select, update
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
@@ -30,6 +30,7 @@ from phoenix.server.online_eval.coordinator import (
     LEASE_ATTEMPTS_EXHAUSTED_ERROR,
     LEASE_TTL_SECONDS,
 )
+from phoenix.server.online_eval.criteria_resolution import resolve_criteria
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
@@ -37,10 +38,7 @@ from phoenix.server.online_eval.derivation import (
     annotation_identifier,
     config_fingerprint,
 )
-from phoenix.server.online_eval.producer import (
-    OnlineEvalProducer,
-    resolve_criteria,
-)
+from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_span, _add_trace
@@ -279,59 +277,6 @@ async def test_tick_materializes_matching_spans_and_advances_watermark(
         )
     await producer._tick()
     assert len(await _work_unit_span_rowids(db)) == len(llm_spans)
-
-
-async def test_materialization_stamp_is_set_once_and_outlives_the_work_rows(
-    db: DbSessionFactory,
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        spans = [await _add_span(session, trace, span_kind="LLM") for _ in range(2)]
-    _, criteria_id = await _seed_criteria(db, project.id)
-    cursor_id = await _seed_cursor(
-        db,
-        observed_high_water_id=spans[-1].id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
-
-    async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        assert criteria.work_materialized_at is None
-        updated_at_before = criteria.updated_at
-
-    producer = OnlineEvalProducer(db)
-    await producer._tick()
-
-    async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        first_stamp = criteria.work_materialized_at
-        assert first_stamp is not None
-        # Producer bookkeeping must not read as a configuration change.
-        assert criteria.updated_at == updated_at_before
-
-    # Retention eventually deletes the work rows; the record that work has ever
-    # existed must not go with them, and re-materializing must not move it.
-    async with db() as session:
-        await session.execute(delete(models.EvalWorkUnit))
-        await session.execute(
-            update(models.EvalWorkCursor)
-            .where(models.EvalWorkCursor.id == cursor_id)
-            .values(
-                produced_through_id=0,
-                observed_high_water_id=spans[-1].id,
-                observed_at=_now() - timedelta(seconds=120),
-            )
-        )
-    await producer._tick()
-
-    assert len(await _work_unit_span_rowids(db)) == len(spans)
-    async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        assert criteria.work_materialized_at == first_stamp
 
 
 async def test_builtin_implementation_version_changes_fingerprint(

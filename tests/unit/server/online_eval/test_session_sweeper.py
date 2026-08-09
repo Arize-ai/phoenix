@@ -18,8 +18,11 @@ from phoenix.server.online_eval.coordinator import (
     LEASE_ATTEMPTS_EXHAUSTED_ERROR,
     LEASE_TTL_SECONDS,
 )
+from phoenix.server.online_eval.criteria_resolution import (
+    resolve_criteria,
+    resolve_criteria_bulk,
+)
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, ResolvedCriteria
-from phoenix.server.online_eval.producer import resolve_criteria_bulk
 from phoenix.server.online_eval.session_sweeper import (
     SESSION_SWEEP_LEASE_TTL_SECONDS,
     SessionEvalSweeper,

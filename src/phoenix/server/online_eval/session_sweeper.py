@@ -44,9 +44,12 @@ from phoenix.db.eval_work import live_eval_work_index_predicate
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.coordinator import LEASE_ATTEMPTS_EXHAUSTED_ERROR
+from phoenix.server.online_eval.criteria_resolution import (
+    resolve_criteria,
+    resolve_criteria_bulk,
+)
 from phoenix.server.online_eval.db_coordinator import work_unit_lease_lapsed
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, config_fingerprint
-from phoenix.server.online_eval.producer import resolve_criteria_bulk
 from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
 from phoenix.server.prometheus import (
     ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG,
