@@ -5,12 +5,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from secrets import token_hex
 from typing import Optional, Sequence
 
 from sqlalchemy import (
+    ColumnElement,
     Float,
     Insert,
     and_,
@@ -32,6 +34,7 @@ from typing_extensions import assert_never
 
 from phoenix.config import get_env_enable_prometheus, get_env_online_eval_max_session_outstanding
 from phoenix.db import models
+from phoenix.db.eval_work import live_eval_work_index_predicate
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, config_fingerprint
@@ -56,41 +59,21 @@ SESSION_SWEEP_INTERVAL_SECONDS = 10.0
 _CONSUMER_GROUP = "default"
 _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
 _MAX_SESSION_WORK_INSERT_PARAMETERS = 30_000
-_SESSION_WORK_INSERT_PARAMETERS_PER_ROW = 7
+# One bind parameter per candidate session id, plus the handful of per-criterion
+# literals the whole statement shares.
+_SESSION_WORK_INSERT_FIXED_PARAMETERS = 16
 _SESSION_WORK_INSERT_BATCH_SIZE = (
-    _MAX_SESSION_WORK_INSERT_PARAMETERS // _SESSION_WORK_INSERT_PARAMETERS_PER_ROW
+    _MAX_SESSION_WORK_INSERT_PARAMETERS - _SESSION_WORK_INSERT_FIXED_PARAMETERS
 )
+_LIVE_WORK_INDEX_PREDICATE = text(live_eval_work_index_predicate())
 
-
-def _session_work_insert_statement(
-    work_records: Sequence[dict[str, object]],
-    dialect: SupportedSQLDialect,
-) -> Insert:
-    index_elements = (
-        models.EvalSessionWorkUnit.project_session_rowid,
-        models.EvalSessionWorkUnit.evaluator_id,
-        models.EvalSessionWorkUnit.config_fingerprint,
-    )
-    live_work = text("status IN ('PENDING', 'RUNNING') OR status = 'ERROR' AND attempts < 3")
-    if dialect is SupportedSQLDialect.POSTGRESQL:
-        return (
-            insert_postgresql(models.EvalSessionWorkUnit)
-            .values(work_records)
-            .on_conflict_do_nothing(
-                index_elements=index_elements,
-                index_where=live_work,
-            )
-        )
-    if dialect is SupportedSQLDialect.SQLITE:
-        return (
-            insert_sqlite(models.EvalSessionWorkUnit)
-            .values(work_records)
-            .on_conflict_do_nothing(
-                index_elements=index_elements,
-                index_where=live_work,
-            )
-        )
-    assert_never(dialect)
+_SESSION_WORK_INSERT_COLUMNS = (
+    "project_session_rowid",
+    "evaluator_id",
+    "criteria_id",
+    "config_fingerprint",
+    "evaluated_through",
+)
 
 
 @dataclass(frozen=True)
@@ -105,10 +88,79 @@ class _SessionCriteria:
 @dataclass(frozen=True)
 class _EligiblePair:
     project_session_rowid: int
-    evaluator_id: int
     criteria_id: int
-    config_fingerprint: str
-    evaluated_through: datetime
+
+
+def _live_work_exists(criterion: _SessionCriteria) -> ColumnElement[bool]:
+    """Whether the session still holds a live dedup key for this criterion."""
+    live_work = aliased(models.EvalSessionWorkUnit)
+    return (
+        select(1)
+        .select_from(live_work)
+        .where(
+            live_work.project_session_rowid == models.ProjectSession.id,
+            live_work.evaluator_id == criterion.evaluator_id,
+            live_work.config_fingerprint == criterion.fingerprint,
+            or_(
+                live_work.status.in_(("PENDING", "RUNNING")),
+                and_(
+                    live_work.status == "ERROR",
+                    live_work.attempts < MAX_ATTEMPTS,
+                ),
+            ),
+        )
+        .correlate(models.ProjectSession)
+        .exists()
+    )
+
+
+def _session_work_insert_statement(
+    criterion: _SessionCriteria,
+    project_session_rowids: Sequence[int],
+    dialect: SupportedSQLDialect,
+) -> Insert:
+    """Materialize work for one criterion, re-deriving eligibility at write time.
+
+    The completeness and no-live-work guards belong to the writing statement, not to
+    the SELECT that picked the candidates: under READ COMMITTED a session can be marked
+    incomplete, or acquire live work, in the gap between the two.
+    """
+    index_elements = (
+        models.EvalSessionWorkUnit.project_session_rowid,
+        models.EvalSessionWorkUnit.evaluator_id,
+        models.EvalSessionWorkUnit.config_fingerprint,
+    )
+    candidates = select(
+        models.ProjectSession.id,
+        literal(criterion.evaluator_id),
+        literal(criterion.criteria_id),
+        literal(criterion.fingerprint),
+        models.ProjectSession.last_span_ingested_at,
+    ).where(
+        models.ProjectSession.id.in_(project_session_rowids),
+        models.ProjectSession.content_complete.is_(True),
+        models.ProjectSession.last_span_ingested_at.is_not(None),
+        ~_live_work_exists(criterion),
+    )
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        return (
+            insert_postgresql(models.EvalSessionWorkUnit)
+            .from_select(list(_SESSION_WORK_INSERT_COLUMNS), candidates)
+            .on_conflict_do_nothing(
+                index_elements=index_elements,
+                index_where=_LIVE_WORK_INDEX_PREDICATE,
+            )
+        )
+    if dialect is SupportedSQLDialect.SQLITE:
+        return (
+            insert_sqlite(models.EvalSessionWorkUnit)
+            .from_select(list(_SESSION_WORK_INSERT_COLUMNS), candidates)
+            .on_conflict_do_nothing(
+                index_elements=index_elements,
+                index_where=_LIVE_WORK_INDEX_PREDICATE,
+            )
+        )
+    assert_never(dialect)
 
 
 class SessionEvalSweeper(DaemonTask):
@@ -279,6 +331,8 @@ class SessionEvalSweeper(DaemonTask):
     async def _sweep(self, session: AsyncSession, database_now: datetime) -> int:
         criteria = await self._load_criteria(session)
         work_budget = await self._admission_budget(session)
+        if work_budget == 0:
+            return 0
         eligible_pairs, eligible_pair_count = await self._load_eligible_pairs(
             session,
             database_now,
@@ -287,26 +341,22 @@ class SessionEvalSweeper(DaemonTask):
         )
         if self._publish_metrics:
             await self._publish_eligibility_metrics(session, eligible_pair_count)
-        if work_budget == 0 or not eligible_pairs:
+        if not eligible_pairs:
             return 0
 
-        work_records = [
-            {
-                "project_session_rowid": pair.project_session_rowid,
-                "evaluator_id": pair.evaluator_id,
-                "criteria_id": pair.criteria_id,
-                "config_fingerprint": pair.config_fingerprint,
-                "evaluated_through": pair.evaluated_through,
-            }
-            for pair in eligible_pairs
-        ]
+        criteria_by_id = {criterion.criteria_id: criterion for criterion in criteria}
+        rowids_by_criteria: defaultdict[int, list[int]] = defaultdict(list)
+        for pair in eligible_pairs:
+            rowids_by_criteria[pair.criteria_id].append(pair.project_session_rowid)
 
         inserted_count = 0
-        if work_records:
-            for start in range(0, len(work_records), _SESSION_WORK_INSERT_BATCH_SIZE):
+        for criteria_id, rowids in rowids_by_criteria.items():
+            criterion = criteria_by_id[criteria_id]
+            for start in range(0, len(rowids), _SESSION_WORK_INSERT_BATCH_SIZE):
                 result = await session.execute(
                     _session_work_insert_statement(
-                        work_records[start : start + _SESSION_WORK_INSERT_BATCH_SIZE],
+                        criterion,
+                        rowids[start : start + _SESSION_WORK_INSERT_BATCH_SIZE],
                         self._db.dialect,
                     )
                 )
@@ -325,15 +375,25 @@ class SessionEvalSweeper(DaemonTask):
             return [], 0
         statements = []
         for criterion in criteria:
-            live_work = aliased(models.EvalSessionWorkUnit)
             successful_work = aliased(models.EvalSessionWorkUnit)
-            successful_watermark = (
-                select(func.max(successful_work.evaluated_through))
+            terminal_work = aliased(models.EvalSessionWorkUnit)
+            # How far session content was already carried by work that will never run
+            # again — a completed evaluation, an expired one, or one that exhausted its
+            # retries. Without new content past that mark there is nothing to re-evaluate,
+            # and materializing anyway loops a failing session forever.
+            terminal_watermark = (
+                select(func.max(terminal_work.evaluated_through))
                 .where(
-                    successful_work.project_session_rowid == models.ProjectSession.id,
-                    successful_work.evaluator_id == criterion.evaluator_id,
-                    successful_work.config_fingerprint == criterion.fingerprint,
-                    successful_work.status == "DONE",
+                    terminal_work.project_session_rowid == models.ProjectSession.id,
+                    terminal_work.evaluator_id == criterion.evaluator_id,
+                    terminal_work.config_fingerprint == criterion.fingerprint,
+                    or_(
+                        terminal_work.status.in_(("DONE", "EXPIRED")),
+                        and_(
+                            terminal_work.status == "ERROR",
+                            terminal_work.attempts >= MAX_ATTEMPTS,
+                        ),
+                    ),
                 )
                 .correlate(models.ProjectSession)
                 .scalar_subquery()
@@ -350,24 +410,7 @@ class SessionEvalSweeper(DaemonTask):
                 .correlate(models.ProjectSession)
                 .exists()
             )
-            live_work_exists = (
-                select(1)
-                .select_from(live_work)
-                .where(
-                    live_work.project_session_rowid == models.ProjectSession.id,
-                    live_work.evaluator_id == criterion.evaluator_id,
-                    live_work.config_fingerprint == criterion.fingerprint,
-                    or_(
-                        live_work.status.in_(("PENDING", "RUNNING")),
-                        and_(
-                            live_work.status == "ERROR",
-                            live_work.attempts < MAX_ATTEMPTS,
-                        ),
-                    ),
-                )
-                .correlate(models.ProjectSession)
-                .exists()
-            )
+            live_work_exists = _live_work_exists(criterion)
             if self._db.dialect is SupportedSQLDialect.SQLITE:
                 due_at = (
                     cast(func.julianday(models.ProjectSession.last_span_ingested_at), Float)
@@ -382,10 +425,7 @@ class SessionEvalSweeper(DaemonTask):
             statements.append(
                 select(
                     models.ProjectSession.id.label("project_session_rowid"),
-                    literal(criterion.evaluator_id).label("evaluator_id"),
                     literal(criterion.criteria_id).label("criteria_id"),
-                    literal(criterion.fingerprint).label("config_fingerprint"),
-                    models.ProjectSession.last_span_ingested_at.label("evaluated_through"),
                     due_at.label("effective_due_time"),
                 ).where(
                     models.ProjectSession.project_id == criterion.project_id,
@@ -396,8 +436,8 @@ class SessionEvalSweeper(DaemonTask):
                     ~successful_result_exists,
                     ~live_work_exists,
                     or_(
-                        successful_watermark.is_(None),
-                        successful_watermark < models.ProjectSession.last_span_ingested_at,
+                        terminal_watermark.is_(None),
+                        terminal_watermark < models.ProjectSession.last_span_ingested_at,
                     ),
                 )
             )
@@ -421,10 +461,7 @@ class SessionEvalSweeper(DaemonTask):
         pairs = [
             _EligiblePair(
                 project_session_rowid=row.project_session_rowid,
-                evaluator_id=row.evaluator_id,
                 criteria_id=row.criteria_id,
-                config_fingerprint=row.config_fingerprint,
-                evaluated_through=row.evaluated_through,
             )
             for row in rows
         ]

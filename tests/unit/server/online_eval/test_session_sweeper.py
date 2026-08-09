@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta, timezone
+from importlib import import_module
 from unittest.mock import Mock
 
 import pytest
@@ -8,6 +9,7 @@ from sqlalchemy.dialects.postgresql import asyncpg
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
+from phoenix.db.eval_work import live_eval_work_index_predicate
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.online_eval import session_sweeper
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, ResolvedCriteria
@@ -26,30 +28,92 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def test_session_work_insert_batch_stays_below_asyncpg_parameter_limit() -> None:
-    work_records = [
-        {
-            "project_session_rowid": index,
-            "evaluator_id": index,
-            "criteria_id": index,
-            "config_fingerprint": f"fingerprint-{index}",
-            "evaluated_through": _now(),
-        }
-        for index in range(session_sweeper._SESSION_WORK_INSERT_BATCH_SIZE)
-    ]
+_CRITERION = session_sweeper._SessionCriteria(
+    criteria_id=1,
+    project_id=1,
+    evaluator_id=1,
+    fingerprint="fingerprint",
+    delay_seconds=10,
+)
 
+
+def test_live_key_predicate_is_single_sourced_from_max_attempts() -> None:
+    """The sweeper's conflict target, the model's index, and the migration that creates
+    it must stay textually identical and must track ``MAX_ATTEMPTS``: Postgres matches
+    ``ON CONFLICT ... WHERE`` to a partial index by predicate equivalence.
+    """
+    migration = import_module(
+        "phoenix.db.migrations.versions.a7f1c3e9d2b4_add_online_eval_coordination"
+    )
+    predicate = live_eval_work_index_predicate()
+    live_key_index = next(
+        index
+        for index in models.EvalSessionWorkUnit.__table__.indexes
+        if index.name == "uq_eval_session_work_units_live_key"
+    )
+
+    assert f"attempts < {MAX_ATTEMPTS}" in predicate
+    assert str(live_key_index.dialect_options["postgresql"]["where"]) == predicate
+    assert str(live_key_index.dialect_options["sqlite"]["where"]) == predicate
+    assert str(session_sweeper._LIVE_WORK_INDEX_PREDICATE) == predicate
+    assert migration.live_eval_work_index_predicate is live_eval_work_index_predicate
+
+
+def test_session_work_insert_batch_stays_below_asyncpg_parameter_limit() -> None:
     statement = session_sweeper._session_work_insert_statement(
-        work_records,
+        _CRITERION,
+        list(range(session_sweeper._SESSION_WORK_INSERT_BATCH_SIZE)),
         SupportedSQLDialect.POSTGRESQL,
     )
     compiled = statement.compile(dialect=asyncpg.dialect())  # type: ignore[no-untyped-call]
 
-    assert len(compiled.params) == (
-        session_sweeper._SESSION_WORK_INSERT_BATCH_SIZE
-        * session_sweeper._SESSION_WORK_INSERT_PARAMETERS_PER_ROW
-    )
     assert len(compiled.params) <= session_sweeper._MAX_SESSION_WORK_INSERT_PARAMETERS
     assert len(compiled.params) < 32_767
+
+
+async def test_materialization_rechecks_eligibility_at_write_time(
+    db: DbSessionFactory,
+) -> None:
+    """The insert re-derives completeness and the live-key check, so a session that
+    turns ineligible after the eligibility SELECT does not get a work unit anyway.
+    """
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    evaluator_id, criteria_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+
+    async with db() as session:
+        criterion = (await sweeper._load_criteria(session))[0]
+        await session.execute(
+            update(models.ProjectSession)
+            .where(models.ProjectSession.id == project_session_id)
+            .values(content_complete=False)
+        )
+        await session.execute(
+            session_sweeper._session_work_insert_statement(
+                criterion,
+                [project_session_id],
+                db.dialect,
+            )
+        )
+        assert (
+            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
+        )
+        await session.execute(
+            update(models.ProjectSession)
+            .where(models.ProjectSession.id == project_session_id)
+            .values(content_complete=True)
+        )
+        await session.execute(
+            session_sweeper._session_work_insert_statement(
+                criterion,
+                [project_session_id],
+                db.dialect,
+            )
+        )
+        units = list(await session.scalars(select(models.EvalSessionWorkUnit)))
+    assert len(units) == 1
+    assert units[0].evaluator_id == evaluator_id
+    assert units[0].criteria_id == criteria_id
 
 
 async def _add_session_liveness(
@@ -128,15 +192,14 @@ async def test_materializes_due_complete_session_with_activity_snapshot(
         ).one()
         await session.execute(
             session_sweeper._session_work_insert_statement(
-                [
-                    {
-                        "project_session_rowid": project_session_id,
-                        "evaluator_id": evaluator_id,
-                        "criteria_id": criteria_id,
-                        "config_fingerprint": unit.config_fingerprint,
-                        "evaluated_through": last_span_ingested_at,
-                    }
-                ],
+                session_sweeper._SessionCriteria(
+                    criteria_id=criteria_id,
+                    project_id=project_id,
+                    evaluator_id=evaluator_id,
+                    fingerprint=unit.config_fingerprint,
+                    delay_seconds=300,
+                ),
+                [project_session_id],
                 db.dialect,
             )
         )
@@ -302,48 +365,64 @@ async def test_successful_work_closes_evaluate_once_key(
     assert units[0].status == "DONE"
 
 
-async def test_exhausted_error_and_expired_history_are_replaceable(
+async def _work_statuses(db: DbSessionFactory) -> list[str]:
+    async with db() as session:
+        return list(
+            await session.scalars(
+                select(models.EvalSessionWorkUnit.status).order_by(models.EvalSessionWorkUnit.id)
+            )
+        )
+
+
+async def _advance_liveness(
+    db: DbSessionFactory,
+    project_session_id: int,
+    to: datetime,
+) -> None:
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectSession)
+            .where(models.ProjectSession.id == project_session_id)
+            .values(last_span_ingested_at=to)
+        )
+
+
+async def test_terminal_history_re_materializes_only_after_new_ingest(
     db: DbSessionFactory,
 ) -> None:
-    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    """Work that will never run again — exhausted ERROR, EXPIRED — carries the session
+    content it already covered in ``evaluated_through``. Replacing it without newer
+    content just repeats the same failure every tick.
+    """
+    project_id, project_session_id, last_span_ingested_at = await _add_session_liveness(
+        db,
+        age_seconds=600,
+    )
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
     sweeper = SessionEvalSweeper(db)
     await sweeper._tick()
 
     async with db() as session:
-        first_id = await session.scalar(select(models.EvalSessionWorkUnit.id))
-        assert first_id is not None
         await session.execute(
-            update(models.EvalSessionWorkUnit)
-            .where(models.EvalSessionWorkUnit.id == first_id)
-            .values(status="ERROR", attempts=MAX_ATTEMPTS)
+            update(models.EvalSessionWorkUnit).values(status="ERROR", attempts=MAX_ATTEMPTS)
         )
     await sweeper._tick()
+    await sweeper._tick()
+    assert await _work_statuses(db) == ["ERROR"]
+
+    await _advance_liveness(db, project_session_id, last_span_ingested_at + timedelta(seconds=60))
+    await sweeper._tick()
+    await sweeper._tick()
+    assert await _work_statuses(db) == ["ERROR", "PENDING"]
 
     async with db() as session:
-        units = list(
-            await session.scalars(
-                select(models.EvalSessionWorkUnit)
-                .where(models.EvalSessionWorkUnit.project_session_rowid == project_session_id)
-                .order_by(models.EvalSessionWorkUnit.id)
-            )
-        )
-        assert len(units) == 2
-        assert units[0].status == "ERROR"
         await session.execute(
             update(models.EvalSessionWorkUnit)
-            .where(models.EvalSessionWorkUnit.id == units[1].id)
+            .where(models.EvalSessionWorkUnit.status == "PENDING")
             .values(status="EXPIRED")
         )
     await sweeper._tick()
-
-    async with db() as session:
-        statuses = list(
-            await session.scalars(
-                select(models.EvalSessionWorkUnit.status).order_by(models.EvalSessionWorkUnit.id)
-            )
-        )
-    assert statuses == ["ERROR", "EXPIRED", "PENDING"]
+    assert await _work_statuses(db) == ["ERROR", "EXPIRED"]
 
 
 async def test_incomplete_session_is_never_scheduled(
