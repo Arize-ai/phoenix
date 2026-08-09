@@ -184,11 +184,10 @@ async def test_materializes_due_complete_session_with_activity_snapshot(
                 )
             )
         ).one()
-        cursor = (
+        lease = (
             await session.scalars(
-                select(models.EvalWorkCursor).where(
-                    models.EvalWorkCursor.evaluation_target == "SESSION",
-                    models.EvalWorkCursor.consumer_group == "default",
+                select(models.EvalWorkLease).where(
+                    models.EvalWorkLease.name == sweeper._lease_name,
                 )
             )
         ).one()
@@ -212,7 +211,7 @@ async def test_materializes_due_complete_session_with_activity_snapshot(
     assert unit.criteria_id == criteria_id
     assert unit.evaluated_through == last_span_ingested_at
     assert unit.status == "PENDING"
-    assert cursor.claimed_by == sweeper._sweeper_id
+    assert lease.holder == sweeper._sweeper_id
     assert live_work_count == 1
 
 
@@ -474,20 +473,20 @@ async def test_lost_lease_rolls_back_sweep(
     project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
     sweeper = SessionEvalSweeper(db)
-    acquire_cursor = sweeper._acquire_cursor
+    acquire_lease = sweeper._acquire_lease
 
     async def acquire_then_lose_lease() -> int | None:
-        cursor_id = await acquire_cursor()
-        assert cursor_id is not None
+        lease_id = await acquire_lease()
+        assert lease_id is not None
         async with db() as session:
             await session.execute(
-                update(models.EvalWorkCursor)
-                .where(models.EvalWorkCursor.id == cursor_id)
-                .values(claimed_by="replacement-sweeper")
+                update(models.EvalWorkLease)
+                .where(models.EvalWorkLease.id == lease_id)
+                .values(holder="replacement-sweeper")
             )
-        return cursor_id
+        return lease_id
 
-    monkeypatch.setattr(sweeper, "_acquire_cursor", acquire_then_lose_lease)
+    monkeypatch.setattr(sweeper, "_acquire_lease", acquire_then_lose_lease)
     with caplog.at_level(logging.WARNING, logger=session_sweeper.__name__):
         await sweeper._tick()
 
@@ -506,12 +505,10 @@ async def test_live_session_lease_stands_down_and_stale_lease_is_reclaimed(
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
     async with db() as session:
         session.add(
-            models.EvalWorkCursor(
-                evaluation_target="SESSION",
-                consumer_group="default",
-                produced_through_id=0,
-                claimed_by="other-sweeper",
-                claimed_at=_now(),
+            models.EvalWorkLease(
+                name=f"{session_sweeper._SESSION_SWEEP_LEASE_NAME}:default",
+                holder="other-sweeper",
+                heartbeat_at=_now(),
             )
         )
 
@@ -522,9 +519,9 @@ async def test_live_session_lease_stands_down_and_stale_lease_is_reclaimed(
             await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
         )
         await session.execute(
-            update(models.EvalWorkCursor)
-            .where(models.EvalWorkCursor.evaluation_target == "SESSION")
-            .values(claimed_at=_now() - timedelta(seconds=SESSION_SWEEP_LEASE_TTL_SECONDS + 1))
+            update(models.EvalWorkLease)
+            .where(models.EvalWorkLease.name == sweeper._lease_name)
+            .values(heartbeat_at=_now() - timedelta(seconds=SESSION_SWEEP_LEASE_TTL_SECONDS + 1))
         )
     await sweeper._tick()
 

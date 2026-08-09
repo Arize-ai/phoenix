@@ -207,6 +207,30 @@ def upgrade() -> None:
         sa.UniqueConstraint("evaluation_target", "consumer_group"),
     )
     op.create_table(
+        "eval_work_leases",
+        sa.Column(
+            "id",
+            _Integer,
+            primary_key=True,
+        ),
+        sa.Column("name", sa.String(), nullable=False),
+        sa.Column("holder", sa.String(), nullable=True),
+        sa.Column("heartbeat_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint("name"),
+    )
+    op.create_table(
         "project_evaluator_criteria",
         sa.Column(
             "id",
@@ -392,6 +416,7 @@ def downgrade() -> None:
         "ix_project_evaluator_criteria_project_id", table_name="project_evaluator_criteria"
     )
     op.drop_table("project_evaluator_criteria")
+    op.drop_table("eval_work_leases")
     op.drop_table("eval_work_cursors")
 
     op.drop_index(

@@ -42,6 +42,21 @@ CREATE TABLE public.eval_work_cursors (
 );
 
 
+-- Table: eval_work_leases
+-- -----------------------
+CREATE TABLE public.eval_work_leases (
+    id bigserial NOT NULL,
+    name VARCHAR NOT NULL,
+    holder VARCHAR,
+    heartbeat_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_eval_work_leases PRIMARY KEY (id),
+    CONSTRAINT uq_eval_work_leases_name
+        UNIQUE (name)
+);
+
+
 -- Table: generative_models
 -- ------------------------
 CREATE TABLE public.generative_models (

@@ -57,6 +57,7 @@ SESSION_SWEEP_LEASE_TTL_SECONDS = 90.0
 SESSION_SWEEP_INTERVAL_SECONDS = 10.0
 
 _CONSUMER_GROUP = "default"
+_SESSION_SWEEP_LEASE_NAME = "session-sweep"
 _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
 _MAX_SESSION_WORK_INSERT_PARAMETERS = 30_000
 # One bind parameter per candidate session id, plus the handful of per-criterion
@@ -184,6 +185,7 @@ class SessionEvalSweeper(DaemonTask):
         self._max_outstanding = get_env_online_eval_max_session_outstanding()
         self._publish_metrics = get_env_enable_prometheus()
         self._sweeper_id = f"session-sweeper-{token_hex(8)}"
+        self._lease_name = f"{_SESSION_SWEEP_LEASE_NAME}:{consumer_group}"
         self._lease_held = False
 
     async def _run(self) -> None:
@@ -198,61 +200,55 @@ class SessionEvalSweeper(DaemonTask):
             await self._release_lease()
 
     async def _tick(self) -> None:
-        cursor_id = await self._acquire_cursor()
-        if cursor_id is None:
+        lease_id = await self._acquire_lease()
+        if lease_id is None:
             return
-        if not await self._materialize_and_renew(cursor_id):
+        if not await self._materialize_and_renew(lease_id):
             self._lease_held = False
             logger.warning("Session evaluation sweeper lost its lease")
 
-    async def _acquire_cursor(self) -> Optional[int]:
+    async def _acquire_lease(self) -> Optional[int]:
         for _ in range(2):
             async with self._db() as session:
                 database_now = await self._database_now(session)
-                cursor_id = await session.scalar(
-                    update(models.EvalWorkCursor)
+                lease_id = await session.scalar(
+                    update(models.EvalWorkLease)
                     .where(
-                        models.EvalWorkCursor.evaluation_target == "SESSION",
-                        models.EvalWorkCursor.consumer_group == self._consumer_group,
+                        models.EvalWorkLease.name == self._lease_name,
                         or_(
-                            models.EvalWorkCursor.claimed_by.is_(None),
-                            models.EvalWorkCursor.claimed_by == self._sweeper_id,
-                            models.EvalWorkCursor.claimed_at
+                            models.EvalWorkLease.holder.is_(None),
+                            models.EvalWorkLease.holder == self._sweeper_id,
+                            models.EvalWorkLease.heartbeat_at
                             < database_now - timedelta(seconds=SESSION_SWEEP_LEASE_TTL_SECONDS),
                         ),
                     )
-                    .values(claimed_by=self._sweeper_id, claimed_at=database_now)
-                    .returning(models.EvalWorkCursor.id)
+                    .values(holder=self._sweeper_id, heartbeat_at=database_now)
+                    .returning(models.EvalWorkLease.id)
                 )
-            if cursor_id is not None:
+            if lease_id is not None:
                 self._lease_held = True
-                return cursor_id
+                return lease_id
             async with self._db() as session:
                 row_exists = await session.scalar(
-                    select(models.EvalWorkCursor.id).where(
-                        models.EvalWorkCursor.evaluation_target == "SESSION",
-                        models.EvalWorkCursor.consumer_group == self._consumer_group,
+                    select(models.EvalWorkLease.id).where(
+                        models.EvalWorkLease.name == self._lease_name
                     )
                 )
                 if row_exists is not None:
                     break
                 await session.execute(
                     insert_on_conflict(
-                        {
-                            "evaluation_target": "SESSION",
-                            "consumer_group": self._consumer_group,
-                            "produced_through_id": 0,
-                        },
-                        table=models.EvalWorkCursor,
+                        {"name": self._lease_name},
+                        table=models.EvalWorkLease,
                         dialect=self._db.dialect,
-                        unique_by=("evaluation_target", "consumer_group"),
+                        unique_by=("name",),
                         on_conflict=OnConflict.DO_NOTHING,
                     )
                 )
         self._lease_held = False
         return None
 
-    async def _materialize_and_renew(self, cursor_id: int) -> bool:
+    async def _materialize_and_renew(self, lease_id: int) -> bool:
         started_at = time.monotonic()
         if self._publish_metrics:
             ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS.inc()
@@ -264,13 +260,13 @@ class SessionEvalSweeper(DaemonTask):
                 materialized_work_count = await self._sweep(session, database_now)
                 renewed_at = await self._database_now(session)
                 renewed = await session.scalar(
-                    update(models.EvalWorkCursor)
+                    update(models.EvalWorkLease)
                     .where(
-                        models.EvalWorkCursor.id == cursor_id,
-                        models.EvalWorkCursor.claimed_by == self._sweeper_id,
+                        models.EvalWorkLease.id == lease_id,
+                        models.EvalWorkLease.holder == self._sweeper_id,
                     )
-                    .values(claimed_at=renewed_at)
-                    .returning(models.EvalWorkCursor.id)
+                    .values(heartbeat_at=renewed_at)
+                    .returning(models.EvalWorkLease.id)
                 )
                 if renewed is None:
                     await session.rollback()
@@ -540,13 +536,12 @@ class SessionEvalSweeper(DaemonTask):
         try:
             async with self._db() as session:
                 await session.execute(
-                    update(models.EvalWorkCursor)
+                    update(models.EvalWorkLease)
                     .where(
-                        models.EvalWorkCursor.evaluation_target == "SESSION",
-                        models.EvalWorkCursor.consumer_group == self._consumer_group,
-                        models.EvalWorkCursor.claimed_by == self._sweeper_id,
+                        models.EvalWorkLease.name == self._lease_name,
+                        models.EvalWorkLease.holder == self._sweeper_id,
                     )
-                    .values(claimed_by=None, claimed_at=None)
+                    .values(holder=None, heartbeat_at=None)
                 )
         except Exception:
             logger.exception("Failed to release session evaluation sweep lease")

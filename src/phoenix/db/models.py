@@ -3630,10 +3630,33 @@ class ProjectEvaluatorCriteria(HasId):
     __table_args__ = (UniqueConstraint("project_id", "name"),)
 
 
+class EvalWorkLease(HasId):
+    """A named single-holder lease for a materializer that has no position to keep.
+
+    The session sweeper decides what to materialize from session state rather than from
+    the span arrival log, so it needs mutual exclusion and nothing else. A lease is
+    held while heartbeat_at stays fresh; once it goes stale another holder may take it.
+    """
+
+    __tablename__ = "eval_work_leases"
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    holder: Mapped[Optional[str]] = mapped_column(String)
+    heartbeat_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (UniqueConstraint("name"),)
+
+
 class EvalWorkCursor(HasId):
-    """Producer lease and position in the span arrival log, one row per
-    (evaluation_target, consumer_group). For each target, produced_through_id is a Span.id
-    position in the shared arrival log rather than a target-specific entity id."""
+    """SPAN producer lease and position in the span arrival log, one row per
+    (evaluation_target, consumer_group). produced_through_id, observed_high_water_id and
+    observed_at are Span.id positions in that log, so only targets materialized by
+    scanning it keep a row here — targets that materialize from entity state take a
+    plain EvalWorkLease instead."""
 
     __tablename__ = "eval_work_cursors"
     evaluation_target: Mapped[EvaluationTarget] = mapped_column(

@@ -152,6 +152,40 @@ class TestEvalWorkCursors(_OnlineEvalSchemaTest):
         )
 
 
+class TestEvalWorkLeases(_OnlineEvalSchemaTest):
+    table_name = "eval_work_leases"
+
+    @override
+    @classmethod
+    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> Optional[_TableSchemaInfo]:
+        column_names = {
+            "id",
+            "name",
+            "holder",
+            "heartbeat_at",
+            "created_at",
+            "updated_at",
+        }
+        index_names: set[str] = set()
+        constraint_names = {
+            "pk_eval_work_leases",
+            "uq_eval_work_leases_name",
+        }
+        if db_backend == "postgresql":
+            index_names.update({"pk_eval_work_leases", "uq_eval_work_leases_name"})
+        elif db_backend == "sqlite":
+            index_names.update({"sqlite_autoindex_eval_work_leases_1"})
+        else:
+            assert_never(db_backend)
+        return _TableSchemaInfo(
+            table_name=cls.table_name,
+            column_names=frozenset(column_names),
+            index_names=frozenset(index_names),
+            constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset(["holder", "heartbeat_at"]),
+        )
+
+
 class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
     table_name = "project_evaluator_criteria"
 
