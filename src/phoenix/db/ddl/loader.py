@@ -235,10 +235,3 @@ def load_physical_catalog() -> PhysicalCatalog:
         tables={name: postgresql.sections[name].table for name in postgresql.order},
         order=postgresql.order,
     )
-
-
-def clear_schema_cache() -> None:
-    """Clear package-resource caches for tests that replace generated assets."""
-
-    load_dialect_schema.cache_clear()
-    load_physical_catalog.cache_clear()
