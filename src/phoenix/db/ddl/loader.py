@@ -11,9 +11,7 @@ from typing import Mapping
 
 from phoenix.db.helpers import SupportedSQLDialectName
 
-DialectName = SupportedSQLDialectName
-
-_DIALECT_FILES: Mapping[DialectName, str] = MappingProxyType(
+_DIALECT_FILES: Mapping[SupportedSQLDialectName, str] = MappingProxyType(
     {
         "postgresql": "postgresql_schema.sql",
         "sqlite": "sqlite_schema.sql",
@@ -101,7 +99,7 @@ def _parse_create_table(section: str) -> tuple[re.Match[str], str, int]:
     return match, table_name, index + 1
 
 
-def _resource_text(dialect: DialectName) -> str:
+def _resource_text(dialect: SupportedSQLDialectName) -> str:
     return files("phoenix.db.ddl").joinpath(_DIALECT_FILES[dialect]).read_text(encoding="utf-8")
 
 
@@ -169,7 +167,7 @@ def _split_definitions(body: str) -> tuple[str, ...]:
     return tuple(definition for definition in definitions if definition)
 
 
-def _parse_table_section(name: str, section: str, dialect: DialectName) -> TableSchema:
+def _parse_table_section(name: str, section: str, dialect: SupportedSQLDialectName) -> TableSchema:
     try:
         match, table_name, body_start = _parse_create_table(section)
     except SchemaAssetError as error:
@@ -204,7 +202,7 @@ def _parse_table_section(name: str, section: str, dialect: DialectName) -> Table
     )
 
 
-def parse_schema_asset(text: str, dialect: DialectName) -> Mapping[str, TableSchema]:
+def parse_schema_asset(text: str, dialect: SupportedSQLDialectName) -> Mapping[str, TableSchema]:
     """Validate generated DDL text and return its immutable table map."""
 
     markers = tuple(_TABLE_MARKER.finditer(text))
@@ -222,7 +220,7 @@ def parse_schema_asset(text: str, dialect: DialectName) -> Mapping[str, TableSch
 
 
 @lru_cache
-def load_dialect_schema(dialect: DialectName) -> Mapping[str, TableSchema]:
+def load_dialect_schema(dialect: SupportedSQLDialectName) -> Mapping[str, TableSchema]:
     """Load and validate one generated schema asset from the installed package."""
 
     return parse_schema_asset(_resource_text(dialect), dialect)
