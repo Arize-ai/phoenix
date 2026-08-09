@@ -8,7 +8,6 @@ from phoenix.db.ddl.loader import (
     PhysicalTable,
     SchemaAssetError,
     TableSection,
-    clear_schema_cache,
     load_dialect_schema,
     load_physical_catalog,
 )
@@ -21,7 +20,6 @@ __all__ = [
     "PhysicalTable",
     "SchemaAssetError",
     "TableSection",
-    "clear_schema_cache",
     "load_dialect_schema",
     "load_physical_catalog",
 ]
