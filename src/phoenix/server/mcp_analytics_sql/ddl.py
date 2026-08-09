@@ -15,9 +15,9 @@ The generated DDL assets are the physical schema source of truth, so this
 module selects their ``CREATE TABLE`` statements without re-synthesizing them.
 
 Curation the database cannot know -- which area a table belongs to, what one
-row means, how to reach the project, which JSON paths are populated -- rides
-along as ``--`` comments. They are read, never executed, so the only constraint
-is that the result still parses; `validate_ddl` enforces that.
+row means, and how to reach the project -- rides along as ``--`` comments.
+They are read, never executed, so the only constraint is that the result still
+parses; `validate_ddl` enforces that.
 
 Comments must not be round-tripped through SQLGlot to produce the output. It
 parses them correctly but re-emits them as ``/* */`` and normalizes type
@@ -105,30 +105,7 @@ def _render_table(spec: TableSpec, *, detail: str, create_table_ddl: str) -> lis
     return [create_table_ddl]
 
 
-def _blessed_path_expression(path: str, dialect: SupportedSQLDialectName) -> str:
-    """A blessed attribute path as the expression a caller has to write.
-
-    The manifest stores a logical path, `attributes.session.id`. That is not SQL
-    in either dialect: PostgreSQL reads three dotted parts as
-    schema.table.column and answers `missing FROM-clause entry for table
-    "session"`, so publishing the logical form advertises a path in a notation
-    the executor rejects. The first segment names the column and the rest is the
-    route into the document.
-
-    The dotted form is also ambiguous in a way the rendered form is not. A key
-    may itself contain a dot -- OpenInference writes flat keys like
-    `llm.token_count.prompt` -- so `a.b.c` cannot say whether it means two
-    nested objects or one key spelled with dots. The expression states which.
-    """
-    column, _, route = path.partition(".")
-    if not route:
-        return column
-    if dialect == "postgresql":
-        return f"{column} #>> '{{{route.replace('.', ',')}}}'"
-    return f"json_extract({column}, '$.{route}')"
-
-
-def _render_curation(spec: TableSpec, dialect: SupportedSQLDialectName = "postgresql") -> list[str]:
+def _render_curation(spec: TableSpec) -> list[str]:
     """Render non-relational curation comments for one table."""
 
     lines: list[str] = []
@@ -138,8 +115,6 @@ def _render_curation(spec: TableSpec, dialect: SupportedSQLDialectName = "postgr
         lines.append(f"-- {spec.time_column}: time column")
     for column, note in sorted(spec.column_notes.items()):
         lines.append(f"-- {column}: {note}")
-    for path in sorted(spec.blessed_attribute_paths):
-        lines.append(f"-- populated JSON path: {_blessed_path_expression(path, dialect)}")
     if spec.promoted_columns_note:
         lines.append(f"-- {spec.promoted_columns_note}")
     return lines
@@ -176,7 +151,7 @@ def render_schema_ddl(
                 create_table_ddl = _unqualify_postgresql_ddl(create_table_ddl)
             block = _render_table(spec, detail=detail, create_table_ddl=create_table_ddl)
             if detail != "brief":
-                block += _render_curation(spec, dialect_name)
+                block += _render_curation(spec)
             rendered.append("\n".join(block))
         if rendered:
             # Brief entries are single lines, so blank lines between them would

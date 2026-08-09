@@ -12,7 +12,7 @@ from phoenix.db.helpers import SupportedSQLDialectName
 from phoenix.server.mcp_analytics_sql.allowlist import Allowlist, TableSpec, load_allowlist
 from phoenix.server.mcp_analytics_sql.ddl import render_schema_ddl, validate_ddl
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
-from phoenix.server.mcp_analytics_sql.parse import AdmissionOutcome, admit, parse_sql, render
+from phoenix.server.mcp_analytics_sql.parse import admit, parse_sql, render
 from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
 
 # Named `backend` rather than `dialect` on purpose: the unit conftest skips any
@@ -313,12 +313,11 @@ def test_enumerated_columns_declare_their_permitted_values(backend: str) -> None
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
-def test_foreign_keys_and_nonrelational_curation_are_rendered(backend: str) -> None:
+def test_foreign_keys_and_curation_are_rendered(backend: str) -> None:
     ddl = render_schema_ddl(tables=["spans"], detail="detailed", dialect=backend)
 
     assert "FOREIGN KEY (trace_rowid)" in ddl
     assert "REFERENCES traces (id)" in ddl
-    assert "-- populated JSON path:" in ddl
     assert "-- Prefer llm_token_count_* over JSON" in ddl
     assert "-- join:" not in ddl
     assert "-- to area root:" not in ddl
@@ -435,34 +434,6 @@ def test_the_array_cast_workaround_only_touches_json_operands() -> None:
         "CREATE INDEX i ON spans (tags) WHERE tags = '{a}'::text[]",
     ):
         assert "::text[]" in _body(kept), f"a load-bearing cast was stripped from {kept}"
-
-
-@pytest.mark.parametrize("backend", ["postgresql", "sqlite"])
-def test_published_json_paths_are_expressions_a_caller_can_run(backend: str) -> None:
-    """A published path has to be written in the dialect it is published for.
-
-    The manifest stores a logical path, `attributes.session.id`, which is not
-    SQL. PostgreSQL reads three dotted parts as schema.table.column and fails
-    with `missing FROM-clause entry for table "session"` -- admitted by this
-    surface, then rejected by the engine, which is the document-versus-executor
-    divergence the suite exists to close. Every rendered path is therefore
-    submitted through admission here.
-    """
-    from phoenix.server.mcp_analytics_sql.parse import try_parse_and_admit
-
-    ddl = render_schema_ddl(tables=["spans"], detail="detailed", dialect=backend)
-    paths = [
-        line.split("-- populated JSON path:", 1)[1].strip()
-        for line in ddl.splitlines()
-        if "-- populated JSON path:" in line
-    ]
-    assert paths, "spans publishes blessed attribute paths; the test is vacuous without them"
-    for path in paths:
-        result = try_parse_and_admit(
-            f"SELECT {path} AS v FROM spans", dialect=cast(SupportedSQLDialectName, backend)
-        )
-        assert result.outcome is AdmissionOutcome.ADMIT, f"{path!r} -> {result.detail}"
-        assert "." not in path.split("'")[0], f"{path!r} is a logical path, not an expression"
 
 
 def test_no_allowlisted_table_reuses_a_timestamp_column_name_for_another_type() -> None:
