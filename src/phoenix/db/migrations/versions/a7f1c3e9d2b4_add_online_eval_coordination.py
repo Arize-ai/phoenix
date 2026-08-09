@@ -39,6 +39,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # project_sessions carries raw-expression DESC indexes, so add_column/drop_column are used
+    # bare here: batch mode would rebuild the table by reflection and silently recreate those
+    # indexes as ascending. SQLite supports both statements natively on this column.
     op.add_column(
         "project_sessions",
         sa.Column(
