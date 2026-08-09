@@ -22,9 +22,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import (
     ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
-    get_env_online_eval_max_llm_message_bytes,
     get_env_online_eval_max_sandbox_payload_bytes,
-    get_env_online_eval_max_transcript_bytes,
 )
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
@@ -50,12 +48,13 @@ from phoenix.server.dml_event import (
 from phoenix.server.online_eval.coordinator import ClaimedWorkUnit
 from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
 from phoenix.server.online_eval.derivation import (
-    MAX_SESSION_EVAL_TURNS,
     STALE_FINGERPRINT_ERROR,
-    TRANSCRIPT_POLICY_VERSION,
     config_fingerprint,
 )
-from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
+from phoenix.server.online_eval.session_policy import (
+    SessionTranscriptPolicy,
+    session_criteria_is_schedulable,
+)
 from phoenix.server.sandbox import SecretsContext, build_sandbox_backend
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.types import CanPutItem, DbSessionFactory
@@ -181,10 +180,11 @@ def span_eval_context(span: models.Span) -> dict[str, Any]:
 def session_eval_context(
     *,
     turns: Sequence[dict[str, Any]],
-    max_transcript_bytes: int,
+    policy: SessionTranscriptPolicy,
     total_eligible_root_count: Optional[int] = None,
 ) -> dict[str, Any]:
     """Build the transcript, turn metadata, and applied transcript policy."""
+    max_transcript_bytes = policy.max_transcript_bytes
     total_root_count = (
         len(turns) if total_eligible_root_count is None else total_eligible_root_count
     )
@@ -230,10 +230,10 @@ def session_eval_context(
     first_retained = retained_turns[0].get("event_time") if retained_turns else None
     last_retained = retained_turns[-1].get("event_time") if retained_turns else None
     output = turns[-1]["output"] if turns and turns[-1]["output"] is not None else ""
-    policy = {
-        "version": TRANSCRIPT_POLICY_VERSION,
+    applied_policy = {
+        "version": policy.version,
         "ordering": "root_span_start_time_then_span_id",
-        "max_turns": MAX_SESSION_EVAL_TURNS,
+        "max_turns": policy.max_turns,
         "max_bytes": max_transcript_bytes,
         "total_eligible_root_count": total_root_count,
         "loaded_turn_count": len(turns),
@@ -251,7 +251,7 @@ def session_eval_context(
         "output": output,
         "metadata": {
             "turns": list(turns),
-            _TRANSCRIPT_POLICY_METADATA_KEY: policy,
+            _TRANSCRIPT_POLICY_METADATA_KEY: applied_policy,
         },
     }
 
@@ -295,6 +295,9 @@ class OnlineEvalExecutor:
         self._event_queue = event_queue
         self._execution_deadline_seconds = execution_deadline_seconds
         self._db_semaphore = db_semaphore
+        # Read once, at construction: the same caps are fingerprinted at
+        # materialization, and assembling under different ones expires the work.
+        self._session_transcript_policy = SessionTranscriptPolicy.from_env()
 
     async def hydrate(self, unit: ClaimedWorkUnit) -> HydrationOutcome:
         configuration = (await self.hydrate_configuration_snapshots([unit]))[0]
@@ -594,7 +597,7 @@ class OnlineEvalExecutor:
                     models.Span.start_time.desc(),
                     models.Span.span_id.desc(),
                 )
-                .limit(MAX_SESSION_EVAL_TURNS)
+                .limit(self._session_transcript_policy.max_turns)
             )
         ).all()
         turns = [
@@ -610,7 +613,7 @@ class OnlineEvalExecutor:
         try:
             return session_eval_context(
                 turns=turns,
-                max_transcript_bytes=get_env_online_eval_max_transcript_bytes(),
+                policy=self._session_transcript_policy,
                 total_eligible_root_count=total_eligible_root_count,
             )
         except TranscriptTooLargeError as error:
@@ -703,7 +706,7 @@ class OnlineEvalExecutor:
             llm_client=llm_client,
             output_configs=evaluator_orm.output_configs,
             prompt_name=prompt.name.root,
-            max_message_bytes=get_env_online_eval_max_llm_message_bytes(),
+            max_message_bytes=self._session_transcript_policy.max_llm_message_bytes,
         )
         return _HydratedEvaluatorSnapshot(
             annotator_kind="LLM",

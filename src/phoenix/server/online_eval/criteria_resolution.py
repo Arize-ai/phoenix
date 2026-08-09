@@ -15,17 +15,11 @@ from typing import Any, Optional, Sequence
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from phoenix.config import (
-    get_env_online_eval_max_llm_message_bytes,
-    get_env_online_eval_max_transcript_bytes,
-)
 from phoenix.db import models
 from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
-from phoenix.server.online_eval.derivation import (
-    ResolvedCriteria,
-    transcript_policy_fingerprint,
-)
+from phoenix.server.online_eval.derivation import ResolvedCriteria
+from phoenix.server.online_eval.session_policy import SessionTranscriptPolicy
 
 _SANDBOX_RUNTIME_POLICY_VERSION = "1"
 
@@ -245,10 +239,7 @@ def _resolved_criteria(
         filter_condition=criteria.filter_condition,
         sampling_rate=criteria.sampling_rate,
         transcript_policy_fingerprint=(
-            transcript_policy_fingerprint(
-                max_transcript_bytes=get_env_online_eval_max_transcript_bytes(),
-                max_llm_message_bytes=get_env_online_eval_max_llm_message_bytes(),
-            )
+            SessionTranscriptPolicy.from_env().fingerprint
             if criteria.evaluation_target == "SESSION"
             else None
         ),

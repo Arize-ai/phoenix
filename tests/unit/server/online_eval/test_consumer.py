@@ -68,6 +68,10 @@ from phoenix.server.online_eval.executor import (
     session_eval_context,
     span_eval_context,
 )
+from phoenix.server.online_eval.session_policy import (
+    MAX_SESSION_EVAL_TURNS,
+    SessionTranscriptPolicy,
+)
 from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
 from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
@@ -686,6 +690,18 @@ async def test_incomplete_session_hydration_expires_without_counting_attempt(
     assert await _session_annotations(db) == []
 
 
+def _transcript_policy(
+    max_transcript_bytes: int,
+    *,
+    max_turns: int = MAX_SESSION_EVAL_TURNS,
+) -> SessionTranscriptPolicy:
+    return SessionTranscriptPolicy(
+        max_transcript_bytes=max_transcript_bytes,
+        max_llm_message_bytes=4_096,
+        max_turns=max_turns,
+    )
+
+
 def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> None:
     turns = [
         {
@@ -702,7 +718,7 @@ def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> No
 
     context = session_eval_context(
         turns=turns,
-        max_transcript_bytes=len(expected_transcript.encode("utf-8")),
+        policy=_transcript_policy(len(expected_transcript.encode("utf-8"))),
     )
 
     assert set(context) == {"input", "output", "metadata"}
@@ -722,7 +738,7 @@ def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> No
     with pytest.raises(TranscriptTooLargeError) as exc_info:
         session_eval_context(
             turns=[omitted_turn],
-            max_transcript_bytes=256,
+            policy=_transcript_policy(256),
         )
     error = str(exc_info.value)
     assert f"{len(omitted_transcript.encode('utf-8'))} bytes" in error
@@ -732,7 +748,7 @@ def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> No
 
     null_values = session_eval_context(
         turns=[{"input": None, "output": None, "metadata": {"raw": True}}],
-        max_transcript_bytes=256,
+        policy=_transcript_policy(256),
     )
     assert null_values["input"] == "User: \nAssistant: "
     assert null_values["output"] == ""
@@ -742,7 +758,7 @@ def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> No
 
     empty = session_eval_context(
         turns=[],
-        max_transcript_bytes=256,
+        policy=_transcript_policy(256),
     )
     assert empty["input"] == ""
     assert empty["output"] == ""
@@ -862,7 +878,11 @@ async def test_configuration_snapshot_is_discarded_after_claim_batch(
 async def test_session_happy_path_builds_context_annotates_and_emits_insert_event(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(executor_module, "MAX_SESSION_EVAL_TURNS", 2)
+    monkeypatch.setattr(
+        SessionTranscriptPolicy,
+        "from_env",
+        classmethod(lambda cls: _transcript_policy(32_768, max_turns=2)),
+    )
     start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
     async with db() as session:
         project = await _add_project(session)
