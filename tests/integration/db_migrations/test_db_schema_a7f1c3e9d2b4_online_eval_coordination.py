@@ -20,8 +20,7 @@ from . import (
     _verify_clean_state,
 )
 
-_DOWN = "d4e5f6a7b8c9"
-_PREVIOUS = "c9d0e1f2a3b4"
+_DOWN = "c9d0e1f2a3b4"
 _UP = "a7f1c3e9d2b4"
 _SQLITE_PROJECT_SESSION_DESC_INDEX_SQL = {
     "ix_project_sessions_project_id_end_time": (
@@ -32,6 +31,10 @@ _SQLITE_PROJECT_SESSION_DESC_INDEX_SQL = {
         "CREATE INDEX ix_project_sessions_project_id_start_time "
         "ON project_sessions (project_id, start_time DESC)"
     ),
+}
+_PG_PROJECT_SESSION_DESC_INDEX_COLUMNS = {
+    "ix_project_sessions_project_id_end_time": "(project_id, end_time DESC)",
+    "ix_project_sessions_project_id_start_time": "(project_id, start_time DESC)",
 }
 
 
@@ -47,6 +50,22 @@ def _get_sqlite_project_session_index_sql(conn: Connection) -> dict[str, str]:
         )
     ).all()
     return {name: sql for name, sql in rows if sql is not None}
+
+
+def _get_postgresql_project_session_index_def(conn: Connection, schema: str) -> dict[str, str]:
+    rows = conn.execute(
+        sa.text(
+            "SELECT indexname, indexdef FROM pg_indexes "
+            "WHERE schemaname = :schema "
+            "AND tablename = 'project_sessions' "
+            "AND indexname IN ("
+            "'ix_project_sessions_project_id_start_time', "
+            "'ix_project_sessions_project_id_end_time'"
+            ")"
+        ),
+        {"schema": schema},
+    ).all()
+    return {name: indexdef for name, indexdef in rows}
 
 
 def _constraint_name(name: str, db_backend: _DBBackend) -> str:
@@ -149,6 +168,7 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             "evaluation_target",
             "input_mapping",
             "enabled",
+            "work_materialized_at",
             "created_at",
             "updated_at",
         }
@@ -180,7 +200,7 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(["input_mapping"]),
+            nullable_column_names=frozenset(["input_mapping", "work_materialized_at"]),
         )
 
 
@@ -249,11 +269,29 @@ async def test_project_session_liveness_schema(
     _schema: str,
 ) -> None:
     await _verify_clean_state(_engine, _schema)
-    await _up(_engine, _alembic_config, _PREVIOUS, _schema)
+    await _up(_engine, _alembic_config, _DOWN, _schema)
     end_time = datetime(2026, 1, 2, tzinfo=timezone.utc)
 
     def _get(conn: Connection) -> Optional[_TableSchemaInfo]:
         return _get_table_schema_info(conn, "project_sessions", _db_backend, _schema)
+
+    async def _assert_desc_indexes() -> None:
+        """Assert both project_sessions indexes are descending, at DDL level, on either dialect."""
+        if _db_backend == "sqlite":
+            assert (
+                await _run_async(_engine, _get_sqlite_project_session_index_sql)
+                == _SQLITE_PROJECT_SESSION_DESC_INDEX_SQL
+            )
+        elif _db_backend == "postgresql":
+            index_defs = await _run_async(
+                _engine,
+                lambda conn: _get_postgresql_project_session_index_def(conn, _schema),
+            )
+            assert index_defs.keys() == _PG_PROJECT_SESSION_DESC_INDEX_COLUMNS.keys()
+            for index_name, columns in _PG_PROJECT_SESSION_DESC_INDEX_COLUMNS.items():
+                assert index_defs[index_name].endswith(columns)
+        else:
+            assert_never(_db_backend)
 
     def _seed(conn: Connection) -> None:
         metadata = sa.MetaData()
@@ -321,11 +359,10 @@ async def test_project_session_liveness_schema(
     assert last_span_ingested_at is None
     assert index_columns == ["project_id", "last_span_ingested_at"]
     assert "last_span_ingested_at IS NOT NULL" in index_where
-    if _db_backend == "sqlite":
-        assert (
-            await _run_async(_engine, _get_sqlite_project_session_index_sql)
-            == _SQLITE_PROJECT_SESSION_DESC_INDEX_SQL
-        )
+    await _assert_desc_indexes()
 
-    await _down(_engine, _alembic_config, _PREVIOUS, _schema)
+    await _down(_engine, _alembic_config, _DOWN, _schema)
     assert await _run_async(_engine, _get) == before
+    # Reflection-driven index drift is symmetric: index names and column lists survive a
+    # DESC -> ASC rebuild, so the schema comparison above cannot catch one on the way down.
+    await _assert_desc_indexes()
