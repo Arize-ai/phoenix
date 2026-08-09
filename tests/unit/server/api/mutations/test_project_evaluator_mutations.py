@@ -528,6 +528,68 @@ async def test_project_llm_evaluator_create_update_delete(
     assert delete_result.data and not delete_result.errors
 
 
+async def test_update_project_llm_evaluator_preserves_description_and_owner_on_no_op_save(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    project = await _add_project(db)
+
+    # The evaluator description is constrained to equal the tool function description.
+    def _described_input(**overrides: Any) -> dict[str, Any]:
+        payload = _llm_input(project, name="llm-owner", text="Evaluate {{input}}")
+        payload["description"] = "original description"
+        payload["promptVersion"]["tools"]["tools"][0]["function"]["description"] = (
+            "original description"
+        )
+        payload.update(overrides)
+        return payload
+
+    create_result = await gql_client.execute(_CREATE_LLM, {"input": _described_input()})
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectLlmEvaluator"]["evaluator"]
+
+    criteria_id = int(GlobalID.from_id(created["id"]).node_id)
+    async with db() as session:
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert criteria is not None
+        evaluator = await session.get(models.LLMEvaluator, criteria.evaluator_id)
+        assert evaluator is not None
+        assert evaluator.description == "original description"
+        user_role_id = await session.scalar(select(models.UserRole.id).limit(1))
+        assert user_role_id is not None
+        owner = models.User(
+            user_role_id=user_role_id,
+            username=f"llm-evaluator-owner-{token_hex(4)}",
+            email=f"{token_hex(4)}@test.com",
+            password_hash=b"hash",
+            password_salt=b"salt",
+            reset_password=False,
+            auth_method="LOCAL",
+        )
+        session.add(owner)
+        await session.flush()
+        evaluator.user_id = owner.id
+        owner_id = owner.id
+
+    # Same prompt content and output configs, no description: nothing about the shared
+    # evaluator changed, so neither its description nor its owner may be rewritten.
+    update_input = _described_input()
+    update_input.pop("projectId")
+    update_input.pop("enabled")
+    update_input.pop("description")
+    update_input["projectEvaluatorId"] = created["id"]
+    update_result = await gql_client.execute(_UPDATE_LLM, {"input": update_input})
+    assert update_result.data and not update_result.errors
+
+    async with db() as session:
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert criteria is not None
+        evaluator = await session.get(models.LLMEvaluator, criteria.evaluator_id)
+        assert evaluator is not None
+        assert evaluator.description == "original description"
+        assert evaluator.user_id == owner_id
+
+
 @pytest.mark.parametrize("evaluator_kind", ["LLM", "CODE"])
 async def test_set_project_evaluator_enabled_toggles_only_enabled(
     gql_client: AsyncGraphQLClient,
