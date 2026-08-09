@@ -54,6 +54,7 @@ from typing_extensions import Self, TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
+from phoenix.db.eval_work import live_eval_work_index_predicate
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
@@ -3772,12 +3773,8 @@ class EvalSessionWorkUnit(HasId):
             "evaluator_id",
             "config_fingerprint",
             unique=True,
-            postgresql_where=text(
-                "status IN ('PENDING', 'RUNNING') OR status = 'ERROR' AND attempts < 3"
-            ),
-            sqlite_where=text(
-                "status IN ('PENDING', 'RUNNING') OR status = 'ERROR' AND attempts < 3"
-            ),
+            postgresql_where=text(live_eval_work_index_predicate()),
+            sqlite_where=text(live_eval_work_index_predicate()),
         ),
         Index(
             "ix_eval_session_work_units_claimable",
