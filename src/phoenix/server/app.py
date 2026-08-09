@@ -1127,19 +1127,21 @@ def create_app(
             evaluator_semaphore=evaluator_semaphore,
             db_semaphore=db_semaphore,
         )
-        online_eval_session_consumer = OnlineEvalConsumer(
-            db,
-            decrypt=encryption_service.decrypt,
-            sandbox_session_manager=sandbox_session_manager,
-            event_queue=dml_event_handler,
-            evaluation_target="SESSION",
-            tick_interval_seconds=tick_interval_seconds,
-            claim_batch_size=claim_batch_size,
-            max_concurrency=get_env_online_eval_session_consumer_concurrency(),
-            evaluator_semaphore=evaluator_semaphore,
-            db_semaphore=db_semaphore,
-        )
         if get_env_online_eval_session_sweep_enabled():
+            # Both halves of the session lifecycle sit behind the one flag: a consumer
+            # without its sweeper claims from a table only the sweeper can fill.
+            online_eval_session_consumer = OnlineEvalConsumer(
+                db,
+                decrypt=encryption_service.decrypt,
+                sandbox_session_manager=sandbox_session_manager,
+                event_queue=dml_event_handler,
+                evaluation_target="SESSION",
+                tick_interval_seconds=tick_interval_seconds,
+                claim_batch_size=claim_batch_size,
+                max_concurrency=get_env_online_eval_session_consumer_concurrency(),
+                evaluator_semaphore=evaluator_semaphore,
+                db_semaphore=db_semaphore,
+            )
             online_eval_session_sweeper = SessionEvalSweeper(db)
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(

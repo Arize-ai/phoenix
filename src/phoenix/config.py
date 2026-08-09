@@ -3424,6 +3424,9 @@ def get_env_online_eval_enabled() -> bool:
 def get_env_online_eval_session_sweep_enabled() -> bool:
     """
     Gets the value of the PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED environment variable.
+
+    Gates session evaluation end to end: with it off, neither the sweeper that
+    materializes session work nor the consumer that executes it runs.
     """
     return _bool_val(ENV_PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED, False)
 

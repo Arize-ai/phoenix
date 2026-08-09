@@ -70,17 +70,19 @@ async def test_online_eval_daemons_absent_in_read_only_mode(
     assert app.state.online_eval_session_sweeper is None
 
 
-async def test_session_sweeper_needs_its_own_flag(
+async def test_session_evaluation_needs_its_own_flag(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Session sweeping is opt-in: it stays off until it is asked for explicitly —
-    otherwise it fills the outstanding-work budget and wedges.
+    """Session evaluation is opt-in as a whole: it stays off until it is asked for
+    explicitly — otherwise it fills the outstanding-work budget and wedges — and both
+    halves of its lifecycle stay off together.
     """
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
 
     app = _create_app(db)
     assert isinstance(app.state.online_eval_producer, OnlineEvalProducer)
     assert app.state.online_eval_session_sweeper is None
+    assert app.state.online_eval_session_consumer is None
 
 
 @pytest.mark.parametrize(
