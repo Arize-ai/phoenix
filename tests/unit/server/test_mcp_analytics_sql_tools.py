@@ -42,6 +42,8 @@ async def test_schema_carries_the_invariants_the_envelope_does_not(
     assert "sqlite_progress_handler" in text or "statement_timeout" in text
     assert "rows by default" in text and "max" in text
     assert "bytes per row" in text and "per response" in text
+    assert "Only allowlisted tables emitted below are queryable" in text
+    assert "FOREIGN KEY targets outside this surface are descriptive" in text
 
 
 async def test_schema_is_returned_as_text_without_a_structured_mirror(
