@@ -737,7 +737,9 @@ class TestOneSharedResolver:
     def _rewritten(sql: str, dialect: DialectName = "sqlite") -> str:
         read = "postgres" if dialect == "postgresql" else dialect
         ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect=dialect, row_limit=500)
-        return rewrite(sqlglot.parse_one(sql, read=read), ctx).sql(dialect=read)
+        return rewrite(cast(exp.Expression, sqlglot.parse_one(sql, read=read)), ctx).sql(
+            dialect=read
+        )
 
     @staticmethod
     def _outer_projection(rendered: str) -> str:
@@ -820,7 +822,7 @@ class TestJsonAccessorOrigin:
     def _rewritten(expression: str) -> str:
         ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=500)
         tree = sqlglot.parse_one(f"SELECT {expression} FROM spans", read="sqlite")
-        return rewrite(tree, ctx).sql(dialect="sqlite")
+        return rewrite(cast(exp.Expression, tree), ctx).sql(dialect="sqlite")
 
     def test_the_operator_the_caller_wrote_survives(self) -> None:
         assert "->" in self._rewritten("attributes -> '$.s'")
@@ -868,7 +870,7 @@ class TestUncastJsonOrderingNote:
     def _noted(sql: str, dialect: DialectName = "sqlite") -> bool:
         read = "postgres" if dialect == "postgresql" else dialect
         ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect=dialect, row_limit=500)
-        rewrite(sqlglot.parse_one(sql, read=read), ctx)
+        rewrite(cast(exp.Expression, sqlglot.parse_one(sql, read=read)), ctx)
         return any("without a cast" in note for note in ctx.notes)
 
     @pytest.mark.parametrize(
@@ -906,7 +908,7 @@ class TestUncastJsonOrderingNote:
         ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=500)
         tree = sqlglot.parse_one("SELECT MAX(attributes ->> '$.n') FROM spans", read="sqlite")
 
-        rendered = rewrite(tree, ctx).sql(dialect="sqlite")
+        rendered = rewrite(cast(exp.Expression, tree), ctx).sql(dialect="sqlite")
 
         assert "JSON_EXTRACT" in rendered.upper()
         assert any("without a cast" in note for note in ctx.notes)
