@@ -411,9 +411,10 @@ else
 	@echo -e "$(YELLOW)Skipping SQLite: ARGS targets an external PostgreSQL database (pass SQLITE_ARGS= to run it too)$(NC)"
 endif
 ifeq (,$(COMPARE_DIALECTS_ARGS))
+	@cd scripts/ddl && $(UV) run ty check validate_schema_assets.py && $(UV) run python validate_schema_assets.py
 	@cd scripts/ddl && $(UV) run ty check compare_schemas.py && $(UV) run python compare_schemas.py
 else
-	@echo -e "$(YELLOW)Skipping cross-dialect comparison: ARGS/SQLITE_ARGS may not have written the canonical files$(NC)"
+	@echo -e "$(YELLOW)Skipping canonical DDL validation: ARGS/SQLITE_ARGS may not have written the canonical files$(NC)"
 endif
 
 check-graphql-permissions: ## Ensure GraphQL mutations and subscriptions have permission classes

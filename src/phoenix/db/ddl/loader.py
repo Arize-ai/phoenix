@@ -141,11 +141,9 @@ def _parse_table_section(name: str, section: str, dialect: DialectName) -> Table
     )
 
 
-@lru_cache
-def load_dialect_schema(dialect: DialectName) -> Mapping[str, TableSchema]:
-    """Load and validate one generated schema asset from the installed package."""
+def parse_schema_asset(text: str, dialect: DialectName) -> Mapping[str, TableSchema]:
+    """Validate generated DDL text and return its immutable table map."""
 
-    text = _resource_text(dialect)
     markers = tuple(_TABLE_MARKER.finditer(text))
     if not markers:
         raise SchemaAssetError(f"{dialect} DDL asset has no table markers")
@@ -158,3 +156,10 @@ def load_dialect_schema(dialect: DialectName) -> Mapping[str, TableSchema]:
         section_end = markers[index + 1].start() if index + 1 < len(markers) else len(text)
         tables[name] = _parse_table_section(name, text[marker.end() : section_end], dialect)
     return MappingProxyType(tables)
+
+
+@lru_cache
+def load_dialect_schema(dialect: DialectName) -> Mapping[str, TableSchema]:
+    """Load and validate one generated schema asset from the installed package."""
+
+    return parse_schema_asset(_resource_text(dialect), dialect)
