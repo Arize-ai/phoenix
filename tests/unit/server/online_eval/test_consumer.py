@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from queue import SimpleQueue
 from secrets import token_hex
 from typing import Any, AsyncIterator, Optional, Sequence, cast
+from unittest.mock import Mock
 
 import httpx
 import pytest
@@ -11,6 +12,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import with_polymorphic
 
 from phoenix.db import models
+from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
@@ -2528,3 +2530,48 @@ async def test_disabled_criteria_expires_unit(db: DbSessionFactory) -> None:
     assert unit.status == "EXPIRED"
     assert unit.error == "CRITERIA_DISABLED"
     assert await _annotations(db) == []
+
+
+async def test_session_stand_down_is_visible_on_the_expired_gauge(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Deleting session content retires its evaluations by expiring them, so the
+    expired gauge is the only place an operator sees evaluations being dropped.
+    """
+    monkeypatch.setattr(consumer_module, "get_env_enable_prometheus", lambda: True)
+    expired_gauge = Mock()
+    monkeypatch.setattr(consumer_module, "ONLINE_EVAL_EXPIRED_WORK_UNITS", expired_gauge)
+
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_builtin_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+    )
+    unit_id, _ = await _materialize_session_unit(
+        db,
+        project_session.id,
+        evaluator_id,
+        criteria_id,
+    )
+    async with db() as session:
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.id == unit_id)
+            .values(status="EXPIRED", error=SESSION_CONTENT_INCOMPLETE_ERROR)
+        )
+
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluation_target="SESSION",
+    )
+    await consumer._publish_queue_metrics()
+
+    expired_gauge.labels.assert_called_once_with(evaluation_target="SESSION")
+    expired_gauge.labels.return_value.set.assert_called_once_with(1)

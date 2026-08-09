@@ -48,11 +48,6 @@ from phoenix.server.prometheus import (
     ONLINE_EVAL_PENDING_WORK_UNITS,
     ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS,
     ONLINE_EVAL_RUNNING_WORK_UNITS,
-    ONLINE_EVAL_SESSION_EXHAUSTED_ERROR_WORK_UNITS,
-    ONLINE_EVAL_SESSION_OLDEST_PENDING_AGE_SECONDS,
-    ONLINE_EVAL_SESSION_PENDING_WORK_UNITS,
-    ONLINE_EVAL_SESSION_RETRYABLE_ERROR_WORK_UNITS,
-    ONLINE_EVAL_SESSION_RUNNING_WORK_UNITS,
 )
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.types import CanPutItem, DaemonTask, DbSessionFactory
@@ -255,22 +250,18 @@ class OnlineEvalConsumer(DaemonTask):
 
     async def _publish_queue_metrics_with_slot(self) -> None:
         lag = await self._coordinator.lag()
-        if self._evaluation_target == "SESSION":
-            ONLINE_EVAL_SESSION_PENDING_WORK_UNITS.set(lag.pending_count)
-            ONLINE_EVAL_SESSION_RUNNING_WORK_UNITS.set(lag.running_count)
-            ONLINE_EVAL_SESSION_RETRYABLE_ERROR_WORK_UNITS.set(lag.retryable_error_count)
-            ONLINE_EVAL_SESSION_EXHAUSTED_ERROR_WORK_UNITS.set(lag.exhausted_error_count)
-            ONLINE_EVAL_SESSION_OLDEST_PENDING_AGE_SECONDS.set(
-                lag.oldest_pending_age_seconds or 0.0
-            )
+        labels = {"evaluation_target": self._evaluation_target}
+        ONLINE_EVAL_PENDING_WORK_UNITS.labels(**labels).set(lag.pending_count)
+        ONLINE_EVAL_RUNNING_WORK_UNITS.labels(**labels).set(lag.running_count)
+        ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS.labels(**labels).set(lag.retryable_error_count)
+        ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS.labels(**labels).set(lag.exhausted_error_count)
+        ONLINE_EVAL_EXPIRED_WORK_UNITS.labels(**labels).set(lag.expired_count)
+        ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS.labels(**labels).set(
+            lag.oldest_pending_age_seconds or 0.0
+        )
+        if self._evaluation_target != "SPAN":
             return
-        ONLINE_EVAL_PENDING_WORK_UNITS.set(lag.pending_count)
-        ONLINE_EVAL_RUNNING_WORK_UNITS.set(lag.running_count)
-        ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS.set(lag.retryable_error_count)
-        ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS.set(lag.exhausted_error_count)
-        ONLINE_EVAL_EXPIRED_WORK_UNITS.set(lag.expired_count)
         ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS.set(lag.frontier_gap)
-        ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS.set(lag.oldest_pending_age_seconds or 0.0)
         async with self._db.read() as session:
             sample = (
                 await session.execute(
