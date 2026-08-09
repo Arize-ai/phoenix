@@ -59,8 +59,8 @@ def _preamble(dialect: str, engine: Optional[dict[str, Any]]) -> str:
     # as columns everywhere a column works, so the only thing worth knowing is
     # that they are computed per row and therefore never indexed.
     lines.append(
-        "-- latency_ms and graphql_node_id are computed per row, not stored: usable "
-        "anywhere a column is, but never indexed."
+        "-- latency_ms and graphql_node_id are virtual: computed per row, not stored or "
+        "indexed. Where listed, graphql_node_id is the ID shown in the Phoenix UI and REST API."
     )
     # Stated once here rather than paid for as a refusal per caller. A suffix on
     # the right operand of a JSON operator binds to the whole extraction instead
@@ -70,27 +70,21 @@ def _preamble(dialect: str, engine: Optional[dict[str, Any]]) -> str:
     # which is nearly always.
     # Upstream: https://github.com/tobymao/sqlglot/issues/8035
     lines.append(
-        "-- JSON operators: parenthesise any operand that is not a plain literal. "
-        "`attributes ->> 'model'` is fine as written, but a cast, subscript, dotted "
-        "name or arithmetic must be bracketed, as in `attributes -> ('a'[1])`, or it "
-        "is read as applying to the whole extraction rather than to the operand."
+        "-- JSON operators: parenthesise a cast, subscript, dotted name or arithmetic "
+        "operand; plain literals need no brackets."
     )
     # Stated here for the same reason as the JSON rules: the alternative is a
     # refusal, and a refusal costs a round trip to learn a rule that fits on one
     # line. A naive time of day means "ask the environment", and the write path,
     # the PostgreSQL session zone and SQLite text comparison answer differently.
     lines.append(
-        "-- Timestamps: a literal naming a time of day must carry a UTC offset, as in "
-        "`start_time >= '2026-07-01T14:30:00Z'`; without one it is refused, because "
-        "this surface will not choose a zone for you. Any ISO spelling is accepted. A "
-        "bare date such as `2026-07-01` needs no offset and is read as UTC."
+        "-- Timestamps: time-of-day literals require a UTC offset, e.g. "
+        "`start_time >= '2026-07-01T14:30:00Z'`; bare dates are read as UTC."
     )
     if dialect == "postgresql":
         lines.append(
-            "-- A `#>`/`#>>` path literal needs no cast at all. A bare cast after those "
-            "operators is ambiguous and is refused: write `attributes #>> "
-            "('{a,b}'::text[])` to cast the path, `(attributes #>> '{a,b}')::text[]` to "
-            "cast the extracted value."
+            "-- PostgreSQL `#>`/`#>>`: parenthesise a cast path, e.g. `attributes #>> "
+            "('{a,b}'::text[])`; cast an extracted value as `(attributes #>> '{a,b}')::text[]`."
         )
     return "\n".join(lines)
 
