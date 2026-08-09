@@ -605,6 +605,38 @@ def get_ancestor_span_rowids(parent_id: str) -> Select[tuple[int]]:
     return select(ancestors.c.id)
 
 
+async def mark_session_content_incomplete(
+    session: AsyncSession,
+    project_session_rowids: Union[Iterable[int], InElementRole],
+) -> None:
+    """Record that content was removed from these sessions, and stand down their evals.
+
+    A session evaluation scores the session as a whole, so once part of it is gone the
+    score describes content that no longer exists. Session scheduling is evaluate-once,
+    which makes a wrong score permanent — every path that destroys session content must
+    call this before or with the delete.
+    """
+    await session.execute(
+        sa.update(models.ProjectSession)
+        .where(models.ProjectSession.id.in_(project_session_rowids))
+        .values(content_complete=False)
+    )
+    await session.execute(
+        sa.update(models.EvalSessionWorkUnit)
+        .where(
+            models.EvalSessionWorkUnit.project_session_rowid.in_(project_session_rowids),
+            models.EvalSessionWorkUnit.status.in_(("PENDING", "RUNNING", "ERROR")),
+        )
+        .values(
+            status="EXPIRED",
+            claimed_at=None,
+            claimed_by=None,
+            cooldown_until=None,
+            error="session content incomplete",
+        )
+    )
+
+
 def truncate_name(name: str, max_len: int = 63) -> str:
     # https://github.com/sqlalchemy/sqlalchemy/blob/e263825e3c5060bf4f47eed0e833c6660a31658e/lib/sqlalchemy/sql/compiler.py#L7844-L7845
     if len(name) > max_len:

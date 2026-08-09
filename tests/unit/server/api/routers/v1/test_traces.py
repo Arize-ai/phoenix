@@ -20,6 +20,13 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import (
+    _add_live_session_work_unit,
+    _add_project,
+    _add_project_session,
+    _add_span,
+    _add_trace,
+)
 
 
 @pytest.fixture
@@ -339,6 +346,33 @@ async def test_delete_trace_by_trace_id(
     async with db() as session:
         deleted_trace = await session.get(models.Trace, trace_row_id)
         assert deleted_trace is None, f"Trace {trace_row_id} should be deleted from database"
+
+
+async def test_delete_trace_stands_down_the_sessions_evaluations(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(session, trace)
+        await _add_trace(session, project, project_session)
+        work_unit_id = (await _add_live_session_work_unit(session, project_session)).id
+        project_session_id = project_session.id
+        trace_id = trace.trace_id
+
+    response = await httpx_client.delete(f"v1/traces/{trace_id}")
+    assert response.status_code == 204
+
+    async with db() as session:
+        remaining_session = await session.get(models.ProjectSession, project_session_id)
+        assert remaining_session is not None
+        assert remaining_session.content_complete is False
+        work_unit = await session.get(models.EvalSessionWorkUnit, work_unit_id)
+        assert work_unit is not None
+        assert work_unit.status == "EXPIRED"
+        assert work_unit.error == "session content incomplete"
 
 
 async def test_delete_trace_not_found(

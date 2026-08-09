@@ -6,6 +6,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.helpers import mark_session_content_incomplete
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
@@ -56,6 +57,7 @@ class TraceMutationMixin:
                 if (session_id := trace.project_session_rowid) is not None
             )
             if session_ids:
+                await mark_session_content_incomplete(session, session_ids)
                 await session.execute(
                     delete(models.ProjectSession).where(
                         and_(

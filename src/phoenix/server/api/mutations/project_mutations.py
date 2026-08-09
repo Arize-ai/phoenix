@@ -9,6 +9,7 @@ from strawberry.types import Info
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.helpers import mark_session_content_incomplete
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict
@@ -93,6 +94,7 @@ class ProjectMutationMixin:
             stmt = delete(models.ProjectSession)
             for i in range(0, len(session_ids_to_delete), chunk_size):
                 chunk = session_ids_to_delete[i : i + chunk_size]
+                await mark_session_content_incomplete(session, chunk)
                 await session.execute(
                     stmt.where(
                         and_(

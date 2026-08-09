@@ -20,7 +20,11 @@ from strawberry.relay import GlobalID
 
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, token_counts_by_trace
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    mark_session_content_incomplete,
+    token_counts_by_trace,
+)
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
@@ -623,7 +627,7 @@ async def delete_trace(
             delete_stmt = (
                 delete(models.Trace)
                 .where(models.Trace.id == trace_rowid)
-                .returning(models.Trace.project_rowid)
+                .returning(models.Trace.project_rowid, models.Trace.project_session_rowid)
             )
             error_detail = f"Trace with relay ID '{trace_identifier}' not found"
         except Exception:
@@ -631,17 +635,21 @@ async def delete_trace(
             delete_stmt = (
                 delete(models.Trace)
                 .where(models.Trace.trace_id == trace_identifier)
-                .returning(models.Trace.project_rowid)
+                .returning(models.Trace.project_rowid, models.Trace.project_session_rowid)
             )
             error_detail = f"Trace with trace_id '{trace_identifier}' not found"
 
-        project_id = await session.scalar(delete_stmt)
+        deleted = (await session.execute(delete_stmt)).first()
 
-        if project_id is None:
+        if deleted is None:
             raise HTTPException(
                 status_code=404,
                 detail=error_detail,
             )
+
+        project_id, project_session_rowid = deleted
+        if project_session_rowid is not None:
+            await mark_session_content_incomplete(session, [project_session_rowid])
 
     # Trigger cache invalidation event
     request.state.event_queue.put(SpanDeleteEvent((project_id,)))

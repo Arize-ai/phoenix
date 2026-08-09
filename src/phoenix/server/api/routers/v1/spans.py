@@ -19,7 +19,11 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.datetime_utils import is_timezone_aware, normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, get_ancestor_span_rowids
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    get_ancestor_span_rowids,
+    mark_session_content_incomplete,
+)
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.utils import df_to_bytes
@@ -1570,6 +1574,16 @@ async def delete_span(
                 status_code=404,
                 detail=error_detail,
             )
+
+        # Removing a span changes what the session contains, whether or not the trace
+        # survives it, so the session's evaluations stand down either way.
+        project_session_rowid = await session.scalar(
+            select(models.Trace.project_session_rowid).where(
+                models.Trace.id == target_span.trace_rowid
+            )
+        )
+        if project_session_rowid is not None:
+            await mark_session_content_incomplete(session, [project_session_rowid])
 
         # Store values needed for later operations
         trace_rowid = target_span.trace_rowid

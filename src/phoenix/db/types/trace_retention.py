@@ -17,7 +17,8 @@ async def _delete_matching_traces(
     project_rowids: Union[Iterable[int], InElementRole],
     trace_filter: sa.ColumnElement[bool],
 ) -> None:
-    from phoenix.db.models import EvalSessionWorkUnit, ProjectSession, Trace
+    from phoenix.db.helpers import mark_session_content_incomplete
+    from phoenix.db.models import Trace
 
     candidate_trace_ids = (
         sa.select(Trace.id).where(Trace.project_rowid.in_(project_rowids)).where(trace_filter)
@@ -30,25 +31,7 @@ async def _delete_matching_traces(
         )
         .distinct()
     )
-    await session.execute(
-        sa.update(ProjectSession)
-        .where(ProjectSession.id.in_(affected_session_ids))
-        .values(content_complete=False)
-    )
-    await session.execute(
-        sa.update(EvalSessionWorkUnit)
-        .where(
-            EvalSessionWorkUnit.project_session_rowid.in_(affected_session_ids),
-            EvalSessionWorkUnit.status.in_(("PENDING", "RUNNING", "ERROR")),
-        )
-        .values(
-            status="EXPIRED",
-            claimed_at=None,
-            claimed_by=None,
-            cooldown_until=None,
-            error="session content incomplete",
-        )
-    )
+    await mark_session_content_incomplete(session, affected_session_ids)
     await session.execute(sa.delete(Trace).where(Trace.id.in_(candidate_trace_ids)))
 
 
