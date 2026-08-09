@@ -43,12 +43,11 @@ from phoenix.db import models
 from phoenix.db.eval_work import live_eval_work_index_predicate
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.online_eval.coordinator import LEASE_ATTEMPTS_EXHAUSTED_ERROR
 from phoenix.server.online_eval.criteria_resolution import (
     resolve_criteria,
     resolve_criteria_bulk,
 )
-from phoenix.server.online_eval.db_coordinator import work_unit_lease_lapsed
+from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, config_fingerprint
 from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
 from phoenix.server.prometheus import (
@@ -499,22 +498,7 @@ class SessionEvalSweeper(DaemonTask):
         database_now: datetime,
     ) -> tuple[int, Optional[int]]:
         """Materialize this tick's work, returning (work created, pairs found eligible)."""
-        await session.execute(
-            update(models.EvalSessionWorkUnit)
-            .where(
-                models.EvalSessionWorkUnit.status == "RUNNING",
-                models.EvalSessionWorkUnit.attempts >= MAX_ATTEMPTS - 1,
-                work_unit_lease_lapsed(database_now, models.EvalSessionWorkUnit),
-            )
-            .values(
-                status="ERROR",
-                attempts=MAX_ATTEMPTS,
-                error=func.coalesce(
-                    models.EvalSessionWorkUnit.error,
-                    LEASE_ATTEMPTS_EXHAUSTED_ERROR,
-                ),
-            )
-        )
+        await reap_lapsed_leases(session, models.EvalSessionWorkUnit, database_now)
         work_budget = await self._admission_budget(session)
         if work_budget == 0:
             return 0, None

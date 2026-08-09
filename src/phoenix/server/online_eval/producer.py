@@ -35,9 +35,8 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.online_eval.coordinator import LEASE_ATTEMPTS_EXHAUSTED_ERROR
 from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
-from phoenix.server.online_eval.db_coordinator import work_unit_lease_lapsed
+from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
     STALE_FINGERPRINT_ERROR,
@@ -348,22 +347,7 @@ class OnlineEvalProducer(DaemonTask):
         reap_floor = produced_through_id - self._backstop_lookback_span_ids
         async with self._db() as session:
             if mutations_allowed:
-                await session.execute(
-                    update(models.EvalWorkUnit)
-                    .where(
-                        models.EvalWorkUnit.status == "RUNNING",
-                        models.EvalWorkUnit.attempts >= MAX_ATTEMPTS - 1,
-                        work_unit_lease_lapsed(now),
-                    )
-                    .values(
-                        status="ERROR",
-                        attempts=MAX_ATTEMPTS,
-                        error=func.coalesce(
-                            models.EvalWorkUnit.error,
-                            LEASE_ATTEMPTS_EXHAUSTED_ERROR,
-                        ),
-                    )
-                )
+                await reap_lapsed_leases(session, models.EvalWorkUnit, now)
             if mutations_allowed and self._pending_ttl_seconds > 0:
                 pending_cutoff = now - timedelta(seconds=self._pending_ttl_seconds)
                 await session.execute(

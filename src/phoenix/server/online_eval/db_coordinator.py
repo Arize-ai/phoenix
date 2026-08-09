@@ -14,12 +14,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Sequence
 
 from sqlalchemy import and_, case, func, or_, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.online_eval.coordinator import (
+    LEASE_ATTEMPTS_EXHAUSTED_ERROR,
     LEASE_TTL_SECONDS,
     ClaimedWorkUnit,
     QueueLag,
@@ -38,6 +40,35 @@ def work_unit_lease_lapsed(
     work_unit_model: _WorkUnitModel = models.EvalWorkUnit,
 ) -> ColumnElement[bool]:
     return work_unit_model.claimed_at < now - timedelta(seconds=LEASE_TTL_SECONDS)
+
+
+async def reap_lapsed_leases(
+    session: AsyncSession,
+    work_unit_model: _WorkUnitModel,
+    now: datetime,
+) -> None:
+    """Terminalize RUNNING work whose lease lapsed with no attempts left.
+
+    Consumers give a claim back themselves on every path they survive; this covers the
+    ones they do not — a replica killed mid-evaluation leaves a RUNNING row that no
+    consumer will ever reclaim, because reclaiming it would exceed the retry budget.
+    Reaping is lifecycle work, so it is spelled here rather than in each materializer;
+    the materializers call it from their own tick because they already hold the
+    single-writer lease that makes it safe to run unguarded.
+    """
+    await session.execute(
+        update(work_unit_model)
+        .where(
+            work_unit_model.status == "RUNNING",
+            work_unit_model.attempts >= MAX_ATTEMPTS - 1,
+            work_unit_lease_lapsed(now, work_unit_model),
+        )
+        .values(
+            status="ERROR",
+            attempts=MAX_ATTEMPTS,
+            error=func.coalesce(work_unit_model.error, LEASE_ATTEMPTS_EXHAUSTED_ERROR),
+        )
+    )
 
 
 class DbEvalWorkCoordinator:
