@@ -47,7 +47,7 @@ def _preamble(dialect: str, engine: Optional[dict[str, Any]]) -> str:
     if engine:
         version = f" {engine['version']}" if engine.get("version") else ""
         extensions = engine.get("extensions") or []
-        loaded = f"; extensions loaded: {', '.join(extensions)}" if extensions else ""
+        loaded = f"; sqlean extensions: {', '.join(extensions)}" if extensions else ""
         lines.append(f"-- backend: {engine.get('name', dialect)}{version}{loaded}")
     backstop = "statement_timeout" if dialect == "postgresql" else "sqlite_progress_handler"
     lines.append(
