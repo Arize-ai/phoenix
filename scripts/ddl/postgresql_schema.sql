@@ -164,6 +164,7 @@ CREATE TABLE public.project_sessions (
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
     last_span_ingested_at TIMESTAMP WITH TIME ZONE,
+    content_complete BOOLEAN NOT NULL DEFAULT true,
     CONSTRAINT pk_project_sessions PRIMARY KEY (id),
     CONSTRAINT uq_project_sessions_session_id
         UNIQUE (session_id),
@@ -1342,6 +1343,7 @@ CREATE TABLE public.project_evaluator_criteria (
     filter_condition VARCHAR NOT NULL DEFAULT ''::character varying,
     sampling_rate DOUBLE PRECISION NOT NULL,
     evaluation_target VARCHAR NOT NULL,
+    evaluation_delay_seconds INTEGER NOT NULL DEFAULT 300,
     input_mapping JSONB,
     enabled BOOLEAN NOT NULL DEFAULT true,
     work_materialized_at TIMESTAMP WITH TIME ZONE,
@@ -1350,6 +1352,7 @@ CREATE TABLE public.project_evaluator_criteria (
     CONSTRAINT pk_project_evaluator_criteria PRIMARY KEY (id),
     CONSTRAINT uq_project_evaluator_criteria_project_id_name
         UNIQUE (project_id, name),
+    CHECK ((evaluation_delay_seconds >= 10)),
     CHECK (((evaluation_target)::text = ANY ((ARRAY[
             'SPAN'::character varying,
             'TRACE'::character varying,
@@ -1372,6 +1375,62 @@ CREATE INDEX ix_project_evaluator_criteria_evaluator_id ON public.project_evalua
     USING btree (evaluator_id);
 CREATE INDEX ix_project_evaluator_criteria_project_id ON public.project_evaluator_criteria
     USING btree (project_id);
+
+
+-- Table: eval_session_work_units
+-- ------------------------------
+CREATE TABLE public.eval_session_work_units (
+    id bigserial NOT NULL,
+    project_session_rowid BIGINT NOT NULL,
+    evaluator_id BIGINT NOT NULL,
+    criteria_id BIGINT NOT NULL,
+    config_fingerprint VARCHAR NOT NULL,
+    evaluated_through TIMESTAMP WITH TIME ZONE NOT NULL,
+    status VARCHAR NOT NULL DEFAULT 'PENDING'::character varying,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    claimed_by VARCHAR,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    error VARCHAR,
+    cooldown_until TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_eval_session_work_units PRIMARY KEY (id),
+    CHECK (((status)::text = ANY ((ARRAY[
+            'PENDING'::character varying,
+            'RUNNING'::character varying,
+            'DONE'::character varying,
+            'ERROR'::character varying,
+            'EXPIRED'::character varying
+        ])::text[]))),
+    CONSTRAINT fk_eval_session_work_units_criteria_id_project_evaluato_744c
+        FOREIGN KEY
+        (criteria_id)
+        REFERENCES public.project_evaluator_criteria (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_session_work_units_evaluator_id_evaluators
+        FOREIGN KEY
+        (evaluator_id)
+        REFERENCES public.evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_session_work_units_project_session_rowid_projec_ed73
+        FOREIGN KEY
+        (project_session_rowid)
+        REFERENCES public.project_sessions (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_eval_session_work_units_claimable ON public.eval_session_work_units
+    USING btree (status, id) WHERE ((status)::text <> ALL ((ARRAY['DONE'::character varying, 'EXPIRED'::character varying])::text[]));
+CREATE INDEX ix_eval_session_work_units_criteria_id ON public.eval_session_work_units
+    USING btree (criteria_id);
+CREATE INDEX ix_eval_session_work_units_error_attempts ON public.eval_session_work_units
+    USING btree (attempts) WHERE ((status)::text = 'ERROR'::text);
+CREATE INDEX ix_eval_session_work_units_evaluator_id ON public.eval_session_work_units
+    USING btree (evaluator_id);
+CREATE INDEX ix_eval_session_work_units_terminal ON public.eval_session_work_units
+    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'EXPIRED'::character varying])::text[]));
+CREATE UNIQUE INDEX uq_eval_session_work_units_live_key ON public.eval_session_work_units
+    USING btree (project_session_rowid, evaluator_id, config_fingerprint) WHERE (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying])::text[])) OR (((status)::text = 'ERROR'::text) AND (attempts < 3)));
 
 
 -- Table: eval_work_units
