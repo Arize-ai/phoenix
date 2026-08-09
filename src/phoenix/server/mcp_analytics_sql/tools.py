@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
-from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
+from phoenix.server.mcp_analytics_sql.allowlist import DialectName, load_allowlist
 from phoenix.server.mcp_analytics_sql.catalog import (
     cached_engine_info,
     reflect_indexes,
@@ -309,7 +309,7 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         # detail to act on them. At "brief" the caller is still choosing tables
         # and cannot yet write the expression an index would require.
         if detail == "full":
-            allowlist = load_allowlist()
+            allowlist = load_allowlist(cast(DialectName, db.dialect.value))
             # Narrowed by `area` as well as `tables`. Filtering on `tables`
             # alone meant asking for one area still returned every index in the
             # deployment, so a telemetry request came back carrying experiment
@@ -318,11 +318,8 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
             if tables:
                 requested &= frozenset(tables)
             # The schema resolved against the connection, not the manifest's
-            # hardcoded default. `load_allowlist()` returns "public" and only
-            # `execute_analytics_sql` used to override it, so under a configured
-            # schema this published indexes belonging to a different instance's
-            # tables -- names and JSON path literals included -- while the
-            # executor read somewhere else entirely.
+            # hardcoded default, so this publishes indexes from the same
+            # configured schema the executor reads.
             pg_schema = (
                 await resolve_pg_schema(db) if db.dialect.value == "postgresql" else "public"
             )

@@ -190,7 +190,7 @@ async def test_the_schema_is_resolved_not_assumed(
 ) -> None:
     """Both tools must name the schema Phoenix's ORM actually reads.
 
-    `load_allowlist()` returns "public" and only the execute path overrode it,
+    `load_allowlist("sqlite")` returns "public" and only the execute path overrode it,
     so `describeSqlSchema` published indexes belonging to whatever sits in
     `public` while the executor read somewhere else — names and JSON path
     literals from a different instance's tables, and "repeat this spelling"
@@ -302,7 +302,7 @@ class TestRewriteAttribution:
     def _ctx_after(sql: str) -> RewriteContext:
         """A context populated the way production populates it -- by running the
         passes -- rather than by hand, so the test cannot drift from the code."""
-        ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)
+        ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=500)
         rewrite(parse_one(sql, read="sqlite"), ctx)
         return ctx
 

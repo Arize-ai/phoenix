@@ -75,7 +75,7 @@ async def test_refuses_disallowed_set_returning_function(
     )
 
     with pytest.raises(AnalyticsSqlError) as exc:
-        verify_postgres_plan(plan, allowlist=load_allowlist(), schema="public")
+        verify_postgres_plan(plan, allowlist=load_allowlist("sqlite"), schema="public")
     assert exc.value.code is ErrorCode.PLAN_VERIFICATION_FAILED
 
 
@@ -83,7 +83,7 @@ async def test_refuses_relation_outside_allowlist(db: DbSessionFactory) -> None:
     """A table the engine resolved but the manifest does not expose must be refused."""
     plan = await _explain(db, "SELECT id FROM users")
     with pytest.raises(AnalyticsSqlError) as exc:
-        verify_postgres_plan(plan, allowlist=load_allowlist(), schema="public")
+        verify_postgres_plan(plan, allowlist=load_allowlist("sqlite"), schema="public")
     assert exc.value.code is ErrorCode.PLAN_VERIFICATION_FAILED
     assert "users" in exc.value.identifiers
 
@@ -91,7 +91,7 @@ async def test_refuses_relation_outside_allowlist(db: DbSessionFactory) -> None:
 async def test_admits_ordinary_query(db: DbSessionFactory) -> None:
     """Guards the refusal tests: a gate that refused everything would pass them too."""
     plan = await _explain(db, "SELECT id, name FROM projects")
-    verify_postgres_plan(plan, allowlist=load_allowlist(), schema="public")
+    verify_postgres_plan(plan, allowlist=load_allowlist("sqlite"), schema="public")
 
 
 async def test_admits_allowed_unnest_in_from_clause(db: DbSessionFactory) -> None:
@@ -100,7 +100,7 @@ async def test_admits_allowed_unnest_in_from_clause(db: DbSessionFactory) -> Non
         db,
         "SELECT key FROM spans, jsonb_each(spans.attributes) AS e(key, value)",
     )
-    verify_postgres_plan(plan, allowlist=load_allowlist(), schema="public")
+    verify_postgres_plan(plan, allowlist=load_allowlist("sqlite"), schema="public")
 
 
 async def test_admits_allowed_unnest_in_select_list(db: DbSessionFactory) -> None:
@@ -112,7 +112,7 @@ async def test_admits_allowed_unnest_in_select_list(db: DbSessionFactory) -> Non
     ProjectSet, which makes a permitted function unusable in this position.
     """
     plan = await _explain(db, "SELECT jsonb_each(attributes) FROM spans")
-    verify_postgres_plan(plan, allowlist=load_allowlist(), schema="public")
+    verify_postgres_plan(plan, allowlist=load_allowlist("sqlite"), schema="public")
 
 
 async def test_names_the_function_it_refuses(db: DbSessionFactory) -> None:

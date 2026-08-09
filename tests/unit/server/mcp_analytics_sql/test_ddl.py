@@ -42,7 +42,7 @@ def test_a_trailing_comment_does_not_swallow_the_separator(backend: str) -> None
     ddl = render_schema_ddl(tables=["spans"], detail="detailed", dialect=backend)
     parsed = sqlglot.parse_one(ddl, dialect="postgres" if backend == "postgresql" else "sqlite")
     rendered = {c.name for c in parsed.find_all(exp.ColumnDef)}
-    spec = load_allowlist().table_specs["spans"]
+    spec = load_allowlist("sqlite").table_specs["spans"]
     expected = {c.name for c in spec.columns} | set(spec.virtual_columns)
     assert rendered == expected
 
@@ -82,7 +82,7 @@ def test_no_table_outside_the_allowlist_is_ever_rendered(backend: str) -> None:
 
     Naming a table the executor refuses costs a round trip and teaches nothing.
     """
-    allowlist = load_allowlist()
+    allowlist = load_allowlist("sqlite")
     ddl = render_schema_ddl(detail="detailed", dialect=backend)
     parsed = sqlglot.parse(ddl, dialect="postgres" if backend == "postgresql" else "sqlite")
     for statement in parsed:
@@ -146,7 +146,7 @@ def test_no_foreign_key_points_outside_the_allowlist(backend: str) -> None:
     whole schema rather than per column, because it must hold for any column
     later exposed, not only for the ones hidden today.
     """
-    allowlist = load_allowlist()
+    allowlist = load_allowlist("sqlite")
     ddl = render_schema_ddl(detail="detailed", dialect=backend)
     referenced = re.findall(r"REFERENCES (\w+)", ddl)
     assert referenced, "the assertion is vacuous if nothing renders a foreign key"
@@ -192,7 +192,7 @@ def test_the_manifest_still_lists_every_real_column() -> None:
     one deliberately withheld, and `test_manifest_matches_sqlalchemy_metadata`
     would stop catching real drift.
     """
-    spec = load_allowlist().table_specs["projects"]
+    spec = load_allowlist("sqlite").table_specs["projects"]
     listed = {column.name for column in spec.columns}
     assert {"gradient_start_color", "trace_retention_policy_id"} <= listed
     assert spec.hidden_columns <= listed
@@ -252,17 +252,14 @@ def test_enumerated_columns_declare_their_permitted_values(backend: str) -> None
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
-def test_join_comments_do_not_repeat_the_foreign_keys(backend: str) -> None:
-    """A key states the outbound edge; the comments carry only what it cannot.
-
-    Exactly half of these comments duplicated a rendered REFERENCES clause. The
-    inbound direction has no key to carry it, and it is how a caller finds the
-    tables worth joining to the one they started from.
-    """
+def test_foreign_keys_and_nonrelational_curation_are_rendered(backend: str) -> None:
     ddl = render_schema_ddl(tables=["spans"], detail="detailed", dialect=backend)
+
     assert "FOREIGN KEY (trace_rowid) REFERENCES traces (id)" in ddl
-    assert "-- join: spans.trace_rowid = traces.id" not in ddl
-    assert "-- join: span_costs.span_rowid = spans.id" in ddl
+    assert "-- populated JSON path:" in ddl
+    assert "-- Prefer llm_token_count_* over JSON" in ddl
+    assert "-- join:" not in ddl
+    assert "-- to area root:" not in ddl
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
@@ -304,7 +301,7 @@ def test_star_expansion_matches_the_advertised_columns(backend: DialectName) -> 
 
     from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, _expand_stars
 
-    allowlist = load_allowlist()
+    allowlist = load_allowlist("sqlite")
     sqlglot_dialect = "postgres" if backend == "postgresql" else "sqlite"
     for table in sorted(allowlist.tables):
         ddl = render_schema_ddl(tables=[table], detail="detailed", dialect=backend)
@@ -429,7 +426,7 @@ def test_no_allowlisted_table_reuses_a_timestamp_column_name_for_another_type() 
     from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
     from phoenix.server.mcp_analytics_sql.normalize import timestamp_column_names
 
-    tables = load_allowlist().tables
+    tables = load_allowlist("sqlite").tables
     names = timestamp_column_names(tables)
     assert names, "no timestamp columns found; the check would be vacuous"
     offenders = [

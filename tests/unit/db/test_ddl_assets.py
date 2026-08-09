@@ -1,23 +1,22 @@
-from phoenix.db.ddl import load_dialect_schema, load_physical_catalog
+import pytest
+
+from phoenix.db.ddl import load_dialect_schema
 
 
 def test_generated_assets_have_unique_marker_delimited_table_sections() -> None:
     for dialect in ("postgresql", "sqlite"):
         schema = load_dialect_schema(dialect)
 
-        assert len(schema.sections) == len(schema.order)
-        assert set(schema.sections) == set(schema.order)
+        assert schema.tables
         assert all(
-            section.create_table_ddl.startswith("CREATE TABLE ")
-            for section in schema.sections.values()
+            table.create_table_ddl.startswith("CREATE TABLE ") for table in schema.tables.values()
         )
 
 
-def test_physical_catalog_has_matching_postgresql_and_sqlite_columns() -> None:
-    catalog = load_physical_catalog()
+def test_active_schema_contains_spans_physical_metadata() -> None:
+    schema = load_dialect_schema("sqlite")
 
-    assert len(catalog.tables) == 62
-    assert [column.name for column in catalog.tables["spans"].columns] == [
+    assert [column.name for column in schema.tables["spans"].columns] == [
         "id",
         "trace_rowid",
         "span_id",
@@ -38,9 +37,20 @@ def test_physical_catalog_has_matching_postgresql_and_sqlite_columns() -> None:
     ]
 
 
-def test_table_sections_separate_indexes_from_create_table_ddl() -> None:
-    section = load_dialect_schema("sqlite").sections["spans"]
+def test_active_schema_normalizes_quoted_column_identifiers() -> None:
+    schema = load_dialect_schema("sqlite")
 
-    assert "CREATE INDEX" not in section.create_table_ddl
-    assert section.index_ddls
-    assert all(index_ddl.startswith("CREATE INDEX ") for index_ddl in section.index_ddls)
+    assert "key" in [column.name for column in schema.tables["builtin_evaluators"].columns]
+
+
+def test_table_ddl_excludes_following_indexes() -> None:
+    table = load_dialect_schema("sqlite").tables["spans"]
+
+    assert "CREATE INDEX" not in table.create_table_ddl
+
+
+def test_cached_schema_mappings_are_immutable() -> None:
+    schema = load_dialect_schema("sqlite")
+
+    with pytest.raises(TypeError):
+        schema.tables["other"] = schema.tables["spans"]  # type: ignore[index]

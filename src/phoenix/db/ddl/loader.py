@@ -1,4 +1,4 @@
-"""Load generated database DDL as package resources."""
+"""Load generated DDL with a format-specific scanner to avoid SQLGlot dialect bugs."""
 
 from __future__ import annotations
 
@@ -6,18 +6,25 @@ import re
 from dataclasses import dataclass
 from functools import lru_cache
 from importlib.resources import files
-from typing import Literal
-
-from sqlglot import exp, parse
+from types import MappingProxyType
+from typing import Literal, Mapping
 
 DialectName = Literal["postgresql", "sqlite"]
 
-_DIALECT_FILES: dict[DialectName, str] = {
-    "postgresql": "postgresql_schema.sql",
-    "sqlite": "sqlite_schema.sql",
-}
-_SQLGLOT_DIALECTS: dict[DialectName, str] = {"postgresql": "postgres", "sqlite": "sqlite"}
+_DIALECT_FILES: Mapping[DialectName, str] = MappingProxyType(
+    {
+        "postgresql": "postgresql_schema.sql",
+        "sqlite": "sqlite_schema.sql",
+    }
+)
 _TABLE_MARKER = re.compile(r"^-- Table: (?P<name>.+)$", re.MULTILINE)
+_CREATE_TABLE = re.compile(
+    r"^\s*CREATE\s+TABLE\s+(?:(?P<schema>[A-Za-z_][A-Za-z0-9_]*)\.)?"
+    r"(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\(",
+    re.MULTILINE,
+)
+_NOT_NULL = re.compile(r"\bNOT\s+NULL\b", re.IGNORECASE)
+_CONSTRAINT_PREFIXES = frozenset({"CHECK", "CONSTRAINT", "FOREIGN", "PRIMARY", "UNIQUE"})
 
 
 class SchemaAssetError(ValueError):
@@ -33,66 +40,50 @@ class PhysicalColumn:
 
 
 @dataclass(frozen=True)
-class ForeignKey:
-    """One column pair in a physical table's foreign-key constraint."""
-
-    column: str
-    target_table: str
-    target_column: str
-
-
-@dataclass(frozen=True)
-class PhysicalTable:
-    """Dialect-independent physical metadata for one table."""
+class TableSchema:
+    """Generated DDL and physical metadata for one table."""
 
     name: str
-    columns: tuple[PhysicalColumn, ...]
-    foreign_keys: tuple[ForeignKey, ...]
-
-
-@dataclass(frozen=True)
-class TableSection:
-    """The raw DDL and parsed metadata for one marker-delimited table section."""
-
-    table: PhysicalTable
     create_table_ddl: str
-    index_ddls: tuple[str, ...]
-    section_text: str
+    columns: tuple[PhysicalColumn, ...]
 
 
 @dataclass(frozen=True)
 class DialectSchema:
-    """A generated schema asset indexed by table name and source order."""
+    """A generated schema asset indexed by table name."""
 
     dialect: DialectName
-    sections: dict[str, TableSection]
-    order: tuple[str, ...]
+    tables: Mapping[str, TableSchema]
 
 
-@dataclass(frozen=True)
-class PhysicalCatalog:
-    """Parity-checked physical schema shared by PostgreSQL and SQLite."""
+def _identifier(token: str) -> str:
+    """Decode the identifier quoting emitted by the DDL generators."""
 
-    tables: dict[str, PhysicalTable]
-    order: tuple[str, ...]
+    token = token.strip()
+    if token.startswith('"') and token.endswith('"'):
+        return token[1:-1].replace('""', '"')
+    if token.startswith("`") and token.endswith("`"):
+        return token[1:-1].replace("``", "`")
+    if token.startswith("[") and token.endswith("]"):
+        return token[1:-1]
+    return token
 
 
 def _resource_text(dialect: DialectName) -> str:
     return files("phoenix.db.ddl").joinpath(_DIALECT_FILES[dialect]).read_text(encoding="utf-8")
 
 
-def _statement_texts(section: str) -> tuple[str, ...]:
-    """Split the section's SQL statements without treating quoted semicolons as terminators."""
+def _find_statement_end(text: str, start: int) -> int:
+    """Return the semicolon ending a generated statement."""
 
-    statements: list[str] = []
-    start = 0
     quote: str | None = None
-    index = 0
-    while index < len(section):
-        character = section[index]
+    depth = 0
+    index = start
+    while index < len(text):
+        character = text[index]
         if quote is not None:
             if character == quote:
-                if quote != "]" and index + 1 < len(section) and section[index + 1] == quote:
+                if quote != "]" and index + 1 < len(text) and text[index + 1] == quote:
                     index += 2
                     continue
                 quote = None
@@ -102,89 +93,74 @@ def _statement_texts(section: str) -> tuple[str, ...]:
             quote = character
         elif character == "[":
             quote = "]"
-        elif character == ";":
-            statement = section[start : index + 1].strip()
-            if statement:
-                statements.append(statement)
-            start = index + 1
+        elif character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+        elif character == ";" and depth == 0:
+            return index + 1
         index += 1
-    trailing = section[start:].strip()
-    if trailing:
-        statements.append(trailing)
-    return tuple(statements)
+    raise SchemaAssetError("Generated CREATE TABLE statement has no terminator")
 
 
-def _parse_table_section(name: str, section: str, dialect: DialectName) -> TableSection:
-    statements = _statement_texts(section)
-    create_statements = tuple(
-        statement[match.start() :]
-        for statement in statements
-        if (match := re.search(r"^CREATE TABLE ", statement, re.MULTILINE)) is not None
-    )
-    if len(create_statements) != 1:
+def _split_definitions(body: str) -> tuple[str, ...]:
+    """Split top-level comma-separated definitions in generated CREATE TABLE DDL."""
+
+    definitions: list[str] = []
+    start = 0
+    quote: str | None = None
+    depth = 0
+    for index, character in enumerate(body):
+        if quote is not None:
+            if character == quote:
+                quote = None
+            continue
+        if character in {"'", '"', "`"}:
+            quote = character
+        elif character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+        elif character == "," and depth == 0:
+            definitions.append(body[start:index].strip())
+            start = index + 1
+    definitions.append(body[start:].strip())
+    return tuple(definition for definition in definitions if definition)
+
+
+def _parse_table_section(name: str, section: str, dialect: DialectName) -> TableSchema:
+    match = _CREATE_TABLE.search(section)
+    if match is None:
         raise SchemaAssetError(
             f"{dialect} DDL section {name!r} must contain exactly one CREATE TABLE statement"
         )
-    create_table_ddl = create_statements[0]
-    parsed = parse(create_table_ddl, read=_SQLGLOT_DIALECTS[dialect])
-    if (
-        len(parsed) != 1
-        or not isinstance(parsed[0], exp.Create)
-        or not isinstance(parsed[0].this, exp.Schema)
-    ):
+    if _CREATE_TABLE.search(section, match.end()) is not None:
         raise SchemaAssetError(
-            f"{dialect} DDL section {name!r} has an invalid CREATE TABLE statement"
+            f"{dialect} DDL section {name!r} has multiple CREATE TABLE statements"
         )
-    schema = parsed[0].this
-    parsed_name = schema.this.name
-    if parsed_name != name:
+    if match.group("name") != name:
         raise SchemaAssetError(
-            f"{dialect} DDL section marker {name!r} does not match CREATE TABLE {parsed_name!r}"
+            f"{dialect} DDL section marker {name!r} does not match CREATE TABLE "
+            f"{match.group('name')!r}"
         )
-
-    columns = tuple(
-        PhysicalColumn(
-            name=definition.name,
-            nullable=not any(
-                isinstance(constraint.kind, exp.NotNullColumnConstraint)
-                for constraint in definition.constraints
-            ),
-        )
-        for definition in schema.expressions
-        if isinstance(definition, exp.ColumnDef)
-    )
+    statement_end = _find_statement_end(section, match.start())
+    create_table_ddl = section[match.start() : statement_end].strip()
+    body = create_table_ddl[match.end() - match.start() : -2]
+    columns: list[PhysicalColumn] = []
+    for definition in _split_definitions(body):
+        first = definition.split(None, 1)[0]
+        if first.upper() not in _CONSTRAINT_PREFIXES:
+            columns.append(
+                PhysicalColumn(
+                    name=_identifier(first), nullable=_NOT_NULL.search(definition) is None
+                )
+            )
     if not columns:
         raise SchemaAssetError(f"{dialect} DDL section {name!r} has no columns")
-
-    foreign_keys: list[ForeignKey] = []
-    for constraint in schema.find_all(exp.ForeignKey):
-        reference = constraint.args["reference"].this
-        if not isinstance(reference, exp.Schema):
-            raise SchemaAssetError(f"{dialect} DDL section {name!r} has an invalid foreign key")
-        target_table = reference.this.name
-        source_columns = constraint.expressions
-        target_columns = reference.expressions
-        if len(source_columns) != len(target_columns):
-            raise SchemaAssetError(f"{dialect} DDL section {name!r} has an invalid foreign key")
-        foreign_keys.extend(
-            ForeignKey(
-                column=source_column.name,
-                target_table=target_table,
-                target_column=target_column.name,
-            )
-            for source_column, target_column in zip(source_columns, target_columns)
-        )
-
-    index_ddls = tuple(
-        statement[match.start() :]
-        for statement in statements
-        if (match := re.search(r"^CREATE (?:UNIQUE )?INDEX ", statement, re.MULTILINE)) is not None
-    )
-    return TableSection(
-        table=PhysicalTable(name=name, columns=columns, foreign_keys=tuple(foreign_keys)),
+    return TableSchema(
+        name=name,
         create_table_ddl=create_table_ddl,
-        index_ddls=index_ddls,
-        section_text=section.strip(),
+        columns=tuple(columns),
     )
 
 
@@ -197,41 +173,11 @@ def load_dialect_schema(dialect: DialectName) -> DialectSchema:
     if not markers:
         raise SchemaAssetError(f"{dialect} DDL asset has no table markers")
 
-    sections: dict[str, TableSection] = {}
-    order: list[str] = []
+    tables: dict[str, TableSchema] = {}
     for index, marker in enumerate(markers):
         name = marker.group("name").strip()
-        if name in sections:
+        if name in tables:
             raise SchemaAssetError(f"{dialect} DDL asset has duplicate table marker {name!r}")
         section_end = markers[index + 1].start() if index + 1 < len(markers) else len(text)
-        sections[name] = _parse_table_section(name, text[marker.end() : section_end], dialect)
-        order.append(name)
-    return DialectSchema(dialect=dialect, sections=sections, order=tuple(order))
-
-
-@lru_cache
-def load_physical_catalog() -> PhysicalCatalog:
-    """Return the physical catalog after asserting PostgreSQL/SQLite column parity."""
-
-    postgresql = load_dialect_schema("postgresql")
-    sqlite = load_dialect_schema("sqlite")
-    if set(postgresql.sections) != set(sqlite.sections):
-        raise SchemaAssetError(
-            "PostgreSQL and SQLite DDL assets have different tables: "
-            f"only PostgreSQL={sorted(set(postgresql.sections) - set(sqlite.sections))}, "
-            f"only SQLite={sorted(set(sqlite.sections) - set(postgresql.sections))}"
-        )
-
-    for name in postgresql.order:
-        postgresql_columns = postgresql.sections[name].table.columns
-        sqlite_columns = sqlite.sections[name].table.columns
-        if postgresql_columns != sqlite_columns:
-            raise SchemaAssetError(
-                f"PostgreSQL and SQLite DDL assets disagree on columns for {name!r}: "
-                f"PostgreSQL={[column.name for column in postgresql_columns]}, "
-                f"SQLite={[column.name for column in sqlite_columns]}"
-            )
-    return PhysicalCatalog(
-        tables={name: postgresql.sections[name].table for name in postgresql.order},
-        order=postgresql.order,
-    )
+        tables[name] = _parse_table_section(name, text[marker.end() : section_end], dialect)
+    return DialectSchema(dialect=dialect, tables=MappingProxyType(tables))

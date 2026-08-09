@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Literal, Optional, cast
+from types import MappingProxyType
+from typing import Any, Literal, Mapping, Optional, cast
 
 from sqlglot import exp
 
-from phoenix.db.ddl import load_physical_catalog
+from phoenix.db.ddl import load_dialect_schema
 
 DialectName = Literal["postgresql", "sqlite"]
 
@@ -579,8 +580,6 @@ class TableSpec:
     columns: tuple[ColumnSpec, ...]
     time_column: Optional[str] = None
     virtual_columns: frozenset[str] = frozenset()
-    joins: tuple[str, ...] = ()
-    path_to_root: tuple[str, ...] = ()
     blessed_attribute_paths: frozenset[str] = frozenset()
     promoted_columns_note: Optional[str] = None
     # Columns that exist and are left out of the analytics schema: display
@@ -597,7 +596,7 @@ class TableSpec:
     hidden_columns: frozenset[str] = frozenset()
     # Short notes for columns whose name and type mislead. Curation, not schema:
     # the database cannot say that `parent_id` holds a `span_id`.
-    column_notes: dict[str, str] = field(default_factory=dict)
+    column_notes: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
 
     @property
     def exposed_columns(self) -> tuple[ColumnSpec, ...]:
@@ -607,8 +606,8 @@ class TableSpec:
 @dataclass(frozen=True)
 class Allowlist:
     tables: frozenset[str]
-    table_specs: dict[str, TableSpec]
-    areas: dict[str, frozenset[str]]
+    table_specs: Mapping[str, TableSpec]
+    areas: Mapping[str, frozenset[str]]
     pg_schema: str
     anon_functions: Optional[frozenset[str]] = None
 
@@ -616,61 +615,6 @@ class Allowlist:
         if self.anon_functions is not None:
             return self.anon_functions
         return ALLOWED_ANON_FUNCTIONS_BY_DIALECT[dialect]
-
-
-# The root each area is governed through. Join paths are reported toward these,
-# because "how do I reach the project" is the question almost every telemetry
-# query has to answer first.
-AREA_ROOTS: dict[str, str] = {
-    "telemetry": "projects",
-    "datasets": "datasets",
-    "experiments": "datasets",
-}
-
-
-def _foreign_key_edges(tables: frozenset[str]) -> dict[str, list[tuple[str, str, str]]]:
-    """Foreign keys between allowlisted tables, as (column, target_table, target_column).
-
-    Derived from the packaged DDL rather than the ORM models or manifest, so the
-    admission and teaching surfaces share the same physical schema. Keys pointing
-    at tables outside the allowlist are dropped from join hints: they remain in
-    the raw descriptive DDL, but advertising one would invite a join admission
-    refuses.
-    """
-    catalog = load_physical_catalog()
-    edges: dict[str, list[tuple[str, str, str]]] = {name: [] for name in tables}
-    for name in tables:
-        for foreign_key in catalog.tables[name].foreign_keys:
-            if foreign_key.target_table in tables:
-                edges[name].append(
-                    (foreign_key.column, foreign_key.target_table, foreign_key.target_column)
-                )
-    return edges
-
-
-def _join_path(start: str, goal: str, edges: dict[str, list[tuple[str, str, str]]]) -> list[str]:
-    """Shortest chain of join conditions from one table to another.
-
-    Breadth-first so the reported route is the shortest, which matters because
-    `spans` has no project reference of its own -- reaching a project always costs
-    a hop through `traces`, and an agent that does not know that either invents a
-    column or gives up.
-    """
-    if start == goal:
-        return []
-    seen = {start}
-    queue: list[tuple[str, list[str]]] = [(start, [])]
-    while queue:
-        current, path = queue.pop(0)
-        for column, target, target_column in edges.get(current, ()):
-            if target in seen:
-                continue
-            step = f"{current}.{column} = {target}.{target_column}"
-            if target == goal:
-                return path + [step]
-            seen.add(target)
-            queue.append((target, path + [step]))
-    return []
 
 
 @lru_cache
@@ -689,15 +633,15 @@ def _manifest_text() -> str:
 
 
 @lru_cache
-def load_allowlist() -> Allowlist:
+def load_allowlist(dialect: DialectName) -> Allowlist:
     raw = json.loads(_manifest_text())
-    catalog = load_physical_catalog()
+    schema = load_dialect_schema(dialect)
     table_specs: dict[str, TableSpec] = {}
     areas: dict[str, frozenset[str]] = {}
     for area_name, area in raw["areas"].items():
         names: set[str] = set()
         for table_name, table in area.get("tables", {}).items():
-            physical_table = catalog.tables.get(table_name)
+            physical_table = schema.tables.get(table_name)
             if physical_table is None:
                 raise ValueError(
                     f"Allowlisted table {table_name!r} is missing from the DDL assets."
@@ -725,38 +669,14 @@ def load_allowlist() -> Allowlist:
                 blessed_attribute_paths=frozenset(table.get("blessed_attribute_paths", [])),
                 promoted_columns_note=table.get("promoted_columns_note"),
                 hidden_columns=frozenset(table.get("hidden_columns", [])),
-                column_notes=dict(table.get("column_notes", {})),
+                column_notes=MappingProxyType(dict(table.get("column_notes", {}))),
             )
             names.add(table_name)
         areas[area_name] = frozenset(names)
-    edges = _foreign_key_edges(frozenset(table_specs))
-    for area_name, table_names in areas.items():
-        root = AREA_ROOTS.get(area_name)
-        for table_name in table_names:
-            spec = table_specs[table_name]
-            direct = [
-                f"{table_name}.{col} = {tgt}.{tgt_col}"
-                for col, tgt, tgt_col in edges.get(table_name, ())
-            ]
-            # Incoming edges too: a caller looking at `traces` needs to know that
-            # `spans` points at it, which the outgoing list alone never says.
-            incoming = [
-                f"{other}.{col} = {table_name}.{tgt_col}"
-                for other, other_edges in edges.items()
-                for col, tgt, tgt_col in other_edges
-                if tgt == table_name
-            ]
-            path = _join_path(table_name, root, edges) if root else []
-            table_specs[table_name] = replace(
-                spec,
-                joins=tuple(direct + incoming),
-                path_to_root=tuple(path),
-            )
-
     return Allowlist(
         tables=frozenset(table_specs),
-        table_specs=table_specs,
-        areas=areas,
+        table_specs=MappingProxyType(table_specs),
+        areas=MappingProxyType(areas),
         pg_schema="public",
     )
 

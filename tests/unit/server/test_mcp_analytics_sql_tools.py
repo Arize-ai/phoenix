@@ -102,7 +102,7 @@ async def test_envelope_matches_the_declared_schema(analytics_mcp: FastMCP) -> N
     assert schema is not None
     success_schema, error_schema = schema["oneOf"]
 
-    ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)
+    ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=500)
     ctx.applied.append("limit_injection")
     ctx.notes.append("a note")
     envelope = _success_envelope(

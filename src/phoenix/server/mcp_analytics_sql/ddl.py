@@ -37,6 +37,7 @@ from sqlalchemy.engine.interfaces import Dialect
 from phoenix.db import models
 from phoenix.server.mcp_analytics_sql.allowlist import (
     Allowlist,
+    DialectName,
     TableSpec,
     load_allowlist,
     manifest_document,
@@ -47,12 +48,12 @@ __all__ = ["render_schema_ddl", "validate_ddl"]
 _SQLGLOT_DIALECT = {"postgresql": "postgres", "sqlite": "sqlite"}
 
 
-def _sa_dialect(dialect: str) -> Dialect:
+def _sa_dialect(dialect: DialectName) -> Dialect:
     factory = postgresql.dialect if dialect == "postgresql" else sqlite.dialect
     return cast(Dialect, factory())
 
 
-def _column_types(table_name: str, dialect: str) -> dict[str, str]:
+def _column_types(table_name: str, dialect: DialectName) -> dict[str, str]:
     """Compile each column's type for one backend, keyed by column name.
 
     Types come from the models rather than the manifest because the manifest's
@@ -74,7 +75,7 @@ def _column_types(table_name: str, dialect: str) -> dict[str, str]:
     return compiled
 
 
-def _virtual_column_types(dialect: str) -> dict[str, str]:
+def _virtual_column_types(dialect: DialectName) -> dict[str, str]:
     """Types for the columns the server substitutes rather than stores."""
     return {
         "latency_ms": "DOUBLE PRECISION" if dialect == "postgresql" else "REAL",
@@ -85,7 +86,7 @@ def _virtual_column_types(dialect: str) -> dict[str, str]:
 def _render_table(
     spec: TableSpec,
     *,
-    dialect: str,
+    dialect: DialectName,
     detail: str,
     allowlist: Allowlist,
 ) -> list[str]:
@@ -140,21 +141,6 @@ def _render_table(
         lines.append(f"  {constraint}{',' if index < len(constraints) - 1 else ''}")
     lines.append(");")
     return lines
-
-
-def _foreign_key_edges(spec: TableSpec, allowlist: Allowlist) -> frozenset[str]:
-    """The join hints a rendered foreign key already states, in manifest spelling."""
-    table = models.Base.metadata.tables.get(spec.name)
-    if table is None:
-        return frozenset()
-    edges = set()
-    for constraint in table.foreign_key_constraints:
-        target = constraint.referred_table.name
-        if target not in allowlist.tables:
-            continue
-        for column, element in zip(constraint.columns, constraint.elements):
-            edges.add(f"{spec.name}.{column.name} = {target}.{element.column.name}")
-    return frozenset(edges)
 
 
 def _render_constraints(spec: TableSpec, allowlist: Allowlist) -> list[str]:
@@ -224,7 +210,7 @@ def _render_constraints(spec: TableSpec, allowlist: Allowlist) -> list[str]:
     return rendered
 
 
-def _blessed_path_expression(path: str, dialect: str) -> str:
+def _blessed_path_expression(path: str, dialect: DialectName) -> str:
     """A blessed attribute path as the expression a caller has to write.
 
     The manifest stores a logical path, `attributes.session.id`. That is not SQL
@@ -247,27 +233,10 @@ def _blessed_path_expression(path: str, dialect: str) -> str:
     return f"json_extract({column}, '$.{route}')"
 
 
-def _render_relationships(
-    spec: TableSpec, rendered_foreign_keys: frozenset[str], dialect: str = "postgresql"
-) -> list[str]:
-    """Join paths, as comments rather than REFERENCES clauses.
+def _render_curation(spec: TableSpec, dialect: DialectName = "postgresql") -> list[str]:
+    """Render non-relational curation comments for one table."""
 
-    A real foreign key points at exactly one table, but the useful set here runs
-    both ways: `spans` is reached *from* `span_costs` as often as it reaches
-    `traces`. Rendering only the outgoing direction would hide half of it.
-    """
-    # Only the edges the foreign keys do not already carry. A key points one
-    # way, so `spans -> traces` is stated as a REFERENCES clause and repeating
-    # it here is pure duplication -- exactly half of these were. What a key
-    # cannot express is the inbound direction: that `span_costs`,
-    # `span_annotations` and `dataset_examples` all reach `spans`, which is how
-    # a caller finds the tables worth joining to the one they started from.
     lines: list[str] = []
-    for join in spec.joins:
-        if join not in rendered_foreign_keys:
-            lines.append(f"-- join: {join}")
-    if spec.path_to_root:
-        lines.append("-- to area root: " + " -> ".join(spec.path_to_root))
     for path in sorted(spec.blessed_attribute_paths):
         lines.append(f"-- populated JSON path: {_blessed_path_expression(path, dialect)}")
     if spec.promoted_columns_note:
@@ -281,11 +250,11 @@ def render_schema_ddl(
     tables: Optional[list[str]] = None,
     detail: str = "brief",
     search: Optional[str] = None,
-    dialect: str = "postgresql",
+    dialect: DialectName = "postgresql",
 ) -> str:
     """Render the selected part of the allowlisted schema as DDL text."""
     manifest = manifest_document()
-    allowlist = load_allowlist()
+    allowlist = load_allowlist(dialect)
     chunks: list[str] = []
 
     for area_name in [area] if area else list(manifest["areas"]):
@@ -301,7 +270,7 @@ def render_schema_ddl(
                 continue
             block = _render_table(spec, dialect=dialect, detail=detail, allowlist=allowlist)
             if detail != "brief":
-                block += _render_relationships(spec, _foreign_key_edges(spec, allowlist), dialect)
+                block += _render_curation(spec, dialect)
             rendered.append("\n".join(block))
         if rendered:
             # Brief entries are single lines, so blank lines between them would
@@ -318,7 +287,7 @@ def _matches(spec: TableSpec, search: str) -> bool:
     return any(needle in column.name.lower() for column in spec.exposed_columns)
 
 
-def validate_ddl(ddl: str, dialect: str) -> None:
+def validate_ddl(ddl: str, dialect: DialectName) -> None:
     """Raise if any rendered statement fails to parse.
 
     Generated DDL fails quietly in ways handwritten DDL does not -- a comment

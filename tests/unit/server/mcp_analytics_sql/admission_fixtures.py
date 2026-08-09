@@ -29,7 +29,7 @@ def minimal_admission_allowlist() -> Allowlist:
     surface has had were therefore invisible to the one file whose job is to
     record what must stay refused.
     """
-    real = load_allowlist().table_specs
+    real = load_allowlist("sqlite").table_specs
     specs = {
         name: TableSpec(
             name=name,

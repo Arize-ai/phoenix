@@ -1293,7 +1293,7 @@ def try_parse_and_admit(
     if allowlist is None:
         from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
 
-        allowlist = load_allowlist()
+        allowlist = load_allowlist(dialect)
     try:
         root = parse_sql(sql, dialect=dialect)
     except AnalyticsSqlError as exc:

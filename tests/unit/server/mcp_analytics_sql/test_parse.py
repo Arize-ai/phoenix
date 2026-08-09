@@ -189,7 +189,7 @@ class TestHiddenColumnsAreRefused:
         ],
     )
     def test_a_hidden_column_is_refused_wherever_it_appears(self, sql: str, expected: str) -> None:
-        allowlist = load_allowlist()
+        allowlist = load_allowlist("sqlite")
         with pytest.raises(AnalyticsSqlError) as caught:
             admit_sql(sql, allowlist=allowlist, dialect="sqlite")
         assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
@@ -205,7 +205,9 @@ class TestHiddenColumnsAreRefused:
         readable through GraphQL by the same caller.
         """
         with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql("SELECT user_id FROM datasets", allowlist=load_allowlist(), dialect="sqlite")
+            admit_sql(
+                "SELECT user_id FROM datasets", allowlist=load_allowlist("sqlite"), dialect="sqlite"
+            )
         assert "exists but is not part of the analytics schema" in caught.value.message
         assert "answers no analytical question" in caught.value.message
 
@@ -218,7 +220,9 @@ class TestHiddenColumnsAreRefused:
         which cannot propose a column the caller may not read.
         """
         with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql("SELECT span_kindd FROM spans", allowlist=load_allowlist(), dialect="sqlite")
+            admit_sql(
+                "SELECT span_kindd FROM spans", allowlist=load_allowlist("sqlite"), dialect="sqlite"
+            )
         assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
         assert "is not a column of that table" in caught.value.message
         assert "Did you mean span_kind" in caught.value.message
@@ -236,7 +240,7 @@ class TestHiddenColumnsAreRefused:
         most advertised name on this surface -- so the likeliest typo of all got
         no suggestion while rarer ones did."""
         with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql(sql, allowlist=load_allowlist(), dialect="sqlite")
+            admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="sqlite")
 
         assert f"Did you mean {expected}" in caught.value.message
 
@@ -260,7 +264,7 @@ class TestHiddenColumnsAreRefused:
         name answers a different question than this one.
         """
         with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql(sql, allowlist=load_allowlist(), dialect="sqlite")
+            admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="sqlite")
         suggestion = caught.value.message.partition("Did you mean")[2]
 
         assert not suggestion, f"suggested {suggestion!r} for a near miss on {withheld}"
@@ -273,7 +277,7 @@ class TestHiddenColumnsAreRefused:
         with pytest.raises(AnalyticsSqlError) as caught:
             admit_sql(
                 "SELECT id AS gradient_start_color FROM projects ORDER BY gradient_start_color",
-                allowlist=load_allowlist(),
+                allowlist=load_allowlist("sqlite"),
                 dialect="sqlite",
             )
         message = caught.value.message
@@ -289,7 +293,7 @@ class TestHiddenColumnsAreRefused:
         with pytest.raises(AnalyticsSqlError) as caught:
             admit_sql(
                 "SELECT name AS gradient_start_color FROM projects GROUP BY gradient_start_color",
-                allowlist=load_allowlist(),
+                allowlist=load_allowlist("sqlite"),
                 dialect="sqlite",
             )
 
@@ -301,7 +305,7 @@ class TestHiddenColumnsAreRefused:
         with pytest.raises(AnalyticsSqlError) as caught:
             admit_sql(
                 "SELECT nosuchthing FROM spans JOIN traces ON spans.trace_rowid = traces.id",
-                allowlist=load_allowlist(),
+                allowlist=load_allowlist("sqlite"),
                 dialect="sqlite",
             )
         assert "not a column of any table in scope (spans, traces)" in caught.value.message
@@ -315,7 +319,7 @@ class TestHiddenColumnsAreRefused:
         ],
     )
     def test_exposed_columns_are_untouched(self, sql: str) -> None:
-        admit_sql(sql, allowlist=load_allowlist(), dialect="sqlite")
+        admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="sqlite")
 
 
 class TestHiddenColumnsResistCaseVariation:
@@ -342,14 +346,14 @@ class TestHiddenColumnsResistCaseVariation:
     )
     def test_case_variants_of_a_hidden_column_are_refused(self, sql: str) -> None:
         with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql(sql, allowlist=load_allowlist(), dialect="postgresql")
+            admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
         assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
 
     def test_the_table_allowlist_was_already_closed_under_case(self) -> None:
         """Recorded so the asymmetry that caused this is visible, not inferred."""
         for sql in ("SELECT id FROM USERS", "SELECT id FROM Users"):
             with pytest.raises(AnalyticsSqlError) as caught:
-                admit_sql(sql, allowlist=load_allowlist(), dialect="postgresql")
+                admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
             assert caught.value.code is ErrorCode.RELATION_NOT_ALLOWED
 
 
@@ -376,7 +380,7 @@ class TestJoinsCannotLaunderAHiddenColumn:
     )
     def test_using_a_hidden_column_is_refused(self, sql: str) -> None:
         with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql(sql, allowlist=load_allowlist(), dialect="postgresql")
+            admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
         assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
 
     def test_natural_join_is_refused_outright(self) -> None:
@@ -384,7 +388,7 @@ class TestJoinsCannotLaunderAHiddenColumn:
         with pytest.raises(AnalyticsSqlError) as caught:
             admit_sql(
                 "SELECT count(*) FROM datasets NATURAL JOIN dataset_versions",
-                allowlist=load_allowlist(),
+                allowlist=load_allowlist("sqlite"),
                 dialect="postgresql",
             )
         assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
@@ -393,7 +397,7 @@ class TestJoinsCannotLaunderAHiddenColumn:
     def test_using_an_exposed_column_still_works(self) -> None:
         admit_sql(
             "SELECT count(*) FROM spans JOIN traces USING (id)",
-            allowlist=load_allowlist(),
+            allowlist=load_allowlist("sqlite"),
             dialect="postgresql",
         )
 
@@ -424,7 +428,7 @@ class TestWholeRowReferencesAreRefused:
     )
     def test_row_valued_references_are_refused(self, sql: str) -> None:
         with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql(sql, allowlist=load_allowlist(), dialect="postgresql")
+            admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
         assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
 
     @pytest.mark.parametrize(
@@ -444,7 +448,7 @@ class TestWholeRowReferencesAreRefused:
         ],
     )
     def test_ordinary_column_references_still_work(self, sql: str) -> None:
-        admit_sql(sql, allowlist=load_allowlist(), dialect="postgresql")
+        admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
 
 
 class TestAliasCannotShadowACTE:
@@ -471,7 +475,7 @@ class TestAliasCannotShadowACTE:
     )
     def test_the_collision_is_refused(self, sql: str) -> None:
         with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql(sql, allowlist=load_allowlist(), dialect="sqlite")
+            admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="sqlite")
         assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
 
     @pytest.mark.parametrize(
@@ -493,7 +497,7 @@ class TestAliasCannotShadowACTE:
         ],
     )
     def test_legitimate_cte_use_is_unaffected(self, sql: str) -> None:
-        admit_sql(sql, allowlist=load_allowlist(), dialect="sqlite")
+        admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="sqlite")
 
 
 class TestCastTargetsAreRestrictedToDataTypes:
@@ -524,7 +528,7 @@ class TestCastTargetsAreRestrictedToDataTypes:
         ],
     )
     def test_arrays_of_allowed_types_are_admitted(self, sql: str) -> None:
-        admit_sql(sql, allowlist=load_allowlist(), dialect="postgresql")
+        admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
 
     @pytest.mark.parametrize(
         "sql",
@@ -536,7 +540,7 @@ class TestCastTargetsAreRestrictedToDataTypes:
     )
     def test_object_identifier_types_are_still_refused(self, sql: str) -> None:
         with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql(sql, allowlist=load_allowlist(), dialect="postgresql")
+            admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
         assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
 
 
@@ -568,7 +572,7 @@ class TestPathCastAmbiguityIsRefused:
     )
     def test_bare_cast_after_a_path_operator_is_refused(self, sql: str) -> None:
         with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql(sql, allowlist=load_allowlist(), dialect="postgresql")
+            admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
         assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
 
     @pytest.mark.parametrize(
@@ -595,7 +599,7 @@ class TestPathCastAmbiguityIsRefused:
         ],
     )
     def test_both_unambiguous_spellings_are_admitted(self, sql: str, expected: str) -> None:
-        _, rendered = admit_sql(sql, allowlist=load_allowlist(), dialect="postgresql")
+        _, rendered = admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
         assert rendered == expected
 
     @pytest.mark.parametrize(
@@ -609,7 +613,7 @@ class TestPathCastAmbiguityIsRefused:
         ],
     )
     def test_the_refusal_does_not_reach_ordinary_casts(self, sql: str) -> None:
-        admit_sql(sql, allowlist=load_allowlist(), dialect="postgresql")
+        admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
 
     def test_the_message_names_both_spellings(self) -> None:
         result = try_parse_and_admit(
@@ -639,7 +643,7 @@ class TestScopeInvariantIsPerScope:
             "(SELECT count(*) FROM projects AS x, x) AS b"
         )
         with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql(sql, allowlist=load_allowlist(), dialect="postgresql")
+            admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
         assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
 
     @pytest.mark.parametrize(
@@ -651,7 +655,7 @@ class TestScopeInvariantIsPerScope:
         ],
     )
     def test_independent_scopes_are_unaffected(self, sql: str) -> None:
-        admit_sql(sql, allowlist=load_allowlist(), dialect="postgresql")
+        admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
 
 
 @pytest.mark.parametrize(
@@ -671,7 +675,7 @@ def test_composite_access_is_refused_at_any_paren_depth(sql: str) -> None:
     would have reopened this with nothing to catch it.
     """
     with pytest.raises(AnalyticsSqlError) as caught:
-        admit_sql(sql, allowlist=load_allowlist(), dialect="postgresql")
+        admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
     assert "Composite field access" in caught.value.message
 
 
@@ -704,7 +708,7 @@ def test_a_refusal_names_the_spelling_that_works(
     module level -- put there, this asserted nothing on a default run.
     """
     with pytest.raises(AnalyticsSqlError) as caught:
-        admit_sql(refused, allowlist=load_allowlist(), dialect=cast(DialectName, dialect))
+        admit_sql(refused, allowlist=load_allowlist("sqlite"), dialect=cast(DialectName, dialect))
     assert suggested in caught.value.message
 
 
@@ -783,7 +787,7 @@ class TestTimestampComparisonCoverage:
     def test_an_aware_literal_in_an_in_list_is_rewritten(self) -> None:
         """Left alone it compares an ISO `T` against a stored space, which
         matches nothing and reports nothing."""
-        ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)
+        ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=500)
         tree = parse_one(
             "SELECT id FROM spans WHERE start_time IN ('2026-01-01T00:00:00Z')", read="sqlite"
         )
@@ -896,7 +900,7 @@ class TestTimestampComparisonCoverage:
         alone.
         """
         sql = "SELECT id FROM " + "(SELECT id FROM " * levels + "spans" + ")" * levels
-        allowlist = load_allowlist()
+        allowlist = load_allowlist("sqlite")
 
         with pytest.raises(AnalyticsSqlError) as caught:
             root = admit_sql(sql, allowlist=allowlist, dialect="sqlite")[0]
@@ -936,7 +940,7 @@ class TestTimestampComparisonCoverage:
         assert MAX_TREE_DEPTH < 258, "must stay below what the generator survives"
 
     def test_an_aware_literal_behind_grouping_is_still_rewritten(self) -> None:
-        ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)
+        ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=500)
         tree = parse_one(
             "SELECT id FROM spans WHERE (id, (name, start_time)) "
             "= (1, ('x', '2026-01-01T00:00:00Z'))",
@@ -973,7 +977,7 @@ class TestTimestampComparisonCoverage:
         ],
     )
     def test_an_aware_literal_is_rewritten_in_those_same_spellings(self, sql: str) -> None:
-        ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)
+        ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=500)
         tree = parse_one(sql.format("2026-01-01T00:00:00Z"), read="sqlite")
 
         rendered = rewrite(tree, ctx).sql(dialect="sqlite")
@@ -1415,7 +1419,7 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
             "SELECT id AS n FROM projects ORDER BY (SELECT s.name FROM spans s ORDER BY n LIMIT 1)",
             read="sqlite",
         )
-        locality = query_local_columns(root, allowlist=load_allowlist())
+        locality = query_local_columns(root, allowlist=load_allowlist("sqlite"))
 
         assert not any(locality.is_local(column) for column in root.find_all(exp.Column))
 
@@ -1428,7 +1432,7 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
         the check consults, so a reference marked local by the select list can
         never be mistaken for one that resolves into a derived relation.
         """
-        allowlist = load_allowlist()
+        allowlist = load_allowlist("sqlite")
 
         alias_root = parse_one(
             "SELECT id AS gradient_start_color FROM projects ORDER BY gradient_start_color",
@@ -1474,7 +1478,7 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
         hidden-column check. Naming the bar is the whole point of the type."""
         locality = query_local_columns(
             parse_one("SELECT id AS v FROM projects ORDER BY v", read="sqlite"),
-            allowlist=load_allowlist(),
+            allowlist=load_allowlist("sqlite"),
         )
 
         with pytest.raises(TypeError):
@@ -1483,7 +1487,7 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
     def test_the_rewrite_still_leaves_a_bare_alias_alone(self) -> None:
         rendered = rewrite(
             parse_one("SELECT id, 1 AS latency_ms FROM spans ORDER BY latency_ms", read="sqlite"),
-            RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500),
+            RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=500),
         ).sql(dialect="sqlite")
 
         assert "ORDER BY latency_ms" in rendered

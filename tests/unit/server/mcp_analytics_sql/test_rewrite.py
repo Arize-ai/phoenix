@@ -35,12 +35,12 @@ from phoenix.server.mcp_analytics_sql.teaching import FULL_EXAMPLES
 
 def _ctx(dialect: DialectName = "postgresql") -> RewriteContext:
     """A rewrite context."""
-    return RewriteContext(allowlist=load_allowlist(), dialect=dialect, row_limit=500)
+    return RewriteContext(allowlist=load_allowlist("sqlite"), dialect=dialect, row_limit=500)
 
 
 def test_star_expansion() -> None:
     root = parse_sql("SELECT * FROM spans", dialect="postgresql")
-    root = admit(root, allowlist=load_allowlist(), dialect="postgresql")
+    root = admit(root, allowlist=load_allowlist("sqlite"), dialect="postgresql")
     out = render(rewrite(root, _ctx()), dialect="postgresql")
     assert "spans.trace_rowid" in out
     assert not out.startswith("SELECT *")
@@ -48,14 +48,14 @@ def test_star_expansion() -> None:
 
 def test_count_star_unaffected() -> None:
     root = parse_sql("SELECT count(*) FROM spans", dialect="postgresql")
-    root = admit(root, allowlist=load_allowlist(), dialect="postgresql")
+    root = admit(root, allowlist=load_allowlist("sqlite"), dialect="postgresql")
     out = render(rewrite(root, _ctx()), dialect="postgresql")
     assert "COUNT(*)" in out.upper()
 
 
 def test_latency_ms_predicate_postgres() -> None:
     root = parse_sql("SELECT id FROM spans WHERE latency_ms > 100", dialect="postgresql")
-    root = admit(root, allowlist=load_allowlist(), dialect="postgresql")
+    root = admit(root, allowlist=load_allowlist("sqlite"), dialect="postgresql")
     out = render(rewrite(root, _ctx("postgresql")), dialect="postgresql")
     assert "latency_ms" not in out.lower()
     assert "start_time" in out and "end_time" in out
@@ -91,7 +91,7 @@ def _run_on_sqlite(sql: str) -> list[tuple[Any, ...]]:
 
 def _rendered(sql: str) -> str:
     root = parse_sql(sql, dialect="sqlite")
-    root = admit(root, allowlist=load_allowlist(), dialect="sqlite")
+    root = admit(root, allowlist=load_allowlist("sqlite"), dialect="sqlite")
     return render(rewrite(root, _ctx("sqlite")), dialect="sqlite")
 
 
@@ -136,7 +136,7 @@ def test_every_shipped_example_is_admitted(example_key: str) -> None:
     """
     dialect: DialectName = "postgresql" if example_key.endswith("postgresql") else "sqlite"
     root = parse_sql(FULL_EXAMPLES[example_key], dialect=dialect)
-    admit(root, allowlist=load_allowlist(), dialect=dialect)
+    admit(root, allowlist=load_allowlist("sqlite"), dialect=dialect)
 
 
 def test_latency_ms_orders_by_duration_not_start_time() -> None:
@@ -152,7 +152,7 @@ def test_latency_ms_orders_by_duration_not_start_time() -> None:
 
 def test_exempt_table_not_wrapped() -> None:
     root = parse_sql("SELECT name FROM projects", dialect="postgresql")
-    root = admit(root, allowlist=load_allowlist(), dialect="postgresql")
+    root = admit(root, allowlist=load_allowlist("sqlite"), dialect="postgresql")
     out = render(rewrite(root, _ctx("postgresql")), dialect="postgresql")
     assert "AS projects" not in out or "SELECT" in out
 
@@ -291,7 +291,8 @@ def test_rewrite_matches_whatever_spelling_was_indexed(
         dialect="sqlite",
     )
     rendered = render(
-        rewrite(admit(root, allowlist=load_allowlist(), dialect="sqlite"), ctx), dialect="sqlite"
+        rewrite(admit(root, allowlist=load_allowlist("sqlite"), dialect="sqlite"), ctx),
+        dialect="sqlite",
     )
 
     conn = sqlean.connect(":memory:")
@@ -315,7 +316,7 @@ def test_star_expands_every_joined_table() -> None:
         "SELECT * FROM spans JOIN traces ON spans.trace_rowid = traces.id", dialect="sqlite"
     )
     out = render(
-        rewrite(admit(root, allowlist=load_allowlist(), dialect="sqlite"), _ctx("sqlite")),
+        rewrite(admit(root, allowlist=load_allowlist("sqlite"), dialect="sqlite"), _ctx("sqlite")),
         dialect="sqlite",
     )
     assert "spans.span_id" in out and "traces.trace_id" in out
@@ -327,7 +328,7 @@ def test_star_over_an_aliased_table_uses_the_alias() -> None:
     """
     root = parse_sql("SELECT * FROM spans AS s", dialect="sqlite")
     out = render(
-        rewrite(admit(root, allowlist=load_allowlist(), dialect="sqlite"), _ctx("sqlite")),
+        rewrite(admit(root, allowlist=load_allowlist("sqlite"), dialect="sqlite"), _ctx("sqlite")),
         dialect="sqlite",
     )
     assert "s.span_id" in out and "spans.span_id" not in out
@@ -342,14 +343,14 @@ def test_star_over_a_query_local_relation_is_a_normal_refusal() -> None:
     """
     root = parse_sql("WITH x AS (SELECT id FROM projects) SELECT * FROM x", dialect="sqlite")
     with pytest.raises(AnalyticsSqlError):
-        rewrite(admit(root, allowlist=load_allowlist(), dialect="sqlite"), _ctx("sqlite"))
+        rewrite(admit(root, allowlist=load_allowlist("sqlite"), dialect="sqlite"), _ctx("sqlite"))
 
 
 def test_latency_ms_keeps_its_name_in_the_select_list() -> None:
     """An advertised column has to come back under the name it was advertised as."""
     root = parse_sql("SELECT latency_ms FROM spans", dialect="sqlite")
     out = render(
-        rewrite(admit(root, allowlist=load_allowlist(), dialect="sqlite"), _ctx("sqlite")),
+        rewrite(admit(root, allowlist=load_allowlist("sqlite"), dialect="sqlite"), _ctx("sqlite")),
         dialect="sqlite",
     )
     assert "AS latency_ms" in out
@@ -373,7 +374,7 @@ def test_star_refuses_sources_the_manifest_cannot_describe(sql: str) -> None:
     """
     root = parse_sql(sql, dialect="sqlite")
     with pytest.raises(AnalyticsSqlError):
-        rewrite(admit(root, allowlist=load_allowlist(), dialect="sqlite"), _ctx("sqlite"))
+        rewrite(admit(root, allowlist=load_allowlist("sqlite"), dialect="sqlite"), _ctx("sqlite"))
 
 
 def test_qualified_star_expands_to_manifest_columns() -> None:
@@ -385,7 +386,7 @@ def test_qualified_star_expands_to_manifest_columns() -> None:
     """
     root = parse_sql("SELECT s.* FROM spans s", dialect="sqlite")
     out = render(
-        rewrite(admit(root, allowlist=load_allowlist(), dialect="sqlite"), _ctx("sqlite")),
+        rewrite(admit(root, allowlist=load_allowlist("sqlite"), dialect="sqlite"), _ctx("sqlite")),
         dialect="sqlite",
     )
     assert "s.*" not in out
@@ -408,7 +409,10 @@ def test_schema_qualification_does_not_redirect_a_cte_to_its_base_table() -> Non
     sql = "WITH spans AS (SELECT * FROM spans WHERE name = 'foo') SELECT count(*) AS n FROM spans"
     root = parse_sql(sql, dialect="postgresql")
     out = render(
-        rewrite(admit(root, allowlist=load_allowlist(), dialect="postgresql"), _ctx("postgresql")),
+        rewrite(
+            admit(root, allowlist=load_allowlist("sqlite"), dialect="postgresql"),
+            _ctx("postgresql"),
+        ),
         dialect="postgresql",
     )
     outer = out[out.rindex("SELECT COUNT") :]
@@ -425,7 +429,10 @@ def test_schema_qualification_still_qualifies_tables_and_joins() -> None:
         dialect="postgresql",
     )
     out = render(
-        rewrite(admit(root, allowlist=load_allowlist(), dialect="postgresql"), _ctx("postgresql")),
+        rewrite(
+            admit(root, allowlist=load_allowlist("sqlite"), dialect="postgresql"),
+            _ctx("postgresql"),
+        ),
         dialect="postgresql",
     )
     assert "public.spans" in out and "public.traces" in out
@@ -459,10 +466,10 @@ def test_json_arrow_inside_a_call_is_refused(sql: str, admitted: bool) -> None:
     """
     root = parse_sql(sql, dialect="sqlite")
     if admitted:
-        admit(root, allowlist=load_allowlist(), dialect="sqlite")
+        admit(root, allowlist=load_allowlist("sqlite"), dialect="sqlite")
     else:
         with pytest.raises(AnalyticsSqlError):
-            admit(root, allowlist=load_allowlist(), dialect="sqlite")
+            admit(root, allowlist=load_allowlist("sqlite"), dialect="sqlite")
 
 
 def test_json_path_with_an_embedded_quote_is_left_alone() -> None:
@@ -505,10 +512,10 @@ def test_cast_targets_and_placeholders(sql: str, dialect: DialectName, admitted:
     """
     root = parse_sql(sql, dialect=dialect)
     if admitted:
-        admit(root, allowlist=load_allowlist(), dialect=dialect)
+        admit(root, allowlist=load_allowlist("sqlite"), dialect=dialect)
     else:
         with pytest.raises(AnalyticsSqlError):
-            admit(root, allowlist=load_allowlist(), dialect=dialect)
+            admit(root, allowlist=load_allowlist("sqlite"), dialect=dialect)
 
 
 def test_latency_ms_through_a_derived_relation_is_left_alone() -> None:
@@ -523,7 +530,7 @@ def test_latency_ms_through_a_derived_relation_is_left_alone() -> None:
         "SELECT avg(latency_ms) AS v FROM (SELECT latency_ms FROM spans) t", dialect="sqlite"
     )
     out = render(
-        rewrite(admit(root, allowlist=load_allowlist(), dialect="sqlite"), _ctx("sqlite")),
+        rewrite(admit(root, allowlist=load_allowlist("sqlite"), dialect="sqlite"), _ctx("sqlite")),
         dialect="sqlite",
     )
     assert "AVG(latency_ms)" in out
@@ -559,7 +566,7 @@ def test_latency_ms_binds_as_tightly_as_a_column(dialect: str, expression: str) 
     tree = sqlglot.parse_one(f"SELECT {expression} AS v FROM spans", dialect=dialect)
     ctx = RewriteContext(
         dialect="sqlite" if dialect == "sqlite" else "postgresql",
-        allowlist=load_allowlist(),
+        allowlist=load_allowlist("sqlite"),
         row_limit=10,
     )
     out = _substitute_latency_ms(cast(exp.Expression, tree), ctx)
@@ -584,7 +591,7 @@ def test_graphql_node_id_resolves_through_a_qualifier(dialect: str) -> None:
     Only a bare `graphql_node_id` in a join is genuinely ambiguous, and that is
     still left alone rather than guessed at.
     """
-    allowlist = load_allowlist()
+    allowlist = load_allowlist("sqlite")
 
     def rewrite(sql: str) -> str:
         ctx = RewriteContext(
@@ -622,7 +629,7 @@ def _rewrite_context(
     from phoenix.server.mcp_analytics_sql.parse import admit, parse_sql, render
     from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
 
-    allowlist = load_allowlist()
+    allowlist = load_allowlist("sqlite")
     root = admit(parse_sql(sql, dialect=dialect), allowlist=allowlist, dialect=dialect)
     ctx = RewriteContext(
         allowlist=allowlist,
@@ -729,7 +736,7 @@ class TestOneSharedResolver:
     @staticmethod
     def _rewritten(sql: str, dialect: DialectName = "sqlite") -> str:
         read = "postgres" if dialect == "postgresql" else dialect
-        ctx = RewriteContext(allowlist=load_allowlist(), dialect=dialect, row_limit=500)
+        ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect=dialect, row_limit=500)
         return rewrite(sqlglot.parse_one(sql, read=read), ctx).sql(dialect=read)
 
     @staticmethod
@@ -811,7 +818,7 @@ class TestJsonAccessorOrigin:
 
     @staticmethod
     def _rewritten(expression: str) -> str:
-        ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)
+        ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=500)
         tree = sqlglot.parse_one(f"SELECT {expression} FROM spans", read="sqlite")
         return rewrite(tree, ctx).sql(dialect="sqlite")
 
@@ -860,7 +867,7 @@ class TestUncastJsonOrderingNote:
     @staticmethod
     def _noted(sql: str, dialect: DialectName = "sqlite") -> bool:
         read = "postgres" if dialect == "postgresql" else dialect
-        ctx = RewriteContext(allowlist=load_allowlist(), dialect=dialect, row_limit=500)
+        ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect=dialect, row_limit=500)
         rewrite(sqlglot.parse_one(sql, read=read), ctx)
         return any("without a cast" in note for note in ctx.notes)
 
@@ -896,7 +903,7 @@ class TestUncastJsonOrderingNote:
         """The canonicalisation pass rebuilds `->>` as an Anonymous json_extract
         call, so a check that knows only the operator classes sees nothing on
         exactly the statements this exists for."""
-        ctx = RewriteContext(allowlist=load_allowlist(), dialect="sqlite", row_limit=500)
+        ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=500)
         tree = sqlglot.parse_one("SELECT MAX(attributes ->> '$.n') FROM spans", read="sqlite")
 
         rendered = rewrite(tree, ctx).sql(dialect="sqlite")
