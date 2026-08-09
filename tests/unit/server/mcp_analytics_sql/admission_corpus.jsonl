@@ -43,7 +43,7 @@
 {"sql": "SELECT strftime('%Y-%m-%d %H', start_time) AS bucket FROM spans GROUP BY bucket", "expect": "admit", "dialect": "sqlite", "note": "strftime is SQLite's hour bucketing and parses to TimeToStr, a class name the caller never writes"}
 {"sql": "SELECT gradient_start_color FROM projects", "expect": "admit", "note": "a physical DDL column is admitted even though older manifest policy omitted it"}
 {"sql": "SELECT GRADIENT_START_COLOR FROM projects", "expect": "admit", "note": "physical DDL columns remain queryable under ordinary identifier case folding"}
-{"sql": "SELECT \"GRADIENT_START_COLOR\" FROM projects", "expect": "admit", "note": "admission validates physical DDL names; executor-specific quoted-identifier resolution remains an execution concern"}
+{"sql": "SELECT \"GRADIENT_START_COLOR\" FROM projects", "expect": "column_not_allowed", "note": "quoted PostgreSQL identifiers preserve case and do not name lowercase physical columns"}
 {"sql": "SELECT p FROM projects p", "expect": "unsupported_syntax", "note": "a bare reference to a relation is the whole row, omitted columns included, and names no column so every per-column rule was inapplicable"}
 {"sql": "SELECT CAST(p AS TEXT) FROM projects p", "expect": "unsupported_syntax", "note": "the same row-valued reference inside a cast, which is how it was first found returning every column of the table"}
 {"sql": "SELECT (p).gradient_start_color FROM projects p", "expect": "unsupported_syntax", "note": "composite field access reaches a field of the row without producing a column node for it"}

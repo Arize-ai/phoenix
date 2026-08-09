@@ -9,7 +9,8 @@ from sqlglot import exp
 # sqlean.extensions.enable() here would *replace* that set rather than add to it,
 # silently disabling extensions other tests depend on for the rest of the session.
 import phoenix.db.engines  # noqa: F401  (imported for its extension setup)
-from phoenix.server.mcp_analytics_sql.allowlist import DialectName, load_allowlist
+from phoenix.db.helpers import SupportedSQLDialectName
+from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
 from phoenix.server.mcp_analytics_sql.catalog import _body as _index_body
 from phoenix.server.mcp_analytics_sql.catalog import (
     _classify,
@@ -33,7 +34,7 @@ from phoenix.server.mcp_analytics_sql.rewrite import (
 from phoenix.server.mcp_analytics_sql.teaching import FULL_EXAMPLES
 
 
-def _ctx(dialect: DialectName = "postgresql") -> RewriteContext:
+def _ctx(dialect: SupportedSQLDialectName = "postgresql") -> RewriteContext:
     """A rewrite context."""
     return RewriteContext(allowlist=load_allowlist("sqlite"), dialect=dialect, row_limit=500)
 
@@ -134,7 +135,9 @@ def test_every_shipped_example_is_admitted(example_key: str) -> None:
     is what the examples are written in, so nothing else connects the two. This
     is the only check that the payload and the policy agree.
     """
-    dialect: DialectName = "postgresql" if example_key.endswith("postgresql") else "sqlite"
+    dialect: SupportedSQLDialectName = (
+        "postgresql" if example_key.endswith("postgresql") else "sqlite"
+    )
     root = parse_sql(FULL_EXAMPLES[example_key], dialect=dialect)
     admit(root, allowlist=load_allowlist("sqlite"), dialect=dialect)
 
@@ -497,7 +500,9 @@ def test_json_path_with_an_embedded_quote_is_left_alone() -> None:
     ],
     ids=["regclass", "regrole", "text-pg", "text-sqlite", "named-placeholder", "qmark"],
 )
-def test_cast_targets_and_placeholders(sql: str, dialect: DialectName, admitted: bool) -> None:
+def test_cast_targets_and_placeholders(
+    sql: str, dialect: SupportedSQLDialectName, admitted: bool
+) -> None:
     """Two families that reached past the function policy without being functions.
 
     An object-identifier cast asks the system catalogs whether a relation, role
@@ -623,7 +628,7 @@ def test_graphql_node_id_resolves_through_a_qualifier(dialect: str) -> None:
 
 
 def _rewrite_context(
-    sql: str, *, dialect: DialectName = "postgresql"
+    sql: str, *, dialect: SupportedSQLDialectName = "postgresql"
 ) -> tuple[RewriteContext, str]:
     from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
     from phoenix.server.mcp_analytics_sql.parse import admit, parse_sql, render
@@ -639,7 +644,9 @@ def _rewrite_context(
     return ctx, render(rewrite(root, ctx), dialect=dialect)
 
 
-def _rewritten(sql: str, *, dialect: DialectName = "postgresql") -> tuple[RewriteContext, str]:
+def _rewritten(
+    sql: str, *, dialect: SupportedSQLDialectName = "postgresql"
+) -> tuple[RewriteContext, str]:
     ctx, rendered = _rewrite_context(sql, dialect=dialect)
     return ctx, rendered
 
@@ -668,7 +675,7 @@ class TestTimestampLiterals:
     def test_an_aware_literal_is_admitted_in_any_spelling(self, literal: str, backend: str) -> None:
         result = try_parse_and_admit(
             f"SELECT count(*) FROM spans WHERE start_time >= '{literal}'",
-            dialect=cast(DialectName, backend),
+            dialect=cast(SupportedSQLDialectName, backend),
         )
         assert result.outcome is AdmissionOutcome.ADMIT, result.detail
 
@@ -676,7 +683,7 @@ class TestTimestampLiterals:
     def test_a_naive_time_of_day_is_refused_with_the_fix_named(self, backend: str) -> None:
         result = try_parse_and_admit(
             "SELECT count(*) FROM spans WHERE start_time >= '2026-07-01 14:30:00'",
-            dialect=cast(DialectName, backend),
+            dialect=cast(SupportedSQLDialectName, backend),
         )
         assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
         assert "+00:00" in result.detail
@@ -685,7 +692,7 @@ class TestTimestampLiterals:
     def test_a_bare_date_is_admitted(self, backend: str) -> None:
         result = try_parse_and_admit(
             "SELECT count(*) FROM spans WHERE start_time >= '2026-07-01'",
-            dialect=cast(DialectName, backend),
+            dialect=cast(SupportedSQLDialectName, backend),
         )
         assert result.outcome is AdmissionOutcome.ADMIT, result.detail
 
@@ -720,7 +727,7 @@ class TestTimestampLiterals:
         """Admitted rather than refused, so the assumption has to be stated."""
         ctx, _ = _rewrite_context(
             "SELECT count(*) FROM spans WHERE start_time >= '2026-07-01'",
-            dialect=cast(DialectName, backend),
+            dialect=cast(SupportedSQLDialectName, backend),
         )
         assert any("UTC" in note for note in ctx.notes), ctx.notes
 
@@ -734,7 +741,7 @@ class TestOneSharedResolver:
     """
 
     @staticmethod
-    def _rewritten(sql: str, dialect: DialectName = "sqlite") -> str:
+    def _rewritten(sql: str, dialect: SupportedSQLDialectName = "sqlite") -> str:
         read = "postgres" if dialect == "postgresql" else dialect
         ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect=dialect, row_limit=500)
         return rewrite(cast(exp.Expression, sqlglot.parse_one(sql, read=read)), ctx).sql(
@@ -867,7 +874,7 @@ class TestUncastJsonOrderingNote:
     """
 
     @staticmethod
-    def _noted(sql: str, dialect: DialectName = "sqlite") -> bool:
+    def _noted(sql: str, dialect: SupportedSQLDialectName = "sqlite") -> bool:
         read = "postgres" if dialect == "postgresql" else dialect
         ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect=dialect, row_limit=500)
         rewrite(cast(exp.Expression, sqlglot.parse_one(sql, read=read)), ctx)

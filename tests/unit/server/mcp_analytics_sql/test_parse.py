@@ -28,7 +28,8 @@ from typing import cast
 import pytest
 from sqlglot import exp, parse, parse_one
 
-from phoenix.server.mcp_analytics_sql.allowlist import DialectName, load_allowlist
+from phoenix.db.helpers import SupportedSQLDialectName
+from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp_analytics_sql.parse import (
     _ALLOWED_STRUCTURAL_CLASSES,
@@ -45,7 +46,7 @@ from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
 from tests.unit.server.mcp_analytics_sql.admission_fixtures import minimal_admission_allowlist
 
 CORPUS_PATH = Path(__file__).parent / "admission_corpus.jsonl"
-DIALECT: DialectName = "postgresql"
+DIALECT: SupportedSQLDialectName = "postgresql"
 
 
 def _load_corpus() -> list[dict[str, str]]:
@@ -80,7 +81,7 @@ def test_admission_corpus(case: dict[str, str]) -> None:
     # optional and defaults to Postgres. Cases that name one are asserting a
     # decision that differs between engines -- typically a function only one of
     # them can execute.
-    dialect = cast(DialectName, case.get("dialect", DIALECT))
+    dialect = cast(SupportedSQLDialectName, case.get("dialect", DIALECT))
     result = try_parse_and_admit(
         case["sql"], dialect=dialect, allowlist=minimal_admission_allowlist()
     )
@@ -216,14 +217,13 @@ class TestDdlColumnsAreQueryable:
         admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="sqlite")
 
 
-class TestPhysicalColumnsAreCaseInsensitive:
+class TestUnquotedPhysicalColumnsUsePostgresqlFolding:
     @pytest.mark.parametrize(
         "sql",
         [
             "SELECT GRADIENT_START_COLOR FROM projects",
             "SELECT Gradient_Start_Color FROM projects",
             "SELECT gRaDiEnT_sTaRt_CoLoR FROM projects",
-            'SELECT "USER_ID" FROM span_annotations',
             "SELECT USER_ID FROM span_annotations",
             "SELECT p.TRACE_RETENTION_POLICY_ID FROM projects p",
             "SELECT count(*) FROM datasets GROUP BY USER_ID",
@@ -231,6 +231,15 @@ class TestPhysicalColumnsAreCaseInsensitive:
     )
     def test_case_variants_of_a_physical_column_are_admitted(self, sql: str) -> None:
         admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
+
+    def test_a_quoted_case_variant_is_not_the_lowercase_physical_column(self) -> None:
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql(
+                'SELECT "USER_ID" FROM span_annotations',
+                allowlist=load_allowlist("sqlite"),
+                dialect="postgresql",
+            )
+        assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
 
     def test_the_table_allowlist_was_already_closed_under_case(self) -> None:
         """Recorded so the asymmetry that caused this is visible, not inferred."""
@@ -589,7 +598,11 @@ def test_a_refusal_names_the_spelling_that_works(
     module level -- put there, this asserted nothing on a default run.
     """
     with pytest.raises(AnalyticsSqlError) as caught:
-        admit_sql(refused, allowlist=load_allowlist("sqlite"), dialect=cast(DialectName, dialect))
+        admit_sql(
+            refused,
+            allowlist=load_allowlist("sqlite"),
+            dialect=cast(SupportedSQLDialectName, dialect),
+        )
     assert suggested in caught.value.message
 
 
@@ -699,7 +712,7 @@ class TestTimestampComparisonCoverage:
         spelling never equals the stored space-separated form.
         """
         result = try_parse_and_admit(
-            sql.format("2026-01-01T10:30:00"), dialect=cast(DialectName, dialect)
+            sql.format("2026-01-01T10:30:00"), dialect=cast(SupportedSQLDialectName, dialect)
         )
 
         assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
@@ -732,7 +745,7 @@ class TestTimestampComparisonCoverage:
         rows where the stored spelling matches, answering wrong in silence.
         """
         result = try_parse_and_admit(
-            sql.format("2026-01-01T10:30:00"), dialect=cast(DialectName, dialect)
+            sql.format("2026-01-01T10:30:00"), dialect=cast(SupportedSQLDialectName, dialect)
         )
 
         assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
@@ -896,7 +909,7 @@ class TestStructuralPolicyIsDefaultDeny:
     """
 
     @staticmethod
-    def _admit(sql: str, dialect: DialectName = "postgresql") -> AdmissionResult:
+    def _admit(sql: str, dialect: SupportedSQLDialectName = "postgresql") -> AdmissionResult:
         return try_parse_and_admit(sql, dialect=dialect)
 
     @pytest.mark.parametrize(
@@ -1167,7 +1180,7 @@ class TestMainstreamGrammarIsNotRefused:
         ],
     )
     def test_it_admits(self, sql: str, dialect: str) -> None:
-        result = try_parse_and_admit(sql, dialect=cast(DialectName, dialect))
+        result = try_parse_and_admit(sql, dialect=cast(SupportedSQLDialectName, dialect))
 
         assert result.outcome is AdmissionOutcome.ADMIT, f"{sql} -> {result.detail}"
 

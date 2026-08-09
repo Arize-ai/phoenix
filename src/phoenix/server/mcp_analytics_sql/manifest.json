@@ -2,11 +2,8 @@
   "areas": {
     "telemetry": {
       "tables": {
-        "projects": {
-          "grain": "One row per project"
-        },
+        "projects": {},
         "traces": {
-          "grain": "One row per trace",
           "time_column": "start_time",
           "virtual_columns": [
             "latency_ms"
@@ -16,7 +13,6 @@
           }
         },
         "spans": {
-          "grain": "One row per span",
           "time_column": "start_time",
           "promoted_columns_note": "Prefer llm_token_count_* over JSON for per-span tokens; never SUM cumulative_* across spans. Promotion happens only when span_kind='LLM': a span of any other kind that carries llm.token_count.* in attributes has NULL in these columns and in cumulative_*, so a total over a whole project can undercount unless the JSON is consulted for non-LLM kinds.",
           "blessed_attribute_paths": [
@@ -30,28 +26,23 @@
             "parent_id": "the parent's span_id, not spans.id; self-join on span_id",
             "span_id": "OTLP id, unique; the value parent_id points at",
             "trace_rowid": "internal row id; traces.trace_id is the OTLP one"
-          }
+          },
+          "grain": "One OpenTelemetry span"
         },
-        "span_annotations": {
-          "grain": "One row per span_annotation"
-        },
+        "span_annotations": {},
         "span_costs": {
-          "grain": "One row per span_cost",
           "column_notes": {
             "span_start_time": "copied from spans.start_time so cost can be filtered by time alone"
           }
         },
         "span_cost_details": {
-          "grain": "One row per span_cost_detail",
           "column_notes": {
             "is_prompt": "true for input tokens, false for output"
-          }
+          },
+          "grain": "One token-cost category within a span cost"
         },
-        "generative_models": {
-          "grain": "One row per generative_model"
-        },
+        "generative_models": {},
         "project_sessions": {
-          "grain": "One row per project_session",
           "time_column": "start_time",
           "column_notes": {
             "session_id": "external id; project_sessions.id is the internal row id"
@@ -61,35 +52,24 @@
     },
     "datasets": {
       "tables": {
-        "datasets": {
-          "grain": "One row per dataset"
-        },
-        "dataset_versions": {
-          "grain": "One row per dataset_version"
-        },
-        "dataset_examples": {
-          "grain": "One row per dataset_example"
-        },
+        "datasets": {},
+        "dataset_versions": {},
+        "dataset_examples": {},
         "dataset_example_revisions": {
-          "grain": "One row per dataset_example_revision"
+          "grain": "One immutable revision of a dataset example"
         }
       }
     },
     "experiments": {
       "tables": {
-        "experiments": {
-          "grain": "One row per experiment"
-        },
+        "experiments": {},
         "experiments_dataset_examples": {
-          "grain": "One row per experiments_dataset_example"
+          "grain": "One experiment-to-dataset-example assignment"
         },
         "experiment_runs": {
-          "grain": "One row per experiment_run",
           "time_column": "start_time"
         },
-        "experiment_run_annotations": {
-          "grain": "One row per experiment_run_annotation"
-        }
+        "experiment_run_annotations": {}
       }
     }
   }

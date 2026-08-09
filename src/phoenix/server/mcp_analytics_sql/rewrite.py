@@ -9,11 +9,11 @@ from typing import Optional
 from sqlglot import exp
 from sqlglot.optimizer.scope import build_scope
 
+from phoenix.db.helpers import SupportedSQLDialectName
 from phoenix.server.mcp_analytics_sql.allowlist import (
     GRAPHQL_NODE_ID_COLUMN,
     TABLE_GRAPHQL_TYPES,
     Allowlist,
-    DialectName,
 )
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp_analytics_sql.normalize import (
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RewriteContext:
     allowlist: Allowlist
-    dialect: DialectName
+    dialect: SupportedSQLDialectName
     row_limit: int
     applied: list[str] = field(default_factory=list)
     # Statements about this answer the caller should not have to infer. A pass
@@ -517,7 +517,12 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                     # Qualified by the alias the caller used, not by the table
                     # name: after `FROM spans AS s` the name `spans` no longer
                     # resolves.
-                    new_exprs.append(exp.column(name, table=alias or table_name or None))
+                    new_exprs.append(
+                        exp.Column(
+                            this=exp.to_identifier(name, quoted=name in spec.quoted_columns),
+                            table=exp.to_identifier(alias or table_name),
+                        )
+                    )
             local_changed = True
 
         if local_changed:

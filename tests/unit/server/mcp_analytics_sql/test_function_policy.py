@@ -20,10 +20,10 @@ import inspect
 import pytest
 from sqlglot import exp
 
+from phoenix.db.helpers import SupportedSQLDialectName
 from phoenix.server.mcp_analytics_sql.allowlist import (
     ALLOWED_FUNC_CLASSES,
     EXCLUDED_FUNC_CLASSES,
-    DialectName,
     allowed_func_classes,
 )
 from phoenix.server.mcp_analytics_sql.parse import AdmissionOutcome, _check_functions
@@ -41,7 +41,7 @@ def _function_classes() -> list[type[exp.Func]]:
 
 FUNCTION_CLASSES = _function_classes()
 
-DIALECTS: list[DialectName] = ["postgresql", "sqlite"]
+DIALECTS: list[SupportedSQLDialectName] = ["postgresql", "sqlite"]
 
 # Pinned so that widening the surface is an explicit edit rather than a side
 # effect of adding a class to a set. Raise these deliberately, with fixtures and
@@ -49,7 +49,7 @@ DIALECTS: list[DialectName] = ["postgresql", "sqlite"]
 #
 # Postgres carries one more than the portable set: an ordered-set aggregate that
 # depends on grammar SQLite does not have.
-EXPECTED_ALLOWED_BY_DIALECT: dict[DialectName, int] = {"postgresql": 42, "sqlite": 35}
+EXPECTED_ALLOWED_BY_DIALECT: dict[SupportedSQLDialectName, int] = {"postgresql": 42, "sqlite": 35}
 EXPECTED_EXCLUDED = 6
 
 
@@ -71,14 +71,14 @@ def test_parser_still_defines_every_classified_function() -> None:
 
 
 @pytest.mark.parametrize("sql_dialect", DIALECTS)
-def test_allowlist_size_is_pinned(sql_dialect: DialectName) -> None:
+def test_allowlist_size_is_pinned(sql_dialect: SupportedSQLDialectName) -> None:
     """Every added function needs fixtures, so the count is asserted, not derived."""
     assert len(allowed_func_classes(sql_dialect)) == EXPECTED_ALLOWED_BY_DIALECT[sql_dialect]
     assert len(EXCLUDED_FUNC_CLASSES) == EXPECTED_EXCLUDED
 
 
 @pytest.mark.parametrize("sql_dialect", DIALECTS)
-def test_portable_classes_are_allowed_everywhere(sql_dialect: DialectName) -> None:
+def test_portable_classes_are_allowed_everywhere(sql_dialect: SupportedSQLDialectName) -> None:
     """A dialect's set may add to the portable set but must never subtract from it."""
     missing = sorted(c.__name__ for c in ALLOWED_FUNC_CLASSES - allowed_func_classes(sql_dialect))
     assert not missing, f"{sql_dialect} is missing portable classes: {missing}"
@@ -90,7 +90,7 @@ def test_allowed_and_excluded_do_not_overlap() -> None:
     assert not overlap, f"classified as both allowed and excluded: {overlap}"
 
 
-def _class_decided(sql_dialect: DialectName) -> list[type[exp.Func]]:
+def _class_decided(sql_dialect: SupportedSQLDialectName) -> list[type[exp.Func]]:
     allowed = allowed_func_classes(sql_dialect)
     return [
         c
@@ -118,7 +118,7 @@ CLASS_CASES = [
 
 @pytest.mark.parametrize("sql_dialect,func_class", CLASS_CASES)
 def test_unclassified_function_is_refused(
-    sql_dialect: DialectName, func_class: type[exp.Func]
+    sql_dialect: SupportedSQLDialectName, func_class: type[exp.Func]
 ) -> None:
     """Anything the policy has not considered must be refused, not admitted.
 
@@ -163,7 +163,7 @@ def test_named_generic_call_outside_the_allowlist_is_refused() -> None:
     [("postgresql", "jsonb_each"), ("sqlite", "json_each")],
 )
 def test_named_generic_call_inside_the_allowlist_is_accepted(
-    sql_dialect: DialectName, name: str
+    sql_dialect: SupportedSQLDialectName, name: str
 ) -> None:
     """Guards the refusal above: a name rule that refused everything would pass it.
 
@@ -182,7 +182,7 @@ def test_named_generic_call_inside_the_allowlist_is_accepted(
     [("postgresql", "json_each"), ("sqlite", "jsonb_each")],
 )
 def test_name_allowed_on_one_backend_is_refused_on_the_other(
-    sql_dialect: DialectName, name: str
+    sql_dialect: SupportedSQLDialectName, name: str
 ) -> None:
     """The names above, swapped. Each is a real function -- on the other engine.
 
