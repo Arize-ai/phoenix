@@ -7,9 +7,10 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from enum import Enum
+from typing import TYPE_CHECKING, Callable
 
-from sqlalchemy import and_
+from sqlalchemy import and_, not_
 from sqlalchemy.sql.elements import ColumnElement
 
 from phoenix.config import (
@@ -27,15 +28,66 @@ TRANSCRIPT_POLICY_VERSION = "1"
 MAX_SESSION_EVAL_TURNS = 1_000
 
 
+class SchedulabilityReason(Enum):
+    """Why a project evaluator will never be picked up for scheduling."""
+
+    DISABLED = "DISABLED"
+    TRACE_TARGET_UNSUPPORTED = "TRACE_TARGET_UNSUPPORTED"
+    SESSION_FILTER_UNSUPPORTED = "SESSION_FILTER_UNSUPPORTED"
+    SESSION_SAMPLING_UNSUPPORTED = "SESSION_SAMPLING_UNSUPPORTED"
+
+
+@dataclass(frozen=True)
+class SessionSchedulabilityCondition:
+    """One reason a SESSION criteria is unschedulable, in both languages that ask.
+
+    ``blocks`` answers for a loaded row (the GraphQL field), ``blocks_sql`` for a
+    query (the sweeper's criteria load and the executor's hydration guard). They are
+    written side by side because drift between them is silent: the UI would advertise
+    an evaluator as schedulable that the sweeper never picks up.
+    """
+
+    reason: SchedulabilityReason
+    blocks: Callable[["models.ProjectEvaluatorCriteria"], bool]
+    blocks_sql: Callable[[type["models.ProjectEvaluatorCriteria"]], ColumnElement[bool]]
+
+
+SESSION_SCHEDULABILITY_CONDITIONS: tuple[SessionSchedulabilityCondition, ...] = (
+    SessionSchedulabilityCondition(
+        reason=SchedulabilityReason.DISABLED,
+        blocks=lambda record: not record.enabled,
+        blocks_sql=lambda criteria: not_(criteria.enabled),
+    ),
+    SessionSchedulabilityCondition(
+        reason=SchedulabilityReason.SESSION_FILTER_UNSUPPORTED,
+        blocks=lambda record: bool(record.filter_condition),
+        blocks_sql=lambda criteria: criteria.filter_condition != "",
+    ),
+    SessionSchedulabilityCondition(
+        reason=SchedulabilityReason.SESSION_SAMPLING_UNSUPPORTED,
+        blocks=lambda record: record.sampling_rate != 1.0,
+        blocks_sql=lambda criteria: criteria.sampling_rate != 1.0,
+    ),
+)
+
+
+def session_schedulability_reason(
+    record: "models.ProjectEvaluatorCriteria",
+) -> "SchedulabilityReason | None":
+    """The first condition blocking this SESSION criteria, or None if schedulable."""
+    for condition in SESSION_SCHEDULABILITY_CONDITIONS:
+        if condition.blocks(record):
+            return condition.reason
+    return None
+
+
 def session_criteria_is_schedulable(
     criteria: type["models.ProjectEvaluatorCriteria"],
 ) -> ColumnElement[bool]:
     # Session filters shipped in #14101 (#14041); #14038 owns sampling integration.
     return and_(
-        criteria.enabled,
         criteria.evaluation_target == "SESSION",
-        criteria.filter_condition == "",
-        criteria.sampling_rate == 1.0,
+        *(not_(condition.blocks_sql(criteria)) for condition in SESSION_SCHEDULABILITY_CONDITIONS),
     )
 
 
