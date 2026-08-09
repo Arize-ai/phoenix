@@ -30,8 +30,10 @@ from phoenix.config import (
     get_env_online_eval_backstop_interval_seconds,
     get_env_online_eval_backstop_lookback_span_ids,
     get_env_online_eval_frontier_lag_seconds,
+    get_env_online_eval_max_llm_message_bytes,
     get_env_online_eval_max_outstanding,
     get_env_online_eval_max_span_ids_per_tick,
+    get_env_online_eval_max_transcript_bytes,
     get_env_online_eval_pending_ttl_seconds,
     get_env_online_eval_retention_seconds,
 )
@@ -40,16 +42,15 @@ from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.online_eval.coordinator import LEASE_ATTEMPTS_EXHAUSTED_ERROR
-from phoenix.server.online_eval.db_coordinator import (
-    STALE_FINGERPRINT_ERROR,
-    work_unit_lease_lapsed,
-)
+from phoenix.server.online_eval.db_coordinator import work_unit_lease_lapsed
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
+    STALE_FINGERPRINT_ERROR,
     ResolvedCriteria,
     annotation_identifier,
     config_fingerprint,
     sample_key,
+    transcript_policy_fingerprint,
 )
 from phoenix.server.types import DaemonTask, DbSessionFactory
 from phoenix.trace.dsl.filter import SpanFilter
@@ -284,6 +285,14 @@ def _resolved_criteria(
         sandbox_config_id=sandbox_config_id,
         filter_condition=criteria.filter_condition,
         sampling_rate=criteria.sampling_rate,
+        transcript_policy_fingerprint=(
+            transcript_policy_fingerprint(
+                max_transcript_bytes=get_env_online_eval_max_transcript_bytes(),
+                max_llm_message_bytes=get_env_online_eval_max_llm_message_bytes(),
+            )
+            if criteria.evaluation_target == "SESSION"
+            else None
+        ),
     )
 
 

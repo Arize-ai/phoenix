@@ -859,7 +859,7 @@ async def test_configuration_snapshot_is_discarded_after_claim_batch(
 async def test_session_happy_path_builds_context_annotates_and_emits_insert_event(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(executor_module, "_MAX_SESSION_EVAL_TURNS", 2)
+    monkeypatch.setattr(executor_module, "MAX_SESSION_EVAL_TURNS", 2)
     start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
     async with db() as session:
         project = await _add_project(session)
@@ -1029,12 +1029,49 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
     assert events.empty()
 
 
+async def test_session_publication_stamps_the_evaluated_transcript_watermark(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    newest_root_time = start_time + timedelta(seconds=30)
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project, start_time=start_time)
+        # Materialization sees only what had been ingested by sweep time.
+        project_session.last_span_ingested_at = start_time + timedelta(seconds=5)
+        trace = await _add_trace(session, project, project_session, start_time=start_time)
+        await _add_span(session, trace, span_kind="CHAIN", start_time=start_time)
+        await _add_span(session, trace, span_kind="CHAIN", start_time=newest_root_time)
+    evaluator_id, criteria_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+    )
+    unit_id, _ = await _materialize_session_unit(
+        db,
+        project_session.id,
+        evaluator_id,
+        criteria_id,
+    )
+    _patch_playground_client(monkeypatch, _StubLLMClient())
+
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value, evaluation_target="SESSION")
+    await consumer._cycle()
+
+    unit = await _get_session_unit(db, unit_id)
+    assert unit.status == "DONE"
+    assert unit.evaluated_through == newest_root_time
+
+
 async def test_marker_only_session_transcript_is_terminal_without_counting_attempt(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     input_value = "x" * 500
     output_value = "y" * 500
     transcript = f"User: {input_value}\nAssistant: {output_value}"
+    # The cap is fingerprinted, so it has to be in force before materialization or
+    # the unit expires on the staleness guard instead of reaching the transcript.
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES", "256")
     async with db() as session:
         project = await _add_project(session)
         project_session = await _add_project_session(session, project)
@@ -1060,7 +1097,6 @@ async def test_marker_only_session_transcript_is_terminal_without_counting_attem
     )
     client = _StubLLMClient()
     _patch_playground_client(monkeypatch, client)
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES", "256")
 
     consumer = OnlineEvalConsumer(
         db,

@@ -11,6 +11,7 @@ import logging
 from collections import Counter
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, AsyncIterator, Callable, Literal, Optional, Sequence
 
@@ -47,7 +48,12 @@ from phoenix.server.dml_event import (
     SpanAnnotationInsertEvent,
 )
 from phoenix.server.online_eval.coordinator import ClaimedWorkUnit
-from phoenix.server.online_eval.derivation import config_fingerprint
+from phoenix.server.online_eval.derivation import (
+    MAX_SESSION_EVAL_TURNS,
+    STALE_FINGERPRINT_ERROR,
+    TRANSCRIPT_POLICY_VERSION,
+    config_fingerprint,
+)
 from phoenix.server.online_eval.producer import resolve_criteria_bulk
 from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
 from phoenix.server.sandbox import SecretsContext, build_sandbox_backend
@@ -57,9 +63,7 @@ from phoenix.server.types import CanPutItem, DbSessionFactory
 logger = logging.getLogger(__name__)
 
 _EMPTY_INPUT_MAPPING = InputMapping(literal_mapping={}, path_mapping={})
-_MAX_SESSION_EVAL_TURNS = 1_000
 _TRANSCRIPT_POLICY_METADATA_KEY = "phoenix.online_eval.transcript_policy"
-_TRANSCRIPT_POLICY_VERSION = "1"
 _DEFAULT_EXECUTION_DEADLINE_SECONDS = 600.0
 
 AnnotatorKind = Literal["LLM", "CODE"]
@@ -98,7 +102,9 @@ class HydrationFailureReason(str, Enum):
     EVALUATOR_MISSING = "EVALUATOR_MISSING"
     EVALUATOR_VERSION_MISSING = "EVALUATOR_VERSION_MISSING"
     SANDBOX_RUNTIME_UNAVAILABLE = "SANDBOX_RUNTIME_UNAVAILABLE"
-    CONFIG_FINGERPRINT_MISMATCH = "CONFIG_FINGERPRINT_MISMATCH"
+    # The producer's revival scan matches this exact text on an EXPIRED row, so a
+    # criteria edited and reverted re-materializes rather than staying terminal.
+    CONFIG_FINGERPRINT_MISMATCH = STALE_FINGERPRINT_ERROR
     SPAN_MISSING = "SPAN_MISSING"
     SESSION_MISSING = "SESSION_MISSING"
     SESSION_PROJECT_MISMATCH = "SESSION_PROJECT_MISMATCH"
@@ -225,9 +231,9 @@ def session_eval_context(
     last_retained = retained_turns[-1].get("event_time") if retained_turns else None
     output = turns[-1]["output"] if turns and turns[-1]["output"] is not None else ""
     policy = {
-        "version": _TRANSCRIPT_POLICY_VERSION,
+        "version": TRANSCRIPT_POLICY_VERSION,
         "ordering": "root_span_start_time_then_span_id",
-        "max_turns": _MAX_SESSION_EVAL_TURNS,
+        "max_turns": MAX_SESSION_EVAL_TURNS,
         "max_bytes": max_transcript_bytes,
         "total_eligible_root_count": total_root_count,
         "loaded_turn_count": len(turns),
@@ -248,6 +254,26 @@ def session_eval_context(
             _TRANSCRIPT_POLICY_METADATA_KEY: policy,
         },
     }
+
+
+def _transcript_coverage_watermark(hydrated: HydratedWorkUnit) -> Optional[datetime]:
+    """Newest root-span time actually included in the evaluated transcript.
+
+    A session row is materialized with ``evaluated_through`` set to the ingest
+    watermark seen at sweep time, but the transcript is assembled later and can
+    cover more; publication corrects the row to what the annotation really read.
+    """
+    policy = hydrated.annotation_metadata.get(_TRANSCRIPT_POLICY_METADATA_KEY)
+    if not isinstance(policy, dict):
+        return None
+    last_retained_event_time = policy.get("last_retained_event_time")
+    if not isinstance(last_retained_event_time, str):
+        return None
+    try:
+        watermark = datetime.fromisoformat(last_retained_event_time)
+    except ValueError:
+        return None
+    return watermark if watermark.tzinfo is not None else watermark.replace(tzinfo=timezone.utc)
 
 
 class OnlineEvalExecutor:
@@ -568,7 +594,7 @@ class OnlineEvalExecutor:
                     models.Span.start_time.desc(),
                     models.Span.span_id.desc(),
                 )
-                .limit(_MAX_SESSION_EVAL_TURNS)
+                .limit(MAX_SESSION_EVAL_TURNS)
             )
         ).all()
         turns = [
@@ -873,6 +899,11 @@ class OnlineEvalExecutor:
                         )
                         publication_fence_succeeded = owned_work_unit_id is not None
                     else:
+                        publication_values: dict[str, Any] = {"status": "DONE"}
+                        if (
+                            coverage_watermark := _transcript_coverage_watermark(hydrated)
+                        ) is not None:
+                            publication_values["evaluated_through"] = coverage_watermark
                         transition_result = await session.execute(
                             update(models.EvalSessionWorkUnit)
                             .where(
@@ -885,7 +916,7 @@ class OnlineEvalExecutor:
                                     )
                                 ),
                             )
-                            .values(status="DONE")
+                            .values(**publication_values)
                         )
                         publication_fence_succeeded = bool(
                             transition_result.rowcount == 1  # type: ignore[attr-defined]

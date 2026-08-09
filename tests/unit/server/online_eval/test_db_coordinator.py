@@ -10,11 +10,10 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
 from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS
 from phoenix.server.online_eval.db_coordinator import (
-    STALE_FINGERPRINT_ERROR,
     TRANSIENT_RETRY_MAX_AGE_SECONDS,
     DbEvalWorkCoordinator,
 )
-from phoenix.server.online_eval.derivation import MAX_ATTEMPTS
+from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, STALE_FINGERPRINT_ERROR
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace

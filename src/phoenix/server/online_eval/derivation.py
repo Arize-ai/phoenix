@@ -20,6 +20,18 @@ from phoenix.db.eval_work import MAX_ATTEMPTS as MAX_ATTEMPTS
 _IDENTIFIER_PREFIX = "online:"
 _IDENTIFIER_FINGERPRINT_CHARS = 16
 
+# Error recorded when a claimed unit's recomputed fingerprint no longer matches the
+# stored one. The consumer stamps it on expiry and the producer keys its revival
+# scan and reset on it, so a criteria edited and reverted re-materializes; the two
+# sides must read the same constant or the revival path can never fire.
+STALE_FINGERPRINT_ERROR = "CONFIG_FINGERPRINT_MISMATCH"
+
+# Session transcript assembly policy. Every input here changes the text an evaluator
+# actually judges, so it enters the fingerprint: results published under one
+# annotation identifier have to be comparable to each other.
+TRANSCRIPT_POLICY_VERSION = "1"
+MAX_SESSION_EVAL_TURNS = 1_000
+
 
 @dataclass(frozen=True)
 class ResolvedCriteria:
@@ -41,6 +53,29 @@ class ResolvedCriteria:
     sandbox_config_id: int | None
     filter_condition: str
     sampling_rate: float
+    transcript_policy_fingerprint: str | None = None
+
+
+def transcript_policy_fingerprint(
+    *,
+    max_transcript_bytes: int,
+    max_llm_message_bytes: int,
+) -> str:
+    """Identity of the session transcript assembly policy in force.
+
+    Truncation caps and the turn-block format decide what text the evaluator reads,
+    so changing any of them must change the annotation identifier — recording the
+    policy in annotation metadata makes divergence auditable but leaves results
+    under one identifier non-comparable.
+    """
+    payload = {
+        "policy_version": TRANSCRIPT_POLICY_VERSION,
+        "max_transcript_bytes": max_transcript_bytes,
+        "max_turns": MAX_SESSION_EVAL_TURNS,
+        "max_llm_message_bytes": max_llm_message_bytes,
+    }
+    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
 def _canonical_default(obj: Any) -> Any:

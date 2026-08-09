@@ -29,7 +29,6 @@ from phoenix.server.types import DbSessionFactory
 
 _CONSUMER_GROUP = "default"
 TRANSIENT_RETRY_MAX_AGE_SECONDS = 86_400.0
-STALE_FINGERPRINT_ERROR = "stale config fingerprint"
 
 _WorkUnitModel = type[models.EvalWorkUnit] | type[models.EvalSessionWorkUnit]
 
