@@ -1,16 +1,19 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Mapping, Optional, Sequence
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
 from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
 from phoenix.server.mcp_analytics_sql.catalog import (
+    EngineInfo,
+    ReflectedIndex,
     cached_engine_info,
     reflect_indexes,
     resolve_pg_schema,
 )
+from phoenix.server.mcp_analytics_sql.ddl import DetailLevel
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp_analytics_sql.execute import (
     BYTE_LIMIT,
@@ -20,14 +23,14 @@ from phoenix.server.mcp_analytics_sql.execute import (
     ExecuteParams,
     execute_analytics_sql,
 )
-from phoenix.server.mcp_analytics_sql.teaching import DetailLevel, describe_sql_schema
+from phoenix.server.mcp_analytics_sql.teaching import describe_sql_schema
 from phoenix.server.mcp_server import _META_ANNOTATIONS, _META_TAG
 from phoenix.server.types import DbSessionFactory
 
 _ANALYTICS_TAG = "phoenix-analytics-sql"
 
 
-def _preamble(dialect: str, engine: Optional[dict[str, Any]]) -> str:
+def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
     """The properties that hold for every query, stated once.
 
     They belong to the surface rather than to any one answer -- on a small
@@ -45,10 +48,10 @@ def _preamble(dialect: str, engine: Optional[dict[str, Any]]) -> str:
         "against them are refused."
     )
     if engine:
-        version = f" {engine['version']}" if engine.get("version") else ""
-        extensions = engine.get("extensions") or []
+        version = f" {engine.version}" if engine.version else ""
+        extensions = engine.extensions
         loaded = f"; sqlean extensions: {', '.join(extensions)}" if extensions else ""
-        lines.append(f"-- backend: {engine.get('name', dialect)}{version}{loaded}")
+        lines.append(f"-- backend: {engine.name}{version}{loaded}")
     backstop = "statement_timeout" if dialect == "postgresql" else "sqlite_progress_handler"
     lines.append(
         f"-- read-only. {DEFAULT_ROW_LIMIT} rows by default, {MAX_ROW_LIMIT} max; "
@@ -89,7 +92,7 @@ def _preamble(dialect: str, engine: Optional[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def _render_indexes(indexes: dict[str, list[dict[str, Any]]]) -> str:
+def _render_indexes(indexes: Mapping[str, Sequence[ReflectedIndex]]) -> str:
     """Indexes in the form a query has to match.
 
     An expression index is used only when the query repeats the indexed
@@ -105,8 +108,8 @@ def _render_indexes(indexes: dict[str, list[dict[str, Any]]]) -> str:
     ]
     for table in sorted(indexes):
         for index in indexes[table]:
-            unique = "UNIQUE " if index.get("unique") else ""
-            lines.append(f"CREATE {unique}INDEX {index['name']} ON {table} {index['on']};")
+            unique = "UNIQUE " if index.unique else ""
+            lines.append(f"CREATE {unique}INDEX {index.name} ON {table} {index.body};")
     return "\n".join(lines)
 
 

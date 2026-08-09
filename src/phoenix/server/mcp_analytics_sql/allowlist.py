@@ -1,23 +1,20 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from functools import lru_cache
-from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Mapping, Optional, cast
+from typing import Mapping, Optional
 
 from sqlglot import exp
 
 from phoenix.db.ddl import load_dialect_schema
 from phoenix.db.helpers import SupportedSQLDialectName
+from phoenix.server.mcp_analytics_sql.manifest import manifest
 
 
 def sqlglot_read_dialect(dialect: SupportedSQLDialectName) -> str:
     return "postgres" if dialect == "postgresql" else dialect
 
-
-MANIFEST_PATH = Path(__file__).with_name("manifest.json")
 
 # SQLGlot expression classes treated as allowed SQL callables during admission.
 # Portable across both backends.
@@ -600,35 +597,20 @@ class Allowlist:
 
 
 @lru_cache
-def _manifest_text() -> str:
-    """The manifest source, read once per process.
-
-    Two things are derived from this file: what the surface tells callers exists,
-    and what it will actually admit. Reading it separately for each gave them
-    separate lifetimes -- the description was re-read on every call while the
-    policy was cached at first use -- so editing the file under a running server
-    moved one and not the other, and the surface would describe a schema it
-    would then refuse to execute. Caching the text is what keeps the two
-    answers derived from the same bytes.
-    """
-    return MANIFEST_PATH.read_text()
-
-
-@lru_cache
 def load_allowlist(dialect: SupportedSQLDialectName) -> Allowlist:
-    raw = json.loads(_manifest_text())
+    curation = manifest()
     schema = load_dialect_schema(dialect)
     table_specs: dict[str, TableSpec] = {}
     areas: dict[str, frozenset[str]] = {}
-    for area_name, area in raw["areas"].items():
+    for area_name, area in curation.areas.items():
         names: set[str] = set()
-        for table_name, table in area.get("tables", {}).items():
+        for table_name, table in area.tables.items():
             physical_table = schema.get(table_name)
             if physical_table is None:
                 raise ValueError(
                     f"Allowlisted table {table_name!r} is missing from the DDL assets."
                 )
-            virtual_columns = frozenset(table.get("virtual_columns", [])) | (
+            virtual_columns = table.virtual_columns | (
                 {GRAPHQL_NODE_ID_COLUMN} if table_name in TABLE_GRAPHQL_TYPES else frozenset()
             )
             physical_by_folded_name = {
@@ -654,17 +636,17 @@ def load_allowlist(dialect: SupportedSQLDialectName) -> Allowlist:
             table_specs[table_name] = TableSpec(
                 name=table_name,
                 area=area_name,
-                grain=table.get("grain", ""),
+                grain=table.grain,
                 columns=physical_table.columns,
                 quoted_columns=physical_table.quoted_columns,
-                time_column=table.get("time_column"),
+                time_column=table.time_column,
                 # Derived columns come from the manifest, plus the node id for
                 # tables that have a GraphQL type -- that mapping lives in code
                 # rather than the manifest because it tracks the API's type names,
                 # not the database schema.
                 virtual_columns=virtual_columns,
-                promoted_columns_note=table.get("promoted_columns_note"),
-                column_notes=MappingProxyType(dict(table.get("column_notes", {}))),
+                promoted_columns_note=table.promoted_columns_note,
+                column_notes=table.column_notes,
             )
             names.add(table_name)
         areas[area_name] = frozenset(names)
@@ -674,12 +656,3 @@ def load_allowlist(dialect: SupportedSQLDialectName) -> Allowlist:
         areas=MappingProxyType(areas),
         pg_schema="public",
     )
-
-
-def manifest_document() -> dict[str, Any]:
-    # Parsed fresh from the cached text rather than cached itself, so a caller
-    # that mutates the returned document cannot corrupt what later callers see.
-    document = json.loads(_manifest_text())
-    if not isinstance(document, dict):
-        raise ValueError("Analytics SQL manifest must contain a JSON object.")
-    return cast(dict[str, Any], document)

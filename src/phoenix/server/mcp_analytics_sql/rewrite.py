@@ -15,6 +15,7 @@ from phoenix.server.mcp_analytics_sql.allowlist import (
     TABLE_GRAPHQL_TYPES,
     Allowlist,
 )
+from phoenix.server.mcp_analytics_sql.catalog import IndexedJsonAccessor
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp_analytics_sql.normalize import (
     format_timestamp_for_sqlite,
@@ -35,10 +36,10 @@ class RewriteContext:
     # Statements about this answer the caller should not have to infer. A pass
     # that resolves something the caller left open records it here.
     notes: list[str] = field(default_factory=list)
-    # Logical JSON path -> (accessor kind, exact path literal) for paths this
+    # Logical JSON path -> indexed accessor for paths this
     # deployment has indexed, read from its catalog. Empty when nothing is
     # indexed or the catalog could not be read, which costs only the index.
-    indexed_json_accessors: dict[tuple[str, ...], tuple[str, str]] = field(default_factory=dict)
+    indexed_json_accessors: dict[tuple[str, ...], IndexedJsonAccessor] = field(default_factory=dict)
     # Relation names that exist only inside this statement: the caller's CTEs
     # and subqueries. SQLite can attribute a column read to one of these instead
     # of to the underlying table, and the authorizer has no other way to tell
@@ -373,23 +374,24 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
         keys = _json_path_keys(node.expression)
         indexed = ctx.indexed_json_accessors.get(keys) if keys else None
         if indexed is not None:
-            accessor, literal = indexed
             # An index built on `->` is deliberately not matched. That accessor
             # returns JSON text, so reproducing it to gain the index would
             # reintroduce the comparison bug this function exists to prevent,
             # and a fast wrong answer is worse than a slow right one.
-            if accessor == "json_extract":
+            if indexed.kind == "json_extract":
                 node.replace(
                     exp.Anonymous(
                         this="json_extract",
-                        expressions=[node.this, exp.Literal.string(literal)],
+                        expressions=[node.this, exp.Literal.string(indexed.path_literal)],
                     )
                 )
                 changed = True
                 continue
-            if accessor == "->>":
+            if indexed.kind == "->>":
                 node.replace(
-                    exp.JSONExtractScalar(this=node.this, expression=exp.Literal.string(literal))
+                    exp.JSONExtractScalar(
+                        this=node.this, expression=exp.Literal.string(indexed.path_literal)
+                    )
                 )
                 changed = True
                 continue
