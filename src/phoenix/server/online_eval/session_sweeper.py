@@ -65,6 +65,10 @@ _SESSION_WORK_INSERT_FIXED_PARAMETERS = 16
 _SESSION_WORK_INSERT_BATCH_SIZE = (
     _MAX_SESSION_WORK_INSERT_PARAMETERS - _SESSION_WORK_INSERT_FIXED_PARAMETERS
 )
+# Only work terminated within this window feeds the watermark-lag gauge; the table has
+# no retention, so an unbounded aggregate would scan more rows on every tick forever.
+_WATERMARK_LAG_WINDOW_SECONDS = 86_400.0
+
 _LIVE_WORK_INDEX_PREDICATE = text(live_eval_work_index_predicate())
 
 _SESSION_WORK_INSERT_COLUMNS = (
@@ -340,7 +344,7 @@ class SessionEvalSweeper(DaemonTask):
             limit=min(work_budget, _MAX_ELIGIBLE_PAIRS_PER_TICK),
         )
         if self._publish_metrics:
-            await self._publish_eligibility_metrics(session, eligible_pair_count)
+            await self._publish_eligibility_metrics(session, database_now, eligible_pair_count)
         if not eligible_pairs:
             return 0
 
@@ -470,34 +474,38 @@ class SessionEvalSweeper(DaemonTask):
     async def _publish_eligibility_metrics(
         self,
         session: AsyncSession,
+        database_now: datetime,
         eligible_pair_count: int,
     ) -> None:
         ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG.set(eligible_pair_count)
-        watermark_rows = (
-            await session.execute(
-                select(
-                    models.ProjectSession.last_span_ingested_at,
-                    models.EvalSessionWorkUnit.evaluated_through,
-                )
-                .join(
-                    models.EvalSessionWorkUnit,
-                    models.EvalSessionWorkUnit.project_session_rowid == models.ProjectSession.id,
-                )
-                .where(
-                    models.EvalSessionWorkUnit.status == "DONE",
-                    models.ProjectSession.last_span_ingested_at.is_not(None),
-                )
+        if self._db.dialect is SupportedSQLDialect.SQLITE:
+            lag_seconds = (
+                cast(func.julianday(models.ProjectSession.last_span_ingested_at), Float)
+                - cast(func.julianday(models.EvalSessionWorkUnit.evaluated_through), Float)
+            ) * 86_400
+        else:
+            lag_seconds = func.extract(
+                "epoch",
+                models.ProjectSession.last_span_ingested_at
+                - models.EvalSessionWorkUnit.evaluated_through,
             )
-        ).all()
-        watermark_lag_seconds = max(
-            (
-                max((last_span_ingested_at - evaluated_through).total_seconds(), 0.0)
-                for last_span_ingested_at, evaluated_through in watermark_rows
-                if last_span_ingested_at is not None
-            ),
-            default=0.0,
+        watermark_lag_seconds = await session.scalar(
+            select(func.max(lag_seconds))
+            .select_from(models.EvalSessionWorkUnit)
+            .join(
+                models.ProjectSession,
+                models.EvalSessionWorkUnit.project_session_rowid == models.ProjectSession.id,
+            )
+            .where(
+                models.EvalSessionWorkUnit.status == "DONE",
+                models.EvalSessionWorkUnit.updated_at
+                >= database_now - timedelta(seconds=_WATERMARK_LAG_WINDOW_SECONDS),
+                models.ProjectSession.last_span_ingested_at.is_not(None),
+            )
         )
-        ONLINE_EVAL_SESSION_RESULT_WATERMARK_LAG_SECONDS.set(watermark_lag_seconds)
+        ONLINE_EVAL_SESSION_RESULT_WATERMARK_LAG_SECONDS.set(
+            max(float(watermark_lag_seconds or 0.0), 0.0)
+        )
 
     async def _admission_budget(self, session: AsyncSession) -> int:
         outstanding = (
