@@ -1,5 +1,5 @@
 import strawberry
-from sqlalchemy import delete, select
+from sqlalchemy import and_, delete, literal, not_, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import load_only
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -93,7 +93,20 @@ class ProjectMutationMixin:
             stmt = delete(models.ProjectSession)
             for i in range(0, len(session_ids_to_delete), chunk_size):
                 chunk = session_ids_to_delete[i : i + chunk_size]
-                await session.execute(stmt.where(models.ProjectSession.id.in_(chunk)))
+                await session.execute(
+                    stmt.where(
+                        and_(
+                            models.ProjectSession.id.in_(chunk),
+                            not_(
+                                select(literal(1))
+                                .where(
+                                    models.Trace.project_session_rowid == models.ProjectSession.id
+                                )
+                                .exists()
+                            ),
+                        )
+                    )
+                )
         info.context.event_queue.put(SpanDeleteEvent((project_id,)))
         return Query()
 
