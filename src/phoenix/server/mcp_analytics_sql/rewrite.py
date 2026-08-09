@@ -508,16 +508,11 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                         ),
                         identifiers=(table_name,),
                     )
-                # Exposed columns, then the virtual ones. Expanding the hidden
-                # list here would hand back through `*` exactly what the schema
-                # declines to show; omitting the virtual list did the mirror
-                # image, returning fewer columns than the same CREATE TABLE
-                # block advertises, so a caller who used `*` to learn the shape
-                # concluded `latency_ms` and `graphql_node_id` did not exist.
-                # Star expansion runs before their substitution passes, so
-                # naming them here is enough for those passes to resolve them.
-                emitted = [col.name for col in spec.exposed_columns]
-                emitted += sorted(spec.virtual_columns)
+                # Every physical DDL column, then query-only virtual overlays.
+                # Star expansion runs before virtual-column substitution, so
+                # naming the overlays here is enough for those passes to resolve
+                # them while retaining the ordered physical table shape.
+                emitted = [*spec.columns, *sorted(spec.virtual_columns)]
                 for name in emitted:
                     # Qualified by the alias the caller used, not by the table
                     # name: after `FROM spans AS s` the name `spans` no longer

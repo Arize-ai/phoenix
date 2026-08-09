@@ -600,10 +600,9 @@ class Locality(Enum):
     OUTPUT_ALIAS = "output_alias"
 
 
-#: Evidence a disclosure check may act on. Excluding `OUTPUT_ALIAS` ends a class
-#: of defect rather than another instance of it: an alias-precedence rule that is
-#: subtly wrong then costs a rewrite that was not done, never a withheld column
-#: that was read.
+#: Structural evidence a rewrite or schema check may act on. Excluding
+#: `OUTPUT_ALIAS` ensures a precedence-modeling error leaves a caller-written
+#: expression unchanged rather than rewriting an input column.
 STRUCTURAL = frozenset({Locality.DERIVED_QUALIFIED, Locality.DERIVED_PROJECTION})
 
 
@@ -661,17 +660,12 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> Column
     ``GROUP BY`` is deliberately absent from the third case, and the two clauses
     are not symmetric. Both engines resolve a bare ``GROUP BY`` name against the
     *input* columns first, falling back to an output alias only when no source
-    column carries the name -- so treating it as query-local let an alias
-    shadowing a withheld column reach it: ``SELECT name AS user_id FROM datasets
-    GROUP BY user_id`` groups by the real ``user_id`` and was admitted, which
-    discloses that column's distribution.
+    column carries the name.
 
     Each reference is returned with the category of evidence that made it local,
-    because the consumers disagree about which evidence is enough. A rewrite that
-    wrongly skips a reference leaves the statement alone; a disclosure check that
-    wrongly skips one reads a withheld column. Only the third case above models
-    engine binding precedence, and only that case is refused a disclosure check's
-    trust -- which ends the class rather than correcting another instance of it.
+    because consumers decide whether to substitute virtual columns or validate a
+    physical schema reference. Only the third case above models engine binding
+    precedence, so it is not structural evidence.
     """
     scope_root = build_scope(root)
     if scope_root is None:
@@ -737,13 +731,10 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> Column
                     local.setdefault(id(key), Locality.OUTPUT_ALIAS)
         # GROUP BY takes the input column when one carries the name and the
         # output alias only otherwise, so it is local only in the second case.
-        # Marking it local unconditionally let an alias shadowing a withheld
-        # column reach it; never marking it refuses `GROUP BY v` over an
-        # alias-only name, which is ordinary bucketing SQL.
         group_clause = select.args.get("group") if select else None
         if group_clause is not None:
             offered = {
-                column.name.casefold()
+                column.casefold()
                 for alias, source in scope.sources.items()
                 if isinstance(source, exp.Table) and source.name in table_specs
                 for column in table_specs[source.name].columns
@@ -881,8 +872,8 @@ def _check_base_tables(root: exp.Expression, *, allowlist: Allowlist) -> Optiona
     # name collides with it and the table is dropped from the map entirely --
     # `FROM projects AS x, x` alongside `WITH x AS (...)` leaves sources holding
     # only the CTE. Every check built on sources then skips the table: the
-    # relation check above never sees it, and the hidden-column check finds an
-    # empty map and moves on, so `projects`'s omitted columns were readable.
+    # relation check above never sees it, and later scope-dependent checks find
+    # an empty map and move on.
     #
     # Refused rather than resolved. PostgreSQL rejects the statement outright
     # ("table name specified more than once"), so accepting it on SQLite was a
@@ -921,42 +912,16 @@ def _check_base_tables(root: exp.Expression, *, allowlist: Allowlist) -> Optiona
     return None
 
 
-def _check_hidden_columns(
+def _check_column_references(
     root: exp.Expression, *, allowlist: Allowlist
 ) -> Optional[AdmissionResult]:
-    """Refuse a reference to a column the schema declines to show.
+    """Validate base-table column references and preserve structural protections.
 
-    Without this the schema would be decoration: `describeSqlSchema` omits
-    `user_id`, but nothing stopped `SELECT user_id FROM datasets` from returning
-    it, so the document and the executor disagreed about what the surface is.
-
-    Resolution is deliberately conservative. A qualified reference resolves
-    through the scope's own sources, which is exact. An unqualified one is
-    checked against every allowlisted table in scope, so a bare `user_id` is
-    refused wherever it could have come from -- at the cost of also refusing an
-    alias that happens to share the name. Refusing something harmless costs a
-    caller one rewrite; admitting a column the schema never showed them means
-    the document and the executor disagree, which is the failure this surface
-    has produced most often.
+    Physical columns come from the generated DDL, so every physical column on an
+    allowlisted table is queryable. Virtual columns are query-only overlays.
+    Query-local relations retain their own names; the manifest cannot validate
+    those projections.
     """
-    # Case-folded on both sides. The table rule above is an allowlist, so an
-    # unrecognised spelling fails closed; this one is a denylist, so an
-    # unrecognised spelling fails *open* -- and both engines resolve unquoted
-    # identifiers case-insensitively, which made `SELECT GRADIENT_START_COLOR`
-    # and `SELECT USER_ID` return exactly the data the lowercase spelling is
-    # refused for. Quoted upper-case is folded too: it names nothing on
-    # PostgreSQL, and SQLite matches it case-insensitively regardless.
-    hidden_anywhere = {
-        column.casefold()
-        for spec in allowlist.table_specs.values()
-        for column in spec.hidden_columns
-    }
-    # A CTE column, a subquery projection or an output alias is the caller's own
-    # name for their own value, and resolving it against a base table's schema
-    # refuses a statement that never touched one.
-    #
-    # Read by category below, because the two checks here have opposite safe
-    # directions and must not accept the same evidence. See `Locality`.
     localities = query_local_columns(root, allowlist=allowlist)
     try:
         scope_root = build_scope(root)
@@ -983,45 +948,23 @@ def _check_hidden_columns(
                 by_reference.setdefault(node.name, node.name)
         if not by_reference:
             continue
-        # `USING (col)` and NATURAL JOIN both equate columns without ever
-        # producing an `exp.Column`, so scanning column references alone missed
-        # them. That was not merely a read of a hidden column: joining a
-        # caller-supplied VALUES list `USING (gradient_start_color)` returns one
-        # row per match, so a candidate list reconstructs the omitted value row
-        # by row -- reaching, through a join, past what the schema describes.
+        # NATURAL JOIN names none of its join keys, so its behavior changes when
+        # physical schemas evolve. Keep join criteria explicit rather than
+        # silently taking every same-named column.
         for join in scope.expression.find_all(exp.Join):
             if (join.args.get("method") or "").upper() == "NATURAL":
-                # NATURAL names nothing, so nothing can be inspected: it joins on
-                # every column the two sides share, hidden ones included. There
-                # is no safe subset, so the construct goes.
                 return AdmissionResult(
                     AdmissionOutcome.UNSUPPORTED_SYNTAX,
-                    "NATURAL JOIN joins on every shared column, including ones "
-                    "this surface does not expose. Name the join columns with ON.",
+                    "NATURAL JOIN joins on every shared column. Name the join columns with ON.",
                 )
-            for identifier in join.args.get("using") or []:
-                folded = identifier.name.casefold()
-                if folded in hidden_anywhere:
-                    for table_name in dict.fromkeys(by_reference.values()):
-                        if folded in {
-                            c.casefold() for c in allowlist.table_specs[table_name].hidden_columns
-                        }:
-                            return AdmissionResult(
-                                AdmissionOutcome.COLUMN_NOT_ALLOWED,
-                                f"{table_name}.{identifier.name}",
-                            )
 
         # A bare reference to a relation is the whole row, and PostgreSQL will
-        # hand it over: `SELECT p FROM projects p` and `SELECT CAST(p AS TEXT)
-        # FROM projects p` both return every physical column, hidden ones
-        # included. It parses as an ordinary unqualified Column whose name
-        # happens to be the relation's, so the per-column rules below never
-        # applied to it -- the check reads column names, and this construct
-        # names no column at all.
+        # hand it over. It parses as an ordinary unqualified Column whose name
+        # happens to be the relation's, so the per-column rules below do not
+        # apply to it.
         #
-        # `exp.Dot` is the same escape from the other side: `(d).user_id`
-        # reaches a field of that row without producing a Column node for it.
-        # Neither has a use here that naming the columns does not serve.
+        # `exp.Dot` is the same escape from the other side: `(d).field` reaches
+        # a field of that row without producing a normal Column node.
         for dot in scope.expression.find_all(exp.Dot):
             # Only when the left side is a *relation*, which is the row-valued
             # escape: `(d).user_id` reaches a field of the whole row without
@@ -1057,8 +1000,7 @@ def _check_hidden_columns(
                 return AdmissionResult(
                     AdmissionOutcome.UNSUPPORTED_SYNTAX,
                     f"{column.name!r} names a table here, so it selects the whole row "
-                    "including columns this surface does not expose. Name the columns "
-                    "you want.",
+                    "rather than a column. Name the columns you want.",
                 )
 
         # A source in this scope that is not an allowlisted table -- a
@@ -1081,58 +1023,11 @@ def _check_hidden_columns(
                 candidates = list(dict.fromkeys(by_reference.values()))
             if not candidates:
                 continue
-            # A hidden column is refused wherever it could have come from, and a
-            # foreign source does not change that. Skipping the whole scope when
-            # one is present let a trivial cross-join launder every hidden
-            # column: `SELECT user_id FROM datasets, (SELECT 1) q` is unqualified,
-            # so it took the foreign-source path and was never checked.
-            #
-            # A derived relation that genuinely projects the name was excluded
-            # above, so reaching here with a hidden name means either the
-            # allowlisted table is the only source offering it, or the reference
-            # is alias-bound -- evidence this check declines, and refuses on.
-            for table_name in candidates:
-                folded = {c.casefold() for c in allowlist.table_specs[table_name].hidden_columns}
-                if name in folded:
-                    if localities.is_alias_bound(column):
-                        # States the collision and the fix, and asserts nothing
-                        # about where the name binds. It binds to the alias in
-                        # the shape that reaches here, so a message describing
-                        # the outcome as uncertain would be false; and any
-                        # binding claim is one more thing to keep true as the
-                        # rules the category models are refined.
-                        return AdmissionResult(
-                            AdmissionOutcome.COLUMN_NOT_ALLOWED,
-                            f"{table_name}.{name}",
-                            message=(
-                                f"An output alias named {name} matches a column of "
-                                f"{table_name} that is not part of the analytics schema. "
-                                "The collision is refused outright, so the withheld column "
-                                "cannot be reached through it. Rename the alias."
-                            ),
-                        )
-                    return AdmissionResult(
-                        AdmissionOutcome.COLUMN_NOT_ALLOWED, f"{table_name}.{name}"
-                    )
-            # An allowlist, not a hidden-column denylist. The two agree on every
-            # column the manifest knows about, and differ on one it does not:
-            # under a denylist a column that exists and is described nowhere is
-            # readable, so the schema stops being the description of the surface
-            # the moment the two drift.
-            #
-            # Safe to invert because the drift is already impossible to ship:
-            # the manifest is asserted equal to the ORM's columns, table by
-            # table. This makes the runtime enforce what that assertion checks,
-            # rather than trusting it to have been run.
-            #
-            # Unqualified references are checked against every allowlisted table
-            # in scope and refused if *no* candidate offers the name, which is
-            # the conservative direction: a name that resolves nowhere is a
-            # mistake, and one that resolves somewhere is admitted.
-            # Past the hidden check, so the strict bar has been met and the
-            # alias evidence can be spent here. Declining it in this branch too
-            # would refuse `SELECT count(*) AS n FROM spans ORDER BY n`, where
-            # the name is the caller's own and no table was ever consulted.
+            # A base-table reference must name a physical DDL column or a virtual
+            # overlay. Unqualified references are checked against every
+            # allowlisted table in scope and admitted if any one offers the name.
+            # Output aliases are caller-defined names, so they need no physical
+            # schema match.
             if localities.is_alias_bound(column):
                 continue
             if any(_offers_column(allowlist, table_name, name) for table_name in candidates):
@@ -1143,41 +1038,25 @@ def _check_hidden_columns(
             # the manifest has never heard of, and `json_each(attributes)`
             # projecting `key` is a shape the schema teaches.
             #
-            # Reached only for names that are not hidden, since those returned
-            # above. So a foreign source can supply a name we do not know; it
-            # cannot launder one we withheld.
             if not qualifier and foreign_source:
                 continue
             # Not a column of any table in scope -- a misspelling, most often.
-            # The withheld-column wording would be false here and would tell the
-            # caller to stop rather than to fix the spelling, so this names the
-            # nearest columns the schema does offer. Only for the shapes this
-            # branch refuses: a reference beside a foreign source returned above
-            # and still reaches the engine, where PostgreSQL suggests a name
-            # itself and SQLite does not.
+            # Name nearby physical or virtual columns so a misspelling is
+            # actionable on both engines. PostgreSQL suggests a name itself in
+            # some execution paths; SQLite does not.
             #
             # Virtual columns are in the pool because they are columns to a
             # caller, and `latency_ms` is the most advertised name here.
-            # Parenthesised because `-` binds tighter than `|`: without them the
-            # withheld names are subtracted from the virtual set alone and stay
-            # in the pool, so a near miss on one is answered by naming it.
             offered_here = sorted(
-                (
-                    {
-                        spec.name
-                        for table_name in candidates
-                        for spec in allowlist.table_specs[table_name].columns
-                    }
-                    | {
-                        virtual
-                        for table_name in candidates
-                        for virtual in allowlist.table_specs[table_name].virtual_columns
-                    }
-                )
-                - {
-                    hidden
+                {
+                    physical
                     for table_name in candidates
-                    for hidden in allowlist.table_specs[table_name].hidden_columns
+                    for physical in allowlist.table_specs[table_name].columns
+                }
+                | {
+                    virtual
+                    for table_name in candidates
+                    for virtual in allowlist.table_specs[table_name].virtual_columns
                 }
             )
             near = get_close_matches(name, offered_here, n=3, cutoff=0.7)
@@ -1202,16 +1081,16 @@ def _check_hidden_columns(
 
 
 def _offers_column(allowlist: Allowlist, table_name: str, folded_name: str) -> bool:
-    """Whether the schema shows this column for this table.
+    """Whether this table exposes a physical or virtual column under this name.
 
     Virtual columns are advertised and not stored, so they are offered here and
     absent from the manifest's column list; a check that reads only the latter
     refuses the columns the surface exists to provide.
     """
     spec = allowlist.table_specs[table_name]
-    if folded_name in {column.name.casefold() for column in spec.columns}:
-        return folded_name not in {hidden.casefold() for hidden in spec.hidden_columns}
-    return folded_name in {virtual.casefold() for virtual in spec.virtual_columns}
+    return folded_name in {column.casefold() for column in spec.columns} | {
+        virtual.casefold() for virtual in spec.virtual_columns
+    }
 
 
 def admit(root: exp.Expression, *, allowlist: Allowlist, dialect: DialectName) -> exp.Expression:
@@ -1236,7 +1115,7 @@ def admit(root: exp.Expression, *, allowlist: Allowlist, dialect: DialectName) -
         or _check_double_quoted_timestamp_operands(root, allowlist=allowlist)
         or _check_functions(root, allowlist=allowlist, dialect=dialect)
         or _check_base_tables(root, allowlist=allowlist)
-        or _check_hidden_columns(root, allowlist=allowlist)
+        or _check_column_references(root, allowlist=allowlist)
         or _check_timestamp_literals(root, allowlist=allowlist)
     )
     if failure is not None:

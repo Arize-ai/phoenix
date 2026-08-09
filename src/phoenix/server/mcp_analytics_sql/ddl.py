@@ -190,7 +190,7 @@ def _matches(spec: TableSpec, search: str) -> bool:
     needle = search.lower()
     if needle in spec.name.lower():
         return True
-    return any(needle in column.name.lower() for column in spec.exposed_columns)
+    return any(needle in column.lower() for column in spec.columns)
 
 
 def validate_ddl(ddl: str, dialect: str) -> None:

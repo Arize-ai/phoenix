@@ -169,8 +169,8 @@ def format_timestamp_for_sqlite(value: datetime) -> str:
 def timestamp_column_names(tables: frozenset[str]) -> frozenset[str]:
     """Names that hold a timestamp on the given tables.
 
-    Matched by name rather than by resolving each reference back to its table,
-    the way the hidden-column check matches. Sound here only because no
+    Matched by name rather than by resolving each reference back to its table.
+    Sound here only because no
     allowlisted table gives one of these names to a column of another type,
     which a test pins so that a future migration cannot quietly break it.
     """

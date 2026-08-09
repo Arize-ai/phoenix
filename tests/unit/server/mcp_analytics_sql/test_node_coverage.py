@@ -61,7 +61,7 @@ GOVERNED_BY_CHECK: dict[str, str] = {
     # schema qualifier; a function result is left alone, because
     # `(jsonb_each(x)).key` is the idiomatic way to project one field of a
     # set-returning function on PostgreSQL.
-    "Dot": "parse._check_hidden_columns",
+    "Dot": "parse._check_column_references",
     # `regclass` and its siblings, refused as cast targets: they consult the
     # system catalogs for any relation, role or function and never appear as a
     # scanned relation, so the plan gate cannot see them.
