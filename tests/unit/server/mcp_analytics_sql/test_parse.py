@@ -239,6 +239,16 @@ class TestPhysicalColumnsAreCaseInsensitive:
                 admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
             assert caught.value.code is ErrorCode.RELATION_NOT_ALLOWED
 
+    def test_raw_foreign_key_target_outside_the_schema_surface_is_refused(self) -> None:
+        """DDL references can explain storage without widening what SQL may read."""
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql(
+                "SELECT id FROM project_trace_retention_policies",
+                allowlist=load_allowlist("sqlite"),
+                dialect="sqlite",
+            )
+        assert caught.value.code is ErrorCode.RELATION_NOT_ALLOWED
+
 
 class TestJoinStructure:
     @pytest.mark.parametrize(

@@ -620,17 +620,16 @@ def load_allowlist(dialect: DialectName) -> Allowlist:
     for area_name, area in raw["areas"].items():
         names: set[str] = set()
         for table_name, table in area.get("tables", {}).items():
-            physical_table = schema.tables.get(table_name)
+            physical_table = schema.get(table_name)
             if physical_table is None:
                 raise ValueError(
                     f"Allowlisted table {table_name!r} is missing from the DDL assets."
                 )
-            columns = tuple(column.name for column in physical_table.columns)
             table_specs[table_name] = TableSpec(
                 name=table_name,
                 area=area_name,
                 grain=table.get("grain", ""),
-                columns=columns,
+                columns=physical_table.columns,
                 time_column=table.get("time_column"),
                 # Derived columns come from the manifest, plus the node id for
                 # tables that have a GraphQL type -- that mapping lives in code

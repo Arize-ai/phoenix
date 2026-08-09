@@ -23,7 +23,6 @@ _CREATE_TABLE = re.compile(
     r"(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\(",
     re.MULTILINE,
 )
-_NOT_NULL = re.compile(r"\bNOT\s+NULL\b", re.IGNORECASE)
 _CONSTRAINT_PREFIXES = frozenset({"CHECK", "CONSTRAINT", "FOREIGN", "PRIMARY", "UNIQUE"})
 
 
@@ -32,28 +31,11 @@ class SchemaAssetError(ValueError):
 
 
 @dataclass(frozen=True)
-class PhysicalColumn:
-    """A stored table column common to both supported database dialects."""
-
-    name: str
-    nullable: bool
-
-
-@dataclass(frozen=True)
 class TableSchema:
-    """Generated DDL and physical metadata for one table."""
+    """Raw generated DDL and ordered physical column names for one table."""
 
-    name: str
     create_table_ddl: str
-    columns: tuple[PhysicalColumn, ...]
-
-
-@dataclass(frozen=True)
-class DialectSchema:
-    """A generated schema asset indexed by table name."""
-
-    dialect: DialectName
-    tables: Mapping[str, TableSchema]
+    columns: tuple[str, ...]
 
 
 def _identifier(token: str) -> str:
@@ -146,26 +128,21 @@ def _parse_table_section(name: str, section: str, dialect: DialectName) -> Table
     statement_end = _find_statement_end(section, match.start())
     create_table_ddl = section[match.start() : statement_end].strip()
     body = create_table_ddl[match.end() - match.start() : -2]
-    columns: list[PhysicalColumn] = []
+    columns: list[str] = []
     for definition in _split_definitions(body):
         first = definition.split(None, 1)[0]
         if first.upper() not in _CONSTRAINT_PREFIXES:
-            columns.append(
-                PhysicalColumn(
-                    name=_identifier(first), nullable=_NOT_NULL.search(definition) is None
-                )
-            )
+            columns.append(_identifier(first))
     if not columns:
         raise SchemaAssetError(f"{dialect} DDL section {name!r} has no columns")
     return TableSchema(
-        name=name,
         create_table_ddl=create_table_ddl,
         columns=tuple(columns),
     )
 
 
 @lru_cache
-def load_dialect_schema(dialect: DialectName) -> DialectSchema:
+def load_dialect_schema(dialect: DialectName) -> Mapping[str, TableSchema]:
     """Load and validate one generated schema asset from the installed package."""
 
     text = _resource_text(dialect)
@@ -180,4 +157,4 @@ def load_dialect_schema(dialect: DialectName) -> DialectSchema:
             raise SchemaAssetError(f"{dialect} DDL asset has duplicate table marker {name!r}")
         section_end = markers[index + 1].start() if index + 1 < len(markers) else len(text)
         tables[name] = _parse_table_section(name, text[marker.end() : section_end], dialect)
-    return DialectSchema(dialect=dialect, tables=MappingProxyType(tables))
+    return MappingProxyType(tables)

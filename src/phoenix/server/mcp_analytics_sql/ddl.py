@@ -171,7 +171,7 @@ def render_schema_ddl(
             spec = allowlist.table_specs.get(table_name)
             if spec is None or (search and not _matches(spec, search)):
                 continue
-            create_table_ddl = schema.tables[table_name].create_table_ddl
+            create_table_ddl = schema[table_name].create_table_ddl
             if dialect_name == "postgresql":
                 create_table_ddl = _unqualify_postgresql_ddl(create_table_ddl)
             block = _render_table(spec, detail=detail, create_table_ddl=create_table_ddl)

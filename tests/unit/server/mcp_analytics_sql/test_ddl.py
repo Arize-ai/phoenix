@@ -21,7 +21,7 @@ DETAILS: list[Literal["brief", "detailed", "full"]] = ["brief", "detailed", "ful
 @pytest.mark.parametrize("backend", DIALECTS)
 def test_detailed_output_starts_with_the_raw_schema_asset(backend: DialectName) -> None:
     """Physical definitions come from the active dialect asset without synthesis."""
-    raw = load_dialect_schema(backend).tables["spans"].create_table_ddl
+    raw = load_dialect_schema(backend)["spans"].create_table_ddl
     ddl = render_schema_ddl(tables=["spans"], detail="detailed", dialect=backend)
 
     if backend == "postgresql":
@@ -87,7 +87,7 @@ def test_a_trailing_comment_does_not_swallow_the_separator(backend: str) -> None
     ddl = render_schema_ddl(tables=["spans"], detail="detailed", dialect=backend)
     parsed = sqlglot.parse_one(ddl, dialect="postgres" if backend == "postgresql" else "sqlite")
     rendered = {c.name for c in parsed.find_all(exp.ColumnDef)}
-    expected = {column.name for column in load_dialect_schema(backend).tables["spans"].columns}
+    expected = set(load_dialect_schema(backend)["spans"].columns)
     assert rendered == expected
 
 
@@ -109,7 +109,7 @@ def test_types_are_dialect_real_not_abstract(backend: str, expected: str) -> Non
 def test_virtual_columns_are_query_only_comments(backend: str) -> None:
     """Virtual columns are advertised without changing the physical DDL."""
     ddl = render_schema_ddl(tables=["spans"], detail="detailed", dialect=backend)
-    create_table_ddl = load_dialect_schema(backend).tables["spans"].create_table_ddl
+    create_table_ddl = load_dialect_schema(backend)["spans"].create_table_ddl
     assert "latency_ms" not in create_table_ddl
     assert "-- query-only virtual column: latency_ms" in ddl
 
@@ -180,7 +180,7 @@ def test_keys_and_uniqueness_are_rendered(backend: str) -> None:
 def test_physical_ddl_includes_every_project_column(backend: str) -> None:
     """Teaching exposes the exact physical table asset."""
     ddl = render_schema_ddl(tables=["projects"], detail="detailed", dialect=backend)
-    physical = load_dialect_schema(backend).tables["projects"].create_table_ddl
+    physical = load_dialect_schema(backend)["projects"].create_table_ddl
     assert "gradient_start_color" in physical
     assert "trace_retention_policy_id" in physical
     assert "gradient_start_color" in ddl
@@ -189,9 +189,7 @@ def test_physical_ddl_includes_every_project_column(backend: str) -> None:
 
 def test_allowlist_physical_columns_come_from_the_ddl_asset() -> None:
     spec = load_allowlist("sqlite").table_specs["projects"]
-    expected = tuple(
-        column.name for column in load_dialect_schema("sqlite").tables["projects"].columns
-    )
+    expected = load_dialect_schema("sqlite")["projects"].columns
     assert spec.columns == expected
     assert {"gradient_start_color", "trace_retention_policy_id"} <= set(spec.columns)
 
@@ -289,7 +287,7 @@ def test_star_expansion_matches_physical_ddl_and_virtual_columns(backend: Dialec
     for table in sorted(allowlist.tables):
         spec = allowlist.table_specs[table]
         expected = [
-            *(column.name for column in load_dialect_schema(backend).tables[table].columns),
+            *load_dialect_schema(backend)[table].columns,
             *sorted(spec.virtual_columns),
         ]
         ctx = RewriteContext(

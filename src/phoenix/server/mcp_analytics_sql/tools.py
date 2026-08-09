@@ -39,6 +39,10 @@ def _preamble(dialect: str, engine: Optional[dict[str, Any]]) -> str:
     caller who assumes stock SQLite never tries it.
     """
     lines = [f"-- Phoenix analytics SQL. Write {dialect} SQL against the tables below."]
+    lines.append(
+        "-- Only allowlisted tables emitted below are queryable. FOREIGN KEY targets outside this "
+        "surface are descriptive; queries against them are refused."
+    )
     if engine:
         version = f" {engine['version']}" if engine.get("version") else ""
         extensions = engine.get("extensions") or []
