@@ -15,7 +15,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from secrets import token_hex
-from typing import Awaitable, Callable, Optional, TypeVar
+from typing import Any, Awaitable, Callable, Optional, TypeVar
 
 import httpx
 from sqlalchemy import select
@@ -92,7 +92,7 @@ class EvalExecutionTimeout(Exception):
         return self.cause is ExecutionTimeoutCause.EVALUATOR_DEADLINE_EXCEEDED
 
 
-async def _cancel_and_await(task: asyncio.Task[None]) -> None:
+async def _cancel_and_await(task: asyncio.Task[Any]) -> None:
     task.cancel()
     try:
         await task
@@ -315,11 +315,21 @@ class OnlineEvalConsumer(DaemonTask):
         )
         if not units:
             return
-        configurations = await self._executor.hydrate_configuration_snapshots(units)
-        tasks = [
-            asyncio.create_task(self._process_unit_with_limit(unit, configuration))
-            for unit, configuration in zip(units, configurations, strict=True)
-        ]
+        try:
+            configurations = await self._executor.hydrate_configuration_snapshots(units)
+            # Nothing awaits between here and the last create_task, so every claimed
+            # unit is covered either by this handler or by its own task.
+            tasks = [
+                asyncio.create_task(self._process_unit_with_limit(unit, configuration))
+                for unit, configuration in zip(units, configurations, strict=True)
+            ]
+        except asyncio.CancelledError:
+            # Batch hydration runs before any task exists, so stop()'s drain cannot
+            # see these claims; releasing them keeps a shutdown from charging an
+            # attempt to work that never started.
+            for unit in units:
+                await self._release_claim(unit)
+            raise
         for task in tasks:
             self._pending_tasks.add(task)
             task.add_done_callback(self._pending_tasks.discard)
@@ -345,6 +355,90 @@ class OnlineEvalConsumer(DaemonTask):
             await self._process_unit(unit, configuration)
 
     async def _process_unit(
+        self,
+        unit: ClaimedWorkUnit,
+        configuration: Optional[ConfigurationSnapshotOutcome] = None,
+    ) -> None:
+        # The guard wraps the whole lifecycle, including the terminal transition:
+        # a cancel delivered while a transition retries would otherwise escape from
+        # inside an exception handler, past any sibling handler, holding the claim.
+        try:
+            await self._execute_unit(unit, configuration)
+        except asyncio.CancelledError:
+            await self._release_claim(unit)
+            raise
+
+    async def _release_claim(self, unit: ClaimedWorkUnit) -> None:
+        """Return a claim to PENDING without counting an attempt, shielded so the
+        release survives the cancellation that prompted it."""
+        try:
+            released = await asyncio.shield(
+                self._run_db(
+                    lambda: self._coordinator.release(
+                        work_unit_id=unit.work_unit_id,
+                        claimed_by=self._consumer_id,
+                    )
+                )
+            )
+            if not released:
+                logger.warning(
+                    f"Online-eval work unit {unit.work_unit_id} could not be released after "
+                    "its claim was lost"
+                )
+        except Exception:
+            logger.exception(
+                f"Failed to release cancelled online-eval work unit {unit.work_unit_id}; "
+                "leaving the row for lease-lapse reclaim"
+            )
+
+    async def _heartbeat(self, work_unit_id: int) -> bool:
+        """Renew a lease outside the shared db semaphore: queueing liveness behind
+        the bulk work it reports on turns saturation into correlated lease loss."""
+        return await self._coordinator.heartbeat(
+            work_unit_id=work_unit_id,
+            claimed_by=self._consumer_id,
+        )
+
+    async def _acquire_with_heartbeat(
+        self,
+        unit: ClaimedWorkUnit,
+        semaphore: asyncio.Semaphore,
+    ) -> None:
+        """Acquire a permit while keeping the lease alive. The queue is unbounded —
+        the execution deadline only starts once a permit is held — but the lease
+        started at claim time, so an unheartbeated wait silently loses the claim."""
+        acquisition = asyncio.create_task(semaphore.acquire())
+        heartbeat_enabled = True
+        while True:
+            try:
+                done, _ = await asyncio.wait({acquisition}, timeout=HEARTBEAT_INTERVAL_SECONDS)
+            except BaseException:
+                # A permit granted while the wait was being torn down still has to
+                # be handed back, or the limiter leaks capacity on every shutdown.
+                if acquisition.done():
+                    if not acquisition.cancelled() and acquisition.exception() is None:
+                        semaphore.release()
+                else:
+                    await _cancel_and_await(acquisition)
+                raise
+            if done:
+                await acquisition
+                return
+            if not heartbeat_enabled:
+                continue
+            try:
+                if not await self._heartbeat(unit.work_unit_id):
+                    logger.warning(
+                        f"Online-eval work unit {unit.work_unit_id} heartbeat stopped after "
+                        "its claim was lost while queued for an evaluator permit"
+                    )
+                    heartbeat_enabled = False
+            except Exception:
+                logger.exception(
+                    f"Heartbeat failed for queued online-eval work unit {unit.work_unit_id}"
+                )
+
+    async def _execute_unit(
         self,
         unit: ClaimedWorkUnit,
         configuration: Optional[ConfigurationSnapshotOutcome] = None,
@@ -379,29 +473,11 @@ class OnlineEvalConsumer(DaemonTask):
                     )
                 return
             hydrated_work_unit = hydrated
-            async with self._evaluator_semaphore:
-                await self._evaluate_with_heartbeat(unit, hydrated)
-        except asyncio.CancelledError:
+            await self._acquire_with_heartbeat(unit, self._evaluator_semaphore)
             try:
-                released = await asyncio.shield(
-                    self._run_db(
-                        lambda: self._coordinator.release(
-                            work_unit_id=unit.work_unit_id,
-                            claimed_by=self._consumer_id,
-                        )
-                    )
-                )
-                if not released:
-                    logger.warning(
-                        f"Online-eval work unit {unit.work_unit_id} could not be released after "
-                        "its claim was lost"
-                    )
-            except Exception:
-                logger.exception(
-                    f"Failed to release cancelled online-eval work unit {unit.work_unit_id}; "
-                    "leaving the row for lease-lapse reclaim"
-                )
-            raise
+                await self._evaluate_with_heartbeat(unit, hydrated)
+            finally:
+                self._evaluator_semaphore.release()
         except OnlineEvalStoragePaused:
             released = await self._retry_transition(
                 action="pause",
@@ -515,12 +591,7 @@ class OnlineEvalConsumer(DaemonTask):
                     exc_info=True,
                 )
                 try:
-                    heartbeat_succeeded = await self._run_db(
-                        lambda: self._coordinator.heartbeat(
-                            work_unit_id=work_unit_id,
-                            claimed_by=self._consumer_id,
-                        )
-                    )
+                    heartbeat_succeeded = await self._heartbeat(work_unit_id)
                 except Exception:
                     logger.warning(
                         f"Failed to heartbeat online-eval work unit {work_unit_id} while "
@@ -575,12 +646,7 @@ class OnlineEvalConsumer(DaemonTask):
                 if not heartbeat_enabled:
                     continue
                 try:
-                    heartbeat_succeeded = await self._run_db(
-                        lambda: self._coordinator.heartbeat(
-                            work_unit_id=unit.work_unit_id,
-                            claimed_by=self._consumer_id,
-                        )
-                    )
+                    heartbeat_succeeded = await self._heartbeat(unit.work_unit_id)
                     if not heartbeat_succeeded:
                         logger.warning(
                             f"Online-eval work unit {unit.work_unit_id} heartbeat stopped after "

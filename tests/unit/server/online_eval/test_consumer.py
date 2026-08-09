@@ -2056,6 +2056,110 @@ async def test_process_cancellation_releases_claim_without_counting_attempt(
     assert row.claimed_at is None
 
 
+async def test_evaluator_queue_wait_renews_the_lease(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    monkeypatch.setattr(consumer_module, "HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    saturated = asyncio.Semaphore(1)
+    await saturated.acquire()
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluator_semaphore=saturated,
+    )
+    (unit,) = await consumer._coordinator.claim(claimed_by=consumer._consumer_id, limit=1)
+    claimed_at = (await _get_unit(db, unit_id)).claimed_at
+    heartbeated = asyncio.Event()
+    coordinator_heartbeat = consumer._coordinator.heartbeat
+
+    async def _heartbeat(**kwargs: Any) -> bool:
+        renewed = await coordinator_heartbeat(**kwargs)
+        heartbeated.set()
+        return renewed
+
+    monkeypatch.setattr(consumer._coordinator, "heartbeat", _heartbeat)
+
+    queued = asyncio.create_task(consumer._acquire_with_heartbeat(unit, saturated))
+    await asyncio.wait_for(heartbeated.wait(), timeout=5)
+    saturated.release()
+    await queued
+    saturated.release()
+
+    renewed_at = (await _get_unit(db, unit_id)).claimed_at
+    assert claimed_at is not None and renewed_at is not None
+    assert renewed_at > claimed_at
+
+
+async def test_heartbeat_proceeds_under_db_semaphore_saturation(db: DbSessionFactory) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    db_semaphore = asyncio.Semaphore(1)
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        db_semaphore=db_semaphore,
+    )
+    (unit,) = await consumer._coordinator.claim(claimed_by=consumer._consumer_id, limit=1)
+    claimed_at = (await _get_unit(db, unit_id)).claimed_at
+
+    async with db_semaphore:
+        assert await asyncio.wait_for(consumer._heartbeat(unit.work_unit_id), timeout=5)
+
+    renewed_at = (await _get_unit(db, unit_id)).claimed_at
+    assert claimed_at is not None and renewed_at is not None
+    assert renewed_at > claimed_at
+
+
+async def test_cycle_cancellation_during_batch_hydration_releases_claims(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        first_span = await _add_span(session, trace)
+        second_span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
+    unit_ids = [
+        (await _materialize_unit(db, first_span.id, evaluator_id, criteria_id))[0],
+        (await _materialize_unit(db, second_span.id, evaluator_id, criteria_id))[0],
+    ]
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    hydrating = asyncio.Event()
+
+    async def _never_resolves(*_: Any, **__: Any) -> None:
+        hydrating.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(
+        consumer._executor,
+        "hydrate_configuration_snapshots",
+        _never_resolves,
+    )
+    cycle = asyncio.create_task(consumer._cycle())
+    await hydrating.wait()
+    cycle.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await cycle
+
+    for unit_id in unit_ids:
+        row = await _get_unit(db, unit_id)
+        assert row.status == "PENDING"
+        assert row.attempts == 0
+        assert row.claimed_by is None
+        assert row.claimed_at is None
+
+
 async def test_storage_pause_prevents_claiming_new_work(db: DbSessionFactory) -> None:
     async with db() as session:
         project = await _add_project(session)
