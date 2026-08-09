@@ -1,10 +1,11 @@
 import logging
 from datetime import datetime, timedelta, timezone
 from importlib import import_module
+from typing import cast
 from unittest.mock import Mock
 
 import pytest
-from sqlalchemy import func, select, update
+from sqlalchemy import Table, func, select, update
 from sqlalchemy.dialects.postgresql import asyncpg
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,9 +47,10 @@ def test_live_key_predicate_is_single_sourced_from_max_attempts() -> None:
         "phoenix.db.migrations.versions.a7f1c3e9d2b4_add_online_eval_coordination"
     )
     predicate = live_eval_work_index_predicate()
+    live_key_table = cast(Table, models.EvalSessionWorkUnit.__table__)
     live_key_index = next(
         index
-        for index in models.EvalSessionWorkUnit.__table__.indexes
+        for index in live_key_table.indexes
         if index.name == "uq_eval_session_work_units_live_key"
     )
 
