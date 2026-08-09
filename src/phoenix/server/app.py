@@ -88,7 +88,7 @@ from phoenix.config import (
     get_env_online_eval_max_sandbox_payload_bytes,
     get_env_online_eval_max_transcript_bytes,
     get_env_online_eval_pending_ttl_seconds,
-    get_env_online_eval_session_sweep_enabled,
+    get_env_online_eval_session_enabled,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
@@ -1124,7 +1124,7 @@ def create_app(
             evaluator_semaphore=evaluator_semaphore,
             db_semaphore=db_semaphore,
         )
-        if get_env_online_eval_session_sweep_enabled():
+        if get_env_online_eval_session_enabled():
             # Both halves of the session lifecycle sit behind the one flag: a consumer
             # without its sweeper claims from a table only the sweeper can fill.
             online_eval_session_consumer = OnlineEvalConsumer(

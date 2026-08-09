@@ -334,11 +334,11 @@ ENV_PHOENIX_ONLINE_EVAL_ENABLED = "PHOENIX_ONLINE_EVAL_ENABLED"
 """
 Whether to run the online-eval producer and consumer daemons. Defaults to false.
 """
-ENV_PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED = "PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED"
+ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED = "PHOENIX_ONLINE_EVAL_SESSION_ENABLED"
 """
-Whether to also run the session evaluation sweeper, which requires the online-eval
-daemons. Nothing executes the session work it creates yet, so enabling it only fills
-the outstanding-work budget. Defaults to false.
+Whether to also run session evaluation, meaning both the sweeper that materializes
+session work and the consumer that executes it. Requires the online-eval daemons.
+Defaults to false.
 """
 ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS = "PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS"
 """
@@ -3417,14 +3417,14 @@ def get_env_online_eval_enabled() -> bool:
     return _bool_val(ENV_PHOENIX_ONLINE_EVAL_ENABLED, False)
 
 
-def get_env_online_eval_session_sweep_enabled() -> bool:
+def get_env_online_eval_session_enabled() -> bool:
     """
-    Gets the value of the PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED environment variable.
+    Gets the value of the PHOENIX_ONLINE_EVAL_SESSION_ENABLED environment variable.
 
     Gates session evaluation end to end: with it off, neither the sweeper that
     materializes session work nor the consumer that executes it runs.
     """
-    return _bool_val(ENV_PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED, False)
+    return _bool_val(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, False)
 
 
 def get_env_online_eval_frontier_lag_seconds() -> float:

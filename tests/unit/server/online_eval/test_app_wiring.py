@@ -18,7 +18,7 @@ from phoenix.config import (
     ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY,
     ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
     ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
-    ENV_PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED,
+    ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED,
 )
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
@@ -59,7 +59,7 @@ async def test_online_eval_daemons_absent_in_read_only_mode(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED, "true")
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
 
     app = _create_app(db, read_only=True)
     assert app.state.online_eval_producer is None
@@ -125,7 +125,7 @@ async def test_enabled_app_runs_seeded_criteria_end_to_end(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED, "true")
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, "4")
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY, "5")
     _patch_playground_client(monkeypatch, _StubLLMClient())
