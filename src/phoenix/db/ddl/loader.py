@@ -7,9 +7,11 @@ from dataclasses import dataclass
 from functools import lru_cache
 from importlib.resources import files
 from types import MappingProxyType
-from typing import Literal, Mapping
+from typing import Mapping
 
-DialectName = Literal["postgresql", "sqlite"]
+from phoenix.db.helpers import SupportedSQLDialectName
+
+DialectName = SupportedSQLDialectName
 
 _DIALECT_FILES: Mapping[DialectName, str] = MappingProxyType(
     {
