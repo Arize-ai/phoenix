@@ -84,6 +84,7 @@ from phoenix.config import (
     get_env_online_eval_enabled,
     get_env_online_eval_max_outstanding,
     get_env_online_eval_pending_ttl_seconds,
+    get_env_online_eval_session_sweep_enabled,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
@@ -1109,7 +1110,8 @@ def create_app(
             tick_interval_seconds=tick_interval_seconds,
             claim_batch_size=claim_batch_size,
         )
-        online_eval_session_sweeper = SessionEvalSweeper(db)
+        if get_env_online_eval_session_sweep_enabled():
+            online_eval_session_sweeper = SessionEvalSweeper(db)
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
         db=db,
