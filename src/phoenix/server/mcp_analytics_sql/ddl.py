@@ -11,8 +11,8 @@ Structural: a JSON type is an abstraction and DDL is not. The manifest calls
 ``start_time`` a ``datetime``, which is true of both backends and useful to
 neither -- it is ``TIMESTAMP`` on SQLite and ``TIMESTAMP WITH TIME ZONE`` on
 PostgreSQL, and a caller writing a comparison or a CAST needs the real one.
-Emitting DDL forces the choice, so types are compiled per dialect from the
-models rather than restated by hand.
+The generated DDL assets are the physical schema source of truth, so this
+module selects their ``CREATE TABLE`` statements without re-synthesizing them.
 
 Curation the database cannot know -- which area a table belongs to, what one
 row means, how to reach the project, which JSON paths are populated -- rides
@@ -27,16 +27,13 @@ deployment does not have. It is used to check the text, not to produce it.
 
 from __future__ import annotations
 
+import re
 from typing import Optional, cast
 
 import sqlglot
-from sqlalchemy import CheckConstraint, UniqueConstraint
-from sqlalchemy.dialects import postgresql, sqlite
-from sqlalchemy.engine.interfaces import Dialect
 
-from phoenix.db import models
+from phoenix.db.ddl import load_dialect_schema
 from phoenix.server.mcp_analytics_sql.allowlist import (
-    Allowlist,
     DialectName,
     TableSpec,
     load_allowlist,
@@ -46,168 +43,66 @@ from phoenix.server.mcp_analytics_sql.allowlist import (
 __all__ = ["render_schema_ddl", "validate_ddl"]
 
 _SQLGLOT_DIALECT = {"postgresql": "postgres", "sqlite": "sqlite"}
+_POSTGRES_PUBLIC_TABLE_REFERENCE = re.compile(
+    r"\b(?:CREATE\s+TABLE|REFERENCES)\s+public\.", re.IGNORECASE
+)
 
 
-def _sa_dialect(dialect: DialectName) -> Dialect:
-    factory = postgresql.dialect if dialect == "postgresql" else sqlite.dialect
-    return cast(Dialect, factory())
+def _unqualify_postgresql_ddl(create_table_ddl: str) -> str:
+    """Remove ``public.`` only from the PostgreSQL table-definition syntax."""
+    parts: list[str] = []
+    index = 0
+    quote: str | None = None
+    while index < len(create_table_ddl):
+        character = create_table_ddl[index]
+        if quote is not None:
+            parts.append(character)
+            if character == quote:
+                if index + 1 < len(create_table_ddl) and create_table_ddl[index + 1] == quote:
+                    parts.append(quote)
+                    index += 2
+                    continue
+                quote = None
+            index += 1
+            continue
+        if create_table_ddl.startswith("--", index):
+            line_end = create_table_ddl.find("\n", index)
+            if line_end == -1:
+                return "".join(parts) + create_table_ddl[index:]
+            parts.append(create_table_ddl[index : line_end + 1])
+            index = line_end + 1
+            continue
+        if create_table_ddl.startswith("/*", index):
+            comment_end = create_table_ddl.find("*/", index + 2)
+            if comment_end == -1:
+                return "".join(parts) + create_table_ddl[index:]
+            parts.append(create_table_ddl[index : comment_end + 2])
+            index = comment_end + 2
+            continue
+        if character in {"'", '"'}:
+            quote = character
+            parts.append(character)
+            index += 1
+            continue
+        match = _POSTGRES_PUBLIC_TABLE_REFERENCE.match(create_table_ddl, index)
+        if match is not None:
+            parts.append(match.group()[: -len("public.")])
+            index = match.end()
+            continue
+        parts.append(character)
+        index += 1
+    return "".join(parts)
 
 
-def _column_types(table_name: str, dialect: DialectName) -> dict[str, str]:
-    """Compile each column's type for one backend, keyed by column name.
-
-    Types come from the models rather than the manifest because the manifest's
-    are hand-written and unverified: `test_manifest_matches_sqlalchemy_metadata`
-    compares column *names* against the models and stops there.
-    """
-    sa_dialect = _sa_dialect(dialect)
-    table = models.Base.metadata.tables.get(table_name)
-    if table is None:
-        return {}
-    compiled: dict[str, str] = {}
-    for column in table.columns:
-        try:
-            compiled[column.name] = column.type.compile(sa_dialect)
-        except Exception:
-            # A type with no rendering on this backend is described rather than
-            # guessed at; omitting it entirely would hide the column.
-            compiled[column.name] = "UNKNOWN"
-    return compiled
-
-
-def _virtual_column_types(dialect: DialectName) -> dict[str, str]:
-    """Types for the columns the server substitutes rather than stores."""
-    return {
-        "latency_ms": "DOUBLE PRECISION" if dialect == "postgresql" else "REAL",
-        "graphql_node_id": "VARCHAR",
-    }
-
-
-def _render_table(
-    spec: TableSpec,
-    *,
-    dialect: DialectName,
-    detail: str,
-    allowlist: Allowlist,
-) -> list[str]:
-    lines: list[str] = []
-    grain = f"  -- {spec.grain}" if spec.grain else ""
+def _render_table(spec: TableSpec, *, detail: str, create_table_ddl: str) -> list[str]:
     if detail == "brief":
         # A catalogue rather than a schema: names and meanings only, because a
         # caller at this stage is still choosing which table to ask about and
         # cannot use a column list yet. Rendered as comments, not as
         # `CREATE TABLE spans (...)`, which reads like DDL but is not valid SQL
         # and would teach an ellipsis that no backend accepts.
-        lines.append(f"-- {spec.name}:{grain.replace('  --', '')}")
-        return lines
-
-    types = _column_types(spec.name, dialect)
-    virtual = _virtual_column_types(dialect)
-    width = max((len(c.name) for c in spec.exposed_columns), default=0)
-    width = max(width, *(len(v) for v in spec.virtual_columns)) if spec.virtual_columns else width
-
-    lines.append(f"CREATE TABLE {spec.name} ({grain.strip() and '  ' + grain.strip() or ''}")
-
-    # (definition, trailing comment) kept apart so the separating comma lands
-    # before the comment. Emitting `TIMESTAMP NOT NULL  -- time column,` puts
-    # the comma inside the comment, which drops the separator and makes the
-    # next column read as a continuation of this one.
-    body: list[tuple[str, str]] = []
-    for column in spec.exposed_columns:
-        rendered = types.get(column.name, "UNKNOWN")
-        suffix = "" if column.nullable else " NOT NULL"
-        # One note per column, and only where a reasonable guess is wrong. The
-        # type and the key already say what they can; a note is for what they
-        # cannot -- `spans.parent_id` is a VARCHAR holding a `span_id`, so the
-        # obvious self-join against `spans.id` compares a string to an integer
-        # and silently returns nothing.
-        note = spec.column_notes.get(column.name, "")
-        if column.name == spec.time_column:
-            note = f"time column{'; ' + note if note else ''}"
-        body.append((f"  {column.name:<{width}} {rendered}{suffix}", note))
-    for name in sorted(spec.virtual_columns):
-        # Written like any other column because that is how they may be used --
-        # in SELECT, WHERE, GROUP BY, ORDER BY alike. That they are computed is
-        # said once in the preamble rather than on each of the 25 occurrences.
-        body.append((f"  {name:<{width}} {virtual.get(name, 'VARCHAR')}", ""))
-
-    # Constraints last: SQL requires every column definition to precede them,
-    # and a virtual column appended afterwards produces DDL that does not parse.
-    constraints = _render_constraints(spec, allowlist)
-    for index, (definition, note) in enumerate(body):
-        separator = "," if index < len(body) - 1 or constraints else ""
-        lines.append(f"{definition}{separator}{'  -- ' + note if note else ''}")
-    for index, constraint in enumerate(constraints):
-        lines.append(f"  {constraint}{',' if index < len(constraints) - 1 else ''}")
-    lines.append(");")
-    return lines
-
-
-def _render_constraints(spec: TableSpec, allowlist: Allowlist) -> list[str]:
-    """Keys and uniqueness, which change how a query has to be written.
-
-    Without them a caller cannot tell which column identifies a row, so it
-    cannot know whether a join fans out or whether a GROUP BY is needed.
-    `span_annotations` being unique on (name, span_rowid, identifier) is the
-    difference between one annotation per span and many.
-
-    A foreign key whose target is outside the allowlist is omitted: it names an
-    edge the executor refuses, so advertising it invites a join that can only
-    come back as an error. Targets in other areas are kept, because this is a
-    description rather than a migration script -- a caller reading one area
-    still benefits from knowing that `dataset_examples.span_rowid` reaches
-    `spans`, and scoping keys to the current response would delete that from
-    every single-table request. The column itself always appears when exposed.
-    """
-    table = models.Base.metadata.tables.get(spec.name)
-    if table is None:
-        return []
-    exposed = {column.name for column in spec.exposed_columns}
-    rendered: list[str] = []
-
-    primary = [c.name for c in table.primary_key.columns if c.name in exposed]
-    if primary:
-        rendered.append(f"PRIMARY KEY ({', '.join(primary)})")
-
-    # CHECK is where an enumerated column's permitted values are actually
-    # written down -- nothing else in the schema says `status_code` is one of
-    # OK, ERROR, UNSET. A caller guessing 'error' or 'Error' gets zero rows and
-    # no indication why, which reads as absent data rather than a wrong literal.
-    checks: list[str] = []
-    for column in table.columns:
-        for constraint in column.constraints:
-            if isinstance(constraint, CheckConstraint) and column.name in exposed:
-                checks.append(f"CHECK ({constraint.sqltext})")
-    for constraint in table.constraints:
-        if isinstance(constraint, CheckConstraint):
-            text = str(constraint.sqltext)
-            if all(c.name in exposed for c in table.columns if c.name in text):
-                checks.append(f"CHECK ({text})")
-    rendered.extend(sorted(set(checks)))
-
-    unique: list[str] = []
-    for constraint in table.constraints:
-        if not isinstance(constraint, UniqueConstraint):
-            continue
-        columns = [c.name for c in constraint.columns]
-        if columns and all(c in exposed for c in columns):
-            unique.append(f"UNIQUE ({', '.join(columns)})")
-    rendered.extend(sorted(unique))
-
-    foreign: list[str] = []
-    for constraint in table.foreign_key_constraints:
-        target = constraint.referred_table.name
-        if target not in allowlist.tables:
-            continue
-        columns = [c.name for c in constraint.columns]
-        if not all(c in exposed for c in columns):
-            continue
-        referred = [element.column.name for element in constraint.elements]
-        foreign.append(
-            f"FOREIGN KEY ({', '.join(columns)}) REFERENCES {target} ({', '.join(referred)})"
-        )
-    rendered.extend(sorted(foreign))
-    return rendered
+        return [f"-- {spec.name}: {spec.grain}"]
+    return [create_table_ddl]
 
 
 def _blessed_path_expression(path: str, dialect: DialectName) -> str:
@@ -237,6 +132,12 @@ def _render_curation(spec: TableSpec, dialect: DialectName = "postgresql") -> li
     """Render non-relational curation comments for one table."""
 
     lines: list[str] = []
+    for column in sorted(spec.virtual_columns):
+        lines.append(f"-- query-only virtual column: {column}")
+    if spec.time_column:
+        lines.append(f"-- {spec.time_column}: time column")
+    for column, note in sorted(spec.column_notes.items()):
+        lines.append(f"-- {column}: {note}")
     for path in sorted(spec.blessed_attribute_paths):
         lines.append(f"-- populated JSON path: {_blessed_path_expression(path, dialect)}")
     if spec.promoted_columns_note:
@@ -256,6 +157,7 @@ def render_schema_ddl(
     manifest = manifest_document()
     dialect_name = cast(DialectName, dialect)
     allowlist = load_allowlist(dialect_name)
+    schema = load_dialect_schema(dialect_name)
     chunks: list[str] = []
 
     for area_name in [area] if area else list(manifest["areas"]):
@@ -269,7 +171,10 @@ def render_schema_ddl(
             spec = allowlist.table_specs.get(table_name)
             if spec is None or (search and not _matches(spec, search)):
                 continue
-            block = _render_table(spec, dialect=dialect_name, detail=detail, allowlist=allowlist)
+            create_table_ddl = schema.tables[table_name].create_table_ddl
+            if dialect_name == "postgresql":
+                create_table_ddl = _unqualify_postgresql_ddl(create_table_ddl)
+            block = _render_table(spec, detail=detail, create_table_ddl=create_table_ddl)
             if detail != "brief":
                 block += _render_curation(spec, dialect_name)
             rendered.append("\n".join(block))

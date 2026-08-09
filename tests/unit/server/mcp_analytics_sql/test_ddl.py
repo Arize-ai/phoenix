@@ -6,6 +6,7 @@ import pytest
 import sqlglot
 from sqlglot import exp
 
+from phoenix.db.ddl import load_dialect_schema
 from phoenix.server.mcp_analytics_sql.allowlist import DialectName, load_allowlist
 from phoenix.server.mcp_analytics_sql.ddl import render_schema_ddl, validate_ddl
 from phoenix.server.mcp_analytics_sql.parse import AdmissionOutcome
@@ -15,6 +16,50 @@ from phoenix.server.mcp_analytics_sql.parse import AdmissionOutcome
 # on the assumption it needs that database. These render text and touch none.
 DIALECTS: list[DialectName] = ["sqlite", "postgresql"]
 DETAILS: list[Literal["brief", "detailed", "full"]] = ["brief", "detailed", "full"]
+
+
+@pytest.mark.parametrize("backend", DIALECTS)
+def test_detailed_output_starts_with_the_raw_schema_asset(backend: DialectName) -> None:
+    """Physical definitions come from the active dialect asset without synthesis."""
+    raw = load_dialect_schema(backend).tables["spans"].create_table_ddl
+    ddl = render_schema_ddl(tables=["spans"], detail="detailed", dialect=backend)
+
+    if backend == "postgresql":
+        expected = re.sub(
+            r"(\b(?:CREATE\s+TABLE|REFERENCES)\s+)public\.",
+            r"\1",
+            raw,
+            flags=re.IGNORECASE | re.MULTILINE,
+        )
+        assert raw.startswith("CREATE TABLE public.spans")
+        assert "REFERENCES public.traces" in raw
+    else:
+        expected = raw
+
+    table_and_curation = ddl.split("\n", 1)[1]
+    assert table_and_curation.startswith(expected)
+    assert table_and_curation[len(expected) :].startswith("\n--")
+
+
+def test_postgresql_unqualification_only_changes_table_syntax() -> None:
+    """Comments and literals resembling qualified names are preserved."""
+    from phoenix.server.mcp_analytics_sql.ddl import _unqualify_postgresql_ddl
+
+    raw = """CREATE TABLE public.widgets (
+    parent_id INTEGER REFERENCES public.parents (id),
+    label VARCHAR DEFAULT 'public.literal'
+);
+-- public.comment
+"""
+    assert (
+        _unqualify_postgresql_ddl(raw)
+        == """CREATE TABLE widgets (
+    parent_id INTEGER REFERENCES parents (id),
+    label VARCHAR DEFAULT 'public.literal'
+);
+-- public.comment
+"""
+    )
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
@@ -42,8 +87,7 @@ def test_a_trailing_comment_does_not_swallow_the_separator(backend: str) -> None
     ddl = render_schema_ddl(tables=["spans"], detail="detailed", dialect=backend)
     parsed = sqlglot.parse_one(ddl, dialect="postgres" if backend == "postgresql" else "sqlite")
     rendered = {c.name for c in parsed.find_all(exp.ColumnDef)}
-    spec = load_allowlist("sqlite").table_specs["spans"]
-    expected = {c.name for c in spec.columns} | set(spec.virtual_columns)
+    expected = {column.name for column in load_dialect_schema(backend).tables["spans"].columns}
     assert rendered == expected
 
 
@@ -62,18 +106,12 @@ def test_types_are_dialect_real_not_abstract(backend: str, expected: str) -> Non
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
-def test_virtual_columns_are_rendered_like_real_ones(backend: str) -> None:
-    """`latency_ms` is usable wherever a column is, so it is written as one.
-
-    Marking it in a way that made it look second-class would invite a caller to
-    avoid it in GROUP BY or ORDER BY, where it works. That it is computed is
-    said once in the preamble instead of on each of its ~25 occurrences, so the
-    column line itself carries no annotation.
-    """
+def test_virtual_columns_are_query_only_comments(backend: str) -> None:
+    """Virtual columns are advertised without changing the physical DDL."""
     ddl = render_schema_ddl(tables=["spans"], detail="detailed", dialect=backend)
-    line = next(ln for ln in ddl.splitlines() if ln.strip().startswith("latency_ms"))
-    assert line.strip().startswith("latency_ms ")
-    assert "--" not in line
+    create_table_ddl = load_dialect_schema(backend).tables["spans"].create_table_ddl
+    assert "latency_ms" not in create_table_ddl
+    assert "-- query-only virtual column: latency_ms" in ddl
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
@@ -134,55 +172,19 @@ def test_keys_and_uniqueness_are_rendered(backend: str) -> None:
     ddl = render_schema_ddl(tables=["span_annotations"], detail="detailed", dialect=backend)
     assert "PRIMARY KEY (id)" in ddl
     assert "UNIQUE (name, span_rowid, identifier)" in ddl
-    assert "FOREIGN KEY (span_rowid) REFERENCES spans (id)" in ddl
+    assert "FOREIGN KEY (span_rowid)" in ddl
+    assert "REFERENCES spans (id)" in ddl
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
-def test_no_foreign_key_points_outside_the_allowlist(backend: str) -> None:
-    """An edge the executor refuses must not appear on the caller's map.
-
-    Rendering one would advertise a join whose only outcome is a refusal, and
-    would name a table the surface otherwise never mentions. Asserted over the
-    whole schema rather than per column, because it must hold for any column
-    later exposed, not only for the ones hidden today.
-    """
-    allowlist = load_allowlist("sqlite")
-    ddl = render_schema_ddl(detail="detailed", dialect=backend)
-    referenced = re.findall(r"REFERENCES (\w+)", ddl)
-    assert referenced, "the assertion is vacuous if nothing renders a foreign key"
-    assert set(referenced) <= allowlist.tables
-
-
-@pytest.mark.parametrize("backend", DIALECTS)
-def test_constraints_follow_every_column(backend: str) -> None:
-    """SQL requires it, and getting it wrong yields DDL that does not parse.
-
-    Virtual columns are appended after the real ones, so a constraint block
-    written before them would land mid-list. Asserted on position rather than
-    on parseability alone, since a misplaced constraint can still parse as a
-    strangely-named column.
-    """
-    ddl = render_schema_ddl(tables=["spans"], detail="detailed", dialect=backend)
-    body = ddl[ddl.index("CREATE TABLE spans") : ddl.index(");")]
-    lines = [ln.strip() for ln in body.splitlines()[1:] if ln.strip()]
-    keywords = ("PRIMARY KEY", "UNIQUE", "FOREIGN KEY", "CHECK")
-    first_constraint = next(i for i, ln in enumerate(lines) if ln.startswith(keywords))
-    assert not any(ln.startswith(keywords) for ln in lines[:first_constraint])
-    assert all(ln.startswith(keywords) for ln in lines[first_constraint:])
-
-
-@pytest.mark.parametrize("backend", DIALECTS)
-def test_hidden_columns_are_absent_from_the_schema(backend: str) -> None:
-    """Decoration and dead references are not worth a caller's tokens.
-
-    `gradient_start_color` styles a project in the UI and answers no analytical
-    question. `trace_retention_policy_id` references a table outside the
-    allowlist, so it is an integer that resolves to nothing reachable.
-    """
+def test_physical_ddl_keeps_columns_curated_out_of_star_expansion(backend: str) -> None:
+    """Teaching is the exact physical table asset, not the query projection."""
     ddl = render_schema_ddl(tables=["projects"], detail="detailed", dialect=backend)
-    for column in ("gradient_start_color", "gradient_end_color", "trace_retention_policy_id"):
-        assert column not in ddl
-    assert "name" in ddl and "PRIMARY KEY (id)" in ddl
+    physical = load_dialect_schema(backend).tables["projects"].create_table_ddl
+    assert "gradient_start_color" in physical
+    assert "trace_retention_policy_id" in physical
+    assert "gradient_start_color" in ddl
+    assert "trace_retention_policy_id" in ddl
 
 
 def test_the_manifest_still_lists_every_real_column() -> None:
@@ -200,19 +202,10 @@ def test_the_manifest_still_lists_every_real_column() -> None:
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
-def test_the_full_schema_references_only_tables_it_defines(backend: str) -> None:
-    """Closure on the whole schema, where it genuinely must hold.
-
-    Per-area responses are descriptions and may point outward, but the complete
-    rendering is the closed set: a REFERENCES to a table absent from it means a
-    table was dropped from the manifest while something still keys to it, which
-    would leave a caller with an edge to a relation the surface never mentions.
-    """
-    ddl = render_schema_ddl(detail="detailed", dialect=backend)
-    defined = set(re.findall(r"CREATE TABLE (\w+)", ddl))
-    referenced = set(re.findall(r"REFERENCES (\w+)", ddl))
-    assert referenced, "the assertion is vacuous if nothing renders a foreign key"
-    assert referenced <= defined, f"dangling: {sorted(referenced - defined)}"
+def test_raw_foreign_keys_can_name_nonallowlisted_tables(backend: str) -> None:
+    """The loader asset is authoritative even when an FK target is not queryable."""
+    ddl = render_schema_ddl(tables=["projects"], detail="detailed", dialect=backend)
+    assert "REFERENCES project_trace_retention_policies (id)" in ddl
 
 
 def test_the_full_schema_executes() -> None:
@@ -245,17 +238,21 @@ def test_enumerated_columns_declare_their_permitted_values(backend: str) -> None
     absent data rather than a wrong literal.
     """
     ddl = render_schema_ddl(tables=["spans"], detail="detailed", dialect=backend)
-    assert "CHECK (status_code IN ('OK', 'ERROR', 'UNSET'))" in ddl
+    assert "status_code" in ddl
+    assert all(status in ddl for status in ("'OK'", "'ERROR'", "'UNSET'"))
     annotations = render_schema_ddl(tables=["span_annotations"], detail="detailed", dialect=backend)
-    assert "CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN'))" in annotations
-    assert "CHECK (source IN ('API', 'APP'))" in annotations
+    assert "annotator_kind" in annotations
+    assert all(kind in annotations for kind in ("'LLM'", "'CODE'", "'HUMAN'"))
+    assert "source" in annotations
+    assert all(source in annotations for source in ("'API'", "'APP'"))
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
 def test_foreign_keys_and_nonrelational_curation_are_rendered(backend: str) -> None:
     ddl = render_schema_ddl(tables=["spans"], detail="detailed", dialect=backend)
 
-    assert "FOREIGN KEY (trace_rowid) REFERENCES traces (id)" in ddl
+    assert "FOREIGN KEY (trace_rowid)" in ddl
+    assert "REFERENCES traces (id)" in ddl
     assert "-- populated JSON path:" in ddl
     assert "-- Prefer llm_token_count_* over JSON" in ddl
     assert "-- join:" not in ddl
@@ -271,7 +268,7 @@ def test_misleading_columns_carry_a_note(backend: str) -> None:
     nothing at all rather than failing.
     """
     ddl = render_schema_ddl(tables=["spans"], detail="detailed", dialect=backend)
-    line = next(ln for ln in ddl.splitlines() if ln.strip().startswith("parent_id"))
+    line = next(ln for ln in ddl.splitlines() if ln.startswith("-- parent_id:"))
     assert "span_id" in line and "not spans.id" in line
 
 
@@ -286,17 +283,8 @@ def test_an_empty_selection_says_which_filter_matched_nothing() -> None:
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
-def test_star_expansion_matches_the_advertised_columns(backend: DialectName) -> None:
-    """What `SELECT *` returns must be what the CREATE TABLE block lists.
-
-    The two were derived from different lists: the DDL printed exposed plus
-    virtual columns, star expansion emitted exposed only. A caller who used `*`
-    to learn a table's shape concluded `latency_ms` and `graphql_node_id` did
-    not exist, while the schema in the same response said they did.
-
-    Compared against the renderer rather than a fixed list, so adding a virtual
-    column to one side and not the other fails here.
-    """
+def test_star_expansion_matches_the_query_projection(backend: DialectName) -> None:
+    """Star expansion is the allowlisted query projection, not physical DDL."""
     import sqlglot
 
     from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, _expand_stars
@@ -304,13 +292,8 @@ def test_star_expansion_matches_the_advertised_columns(backend: DialectName) -> 
     allowlist = load_allowlist("sqlite")
     sqlglot_dialect = "postgres" if backend == "postgresql" else "sqlite"
     for table in sorted(allowlist.tables):
-        ddl = render_schema_ddl(tables=[table], detail="detailed", dialect=backend)
-        listed = [
-            line.split()[0]
-            for line in ddl.splitlines()
-            if line.startswith("  ")
-            and not line.strip().startswith(("PRIMARY", "UNIQUE", "FOREIGN", "CHECK"))
-        ]
+        spec = allowlist.table_specs[table]
+        expected = [column.name for column in spec.exposed_columns] + sorted(spec.virtual_columns)
         ctx = RewriteContext(
             dialect=backend,
             allowlist=allowlist,
@@ -323,7 +306,7 @@ def test_star_expansion_matches_the_advertised_columns(backend: DialectName) -> 
             ctx,
         )
         emitted = [column.name for column in expanded.find_all(exp.Column)]
-        assert emitted == listed, f"{table}: SELECT * disagrees with the advertised schema"
+        assert emitted == expected, f"{table}: SELECT * disagrees with the query projection"
 
 
 def test_published_index_spellings_survive_the_parser() -> None:
