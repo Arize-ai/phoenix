@@ -18,11 +18,7 @@ _DIALECT_FILES: Mapping[DialectName, str] = MappingProxyType(
     }
 )
 _TABLE_MARKER = re.compile(r"^-- Table: (?P<name>.+)$", re.MULTILINE)
-_CREATE_TABLE = re.compile(
-    r"^\s*CREATE\s+TABLE\s+(?:(?P<schema>[A-Za-z_][A-Za-z0-9_]*)\.)?"
-    r"(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\(",
-    re.MULTILINE,
-)
+_CREATE_TABLE = re.compile(r"^\s*CREATE\s+TABLE\s+", re.MULTILINE)
 _CONSTRAINT_PREFIXES = frozenset({"CHECK", "CONSTRAINT", "FOREIGN", "PRIMARY", "UNIQUE"})
 
 
@@ -47,8 +43,60 @@ def _identifier(token: str) -> str:
     if token.startswith("`") and token.endswith("`"):
         return token[1:-1].replace("``", "`")
     if token.startswith("[") and token.endswith("]"):
-        return token[1:-1]
+        return token[1:-1].replace("]]", "]")
     return token
+
+
+def _consume_identifier(text: str, start: int = 0) -> tuple[str, int]:
+    """Return one generated-DLL identifier token and its exclusive end position."""
+
+    index = start
+    while index < len(text) and text[index].isspace():
+        index += 1
+    if index == len(text):
+        raise SchemaAssetError("Expected an identifier")
+
+    opening_delimiter = text[index]
+    closing_delimiter = {"'": "'", '"': '"', "`": "`", "[": "]"}.get(opening_delimiter)
+    if closing_delimiter is not None:
+        token_start = index
+        index += 1
+        while index < len(text):
+            if text[index] == closing_delimiter:
+                if index + 1 < len(text) and text[index + 1] == closing_delimiter:
+                    index += 2
+                    continue
+                return text[token_start : index + 1], index + 1
+            index += 1
+        raise SchemaAssetError("Unterminated quoted identifier")
+
+    token_start = index
+    while index < len(text) and (text[index].isalnum() or text[index] in {"_", "$"}):
+        index += 1
+    if index == token_start:
+        raise SchemaAssetError("Expected an identifier")
+    return text[token_start:index], index
+
+
+def _parse_create_table(section: str) -> tuple[re.Match[str], str, int]:
+    """Locate one CREATE TABLE statement and return its name and body start."""
+
+    match = _CREATE_TABLE.search(section)
+    if match is None:
+        raise SchemaAssetError("DDL section must contain a CREATE TABLE statement")
+
+    name_token, index = _consume_identifier(section, match.end())
+    table_name = _identifier(name_token)
+    while index < len(section) and section[index].isspace():
+        index += 1
+    if index < len(section) and section[index] == ".":
+        name_token, index = _consume_identifier(section, index + 1)
+        table_name = _identifier(name_token)
+        while index < len(section) and section[index].isspace():
+            index += 1
+    if index == len(section) or section[index] != "(":
+        raise SchemaAssetError("CREATE TABLE name must be followed by an opening parenthesis")
+    return match, table_name, index + 1
 
 
 def _resource_text(dialect: DialectName) -> str:
@@ -65,7 +113,7 @@ def _find_statement_end(text: str, start: int) -> int:
         character = text[index]
         if quote is not None:
             if character == quote:
-                if quote != "]" and index + 1 < len(text) and text[index + 1] == quote:
+                if index + 1 < len(text) and text[index + 1] == quote:
                     index += 2
                     continue
                 quote = None
@@ -92,13 +140,21 @@ def _split_definitions(body: str) -> tuple[str, ...]:
     start = 0
     quote: str | None = None
     depth = 0
-    for index, character in enumerate(body):
+    index = 0
+    while index < len(body):
+        character = body[index]
         if quote is not None:
             if character == quote:
+                if index + 1 < len(body) and body[index + 1] == quote:
+                    index += 2
+                    continue
                 quote = None
+            index += 1
             continue
         if character in {"'", '"', "`"}:
             quote = character
+        elif character == "[":
+            quote = "]"
         elif character == "(":
             depth += 1
         elif character == ")":
@@ -106,32 +162,37 @@ def _split_definitions(body: str) -> tuple[str, ...]:
         elif character == "," and depth == 0:
             definitions.append(body[start:index].strip())
             start = index + 1
+        index += 1
     definitions.append(body[start:].strip())
     return tuple(definition for definition in definitions if definition)
 
 
 def _parse_table_section(name: str, section: str, dialect: DialectName) -> TableSchema:
-    match = _CREATE_TABLE.search(section)
-    if match is None:
+    try:
+        match, table_name, body_start = _parse_create_table(section)
+    except SchemaAssetError as error:
         raise SchemaAssetError(
             f"{dialect} DDL section {name!r} must contain exactly one CREATE TABLE statement"
-        )
+        ) from error
     if _CREATE_TABLE.search(section, match.end()) is not None:
         raise SchemaAssetError(
             f"{dialect} DDL section {name!r} has multiple CREATE TABLE statements"
         )
-    if match.group("name") != name:
+    if table_name != name:
         raise SchemaAssetError(
-            f"{dialect} DDL section marker {name!r} does not match CREATE TABLE "
-            f"{match.group('name')!r}"
+            f"{dialect} DDL section marker {name!r} does not match CREATE TABLE {table_name!r}"
         )
     statement_end = _find_statement_end(section, match.start())
-    create_table_ddl = section[match.start() : statement_end].strip()
-    body = create_table_ddl[match.end() - match.start() : -2]
+    raw_statement = section[match.start() : statement_end]
+    create_table_ddl = raw_statement.strip()
+    statement = raw_statement.removesuffix(";").rstrip()
+    if not statement.endswith(")"):
+        raise SchemaAssetError(f"{dialect} DDL section {name!r} has an unterminated table body")
+    body = statement[body_start - match.start() : -1]
     columns: list[str] = []
     for definition in _split_definitions(body):
-        first = definition.split(None, 1)[0]
-        if first.upper() not in _CONSTRAINT_PREFIXES:
+        first, _ = _consume_identifier(definition)
+        if first[0] in {'"', "`", "["} or first.upper() not in _CONSTRAINT_PREFIXES:
             columns.append(_identifier(first))
     if not columns:
         raise SchemaAssetError(f"{dialect} DDL section {name!r} has no columns")
