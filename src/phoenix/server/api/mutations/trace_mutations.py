@@ -1,12 +1,11 @@
 import strawberry
 from sqlalchemy import and_, delete, not_, select, update
-from sqlalchemy.orm import load_only
 from sqlalchemy.sql import literal
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.helpers import mark_session_content_incomplete
+from phoenix.db.helpers import delete_traces
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
@@ -35,29 +34,20 @@ class TraceMutationMixin:
             raise BadRequest(str(error))
         async with info.context.db() as session:
             traces = (
-                await session.scalars(
-                    delete(models.Trace)
-                    .where(models.Trace.id.in_(trace_rowids))
-                    .returning(models.Trace)
-                    .options(
-                        load_only(models.Trace.project_rowid, models.Trace.project_session_rowid)
+                await session.execute(
+                    select(models.Trace.project_rowid, models.Trace.project_session_rowid).where(
+                        models.Trace.id.in_(trace_rowids)
                     )
                 )
             ).all()
             if len(traces) < len(trace_rowids):
-                await session.rollback()
                 raise BadRequest("Invalid trace IDs provided")
-            project_ids = tuple(set(trace.project_rowid for trace in traces))
+            project_ids = tuple(set(project_rowid for project_rowid, _ in traces))
             if len(project_ids) > 1:
-                await session.rollback()
                 raise BadRequest("Cannot delete traces from multiple projects")
-            session_ids = set(
-                session_id
-                for trace in traces
-                if (session_id := trace.project_session_rowid) is not None
-            )
+            session_ids = set(session_id for _, session_id in traces if session_id is not None)
+            await delete_traces(session, models.Trace.id.in_(trace_rowids))
             if session_ids:
-                await mark_session_content_incomplete(session, session_ids)
                 await session.execute(
                     delete(models.ProjectSession).where(
                         and_(

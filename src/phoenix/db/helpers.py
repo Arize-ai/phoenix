@@ -31,6 +31,7 @@ from typing_extensions import assert_never
 
 from phoenix.config import PLAYGROUND_PROJECT_NAME, get_env_database_schema
 from phoenix.db import models
+from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
 
 
 class SupportedSQLDialect(Enum):
@@ -605,6 +606,48 @@ def get_ancestor_span_rowids(parent_id: str) -> Select[tuple[int]]:
     return select(ancestors.c.id)
 
 
+async def delete_traces(
+    session: AsyncSession,
+    trace_filter: sa.ColumnElement[bool],
+) -> None:
+    """Delete the traces matching this filter, standing down the evaluations of every
+    session that loses content.
+
+    Deleting traces is what makes a session's evaluation wrong, so the delete and the
+    stand-down belong to one function rather than to five callers who each have to
+    remember. Route new trace deletions through here.
+    """
+    affected_session_rowids = (
+        sa.select(models.Trace.project_session_rowid)
+        .where(trace_filter, models.Trace.project_session_rowid.is_not(None))
+        .distinct()
+    )
+    await mark_session_content_incomplete(session, affected_session_rowids)
+    await session.execute(sa.delete(models.Trace).where(trace_filter))
+
+
+async def delete_spans(
+    session: AsyncSession,
+    span_filter: sa.ColumnElement[bool],
+) -> None:
+    """Delete the spans matching this filter, standing down the evaluations of every
+    session that loses content.
+
+    Removing a span changes what the session contains whether or not its trace survives,
+    so span deletion stands down the same way trace deletion does. See `delete_traces`.
+    """
+    affected_session_rowids = (
+        sa.select(models.Trace.project_session_rowid)
+        .where(
+            models.Trace.id.in_(sa.select(models.Span.trace_rowid).where(span_filter)),
+            models.Trace.project_session_rowid.is_not(None),
+        )
+        .distinct()
+    )
+    await mark_session_content_incomplete(session, affected_session_rowids)
+    await session.execute(sa.delete(models.Span).where(span_filter))
+
+
 async def mark_session_content_incomplete(
     session: AsyncSession,
     project_session_rowids: Union[Iterable[int], InElementRole],
@@ -614,7 +657,8 @@ async def mark_session_content_incomplete(
     A session evaluation scores the session as a whole, so once part of it is gone the
     score describes content that no longer exists. Session scheduling is evaluate-once,
     which makes a wrong score permanent — every path that destroys session content must
-    call this before or with the delete.
+    call this before or with the delete. `delete_traces` and `delete_spans` are how
+    deletion paths get that for free.
     """
     await session.execute(
         sa.update(models.ProjectSession)
@@ -632,7 +676,7 @@ async def mark_session_content_incomplete(
             claimed_at=None,
             claimed_by=None,
             cooldown_until=None,
-            error="session content incomplete",
+            error=SESSION_CONTENT_INCOMPLETE_ERROR,
         )
     )
 

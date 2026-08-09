@@ -17,22 +17,13 @@ async def _delete_matching_traces(
     project_rowids: Union[Iterable[int], InElementRole],
     trace_filter: sa.ColumnElement[bool],
 ) -> None:
-    from phoenix.db.helpers import mark_session_content_incomplete
+    from phoenix.db.helpers import delete_traces
     from phoenix.db.models import Trace
 
     candidate_trace_ids = (
         sa.select(Trace.id).where(Trace.project_rowid.in_(project_rowids)).where(trace_filter)
     )
-    affected_session_ids = (
-        sa.select(Trace.project_session_rowid)
-        .where(
-            Trace.id.in_(candidate_trace_ids),
-            Trace.project_session_rowid.is_not(None),
-        )
-        .distinct()
-    )
-    await mark_session_content_incomplete(session, affected_session_ids)
-    await session.execute(sa.delete(Trace).where(Trace.id.in_(candidate_trace_ids)))
+    await delete_traces(session, Trace.id.in_(candidate_trace_ids))
 
 
 class _MaxDays(BaseModel):

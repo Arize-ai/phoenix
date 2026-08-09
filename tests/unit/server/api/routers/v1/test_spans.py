@@ -10,6 +10,7 @@ from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
 from phoenix.server.api.routers.v1.spans import (
     OtlpAnyValue,
     OtlpSpan,
@@ -416,7 +417,7 @@ async def test_delete_span_stands_down_the_sessions_evaluations(
         work_unit = await session.get(models.EvalSessionWorkUnit, work_unit_id)
         assert work_unit is not None
         assert work_unit.status == "EXPIRED"
-        assert work_unit.error == "session content incomplete"
+        assert work_unit.error == SESSION_CONTENT_INCOMPLETE_ERROR
 
 
 async def test_delete_span_with_global_id(

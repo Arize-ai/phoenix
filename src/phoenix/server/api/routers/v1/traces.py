@@ -11,7 +11,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import BeforeValidator, Field
-from sqlalchemy import delete, insert, or_, select
+from sqlalchemy import insert, or_, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -22,7 +22,7 @@ from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import (
     SupportedSQLDialect,
-    mark_session_content_incomplete,
+    delete_traces,
     token_counts_by_trace,
 )
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
@@ -623,33 +623,23 @@ async def delete_trace(
                 GlobalID.from_id(trace_identifier),
                 "Trace",
             )
-            # Delete by database rowid
-            delete_stmt = (
-                delete(models.Trace)
-                .where(models.Trace.id == trace_rowid)
-                .returning(models.Trace.project_rowid, models.Trace.project_session_rowid)
-            )
+            # Address by database rowid
+            trace_filter = models.Trace.id == trace_rowid
             error_detail = f"Trace with relay ID '{trace_identifier}' not found"
         except Exception:
-            # Delete by OpenTelemetry trace_id
-            delete_stmt = (
-                delete(models.Trace)
-                .where(models.Trace.trace_id == trace_identifier)
-                .returning(models.Trace.project_rowid, models.Trace.project_session_rowid)
-            )
+            # Address by OpenTelemetry trace_id
+            trace_filter = models.Trace.trace_id == trace_identifier
             error_detail = f"Trace with trace_id '{trace_identifier}' not found"
 
-        deleted = (await session.execute(delete_stmt)).first()
+        project_id = await session.scalar(select(models.Trace.project_rowid).where(trace_filter))
 
-        if deleted is None:
+        if project_id is None:
             raise HTTPException(
                 status_code=404,
                 detail=error_detail,
             )
 
-        project_id, project_session_rowid = deleted
-        if project_session_rowid is not None:
-            await mark_session_content_incomplete(session, [project_session_rowid])
+        await delete_traces(session, trace_filter)
 
     # Trigger cache invalidation event
     request.state.event_queue.put(SpanDeleteEvent((project_id,)))

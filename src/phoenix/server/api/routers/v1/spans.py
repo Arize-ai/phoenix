@@ -21,8 +21,8 @@ from phoenix.datetime_utils import is_timezone_aware, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import (
     SupportedSQLDialect,
+    delete_spans,
     get_ancestor_span_rowids,
-    mark_session_content_incomplete,
 )
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.helpers.annotations import get_note_identifier
@@ -1564,10 +1564,7 @@ async def delete_span(
             predicate = models.Span.span_id == span_identifier
             error_detail = f"Span with span_id '{span_identifier}' not found"
 
-        # Delete the span and return its data in one operation
-        target_span = await session.scalar(
-            sa.delete(models.Span).where(predicate).returning(models.Span)
-        )
+        target_span = await session.scalar(select(models.Span).where(predicate))
 
         if target_span is None:
             raise HTTPException(
@@ -1575,15 +1572,7 @@ async def delete_span(
                 detail=error_detail,
             )
 
-        # Removing a span changes what the session contains, whether or not the trace
-        # survives it, so the session's evaluations stand down either way.
-        project_session_rowid = await session.scalar(
-            select(models.Trace.project_session_rowid).where(
-                models.Trace.id == target_span.trace_rowid
-            )
-        )
-        if project_session_rowid is not None:
-            await mark_session_content_incomplete(session, [project_session_rowid])
+        await delete_spans(session, models.Span.id == target_span.id)
 
         # Store values needed for later operations
         trace_rowid = target_span.trace_rowid

@@ -12,6 +12,11 @@ from __future__ import annotations
 # the two sides drifting apart either resurrects dead work or strands retryable work.
 MAX_ATTEMPTS = 3
 
+# Stamped on session work units retired because their session lost content. Like the
+# subsystem's other error markers it is read by operators and matched in tests, so it
+# is spelled once here rather than at the deletion path that writes it.
+SESSION_CONTENT_INCOMPLETE_ERROR = "session content incomplete"
+
 
 def live_eval_work_index_predicate() -> str:
     """SQL text selecting work units that still hold their dedup key.
