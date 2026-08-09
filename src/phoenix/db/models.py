@@ -3571,8 +3571,11 @@ class AgentSessionSnapshot(HasId):
 
 
 class ProjectEvaluatorCriteria(HasId):
-    """Attaches an evaluator to a project for online evaluation: which spans to
-    match, how they are sampled, and the annotation name results are written under."""
+    """Attaches an evaluator to a project for online evaluation: which spans or
+    sessions to match, how they are sampled, and the annotation name results are
+    written under. evaluation_target picks which of the two this row governs, and
+    the fields that apply differ with it — sampling and filter_condition shape span
+    selection, evaluation_delay_seconds shapes session selection."""
 
     __tablename__ = "project_evaluator_criteria"
     project_id: Mapped[int] = mapped_column(
