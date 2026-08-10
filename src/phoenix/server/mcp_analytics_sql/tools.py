@@ -81,6 +81,12 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
         "coalesce, nullif; windows row_number, rank, dense_rank, percent_rank, cume_dist, ntile, "
         f"lag, lead, first_value, last_value, nth_value; {dialect_functions}."
     )
+    if dialect == "sqlite":
+        lines.append(
+            "-- SQLite JSON: `->` yields JSON text; use `->>` or `json_extract` for scalar "
+            "values. Cast scalar values before MIN, MAX, or ORDER BY if they may hold numeric "
+            "strings."
+        )
     backstop = "statement_timeout" if dialect == "postgresql" else "sqlite_progress_handler"
     lines.append(
         f"-- read-only. {DEFAULT_ROW_LIMIT} rows by default, {MAX_ROW_LIMIT} max; "

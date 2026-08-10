@@ -314,6 +314,27 @@ def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
     return None
 
 
+def _check_dialect_specific_syntax(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> Optional[AdmissionResult]:
+    """Refuse syntax the selected backend cannot execute.
+
+    SQLGlot parses grouping extensions for SQLite even though SQLite has no
+    implementation. Letting them through makes a valid-looking query fail only
+    after the executor has opened a connection and rewritten it; admission is
+    where a caller can still receive a precise, backend-specific correction.
+    """
+    if dialect != "sqlite":
+        return None
+    for node in root.walk():
+        if isinstance(node, (exp.Rollup, exp.Cube, exp.GroupingSets)):
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                f"{node.key.upper()} is not supported by SQLite. Use ordinary GROUP BY.",
+            )
+    return None
+
+
 #: Structural classes a SELECT may contain. Everything the parser can build
 #: that is neither an `exp.Func` (its own allowlist) nor a table source (its
 #: own check) falls here, and until this existed the seam between those two
@@ -1302,6 +1323,7 @@ def admit(
         # learns nothing; the lossy-shape refusals name the hazard and the
         # spelling that works.
         or _check_lossy_shapes(root)
+        or _check_dialect_specific_syntax(root, dialect=dialect)
         or _check_structural_policy(root)
         or _check_double_quoted_timestamp_operands(root, allowlist=allowlist, dialect=dialect)
         or _check_functions(root, allowlist=allowlist, dialect=dialect)
