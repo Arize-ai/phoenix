@@ -145,6 +145,19 @@ const revalidateOnPathChange: ShouldRevalidateFunction = ({
   return defaultShouldRevalidate;
 };
 
+// :projectId's loader depends only on its own param. Same-URL requests
+// (useRevalidator) defer to the router's default so manual revalidation works.
+export const revalidateOnProjectChange: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  currentParams,
+  nextParams,
+  defaultShouldRevalidate,
+}) => {
+  if (currentUrl.href === nextUrl.href) return defaultShouldRevalidate;
+  return currentParams.projectId !== nextParams.projectId;
+};
+
 export const appRouteObjects = createRoutesFromElements(
   <Route path="/" errorElement={<ErrorElement />} element={<RootLayout />}>
     {/*
@@ -316,7 +329,7 @@ export const appRouteObjects = createRoutesFromElements(
           <Route
             path=":projectId"
             loader={projectLoader}
-            shouldRevalidate={revalidateOnPathChange}
+            shouldRevalidate={revalidateOnProjectChange}
             handle={{
               crumb: (data: ProjectLoaderData) => data?.project?.name,
               agentRoute: {
