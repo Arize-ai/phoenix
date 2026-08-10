@@ -37,7 +37,7 @@ export function ProjectEvaluatorsToolbar({
         />
         <Flex direction="row" alignItems="center" gap="size-100" flex="none">
           <AddProjectEvaluatorMenu
-            size="S"
+            size="M"
             onSelectCreationMode={onSelectCreationMode}
           />
         </Flex>
