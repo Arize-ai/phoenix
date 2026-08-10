@@ -89,10 +89,7 @@ export function createAgentSessionChat({
 }): Chat<AgentUIMessage> {
   const chatApiUrl = buildAgentChatApiUrl(sessionId);
   const toolTimings = createClientToolTimingRecorder();
-  // Persists each resolved client tool output (e.g. the first of several
-  // approvals) while sibling calls are still pending, so the server-side
-  // transcript reflects it before the turn's final chat continuation.
-  const toolOutputFlusher = createToolOutputFlusher({
+  const flushToolOutputs = createToolOutputFlusher({
     flushUrl: buildAgentToolOutputsApiUrl(sessionId),
     fetch: authFetch,
     toolTimings,
@@ -106,7 +103,6 @@ export function createAgentSessionChat({
     endTurn: async () => {
       store.getState().setSessionResponsePending(sessionId, false);
       toolTimings.clear();
-      toolOutputFlusher.clear();
     },
     finalize: () => {
       // The server persisted the turn's transcript (and possibly a
@@ -217,9 +213,7 @@ export function createAgentSessionChat({
       const shouldSendAutomatically =
         await turnCompletionGate.handleSendAutomaticallyWhen({ messages });
       if (!shouldSendAutomatically) {
-        // The turn is not continuing yet; eagerly persist any newly resolved
-        // client tool outputs while their siblings stay pending.
-        toolOutputFlusher.maybeFlush(messages);
+        flushToolOutputs(messages);
         return false;
       }
       const assistantMessage = messages.at(-1);

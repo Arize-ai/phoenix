@@ -54,25 +54,20 @@ function okResponse(): Response {
   return { ok: true } as Response;
 }
 
-function errorResponse(): Response {
-  return { ok: false } as Response;
-}
-
 async function settle(): Promise<void> {
-  await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
 }
 
 describe("createToolOutputFlusher", () => {
-  it("posts newly resolved outputs while sibling calls stay pending", async () => {
+  it("posts resolved outputs while sibling calls stay pending", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse());
-    const flusher = createToolOutputFlusher({
+    const flush = createToolOutputFlusher({
       flushUrl: FLUSH_URL,
       fetch: fetchMock,
     });
 
-    flusher.maybeFlush([
+    flush([
       userMessage(),
       assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")]),
     ]);
@@ -87,33 +82,44 @@ describe("createToolOutputFlusher", () => {
     expect(body.toolOutputs[0].toolCallId).toBe("call-1");
   });
 
-  it("does not repost outputs the server already persisted", async () => {
+  it("re-posts every resolved output on each call; the endpoint dedupes", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse());
-    const flusher = createToolOutputFlusher({
+    const flush = createToolOutputFlusher({
       flushUrl: FLUSH_URL,
       fetch: fetchMock,
     });
-    const messages = [
+
+    flush([
       userMessage(),
       assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")]),
-    ];
-
-    flusher.maybeFlush(messages);
+    ]);
+    flush([
+      userMessage(),
+      assistantMessage([
+        resolvedToolPart("call-1"),
+        resolvedToolPart("call-2"),
+        pendingToolPart("call-3"),
+      ]),
+    ]);
     await settle();
-    flusher.maybeFlush(messages);
-    await settle();
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(
+      secondBody.toolOutputs.map(
+        (toolOutput: { toolCallId: string }) => toolOutput.toolCallId
+      )
+    ).toEqual(["call-1", "call-2"]);
   });
 
   it("does not flush when every tool call has resolved", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse());
-    const flusher = createToolOutputFlusher({
+    const flush = createToolOutputFlusher({
       flushUrl: FLUSH_URL,
       fetch: fetchMock,
     });
 
-    flusher.maybeFlush([
+    flush([
       userMessage(),
       assistantMessage([
         resolvedToolPart("call-1"),
@@ -126,111 +132,20 @@ describe("createToolOutputFlusher", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("leaves outputs eligible for retry after a failed flush", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(errorResponse())
-      .mockResolvedValue(okResponse());
-    const flusher = createToolOutputFlusher({
-      flushUrl: FLUSH_URL,
-      fetch: fetchMock,
-    });
-    const messages = [
-      userMessage(),
-      assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")]),
-    ];
-
-    flusher.maybeFlush(messages);
-    await settle();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
-    flusher.maybeFlush(messages);
-    await settle();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const retryBody = JSON.parse(fetchMock.mock.calls[1][1].body);
-    expect(retryBody.toolOutputs[0].toolCallId).toBe("call-1");
-  });
-
   it("swallows network failures without surfacing them", async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error("offline"));
-    const flusher = createToolOutputFlusher({
+    const flush = createToolOutputFlusher({
       flushUrl: FLUSH_URL,
       fetch: fetchMock,
     });
 
-    flusher.maybeFlush([
+    flush([
       userMessage(),
       assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")]),
     ]);
     await settle();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("serializes flushes and picks up outputs resolved mid-flight", async () => {
-    let releaseFirstRequest: (response: Response) => void = () => {};
-    const firstRequest = new Promise<Response>((resolve) => {
-      releaseFirstRequest = resolve;
-    });
-    const fetchMock = vi
-      .fn()
-      .mockReturnValueOnce(firstRequest)
-      .mockResolvedValue(okResponse());
-    const flusher = createToolOutputFlusher({
-      flushUrl: FLUSH_URL,
-      fetch: fetchMock,
-    });
-
-    flusher.maybeFlush([
-      userMessage(),
-      assistantMessage([
-        resolvedToolPart("call-1"),
-        pendingToolPart("call-2"),
-        pendingToolPart("call-3"),
-      ]),
-    ]);
-    await settle();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
-    // A second output resolves while the first request is still in flight.
-    flusher.maybeFlush([
-      userMessage(),
-      assistantMessage([
-        resolvedToolPart("call-1"),
-        resolvedToolPart("call-2"),
-        pendingToolPart("call-3"),
-      ]),
-    ]);
-    await settle();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
-    releaseFirstRequest(okResponse());
-    await settle();
-
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body);
-    expect(secondBody.toolOutputs).toHaveLength(1);
-    expect(secondBody.toolOutputs[0].toolCallId).toBe("call-2");
-  });
-
-  it("flushes previously persisted outputs again after clear", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(okResponse());
-    const flusher = createToolOutputFlusher({
-      flushUrl: FLUSH_URL,
-      fetch: fetchMock,
-    });
-    const messages = [
-      userMessage(),
-      assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")]),
-    ];
-
-    flusher.maybeFlush(messages);
-    await settle();
-    flusher.clear();
-    flusher.maybeFlush(messages);
-    await settle();
-
-    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("attaches recorded client timings to the flushed outputs", async () => {
@@ -240,13 +155,13 @@ describe("createToolOutputFlusher", () => {
     });
     toolTimings.recordStart("call-1");
     toolTimings.recordEnd("call-1");
-    const flusher = createToolOutputFlusher({
+    const flush = createToolOutputFlusher({
       flushUrl: FLUSH_URL,
       fetch: fetchMock,
       toolTimings,
     });
 
-    flusher.maybeFlush([
+    flush([
       userMessage(),
       assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")]),
     ]);

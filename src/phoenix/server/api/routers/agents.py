@@ -2677,17 +2677,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         request: Request,
         request_body: SubmitAgentSessionToolOutputsRequestBody,
     ) -> SubmitAgentSessionToolOutputsResponseBody:
-        """Persist resolved client tool outputs for the session's open turn.
-
-        A turn that stops on unresolved client tool calls stays open while the
-        user works through approvals. Each resolved output can be submitted
-        here as it lands so the persisted transcript reflects it immediately —
-        the model does not run, and the unanswered calls keep their pending
-        states. The turn is continued (and completed) by the chat route once
-        every pending call resolves; because outputs for already-resolved
-        calls are ignored, that final continuation may idempotently re-carry
-        outputs submitted here.
-        """
+        """Persist resolved client tool outputs for the session's open turn."""
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
         request_user_id = int(phoenix_user.identity) if phoenix_user is not None else None

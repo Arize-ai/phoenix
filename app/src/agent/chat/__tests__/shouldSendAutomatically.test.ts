@@ -179,21 +179,11 @@ describe("getFlushableClientToolOutputs", () => {
   it("returns resolved client outputs while sibling calls stay pending", () => {
     const outputs = getFlushableClientToolOutputs({
       messages: [partiallyResolvedAssistantMessage()],
-      isFlushed: () => false,
     });
 
     expect(outputs.map((output) => output.toolCallId)).toEqual([
       "tool-call-resolved",
     ]);
-  });
-
-  it("excludes outputs the server already holds", () => {
-    const outputs = getFlushableClientToolOutputs({
-      messages: [partiallyResolvedAssistantMessage()],
-      isFlushed: (toolCallId) => toolCallId === "tool-call-resolved",
-    });
-
-    expect(outputs).toEqual([]);
   });
 
   it("returns nothing once every call has resolved", () => {
@@ -215,9 +205,7 @@ describe("getFlushableClientToolOutputs", () => {
     ];
 
     // The normal chat continuation carries the outputs instead.
-    expect(
-      getFlushableClientToolOutputs({ messages, isFlushed: () => false })
-    ).toEqual([]);
+    expect(getFlushableClientToolOutputs({ messages })).toEqual([]);
   });
 
   it("returns nothing when the tail holds a user-interrupted output", () => {
@@ -230,12 +218,7 @@ describe("getFlushableClientToolOutputs", () => {
       errorText: USER_INTERRUPT_ERROR,
     });
 
-    expect(
-      getFlushableClientToolOutputs({
-        messages: [message],
-        isFlushed: () => false,
-      })
-    ).toEqual([]);
+    expect(getFlushableClientToolOutputs({ messages: [message] })).toEqual([]);
   });
 
   it("returns nothing when the tail holds a navigation-cancelled output", () => {
@@ -248,12 +231,7 @@ describe("getFlushableClientToolOutputs", () => {
       errorText: EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
     });
 
-    expect(
-      getFlushableClientToolOutputs({
-        messages: [message],
-        isFlushed: () => false,
-      })
-    ).toEqual([]);
+    expect(getFlushableClientToolOutputs({ messages: [message] })).toEqual([]);
   });
 
   it("ignores resolved outputs that are not client-executed", () => {
@@ -280,9 +258,7 @@ describe("getFlushableClientToolOutputs", () => {
       }),
     ];
 
-    expect(
-      getFlushableClientToolOutputs({ messages, isFlushed: () => false })
-    ).toEqual([]);
+    expect(getFlushableClientToolOutputs({ messages })).toEqual([]);
   });
 
   it("returns nothing when the trailing message is not an assistant", () => {
@@ -294,9 +270,7 @@ describe("getFlushableClientToolOutputs", () => {
       }),
     ];
 
-    expect(
-      getFlushableClientToolOutputs({ messages, isFlushed: () => false })
-    ).toEqual([]);
+    expect(getFlushableClientToolOutputs({ messages })).toEqual([]);
   });
 });
 

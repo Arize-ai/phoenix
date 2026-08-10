@@ -45,21 +45,14 @@ export function shouldSendAutomaticallyAfterToolOutput({
 }
 
 /**
- * The trailing assistant message's resolved client tool outputs that are
- * eligible for an eager flush to the tool-outputs endpoint — outputs the
- * server has not yet persisted, on a turn that stays open because sibling
- * tool calls are still pending. Empty when every call has resolved (the
- * normal chat continuation carries the outputs instead) or when the tail
- * holds interrupted or navigation-cancel outputs, which follow the
- * new-user-message path rather than continuing this turn.
+ * Resolved client tool outputs on a turn still open because sibling tool
+ * calls are pending. May include outputs the server already persisted; the
+ * tool-outputs endpoint dedupes by tool call ID.
  */
 export function getFlushableClientToolOutputs({
   messages,
-  isFlushed,
 }: {
   messages: UIMessage[];
-  /** Whether an earlier flush already persisted an output to the server. */
-  isFlushed: (toolCallId: string) => boolean;
 }): Array<ToolUIPart | DynamicToolUIPart> {
   const message = messages[messages.length - 1];
   if (!message || message.role !== "assistant") {
@@ -74,9 +67,8 @@ export function getFlushableClientToolOutputs({
   if (getUnresolvedToolCalls(messages).length === 0) {
     return [];
   }
-  return message.parts.filter(
-    (part): part is ToolUIPart | DynamicToolUIPart =>
-      isResolvedClientToolOutputPart(part) && !isFlushed(part.toolCallId)
+  return message.parts.filter((part): part is ToolUIPart | DynamicToolUIPart =>
+    isResolvedClientToolOutputPart(part)
   );
 }
 
