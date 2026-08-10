@@ -466,11 +466,21 @@ def _sqlite_authorizer(
                     "reading the database catalog is not permitted; "
                     "use describeSqlSchema to discover tables and columns",
                 )
+            # A materialized CTE read has no database name. SQLite otherwise
+            # presents it identically to a physical table, so this is the only
+            # evidence that keeps a harmless `WITH users AS (SELECT 1)` from
+            # being refused merely because `users` is also a withheld table.
+            #
+            # A physical read retains its database name even when the CTE uses
+            # the same name (`WITH api_keys AS (SELECT ... FROM main.api_keys)`).
+            # Do not let the statement-local name mask that callback: admission
+            # is the first boundary, but the authorizer must still deny a
+            # physical-table bypass if admission is ever circumvented.
+            if table in introduced_relations and dbname is None:
+                return sqlite3.SQLITE_OK
             # A real table that is not allowlisted is refused however the read
             # presents, with or without a database name. This is a backstop for
-            # physical tables that were not admitted; it follows the
-            # statement-local relation check because SQLite's callback loses
-            # that distinction for aggregate-only reads.
+            # physical tables that were not admitted.
             if table in _phoenix_table_names() and table not in allow_tables:
                 return deny(
                     ErrorCode.RELATION_NOT_ALLOWED,
@@ -479,8 +489,6 @@ def _sqlite_authorizer(
                     "describeSqlSchema lists the tables that are",
                     kind="bypass",
                 )
-            if table in introduced_relations:
-                return sqlite3.SQLITE_OK
             # A table-valued function is reported as a read of a pseudo-table
             # named after the function. Its rows come from the JSON value passed
             # in, not from storage, so the table allowlist has nothing to say
