@@ -1258,4 +1258,25 @@ def _success_envelope(
     # drops comments and respells literals without any pass being recorded.
     if ctx.executed_sql and ctx.executed_sql != ctx.caller_sql:
         envelope.applied.executed = ctx.executed_sql
+    # The stream consumers cap row values before this envelope exists, but SQL
+    # text and protocol metadata are part of the same response. In particular,
+    # limit injection normally makes `executed` differ from the caller text.
+    # Drop that diagnostic first -- it is redundant with server debug logs --
+    # then drop returned rows only if the complete serialized envelope still
+    # does not fit. This preserves the advertised response cap rather than
+    # measuring only one of its fields.
+    if _serialized_envelope_bytes(envelope) > MAX_RESPONSE_BYTES and envelope.applied.executed:
+        envelope.applied.executed = None
+        envelope.notes.append("executed SQL omitted to keep response within byte limit")
+    if envelope.rows and _serialized_envelope_bytes(envelope) > MAX_RESPONSE_BYTES:
+        envelope.notes.append("response byte limit reached")
+        while envelope.rows and _serialized_envelope_bytes(envelope) > MAX_RESPONSE_BYTES:
+            envelope.rows.pop()
+        envelope.row_count = len(envelope.rows)
+        envelope.row_count_is_partial = True
     return envelope
+
+
+def _serialized_envelope_bytes(envelope: ExecuteSqlSuccessEnvelope) -> int:
+    """Return the wire size used by this MCP result shape."""
+    return len(envelope.model_dump_json(exclude_none=True).encode("utf-8"))

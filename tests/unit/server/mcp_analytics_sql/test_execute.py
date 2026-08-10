@@ -14,10 +14,13 @@ from sqlglot import exp, parse_one
 from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp_analytics_sql.execute import (
+    MAX_RESPONSE_BYTES,
     ExecuteParams,
     _estimated_rows,
     _rewrite_attribution,
+    _serialized_envelope_bytes,
     _sqlite_read_uri,
+    _success_envelope,
     execute_analytics_sql,
     resolve_sqlite_db_path,
 )
@@ -56,6 +59,30 @@ async def test_validate_only_marks_its_empty_success(
     assert result.envelope.columns == []
     assert result.envelope.rows == []
     assert result.envelope.notes == ["validate_only: statement accepted; no data rows executed"]
+
+
+def test_response_cap_includes_executed_sql_metadata() -> None:
+    """A rewritten statement must not make the envelope exceed its byte cap."""
+    ctx = RewriteContext(
+        allowlist=load_allowlist("sqlite"),
+        dialect="sqlite",
+        row_limit=1,
+        caller_sql="SELECT 1",
+        executed_sql="SELECT " + "x" * MAX_RESPONSE_BYTES,
+    )
+    envelope = _success_envelope(
+        columns=["v"],
+        rows=[[1]],
+        row_count=1,
+        partial=False,
+        ctx=ctx,
+        backend_validated=True,
+        estimated_rows=None,
+    )
+
+    assert envelope.applied.executed is None
+    assert "executed SQL omitted to keep response within byte limit" in envelope.notes
+    assert _serialized_envelope_bytes(envelope) <= MAX_RESPONSE_BYTES
 
 
 async def test_select_count_projects_postgresql(db: DbSessionFactory) -> None:
