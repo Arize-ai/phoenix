@@ -33,8 +33,9 @@ class ExecuteSqlSuccessEnvelope(BaseModel):
     )
     row_count_is_partial: bool = Field(
         description=(
-            "Whether rows were dropped. This is authoritative: one row beyond the limit is "
-            "fetched, so a result of exactly row_limit rows is not assumed truncated."
+            "Whether rows were dropped by the row or response-byte limit. This is authoritative: "
+            "one row beyond the row limit is fetched, so a result of exactly row_limit rows is "
+            "not assumed truncated. Check notes for the limit that applied."
         )
     )
     applied: AppliedSql = Field(

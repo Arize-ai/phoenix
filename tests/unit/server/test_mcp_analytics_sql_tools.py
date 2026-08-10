@@ -109,6 +109,7 @@ async def test_execute_sql_declares_its_envelope(analytics_mcp: FastMCP) -> None
     # on the field rather than in the tool description.
     assert "row_count_is_partial" in properties["estimated_rows"]["description"]
     assert "not a count" in properties["estimated_rows"]["description"]
+    assert "response-byte limit" in properties["row_count_is_partial"]["description"]
     assert "effective dialect" in properties["applied"]["description"]
     assert "Caveats" in properties["notes"]["description"]
     error_properties = error_schema["properties"]["error"]["properties"]
@@ -119,6 +120,7 @@ async def test_execute_sql_declares_its_envelope(analytics_mcp: FastMCP) -> None
     assert "available only" in (tool.description or "")
     assert "PostgreSQL" in (tool.description or "")
     assert "Preserve any error" in (tool.description or "")
+    assert "validate_only=True" in (tool.description or "")
 
 
 async def test_envelope_matches_the_declared_schema(analytics_mcp: FastMCP) -> None:
