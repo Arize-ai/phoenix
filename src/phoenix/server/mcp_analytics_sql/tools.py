@@ -62,6 +62,22 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
             "-- Continuous percentiles: use `percentile(x, p)`, where p is 0–100 "
             "(e.g. `percentile(latency_ms, 50)`); `median` and `percentile_cont` are unavailable."
         )
+    else:
+        lines.append(
+            "-- Continuous percentiles: use `percentile_cont(p) WITHIN GROUP (ORDER BY x)`, "
+            "where p is 0–1."
+        )
+    dialect_functions = (
+        "JSON json_extract, json_type, json_each; time date, datetime, unixepoch, julianday"
+        if dialect == "sqlite"
+        else "JSON jsonb_agg, jsonb_each, jsonb_object_keys, jsonb_path_exists, jsonb_set, "
+        "jsonb_typeof; time date_trunc, extract"
+    )
+    lines.append(
+        "-- Common allowed functions: count, sum, avg, min, max, round, abs, ceil, floor, sign, "
+        "coalesce, nullif; windows row_number, rank, dense_rank, percent_rank, cume_dist, ntile, "
+        f"lag, lead, first_value, last_value, nth_value; {dialect_functions}."
+    )
     backstop = "statement_timeout" if dialect == "postgresql" else "sqlite_progress_handler"
     lines.append(
         f"-- read-only. {DEFAULT_ROW_LIMIT} rows by default, {MAX_ROW_LIMIT} max; "
@@ -255,6 +271,10 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         magnitude for deciding whether to narrow the query. It is not a count,
         it can be out by a large factor over JSON paths, and it never answers
         the truncation question -- that is what the flag is for.
+
+        Code-mode `call_tool` already returns this envelope as a dictionary.
+        Check for an `error` key before reading `rows`; do not call `json.loads`
+        on the result.
         """
         try:
             result = await execute_analytics_sql(

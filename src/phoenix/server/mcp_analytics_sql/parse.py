@@ -1066,6 +1066,17 @@ def _check_column_references(
         if not by_reference:
             continue
         columns = _scope_columns(scope.expression)
+        having = scope.expression.args.get("having")
+        having_columns = (
+            {id(column) for column in _within_scope(having, exp.Column)}
+            if isinstance(having, exp.Expression)
+            else set()
+        )
+        output_aliases = {
+            projection.alias.casefold()
+            for projection in scope.expression.expressions
+            if isinstance(projection, exp.Alias) and projection.alias
+        }
         # NATURAL JOIN names none of its join keys, so its behavior changes when
         # physical schemas evolve. Keep join criteria explicit rather than
         # silently taking every same-named column.
@@ -1115,6 +1126,13 @@ def _check_column_references(
                 and not localities.is_alias_bound(column)
                 and column.name.casefold() in {reference.casefold() for reference in by_reference}
             ):
+                if id(column) in having_columns and column.name.casefold() in output_aliases:
+                    return AdmissionResult(
+                        AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                        f"`HAVING {column.name}` refers to a SELECT alias. Repeat its expression "
+                        "in HAVING (for example, `HAVING COUNT(*) >= 50`): PostgreSQL does not "
+                        "accept SELECT aliases there.",
+                    )
                 return AdmissionResult(
                     AdmissionOutcome.UNSUPPORTED_SYNTAX,
                     f"{column.name!r} names a table here, so it selects the whole row "
