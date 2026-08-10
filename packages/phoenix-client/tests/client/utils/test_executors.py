@@ -3,7 +3,9 @@ import os
 import platform
 import queue
 import signal
+import subprocess
 import sys
+import textwrap
 import threading
 import time
 from typing import Any, Iterator, Sequence, Union, overload
@@ -11,7 +13,9 @@ from unittest.mock import AsyncMock, Mock
 
 import nest_asyncio  # type: ignore[import-untyped]
 import pytest
+from phoenix.executors import executors as shared_executors
 
+from phoenix.client.utils import executors
 from phoenix.client.utils.executors import (
     AsyncExecutor,
     ExecutionStatus,
@@ -618,3 +622,62 @@ def test_async_executor_run_works_in_background_thread() -> None:
 
     assert not errors, f"run() failed in background thread: {errors}"
     assert outputs == [0, 3, 6], f"Expected [0, 3, 6], got {outputs}"
+
+
+# See the note on the same constant in test_rate_limiters.py.
+FROZEN_EXECUTOR_NAMES = {
+    "AsyncExecutor",
+    "ConcurrencyController",
+    "ExecutionDetails",
+    "ExecutionStatus",
+    "Executor",
+    "SyncExecutor",
+    "Unset",
+    "get_executor_on_sync_context",
+}
+
+
+def test_module_exports_its_frozen_names() -> None:
+    declared = set(executors.__all__)
+    assert declared == FROZEN_EXECUTOR_NAMES, (
+        f"missing: {sorted(FROZEN_EXECUTOR_NAMES - declared)}, "
+        f"extra: {sorted(declared - FROZEN_EXECUTOR_NAMES)}"
+    )
+    for name in FROZEN_EXECUTOR_NAMES:
+        assert hasattr(executors, name), f"{name} is in __all__ but not importable"
+
+
+def test_re_exports_are_the_shared_objects_not_copies() -> None:
+    for name in FROZEN_EXECUTOR_NAMES:
+        assert getattr(executors, name) is getattr(shared_executors, name)
+
+
+@pytest.mark.parametrize(
+    "first_import",
+    ["phoenix.client.utils.executors", "phoenix.evals"],
+)
+def test_legacy_class_lookup_survives_either_import_order(first_import: str) -> None:
+    # The shared executor looks up an older evals' exception classes lazily. Doing it at import
+    # time instead would cycle back through the evals re-export shim while this module's body is
+    # still running, and the ImportError that raises would be caught by the very handler meant to
+    # cover a missing evals — silently, and only in one import order. Each order runs in its own
+    # interpreter because import order cannot be undone within a process.
+    script = textwrap.dedent(
+        f"""
+        import importlib
+        importlib.import_module({first_import!r})
+
+        from phoenix.executors import executors
+        from phoenix.executors.rate_limiters import RateLimitError as shared
+        from phoenix.evals.rate_limiters import RateLimitError as from_evals
+
+        # An empty result means one of two very different things. This assertion pins it to the
+        # harmless one: evals was reachable and re-exports the shared class, so there is nothing
+        # extra to check against.
+        assert from_evals is shared
+        assert executors._legacy_rate_limit_errors() == ()
+        assert executors._legacy_phoenix_exceptions() == ()
+        """
+    )
+    result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr

@@ -23,6 +23,7 @@ classifiers = [
 ]
 version = "2.13.0"
 dependencies = [
+  "arize-phoenix-executors>=0.1.0,<0.2",  # shared rate limiter and executors. Cap below 0.2: pre-1.0, so a minor is where a breaking change lands, and the executors classify errors by class identity — every Phoenix package installed together must resolve the same one.
   "httpx",
   "tqdm",
   "typing-extensions",
