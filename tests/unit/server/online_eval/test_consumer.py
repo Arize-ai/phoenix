@@ -94,6 +94,8 @@ def _patch_playground_client(monkeypatch: pytest.MonkeyPatch, client: _StubLLMCl
 
 class _StubSandboxBackend:
     secret_values: tuple[str, ...] = ()
+    # Duck-typed, so SandboxBackend's defaults must be mirrored.
+    provider: str = ""
 
 
 class _StubSandboxSession:
