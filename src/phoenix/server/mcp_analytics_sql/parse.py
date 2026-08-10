@@ -52,7 +52,9 @@ class AdmissionResult:
 ALLOWED_ROOTS = (exp.Select, exp.Union, exp.Intersect, exp.Except)
 
 
-def _fold_unquoted_identifiers(root: exp.Expression) -> exp.Expression:
+def _fold_unquoted_identifiers(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> exp.Expression:
     """Canonicalize identifiers to the spelling both supported engines resolve.
 
     SQLGlot preserves the caller's spelling, while PostgreSQL and SQLite fold
@@ -60,13 +62,16 @@ def _fold_unquoted_identifiers(root: exp.Expression) -> exp.Expression:
     and later rewrite passes all operate on SQLGlot's tree, so leaving `WITH X`
     and `FROM x` distinct there makes Phoenix disagree with the database.
 
-    Quoted identifiers deliberately retain their exact spelling: PostgreSQL
-    treats `"X"` and `x` as different names. This runs before admission so each
-    later layer observes the same names the backend will bind.
+    PostgreSQL quoted identifiers retain their exact spelling, while SQLite
+    resolves quoted and unquoted identifiers case-insensitively. Use ``lower``,
+    not Unicode ``casefold``: database identifier folding does not expand one
+    character into several, such as ``ß`` into ``ss``.
     """
     for identifier in root.find_all(exp.Identifier):
-        if not identifier.args.get("quoted") and isinstance(identifier.this, str):
-            identifier.set("this", identifier.this.casefold())
+        if isinstance(identifier.this, str) and (
+            dialect == "sqlite" or not identifier.args.get("quoted")
+        ):
+            identifier.set("this", identifier.this.lower())
     return root
 
 
@@ -109,7 +114,7 @@ def parse_sql(sql: str, *, dialect: SupportedSQLDialectName) -> exp.Expression:
                 "Simplify the statement, or split it into CTEs."
             ),
         )
-    return _fold_unquoted_identifiers(root)
+    return _fold_unquoted_identifiers(root, dialect=dialect)
 
 
 #: How deep a statement may nest. Every stage after parsing walks the tree
