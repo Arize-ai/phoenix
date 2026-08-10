@@ -35,8 +35,8 @@ async def test_select_count_projects_sqlite(
         ExecuteParams(sql="SELECT count(*) AS c FROM projects"),
         sqlite_db_path=db_path,
     )
-    assert result.envelope["columns"] == ["c"]
-    assert result.envelope["rows"][0][0] == 1
+    assert result.envelope.columns == ["c"]
+    assert result.envelope.rows[0][0] == 1
 
 
 async def test_select_count_projects_postgresql(db: DbSessionFactory) -> None:
@@ -46,7 +46,7 @@ async def test_select_count_projects_postgresql(db: DbSessionFactory) -> None:
         db,
         ExecuteParams(sql="SELECT count(*) AS c FROM projects"),
     )
-    assert "c" in result.envelope["columns"]
+    assert "c" in result.envelope.columns
 
 
 async def test_denied_table(analytics_sqlite_db: tuple[DbSessionFactory, str]) -> None:
@@ -78,7 +78,7 @@ async def test_path_is_resolved_from_db_factory_when_caller_omits_it(
         db,
         ExecuteParams(sql="SELECT count(*) AS c FROM projects"),
     )
-    assert result.envelope["rows"][0][0] == 1
+    assert result.envelope.rows[0][0] == 1
 
 
 async def test_missing_sqlite_path_is_refused_and_says_so_accurately(
@@ -197,7 +197,7 @@ async def test_colons_in_literals_are_not_read_as_bind_parameters(
     # table holds -- the assertion is about the literal surviving compilation,
     # not about fixture contents.
     result = await execute_analytics_sql(db, ExecuteParams(sql=sql, row_limit=1))
-    assert result.envelope["rows"], "the statement returned nothing to check"
+    assert result.envelope.rows, "the statement returned nothing to check"
 
 
 @pytest.mark.postgres_only
@@ -309,7 +309,7 @@ async def test_a_pyformat_literal_runs_on_sqlite(
         ExecuteParams(sql="SELECT count(*) AS n FROM spans WHERE name LIKE '%(x)s'"),
         sqlite_db_path=db_path,
     )
-    assert result.envelope["rows"] == [[0]]
+    assert result.envelope.rows == [[0]]
 
 
 class TestEstimatedRowsIsReadBelowTheLimit:
@@ -425,7 +425,7 @@ class TestRewriteAttribution:
             sqlite_db_path=db_path,
         )
 
-        assert result.envelope["rows"] is not None
+        assert result.envelope.rows is not None
 
 
 class TestDeclaredRelationsShadowingPhoenixTables:
@@ -446,7 +446,7 @@ class TestDeclaredRelationsShadowingPhoenixTables:
             sqlite_db_path=db_path,
         )
 
-        assert result.envelope["rows"] == [[1]]
+        assert result.envelope.rows == [[1]]
 
     async def test_an_aggregate_over_a_shadowing_cte_runs(
         self, analytics_sqlite_db: tuple[DbSessionFactory, str]
@@ -459,7 +459,7 @@ class TestDeclaredRelationsShadowingPhoenixTables:
             sqlite_db_path=db_path,
         )
 
-        assert result.envelope["rows"] == [[1]]
+        assert result.envelope.rows == [[1]]
 
     async def test_a_subquery_alias_cannot_hide_the_base_table(
         self, analytics_sqlite_db: tuple[DbSessionFactory, str]
@@ -524,7 +524,8 @@ class TestEnvelopeReportsTheExecutedStatement:
             sqlite_db_path=db_path,
         )
 
-        executed = result.envelope["applied"]["executed"]
+        executed = result.envelope.applied.executed
+        assert executed is not None
         assert executed != "select count(*) as c from projects"
         assert "LIMIT" in executed.upper()
 
@@ -536,8 +537,8 @@ class TestEnvelopeReportsTheExecutedStatement:
         sql = "SELECT count(*) AS c FROM projects LIMIT 500"
         result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
 
-        if result.envelope["applied"].get("executed") is not None:
-            assert result.envelope["applied"]["executed"] != sql
+        if result.envelope.applied.executed is not None:
+            assert result.envelope.applied.executed != sql
 
 
 class TestLossyNormalisationIsReported:
@@ -600,8 +601,8 @@ class TestLossyNormalisationIsReported:
             sqlite_db_path=db_path,
         )
 
-        assert result.envelope["rows"] == [[None]]
-        assert any("non-finite" in note for note in result.envelope["notes"])
+        assert result.envelope.rows == [[None]]
+        assert any("non-finite" in note for note in result.envelope.notes)
 
 
 class TestSqliteResolutionErrorsAreActionable:

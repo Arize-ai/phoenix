@@ -38,6 +38,10 @@ from phoenix.server.mcp_analytics_sql.normalize import (
     LOSSY_CONVERSION_NOTES,
     normalize_row_values,
 )
+from phoenix.server.mcp_analytics_sql.output import (
+    AppliedSql,
+    ExecuteSqlSuccessEnvelope,
+)
 from phoenix.server.mcp_analytics_sql.parse import admit, parse_sql, render
 from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
 from phoenix.server.types import DbSessionFactory
@@ -180,7 +184,7 @@ class ExecuteParams:
 
 @dataclass(frozen=True)
 class ExecuteResult:
-    envelope: dict[str, Any]
+    envelope: ExecuteSqlSuccessEnvelope
 
 
 _FUNCTION_CALL = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)\s*\(")
@@ -659,8 +663,8 @@ async def execute_analytics_sql(
             "analytics sql: %s completed in %.1fms rows=%s partial=%s",
             call_id,
             (time.monotonic() - started) * 1000,
-            result.envelope.get("row_count"),
-            result.envelope.get("row_count_is_partial"),
+            result.envelope.row_count,
+            result.envelope.row_count_is_partial,
         )
         return result
     finally:
@@ -1183,37 +1187,36 @@ def _success_envelope(
     backend_validated: bool,
     estimated_rows: Optional[int],
     notes: Optional[list[str]] = None,
-) -> dict[str, Any]:
+) -> ExecuteSqlSuccessEnvelope:
     # Only what varies. Every field here can differ between two calls, so a
     # reader who skips one loses information; anything constant -- the caps, the
     # read-only guarantee, the runtime backstop, the areas -- is a property of
     # the surface and is stated once by describeSqlSchema instead of repeated on
     # every answer. Before that split, a one-row result was 696 bytes of which
     # 53 were the row and 401 could not have taken another value.
-    envelope: dict[str, Any] = {
-        "columns": columns,
-        "rows": rows,
-        "row_count": row_count,
-        "row_count_is_partial": partial,
-        "applied": {
-            "row_limit": ctx.row_limit,
+    envelope = ExecuteSqlSuccessEnvelope(
+        columns=columns,
+        rows=rows,
+        row_count=row_count,
+        row_count_is_partial=partial,
+        applied=AppliedSql(
+            row_limit=ctx.row_limit,
             # Which SQL to write. Measured across cold-agent runs as the field
             # callers act on most after the rows themselves.
-            "dialect": ctx.dialect,
+            dialect=ctx.dialect,
             # Which server-side transforms fired. Names the passes, not what
-            # they did -- a caller that needs the latter reads `executed` in the
-            # server log.
-            "rewrites": list(ctx.applied),
-        },
-        "backend_validated": backend_validated,
-        "notes": list(ctx.notes) + (notes or []),
-    }
+            # they did -- a caller that needs the latter reads `executed` in
+            # the server log.
+            rewrites=list(ctx.applied),
+        ),
+        backend_validated=backend_validated,
+        notes=list(ctx.notes) + (notes or []),
+        estimated_rows=estimated_rows,
+    )
     # Included only when the text changed, which is the only case it carries
     # information -- and omitting it otherwise keeps a one-row answer small.
     # `rewrites` cannot stand in for this: the generator re-cases, re-spaces,
     # drops comments and respells literals without any pass being recorded.
     if ctx.executed_sql and ctx.executed_sql != ctx.caller_sql:
-        envelope["applied"]["executed"] = ctx.executed_sql
-    if estimated_rows is not None:
-        envelope["estimated_rows"] = estimated_rows
+        envelope.applied.executed = ctx.executed_sql
     return envelope

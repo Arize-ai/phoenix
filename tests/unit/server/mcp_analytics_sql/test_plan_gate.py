@@ -161,7 +161,7 @@ async def test_the_gate_does_not_refuse_our_own_rewrites(db: DbSessionFactory, s
     # Asserted on the plan being accepted, not on rows: the claim is that the
     # gate stops refusing these, and the test database holds no spans.
     result = await execute_analytics_sql(db, ExecuteParams(sql=sql, row_limit=1))
-    assert result.envelope["backend_validated"] is True
+    assert result.envelope.backend_validated is True
 
 
 @pytest.mark.parametrize(
