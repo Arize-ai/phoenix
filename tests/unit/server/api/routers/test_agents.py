@@ -681,7 +681,7 @@ class TestChatRequestBodyInstrumentUserId:
     def test_defaults_to_false_and_accepts_camel_alias(self) -> None:
         payload = {
             "id": "chat-1",
-            "userAgentType": "web",
+            "headless": False,
             "model": {
                 "providerType": "builtin",
                 "provider": "OPENAI",

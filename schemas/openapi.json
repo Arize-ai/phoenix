@@ -10051,14 +10051,10 @@
       },
       "ChatRequestBody": {
         "properties": {
-          "userAgentType": {
-            "type": "string",
-            "enum": [
-              "web",
-              "headless"
-            ],
-            "title": "Useragenttype",
-            "description": "Which Phoenix user agent type is driving the turn: ``web`` for the browser assistant, ``headless`` for terminal and scripted clients. Selects the agent configuration the turn runs on."
+          "headless": {
+            "type": "boolean",
+            "title": "Headless",
+            "description": "Whether a headless client (terminal or scripted) is driving the turn, as opposed to the browser assistant. Selects the agent configuration the turn runs on."
           },
           "contexts": {
             "items": {
@@ -10161,7 +10157,7 @@
         },
         "type": "object",
         "required": [
-          "userAgentType",
+          "headless",
           "model",
           "id"
         ],

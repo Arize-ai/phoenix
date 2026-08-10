@@ -168,7 +168,7 @@ export function buildAgentChatRequestBody({
   const base = {
     ...body,
     id,
-    userAgentType: "web" as const,
+    headless: false,
     recordLocalTraces: traceRecording.ingestTraces,
     exportRemoteTraces: traceRecording.exportRemoteTraces,
     instrumentUserId: getEffectiveAttachUserId({ agentsConfig, observability }),

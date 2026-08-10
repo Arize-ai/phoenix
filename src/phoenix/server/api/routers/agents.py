@@ -316,11 +316,6 @@ def _resolve_browser_clock(messages: Sequence[PhoenixUIMessage]) -> AppContext |
     return None
 
 
-UserAgentType = Literal["web", "headless"]
-"""Which Phoenix user agent type is driving a chat turn: ``web`` for the
-browser assistant, ``headless`` for terminal and scripted clients."""
-
-
 ToolOutputUIPart = (
     ToolOutputAvailablePart
     | ToolOutputErrorPart
@@ -336,11 +331,11 @@ _PhoenixToolCallCallbackProviderMetadataAdapter: TypeAdapter[
 class ChatRequestBody(_CamelBaseModel):
     """Assistant chat submit request payload."""
 
-    user_agent_type: UserAgentType = Field(
+    headless: bool = Field(
         description=(
-            "Which Phoenix user agent type is driving the turn: ``web`` for the "
-            "browser assistant, ``headless`` for terminal and scripted "
-            "clients. Selects the agent configuration the turn runs on."
+            "Whether a headless client (terminal or scripted) is driving the "
+            "turn, as opposed to the browser assistant. Selects the agent "
+            "configuration the turn runs on."
         ),
     )
     contexts: list[ChatContext] = Field(default_factory=list)
@@ -2634,7 +2629,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         request: Request,
         request_body: ChatRequestBody,
     ) -> Response:
-        if request_body.user_agent_type == "headless" and get_env_phoenix_agents_disable_bash():
+        if request_body.headless and get_env_phoenix_agents_disable_bash():
             raise HTTPException(status_code=403, detail="Headless agent is disabled")
         body = request_body
         db_session_factory: DbSessionFactory = request.app.state.db
@@ -2717,7 +2712,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 tracer_provider = tracer.tracer_provider if tracer is not None else None
                 sandbox_availability = SandboxAvailability()
                 model_provider_availability = ModelProviderAvailability()
-                agent_supports_availability_gate = body.user_agent_type == "web"
+                agent_supports_availability_gate = not body.headless
                 async with request.app.state.db() as session:
                     if agent_supports_availability_gate:
                         if _contexts_need_sandbox_availability(resolved_contexts):
@@ -2785,7 +2780,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 [Callable[[AgentRunResult[Any]], AsyncIterator[BaseChunk]]],
                 AsyncIterator[BaseChunk],
             ]
-            if body.user_agent_type == "headless":
+            if body.headless:
                 server_agent = build_server_agent(
                     model=model,
                     schema=request.app.state.graphql_schema,

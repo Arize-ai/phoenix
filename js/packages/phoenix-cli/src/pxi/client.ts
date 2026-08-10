@@ -30,8 +30,6 @@ import type {
 
 const AGENT_SESSION_CHAT_PATH =
   "/v1/agent_sessions/{session_id}/chat" satisfies keyof pathsV1;
-/** The CLI drives the headless agent; sent as the chat body's `userAgentType`. */
-const HEADLESS_USER_AGENT_TYPE = "headless" as const;
 const AGENT_SESSION_PAGE_LIMIT = 100;
 /**
  * The `code` discriminator of every HTTP 409 the agent session routes return.
@@ -526,7 +524,8 @@ function buildPxiRequestBase({ options }: { options: PxiRuntimeOptions }) {
   return {
     id: options.sessionId,
     trigger: "submit-message" as const,
-    userAgentType: HEADLESS_USER_AGENT_TYPE,
+    // The CLI drives the headless agent rather than the browser assistant.
+    headless: true,
     recordLocalTraces: options.ingestTraces,
     exportRemoteTraces: options.exportRemoteTraces,
     instrumentUserId: options.attachUserId,

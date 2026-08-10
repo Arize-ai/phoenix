@@ -2176,11 +2176,10 @@ export interface components {
          */
         ChatRequestBody: {
             /**
-             * Useragenttype
-             * @description Which Phoenix user agent type is driving the turn: ``web`` for the browser assistant, ``headless`` for terminal and scripted clients. Selects the agent configuration the turn runs on.
-             * @enum {string}
+             * Headless
+             * @description Whether a headless client (terminal or scripted) is driving the turn, as opposed to the browser assistant. Selects the agent configuration the turn runs on.
              */
-            userAgentType: "web" | "headless";
+            headless: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
             /**
