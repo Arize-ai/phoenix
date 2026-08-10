@@ -34,6 +34,15 @@ ALLOWED_FUNC_CLASSES: frozenset[type[exp.Func]] = frozenset(
         exp.RowNumber,
         exp.Rank,
         exp.DenseRank,
+        exp.PercentRank,
+        exp.CumeDist,
+        # Value window functions let an analytic query compare each row with a
+        # stable first, last, or nth event in its partition. Unlike aggregates,
+        # they retain one output per input row; their cost is bounded by the
+        # same partition sort that rank and percent_rank already permit.
+        exp.FirstValue,
+        exp.LastValue,
+        exp.NthValue,
         exp.Ntile,
         exp.JSONExtract,
         exp.JSONExtractScalar,
@@ -46,6 +55,9 @@ ALLOWED_FUNC_CLASSES: frozenset[type[exp.Func]] = frozenset(
         # can amplify: substring only ever shortens, lower preserves length, abs
         # is arithmetic on one value.
         exp.Abs,
+        exp.Ceil,
+        exp.Floor,
+        exp.Sign,
         exp.Lower,
         # Upper and Length sit in the same risk class as Lower and are already
         # named in the Postgres plan gate, so refusing them at admission left
@@ -245,12 +257,20 @@ SQLITE_AUTHORIZER_FUNCTIONS: frozenset[str] = frozenset(
         "max",
         "round",
         "abs",
+        "ceil",
+        "floor",
+        "sign",
         "coalesce",
         "nullif",
         # Window functions.
         "row_number",
         "rank",
         "dense_rank",
+        "percent_rank",
+        "cume_dist",
+        "first_value",
+        "last_value",
+        "nth_value",
         "ntile",
         "lag",
         "lead",
