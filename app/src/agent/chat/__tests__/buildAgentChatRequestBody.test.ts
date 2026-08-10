@@ -56,7 +56,7 @@ describe("buildAgentChatRequestBody", () => {
     expect(body).toMatchObject({
       requestedSkills: ["debug-trace"],
       trigger: "submit-message",
-      attachUserId: false,
+      instrumentUserId: false,
       editPermission: "manual",
       model: {
         providerType: "builtin",
@@ -165,11 +165,11 @@ describe("buildAgentChatRequestBody", () => {
       },
     });
 
-    expect(body.ingestTraces).toBe(false);
+    expect(body.recordLocalTraces).toBe(false);
     expect(body.exportRemoteTraces).toBe(true);
   });
 
-  it("propagates attachUserId opt-in to the request body", () => {
+  it("propagates the attach-user-id opt-in to the request body as instrumentUserId", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
@@ -194,8 +194,8 @@ describe("buildAgentChatRequestBody", () => {
       },
     });
 
-    expect(body.attachUserId).toBe(true);
-    expect(body.ingestTraces).toBe(true);
+    expect(body.instrumentUserId).toBe(true);
+    expect(body.recordLocalTraces).toBe(true);
   });
 
   it("forces attachUserId when agent debugging is enabled", () => {
@@ -220,7 +220,7 @@ describe("buildAgentChatRequestBody", () => {
       },
     });
 
-    expect(body.attachUserId).toBe(true);
+    expect(body.instrumentUserId).toBe(true);
   });
 
   it("sends only the trailing message; the server owns the transcript", () => {

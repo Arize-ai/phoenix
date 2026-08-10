@@ -3087,7 +3087,7 @@ async def _post_traced_continuation_turn(
         json=_chat_body(
             session_id,
             None,
-            ingestTraces=True,
+            recordLocalTraces=True,
             toolOutputs=[
                 {
                     "type": "tool-edit_prompt_instance",
@@ -3212,7 +3212,7 @@ async def test_new_user_message_closes_superseded_turn_trace(
         json=_chat_body(
             session_id,
             _user_message("never mind, new topic", message_id=_message_uuid("msg-user-2")),
-            ingestTraces=True,
+            recordLocalTraces=True,
             lastMessageId=assistant_tail["id"],
         ),
     )
@@ -3321,7 +3321,7 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
         json=_chat_body(
             session_request_id,
             _user_message("first question"),
-            ingestTraces=True,
+            recordLocalTraces=True,
         ),
     )
     assert first_response.status_code == 200
@@ -3333,7 +3333,7 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
             session_request_id,
             _user_message("second question", message_id=_message_uuid("msg-user-2")),
             lastMessageId=await _last_stored_message_id(db),
-            ingestTraces=True,
+            recordLocalTraces=True,
         ),
     )
     assert second_response.status_code == 200

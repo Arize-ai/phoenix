@@ -527,9 +527,9 @@ function buildPxiRequestBase({ options }: { options: PxiRuntimeOptions }) {
     id: options.sessionId,
     trigger: "submit-message" as const,
     userAgentType: HEADLESS_USER_AGENT_TYPE,
-    ingestTraces: options.ingestTraces,
+    recordLocalTraces: options.ingestTraces,
     exportRemoteTraces: options.exportRemoteTraces,
-    attachUserId: options.attachUserId,
+    instrumentUserId: options.attachUserId,
     editPermission: options.editPermission,
     contexts: buildPxiContexts({
       enableWebAccess: options.enableWebAccess,

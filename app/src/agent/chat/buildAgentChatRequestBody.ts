@@ -16,7 +16,8 @@ import type { ClientToolTimingRecorder } from "./clientToolTimings";
 import { toServerSafeUIMessages } from "./serverSafeMessages";
 import type { AgentUIMessage } from "./types";
 
-export type AgentModelSelection = components["schemas"]["ChatRequestBody"]["model"];
+export type AgentModelSelection =
+  components["schemas"]["ChatRequestBody"]["model"];
 
 type BuildAgentChatRequestBodyOptions = {
   /** Existing request body from the AI SDK transport, if any. */
@@ -168,9 +169,9 @@ export function buildAgentChatRequestBody({
     ...body,
     id,
     userAgentType: "web" as const,
-    ingestTraces: traceRecording.ingestTraces,
+    recordLocalTraces: traceRecording.ingestTraces,
     exportRemoteTraces: traceRecording.exportRemoteTraces,
-    attachUserId: getEffectiveAttachUserId({ agentsConfig, observability }),
+    instrumentUserId: getEffectiveAttachUserId({ agentsConfig, observability }),
     editPermission: permissions.edits,
     contexts: requestContexts,
     model: modelSelection,

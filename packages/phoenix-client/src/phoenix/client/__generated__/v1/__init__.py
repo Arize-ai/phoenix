@@ -2050,9 +2050,6 @@ class ChatRequestBody(TypedDict):
     userAgentType: Literal["web", "headless"]
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     id: str
-    ingestTraces: NotRequired[bool]
-    exportRemoteTraces: NotRequired[bool]
-    attachUserId: NotRequired[bool]
     contexts: NotRequired[
         Sequence[
             Union[
@@ -2088,6 +2085,9 @@ class ChatRequestBody(TypedDict):
         ]
     ]
     lastMessageId: NotRequired[str]
+    recordLocalTraces: NotRequired[bool]
+    exportRemoteTraces: NotRequired[bool]
+    instrumentUserId: NotRequired[bool]
 
 
 class CompactAgentSessionResponseBody(TypedDict):

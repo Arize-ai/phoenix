@@ -22,6 +22,7 @@ from phoenix.server.agents.types import (
     SandboxAvailability,
 )
 from phoenix.server.api.routers.agents import (
+    ChatRequestBody,
     _build_message_metadata_chunk,
     _get_current_context_usage,
     _interleave_agent_and_subagent_message_chunks,
@@ -676,10 +677,8 @@ class TestEditCodeEvaluatorDraftToolRendering:
         assert "never `secretKey`" in rendered
 
 
-class TestChatRequestBodyAttachUserId:
+class TestChatRequestBodyInstrumentUserId:
     def test_defaults_to_false_and_accepts_camel_alias(self) -> None:
-        from phoenix.server.api.routers.agents import ChatRequestBody
-
         payload = {
             "id": "chat-1",
             "userAgentType": "web",
@@ -695,24 +694,24 @@ class TestChatRequestBodyAttachUserId:
             },
         }
         request = ChatRequestBody.model_validate(payload)
-        assert request.attach_user_id is False
+        assert request.instrument_user_id is False
 
-        request = ChatRequestBody.model_validate({**payload, "attachUserId": True})
-        assert request.attach_user_id is True
+        request = ChatRequestBody.model_validate({**payload, "instrumentUserId": True})
+        assert request.instrument_user_id is True
 
 
 class TestMaybeUsingUser:
     def test_returns_nullcontext_when_flag_is_false(self) -> None:
-        ctx = _maybe_using_user(attach_user_id=False, phoenix_user_email="user@example.com")
+        ctx = _maybe_using_user(instrument_user_id=False, phoenix_user_email="user@example.com")
         assert isinstance(ctx, nullcontext)
 
     def test_returns_nullcontext_when_flag_is_true_but_no_email(self) -> None:
-        ctx = _maybe_using_user(attach_user_id=True, phoenix_user_email=None)
+        ctx = _maybe_using_user(instrument_user_id=True, phoenix_user_email=None)
         assert isinstance(ctx, nullcontext)
 
     def test_passes_user_email_to_using_user(self) -> None:
         with patch("phoenix.server.api.routers.agents.using_user") as mock_cm:
-            _maybe_using_user(attach_user_id=True, phoenix_user_email="user@example.com")
+            _maybe_using_user(instrument_user_id=True, phoenix_user_email="user@example.com")
         mock_cm.assert_called_once_with("user@example.com")
 
 

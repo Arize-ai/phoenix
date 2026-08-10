@@ -334,24 +334,8 @@ _PhoenixToolCallCallbackProviderMetadataAdapter: TypeAdapter[
 
 
 class ChatRequestBody(_CamelBaseModel):
-    """Assistant chat submit request payload: the Vercel AI SDK submit-message
-    shape carrying the turn's new inputs, extended with Phoenix-specific turn
-    options and per-request observability flags."""
+    """Assistant chat submit request payload."""
 
-    model_config = ConfigDict(
-        protected_namespaces=(),  # allow ``model`` field; pydantic reserves ``model_*``
-    )
-
-    ingest_traces: bool = False
-    export_remote_traces: bool = False
-    attach_user_id: bool = Field(
-        default=False,
-        description=(
-            "When true and the request is authenticated as a PhoenixUser, attaches "
-            "the user's email as the OpenInference ``user.id`` span attribute on "
-            "all traced work for this request."
-        ),
-    )
     user_agent_type: UserAgentType = Field(
         description=(
             "Which Phoenix user agent type is driving the turn: ``web`` for the "
@@ -410,6 +394,16 @@ class ChatRequestBody(_CamelBaseModel):
             "transcript) once it does. On mismatch the server rejects the "
             "send with HTTP 409 and code ``agent_session_messages_stale`` — the "
             "client should refetch the session before retrying."
+        ),
+    )
+    record_local_traces: bool = False
+    export_remote_traces: bool = False
+    instrument_user_id: bool = Field(
+        default=False,
+        description=(
+            "When true and the request is authenticated as a PhoenixUser, attaches "
+            "the user's email as the OpenInference ``user.id`` span attribute on "
+            "all traced work for this request."
         ),
     )
 
@@ -1252,7 +1246,7 @@ def _contexts_need_model_provider_availability(contexts: ResolvedContexts) -> bo
 
 def _resolve_trace_recording(
     *,
-    ingest_traces: bool,
+    record_local_traces: bool,
     export_remote_traces: bool,
     allow_local_traces: bool,
     allow_remote_export: bool,
@@ -1260,13 +1254,13 @@ def _resolve_trace_recording(
     if get_env_phoenix_agents_force_tracing():
         return True, True
     return (
-        ingest_traces and allow_local_traces,
+        record_local_traces and allow_local_traces,
         export_remote_traces and allow_remote_export,
     )
 
 
-def _resolve_attach_user_id(attach_user_id: bool) -> bool:
-    return get_env_phoenix_agents_force_tracing() or attach_user_id
+def _resolve_attach_user_id(instrument_user_id: bool) -> bool:
+    return get_env_phoenix_agents_force_tracing() or instrument_user_id
 
 
 class _SubagentMessageChunksClosed:
@@ -1489,7 +1483,7 @@ async def _upsert_project_sessions(
 
 
 def _maybe_using_user(
-    attach_user_id: bool,
+    instrument_user_id: bool,
     phoenix_user_email: str | None,
 ) -> AbstractContextManager[Any]:
     """Return a ``using_user`` context manager when the opt-in is set and the
@@ -1498,7 +1492,7 @@ def _maybe_using_user(
     Attaches the Phoenix user email as the ``user.id`` OpenInference attribute
     to all spans created inside the context so traces can be filtered by user.
     """
-    if attach_user_id and phoenix_user_email:
+    if instrument_user_id and phoenix_user_email:
         return using_user(phoenix_user_email)
     return nullcontext()
 
@@ -2645,10 +2639,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         body = request_body
         db_session_factory: DbSessionFactory = request.app.state.db
         request_received_at = datetime.now(timezone.utc)
-        attach_user_id = _resolve_attach_user_id(body.attach_user_id)
+        instrument_user_id = _resolve_attach_user_id(body.instrument_user_id)
         recording = request.app.state.system_settings.agent_trace_recording
-        ingest_traces, export_remote_traces = _resolve_trace_recording(
-            ingest_traces=body.ingest_traces,
+        record_local_traces, export_remote_traces = _resolve_trace_recording(
+            record_local_traces=body.record_local_traces,
             export_remote_traces=body.export_remote_traces,
             allow_local_traces=recording.allow_local_traces,
             allow_remote_export=recording.allow_remote_export,
@@ -2717,7 +2711,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         enable_remote_export=export_remote_traces,
                         project_name=project_name,
                     )
-                    if (ingest_traces or export_remote_traces)
+                    if (record_local_traces or export_remote_traces)
                     else None
                 )
                 tracer_provider = tracer.tracer_provider if tracer is not None else None
@@ -2974,7 +2968,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     with (
                         detached_otel_context(parent_context),
                         using_session(session_id=otel_session_id),
-                        _maybe_using_user(attach_user_id, phoenix_user_email),
+                        _maybe_using_user(instrument_user_id, phoenix_user_email),
                     ):
                         summary = await summarize_messages(
                             messages=adapter.messages,
@@ -3168,14 +3162,14 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             messages=transcript_messages[:-1],
                             received_at=request_received_at,
                             session_id=otel_session_id,
-                            user_email=phoenix_user_email if attach_user_id else None,
+                            user_email=phoenix_user_email if instrument_user_id else None,
                         )
                     if session_needs_title:
                         summary_task = asyncio.create_task(_summarize_untitled_session())
                     with (
                         detached_otel_context(parent_context),
                         using_session(session_id=otel_session_id),
-                        _maybe_using_user(attach_user_id, phoenix_user_email),
+                        _maybe_using_user(instrument_user_id, phoenix_user_email),
                     ):
                         raw_stream = run_agent_stream(_on_complete)
                         assert _is_async_generator(raw_stream)
@@ -3285,10 +3279,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                         else (str(stream_error) or type(stream_error).__name__)
                                     ),
                                     end_time=datetime.now(timezone.utc),
-                                    user_email=phoenix_user_email if attach_user_id else None,
+                                    user_email=phoenix_user_email if instrument_user_id else None,
                                 )
                             tracer.tracer_provider.force_flush()
-                            if ingest_traces:
+                            if record_local_traces:
                                 project_id = await _ensure_project_exists(
                                     request.app.state.db, project_name
                                 )
