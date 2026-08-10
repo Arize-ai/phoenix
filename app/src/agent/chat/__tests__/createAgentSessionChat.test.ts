@@ -1,9 +1,12 @@
+import { isToolUIPart } from "ai";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createAgentSessionChat } from "@phoenix/agent/chat/createAgentSessionChat";
+import { PENDING_TOOL_CALL_NOT_RESTORED_ERROR } from "@phoenix/agent/chat/rehydratePendingToolCalls";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { CREATE_ANNOTATION_CONFIG_TOOL_NAME } from "@phoenix/agent/tools/annotationConfig";
+import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
 const CLIENT_EXECUTION_METADATA = {
@@ -22,7 +25,55 @@ async function flushMicrotasks() {
   await Promise.resolve();
 }
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("createAgentSessionChat rehydration", () => {
+  it("resolves a seeded pending call of a non-rehydratable tool with an error", async () => {
+    // Resolving the stale call can trigger the automatic continuation;
+    // keep the request from leaving the test.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<never>(() => undefined))
+    );
+    const store = createAgentStore();
+    const seedMessages: AgentUIMessage[] = [
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-1",
+            state: "input-available",
+            input: { edits: [] },
+            callProviderMetadata: CLIENT_EXECUTION_METADATA,
+          } as AgentUIMessage["parts"][number],
+        ],
+      },
+    ];
+
+    const chat = createAgentSessionChat({
+      sessionId: "test-session",
+      seedMessages,
+      store,
+      relayEnvironment: createRelayEnvironment(),
+      onTranscriptSynced: () => undefined,
+    });
+    await flushMicrotasks();
+
+    const toolPart = chat.messages
+      .at(-1)
+      ?.parts.find(
+        (part) => isToolUIPart(part) && part.toolCallId === "tool-call-1"
+      );
+    expect(toolPart).toMatchObject({
+      state: "output-error",
+      errorText: PENDING_TOOL_CALL_NOT_RESTORED_ERROR,
+    });
+  });
+
   it("re-stages a seeded pending approval so a page refresh restores the Accept/Reject card", async () => {
     const store = createAgentStore();
     const seedMessages: AgentUIMessage[] = [

@@ -8,7 +8,10 @@ import {
 } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
-import { collectRehydratableToolCalls } from "@phoenix/agent/chat/rehydratePendingToolCalls";
+import {
+  PENDING_TOOL_CALL_NOT_RESTORED_ERROR,
+  partitionPendingClientToolCalls,
+} from "@phoenix/agent/chat/rehydratePendingToolCalls";
 import { flushToolOutputs } from "@phoenix/agent/chat/toolOutputFlush";
 import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
@@ -321,12 +324,24 @@ export function createAgentSessionChat({
   // Restore pending approval state lost with the previous page's memory:
   // re-dispatch the seeded tail's unresolved client tool calls for tools
   // whose dispatch only stages approval state, re-creating their inline
-  // Accept/Reject affordances.
-  for (const toolCall of collectRehydratableToolCalls({
-    messages: seedMessages,
-    isRehydratableTool: isRehydratableAgentTool,
-  })) {
+  // Accept/Reject affordances. Pending calls of every other tool are
+  // unrecoverable — resolve them with an error so the turn proceeds instead
+  // of rendering an unresolvable spinner.
+  const { rehydratableToolCalls, staleToolCalls } =
+    partitionPendingClientToolCalls({
+      messages: seedMessages,
+      isRehydratableTool: isRehydratableAgentTool,
+    });
+  for (const toolCall of rehydratableToolCalls) {
     runAgentToolCall(toolCall);
+  }
+  for (const toolCall of staleToolCalls) {
+    void chat.addToolOutput({
+      state: "output-error",
+      tool: toolCall.toolName,
+      toolCallId: toolCall.toolCallId,
+      errorText: PENDING_TOOL_CALL_NOT_RESTORED_ERROR,
+    });
   }
   turnClientStateByChat.set(chat, { toolTimings });
   return chat;

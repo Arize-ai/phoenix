@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { collectRehydratableToolCalls } from "@phoenix/agent/chat/rehydratePendingToolCalls";
+import { partitionPendingClientToolCalls } from "@phoenix/agent/chat/rehydratePendingToolCalls";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 
 const CLIENT_EXECUTION_METADATA = {
@@ -12,7 +12,7 @@ const SERVER_EXECUTION_METADATA = {
 };
 
 const REHYDRATABLE_TOOL = "create_annotation_config";
-const NON_REHYDRATABLE_TOOL = "read_prompt";
+const NON_REHYDRATABLE_TOOL = "edit_prompt_instance";
 
 const isRehydratableTool = (toolName: string) => toolName === REHYDRATABLE_TOOL;
 
@@ -38,7 +38,7 @@ function pendingClientToolPart({
   } as AgentUIMessage["parts"][number];
 }
 
-describe("collectRehydratableToolCalls", () => {
+describe("partitionPendingClientToolCalls", () => {
   it("collects pending client calls of rehydratable tools from the trailing assistant message", () => {
     const messages = [
       createMessage({
@@ -55,24 +55,58 @@ describe("collectRehydratableToolCalls", () => {
     ];
 
     expect(
-      collectRehydratableToolCalls({ messages, isRehydratableTool })
-    ).toEqual([
-      {
-        toolCallId: "tool-call-1",
-        toolName: REHYDRATABLE_TOOL,
-        input: { name: "quality" },
-        providerMetadata: CLIENT_EXECUTION_METADATA,
-      },
+      partitionPendingClientToolCalls({ messages, isRehydratableTool })
+    ).toEqual({
+      rehydratableToolCalls: [
+        {
+          toolCallId: "tool-call-1",
+          toolName: REHYDRATABLE_TOOL,
+          input: { name: "quality" },
+          providerMetadata: CLIENT_EXECUTION_METADATA,
+        },
+        {
+          toolCallId: "tool-call-2",
+          toolName: REHYDRATABLE_TOOL,
+          input: { name: "relevance" },
+          providerMetadata: CLIENT_EXECUTION_METADATA,
+        },
+      ],
+      staleToolCalls: [],
+    });
+  });
+
+  it("partitions pending calls of non-rehydratable tools as stale", () => {
+    const messages = [
+      createMessage({
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          pendingClientToolPart({ toolCallId: "tool-call-1" }),
+          pendingClientToolPart({
+            toolCallId: "tool-call-2",
+            toolName: NON_REHYDRATABLE_TOOL,
+            input: { spec: {} },
+          }),
+        ],
+      }),
+    ];
+
+    const { rehydratableToolCalls, staleToolCalls } =
+      partitionPendingClientToolCalls({ messages, isRehydratableTool });
+    expect(
+      rehydratableToolCalls.map((toolCall) => toolCall.toolCallId)
+    ).toEqual(["tool-call-1"]);
+    expect(staleToolCalls).toEqual([
       {
         toolCallId: "tool-call-2",
-        toolName: REHYDRATABLE_TOOL,
-        input: { name: "relevance" },
+        toolName: NON_REHYDRATABLE_TOOL,
+        input: { spec: {} },
         providerMetadata: CLIENT_EXECUTION_METADATA,
       },
     ]);
   });
 
-  it("skips resolved calls so accepted work is not re-staged", () => {
+  it("skips resolved calls so accepted work is neither re-staged nor errored", () => {
     const messages = [
       createMessage({
         id: "assistant-1",
@@ -86,52 +120,42 @@ describe("collectRehydratableToolCalls", () => {
             output: { status: "accepted" },
             callProviderMetadata: CLIENT_EXECUTION_METADATA,
           } as AgentUIMessage["parts"][number],
-          pendingClientToolPart({ toolCallId: "tool-call-2" }),
+          {
+            type: `tool-${NON_REHYDRATABLE_TOOL}`,
+            toolCallId: "tool-call-2",
+            state: "output-available",
+            input: {},
+            output: { status: "applied" },
+            callProviderMetadata: CLIENT_EXECUTION_METADATA,
+          } as AgentUIMessage["parts"][number],
+          pendingClientToolPart({ toolCallId: "tool-call-3" }),
         ],
       }),
     ];
 
+    const { rehydratableToolCalls, staleToolCalls } =
+      partitionPendingClientToolCalls({ messages, isRehydratableTool });
     expect(
-      collectRehydratableToolCalls({ messages, isRehydratableTool }).map(
-        (toolCall) => toolCall.toolCallId
-      )
-    ).toEqual(["tool-call-2"]);
+      rehydratableToolCalls.map((toolCall) => toolCall.toolCallId)
+    ).toEqual(["tool-call-3"]);
+    expect(staleToolCalls).toEqual([]);
   });
 
-  it("skips tools that execute on dispatch instead of staging approval state", () => {
-    const messages = [
-      createMessage({
-        id: "assistant-1",
-        role: "assistant",
-        parts: [
-          pendingClientToolPart({
-            toolCallId: "tool-call-1",
-            toolName: NON_REHYDRATABLE_TOOL,
-          }),
-        ],
-      }),
-    ];
-
-    expect(
-      collectRehydratableToolCalls({ messages, isRehydratableTool })
-    ).toEqual([]);
-  });
-
-  it("skips server-executed and provider-executed calls", () => {
+  it("skips server-executed and provider-executed calls entirely", () => {
     const messages = [
       createMessage({
         id: "assistant-1",
         role: "assistant",
         parts: [
           {
-            type: `tool-${REHYDRATABLE_TOOL}`,
+            type: `tool-${NON_REHYDRATABLE_TOOL}`,
             toolCallId: "tool-call-1",
             state: "input-available",
             input: {},
             callProviderMetadata: SERVER_EXECUTION_METADATA,
           } as AgentUIMessage["parts"][number],
           {
-            type: `tool-${REHYDRATABLE_TOOL}`,
+            type: `tool-${NON_REHYDRATABLE_TOOL}`,
             toolCallId: "tool-call-2",
             state: "input-available",
             input: {},
@@ -143,8 +167,8 @@ describe("collectRehydratableToolCalls", () => {
     ];
 
     expect(
-      collectRehydratableToolCalls({ messages, isRehydratableTool })
-    ).toEqual([]);
+      partitionPendingClientToolCalls({ messages, isRehydratableTool })
+    ).toEqual({ rehydratableToolCalls: [], staleToolCalls: [] });
   });
 
   it("ignores pending calls on non-trailing messages", () => {
@@ -162,13 +186,13 @@ describe("collectRehydratableToolCalls", () => {
     ];
 
     expect(
-      collectRehydratableToolCalls({ messages, isRehydratableTool })
-    ).toEqual([]);
+      partitionPendingClientToolCalls({ messages, isRehydratableTool })
+    ).toEqual({ rehydratableToolCalls: [], staleToolCalls: [] });
   });
 
   it("returns nothing for an empty transcript", () => {
     expect(
-      collectRehydratableToolCalls({ messages: [], isRehydratableTool })
-    ).toEqual([]);
+      partitionPendingClientToolCalls({ messages: [], isRehydratableTool })
+    ).toEqual({ rehydratableToolCalls: [], staleToolCalls: [] });
   });
 });
