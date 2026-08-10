@@ -34,6 +34,7 @@ import logging
 import re
 from dataclasses import dataclass
 from typing import Literal, Mapping, NamedTuple, Optional, Sequence, cast
+from weakref import WeakKeyDictionary
 
 from sqlalchemy import text
 
@@ -348,10 +349,14 @@ def indexed_json_accessors(
 
 
 # Indexes change on migrations and on deliberate operator action, never between
-# two queries a second apart, so they are read once and reused. The alternative
-# is a catalog round trip on every statement to learn something that is almost
-# always the same answer.
-_ACCESSOR_CACHE: dict[str, dict[tuple[str, ...], IndexedJsonAccessor]] = {}
+# two queries a second apart, so they are read once and reused. They belong to
+# one database, not to a dialect: two SQLite factories can name different files.
+# Keep each factory's entries under a weak key so a temporary notebook or test
+# factory does not retain its reflected catalog after it is discarded.
+_ACCESSOR_CACHE: WeakKeyDictionary[
+    DbSessionFactory,
+    dict[tuple[str, frozenset[str]], dict[tuple[str, ...], IndexedJsonAccessor]],
+] = WeakKeyDictionary()
 
 
 async def cached_indexed_json_accessors(
@@ -363,14 +368,15 @@ async def cached_indexed_json_accessors(
     index rather than a query that fails -- the same trade the schema payload
     makes, and for the same reason.
     """
-    key = f"{db.dialect.value}:{pg_schema}"
-    cached = _ACCESSOR_CACHE.get(key)
+    cache = _ACCESSOR_CACHE.setdefault(db, {})
+    key = (pg_schema, tables)
+    cached = cache.get(key)
     if cached is None:
         indexes = await reflect_indexes(db, tables=tables, pg_schema=pg_schema)
         if indexes is None:
             return {}
         cached = indexed_json_accessors(indexes)
-        _ACCESSOR_CACHE[key] = cached
+        cache[key] = cached
         logger.debug("analytics sql: cached %d indexed JSON accessors", len(cached))
     return cached
 

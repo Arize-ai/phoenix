@@ -84,6 +84,33 @@ async def test_path_is_resolved_from_db_factory_when_caller_omits_it(
     assert result.envelope.rows[0][0] == 1
 
 
+async def test_sqlite_path_discovery_is_cached_per_factory() -> None:
+    """Repeated analytics queries must not reopen a session for stable metadata."""
+    from phoenix.server.mcp_analytics_sql import execute as execute_module
+
+    calls = 0
+
+    class Session:
+        async def execute(self, _: object) -> list[tuple[int, str, str]]:
+            nonlocal calls
+            calls += 1
+            return [(0, "main", "/tmp/phoenix.db")]
+
+    class Db:
+        @asynccontextmanager
+        async def read(self) -> AsyncIterator[Session]:
+            yield Session()
+
+    db = cast(DbSessionFactory, Db())
+    execute_module._SQLITE_DB_PATH_CACHE.clear()
+    try:
+        assert await resolve_sqlite_db_path(db) == "/tmp/phoenix.db"
+        assert await resolve_sqlite_db_path(db) == "/tmp/phoenix.db"
+        assert calls == 1
+    finally:
+        execute_module._SQLITE_DB_PATH_CACHE.clear()
+
+
 async def test_missing_sqlite_path_is_refused_and_says_so_accurately(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
     monkeypatch: pytest.MonkeyPatch,
@@ -389,6 +416,54 @@ async def test_a_failed_index_reflection_does_not_disable_future_index_rewrites(
             != {}
         )
         assert calls == 2
+    finally:
+        catalog._ACCESSOR_CACHE.clear()
+
+
+async def test_indexed_accessors_are_cached_per_factory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Different SQLite factories must not share catalog metadata."""
+    import phoenix.server.mcp_analytics_sql.catalog as catalog
+
+    class Db:
+        dialect = SimpleNamespace(value="sqlite")
+
+    calls: dict[DbSessionFactory, int] = {}
+
+    async def reflect_indexes(
+        db: DbSessionFactory, *, tables: frozenset[str], pg_schema: str = "public"
+    ) -> dict[str, list[catalog.ReflectedIndex]]:
+        calls[db] = calls.get(db, 0) + 1
+        return {
+            "spans": [
+                catalog.ReflectedIndex(
+                    table="spans",
+                    name=f"spans_attributes_key_{calls[db]}",
+                    body="(json_extract(attributes, '$.key'))",
+                    kind="expression",
+                    unique=False,
+                )
+            ]
+        }
+
+    first = cast(DbSessionFactory, Db())
+    second = cast(DbSessionFactory, Db())
+    catalog._ACCESSOR_CACHE.clear()
+    monkeypatch.setattr(catalog, "reflect_indexes", reflect_indexes)
+    try:
+        first_accessors = await catalog.cached_indexed_json_accessors(
+            first, tables=frozenset({"spans"})
+        )
+        assert (
+            await catalog.cached_indexed_json_accessors(first, tables=frozenset({"spans"}))
+            == first_accessors
+        )
+        assert (
+            await catalog.cached_indexed_json_accessors(second, tables=frozenset({"spans"}))
+            == first_accessors
+        )
+        assert calls == {first: 1, second: 1}
     finally:
         catalog._ACCESSOR_CACHE.clear()
 

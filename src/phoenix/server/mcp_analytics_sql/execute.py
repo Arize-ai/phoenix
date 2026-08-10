@@ -13,6 +13,7 @@ from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from typing import Any, Optional, cast
 from urllib.parse import quote
+from weakref import WeakKeyDictionary
 
 import sqlean
 from sqlalchemy import text
@@ -49,6 +50,11 @@ from phoenix.server.types import DbSessionFactory
 logger = logging.getLogger(__name__)
 
 _call_counter = itertools.count(1)
+
+# A factory's read-session provider is immutable, so its file-backed SQLite
+# database cannot change during the factory's lifetime. Weak keys preserve that
+# association without retaining short-lived notebook or test factories.
+_SQLITE_DB_PATH_CACHE: WeakKeyDictionary[DbSessionFactory, Optional[str]] = WeakKeyDictionary()
 
 
 def _next_call_id() -> str:
@@ -528,8 +534,14 @@ async def resolve_sqlite_db_path(db: DbSessionFactory) -> Optional[str]:
     Analytics reads open their own read-only connection rather than borrowing the
     application's, so they need its file path rather than an engine. Discover it
     from the supplied factory instead of global configuration: notebook sessions
-    and CLI overrides can legitimately use a different database.
+    and CLI overrides can legitimately use a different database. The factory
+    owns an immutable read-session provider, so the discovered path is cached
+    for its lifetime; a weak key prevents temporary factories from leaking.
     """
+    try:
+        return _SQLITE_DB_PATH_CACHE[db]
+    except KeyError:
+        pass
     try:
         async with db.read() as session:
             result = await session.execute(text("PRAGMA database_list"))
@@ -547,8 +559,9 @@ async def resolve_sqlite_db_path(db: DbSessionFactory) -> Optional[str]:
         logger.debug(
             "analytics sql: no file-backed main SQLite database",
         )
-        return None
-    logger.debug("analytics sql: resolved sqlite database path %s", database)
+    else:
+        logger.debug("analytics sql: resolved sqlite database path %s", database)
+    _SQLITE_DB_PATH_CACHE[db] = database
     return database
 
 
