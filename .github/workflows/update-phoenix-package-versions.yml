@@ -64,19 +64,10 @@ jobs:
             echo "✓ Versions already match for $PACKAGE_NAME: $CURRENT_VERSION"
           fi
 
-      # This workflow is dispatched by publish.yaml the moment the PyPI upload
-      # returns, but the *simple index* that resolvers read trails the upload by
-      # up to a couple of minutes while the CDN revalidates. CI installs the
-      # root package with `uv pip install --no-sources .` (see tox.ini), which
-      # deliberately resolves the workspace siblings from PyPI, so a PR opened
-      # inside that window fails with "No solution found ... only
-      # $PACKAGE_NAME<=<previous version> is available". Hold the PR until the
-      # index actually serves the new version.
-      #
-      # Two consecutive confirmations, because the failure mode was one CI leg
-      # seeing the version and another not: the purge reaches CDN nodes
-      # unevenly, so a single lucky response is not evidence that the whole
-      # fleet is serving it.
+      # PyPI's simple index trails the upload by a minute or two, and tox.ini
+      # resolves the workspace siblings from PyPI (`--no-sources`), so a PR opened
+      # too early cannot resolve. Require two hits: the CDN purge reaches nodes
+      # unevenly, so one lucky response proves nothing.
       - name: Wait for version to be resolvable on PyPI
         if: steps.check-update.outputs.needs_update == 'true'
         run: |
