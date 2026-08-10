@@ -138,6 +138,28 @@ jobs:
           version: "0.11.31"
       - run: uvx tox run -e phoenix_client -- -ra -x
 
+  phoenix-client-no-evals:
+    name: Phoenix Client without Evals
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            requirements/
+            scripts/
+            packages/phoenix-client/
+            packages/phoenix-executors/
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.10"
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.31"
+      - run: uvx tox run -e phoenix_client_no_evals -- -ra -x
+
   phoenix-evals:
     name: Phoenix Evals
     runs-on: ubuntu-latest
@@ -462,6 +484,61 @@ jobs:
       - name: Check lockfile is up to date
         run: uv lock --check
 
+  floor-resolution:
+    name: Resolve dependency floors
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.uv_lock == 'true' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.10"
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.31"
+      - name: Resolve dependencies at their declared floors
+        # `uv pip compile --no-sources` is what reaches PyPI for the Phoenix packages. The
+        # project-level `uv lock` never does: workspace membership supplies the only candidate for
+        # a member under every flag combination, so a lock-based form of this check would report
+        # success without resolving a published version at all.
+        run: |
+          echo attempted > "${RUNNER_TEMP}/attempted"
+          resolver_exit=0
+          uv pip compile pyproject.toml \
+            --no-sources --resolution lowest-direct \
+            --output-file "${RUNNER_TEMP}/floors.txt" > "${RUNNER_TEMP}/resolver.log" 2>&1 || resolver_exit=$?
+          unpinned=$(grep -c 'is unpinned' "${RUNNER_TEMP}/resolver.log" || true)
+          cat "${RUNNER_TEMP}/resolver.log"
+          {
+            echo "### Floor resolution"
+            echo
+            echo "| Measure | Value |"
+            echo "| --- | --- |"
+            echo "| Resolver exit code | \`${resolver_exit}\` |"
+            echo "| Direct dependencies with no lower bound | ${unpinned} |"
+            echo
+            echo "A non-zero exit means the lowest versions this project declares do not install"
+            echo "together. The unpinned count is the distance to fixing that: each one lets the"
+            echo "resolver reach an arbitrarily old release."
+          } >> "${GITHUB_STEP_SUMMARY}"
+          echo "resolver exit code: ${resolver_exit}"
+          echo "unpinned direct dependencies: ${unpinned}"
+      - name: Confirm the resolution ran
+        if: always()
+        # Without this, a resolution step that never executed is indistinguishable from one that
+        # found nothing to report, and the green check reads as coverage either way.
+        run: |
+          test -f "${RUNNER_TEMP}/attempted" || {
+            echo "No resolution was attempted on a run that changed dependency metadata." >&2
+            exit 1
+          }
+
   format-and-lint:
     name: Format and Lint
     runs-on: ${{ matrix.os }}
@@ -758,6 +835,7 @@ jobs:
       - format-and-lint
       - changes
       - phoenix-client
+      - phoenix-client-no-evals
       - phoenix-evals
       - phoenix-executors
       - phoenix-executors-compat
