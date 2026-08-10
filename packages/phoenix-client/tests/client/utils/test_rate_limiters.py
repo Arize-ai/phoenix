@@ -386,3 +386,8 @@ def test_re_exports_are_the_shared_objects_not_copies() -> None:
     # separately-defined class here would break classification across package boundaries.
     for name in FROZEN_RATE_LIMITER_NAMES:
         assert getattr(rate_limiters, name) is getattr(shared_rate_limiters, name)
+
+
+def test_rate_limiter_starts_at_five_requests_per_second() -> None:
+    limiter = rate_limiters.RateLimiter()
+    assert limiter._throttler.rate == 5.0  # pyright: ignore[reportPrivateUsage]
