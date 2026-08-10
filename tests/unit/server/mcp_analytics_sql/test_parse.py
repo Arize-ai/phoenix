@@ -1,15 +1,14 @@
 """Admission regression corpus and the parser behaviours admission depends on.
 
-``admission_corpus.jsonl`` holds every statement admission is known to have got
+``admission_corpus.py`` holds every statement admission is known to have got
 wrong at some point, together with the outcome it must now produce. Each entry
 carries a note explaining what the statement exercises, so a failure says what
 broke without needing outside context. Add a case whenever a new bypass is
 found; never delete one.
 
-The corpus is deliberately data rather than code. Admission is an allowlist, and
-the cheapest way to weaken an allowlist is to widen it while the tests keep
-passing, so the record of what must stay refused lives in a file that is easy to
-read and hard to loosen by accident.
+The corpus remains declarative data rather than test logic. Admission is an
+allowlist, and the cheapest way to weaken an allowlist is to widen it while the
+tests keep passing, so the record of what must stay refused is easy to review.
 
 ``test_parser_contract`` covers a different risk. Admission is only as sound as
 the parser beneath it, and two of its guarantees are properties of SQLGlot
@@ -21,8 +20,6 @@ change them without any corpus entry failing.
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import cast
 
 import pytest
@@ -43,18 +40,10 @@ from phoenix.server.mcp_analytics_sql.parse import (
     try_parse_and_admit,
 )
 from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
+from tests.unit.server.mcp_analytics_sql.admission_corpus import CASES, AdmissionCase
 from tests.unit.server.mcp_analytics_sql.admission_fixtures import minimal_admission_allowlist
 
-CORPUS_PATH = Path(__file__).parent / "admission_corpus.jsonl"
 DIALECT: SupportedSQLDialectName = "postgresql"
-
-
-def _load_corpus() -> list[dict[str, str]]:
-    with CORPUS_PATH.open() as f:
-        return [json.loads(line) for line in f if line.strip()]
-
-
-CORPUS = _load_corpus()
 
 
 def _depth_of(sql: str, dialect: str) -> int:
@@ -66,27 +55,25 @@ def _depth_of(sql: str, dialect: str) -> int:
     )
 
 
-def _outcome(result: AdmissionResult) -> str:
-    return "admit" if result.outcome == AdmissionOutcome.ADMIT else result.outcome.value
+def _outcome(result: AdmissionResult) -> AdmissionOutcome:
+    return result.outcome
 
 
-def _case_id(case: dict[str, str]) -> str:
-    dialect = case.get("dialect", DIALECT)
-    return f"{dialect[:2]}-{case['note'][:44]}"
+def _case_id(case: AdmissionCase) -> str:
+    return f"{case.dialect[:2]}-{case.note[:44]}"
 
 
-@pytest.mark.parametrize("case", CORPUS, ids=[_case_id(c) for c in CORPUS])
-def test_admission_corpus(case: dict[str, str]) -> None:
+@pytest.mark.parametrize("case", CASES, ids=[_case_id(case) for case in CASES])
+def test_admission_corpus(case: AdmissionCase) -> None:
     # Most statements behave identically on both backends, so the dialect is
     # optional and defaults to Postgres. Cases that name one are asserting a
     # decision that differs between engines -- typically a function only one of
     # them can execute.
-    dialect = cast(SupportedSQLDialectName, case.get("dialect", DIALECT))
     result = try_parse_and_admit(
-        case["sql"], dialect=dialect, allowlist=minimal_admission_allowlist()
+        case.sql, dialect=case.dialect, allowlist=minimal_admission_allowlist()
     )
-    assert _outcome(result) == case["expect"], (
-        f"{case['note']}\n  dialect: {dialect}\n  sql: {case['sql']}"
+    assert _outcome(result) == case.expect, (
+        f"{case.note}\n  dialect: {case.dialect}\n  sql: {case.sql}"
     )
 
 
@@ -96,8 +83,8 @@ def test_corpus_is_not_shrinking() -> None:
     The count is asserted rather than derived so that deleting a case is a
     deliberate edit to this line, not a silent side effect of editing the data.
     """
-    assert len(CORPUS) >= 76
-    keys = [(c["sql"], c.get("dialect", DIALECT)) for c in CORPUS]
+    assert len(CASES) >= 76
+    keys = [(case.sql, case.dialect) for case in CASES]
     assert len(set(keys)) == len(keys), "duplicate statement/dialect pair in corpus"
 
 
@@ -837,7 +824,7 @@ class TestTimestampComparisonCoverage:
         The deepest statement in the corpus and the liveness suite is nine
         levels; the generator fails somewhere above 258.
         """
-        deepest = max(_depth_of(case["sql"], case.get("dialect", DIALECT)) for case in CORPUS)
+        deepest = max(_depth_of(case.sql, case.dialect) for case in CASES)
 
         assert deepest * 5 < MAX_TREE_DEPTH, f"corpus reached depth {deepest}"
         assert MAX_TREE_DEPTH < 258, "must stay below what the generator survives"

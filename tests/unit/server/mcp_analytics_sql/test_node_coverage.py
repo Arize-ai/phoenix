@@ -32,15 +32,13 @@ what is possible -- and the gap between those two is the remaining work.
 from __future__ import annotations
 
 import inspect
-import json
 from pathlib import Path
 
 import pytest
 from sqlglot import exp, parse_one
 
 from phoenix.server.mcp_analytics_sql.parse import _REFUSED_NODE_CLASSES
-
-CORPUS = Path(__file__).with_name("admission_corpus.jsonl")
+from tests.unit.server.mcp_analytics_sql.admission_corpus import CASES
 
 # Structural classes a SELECT legitimately contains: clauses, literals,
 # identifiers, operators and the set-operation forms. Reviewed as a set rather
@@ -70,7 +68,7 @@ GOVERNED_BY_CHECK: dict[str, str] = {
 
 
 def _corpus_statements() -> list[str]:
-    return [json.loads(line)["sql"] for line in CORPUS.read_text().splitlines() if line.strip()]
+    return [case.sql for case in CASES]
 
 
 def _non_function_classes(sql: str) -> set[str]:
