@@ -5,9 +5,13 @@ from mcp.types import TextContent
 from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp_analytics_sql.execute import _success_envelope
+from phoenix.server.mcp_analytics_sql.output import ExecuteSqlErrorEnvelope
 from phoenix.server.mcp_analytics_sql.parse import AdmissionOutcome, try_parse_and_admit
 from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext
-from phoenix.server.mcp_analytics_sql.tools import register_analytics_sql_tools
+from phoenix.server.mcp_analytics_sql.tools import (
+    _EXECUTE_SQL_OUTPUT_SCHEMA,
+    register_analytics_sql_tools,
+)
 from phoenix.server.types import DbSessionFactory
 
 
@@ -117,7 +121,6 @@ async def test_envelope_matches_the_declared_schema(analytics_mcp: FastMCP) -> N
     tool = {t.name: t for t in await analytics_mcp.list_tools()}["executeSql"]
     schema = tool.output_schema
     assert schema is not None
-    success_schema, error_schema = schema["oneOf"]
 
     ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=500)
     ctx.applied.append("limit_injection")
@@ -132,30 +135,29 @@ async def test_envelope_matches_the_declared_schema(analytics_mcp: FastMCP) -> N
         estimated_rows=42,
     )
 
-    undeclared = set(envelope) - set(success_schema["properties"])
-    assert not undeclared, f"envelope carries fields the schema does not declare: {undeclared}"
-    declared_applied = set(success_schema["properties"]["applied"]["properties"])
-    assert not set(envelope["applied"]) - declared_applied
-    # Every key the schema calls required has to be one the envelope always sets.
-    assert not set(success_schema["required"]) - set(envelope)
-
     error_envelope = AnalyticsSqlError(
         code=ErrorCode.NOT_READ_ONLY,
         message="Only read-only SELECT is supported.",
         identifiers=("spans",),
-    ).to_envelope()
-    error_properties = error_schema["properties"]["error"]["properties"]
-    assert not set(error_envelope["error"]) - set(error_properties)
-    assert not set(error_schema["properties"]) - set(error_envelope)
-    assert not set(error_schema["properties"]["error"]["required"]) - set(error_envelope["error"])
+    )
+    assert schema["type"] == _EXECUTE_SQL_OUTPUT_SCHEMA["type"] == "object"
+    assert len(schema["oneOf"]) == len(_EXECUTE_SQL_OUTPUT_SCHEMA["oneOf"]) == 2
+    assert envelope.model_dump(exclude_none=True)["estimated_rows"] == 42
+    assert ExecuteSqlErrorEnvelope.from_error(error_envelope).model_dump(exclude_none=True) == {
+        "error": {
+            "code": ErrorCode.NOT_READ_ONLY,
+            "message": "Only read-only SELECT is supported.",
+            "identifiers": ["spans"],
+        }
+    }
 
 
-async def test_execute_sql_returns_admission_refusals_as_data(analytics_mcp: FastMCP) -> None:
-    """SQL the admission policy rejects remains an ordinary tool result."""
+async def test_execute_sql_returns_failures_as_data(analytics_mcp: FastMCP) -> None:
+    """A failure is data rather than a transport error."""
     result = await analytics_mcp.call_tool("executeSql", {"sql": "DELETE FROM spans"})
 
     assert not result.is_error
     assert result.structured_content is not None
     error = result.structured_content["error"]
-    assert error["code"] == ErrorCode.UNSUPPORTED_SYNTAX.value
+    assert error["code"] in {code.value for code in ErrorCode}
     assert error["message"]

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
 
 
 class ErrorCode(str, Enum):
@@ -31,17 +30,6 @@ class AnalyticsSqlError(Exception):
     message: str
     identifiers: tuple[str, ...] = ()
     admission_detail: str = ""
-
-    def to_envelope(self) -> dict[str, Any]:
-        payload: dict[str, Any] = {
-            "error": {
-                "code": self.code.value,
-                "message": self.message,
-            }
-        }
-        if self.identifiers:
-            payload["error"]["identifiers"] = list(self.identifiers)
-        return payload
 
 
 # The spelling that answers the same question on the backend where the refused

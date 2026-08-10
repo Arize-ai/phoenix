@@ -149,8 +149,8 @@ async def test_permitted_statement_executes(
     """
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
-    assert result.envelope["row_count"] > 0, "executed, but evaluated over nothing"
-    assert result.envelope["rows"], "no values were returned to check"
+    assert result.envelope.row_count > 0, "executed, but evaluated over nothing"
+    assert result.envelope.rows, "no values were returned to check"
 
 
 async def test_json_extract_survives_being_rendered_as_an_operator(
@@ -169,7 +169,7 @@ async def test_json_extract_survives_being_rendered_as_an_operator(
         ExecuteParams(sql="SELECT json_extract(attributes, '$.llm.model_name') AS m FROM spans"),
         sqlite_db_path=db_path,
     )
-    assert result.envelope["columns"] == ["m"]
+    assert result.envelope.columns == ["m"]
 
 
 async def test_json_extract_returns_a_value_not_json_text(
@@ -198,7 +198,9 @@ async def test_json_extract_returns_a_value_not_json_text(
         ),
         sqlite_db_path=db_path,
     )
-    lo, hi = result.envelope["rows"][0]
+    lo, hi = result.envelope.rows[0]
+    assert isinstance(lo, (str, int, float))
+    assert isinstance(hi, (str, int, float))
     assert (int(lo), int(hi)) == (149740, 1017066), (
         f"got lo={lo!r} hi={hi!r}; lexicographic comparison would give lo=1017066"
     )
@@ -220,7 +222,7 @@ async def test_json_type_reports_the_shape_of_a_value(
         ExecuteParams(sql="SELECT json_type(j, '$.a') AS t FROM (SELECT '{\"a\": [1,2]}' AS j)"),
         sqlite_db_path=db_path,
     )
-    assert result.envelope["rows"][0][0] == "array"
+    assert result.envelope.rows[0][0] == "array"
 
 
 async def test_graphql_node_id_round_trips(
@@ -238,14 +240,14 @@ async def test_graphql_node_id_round_trips(
         ExecuteParams(sql="SELECT graphql_node_id, name FROM projects"),
         sqlite_db_path=db_path,
     )
-    node_id, name = projected.envelope["rows"][0]
+    node_id, name = projected.envelope.rows[0]
 
     matched = await execute_analytics_sql(
         db,
         ExecuteParams(sql=f"SELECT name FROM projects WHERE graphql_node_id = '{node_id}'"),
         sqlite_db_path=db_path,
     )
-    assert matched.envelope["rows"] == [[name]]
+    assert matched.envelope.rows == [[name]]
 
 
 async def test_graphql_node_id_predicate_reaches_the_primary_key(
@@ -264,7 +266,7 @@ async def test_graphql_node_id_predicate_reaches_the_primary_key(
         ExecuteParams(sql="SELECT graphql_node_id FROM projects"),
         sqlite_db_path=db_path,
     )
-    node_id = projected.envelope["rows"][0][0]
+    node_id = projected.envelope.rows[0][0]
 
     result = await execute_analytics_sql(
         db,
@@ -273,7 +275,7 @@ async def test_graphql_node_id_predicate_reaches_the_primary_key(
     )
     # The rewrite reports itself, which is how the predicate form stays checkable
     # without asserting on generated SQL text.
-    assert "graphql_node_id" in result.envelope["applied"]["rewrites"]
+    assert "graphql_node_id" in result.envelope.applied.rewrites
 
 
 async def test_node_id_for_the_wrong_type_matches_nothing(
@@ -292,7 +294,7 @@ async def test_node_id_for_the_wrong_type_matches_nothing(
         ExecuteParams(sql="SELECT name FROM projects WHERE graphql_node_id = 'RGF0YXNldDox'"),
         sqlite_db_path=db_path,
     )
-    assert result.envelope["rows"] == []
+    assert result.envelope.rows == []
 
 
 async def test_set_operations_get_a_row_limit(
@@ -311,7 +313,7 @@ async def test_set_operations_get_a_row_limit(
         ExecuteParams(sql="SELECT id FROM projects UNION SELECT id FROM projects"),
         sqlite_db_path=db_path,
     )
-    assert "limit_injection" in result.envelope["applied"]["rewrites"]
+    assert "limit_injection" in result.envelope.applied.rewrites
 
 
 async def test_a_name_offered_by_both_a_table_and_a_derived_relation_is_refused_by_the_engine(
@@ -428,7 +430,7 @@ async def test_row_limit_is_clamped(
         ExecuteParams(sql="SELECT id FROM projects", row_limit=10_000_000),
         sqlite_db_path=db_path,
     )
-    assert result.envelope["applied"]["row_limit"] == MAX_ROW_LIMIT
+    assert result.envelope.applied.row_limit == MAX_ROW_LIMIT
 
 
 NEWLY_ALLOWED = [
@@ -454,7 +456,7 @@ async def test_newly_allowed_function_executes(
     """
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
-    assert result.envelope["row_count"] > 0, "executed, but evaluated over nothing"
+    assert result.envelope.row_count > 0, "executed, but evaluated over nothing"
 
 
 @pytest.mark.parametrize(
@@ -542,8 +544,8 @@ async def test_partial_flag_is_honest_at_the_boundary(
         ),
         sqlite_db_path=db_path,
     )
-    assert result.envelope["row_count"] == expect_rows
-    assert result.envelope["row_count_is_partial"] is expect_partial
+    assert result.envelope.row_count == expect_rows
+    assert result.envelope.row_count_is_partial is expect_partial
 
 
 async def test_no_window_is_imposed_when_none_is_asked_for(
@@ -565,8 +567,8 @@ async def test_no_window_is_imposed_when_none_is_asked_for(
     )
     # Absent entirely, rather than present with null bounds: reporting a window
     # that was never imposed is what made the old default so easy to miss.
-    assert "time_window" not in result.envelope["applied"]
-    assert "time_bounds" not in result.envelope["applied"]["rewrites"]
+    assert "time_window" not in result.envelope.applied.model_dump(exclude_none=True)
+    assert "time_bounds" not in result.envelope.applied.rewrites
 
 
 async def test_cancelling_a_query_stops_the_worker(
@@ -690,7 +692,7 @@ async def test_cancelling_a_query_stops_the_worker(
     result = await execute_analytics_sql(
         db, ExecuteParams(sql="SELECT count(*) AS n FROM projects"), sqlite_db_path=db_path
     )
-    assert result.envelope["row_count"] == 1
+    assert result.envelope.row_count == 1
 
 
 async def test_envelope_carries_only_fields_that_can_vary(
@@ -727,7 +729,9 @@ async def test_envelope_carries_only_fields_that_can_vary(
         "runtime_backstop",  # derivable from `dialect`, which is present
         "execution_route",
     }
-    present = set(envelope) | set(envelope["applied"])
+    present = set(envelope.model_dump(exclude_none=True)) | set(
+        envelope.applied.model_dump(exclude_none=True)
+    )
     assert not (present & banished), f"invariant fields back in the envelope: {present & banished}"
 
     # `availability` was the only one of these the schema payload also carried,
@@ -779,7 +783,7 @@ async def test_sqlite_json_surface_executes(
     """
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
-    assert result.envelope["row_count"] > 0, "executed, but evaluated over nothing"
+    assert result.envelope.row_count > 0, "executed, but evaluated over nothing"
 
 
 POSTGRES_JSON_SURFACE = [
@@ -834,7 +838,7 @@ async def test_postgres_json_surface_executes(
     failure here is a policy failure rather than a data one.
     """
     result = await execute_analytics_sql(analytics_postgres_db, ExecuteParams(sql=sql))
-    assert result.envelope["row_count"] > 0, "executed, but evaluated over nothing"
+    assert result.envelope.row_count > 0, "executed, but evaluated over nothing"
 
 
 @pytest.mark.parametrize("sql", NEWLY_ALLOWED_ON_BOTH)
@@ -851,4 +855,4 @@ async def test_portable_function_classes_are_executable_on_sqlite(
     """
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
-    assert result.envelope["row_count"] > 0
+    assert result.envelope.row_count > 0

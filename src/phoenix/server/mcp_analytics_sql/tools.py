@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Mapping, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence, Union
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
+from pydantic import TypeAdapter
 
 from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
 from phoenix.server.mcp_analytics_sql.catalog import (
@@ -14,7 +15,7 @@ from phoenix.server.mcp_analytics_sql.catalog import (
     resolve_pg_schema,
 )
 from phoenix.server.mcp_analytics_sql.ddl import DetailLevel
-from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
+from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError
 from phoenix.server.mcp_analytics_sql.execute import (
     BYTE_LIMIT,
     DEFAULT_ROW_LIMIT,
@@ -22,6 +23,10 @@ from phoenix.server.mcp_analytics_sql.execute import (
     MAX_ROW_LIMIT,
     ExecuteParams,
     execute_analytics_sql,
+)
+from phoenix.server.mcp_analytics_sql.output import (
+    ExecuteSqlErrorEnvelope,
+    ExecuteSqlSuccessEnvelope,
 )
 from phoenix.server.mcp_analytics_sql.teaching import describe_sql_schema
 from phoenix.server.mcp_server import _META_ANNOTATIONS, _META_TAG
@@ -113,134 +118,15 @@ def _render_indexes(indexes: Mapping[str, Sequence[ReflectedIndex]]) -> str:
     return "\n".join(lines)
 
 
-# The result's shapes, stated where a consumer can read them per field.
-#
-# FastMCP derives an output schema from the return annotation when none is
-# given, and `dict[str, Any]` yields `{"type": "object"}` -- true, and empty. It
-# names no field, so the distinctions that decide how an answer is read had
-# nowhere to live except prose in the tool description.
-#
-# `additionalProperties` is deliberately left open. Declaring it closed would
-# turn a field added here without updating this schema into a runtime failure
-# for every caller, which is a poor trade for a documentation guarantee; the
-# drift is caught in CI instead, by a test comparing a real envelope's keys
-# against these properties.
-_EXECUTE_SQL_SUCCESS_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "required": [
-        "columns",
-        "rows",
-        "row_count",
-        "row_count_is_partial",
-        "applied",
-        "backend_validated",
-        "notes",
-    ],
-    "properties": {
-        "columns": {
-            "type": "array",
-            "items": {"type": "string"},
-            "description": "Column names, in the order their values appear in each row.",
-        },
-        "rows": {
-            "type": "array",
-            "items": {"type": "array"},
-            "description": "One array of values per row, positionally aligned with `columns`.",
-        },
-        "row_count": {
-            "type": "integer",
-            "description": "Rows returned, after any truncation to `applied.row_limit`.",
-        },
-        "row_count_is_partial": {
-            "type": "boolean",
-            "description": (
-                "Whether rows were dropped. Authoritative rather than inferred: one row "
-                "beyond the limit is fetched, and this is true only when that row actually "
-                "arrived. A result of exactly row_limit rows is otherwise indistinguishable "
-                "from one that was cut off."
-            ),
-        },
-        "applied": {
-            "type": "object",
-            "required": ["row_limit", "dialect", "rewrites"],
-            "properties": {
-                "row_limit": {
-                    "type": "integer",
-                    "description": "The limit in force for this call, after clamping.",
-                },
-                "dialect": {
-                    "type": "string",
-                    "enum": ["postgresql", "sqlite"],
-                    "description": "Which SQL to write. The two differ on JSON, percentiles "
-                    "and time bucketing.",
-                },
-                "rewrites": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": (
-                        "Server-side transforms that fired, named rather than described. "
-                        "The executed statement is not the one submitted."
-                    ),
-                },
-            },
-        },
-        "backend_validated": {
-            "type": "boolean",
-            "description": "Whether the engine's own gate ran: the EXPLAIN plan check on "
-            "PostgreSQL, the authorizer callback on SQLite.",
-        },
-        "notes": {
-            "type": "array",
-            "items": {"type": "string"},
-            "description": "Anything about this answer the caller should not have to infer.",
-        },
-        "estimated_rows": {
-            "type": "integer",
-            "description": (
-                "The planner's estimate of what the statement would return untruncated, "
-                "read below the injected LIMIT. A magnitude for deciding whether to narrow "
-                "the query, not a count: PostgreSQL keeps no statistics for expressions over "
-                "JSON paths, so it can be out by a large factor. It never answers whether "
-                "this result was truncated -- `row_count_is_partial` does. PostgreSQL only."
-            ),
-        },
-    },
-}
+ExecuteSqlOutput = Union[ExecuteSqlSuccessEnvelope, ExecuteSqlErrorEnvelope]
 
-_EXECUTE_SQL_ERROR_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "required": ["error"],
-    "properties": {
-        "error": {
-            "type": "object",
-            "required": ["code", "message"],
-            "properties": {
-                "code": {
-                    "type": "string",
-                    "enum": [code.value for code in ErrorCode],
-                    "description": "Machine-readable reason the SQL statement was refused.",
-                },
-                "message": {
-                    "type": "string",
-                    "description": (
-                        "Explanation of the refusal and, when available, how to correct it."
-                    ),
-                },
-                "identifiers": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Relations, columns, or functions involved in the refusal.",
-                },
-            },
-        },
-    },
-}
-
+# FastMCP requires the root schema to be an object even when it has multiple
+# valid shapes. Pydantic owns every member schema so validation and MCP
+# documentation cannot drift apart.
 _EXECUTE_SQL_OUTPUT_SCHEMA: dict[str, Any] = {
-    # FastMCP requires the root schema to be an object even when that object
-    # has multiple valid shapes.
     "type": "object",
-    "oneOf": [_EXECUTE_SQL_SUCCESS_SCHEMA, _EXECUTE_SQL_ERROR_SCHEMA],
+    "oneOf": TypeAdapter(ExecuteSqlOutput).json_schema()["anyOf"],
+    "$defs": TypeAdapter(ExecuteSqlOutput).json_schema().get("$defs", {}),
 }
 
 
@@ -351,7 +237,7 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         sql: str,
         validate_only: bool = False,
         row_limit: Optional[int] = None,
-    ) -> dict[str, Any]:
+    ) -> ExecuteSqlOutput:
         """Execute read-only analytics SQL against allowlisted Phoenix tables.
 
         Returns either the columns, rows, and applied limits, or an error
@@ -376,4 +262,4 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
             )
             return result.envelope
         except AnalyticsSqlError as exc:
-            return exc.to_envelope()
+            return ExecuteSqlErrorEnvelope.from_error(exc)
