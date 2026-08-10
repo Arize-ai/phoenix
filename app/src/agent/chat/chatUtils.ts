@@ -17,10 +17,7 @@ export function isRequestActive(status: ChatStatus): boolean {
 
 /**
  * Whether a message part is a client-executed tool call in a terminal output
- * state (`output-available` / `output-error`) — the parts a request may carry
- * to the server as `toolOutputs`. Client execution is identified by the
- * `phoenix.toolExecutionEnvironment` call provider metadata the server stamps
- * on every tool call it delegates to the browser.
+ * state — the parts a request may carry to the server as `toolOutputs`.
  */
 export function isResolvedClientToolOutputPart<TOOLS extends UITools>(
   part: UIMessagePart<UIDataTypes, TOOLS>

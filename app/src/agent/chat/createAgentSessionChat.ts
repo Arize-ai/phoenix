@@ -213,7 +213,10 @@ export function createAgentSessionChat({
       const shouldSendAutomatically =
         await turnCompletionGate.handleSendAutomaticallyWhen({ messages });
       if (!shouldSendAutomatically) {
-        flushToolOutputs(messages);
+        const trailingMessage = messages.at(-1);
+        if (trailingMessage) {
+          flushToolOutputs(trailingMessage);
+        }
         return false;
       }
       const assistantMessage = messages.at(-1);

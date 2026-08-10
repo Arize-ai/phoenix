@@ -45,19 +45,19 @@ export function shouldSendAutomaticallyAfterToolOutput({
 }
 
 /**
- * Resolved client tool outputs on a turn still open because sibling tool
- * calls are pending. May include outputs the server already persisted; the
- * tool-outputs endpoint dedupes by tool call ID.
+ * Resolved client tool outputs on a message whose sibling tool calls are
+ * still pending. May include outputs the server already persisted.
  */
 export function getFlushableClientToolOutputs({
-  messages,
+  message,
 }: {
-  messages: UIMessage[];
+  /** The transcript's trailing assistant message. */
+  message: UIMessage;
 }): Array<ToolUIPart | DynamicToolUIPart> {
-  const message = messages[messages.length - 1];
-  if (!message || message.role !== "assistant") {
+  if (message.role !== "assistant") {
     return [];
   }
+  const messages = [message];
   if (hasInterruptedToolCall({ messages, errorText: USER_INTERRUPT_ERROR })) {
     return [];
   }

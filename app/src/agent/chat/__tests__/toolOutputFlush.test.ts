@@ -42,14 +42,6 @@ function assistantMessage(
   } as unknown as AgentUIMessage;
 }
 
-function userMessage(): AgentUIMessage {
-  return {
-    id: "user-1",
-    role: "user",
-    parts: [{ type: "text", text: "edit the prompt" }],
-  } as unknown as AgentUIMessage;
-}
-
 function okResponse(): Response {
   return { ok: true } as Response;
 }
@@ -67,10 +59,9 @@ describe("createToolOutputFlusher", () => {
       fetch: fetchMock,
     });
 
-    flush([
-      userMessage(),
-      assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")]),
-    ]);
+    flush(
+      assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")])
+    );
     await settle();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -89,18 +80,16 @@ describe("createToolOutputFlusher", () => {
       fetch: fetchMock,
     });
 
-    flush([
-      userMessage(),
-      assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")]),
-    ]);
-    flush([
-      userMessage(),
+    flush(
+      assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")])
+    );
+    flush(
       assistantMessage([
         resolvedToolPart("call-1"),
         resolvedToolPart("call-2"),
         pendingToolPart("call-3"),
-      ]),
-    ]);
+      ])
+    );
     await settle();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -119,13 +108,9 @@ describe("createToolOutputFlusher", () => {
       fetch: fetchMock,
     });
 
-    flush([
-      userMessage(),
-      assistantMessage([
-        resolvedToolPart("call-1"),
-        resolvedToolPart("call-2"),
-      ]),
-    ]);
+    flush(
+      assistantMessage([resolvedToolPart("call-1"), resolvedToolPart("call-2")])
+    );
     await settle();
 
     // The normal chat continuation carries the outputs instead.
@@ -139,10 +124,9 @@ describe("createToolOutputFlusher", () => {
       fetch: fetchMock,
     });
 
-    flush([
-      userMessage(),
-      assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")]),
-    ]);
+    flush(
+      assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")])
+    );
     await settle();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -161,10 +145,9 @@ describe("createToolOutputFlusher", () => {
       toolTimings,
     });
 
-    flush([
-      userMessage(),
-      assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")]),
-    ]);
+    flush(
+      assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")])
+    );
     await settle();
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);

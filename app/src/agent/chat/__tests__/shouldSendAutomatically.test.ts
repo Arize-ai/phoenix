@@ -178,7 +178,7 @@ describe("getFlushableClientToolOutputs", () => {
 
   it("returns resolved client outputs while sibling calls stay pending", () => {
     const outputs = getFlushableClientToolOutputs({
-      messages: [partiallyResolvedAssistantMessage()],
+      message: partiallyResolvedAssistantMessage(),
     });
 
     expect(outputs.map((output) => output.toolCallId)).toEqual([
@@ -187,25 +187,23 @@ describe("getFlushableClientToolOutputs", () => {
   });
 
   it("returns nothing once every call has resolved", () => {
-    const messages = [
-      createMessage({
-        id: "assistant-1",
-        role: "assistant",
-        parts: [
-          {
-            type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
-            toolCallId: "tool-call-resolved",
-            state: "output-available",
-            input: {},
-            output: { applied: true },
-            callProviderMetadata: CLIENT_CALL_METADATA,
-          },
-        ],
-      }),
-    ];
+    const message = createMessage({
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        {
+          type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+          toolCallId: "tool-call-resolved",
+          state: "output-available",
+          input: {},
+          output: { applied: true },
+          callProviderMetadata: CLIENT_CALL_METADATA,
+        },
+      ],
+    });
 
     // The normal chat continuation carries the outputs instead.
-    expect(getFlushableClientToolOutputs({ messages })).toEqual([]);
+    expect(getFlushableClientToolOutputs({ message })).toEqual([]);
   });
 
   it("returns nothing when the tail holds a user-interrupted output", () => {
@@ -218,7 +216,7 @@ describe("getFlushableClientToolOutputs", () => {
       errorText: USER_INTERRUPT_ERROR,
     });
 
-    expect(getFlushableClientToolOutputs({ messages: [message] })).toEqual([]);
+    expect(getFlushableClientToolOutputs({ message })).toEqual([]);
   });
 
   it("returns nothing when the tail holds a navigation-cancelled output", () => {
@@ -231,46 +229,42 @@ describe("getFlushableClientToolOutputs", () => {
       errorText: EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
     });
 
-    expect(getFlushableClientToolOutputs({ messages: [message] })).toEqual([]);
+    expect(getFlushableClientToolOutputs({ message })).toEqual([]);
   });
 
   it("ignores resolved outputs that are not client-executed", () => {
-    const messages = [
-      createMessage({
-        id: "assistant-1",
-        role: "assistant",
-        parts: [
-          {
-            type: `tool-${READ_PROMPT_TOOL_NAME}`,
-            toolCallId: "tool-call-server",
-            state: "output-available",
-            input: {},
-            output: "done",
-          },
-          {
-            type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
-            toolCallId: "tool-call-pending",
-            state: "input-available",
-            input: {},
-            callProviderMetadata: CLIENT_CALL_METADATA,
-          },
-        ],
-      }),
-    ];
+    const message = createMessage({
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        {
+          type: `tool-${READ_PROMPT_TOOL_NAME}`,
+          toolCallId: "tool-call-server",
+          state: "output-available",
+          input: {},
+          output: "done",
+        },
+        {
+          type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+          toolCallId: "tool-call-pending",
+          state: "input-available",
+          input: {},
+          callProviderMetadata: CLIENT_CALL_METADATA,
+        },
+      ],
+    });
 
-    expect(getFlushableClientToolOutputs({ messages })).toEqual([]);
+    expect(getFlushableClientToolOutputs({ message })).toEqual([]);
   });
 
-  it("returns nothing when the trailing message is not an assistant", () => {
-    const messages = [
-      createMessage({
-        id: "user-1",
-        role: "user",
-        parts: [{ type: "text", text: "hello" }],
-      }),
-    ];
+  it("returns nothing when the message is not an assistant message", () => {
+    const message = createMessage({
+      id: "user-1",
+      role: "user",
+      parts: [{ type: "text", text: "hello" }],
+    });
 
-    expect(getFlushableClientToolOutputs({ messages })).toEqual([]);
+    expect(getFlushableClientToolOutputs({ message })).toEqual([]);
   });
 });
 

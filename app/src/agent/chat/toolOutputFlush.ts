@@ -10,11 +10,7 @@ type SubmitToolOutputsRequestBody =
 
 /**
  * Eagerly persists resolved client tool outputs while sibling tool calls are
- * still pending; best-effort, since the chat continuation re-carries them all.
- *
- * Returns a stateless fire-and-forget flush: each call posts every resolved
- * output on the trailing assistant message and the endpoint ignores the ones
- * it already persisted, so overlapping or failed posts lose nothing.
+ * still pending.
  */
 export function createToolOutputFlusher({
   flushUrl,
@@ -27,37 +23,31 @@ export function createToolOutputFlusher({
   fetch: typeof fetch;
   /** Browser execution timings added to the flushed tool parts. */
   toolTimings?: ClientToolTimingRecorder | null;
-}): (messages: AgentUIMessage[]) => void {
-  return (messages) => {
-    const trailingMessage = messages.at(-1);
-    if (!trailingMessage) {
-      return;
-    }
+}): (message: AgentUIMessage) => void {
+  return (message) => {
     const [enrichedMessage] = enrichMessagesWithClientToolTimings({
-      messages: [trailingMessage],
+      messages: [message],
       toolTimings,
     });
     const toolOutputs = getFlushableClientToolOutputs({
-      messages: [...messages.slice(0, -1), enrichedMessage ?? trailingMessage],
+      message: enrichedMessage ?? message,
     });
     if (toolOutputs.length === 0) {
       return;
     }
     const body: SubmitToolOutputsRequestBody = {
-      // The AI SDK's tool UI parts and the generated wire schema describe
-      // the same Vercel data-stream shapes but spell optionality
-      // differently.
+      // The AI SDK part types and the wire schema spell optionality
+      // differently for the same shapes.
       toolOutputs:
         toolOutputs as unknown as SubmitToolOutputsRequestBody["toolOutputs"],
-      lastMessageId: trailingMessage.id,
+      lastMessageId: message.id,
     };
     void fetchFn(flushUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).catch(() => {
-      // Failures are benign: the chat continuation re-carries every
-      // resolved output regardless.
+      // Benign: the chat continuation re-carries resolved outputs.
     });
   };
 }

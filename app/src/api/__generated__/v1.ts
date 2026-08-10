@@ -1688,15 +1688,6 @@ export interface paths {
         /**
          * Submit Agent Session Tool Outputs
          * @description Persist resolved client tool outputs for the session's open turn.
-         *
-         *     A turn that stops on unresolved client tool calls stays open while the
-         *     user works through approvals. Each resolved output can be submitted
-         *     here as it lands so the persisted transcript reflects it immediately —
-         *     the model does not run, and the unanswered calls keep their pending
-         *     states. The turn is continued (and completed) by the chat route once
-         *     every pending call resolves; because outputs for already-resolved
-         *     calls are ignored, that final continuation may idempotently re-carry
-         *     outputs submitted here.
          */
         post: operations["submitAgentSessionToolOutputs"];
         delete?: never;
@@ -5676,19 +5667,17 @@ export interface components {
          * SubmitAgentSessionToolOutputsRequestBody
          * @description Persist resolved client tool outputs without continuing the turn.
          *
-         *     Carries Vercel AI data-stream tool-output parts, so it follows the chat
-         *     route's camelCase wire casing rather than the session CRUD routes'
-         *     snake_case (see ``_CamelBaseModel``).
+         *     Follows the chat route's camelCase wire casing (see ``_CamelBaseModel``).
          */
         SubmitAgentSessionToolOutputsRequestBody: {
             /**
              * Tooloutputs
-             * @description Client-executed tool results for pending tool calls on the transcript's trailing assistant message, matched by ``toolCallId``. Outputs for calls the server has already resolved are ignored, so resending is idempotent; an output that matches no call (or renames its tool) is rejected with HTTP 409 and code ``agent_session_tool_outputs_conflict``.
+             * @description Client tool results for pending calls on the trailing assistant message, matched by ``toolCallId``. Outputs for already-resolved calls are ignored (resending is idempotent); an output matching no call is rejected with HTTP 409 and code ``agent_session_tool_outputs_conflict``.
              */
             toolOutputs: (components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"])[];
             /**
              * Lastmessageid
-             * @description The id of the trailing assistant message whose pending tool calls the outputs resolve, used for optimistic concurrency. On mismatch the server rejects the submission with HTTP 409 and code ``agent_session_messages_stale`` — the client should refetch the session before retrying.
+             * @description The trailing assistant message's id, used for optimistic concurrency. On mismatch the submission is rejected with HTTP 409 and code ``agent_session_messages_stale``.
              */
             lastMessageId: string;
         };
@@ -5696,8 +5685,7 @@ export interface components {
          * SubmitAgentSessionToolOutputsResponseBody
          * @description The trailing assistant message with the submitted outputs applied.
          *
-         *     A 200 means the outputs are durable; the turn stays open until a chat
-         *     continuation resolves every pending call and runs the model.
+         *     The turn stays open until a chat continuation resolves every pending call.
          */
         SubmitAgentSessionToolOutputsResponseBody: {
             data: components["schemas"]["PhoenixUIMessage"];

@@ -625,29 +625,24 @@ class CompactAgentSessionResponseBody(ResponseBody[PhoenixUIMessage]):
 class SubmitAgentSessionToolOutputsRequestBody(_CamelBaseModel):
     """Persist resolved client tool outputs without continuing the turn.
 
-    Carries Vercel AI data-stream tool-output parts, so it follows the chat
-    route's camelCase wire casing rather than the session CRUD routes'
-    snake_case (see ``_CamelBaseModel``).
+    Follows the chat route's camelCase wire casing (see ``_CamelBaseModel``).
     """
 
     tool_outputs: list[ToolOutputUIPart] = Field(
         min_length=1,
         description=(
-            "Client-executed tool results for pending tool calls on the "
-            "transcript's trailing assistant message, matched by "
-            "``toolCallId``. Outputs for calls the server has already "
-            "resolved are ignored, so resending is idempotent; an output "
-            "that matches no call (or renames its tool) is rejected with "
-            "HTTP 409 and code ``agent_session_tool_outputs_conflict``."
+            "Client tool results for pending calls on the trailing assistant "
+            "message, matched by ``toolCallId``. Outputs for already-resolved "
+            "calls are ignored (resending is idempotent); an output matching "
+            "no call is rejected with HTTP 409 and code "
+            "``agent_session_tool_outputs_conflict``."
         ),
     )
     last_message_id: str = Field(
         description=(
-            "The id of the trailing assistant message whose pending tool "
-            "calls the outputs resolve, used for optimistic concurrency. On "
-            "mismatch the server rejects the submission with HTTP 409 and "
-            "code ``agent_session_messages_stale`` — the client should "
-            "refetch the session before retrying."
+            "The trailing assistant message's id, used for optimistic "
+            "concurrency. On mismatch the submission is rejected with HTTP "
+            "409 and code ``agent_session_messages_stale``."
         ),
     )
 
@@ -660,8 +655,7 @@ class SubmitAgentSessionToolOutputsRequestBody(_CamelBaseModel):
 class SubmitAgentSessionToolOutputsResponseBody(ResponseBody[PhoenixUIMessage]):
     """The trailing assistant message with the submitted outputs applied.
 
-    A 200 means the outputs are durable; the turn stays open until a chat
-    continuation resolves every pending call and runs the model."""
+    The turn stays open until a chat continuation resolves every pending call."""
 
 
 _PydanticAIUIMessageListAdapter: TypeAdapter[list[PydanticAIUIMessage]] = TypeAdapter(
@@ -2689,10 +2683,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 user_id=request_user_id,
             )
             agent_session_rowid = agent_session.id
-            # Claim the turn lock before reading the trailing message: the
-            # conditional UPDATE serializes concurrent submissions on the
-            # session row, so this transaction reads its predecessor's
-            # committed outputs instead of overwriting them.
+            # Claim the turn lock before reading the trailing message so
+            # concurrent submissions serialize instead of overwriting each
+            # other's outputs.
             if not await _claim_agent_session_turn_lock(
                 session,
                 agent_session_rowid=agent_session_rowid,
@@ -2719,9 +2712,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             updated_message = _apply_tool_outputs(latest_message, request_body.tool_outputs)
             if updated_message is not None:
                 latest_row.message = updated_message
-            # Release inside the same transaction: the claim, the applied
-            # outputs, and the release commit atomically, so a failure rolls
-            # everything back and never leaves the lock claimed.
+            # Release in the same transaction so the claim, the outputs, and
+            # the release commit atomically.
             await _clear_agent_session_turn_lock(
                 session,
                 agent_session_rowid=agent_session_rowid,
