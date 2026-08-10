@@ -2,8 +2,6 @@ import {
   getToolName,
   isToolUIPart,
   lastAssistantMessageIsCompleteWithToolCalls,
-  type DynamicToolUIPart,
-  type ToolUIPart,
   type UIMessage,
 } from "ai";
 
@@ -22,7 +20,10 @@ import {
   REMOVE_PROMPT_INSTANCE_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 
-import { isResolvedClientToolOutputPart } from "./chatUtils";
+import {
+  isResolvedClientToolOutputPart,
+  type ResolvedToolOutputPart,
+} from "./chatUtils";
 import { getUnresolvedToolCalls } from "./interruptToolCalls";
 
 export const USER_INTERRUPT_ERROR = "The user has interrupted this tool call.";
@@ -53,7 +54,7 @@ export function getFlushableClientToolOutputs({
 }: {
   /** The transcript's trailing assistant message. */
   message: UIMessage;
-}): Array<ToolUIPart | DynamicToolUIPart> {
+}): ResolvedToolOutputPart[] {
   if (message.role !== "assistant") {
     return [];
   }
@@ -67,9 +68,7 @@ export function getFlushableClientToolOutputs({
   if (getUnresolvedToolCalls(messages).length === 0) {
     return [];
   }
-  return message.parts.filter((part): part is ToolUIPart | DynamicToolUIPart =>
-    isResolvedClientToolOutputPart(part)
-  );
+  return message.parts.filter((part) => isResolvedClientToolOutputPart(part));
 }
 
 export function shouldKeepTurnOpenForPendingToolOutput({

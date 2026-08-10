@@ -15,13 +15,19 @@ export function isRequestActive(status: ChatStatus): boolean {
   return status === "submitted" || status === "streaming";
 }
 
+/** A tool part in a terminal output state (`output-available` / `output-error`). */
+export type ResolvedToolOutputPart<TOOLS extends UITools = UITools> = Extract<
+  ToolUIPart<TOOLS> | DynamicToolUIPart,
+  { state: "output-available" | "output-error" }
+>;
+
 /**
  * Whether a message part is a client-executed tool call in a terminal output
  * state — the parts a request may carry to the server as `toolOutputs`.
  */
 export function isResolvedClientToolOutputPart<TOOLS extends UITools>(
   part: UIMessagePart<UIDataTypes, TOOLS>
-): part is ToolUIPart<TOOLS> | DynamicToolUIPart {
+): part is ResolvedToolOutputPart<TOOLS> {
   if (!isToolUIPart(part)) {
     return false;
   }

@@ -73,12 +73,7 @@ type ChatToolOutput = NonNullable<
  * tool calls it has already resolved, so resending is idempotent.
  */
 function getClientToolOutputs(message: AgentUIMessage): ChatToolOutput[] {
-  const resolvedClientToolParts = message.parts.filter((part) =>
-    isResolvedClientToolOutputPart(part)
-  );
-  // The AI SDK's tool UI parts and the generated wire schema describe the
-  // same Vercel data-stream shapes but spell optionality differently.
-  return resolvedClientToolParts as unknown as ChatToolOutput[];
+  return message.parts.filter((part) => isResolvedClientToolOutputPart(part));
 }
 
 export type AgentChatRequestBodyPatch = Pick<

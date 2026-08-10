@@ -10,9 +10,7 @@ type SubmitToolOutputsRequestBody =
 
 /**
  * Eagerly persists resolved client tool outputs while sibling tool calls are
- * still pending. Fire-and-forget and best-effort: the endpoint ignores
- * identical resends and the chat continuation re-carries every resolved
- * output.
+ * still pending.
  */
 export function flushToolOutputs({
   message,
@@ -40,10 +38,7 @@ export function flushToolOutputs({
     return;
   }
   const body: SubmitToolOutputsRequestBody = {
-    // The AI SDK part types and the wire schema spell optionality
-    // differently for the same shapes.
-    toolOutputs:
-      toolOutputs as unknown as SubmitToolOutputsRequestBody["toolOutputs"],
+    toolOutputs,
     lastMessageId: message.id,
   };
   void fetchFn(flushUrl, {
