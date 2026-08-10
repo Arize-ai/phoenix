@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 from typing import cast
 from uuid import UUID
 
@@ -302,6 +303,55 @@ async def test_a_failed_schema_probe_does_not_cache_the_public_fallback(
         assert catalog._SCHEMA_CACHE == {}
     finally:
         catalog._SCHEMA_CACHE.clear()
+
+
+async def test_a_failed_index_reflection_does_not_disable_future_index_rewrites(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phoenix.server.mcp_analytics_sql.catalog as catalog
+
+    class Db:
+        dialect = SimpleNamespace(value="sqlite")
+
+    calls = 0
+
+    async def reflect_indexes(
+        db: DbSessionFactory, *, tables: frozenset[str], pg_schema: str = "public"
+    ) -> dict[str, list[catalog.ReflectedIndex]] | None:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return None
+        return {
+            "spans": [
+                catalog.ReflectedIndex(
+                    table="spans",
+                    name="spans_attributes_key",
+                    body="(json_extract(attributes, '$.key'))",
+                    kind="expression",
+                    unique=False,
+                )
+            ]
+        }
+
+    catalog._ACCESSOR_CACHE.clear()
+    monkeypatch.setattr(catalog, "reflect_indexes", reflect_indexes)
+    try:
+        assert (
+            await catalog.cached_indexed_json_accessors(
+                cast(DbSessionFactory, Db()), tables=frozenset({"spans"})
+            )
+            == {}
+        )
+        assert (
+            await catalog.cached_indexed_json_accessors(
+                cast(DbSessionFactory, Db()), tables=frozenset({"spans"})
+            )
+            != {}
+        )
+        assert calls == 2
+    finally:
+        catalog._ACCESSOR_CACHE.clear()
 
 
 async def test_a_pyformat_literal_runs_on_sqlite(

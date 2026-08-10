@@ -67,6 +67,11 @@ def parse_sql(sql: str, *, dialect: SupportedSQLDialectName) -> exp.Expression:
             code=ErrorCode.PARSE_ERROR,
             message="SQL is nested too deeply to parse. Simplify the expression.",
         ) from exc
+    statements = [
+        statement
+        for statement in statements
+        if statement is not None and not isinstance(statement, exp.Semicolon)
+    ]
     if len(statements) != 1:
         raise AnalyticsSqlError(
             code=ErrorCode.MULTI_STATEMENT,
@@ -855,7 +860,52 @@ def _check_functions(
     return None
 
 
-def _check_base_tables(root: exp.Expression, *, allowlist: Allowlist) -> Optional[AdmissionResult]:
+def _allowlisted_table_name(
+    table: exp.Table,
+    *,
+    allowlist: Allowlist,
+    dialect: SupportedSQLDialectName,
+) -> Optional[str]:
+    """Resolve a table identifier to its allowlisted spelling under SQL case rules."""
+    name = table.name or ""
+    identifier = table.this
+    if (
+        dialect == "postgresql"
+        and isinstance(identifier, exp.Identifier)
+        and identifier.args.get("quoted")
+    ):
+        return name if name in allowlist.tables else None
+    if dialect == "postgresql":
+        return next(
+            (
+                candidate
+                for candidate in allowlist.tables
+                if candidate == candidate.lower() and candidate == name.casefold()
+            ),
+            None,
+        )
+    return next(
+        (candidate for candidate in allowlist.tables if candidate.casefold() == name.casefold()),
+        None,
+    )
+
+
+def _table_identifier_name(table: exp.Table, *, dialect: SupportedSQLDialectName) -> str:
+    """Return the identifier spelling by which the engine resolves this table."""
+    name = table.name or ""
+    identifier = table.this
+    if (
+        dialect == "postgresql"
+        and isinstance(identifier, exp.Identifier)
+        and identifier.args.get("quoted")
+    ):
+        return name
+    return name.casefold()
+
+
+def _check_base_tables(
+    root: exp.Expression, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
+) -> Optional[AdmissionResult]:
     try:
         scope_root = build_scope(root)
     except SqlglotError as exc:
@@ -875,7 +925,7 @@ def _check_base_tables(root: exp.Expression, *, allowlist: Allowlist) -> Optiona
             name = source.name or ""
             if not name:
                 continue
-            if name not in allowlist.tables:
+            if _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect) is None:
                 return AdmissionResult(AdmissionOutcome.RELATION_NOT_ALLOWED, repr(name))
 
     # `Scope.sources` is keyed by reference name, so a table aliased to a CTE's
@@ -907,13 +957,17 @@ def _check_base_tables(root: exp.Expression, *, allowlist: Allowlist) -> Optiona
     declared = {cte.alias for cte in root.find_all(exp.CTE) if cte.alias}
     for scope in scope_root.traverse():
         resolved = {
-            source.name
+            _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
             for source in scope.sources.values()
-            if isinstance(source, exp.Table) and source.name
+            if isinstance(source, exp.Table)
+            and _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
         }
         for table in scope.tables:
             name = table.name or ""
-            if name and name not in declared and name not in resolved:
+            table_name = _allowlisted_table_name(
+                table, allowlist=allowlist, dialect=dialect
+            ) or _table_identifier_name(table, dialect=dialect)
+            if table_name and table_name not in declared and table_name not in resolved:
                 return AdmissionResult(
                     AdmissionOutcome.UNSUPPORTED_SYNTAX,
                     f"{name!r} is shadowed by another relation of the same name in this "
@@ -943,18 +997,21 @@ def _check_column_references(
     for scope in scope_root.traverse():
         by_reference: dict[str, str] = {}
         for reference, source in scope.sources.items():
-            if isinstance(source, exp.Table) and source.name in allowlist.table_specs:
-                by_reference[reference] = source.name
-                by_reference[source.name] = source.name
+            if isinstance(source, exp.Table):
+                table_name = _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
+                if table_name is not None:
+                    by_reference[reference] = table_name
+                    by_reference[source.name] = table_name
         # Scope-local table nodes as well, not only what `sources` kept. A
         # reference-name collision silently drops a table from that map, and a
         # check that reads it alone then skips the scope rather than failing
         # closed. Do not descend through subqueries: their tables cannot supply
         # an unqualified column in this scope.
         for node in scope.tables:
-            if node.name in allowlist.table_specs:
-                by_reference.setdefault(node.alias or node.name, node.name)
-                by_reference.setdefault(node.name, node.name)
+            table_name = _allowlisted_table_name(node, allowlist=allowlist, dialect=dialect)
+            if table_name is not None:
+                by_reference.setdefault(node.alias or node.name, table_name)
+                by_reference.setdefault(node.name, table_name)
         if not by_reference:
             continue
         columns = _scope_columns(scope.expression)
@@ -1019,7 +1076,11 @@ def _check_column_references(
         # come from it. `json_each(attributes)` projecting `key` is the shape
         # that matters, and it is one the schema teaches.
         foreign_source = any(
-            not (isinstance(source, exp.Table) and source.name in allowlist.table_specs)
+            not (
+                isinstance(source, exp.Table)
+                and _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
+                is not None
+            )
             for source in scope.sources.values()
         )
         for column in columns:
@@ -1029,6 +1090,18 @@ def _check_column_references(
             qualifier = column.table or ""
             if qualifier:
                 candidates = [by_reference[qualifier]] if qualifier in by_reference else []
+                qualifier_identifier = column.args.get("table")
+                if not candidates and not (
+                    dialect == "postgresql"
+                    and isinstance(qualifier_identifier, exp.Identifier)
+                    and qualifier_identifier.args.get("quoted")
+                ):
+                    folded = {
+                        table_name
+                        for reference, table_name in by_reference.items()
+                        if reference.casefold() == qualifier.casefold()
+                    }
+                    candidates = list(folded) if len(folded) == 1 else []
             else:
                 candidates = list(dict.fromkeys(by_reference.values()))
             if not candidates:
@@ -1147,7 +1220,7 @@ def admit(
         or _check_structural_policy(root)
         or _check_double_quoted_timestamp_operands(root, allowlist=allowlist)
         or _check_functions(root, allowlist=allowlist, dialect=dialect)
-        or _check_base_tables(root, allowlist=allowlist)
+        or _check_base_tables(root, allowlist=allowlist, dialect=dialect)
         or _check_column_references(root, allowlist=allowlist, dialect=dialect)
         or _check_timestamp_literals(root, allowlist=allowlist)
     )

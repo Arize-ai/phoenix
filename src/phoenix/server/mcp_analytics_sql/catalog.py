@@ -203,7 +203,7 @@ def _sqlite_shape(body: str) -> tuple[bool, bool, int]:
 
 async def reflect_indexes(
     db: DbSessionFactory, *, tables: frozenset[str], pg_schema: str = "public"
-) -> dict[str, list[ReflectedIndex]]:
+) -> Optional[dict[str, list[ReflectedIndex]]]:
     """Read indexes for the allowlisted tables, keeping only the informative ones.
 
     Reflection is best-effort. A caller asked for the schema, and a catalog that
@@ -216,7 +216,7 @@ async def reflect_indexes(
         rows = await _read_catalog(db, tables=tables, pg_schema=pg_schema)
     except Exception:
         logger.debug("analytics sql: index reflection unavailable", exc_info=True)
-        return {}
+        return None
 
     by_table: dict[str, list[ReflectedIndex]] = {}
     for index in rows[:MAX_REFLECTED_INDEXES]:
@@ -366,9 +366,10 @@ async def cached_indexed_json_accessors(
     key = f"{db.dialect.value}:{pg_schema}"
     cached = _ACCESSOR_CACHE.get(key)
     if cached is None:
-        cached = indexed_json_accessors(
-            await reflect_indexes(db, tables=tables, pg_schema=pg_schema)
-        )
+        indexes = await reflect_indexes(db, tables=tables, pg_schema=pg_schema)
+        if indexes is None:
+            return {}
+        cached = indexed_json_accessors(indexes)
         _ACCESSOR_CACHE[key] = cached
         logger.debug("analytics sql: cached %d indexed JSON accessors", len(cached))
     return cached

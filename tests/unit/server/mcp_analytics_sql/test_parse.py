@@ -126,6 +126,14 @@ def test_parser_contract() -> None:
     assert "payload" in tree.sql(dialect="postgres")
     assert "payload" not in tree.sql(dialect="postgres", comments=False)
 
+    for sql in ("SELECT id FROM spans;;", "SELECT id FROM spans; -- trailing comment"):
+        assert (
+            try_parse_and_admit(
+                sql, dialect="postgresql", allowlist=minimal_admission_allowlist()
+            ).outcome
+            is AdmissionOutcome.ADMIT
+        )
+
 
 class TestDdlColumnsAreQueryable:
     """Every physical DDL column is admitted alongside virtual overlays."""
@@ -237,12 +245,33 @@ class TestUnquotedPhysicalColumnsUsePostgresqlFolding:
             )
         assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
 
-    def test_the_table_allowlist_was_already_closed_under_case(self) -> None:
-        """Recorded so the asymmetry that caused this is visible, not inferred."""
-        for sql in ("SELECT id FROM USERS", "SELECT id FROM Users"):
-            with pytest.raises(AnalyticsSqlError) as caught:
-                admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
-            assert caught.value.code is ErrorCode.RELATION_NOT_ALLOWED
+    @pytest.mark.parametrize("dialect", ["sqlite", "postgresql"])
+    def test_unquoted_table_names_use_engine_case_folding(
+        self, dialect: SupportedSQLDialectName
+    ) -> None:
+        for sql in ("SELECT id FROM SPANS", "SELECT id FROM Spans"):
+            admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect=dialect)
+
+    def test_a_quoted_case_variant_is_not_the_lowercase_table(self) -> None:
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql(
+                'SELECT id FROM "SPANS"',
+                allowlist=load_allowlist("sqlite"),
+                dialect="postgresql",
+            )
+        assert caught.value.code is ErrorCode.RELATION_NOT_ALLOWED
+
+    @pytest.mark.parametrize("dialect", ["sqlite", "postgresql"])
+    def test_an_unquoted_alias_uses_engine_case_folding(
+        self, dialect: SupportedSQLDialectName
+    ) -> None:
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql(
+                "SELECT s.nope FROM spans AS S",
+                allowlist=load_allowlist("sqlite"),
+                dialect=dialect,
+            )
+        assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
 
     def test_raw_foreign_key_target_outside_the_schema_surface_is_refused(self) -> None:
         """DDL references can explain storage without widening what SQL may read."""

@@ -145,6 +145,14 @@ async def test_names_the_function_it_refuses(db: DbSessionFactory) -> None:
             "SELECT s.latency_ms AS a, jsonb_each(s.attributes) AS b FROM spans s",
             id="latency-with-srf",
         ),
+        pytest.param(
+            """SELECT jsonb_each('{"a(": 1}'::jsonb) AS value FROM spans""",
+            id="json-key-with-parenthesis",
+        ),
+        pytest.param(
+            "SELECT coalesce(name, 'fallback('), jsonb_each(attributes) FROM spans",
+            id="literal-with-parenthesis",
+        ),
     ],
 )
 async def test_the_gate_does_not_refuse_our_own_rewrites(db: DbSessionFactory, sql: str) -> None:
