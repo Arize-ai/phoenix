@@ -44,6 +44,9 @@ PERMITTED = [
     pytest.param("SELECT min(start_time) AS v FROM spans", id="min"),
     pytest.param("SELECT max(start_time) AS v FROM spans", id="max"),
     pytest.param("SELECT round(cumulative_error_count) AS v FROM spans", id="round"),
+    pytest.param("SELECT ceil(cumulative_error_count) AS v FROM spans", id="ceil"),
+    pytest.param("SELECT floor(cumulative_error_count) AS v FROM spans", id="floor"),
+    pytest.param("SELECT sign(cumulative_error_count) AS v FROM spans", id="sign"),
     pytest.param("SELECT coalesce(parent_id, 'x') AS v FROM spans", id="coalesce"),
     pytest.param("SELECT nullif(span_kind, 'LLM') AS v FROM spans", id="nullif"),
     pytest.param("SELECT CAST(cumulative_error_count AS TEXT) AS v FROM spans", id="cast"),
@@ -111,6 +114,20 @@ PERMITTED = [
     pytest.param("SELECT row_number() OVER (ORDER BY id) AS v FROM spans", id="row_number"),
     pytest.param("SELECT rank() OVER (ORDER BY id) AS v FROM spans", id="rank"),
     pytest.param("SELECT dense_rank() OVER (ORDER BY id) AS v FROM spans", id="dense_rank"),
+    pytest.param("SELECT percent_rank() OVER (ORDER BY id) AS v FROM spans", id="percent_rank"),
+    pytest.param("SELECT cume_dist() OVER (ORDER BY id) AS v FROM spans", id="cume_dist"),
+    pytest.param(
+        "SELECT first_value(id) OVER (ORDER BY id) AS v FROM spans",
+        id="first_value",
+    ),
+    pytest.param(
+        "SELECT last_value(id) OVER (ORDER BY id) AS v FROM spans",
+        id="last_value",
+    ),
+    pytest.param(
+        "SELECT nth_value(id, 1) OVER (ORDER BY id) AS v FROM spans",
+        id="nth_value",
+    ),
     pytest.param("SELECT ntile(4) OVER (ORDER BY id) AS v FROM spans", id="ntile"),
     # The JSON family. These are the ones that were admitted and then refused:
     # json_extract because rendering turns it into an operator, json_each because
