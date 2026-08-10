@@ -188,6 +188,7 @@ class ExecuteResult:
 
 
 _FUNCTION_CALL = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)\s*\(")
+_QUOTED_PLAN_TEXT = re.compile(r"'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"")
 
 # Words that precede an open parenthesis without being a call. The ProjectSet
 # branch reads expression *text*, so it cannot tell a function from a keyword:
@@ -247,9 +248,10 @@ def _function_identifiers(plan_node: dict[str, Any]) -> list[str]:
         # "generate_series", matching how the allowlist names it.
         for output in plan_node.get("Output") or []:
             if isinstance(output, str):
+                output_without_literals = _QUOTED_PLAN_TEXT.sub("", output)
                 names.extend(
                     match.group(1).lower()
-                    for match in _FUNCTION_CALL.finditer(output)
+                    for match in _FUNCTION_CALL.finditer(output_without_literals)
                     if match.group(1).casefold() not in _NOT_A_CALL
                 )
     return names
