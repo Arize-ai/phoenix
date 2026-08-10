@@ -1129,9 +1129,9 @@ def _check_column_references(
                 if id(column) in having_columns and column.name.casefold() in output_aliases:
                     return AdmissionResult(
                         AdmissionOutcome.UNSUPPORTED_SYNTAX,
-                        f"`HAVING {column.name}` refers to a SELECT alias. Repeat its expression "
-                        "in HAVING (for example, `HAVING COUNT(*) >= 50`): PostgreSQL does not "
-                        "accept SELECT aliases there.",
+                        f"`HAVING {column.name}` refers to a SELECT alias. Phoenix requires "
+                        "portable SQL here, so repeat its expression in HAVING (for example, "
+                        "`HAVING COUNT(*) >= 50`).",
                     )
                 return AdmissionResult(
                     AdmissionOutcome.UNSUPPORTED_SYNTAX,
