@@ -657,8 +657,8 @@ def test_graphql_node_id_resolves_through_a_qualifier(dialect: str) -> None:
     schema's own "to area root" hint teaches -- while `latency_ms`, listed
     beside it and described in the same preamble sentence, worked in both.
 
-    Only a bare `graphql_node_id` in a join is genuinely ambiguous, and that is
-    still left alone rather than guessed at.
+    A bare `graphql_node_id` in a join is genuinely ambiguous, so it is refused
+    rather than guessed at or deferred to an engine-level unknown-column error.
     """
     allowlist = load_allowlist("sqlite")
 
@@ -683,12 +683,27 @@ def test_graphql_node_id_resolves_through_a_qualifier(dialect: str) -> None:
     )
     assert "Trace:" in both and "Project:" in both
 
-    # Unqualified in a join stays untouched: two candidate types, no basis to pick.
-    ambiguous = rewrite(
-        "SELECT graphql_node_id FROM traces t JOIN projects p ON t.project_rowid = p.id"
+    with pytest.raises(AnalyticsSqlError) as exc:
+        rewrite("SELECT graphql_node_id FROM traces t JOIN projects p ON t.project_rowid = p.id")
+    assert "Qualify it with a table alias" in exc.value.message
+
+
+@pytest.mark.parametrize("dialect", ["sqlite", "postgres"])
+def test_bare_latency_ms_in_multiple_duration_sources_requires_qualification(dialect: str) -> None:
+    """An unqualified virtual duration must not become ambiguous timestamp SQL."""
+    ctx = RewriteContext(
+        dialect="sqlite" if dialect == "sqlite" else "postgresql",
+        allowlist=load_allowlist("sqlite"),
+        row_limit=10,
     )
-    assert "graphql_node_id" in ambiguous
-    assert "Trace:" not in ambiguous and "Project:" not in ambiguous
+    tree = sqlglot.parse_one(
+        "SELECT latency_ms FROM traces t JOIN spans s ON s.trace_rowid = t.id",
+        dialect=dialect,
+    )
+
+    with pytest.raises(AnalyticsSqlError) as exc:
+        _substitute_latency_ms(cast(exp.Expression, tree), ctx)
+    assert "Qualify it with a table alias" in exc.value.message
 
 
 def _rewrite_context(
