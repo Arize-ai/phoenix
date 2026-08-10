@@ -3039,7 +3039,7 @@ type Project implements Node {
   id: ID!
   name: String!
   description: String
-  evaluators(first: Int = 30, last: Int = null, after: String = null, before: String = null): ProjectEvaluatorConnection!
+  evaluators(first: Int = 30, last: Int = null, after: String = null, before: String = null, filter: ProjectEvaluatorFilter): ProjectEvaluatorConnection!
   gradientStartColor: String!
   gradientEndColor: String!
   startTime: DateTime
@@ -3281,6 +3281,16 @@ type ProjectEvaluatorEdge {
 
   """The item at the end of the edge"""
   node: ProjectEvaluator!
+}
+
+"""The filter key and value for project evaluator connections"""
+input ProjectEvaluatorFilter {
+  col: ProjectEvaluatorFilterColumn!
+  value: String!
+}
+
+enum ProjectEvaluatorFilterColumn {
+  name
 }
 
 type ProjectEvaluatorMutationPayload {
