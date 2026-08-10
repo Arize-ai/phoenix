@@ -47,6 +47,14 @@ import { getRemovedUserMessageText } from "./removedUserMessageText";
 
 export type TurnClientState = {
   toolTimings: ReturnType<typeof createClientToolTimingRecorder>;
+  /**
+   * Re-run the pending tool-call recovery pass (re-stage rehydratable
+   * approvals, error out stale calls) against the chat's current transcript.
+   * The session-sync poll calls this after replacing the transcript with the
+   * server's copy, which reverts locally recovered parts to their persisted
+   * pending states.
+   */
+  recoverPendingToolCalls: () => void;
 };
 
 const turnClientStateByChat = new WeakMap<
@@ -322,7 +330,7 @@ export function createAgentSessionChat({
     transcriptPersistence.acknowledge({ messageId: seedTailMessage.id });
   }
   // Restore pending approval state lost with the previous page's memory:
-  // re-dispatch the seeded tail's unresolved client tool calls for tools
+  // re-dispatch the transcript tail's unresolved client tool calls for tools
   // whose dispatch only stages approval state, re-creating their inline
   // Accept/Reject affordances. Pending calls of every other tool are
   // unrecoverable — resolve them with an error so the tool part renders a
@@ -330,22 +338,28 @@ export function createAgentSessionChat({
   // the transcript directly (not via `addToolOutput`) so no automatic
   // continuation fires while the page's surfaces are still mounting and
   // their contexts are unadvertised; the outputs reach the server with the
-  // next user-triggered send.
-  const { rehydratableToolCalls, staleToolCalls } =
-    partitionPendingClientToolCalls({
-      messages: seedMessages,
-      isRehydratableTool: isRehydratableAgentTool,
+  // next user-triggered send. Runs at creation against the seed and again
+  // whenever the session-sync poll replaces the transcript with the server's
+  // copy (where recovered calls are still pending); re-staging an approval
+  // that is already staged just rebinds it, so re-running is idempotent.
+  const recoverPendingToolCalls = () => {
+    const { rehydratableToolCalls, staleToolCalls } =
+      partitionPendingClientToolCalls({
+        messages: chat.messages,
+        isRehydratableTool: isRehydratableAgentTool,
+      });
+    for (const toolCall of rehydratableToolCalls) {
+      runAgentToolCall(toolCall);
+    }
+    chat.messages = resolveStalePendingToolCallParts({
+      messages: chat.messages,
+      staleToolCallIds: new Set(
+        staleToolCalls.map((toolCall) => toolCall.toolCallId)
+      ),
     });
-  for (const toolCall of rehydratableToolCalls) {
-    runAgentToolCall(toolCall);
-  }
-  chat.messages = resolveStalePendingToolCallParts({
-    messages: chat.messages,
-    staleToolCallIds: new Set(
-      staleToolCalls.map((toolCall) => toolCall.toolCallId)
-    ),
-  });
-  turnClientStateByChat.set(chat, { toolTimings });
+  };
+  recoverPendingToolCalls();
+  turnClientStateByChat.set(chat, { toolTimings, recoverPendingToolCalls });
   return chat;
 }
 

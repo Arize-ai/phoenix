@@ -2,7 +2,10 @@ import { isToolUIPart } from "ai";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createAgentSessionChat } from "@phoenix/agent/chat/createAgentSessionChat";
+import {
+  createAgentSessionChat,
+  getTurnClientState,
+} from "@phoenix/agent/chat/createAgentSessionChat";
 import { PENDING_TOOL_CALL_NOT_RESTORED_ERROR } from "@phoenix/agent/chat/rehydratePendingToolCalls";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { CREATE_ANNOTATION_CONFIG_TOOL_NAME } from "@phoenix/agent/tools/annotationConfig";
@@ -70,6 +73,23 @@ describe("createAgentSessionChat rehydration", () => {
         (part) => isToolUIPart(part) && part.toolCallId === "tool-call-1"
       );
     expect(toolPart).toMatchObject({
+      state: "output-error",
+      errorText: PENDING_TOOL_CALL_NOT_RESTORED_ERROR,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    // The session-sync poll replaces the transcript with the server's copy,
+    // where the stale call is still pending — reverting the local recovery.
+    // The exposed recovery pass re-applies it.
+    chat.messages = seedMessages;
+    getTurnClientState(chat)?.recoverPendingToolCalls();
+    expect(
+      chat.messages
+        .at(-1)
+        ?.parts.find(
+          (part) => isToolUIPart(part) && part.toolCallId === "tool-call-1"
+        )
+    ).toMatchObject({
       state: "output-error",
       errorText: PENDING_TOOL_CALL_NOT_RESTORED_ERROR,
     });
