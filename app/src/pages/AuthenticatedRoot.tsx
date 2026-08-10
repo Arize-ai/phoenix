@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Outlet, useLoaderData } from "react-router";
+import { Navigate, Outlet, useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
 import { AgentContextSync } from "@phoenix/agent/context/AgentContextSync";
@@ -13,6 +13,7 @@ import {
   authenticatedRootLoaderQueryNode,
   type AuthenticatedRootLoaderData,
 } from "@phoenix/pages/authenticatedRootLoader";
+import { createRedirectUrlWithReturn } from "@phoenix/utils/routingUtils";
 
 import { AppAlerts } from "./AppAlerts";
 
@@ -38,6 +39,15 @@ export function AuthenticatedRoot() {
       });
     }
   }, [data.viewer]);
+
+  if (data.viewer?.passwordNeedsReset) {
+    return (
+      <Navigate
+        to={createRedirectUrlWithReturn({ path: "/reset-password" })}
+        replace
+      />
+    );
+  }
 
   return (
     <ViewerProvider query={data}>
