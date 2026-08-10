@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { HTMLAttributes, Ref } from "react";
-import { createContext, useContext, useId } from "react";
+import { useContext } from "react";
 import {
   Dialog as AriaDialog,
   type DialogProps as AriaDialogProps,
@@ -22,40 +22,21 @@ const dialogCSS = css`
   overscroll-behavior: none !important;
 `;
 
-/**
- * The id the dialog points `aria-labelledby` at, which {@link DialogTitle}
- * puts on its heading.
- *
- * react-aria wires that link itself from the title slot, but resolves it in a
- * layout effect that runs once: a title rendered behind a `Suspense` boundary
- * has not mounted by then, so the dialog is left unlabelled for good. Owning
- * the id keeps a dialog's accessible name equal to its visible title no matter
- * when the title arrives.
- */
-const DialogTitleIdContext = createContext<string | null>(null);
-
 export function Dialog({
   ref,
   children,
   ...props
 }: DialogProps & { ref?: Ref<HTMLDialogElement> }) {
-  const titleId = useId();
-  // A dialog named some other way keeps that name; the title is then just a
-  // heading.
-  const isNamedByTitle = !props["aria-label"] && !props["aria-labelledby"];
   return (
-    <DialogTitleIdContext.Provider value={isNamedByTitle ? titleId : null}>
-      <AriaDialog
-        data-testid="dialog"
-        aria-labelledby={isNamedByTitle ? titleId : undefined}
-        {...props}
-        css={dialogCSS}
-        className={classNames(props.className, "react-aria-Dialog")}
-        ref={ref}
-      >
-        {children}
-      </AriaDialog>
-    </DialogTitleIdContext.Provider>
+    <AriaDialog
+      data-testid="dialog"
+      {...props}
+      css={dialogCSS}
+      className={classNames(props.className, "react-aria-Dialog")}
+      ref={ref}
+    >
+      {children}
+    </AriaDialog>
   );
 }
 
@@ -107,26 +88,13 @@ export const DialogHeader = ({ children, ...props }: DialogHeaderProps) => {
 
 export type DialogTitleProps = HeadingProps;
 
-// Titles that name a record can be arbitrarily long; keep one to a single line
-// so it cannot crowd out the actions beside it in the header.
-const dialogTitleCSS = css`
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
-
 export const DialogTitle = ({ children, ...props }: DialogTitleProps) => {
-  const titleId = useContext(DialogTitleIdContext);
   return (
     <Heading
       level={2}
       data-testid="dialog-title"
-      css={dialogTitleCSS}
+      slot="title"
       {...props}
-      // After the spread: the dialog points `aria-labelledby` here, so this id
-      // is the link and not a default a caller may override.
-      id={titleId ?? props.id}
       className={classNames(props.className, "dialog__title")}
     >
       {children}

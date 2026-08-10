@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
 
 import {
   Button,
@@ -14,7 +13,6 @@ import {
 } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { DeleteProjectEvaluatorDialog } from "@phoenix/pages/project/evaluators/DeleteProjectEvaluatorDialog";
-import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 
 enum ProjectEvaluatorAction {
   EDIT = "edit",
@@ -26,14 +24,16 @@ export function ProjectEvaluatorActionMenu({
   projectId,
   evaluatorKind,
   evaluatorName,
+  onEdit,
 }: {
   projectEvaluatorId: string;
   projectId: string;
   evaluatorKind: "LLM" | "CODE" | "BUILTIN";
   evaluatorName: string;
+  /** Passed in by the table, so the edit path is derived once per render and
+   * not once per row. */
+  onEdit: (projectEvaluatorId: string) => void;
 }) {
-  const navigate = useNavigate();
-  const paths = useProjectEvaluatorPaths();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const canEdit = evaluatorKind === "LLM" || evaluatorKind === "CODE";
   return (
@@ -50,7 +50,7 @@ export function ProjectEvaluatorActionMenu({
             onAction={(action) => {
               switch (action) {
                 case ProjectEvaluatorAction.EDIT:
-                  navigate(paths.edit(projectEvaluatorId));
+                  onEdit(projectEvaluatorId);
                   break;
                 case ProjectEvaluatorAction.DELETE:
                   setIsDeleteOpen(true);

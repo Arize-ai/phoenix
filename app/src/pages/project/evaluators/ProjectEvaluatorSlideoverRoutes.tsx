@@ -1,28 +1,13 @@
-import { useMemo } from "react";
 import { useLazyLoadQuery } from "react-relay";
 import { useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import {
-  Button,
-  Dialog,
-  Modal,
-  ModalOverlay,
-  Text,
-  View,
-} from "@phoenix/components";
-import {
-  DialogCloseButton,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
-} from "@phoenix/components/core/dialog";
 import type { projectEvaluatorDetailsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
-import type { ProjectEvaluatorCreationMode } from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
 import { CreateProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
-import { EditProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/EditProjectEvaluatorSlideover";
+import {
+  EditProjectEvaluatorSlideover,
+  useProjectEvaluator,
+} from "@phoenix/pages/project/evaluators/EditProjectEvaluatorSlideover";
 import {
   buildAttachCodeCreationMode,
   buildCopyLlmCreationMode,
@@ -32,12 +17,11 @@ import {
   UNSUPPORTED_PROMPT_TEMPLATE_ERROR,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import { ProjectEvaluatorSlideoverError } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideoverError";
 
-/**
- * Route elements for the project evaluator slideovers. Every creation flow and
- * the edit flow is its own route, so each is deep-linkable and the browser's
- * back button closes whichever one is open.
- */
+// Route elements for the project evaluator slideovers. Every creation flow and
+// the edit flow is its own route, so each is deep-linkable and the browser's
+// back button closes whichever one is open.
 
 /**
  * Returns the slideover's `onOpenChange`, which closes it by returning to the
@@ -63,8 +47,9 @@ function useRouteProjectId() {
 }
 
 /**
- * The evaluator a copy or attach route is seeded from. Suspends, so the
- * slideover opens only once that evaluator has loaded.
+ * The evaluator a copy or attach route is seeded from, or null when the id in
+ * the URL names nothing. Suspends, so the slideover opens only once that
+ * evaluator has loaded.
  */
 function useSourceEvaluator() {
   const { evaluatorId } = useParams();
@@ -74,13 +59,8 @@ function useSourceEvaluator() {
     { id: evaluatorId },
     { fetchPolicy: "store-or-network" }
   );
-  invariant(data.evaluator, "evaluator details could not be loaded");
   return data.evaluator;
 }
-
-type CreationModeResult =
-  | { ok: true; mode: ProjectEvaluatorCreationMode }
-  | { ok: false; error: string };
 
 export function NewLlmProjectEvaluatorPage() {
   const projectId = useRouteProjectId();
@@ -112,20 +92,22 @@ export function CopyLlmProjectEvaluatorPage() {
   const projectId = useRouteProjectId();
   const onOpenChange = useCloseSlideover();
   const evaluator = useSourceEvaluator();
-  const result = useMemo<CreationModeResult>(() => {
-    if (!isLlmProjectEvaluatorDetails(evaluator)) {
-      return { ok: false, error: "This evaluator is not an LLM evaluator." };
-    }
-    const built = buildCopyLlmCreationMode(evaluator);
-    return built.ok
-      ? { ok: true, mode: built.mode }
-      : { ok: false, error: UNSUPPORTED_PROMPT_TEMPLATE_ERROR };
-  }, [evaluator]);
-  if (!result.ok) {
+  const title = "Cannot copy evaluator";
+  if (!evaluator || !isLlmProjectEvaluatorDetails(evaluator)) {
     return (
-      <SlideoverErrorDialog
-        title="Cannot copy evaluator"
-        message={result.error}
+      <ProjectEvaluatorSlideoverError
+        title={title}
+        message="This link does not name an LLM evaluator."
+        onOpenChange={onOpenChange}
+      />
+    );
+  }
+  const built = buildCopyLlmCreationMode(evaluator);
+  if (!built.ok) {
+    return (
+      <ProjectEvaluatorSlideoverError
+        title={title}
+        message={UNSUPPORTED_PROMPT_TEMPLATE_ERROR}
         onOpenChange={onOpenChange}
       />
     );
@@ -135,7 +117,7 @@ export function CopyLlmProjectEvaluatorPage() {
       isOpen
       onOpenChange={onOpenChange}
       projectId={projectId}
-      creationMode={result.mode}
+      creationMode={built.mode}
     />
   );
 }
@@ -144,18 +126,11 @@ export function AttachCodeProjectEvaluatorPage() {
   const projectId = useRouteProjectId();
   const onOpenChange = useCloseSlideover();
   const evaluator = useSourceEvaluator();
-  const creationMode = useMemo(
-    () =>
-      isCodeProjectEvaluatorDetails(evaluator)
-        ? buildAttachCodeCreationMode(evaluator)
-        : null,
-    [evaluator]
-  );
-  if (!creationMode) {
+  if (!evaluator || !isCodeProjectEvaluatorDetails(evaluator)) {
     return (
-      <SlideoverErrorDialog
+      <ProjectEvaluatorSlideoverError
         title="Cannot attach evaluator"
-        message="This evaluator is not a code evaluator."
+        message="This link does not name a code evaluator."
         onOpenChange={onOpenChange}
       />
     );
@@ -165,7 +140,7 @@ export function AttachCodeProjectEvaluatorPage() {
       isOpen
       onOpenChange={onOpenChange}
       projectId={projectId}
-      creationMode={creationMode}
+      creationMode={buildAttachCodeCreationMode(evaluator)}
     />
   );
 }
@@ -174,44 +149,27 @@ export function EditProjectEvaluatorPage() {
   const { projectEvaluatorId } = useParams();
   invariant(projectEvaluatorId, "projectEvaluatorId is required");
   const onOpenChange = useCloseSlideover();
+  const { evaluator, sandboxConfigs } = useProjectEvaluator(projectEvaluatorId);
+  // Only a hand-written URL reaches this: the table offers Edit for authored
+  // evaluators alone.
+  if (
+    evaluator.evaluator.kind !== "LLM" &&
+    evaluator.evaluator.kind !== "CODE"
+  ) {
+    return (
+      <ProjectEvaluatorSlideoverError
+        title="Cannot edit evaluator"
+        message={`“${evaluator.name}” is a built-in evaluator, which cannot be edited. Copy it to author your own version.`}
+        onOpenChange={onOpenChange}
+      />
+    );
+  }
   return (
     <EditProjectEvaluatorSlideover
       isOpen
       onOpenChange={onOpenChange}
-      projectEvaluatorId={projectEvaluatorId}
+      evaluator={evaluator}
+      sandboxConfigs={sandboxConfigs}
     />
-  );
-}
-
-function SlideoverErrorDialog({
-  title,
-  message,
-  onOpenChange,
-}: {
-  title: string;
-  message: string;
-  onOpenChange: (isOpen: boolean) => void;
-}) {
-  return (
-    <ModalOverlay isOpen isDismissable onOpenChange={onOpenChange}>
-      <Modal size="S">
-        <Dialog>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{title}</DialogTitle>
-              <DialogTitleExtra>
-                <DialogCloseButton />
-              </DialogTitleExtra>
-            </DialogHeader>
-            <View padding="size-200">
-              <Text>{message}</Text>
-            </View>
-            <DialogFooter>
-              <Button slot="close">Close</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
   );
 }

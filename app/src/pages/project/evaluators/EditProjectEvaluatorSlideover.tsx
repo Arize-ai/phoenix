@@ -4,21 +4,7 @@ import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import {
-  Alert,
-  Dialog,
-  Loading,
-  Modal,
-  ModalOverlay,
-  View,
-} from "@phoenix/components";
-import {
-  DialogCloseButton,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
-} from "@phoenix/components/core/dialog";
+import { Dialog, Loading, Modal, ModalOverlay } from "@phoenix/components";
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import {
   extractCodeEvaluatorVariables,
@@ -77,27 +63,30 @@ type ProjectEvaluatorNode = Extract<
   { readonly __typename: "ProjectEvaluator" }
 >;
 
-/**
- * The slideover heading, which names both the flow and the evaluator being
- * edited. The `Dialog` takes its accessible name from this heading, so the two
- * can never drift apart.
- */
-function getEditTitle(evaluator: ProjectEvaluatorNode): string {
-  const kindLabel = evaluator.evaluator.kind === "LLM" ? "LLM" : "code";
-  return `Edit ${kindLabel} evaluator “${evaluator.name}”`;
+/** The slideover heading: the flow, and the evaluator it edits. */
+function getEditProjectEvaluatorTitle(evaluator: ProjectEvaluatorNode): string {
+  const kind = evaluator.evaluator.kind === "LLM" ? "LLM" : "code";
+  return `Edit ${kind} evaluator “${evaluator.name}”`;
 }
 
+/**
+ * Takes the evaluator already loaded by the route rather than loading it here,
+ * so the title is known before the dialog mounts and can name it.
+ */
 export function EditProjectEvaluatorSlideover({
-  projectEvaluatorId,
+  evaluator,
+  sandboxConfigs,
   ...props
 }: {
-  projectEvaluatorId: string;
+  evaluator: ProjectEvaluatorNode;
+  sandboxConfigs: ProjectEvaluatorSandboxConfigs;
 } & ModalOverlayProps) {
   const dirtyCheckRef = useRef<EvaluatorFormDirtyCheck>(() => false);
   const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
   const registerDirtyCheck = (check: EvaluatorFormDirtyCheck) => {
     dirtyCheckRef.current = check;
   };
+  const title = getEditProjectEvaluatorTitle(evaluator);
   return (
     <>
       <ModalOverlay
@@ -115,16 +104,25 @@ export function EditProjectEvaluatorSlideover({
         }}
       >
         <Modal variant="slideover" size="fullscreen">
-          {/* No `aria-label`: the dialog is named by its title heading, so the
-              accessible name always matches the visible one. */}
-          <Dialog>
+          <Dialog aria-label={title}>
             {({ close }) => (
               <Suspense fallback={<Loading />}>
-                <EditProjectEvaluator
-                  projectEvaluatorId={projectEvaluatorId}
-                  onClose={close}
-                  registerDirtyCheck={registerDirtyCheck}
-                />
+                {evaluator.evaluator.kind === "LLM" ? (
+                  <EditLlmProjectEvaluator
+                    evaluator={evaluator}
+                    title={title}
+                    onClose={close}
+                    registerDirtyCheck={registerDirtyCheck}
+                  />
+                ) : (
+                  <EditCodeProjectEvaluator
+                    evaluator={evaluator}
+                    sandboxConfigs={sandboxConfigs}
+                    title={title}
+                    onClose={close}
+                    registerDirtyCheck={registerDirtyCheck}
+                  />
+                )}
               </Suspense>
             )}
           </Dialog>
@@ -142,7 +140,12 @@ export function EditProjectEvaluatorSlideover({
   );
 }
 
-function useProjectEvaluator(projectEvaluatorId: string) {
+type ProjectEvaluatorSandboxConfigs = ReturnType<
+  typeof useProjectEvaluator
+>["sandboxConfigs"];
+
+/** Loaded by the edit route, above the slideover. */
+export function useProjectEvaluator(projectEvaluatorId: string) {
   const data = useLazyLoadQuery<EditProjectEvaluatorSlideoverQuery>(
     graphql`
       query EditProjectEvaluatorSlideoverQuery($projectEvaluatorId: ID!) {
@@ -313,70 +316,17 @@ function getScope(evaluator: ProjectEvaluatorNode): ProjectEvaluatorScope {
   };
 }
 
-/**
- * Loads the evaluator once and picks the form from its own kind, so callers --
- * including a deep link that carries nothing but the id -- need not know
- * whether they are opening an LLM or a code evaluator.
- */
-function EditProjectEvaluator({
-  projectEvaluatorId,
-  onClose,
-  registerDirtyCheck,
-}: {
-  projectEvaluatorId: string;
-  onClose: () => void;
-  registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
-}) {
-  const { evaluator, sandboxConfigs } = useProjectEvaluator(projectEvaluatorId);
-  if (evaluator.evaluator.kind === "LLM") {
-    return (
-      <EditLlmProjectEvaluator
-        evaluator={evaluator}
-        onClose={onClose}
-        registerDirtyCheck={registerDirtyCheck}
-      />
-    );
-  }
-  if (evaluator.evaluator.kind === "CODE") {
-    return (
-      <EditCodeProjectEvaluator
-        evaluator={evaluator}
-        sandboxConfigs={sandboxConfigs}
-        onClose={onClose}
-        registerDirtyCheck={registerDirtyCheck}
-      />
-    );
-  }
-  // Reachable only by a hand-written URL: the table offers Edit for authored
-  // evaluators alone.
-  return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>{`Cannot edit evaluator “${evaluator.name}”`}</DialogTitle>
-        <DialogTitleExtra>
-          <DialogCloseButton />
-        </DialogTitleExtra>
-      </DialogHeader>
-      <View padding="size-200">
-        <Alert variant="warning">
-          Built-in evaluators cannot be edited. Copy this evaluator to author
-          your own version of it.
-        </Alert>
-      </View>
-    </DialogContent>
-  );
-}
-
 function EditLlmProjectEvaluator({
   evaluator,
+  title,
   onClose,
   registerDirtyCheck,
 }: {
   evaluator: ProjectEvaluatorNode;
+  title: string;
   onClose: () => void;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
-  invariant(evaluator.evaluator.kind === "LLM", "expected LLM evaluator");
   return (
     <EvaluatorPlaygroundProvider
       promptId={evaluator.evaluator.prompt?.id}
@@ -386,6 +336,7 @@ function EditLlmProjectEvaluator({
       templateFormat={evaluator.evaluator.promptVersion?.templateFormat}
     >
       <EditLlmProjectEvaluatorContent
+        title={title}
         evaluator={evaluator}
         onClose={onClose}
         registerDirtyCheck={registerDirtyCheck}
@@ -396,10 +347,12 @@ function EditLlmProjectEvaluator({
 
 function EditLlmProjectEvaluatorContent({
   evaluator,
+  title,
   onClose,
   registerDirtyCheck,
 }: {
   evaluator: ProjectEvaluatorNode;
+  title: string;
   onClose: () => void;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
@@ -522,7 +475,7 @@ function EditLlmProjectEvaluatorContent({
         trackStoreForDirtyCheck(store);
         return (
           <EditLLMEvaluatorDialogContent
-            title={getEditTitle(evaluator)}
+            title={title}
             onClose={onClose}
             onSubmit={() => submit(store)}
             isSubmitting={isUpdating}
@@ -552,15 +505,16 @@ function EditLlmProjectEvaluatorContent({
 function EditCodeProjectEvaluator({
   evaluator,
   sandboxConfigs,
+  title,
   onClose,
   registerDirtyCheck,
 }: {
   evaluator: ProjectEvaluatorNode;
-  sandboxConfigs: ReturnType<typeof useProjectEvaluator>["sandboxConfigs"];
+  sandboxConfigs: ProjectEvaluatorSandboxConfigs;
+  title: string;
   onClose: () => void;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
-  invariant(evaluator.evaluator.kind === "CODE", "expected code evaluator");
   const language = evaluator.evaluator.language as CodeEvaluatorLanguage;
   const initialSourceCode = evaluator.evaluator.sourceCode ?? "";
   const initialSandboxConfigId = evaluator.evaluator.sandboxConfig?.id ?? null;
@@ -635,7 +589,7 @@ function EditCodeProjectEvaluator({
         return (
           <ProjectCodeEvaluatorDialogContent
             mode="update"
-            title={getEditTitle(evaluator)}
+            title={title}
             projectId={evaluator.project.id}
             evaluatorId={evaluator.evaluator.id}
             evaluatorName={evaluator.name}

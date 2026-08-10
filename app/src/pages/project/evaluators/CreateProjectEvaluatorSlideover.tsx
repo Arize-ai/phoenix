@@ -76,12 +76,8 @@ export type ProjectEvaluatorCreationMode =
       requiredVariables: string[];
     };
 
-/**
- * The slideover heading, which names both the flow and the kind of evaluator
- * being created. The `Dialog` takes its accessible name from this heading, so
- * the two can never drift apart.
- */
-export function getProjectEvaluatorCreationTitle(
+/** The slideover heading: the flow, and the kind of evaluator it creates. */
+function getProjectEvaluatorCreationTitle(
   creationMode: ProjectEvaluatorCreationMode
 ): string {
   if (creationMode.kind === "scratch") {
@@ -106,6 +102,9 @@ export const CreateProjectEvaluatorSlideover = ({
 } & ModalOverlayProps) => {
   const dirtyCheckRef = useRef<EvaluatorFormDirtyCheck>(() => false);
   const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
+  // Known here, above the dialog, so it can both name the dialog and be the
+  // heading the dialog's body renders.
+  const title = getProjectEvaluatorCreationTitle(creationMode);
   return (
     <>
       <ModalOverlay
@@ -123,15 +122,14 @@ export const CreateProjectEvaluatorSlideover = ({
         }}
       >
         <Modal variant="slideover" size="fullscreen">
-          {/* No `aria-label`: the dialog is named by its title heading, so the
-              accessible name always matches the visible one. */}
-          <Dialog>
+          <Dialog aria-label={title}>
             {({ close }) => (
               <Suspense fallback={<Loading />}>
                 <CreateProjectEvaluatorDialogForMode
                   onClose={close}
                   projectId={projectId}
                   creationMode={creationMode}
+                  title={title}
                   registerDirtyCheck={(check) => {
                     dirtyCheckRef.current = check;
                   }}
@@ -182,11 +180,13 @@ const CreateProjectEvaluatorDialog = ({
   onClose,
   projectId,
   creationMode,
+  title,
   registerDirtyCheck,
 }: {
   onClose: () => void;
   projectId: string;
   creationMode: ProjectEvaluatorCreationMode;
+  title: string;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) => {
   const notifySuccess = useNotifySuccess();
@@ -266,8 +266,6 @@ const CreateProjectEvaluatorDialog = ({
     onClose();
     notifySuccess({ title: "Evaluator created" });
   };
-
-  const title = getProjectEvaluatorCreationTitle(creationMode);
 
   return (
     <EvaluatorStoreProvider initialState={initialState}>
