@@ -277,12 +277,10 @@ async def test_the_schema_is_resolved_not_assumed(
     """
     import phoenix.server.mcp_analytics_sql.catalog as catalog
 
-    catalog._SCHEMA_CACHE.clear()
     monkeypatch.setattr(catalog, "get_env_database_schema", lambda: "configured_elsewhere")
     assert await catalog.resolve_pg_schema(db) == "configured_elsewhere"
 
     # Unset, it must ask the connection rather than assume.
-    catalog._SCHEMA_CACHE.clear()
     monkeypatch.setattr(catalog, "get_env_database_schema", lambda: None)
     resolved = await catalog.resolve_pg_schema(db)
     async with db.read() as session:
@@ -294,7 +292,6 @@ async def test_the_schema_is_resolved_not_assumed(
             )
         )
     assert resolved == actual
-    catalog._SCHEMA_CACHE.clear()
 
 
 async def test_a_failed_schema_probe_does_not_cache_the_public_fallback(
@@ -310,13 +307,41 @@ async def test_a_failed_schema_probe_does_not_cache_the_public_fallback(
             raise SQLAlchemyError("temporarily unavailable")
             yield
 
-    catalog._SCHEMA_CACHE.clear()
     monkeypatch.setattr(catalog, "get_env_database_schema", lambda: None)
-    try:
-        assert await catalog.resolve_pg_schema(cast(DbSessionFactory, FailingDb())) == "public"
-        assert catalog._SCHEMA_CACHE == {}
-    finally:
-        catalog._SCHEMA_CACHE.clear()
+    assert await catalog.resolve_pg_schema(cast(DbSessionFactory, FailingDb())) == "public"
+
+
+async def test_schema_resolution_does_not_cross_database_contexts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phoenix.server.mcp_analytics_sql.catalog as catalog
+
+    class Session:
+        def __init__(self, schema: str) -> None:
+            self._schema = schema
+
+        async def scalar(self, _: object) -> str:
+            return self._schema
+
+    class Db:
+        dialect = SimpleNamespace(value="postgresql")
+
+        def __init__(self, schema: str) -> None:
+            self._schema = schema
+
+        @asynccontextmanager
+        async def read(self) -> AsyncIterator[Session]:
+            yield Session(self._schema)
+
+    monkeypatch.setattr(catalog, "get_env_database_schema", lambda: None)
+    assert (
+        await catalog.resolve_pg_schema(cast(DbSessionFactory, Db("first_schema")))
+        == "first_schema"
+    )
+    assert (
+        await catalog.resolve_pg_schema(cast(DbSessionFactory, Db("second_schema")))
+        == "second_schema"
+    )
 
 
 async def test_a_failed_index_reflection_does_not_disable_future_index_rewrites(

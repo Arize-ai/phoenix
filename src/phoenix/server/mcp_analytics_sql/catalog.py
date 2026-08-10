@@ -375,9 +375,6 @@ async def cached_indexed_json_accessors(
     return cached
 
 
-_SCHEMA_CACHE: dict[str, str] = {}
-
-
 async def resolve_pg_schema(db: DbSessionFactory) -> str:
     """The PostgreSQL schema Phoenix's ORM actually reads, for this connection.
 
@@ -402,12 +399,11 @@ async def resolve_pg_schema(db: DbSessionFactory) -> str:
     state; "public" keeps the error a plain missing-relation rather than a
     confusing empty schema name.
 
-    Cached per process. The schema a deployment runs in does not change under
-    it, and both callers are on a request path.
+    Not cached. The configured schema is process-wide, but an unset schema is
+    resolved through each connection's ``search_path``. A process cache would
+    make the first database or connection context silently choose the schema
+    for every later one.
     """
-    key = str(db.dialect.value)
-    if (cached := _SCHEMA_CACHE.get(key)) is not None:
-        return cached
     resolved = get_env_database_schema()
     if not resolved:
         try:
@@ -422,9 +418,7 @@ async def resolve_pg_schema(db: DbSessionFactory) -> str:
         except Exception:
             logger.debug("analytics sql: schema resolution failed", exc_info=True)
             return "public"
-    if resolved:
-        _SCHEMA_CACHE[key] = resolved
-    else:
+    if not resolved:
         resolved = "public"
     logger.debug("analytics sql: resolved postgres schema to %r", resolved)
     return resolved
