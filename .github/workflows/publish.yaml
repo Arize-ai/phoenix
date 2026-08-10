@@ -192,6 +192,8 @@ jobs:
             package_name: arize-phoenix-client
           - path: packages/phoenix-evals
             package_name: arize-phoenix-evals
+          - path: packages/phoenix-executors
+            package_name: arize-phoenix-executors
           - path: packages/phoenix-otel
             package_name: arize-phoenix-otel
     steps:
@@ -265,6 +267,9 @@ jobs:
           - path: packages/phoenix-evals
             package_name: arize-phoenix-evals
             environment_name: pypi/arize-phoenix-evals
+          - path: packages/phoenix-executors
+            package_name: arize-phoenix-executors
+            environment_name: pypi/arize-phoenix-executors
           - path: packages/phoenix-otel
             package_name: arize-phoenix-otel
             environment_name: pypi/arize-phoenix-otel
@@ -381,6 +386,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # arize-phoenix-executors is deliberately absent. The workflow this dispatches rewrites the
+        # root pyproject.toml only, and the root does not depend on that package, so there is
+        # nothing for it to bump. Worse, its sed matches only the digits after `>=`: on a major
+        # bump it would turn a consumer's correct `>=1.2.0,<2` into `>=2.0.0,<2`, a specifier no
+        # version satisfies, and open a normal-looking PR. Consumers declare their own bounded
+        # range on that package by hand instead, in the PR that adopts the feature.
         include:
           - path: packages/phoenix-client
             package_name: arize-phoenix-client
@@ -583,6 +594,7 @@ jobs:
       main: ${{ steps.filter.outputs.main }}
       phoenix-client: ${{ steps.filter.outputs.phoenix-client }}
       phoenix-evals: ${{ steps.filter.outputs.phoenix-evals }}
+      phoenix-executors: ${{ steps.filter.outputs.phoenix-executors }}
       phoenix-otel: ${{ steps.filter.outputs.phoenix-otel }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -611,6 +623,8 @@ jobs:
               - 'packages/phoenix-client/**'
             phoenix-evals:
               - 'packages/phoenix-evals/**'
+            phoenix-executors:
+              - 'packages/phoenix-executors/**'
             phoenix-otel:
               - 'packages/phoenix-otel/**'
 
@@ -763,7 +777,7 @@ jobs:
   preview-packages:
     name: Preview publish ${{ matrix.package_name }} (PyPI dev)
     needs: preview-changes
-    if: ${{ needs.preview-changes.outputs['phoenix-client'] == 'true' || needs.preview-changes.outputs['phoenix-evals'] == 'true' || needs.preview-changes.outputs['phoenix-otel'] == 'true' }}
+    if: ${{ needs.preview-changes.outputs['phoenix-client'] == 'true' || needs.preview-changes.outputs['phoenix-evals'] == 'true' || needs.preview-changes.outputs['phoenix-executors'] == 'true' || needs.preview-changes.outputs['phoenix-otel'] == 'true' }}
     runs-on: ubuntu-latest
     environment:
       name: ${{ matrix.environment_name }}
@@ -783,6 +797,10 @@ jobs:
             package_name: arize-phoenix-evals
             environment_name: pypi/arize-phoenix-evals
             changed_output: phoenix-evals
+          - path: packages/phoenix-executors
+            package_name: arize-phoenix-executors
+            environment_name: pypi/arize-phoenix-executors
+            changed_output: phoenix-executors
           - path: packages/phoenix-otel
             package_name: arize-phoenix-otel
             environment_name: pypi/arize-phoenix-otel
@@ -818,6 +836,7 @@ jobs:
           SELF_NAME: ${{ matrix.package_name }}
           CLIENT_CHANGED: ${{ needs.preview-changes.outputs['phoenix-client'] }}
           EVALS_CHANGED: ${{ needs.preview-changes.outputs['phoenix-evals'] }}
+          EXECUTORS_CHANGED: ${{ needs.preview-changes.outputs['phoenix-executors'] }}
           OTEL_CHANGED: ${{ needs.preview-changes.outputs['phoenix-otel'] }}
         run: |
           python - <<'PY'
@@ -826,6 +845,7 @@ jobs:
           SIBLINGS = {
               "arize-phoenix-client": ("packages/phoenix-client/pyproject.toml", "CLIENT_CHANGED"),
               "arize-phoenix-evals": ("packages/phoenix-evals/pyproject.toml", "EVALS_CHANGED"),
+              "arize-phoenix-executors": ("packages/phoenix-executors/pyproject.toml", "EXECUTORS_CHANGED"),
               "arize-phoenix-otel": ("packages/phoenix-otel/pyproject.toml", "OTEL_CHANGED"),
           }
 
