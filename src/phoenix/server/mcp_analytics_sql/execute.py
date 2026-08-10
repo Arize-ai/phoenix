@@ -72,6 +72,7 @@ MAX_ROW_LIMIT = 5_000
 
 # Ceiling on the whole encoded response, as distinct from any single cell.
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
+MAX_SQL_BYTES = 1024 * 1024
 BYTE_LIMIT = 262_144
 PG_STATEMENT_TIMEOUT_MS = 30_000
 SQLITE_TIMEOUT_SECONDS = 30
@@ -565,31 +566,30 @@ async def execute_analytics_sql(
     dialect: SupportedSQLDialectName = (
         "postgresql" if db.dialect is SupportedSQLDialect.POSTGRESQL else "sqlite"
     )
-    if dialect == "sqlite" and sqlite_db_path is None:
-        sqlite_db_path = await resolve_sqlite_db_path(db)
-    if dialect == "sqlite" and not sqlite_db_path:
-        raise AnalyticsSqlError(
-            code=ErrorCode.BACKEND_UNAVAILABLE,
-            message=(
-                "Analytics SQL requires a file-backed SQLite database; "
-                "this deployment uses an in-memory one."
-            ),
-        )
-
-    allowlist = load_allowlist(dialect)
-    if dialect == "postgresql":
-        # Resolved against the connection, not assumed. With the schema variable
-        # unset and the tables reached through `search_path`, a hardcoded
-        # "public" names a schema that does not hold them, and every rewritten
-        # relation is then qualified wrong.
-        schema = await resolve_pg_schema(db)
-        allowlist = replace(allowlist, pg_schema=schema)
-
     call_id = _next_call_id()
     semaphore = EXECUTION_SEMAPHORE
     await semaphore.acquire(dialect)
     release_semaphore = True
     try:
+        if len(params.sql.encode("utf-8")) > MAX_SQL_BYTES:
+            raise AnalyticsSqlError(
+                code=ErrorCode.UNSUPPORTED_SYNTAX,
+                message="SQL is too large to return within the response size limit.",
+            )
+        if dialect == "sqlite" and sqlite_db_path is None:
+            sqlite_db_path = await resolve_sqlite_db_path(db)
+        if dialect == "sqlite" and not sqlite_db_path:
+            raise AnalyticsSqlError(
+                code=ErrorCode.BACKEND_UNAVAILABLE,
+                message=(
+                    "Analytics SQL requires a file-backed SQLite database; "
+                    "this deployment uses an in-memory one."
+                ),
+            )
+        allowlist = load_allowlist(dialect)
+        if dialect == "postgresql":
+            schema = await resolve_pg_schema(db)
+            allowlist = replace(allowlist, pg_schema=schema)
         try:
             root = parse_sql(params.sql, dialect=dialect)
             root = admit(root, allowlist=allowlist, dialect=dialect)
