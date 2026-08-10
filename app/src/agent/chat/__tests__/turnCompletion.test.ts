@@ -117,6 +117,41 @@ describe("createTurnCompletionGate", () => {
     expect(finalize).toHaveBeenCalledTimes(1);
   });
 
+  it("suppresses the SDK's post-finish send re-evaluation after the terminal decision", async () => {
+    // Mirrors the AI SDK's request ordering: `onFinish` fires inside
+    // `makeRequest`'s finally block, then the SDK evaluates
+    // `sendAutomaticallyWhen` once more. The terminal decision inside
+    // `onFinish` ends the turn and clears per-turn state (the submitted
+    // client-tool-output tracker), which flips the raw send decision back to
+    // true — without the terminal-decision guard the re-evaluation would
+    // fabricate a continuation for a turn with nothing pending.
+    const submittedToolCallIds = new Set(["tool-call-1"]);
+    const endTurn = vi.fn(async (_error?: unknown) => {
+      submittedToolCallIds.clear();
+    });
+    const finalize = vi.fn((_finish: TurnFinish) => undefined);
+    const gate = createTurnCompletionGate({
+      endTurn,
+      finalize,
+      // Stands in for hasUnsubmittedClientToolOutput: the trailing assistant
+      // message holds one resolved client tool output.
+      getShouldSendAutomatically: () =>
+        !submittedToolCallIds.has("tool-call-1"),
+      getShouldKeepTurnOpen: () => false,
+    });
+
+    gate.beginTurn();
+    gate.handleFinish(finish);
+    // The terminal decision ran endTurn, so the raw decision now says "send".
+    expect(submittedToolCallIds.size).toBe(0);
+    await expect(
+      gate.handleSendAutomaticallyWhen({ messages: [assistantMessage] })
+    ).resolves.toBe(false);
+    await flushMicrotasks();
+
+    expect(finalize).toHaveBeenCalledTimes(1);
+  });
+
   it("abandons the pending finish on error and ends the turn with it", async () => {
     const { gate, endTurn, finalize } = createGate({
       shouldKeepTurnOpen: true,

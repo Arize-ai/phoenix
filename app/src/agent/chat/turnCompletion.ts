@@ -81,6 +81,14 @@ export function createTurnCompletionGate({
   }: {
     messages: AgentUIMessage[];
   }): Promise<boolean> => {
+    if (hasReachedTerminalSendDecision) {
+      // The SDK re-evaluates the send decision after `onFinish`, but a
+      // terminal decision already ended the turn and cleared per-turn state
+      // (e.g. the submitted-output tracker), so re-deciding here would read
+      // resolved client tool outputs as unsubmitted and fabricate a spurious
+      // continuation for a turn with nothing pending.
+      return false;
+    }
     const shouldSendAutomatically = getShouldSendAutomatically(messages);
     if (getShouldKeepTurnOpen({ messages, shouldSendAutomatically })) {
       return false;
