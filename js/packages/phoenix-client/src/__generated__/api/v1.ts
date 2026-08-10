@@ -2171,10 +2171,12 @@ export interface components {
          */
         ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["SessionContext"] | components["schemas"]["PromptContext"] | components["schemas"]["PromptVersionContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["LlmEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"] | components["schemas"]["SubagentsContext"];
         /**
-         * ChatRequest
-         * @description Assistant chat submit request payload.
+         * ChatRequestBody
+         * @description Assistant chat submit request payload: the Vercel AI SDK submit-message
+         *     shape carrying the turn's new inputs, extended with Phoenix-specific turn
+         *     options and per-request observability flags.
          */
-        ChatRequest: {
+        ChatRequestBody: {
             /**
              * Ingesttraces
              * @default false
@@ -12305,7 +12307,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ChatRequest"];
+                "application/json": components["schemas"]["ChatRequestBody"];
             };
         };
         responses: {

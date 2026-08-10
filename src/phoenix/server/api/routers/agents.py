@@ -316,8 +316,31 @@ def _resolve_browser_clock(messages: Sequence[PhoenixUIMessage]) -> AppContext |
     return None
 
 
-class _ObservabilityMixin(_CamelBaseModel):
-    """Per-request observability flags"""
+UserAgentType = Literal["web", "headless"]
+"""Which Phoenix user agent type is driving a chat turn: ``web`` for the
+browser assistant, ``headless`` for terminal and scripted clients."""
+
+
+ToolOutputUIPart = (
+    ToolOutputAvailablePart
+    | ToolOutputErrorPart
+    | DynamicToolOutputAvailablePart
+    | DynamicToolOutputErrorPart
+)
+
+_PhoenixToolCallCallbackProviderMetadataAdapter: TypeAdapter[
+    PhoenixToolCallCallbackProviderMetadata
+] = TypeAdapter(PhoenixToolCallCallbackProviderMetadata)
+
+
+class ChatRequestBody(_CamelBaseModel):
+    """Assistant chat submit request payload: the Vercel AI SDK submit-message
+    shape carrying the turn's new inputs, extended with Phoenix-specific turn
+    options and per-request observability flags."""
+
+    model_config = ConfigDict(
+        protected_namespaces=(),  # allow ``model`` field; pydantic reserves ``model_*``
+    )
 
     ingest_traces: bool = False
     export_remote_traces: bool = False
@@ -329,20 +352,6 @@ class _ObservabilityMixin(_CamelBaseModel):
             "all traced work for this request."
         ),
     )
-
-
-UserAgentType = Literal["web", "headless"]
-"""Which Phoenix user agent type is driving a chat turn: ``web`` for the
-browser assistant, ``headless`` for terminal and scripted clients."""
-
-
-class _ChatRequestMixin(_ObservabilityMixin):
-    """Phoenix-specific extensions added to Vercel AI request messages."""
-
-    model_config = ConfigDict(
-        protected_namespaces=(),  # allow ``model`` field; pydantic reserves ``model_*``
-    )
-
     user_agent_type: UserAgentType = Field(
         description=(
             "Which Phoenix user agent type is driving the turn: ``web`` for the "
@@ -372,23 +381,6 @@ class _ChatRequestMixin(_ObservabilityMixin):
             "``PATCH .../agent_sessions/{session_id}``."
         ),
     )
-
-
-ToolOutputUIPart = (
-    ToolOutputAvailablePart
-    | ToolOutputErrorPart
-    | DynamicToolOutputAvailablePart
-    | DynamicToolOutputErrorPart
-)
-
-_PhoenixToolCallCallbackProviderMetadataAdapter: TypeAdapter[
-    PhoenixToolCallCallbackProviderMetadata
-] = TypeAdapter(PhoenixToolCallCallbackProviderMetadata)
-
-
-class ChatSubmitMessage(_ChatRequestMixin):
-    """Assistant chat submit request carrying the turn's new inputs."""
-
     trigger: Literal["submit-message"] = "submit-message"
     id: str
     message: PhoenixUIMessage | None = Field(
@@ -422,7 +414,7 @@ class ChatSubmitMessage(_ChatRequestMixin):
     )
 
     @model_validator(mode="after")
-    def _validate_turn_inputs(self) -> "ChatSubmitMessage":
+    def _validate_turn_inputs(self) -> "ChatRequestBody":
         if self.message is None and not self.tool_outputs:
             raise ValueError("A chat submit request requires a message, toolOutputs, or both")
         if self.message is not None and self.message.role != "user":
@@ -457,10 +449,6 @@ class ChatSubmitMessage(_ChatRequestMixin):
                     f"{_PHOENIX_PROVIDER_METADATA_KEY!r} namespace"
                 )
         return self
-
-
-class ChatRequest(ChatSubmitMessage):
-    """Assistant chat submit request payload."""
 
 
 class CreateAgentSessionRequestBody(V1RoutesBaseModel):
@@ -648,7 +636,7 @@ _PydanticAIUIMessageListAdapter: TypeAdapter[list[PydanticAIUIMessage]] = TypeAd
 
 
 def _to_pydantic_ai_request_data(
-    request_data: ChatSubmitMessage,
+    request_data: ChatRequestBody,
     *,
     messages: Sequence[PhoenixUIMessage],
 ) -> PydanticAISubmitMessage:
@@ -2650,7 +2638,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
     async def chat(
         session_id: str,
         request: Request,
-        request_body: ChatRequest,
+        request_body: ChatRequestBody,
     ) -> Response:
         if request_body.user_agent_type == "headless" and get_env_phoenix_agents_disable_bash():
             raise HTTPException(status_code=403, detail="Headless agent is disabled")

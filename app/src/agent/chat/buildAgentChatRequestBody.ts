@@ -16,7 +16,7 @@ import type { ClientToolTimingRecorder } from "./clientToolTimings";
 import { toServerSafeUIMessages } from "./serverSafeMessages";
 import type { AgentUIMessage } from "./types";
 
-export type AgentModelSelection = components["schemas"]["ChatRequest"]["model"];
+export type AgentModelSelection = components["schemas"]["ChatRequestBody"]["model"];
 
 type BuildAgentChatRequestBodyOptions = {
   /** Existing request body from the AI SDK transport, if any. */
@@ -45,7 +45,7 @@ type BuildAgentChatRequestBodyOptions = {
   toolTimings?: ClientToolTimingRecorder | null;
 };
 
-type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequest"];
+type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequestBody"];
 
 /**
  * Browser-recorded execution timings added to the `phoenix` namespace of

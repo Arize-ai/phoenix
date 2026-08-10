@@ -8858,7 +8858,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ChatRequest"
+                "$ref": "#/components/schemas/ChatRequestBody"
               }
             }
           }
@@ -10049,7 +10049,7 @@
           }
         }
       },
-      "ChatRequest": {
+      "ChatRequestBody": {
         "properties": {
           "ingestTraces": {
             "type": "boolean",
@@ -10165,8 +10165,8 @@
           "model",
           "id"
         ],
-        "title": "ChatRequest",
-        "description": "Assistant chat submit request payload."
+        "title": "ChatRequestBody",
+        "description": "Assistant chat submit request payload: the Vercel AI SDK submit-message\nshape carrying the turn's new inputs, extended with Phoenix-specific turn\noptions and per-request observability flags."
       },
       "CodeEvaluatorContext": {
         "properties": {

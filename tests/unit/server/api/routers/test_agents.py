@@ -676,15 +676,29 @@ class TestEditCodeEvaluatorDraftToolRendering:
         assert "never `secretKey`" in rendered
 
 
-class TestObservabilityMixinAttachUserId:
+class TestChatRequestBodyAttachUserId:
     def test_defaults_to_false_and_accepts_camel_alias(self) -> None:
-        from phoenix.server.api.routers.agents import _ObservabilityMixin
+        from phoenix.server.api.routers.agents import ChatRequestBody
 
-        mixin = _ObservabilityMixin()
-        assert mixin.attach_user_id is False
+        payload = {
+            "id": "chat-1",
+            "userAgentType": "web",
+            "model": {
+                "providerType": "builtin",
+                "provider": "OPENAI",
+                "modelName": "gpt-4o",
+            },
+            "message": {
+                "id": _message_uuid("user-message"),
+                "role": "user",
+                "parts": [{"type": "text", "text": "Hello"}],
+            },
+        }
+        request = ChatRequestBody.model_validate(payload)
+        assert request.attach_user_id is False
 
-        mixin = _ObservabilityMixin.model_validate({"attachUserId": True})
-        assert mixin.attach_user_id is True
+        request = ChatRequestBody.model_validate({**payload, "attachUserId": True})
+        assert request.attach_user_id is True
 
 
 class TestMaybeUsingUser:
