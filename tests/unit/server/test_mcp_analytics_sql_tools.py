@@ -53,6 +53,9 @@ async def test_schema_carries_the_invariants_the_envelope_does_not(
     assert "Common allowed functions" in text
     assert "percent_rank" in text
     assert "percentile(x, p)" in text or "percentile_cont(p)" in text
+    assert "portable subset shared by SQLite and PostgreSQL" in text
+    assert 'detail="detailed"' in text
+    assert "cannot use a direct index" in text
 
 
 def test_postgres_preamble_advertises_its_percentile_spelling() -> None:
@@ -106,11 +109,16 @@ async def test_execute_sql_declares_its_envelope(analytics_mcp: FastMCP) -> None
     # on the field rather than in the tool description.
     assert "row_count_is_partial" in properties["estimated_rows"]["description"]
     assert "not a count" in properties["estimated_rows"]["description"]
+    assert "effective dialect" in properties["applied"]["description"]
+    assert "Caveats" in properties["notes"]["description"]
     error_properties = error_schema["properties"]["error"]["properties"]
     assert {"code", "message", "identifiers"} <= set(error_properties)
     assert set(error_properties["code"]["enum"]) == {code.value for code in ErrorCode}
     assert "error" in (tool.description or "")
     assert "json.loads" in (tool.description or "")
+    assert "available only" in (tool.description or "")
+    assert "PostgreSQL" in (tool.description or "")
+    assert "Preserve any error" in (tool.description or "")
 
 
 async def test_envelope_matches_the_declared_schema(analytics_mcp: FastMCP) -> None:

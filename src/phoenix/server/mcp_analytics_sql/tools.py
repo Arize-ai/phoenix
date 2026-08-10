@@ -48,9 +48,16 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
     """
     lines = [f"-- Phoenix analytics SQL. Write {dialect} SQL against the tables below."]
     lines.append(
+        "-- Phoenix admits a portable subset shared by SQLite and PostgreSQL. "
+        "In particular, repeat aggregate expressions in HAVING instead of SELECT aliases."
+    )
+    lines.append(
         "-- The global allowlisted schema defines queryable tables, even when this response is "
         "filtered. Raw FOREIGN KEY targets outside that allowlist are descriptive; queries "
         "against them are refused."
+    )
+    lines.append(
+        '-- For columns, call describeSqlSchema with selected `tables` and `detail="detailed"`.'
     )
     if engine:
         version = f" {engine.version}" if engine.version else ""
@@ -89,7 +96,8 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
     # that they are computed per row and therefore never indexed.
     lines.append(
         "-- latency_ms and graphql_node_id are virtual: computed per row, not stored or "
-        "indexed. Where listed, graphql_node_id is the ID shown in the Phoenix UI and REST API."
+        "indexed. Predicates on them evaluate their expression and cannot use a direct index. "
+        "Where listed, graphql_node_id is the ID shown in the Phoenix UI and REST API."
     )
     # Stated once here rather than paid for as a refusal per caller. A suffix on
     # the right operand of a JSON operator binds to the whole extraction instead
@@ -266,15 +274,18 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
 
         `row_count_is_partial` is the authoritative answer to whether the result
         was truncated: one row beyond the limit is fetched, and the flag is set
-        only when that row actually arrived. `estimated_rows` is the planner's
-        guess at what the statement would return untruncated, useful as a
-        magnitude for deciding whether to narrow the query. It is not a count,
-        it can be out by a large factor over JSON paths, and it never answers
-        the truncation question -- that is what the flag is for.
+        only when that row actually arrived. `estimated_rows` is available only
+        on PostgreSQL, where it is the planner's untruncated-row estimate. It
+        is not a count, it can be out by a large factor over JSON paths, and it
+        never answers the truncation question -- that is what the flag is for.
+
+        `applied` describes the effective dialect, row limit, and rewrites;
+        `backend_validated` says whether the backend execution gate ran; `notes`
+        lists caveats callers should not infer.
 
         Code-mode `call_tool` already returns this envelope as a dictionary.
-        Check for an `error` key before reading `rows`; do not call `json.loads`
-        on the result.
+        Check for an `error` key before reading `rows`. Preserve any error in
+        your summary; do not call `json.loads` on the result.
         """
         try:
             result = await execute_analytics_sql(

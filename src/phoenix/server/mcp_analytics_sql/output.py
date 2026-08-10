@@ -37,12 +37,14 @@ class ExecuteSqlSuccessEnvelope(BaseModel):
             "fetched, so a result of exactly row_limit rows is not assumed truncated."
         )
     )
-    applied: AppliedSql
+    applied: AppliedSql = Field(
+        description="The effective dialect, row limit, and server-side rewrites."
+    )
     backend_validated: bool = Field(
         description="Whether the database backend's execution gate ran."
     )
     notes: list[str] = Field(
-        description="Anything about this answer the caller should not have to infer."
+        description="Caveats about this answer that callers should not have to infer."
     )
     estimated_rows: Optional[int] = Field(
         default=None,
