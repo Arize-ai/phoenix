@@ -25,13 +25,14 @@ on:
         required: false
         type: string
         default: ""
-      emulate-aarch64:
+      sdist-runner:
         description: >-
-          QEMU for cross-arch Linux builds. Defaults true to match
-          cibuildwheel.toml's aarch64; false only if a caller narrowed to native.
+          Runner that also builds the sdist. Named rather than "any Linux one"
+          because several Linux runners produce one wheelhouse each, and two
+          identical sdists would collide when the artifacts are merged.
         required: false
-        type: boolean
-        default: true
+        type: string
+        default: ubuntu-latest
       dist-artifact-prefix:
         description: Upload wheels as <prefix>-<runner>. Empty skips the upload.
         required: false
@@ -57,11 +58,6 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: ${{ inputs.sources-artifact }}
-      - name: Set up QEMU for aarch64 wheels
-        if: runner.os == 'Linux' && inputs.emulate-aarch64
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
-        with:
-          platforms: arm64
       # Not step env: an empty CIBW_* overrides cibuildwheel.toml rather than
       # being ignored, taking Linux from 10 identifiers to 36 (musllinux,
       # free-threaded, cp39, cp315).
@@ -84,7 +80,7 @@ jobs:
         env:
           MACOSX_DEPLOYMENT_TARGET: "10.15"
       - name: Build sdist
-        if: runner.os == 'Linux'
+        if: matrix.os == inputs.sdist-runner
         run: pipx run build==1.5.0 --sdist --outdir wheelhouse .
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: inputs.dist-artifact-prefix != ''

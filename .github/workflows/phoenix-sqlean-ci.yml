@@ -120,7 +120,6 @@ jobs:
       runners: '["ubuntu-latest"]'
       cibw-build: cp312-manylinux_x86_64
       cibw-archs-linux: x86_64
-      emulate-aarch64: false
 
   ci-required:
     name: phoenix-sqlean CI Required

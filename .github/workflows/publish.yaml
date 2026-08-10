@@ -338,7 +338,7 @@ jobs:
     uses: ./.github/workflows/phoenix-sqlean-build.yml
     with:
       sources-artifact: arize-phoenix-sqlean-sources
-      runners: '["ubuntu-latest", "macos-latest", "windows-latest"]'
+      runners: '["ubuntu-latest", "ubuntu-24.04-arm", "macos-latest", "windows-latest"]'
       dist-artifact-prefix: arize-phoenix-sqlean-dist
 
   publish-sqlean:
