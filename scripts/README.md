@@ -91,6 +91,9 @@ Smoke tests intended to be run against a live Phoenix instance.
 - `experiment_runs_filters.ipynb` — interactive filter exploration.
 - `send_spans.py` — emit synthetic OpenInference spans.
 
+### `ts-span-generator/`
+TypeScript generator for deterministic, realistic agent trace data — an incident-investigation conversation with growing LLM message histories (2→20 messages), tool calls with JSON arguments/results, and search-friendly near-miss vocabulary. Sends to a live Phoenix via OTLP using `@arizeai/phoenix-otel`. See `ts-span-generator/README.md`.
+
 ### `uv/`
 - `type_check` — wrapper invoked by Make targets for typecheck.
 

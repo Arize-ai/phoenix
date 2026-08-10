@@ -79,6 +79,7 @@ import {
   ProfileAccountPage,
   ProfileAPIKeysPage,
   ProfileAuthorizedApplicationsPage,
+  ProfileGenerativeAIPage,
   ProfilePage,
   ProfilePreferencesPage,
   ProjectEvaluatorsPage,
@@ -143,6 +144,19 @@ const revalidateOnPathChange: ShouldRevalidateFunction = ({
 }) => {
   if (currentUrl.pathname === nextUrl.pathname) return false;
   return defaultShouldRevalidate;
+};
+
+// :projectId's loader depends only on its own param. Same-URL requests
+// (useRevalidator) defer to the router's default so manual revalidation works.
+export const revalidateOnProjectChange: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  currentParams,
+  nextParams,
+  defaultShouldRevalidate,
+}) => {
+  if (currentUrl.href === nextUrl.href) return defaultShouldRevalidate;
+  return currentParams.projectId !== nextParams.projectId;
 };
 
 export const appRouteObjects = createRoutesFromElements(
@@ -273,6 +287,24 @@ export const appRouteObjects = createRoutesFromElements(
               },
             }}
           />
+          <Route
+            path="generative-ai"
+            element={<ProfileGenerativeAIPage />}
+            handle={{
+              crumb: () => "Generative AI",
+              agentRoute: {
+                label: "Profile Generative AI",
+                description:
+                  "Configure generative AI features: enable AI query for filter fields, choose the model — your browser's built-in on-device AI or a model provider with an API key — and manage the on-device model (download status, download it ahead of time, how to remove it).",
+              },
+              navigation: {
+                section: "Profile",
+                label: "Generative AI",
+                description: "AI query and model configuration",
+                icon: "Sparkles",
+              },
+            }}
+          />
           <Route path="*" />
         </Route>
         <Route index loader={homeLoader} />
@@ -298,7 +330,7 @@ export const appRouteObjects = createRoutesFromElements(
           <Route
             path=":projectId"
             loader={projectLoader}
-            shouldRevalidate={revalidateOnPathChange}
+            shouldRevalidate={revalidateOnProjectChange}
             handle={{
               crumb: (data: ProjectLoaderData) => data?.project?.name,
               agentRoute: {
@@ -969,7 +1001,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "AI Providers",
                 description:
-                  "Configure AI providers, custom providers, provider credentials, base URLs, default model, and provider headers.",
+                  "Configure AI providers, custom providers, provider credentials, base URLs, default model, provider headers, and AI query (natural-language filter conditions using Browser AI or a model provider).",
               },
             }}
           />

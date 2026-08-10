@@ -1,6 +1,7 @@
 import {
   EmbeddingAttributePostfixes,
   LLMAttributePostfixes,
+  MessageAttributePostfixes,
   RerankerAttributePostfixes,
   RetrievalAttributePostfixes,
   SemanticAttributePrefixes,
@@ -13,9 +14,15 @@ import type {
   AttributeLLMToolDefinition,
   AttributeMessage,
   AttributePromptTemplate,
+  AttributeToolCall,
 } from "@phoenix/openInference/tracing/types";
 import { isAttributeMessages } from "@phoenix/openInference/tracing/types";
 import { isStringArray } from "@phoenix/typeUtils";
+import {
+  toContentPreview,
+  toRecordPreview,
+  toToolCallsPreview,
+} from "@phoenix/utils/contentPreviewUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import type {
@@ -70,6 +77,87 @@ function getMessages(messagesValue: unknown): AttributeMessage[] {
 }
 
 /**
+ * Extract the tool call objects from a message's tool calls attribute.
+ */
+export function getToolCalls(message: AttributeMessage): AttributeToolCall[] {
+  return (message[MessageAttributePostfixes.tool_calls]
+    ?.map((obj) => obj[SemanticAttributePrefixes.tool_call])
+    .filter(Boolean) || []) as AttributeToolCall[];
+}
+
+/**
+ * A one-line excerpt of a message, shown in the header of its card while that
+ * card is collapsed. Follows the order the card renders in, so the preview is
+ * of what the reader would see first on expanding it, and falls through to the
+ * message's calls when it has no content of its own — an assistant turn that
+ * only calls tools would otherwise preview as nothing at all.
+ */
+export function getMessagePreview(
+  message: AttributeMessage
+): string | undefined {
+  const content = message[MessageAttributePostfixes.content];
+  const contents = message[MessageAttributePostfixes.contents];
+  const functionCallName =
+    message[MessageAttributePostfixes.function_call_name];
+  const functionCallArguments =
+    message[MessageAttributePostfixes.function_call_arguments_json];
+
+  // The message is duck-typed, so `contents` is whatever the instrumentation
+  // emitted. This runs in the card's own render, above the error boundary that
+  // guards the rendered contents, so it has to survive any shape.
+  const contentsText = (Array.isArray(contents) ? contents : [])
+    .map(
+      (content) => content?.[SemanticAttributePrefixes.message_content]?.text
+    )
+    .filter((text) => typeof text === "string" && text !== "")
+    .join(" ");
+
+  // The card renders the deprecated function call only when it has both a name
+  // and its arguments, so previewing on the name alone would advertise a card
+  // body that turns out to be empty
+  const functionCall =
+    functionCallName && functionCallArguments
+      ? [{ name: functionCallName, arguments: functionCallArguments }]
+      : [];
+
+  return (
+    toContentPreview(contentsText) ??
+    toContentPreview(content) ??
+    toToolCallsPreview(
+      getToolCalls(message).map((toolCall) => ({
+        name: toolCall.function?.name,
+        arguments: toolCall.function?.arguments,
+      }))
+    ) ??
+    toToolCallsPreview(functionCall)
+  );
+}
+
+/**
+ * A one-line excerpt of a prompt template for its card's collapsed header. The
+ * template itself first, since that is the disclosure the card opens on, and
+ * the variables it interpolates when there is no template to show.
+ */
+export function getPromptTemplatePreview(
+  promptTemplate: AttributePromptTemplate
+): string | undefined {
+  return (
+    toContentPreview(promptTemplate.template) ??
+    toRecordPreview(promptTemplate.variables)
+  );
+}
+
+/**
+ * Count the tool calls across a set of messages.
+ */
+export function countToolCalls(messages: AttributeMessage[]): number {
+  return messages.reduce(
+    (count, message) => count + getToolCalls(message).length,
+    0
+  );
+}
+
+/**
  * Extract the LLM-specific attribute shapes from the parsed span attributes.
  */
 export function getLLMAttributes(
@@ -102,8 +190,14 @@ export function getLLMAttributes(
         .filter(Boolean) as AttributeLLMToolDefinition[])
     : [];
   const toolSchemas = toolDefinitions.reduce<string[]>((acc, tool) => {
-    if (tool?.json_schema) {
-      acc.push(tool.json_schema);
+    // Same object-rebuilt-by-ingestion case as tool.parameters below: an
+    // instrumentation that flattens `tool.json_schema.*` into dotted keys makes
+    // ingestion store json_schema as a nested object, so it is typed unknown.
+    // asToolAttributeString narrows it and coerces any non-string value back to
+    // JSON text before it reaches MimeTypeCodeBlock, which expects string[].
+    const schema = asToolAttributeString(tool?.json_schema);
+    if (schema != null) {
+      acc.push(schema);
     }
     return acc;
   }, []);
@@ -207,6 +301,21 @@ export type ToolSpanAttributes = {
 };
 
 /**
+ * Tool attributes are conventionally single string values, but an
+ * instrumentation that flattens e.g. `tool.parameters.*` into dotted keys makes
+ * Phoenix ingestion rebuild them as a nested object. The span view assumes a
+ * string (it re-parses `parameters` and renders the others as text), so coerce
+ * any non-string value back to its JSON text here rather than letting an object
+ * reach the renderer — where it throws `Objects are not valid as a React child`.
+ */
+function asToolAttributeString(value: unknown): string | undefined {
+  if (value == null) {
+    return undefined;
+  }
+  return typeof value === "string" ? value : JSON.stringify(value);
+}
+
+/**
  * Extract the tool description from the parsed span attributes of a tool span.
  */
 export function getToolAttributes(
@@ -215,10 +324,51 @@ export function getToolAttributes(
   const toolAttributes = spanAttributes[SemanticAttributePrefixes.tool] || {};
   return {
     hasToolAttributes: Object.keys(toolAttributes).length > 0,
-    name: toolAttributes[ToolAttributePostfixes.name],
-    description: toolAttributes[ToolAttributePostfixes.description],
-    parameters: toolAttributes[ToolAttributePostfixes.parameters],
+    name: asToolAttributeString(toolAttributes[ToolAttributePostfixes.name]),
+    description: asToolAttributeString(
+      toolAttributes[ToolAttributePostfixes.description]
+    ),
+    parameters: asToolAttributeString(
+      toolAttributes[ToolAttributePostfixes.parameters]
+    ),
   };
+}
+
+/**
+ * The clipboard text for structured content shown in a card — pretty printed,
+ * so what is copied reads like what the card body renders rather than the
+ * compacted form the attributes arrive in.
+ */
+export function formatJSONForCopy(value: unknown): string {
+  return JSON.stringify(value, null, 2);
+}
+
+/**
+ * A JSON document that arrived in string form (a tool schema, a tool span's
+ * parameter schema), parsed so it can be nested inside copied JSON rather than
+ * escaped into it. Falls back to the string when it does not parse.
+ */
+export function parseJSONDocument(value: string): unknown {
+  return safelyParseJSON(value).json ?? value;
+}
+
+/**
+ * The clipboard text for content that arrives as a list of JSON documents in
+ * string form (an LLM span's tool schemas) — one JSON array of schemas rather
+ * than an array of escaped strings.
+ */
+export function formatJSONStringsForCopy(values: string[]): string {
+  return formatJSONForCopy(values.map(parseJSONDocument));
+}
+
+/**
+ * The clipboard text for a list of plain text items (an LLM span's raw prompts,
+ * an embedding span's embedded texts). Joined rather than JSON encoded: the
+ * items are prose, and escaping them would leave the reader with something they
+ * cannot paste anywhere. Each item's own card copies it verbatim.
+ */
+export function formatTextListForCopy(values: string[]): string {
+  return values.join("\n\n");
 }
 
 /**

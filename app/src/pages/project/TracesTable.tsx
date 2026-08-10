@@ -72,6 +72,7 @@ import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import type { ISpanItem } from "@phoenix/components/trace/types";
 import type { SpanTreeNode } from "@phoenix/components/trace/utils";
 import { createSpanTree } from "@phoenix/components/trace/utils";
+import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
@@ -94,6 +95,7 @@ import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
 import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
@@ -107,6 +109,8 @@ import {
 } from "./tableUtils";
 
 type TracesTableProps = {
+  /** The condition the preload carried; always settled. */
+  seed: SettledSpanFilterSeed;
   project: TracesTable_spans$key;
 };
 
@@ -233,13 +237,34 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 }
 
 export function TracesTable(props: TracesTableProps) {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Persist an applied filter so the tab is shareable, as the spans tab is.
+  // React Router recreates this setter whenever the search string changes, so
+  // keep the latest behind a stable callback.
+  const setSearchParamsRef = useRef(setSearchParams);
+  useEffect(() => {
+    setSearchParamsRef.current = setSearchParams;
+  }, [setSearchParams]);
+  const writeFilterConditionParam = useCallback((condition: string) => {
+    setSearchParamsRef.current(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set(SPAN_FILTER_CONDITION_PARAM, condition);
+        return next;
+      },
+      { replace: true }
+    );
+  }, []);
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef<boolean>(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [filterCondition, setFilterCondition] = useState<string>("");
+  // Seeded from the resolved condition the preload carried, so the first
+  // render already matches the rows on hand.
+  const [filterCondition, setFilterCondition] = useState<string>(
+    props.seed.condition
+  );
   const { fetchKey } = useStreamState();
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the filter
@@ -1078,7 +1103,18 @@ export function TracesTable(props: TracesTableProps) {
           flex="none"
         >
           <Flex direction="row" gap="size-100" width="100%" alignItems="center">
-            <SpanFilterConditionField onValidCondition={setFilterCondition} />
+            <SpanFilterConditionField
+              onValidCondition={({ condition, isInitialSettlement }) => {
+                setFilterCondition(condition);
+                // The mount settlement is the seed coming back around, not a
+                // filter the user applied. Writing it would persist this tab's
+                // default (the empty condition) into the param the tabs share,
+                // and the spans tab would read it as "deliberately cleared".
+                if (!isInitialSettlement) {
+                  writeFilterConditionParam(condition);
+                }
+              }}
+            />
             <TableMetricsChartSelector view="traces" />
             <SpanColumnSelector columns={table.getAllColumns()} query={data} />
             <RowExpandToggleButton

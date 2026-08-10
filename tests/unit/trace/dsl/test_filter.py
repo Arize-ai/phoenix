@@ -1,16 +1,16 @@
 import ast
 import random
-import sys
 import typing
 from ast import unparse
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional
 from unittest.mock import patch
 from uuid import UUID
 
 import pytest
 from sqlalchemy import insert, select
+from sqlalchemy.dialects import postgresql
 
 import phoenix.trace.dsl.filter
 from phoenix.db import models
@@ -86,93 +86,71 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
     [
         (
             "parent_id is not None and 'abc' in name or span_kind == 'LLM' and span_id in ('123',)",
-            "or_(and_(parent_id != None, TextContains(name, 'abc')), and_(span_kind == 'LLM', span_id.in_(('123',))))"
-            if sys.version_info >= (3, 9)
-            else "or_(and_((parent_id != None), TextContains(name, 'abc')), and_((span_kind == 'LLM'), span_id.in_(('123',))))",
+            "or_(and_(parent_id != None, CaseInsensitiveContains(name, 'abc')), and_(span_kind == 'LLM', span_id.in_(('123',))))",
         ),
         (
             "(parent_id is None or 'abc' not in name) and not (span_kind != 'LLM' or span_id not in ('123',))",
-            "and_(or_(parent_id == None, not_(TextContains(name, 'abc'))), not_(or_(span_kind != 'LLM', span_id.not_in(('123',)))))"
-            if sys.version_info >= (3, 9)
-            else "and_(or_((parent_id == None), not_(TextContains(name, 'abc'))), not_(or_((span_kind != 'LLM'), span_id.not_in(('123',)))))",
+            "and_(or_(parent_id == None, not_(CaseInsensitiveContains(name, 'abc'))), not_(or_(span_kind != 'LLM', span_id.not_in(('123',)))))",
         ),
         (
             "1000 < latency_ms < 2000 or status_code == 'ERROR' or 2000 <= cumulative_llm_token_count_total",
-            "or_(and_(1000 < latency_ms, latency_ms < 2000), status_code == 'ERROR', 2000 <= cumulative_llm_token_count_total)"
-            if sys.version_info >= (3, 9)
-            else "or_(and_((1000 < latency_ms), (latency_ms < 2000)), (status_code == 'ERROR'), (2000 <= cumulative_llm_token_count_total))",
+            "or_(and_(1000 < latency_ms, latency_ms < 2000), status_code == 'ERROR', 2000 <= cumulative_llm_token_count_total)",
         ),
         (
             "llm.token_count.total - llm.token_count.prompt > 1000",
-            "attributes[['llm', 'token_count', 'total']].as_float() - attributes[['llm', 'token_count', 'prompt']].as_float() > 1000"
-            if sys.version_info >= (3, 9)
-            else "((attributes[['llm', 'token_count', 'total']].as_float() - attributes[['llm', 'token_count', 'prompt']].as_float()) > 1000)",
+            "SafeJsonFloat(attributes[['llm', 'token_count', 'total']]) - SafeJsonFloat(attributes[['llm', 'token_count', 'prompt']]) > 1000",
         ),
         (
             "first.value in (1,) and second.value in ('2',) and '3' in third.value",
-            "and_(attributes[['first', 'value']].as_float().in_((1,)), attributes[['second', 'value']].as_string().in_(('2',)), TextContains(attributes[['third', 'value']].as_string(), '3'))",
+            "and_(SafeJsonFloat(attributes[['first', 'value']]).in_((1,)), attributes[['second', 'value']].as_string().in_(('2',)), CaseInsensitiveContains(attributes[['third', 'value']].as_string(), '3'))",
         ),
         (
             "'1.0' < my.value < 2.0",
-            "and_('1.0' < attributes[['my', 'value']].as_string(), attributes[['my', 'value']].as_float() < 2.0)"
-            if sys.version_info >= (3, 9)
-            else "and_(('1.0' < attributes[['my', 'value']].as_string()), (attributes[['my', 'value']].as_float() < 2.0))",
+            "and_('1.0' < attributes[['my', 'value']].as_string(), SafeJsonFloat(attributes[['my', 'value']]) < 2.0)",
         ),
         (
             "first.value + 1 < second.value",
-            "attributes[['first', 'value']].as_float() + 1 < attributes[['second', 'value']].as_float()"
-            if sys.version_info >= (3, 9)
-            else "((attributes[['first', 'value']].as_float() + 1) < attributes[['second', 'value']].as_float())",
+            "SafeJsonFloat(attributes[['first', 'value']]) + 1 < SafeJsonFloat(attributes[['second', 'value']])",
         ),
         (
             "first.value * second.value > third.value",
-            "attributes[['first', 'value']].as_float() * attributes[['second', 'value']].as_float() > attributes[['third', 'value']].as_float()"
-            if sys.version_info >= (3, 9)
-            else "((attributes[['first', 'value']].as_float() * attributes[['second', 'value']].as_float()) > attributes[['third', 'value']].as_float())",
+            "SafeJsonFloat(attributes[['first', 'value']]) * SafeJsonFloat(attributes[['second', 'value']]) > SafeJsonFloat(attributes[['third', 'value']])",
         ),
         (
             "first.value + second.value > third.value",
-            "cast(attributes[['first', 'value']].as_string() + attributes[['second', 'value']].as_string(), String) > attributes[['third', 'value']].as_string()"
-            if sys.version_info >= (3, 9)
-            else "(cast((attributes[['first', 'value']].as_string() + attributes[['second', 'value']].as_string()), String) > attributes[['third', 'value']].as_string())",
+            "cast(attributes[['first', 'value']].as_string() + attributes[['second', 'value']].as_string(), String) > attributes[['third', 'value']].as_string()",
         ),
         (
             "my.value == '1.0' or float(my.value) < 2.0",
-            "or_(attributes[['my', 'value']].as_string() == '1.0', attributes[['my', 'value']].as_float() < 2.0)"
-            if sys.version_info >= (3, 9)
-            else "or_((attributes[['my', 'value']].as_string() == '1.0'), (attributes[['my', 'value']].as_float() < 2.0))",
+            "or_(attributes[['my', 'value']].as_string() == '1.0', SafeJsonFloat(attributes[['my', 'value']]) < 2.0)",
         ),
         (
             "not(-metadata['a.b'] + float(metadata[['c.d']]) != metadata[['e.f', 'g.h']])",
-            "not_(-attributes[['metadata', 'a.b']].as_float() + attributes[['metadata', 'c.d']].as_float() != attributes[['metadata', 'e.f', 'g.h']].as_float())"
-            if sys.version_info >= (3, 9)
-            else "not_((((- attributes[['metadata', 'a.b']].as_float()) + attributes[['metadata', 'c.d']].as_float()) != attributes[['metadata', 'e.f', 'g.h']].as_float()))",
+            "not_(-SafeJsonFloat(attributes[['metadata', 'a.b']]) + SafeJsonFloat(attributes[['metadata', 'c.d']]) != SafeJsonFloat(attributes[['metadata', 'e.f', 'g.h']]))",
         ),
         (
             "attributes['attributes'] == attributes[['attributes']] != attributes[['attributes', 'attributes']]",
-            "and_(attributes[['attributes']].as_string() == attributes[['attributes']].as_string(), attributes[['attributes']].as_string() != attributes[['attributes', 'attributes']].as_string())"
-            if sys.version_info >= (3, 9)
-            else "and_((attributes[['attributes']].as_string() == attributes[['attributes']].as_string()), (attributes[['attributes']].as_string() != attributes[['attributes', 'attributes']].as_string()))",
+            "and_(attributes[['attributes']].as_string() == attributes[['attributes']].as_string(), attributes[['attributes']].as_string() != attributes[['attributes', 'attributes']].as_string())",
         ),
         (
             "metadata['is_empty'] == True",
-            "attributes[['metadata', 'is_empty']].as_boolean() == True",
+            "SafeJsonBoolean(attributes[['metadata', 'is_empty']]) == True",
         ),
         (
             "metadata['is_empty'] == False",
-            "attributes[['metadata', 'is_empty']].as_boolean() == False",
+            "SafeJsonBoolean(attributes[['metadata', 'is_empty']]) == False",
         ),
         (
             "True == metadata['is_empty']",
-            "True == attributes[['metadata', 'is_empty']].as_boolean()",
+            "True == SafeJsonBoolean(attributes[['metadata', 'is_empty']])",
         ),
         (
             "metadata['is_empty'] is True",
-            "attributes[['metadata', 'is_empty']].as_boolean() == True",
+            "SafeJsonBoolean(attributes[['metadata', 'is_empty']]) == True",
         ),
         (
             "metadata['is_empty'] is not False",
-            "attributes[['metadata', 'is_empty']].as_boolean() != False",
+            "SafeJsonBoolean(attributes[['metadata', 'is_empty']]) != False",
         ),
         (
             "span_kind == 'chain'",
@@ -200,7 +178,7 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
         ),
         (
             "'cha' in span_kind",
-            "TextContains(span_kind, 'CHA')",
+            "CaseInsensitiveContains(span_kind, 'CHA')",
         ),
         (
             "status_code == 'error'",
@@ -216,7 +194,7 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
         ),
         (
             "'err' in status_code",
-            "TextContains(status_code, 'ERR')",
+            "CaseInsensitiveContains(status_code, 'ERR')",
         ),
         # `parent_span` root predicate: `parent_span is None` / `parent_span is not None` become
         # references to correlated EXISTS predicates bound in SpanFilter.__call__.
@@ -259,6 +237,612 @@ async def test_filter_translated(
     # next line is only to test that the syntax is accepted
     async with db() as session:
         await session.execute(f(select(models.Span.id)))
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("name and status_code", id="named-columns"),
+        pytest.param('"" in input.value and span.k', id="issue-5802"),
+        pytest.param("revenueio.language_code == 'en-US' and r", id="issue-10306"),
+        pytest.param("name == 'n' and r", id="bare-name-operand"),
+        pytest.param("name == 'n' and input.value", id="attribute-operand"),
+        pytest.param("metadata['flag'] and name == 'x'", id="metadata-operand"),
+        pytest.param("not metadata['flag']", id="negated-json-operand"),
+        pytest.param("name == 'n' or 5", id="numeric-operand"),
+        pytest.param("name == 'n' and evals['x'].score", id="annotation-member-operand"),
+        pytest.param("name == 'n' and (span_kind == 'LLM' and r)", id="nested-operand"),
+    ],
+)
+def test_filter_rejects_non_boolean_logical_operands(condition: str) -> None:
+    """A value in `and` / `or` / `not` position is a filter error, not a query error.
+
+    Each of these puts something that is not a predicate where SQL will use it as
+    one. Left to the database the two backends disagree about the consequence --
+    PostgreSQL aborts the statement (`argument of AND must be type boolean, not
+    type jsonb`) while SQLite coerces and silently returns the wrong rows -- and
+    on either one it arrives after validation has already called the condition
+    valid, so the UI has committed to a query it cannot run.
+
+    Unknown-typed operands (a bare JSON attribute) are included deliberately:
+    exempting them as "truthy values" is what let the raw JSON through. Every one
+    of these is also a prefix of a longer expression someone is part way through
+    typing, which is how they reach the server at all.
+    """
+    with pytest.raises(SyntaxError, match="is not a condition"):
+        SpanFilter(condition)
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("name == 'n' and span_kind == 'LLM'", id="comparisons"),
+        pytest.param("name == 'n' and True", id="true-literal"),
+        pytest.param("name == 'n' or False", id="false-literal"),
+        pytest.param("annotations['Hallucination']", id="bare-existence-check"),
+        pytest.param(
+            "name == 'n' and annotations['Hallucination']",
+            id="existence-check-as-operand",
+        ),
+        pytest.param("evals['Hallucination'] or name == 'n'", id="evals-alias-operand"),
+        pytest.param("not (parent_id is None)", id="negated-comparison"),
+        pytest.param("parent_span is None and name == 'x'", id="parent-predicate"),
+        pytest.param(
+            "annotations['q'].score >= 0.5 and not (name == 'z')",
+            id="mixed-nesting",
+        ),
+    ],
+)
+def test_filter_still_accepts_every_condition_form(condition: str) -> None:
+    """The check above must not narrow what counts as a condition.
+
+    A bare annotation is an existence check and the boolean literals are
+    meaningful operands (the generated corpus below relies on both), so these are
+    predicates despite not being comparisons.
+    """
+    SpanFilter(condition)  # does not raise
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "name == 1",
+        "context.span_id == 1",
+        "latency_ms == 'slow'",
+        "llm.token_count.total == 'many'",
+        "cumulative_token_count.total == 'many'",
+        "annotations['quality'].label < 1",
+        "annotations['quality'].score == 'high'",
+    ],
+)
+def test_filter_rejects_incompatible_scalar_comparisons(condition: str) -> None:
+    with pytest.raises(SyntaxError, match="cannot compare"):
+        SpanFilter(condition)
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "name / 2 > 1",
+        "annotations['quality'].label * 2 > 1",
+        "latency_ms << 1 > 0",
+    ],
+)
+def test_filter_rejects_invalid_arithmetic(condition: str) -> None:
+    with pytest.raises(SyntaxError, match="invalid arithmetic"):
+        SpanFilter(condition)
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "name in [1]",
+        "annotations['quality'].label in [True]",
+        "annotations['quality'].score in ['high']",
+        "metadata['quality'] in [True, 'true']",
+        "1 in metadata['quality']",
+    ],
+)
+def test_filter_rejects_incompatible_collection_membership(condition: str) -> None:
+    with pytest.raises(SyntaxError, match="cannot compare"):
+        SpanFilter(condition)
+
+
+def test_filter_rejects_non_datetime_timestamp_comparison() -> None:
+    with pytest.raises(SyntaxError, match="cannot compare datetime and number"):
+        SpanFilter("start_time == 1")
+
+
+@pytest.mark.parametrize("condition", ["float(name) > 1", "float('not-a-number') > 1"])
+def test_filter_rejects_unsafe_string_to_number_cast(condition: str) -> None:
+    with pytest.raises(SyntaxError, match="cannot cast string to number"):
+        SpanFilter(condition)
+
+
+def test_filter_rejects_invalid_datetime_literal() -> None:
+    with pytest.raises(SyntaxError, match="invalid datetime literal"):
+        SpanFilter("start_time > 'yesterday'")
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param('start_time >= "2025-12-16T13:43:00"', id="naive-datetime"),
+        pytest.param("start_time >= '2025-12-16 13:43:00'", id="naive-space-separated"),
+        pytest.param("start_time in ['2025-12-16T13:43:00']", id="naive-in-collection"),
+    ],
+)
+def test_filter_rejects_naive_datetime_literals(condition: str) -> None:
+    """A literal without an offset has no single defensible meaning.
+
+    `UtcTimeStamp` applies Phoenix's local-time convention to a naive value, so
+    binding one would give the same saved filter a different boundary in
+    deployments with different timezones -- and conditions travel in URLs.
+    Reading it as UTC instead would be deterministic but would silently disagree
+    with that convention, so the offset is required rather than guessed.
+    """
+    with pytest.raises(SyntaxError, match="no timezone"):
+        SpanFilter(condition)
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("start_time >= '2025-12-16T13:43:00Z'", id="zulu"),
+        pytest.param("start_time >= '2025-12-16T13:43:00+02:00'", id="explicit-offset"),
+        pytest.param("start_time in ['2025-12-16T13:43:00Z']", id="aware-in-collection"),
+    ],
+)
+def test_filter_accepts_timezone_aware_datetime_literals(condition: str) -> None:
+    SpanFilter(condition)  # does not raise
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("latency_ms == '1_000'", id="underscore-separator"),
+        pytest.param("latency_ms == 'nan'", id="nan"),
+        pytest.param("latency_ms == 'inf'", id="inf"),
+        pytest.param("latency_ms == '0x10'", id="hex"),
+        pytest.param("latency_ms == ' 12'", id="leading-space"),
+        pytest.param("float('1_000') > 1", id="cast-underscore"),
+        pytest.param("float('nan') > 1", id="cast-nan"),
+        pytest.param("latency_ms in ['1_000']", id="membership-underscore"),
+        pytest.param("latency_ms in [1.5, '2.0']", id="membership-mixed-types"),
+    ],
+)
+def test_filter_rejects_numeric_strings_the_databases_disagree_about(condition: str) -> None:
+    """One numeric grammar, applied wherever a string becomes a number.
+
+    Python's `float()` accepts all of these, but the two backends do not agree
+    on them: SQLite casts `'1_000'` to 1.0 while PostgreSQL rejects it outright,
+    and the infinities and NaN are dialect-dependent. Accepting them at
+    validation is precisely the validate-then-fail-at-query-time shape this
+    module exists to prevent.
+    """
+    with pytest.raises(SyntaxError):
+        SpanFilter(condition)
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("latency_ms == '1000'", id="scalar-eq"),
+        pytest.param("latency_ms > '100'", id="scalar-gt"),
+        pytest.param("'100' < latency_ms", id="quoted-number-on-left"),
+        pytest.param("latency_ms == '-12.5'", id="negative-decimal"),
+        pytest.param("latency_ms == '1e3'", id="exponent"),
+        pytest.param("annotations['quality'].score >= '0.5'", id="annotation-score"),
+        pytest.param("llm.token_count.total > '5'", id="float-attribute"),
+        pytest.param("latency_ms in ['1.5', '2.0']", id="membership"),
+    ],
+)
+def test_filter_rejects_quoted_numbers_against_numeric_fields(condition: str) -> None:
+    """A quoted number against a numeric field is an error, not a coercion.
+
+    Both sides are statically typed here, so there is nothing to infer. The
+    coercion this replaces never worked on PostgreSQL: it bound the string as a
+    float parameter, which asyncpg refuses, so the condition validated and then
+    failed when the query ran. It only looked valid because SQLite is loosely
+    typed and the tests asserting it "previously worked" only constructed a
+    `SpanFilter` rather than running one.
+    """
+    with pytest.raises(SyntaxError, match="cannot compare"):
+        SpanFilter(condition)
+
+
+def test_quoted_number_rejection_suggests_the_unquoted_form() -> None:
+    with pytest.raises(SyntaxError, match=r"write 100 instead of '100'"):
+        SpanFilter("latency_ms > '100'")
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("float('10') > 1", id="cast-integer"),
+        pytest.param("float('-12.5') < 1", id="cast-negative"),
+        pytest.param("float(attributes['num']) > 1", id="cast-dynamic"),
+    ],
+)
+def test_explicit_float_cast_still_parses_a_string(condition: str) -> None:
+    """`float()` is how a caller opts into parsing a string as a number."""
+    SpanFilter(condition)  # does not raise
+
+
+@pytest.fixture
+async def coercion_project(db: DbSessionFactory) -> None:
+    """Two spans differing only in latency, for exercising coercion against a
+    real database rather than against the compiler."""
+    async with db() as session:
+        project_rowid = await session.scalar(
+            insert(models.Project).values(name="coercion").returning(models.Project.id)
+        )
+        trace_rowid = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="trace-coercion",
+                project_rowid=project_rowid,
+                start_time=_PARENT_PREDICATE_TS,
+                end_time=_PARENT_PREDICATE_TS,
+            )
+            .returning(models.Trace.id)
+        )
+        for span_id, seconds, attributes in (
+            ("fast", 1, {"num": "1.5", "flag": True}),
+            ("slow", 10, {"num": "not-a-number", "flag": "true"}),
+        ):
+            await session.execute(
+                insert(models.Span).values(
+                    trace_rowid=trace_rowid,
+                    span_id=span_id,
+                    parent_id=None,
+                    name=span_id,
+                    span_kind="LLM",
+                    start_time=_PARENT_PREDICATE_TS,
+                    end_time=_PARENT_PREDICATE_TS + timedelta(seconds=seconds),
+                    attributes=attributes,
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        pytest.param("latency_ms > 5000", ["slow"], id="scalar"),
+        pytest.param("latency_ms >= 1000", ["fast", "slow"], id="scalar-inclusive"),
+        pytest.param("5000 < latency_ms", ["slow"], id="number-on-left"),
+        pytest.param("latency_ms in [1000, 10000]", ["fast", "slow"], id="membership"),
+        pytest.param("latency_ms not in [1000]", ["slow"], id="negated-membership"),
+        pytest.param("float('5000') < latency_ms", ["slow"], id="explicit-cast-of-string"),
+        # dynamic values take the total cast, so an uncastable row drops out
+        # rather than aborting the statement
+        pytest.param("float(attributes['num']) > 1", ["fast"], id="uncastable-row-excluded"),
+    ],
+)
+async def test_numeric_coercion_executes_against_the_database(
+    db: DbSessionFactory,
+    coercion_project: None,
+    condition: str,
+    expected: list[str],
+) -> None:
+    """Numeric coercion has to survive execution, not just compilation.
+
+    `cast('1000', Float)` compiles on both dialects and then fails when the
+    query runs, because asyncpg is asked to encode a `str` as a float parameter.
+    Constructing a `SpanFilter` cannot catch that -- only running it can, which
+    is why these assert rows rather than SQL.
+    """
+    span_filter = SpanFilter(condition)
+    async with db() as session:
+        span_ids = list(
+            await session.scalars(
+                span_filter(select(models.Span.span_id)).order_by(models.Span.span_id)
+            )
+        )
+    assert span_ids == expected
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("annotations['café'].score < 0.5", id="multibyte-name"),
+        pytest.param("annotations['日本語'].score < 0.5", id="cjk-name"),
+        pytest.param("annotations['Q&A Correctness'].label == 'x'", id="ampersand-and-space"),
+        pytest.param("annotations['span_annotation_0'].score > 0", id="alias-lookalike-name"),
+        # a multi-byte *literal* ahead of the accessor: offsets are in bytes, so
+        # this is where a character-based table would splice in the wrong place
+        pytest.param(
+            "attributes['uni'] == 'café' and annotations['q'].score > 0",
+            id="multibyte-literal-before-accessor",
+        ),
+        pytest.param(
+            "attributes['uni'] == '日本語' and annotations['q'].score > 0",
+            id="cjk-literal-before-accessor",
+        ),
+        # multi-line sources exercise the line-offset table itself
+        pytest.param(
+            "(annotations['q'].score > 0\n and annotations['café'].score > 0)",
+            id="multiline",
+        ),
+        pytest.param(
+            "(attributes['uni'] == 'café'\n and annotations['日本語'].score > 0)",
+            id="multiline-after-multibyte-literal",
+        ),
+        pytest.param(
+            "(annotations['q'].score > 0\r\n and annotations['café'].score > 0)",
+            id="multiline-crlf",
+        ),
+    ],
+)
+def test_annotation_aliasing_splices_at_the_right_offset(condition: str) -> None:
+    """Annotation accessors are replaced by byte offset into the source.
+
+    The offset table is built from the source text but matched against AST
+    positions, so it has to agree with the tokenizer about where lines start.
+    `str.splitlines` does not: it also breaks on \\v, \\f, \\x1c-\\x1e, \\x85,
+    \\u2028 and \\u2029, none of which the tokenizer treats as a newline. A
+    mismatch splices the alias at the wrong byte, which either corrupts the
+    expression or silently rewrites a different part of it.
+    """
+    aliased, relations = _apply_eval_aliasing(condition)
+    assert relations, "expected at least one aliased annotation relation"
+    # a clean splice leaves no accessor behind
+    assert "annotations[" not in aliased
+    assert "evals[" not in aliased
+    # and the spliced source is still a valid, compilable condition
+    SpanFilter(condition)
+
+
+def test_filter_rejects_membership_between_two_literals() -> None:
+    """`1 in [1, 2]` translates to `1.in_([1, 2])`.
+
+    That reaches evaluation inside `SpanFilter.__call__` and raises a bare
+    `AttributeError`, which is the wrong exception type for what is simply an
+    invalid condition -- direct callers see a crash rather than a filter error.
+    """
+    with pytest.raises(SyntaxError, match="compares two literals"):
+        SpanFilter("1 in [1, 2]")
+
+
+def test_unary_plus_does_not_negate_dynamic_json_attributes() -> None:
+    """`+attributes['x']` used to translate to `-SafeJsonFloat(...)`.
+
+    The cast branch hardcoded `USub`, so unary plus on a dynamic JSON attribute
+    silently returned the rows of its negation. Native numeric columns took a
+    different branch and were unaffected, which is why it went unnoticed.
+    """
+    positive = str(
+        SpanFilter("+metadata['x'] > 5")(select(models.Span.id)).compile(
+            dialect=postgresql.dialect()  # type: ignore[no-untyped-call]
+        )
+    )
+    negative = str(
+        SpanFilter("-metadata['x'] > 5")(select(models.Span.id)).compile(
+            dialect=postgresql.dialect()  # type: ignore[no-untyped-call]
+        )
+    )
+    assert positive != negative
+    assert "-" not in positive.split("WHERE")[-1].split(">")[0]
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "start_time < '2024-01-01T00:00:00Z'",
+        "latency_ms == None",
+    ],
+)
+def test_filter_accepts_previously_valid_conditions(condition: str) -> None:
+    # Quoted numbers (`latency_ms > '100'`) deliberately no longer appear here:
+    # they were only ever valid on SQLite. See
+    # `test_filter_rejects_quoted_numbers_against_numeric_fields`.
+    SpanFilter(condition)
+
+
+def test_filter_rejects_zero_argument_cast() -> None:
+    with pytest.raises(SyntaxError, match="invalid expression"):
+        SpanFilter("float() > 1")
+
+
+def test_filter_rejects_string_column_vs_datetime_column_comparison() -> None:
+    with pytest.raises(SyntaxError, match="cannot compare"):
+        SpanFilter("name == start_time")
+
+
+async def test_filter_iso_datetime_string_executes(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    span_filter = SpanFilter("start_time >= '2021-01-01T00:00:00+00:00'")
+
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids)
+
+
+async def test_filter_non_numeric_json_cast_excludes_rows(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span = await session.scalar(select(models.Span).order_by(models.Span.id).limit(1))
+        assert span is not None
+        span.attributes = {**span.attributes, "metadata": {"value": "not-a-number"}}
+
+    span_filter = SpanFilter("float(metadata['value']) > 1")
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids) == []
+
+
+async def test_filter_numeric_json_string_cast_matches(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span = await session.scalar(select(models.Span).order_by(models.Span.id).limit(1))
+        assert span is not None
+        span.attributes = {**span.attributes, "metadata": {"value": "1.25"}}
+
+    span_filter = SpanFilter("float(metadata['value']) == 1.25")
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids) == [span.id]
+
+
+async def test_filter_non_boolean_json_cast_excludes_rows(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span = await session.scalar(select(models.Span).order_by(models.Span.id).limit(1))
+        assert span is not None
+        span.attributes = {**span.attributes, "metadata": {"flag": "not-a-boolean"}}
+
+    span_filter = SpanFilter("metadata['flag'] in [False]")
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids) == []
+
+
+async def test_filter_boolean_json_string_cast_matches(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span = await session.scalar(select(models.Span).order_by(models.Span.id).limit(1))
+        assert span is not None
+        span.attributes = {**span.attributes, "metadata": {"flag": "false"}}
+
+    span_filter = SpanFilter("metadata['flag'] is False")
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids) == [span.id]
+
+
+async def test_filter_real_json_boolean_matches(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span = await session.scalar(select(models.Span).order_by(models.Span.id).limit(1))
+        assert span is not None
+        span.attributes = {**span.attributes, "metadata": {"flag": True}}
+
+    span_filter = SpanFilter("metadata['flag'] is True")
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids) == [span.id]
+
+
+async def test_filter_datetime_in_tuple_matches(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span = await session.scalar(select(models.Span).order_by(models.Span.id).limit(1))
+        assert span is not None
+        iso = span.start_time.isoformat()
+
+    span_filter = SpanFilter(f"start_time in ('{iso}',)")
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert span.id in list(span_ids)
+
+
+async def test_filter_numeric_null_comparison_executes(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        none_ids = await session.scalars(SpanFilter("latency_ms == None")(select(models.Span.id)))
+        assert list(none_ids) == []
+        not_none_ids = await session.scalars(
+            SpanFilter("latency_ms != None")(select(models.Span.id))
+        )
+        assert list(not_none_ids)
+
+
+@pytest.mark.parametrize("operator", ["/", "%"])
+async def test_filter_zero_denominator_excludes_rows(
+    db: DbSessionFactory,
+    default_project: Any,
+    operator: str,
+) -> None:
+    span_filter = SpanFilter(f"latency_ms {operator} 0 > 1")
+
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids) == []
+
+
+async def test_filter_annotation_explanation_executes(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span_id = await session.scalar(select(models.Span.id).order_by(models.Span.id).limit(1))
+        assert span_id is not None
+        session.add(
+            models.SpanAnnotation(
+                span_rowid=span_id,
+                name="quality",
+                label=None,
+                score=None,
+                explanation="contains the needle",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+            )
+        )
+
+    span_filter = SpanFilter("'needle' in annotations['quality'].explanation")
+
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids) == [span_id]
+
+
+async def test_filter_annotation_name_uses_python_string_escaping(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span_id = await session.scalar(select(models.Span.id).order_by(models.Span.id).limit(1))
+        assert span_id is not None
+        session.add(
+            models.SpanAnnotation(
+                span_rowid=span_id,
+                name='rate"limit',
+                label="limited",
+                score=None,
+                explanation=None,
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+            )
+        )
+
+    span_filter = SpanFilter(r"""annotations["rate\"limit"].label == 'limited' """)
+    async with db() as session:
+        matched_span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(matched_span_ids) == [span_id]
 
 
 @pytest.mark.parametrize(
@@ -306,7 +890,7 @@ async def test_filter_translated(
         ),
         pytest.param(
             """evals["Hallucination"].label == 'correct' orevals["Hallucination"].score < 0.5""",
-            """span_annotation_0_label_00000000000000000000000000000000 == 'correct' orevals["Hallucination"].score < 0.5""",
+            """evals["Hallucination"].label == 'correct' orevals["Hallucination"].score < 0.5""",
             id="no-word-boundary-on-the-left",
         ),
         pytest.param(
@@ -340,6 +924,16 @@ async def test_filter_translated(
             "span_annotation_0_exists_00000000000000000000000000000000",
             id="bare-annotations-exists",
         ),
+        pytest.param(
+            """'annotations[\"quality\"].label' in name or annotations[\"quality\"].label == 'good'""",
+            """'annotations[\"quality\"].label' in name or span_annotation_0_label_00000000000000000000000000000000 == 'good'""",
+            id="annotation-spelling-inside-string-literal",
+        ),
+        pytest.param(
+            """metadata['café'] == 'yes' and annotations["quality"].label == 'good'""",
+            """metadata['café'] == 'yes' and span_annotation_0_label_00000000000000000000000000000000 == 'good'""",
+            id="unicode-before-annotation",
+        ),
     ],
 )
 def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
@@ -354,21 +948,57 @@ def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
 
 class TestProjectorValidationGap:
     """
-    Pins the two structural defects in ``Projector`` in
+    Pins the closure of two structural defects ``Projector`` used to have in
     ``src/phoenix/trace/dsl/filter.py``:
 
-    1. Unlike ``SpanFilter``, ``Projector`` does NOT call
-       ``_validate_expression``. It only runs ``_ProjectionTranslator.visit()``,
-       which leaves many AST constructs unchecked.
-    2. The ``eval()`` namespace is ``{**_NAMES}`` — it does not pin
-       ``__builtins__`` to ``{}``, so Python auto-populates the full
-       builtins dict into the namespace.
+    1. It ran no validation before translation, so AST shapes ``SpanFilter``
+       rejects reached compilation (``10 ** 100000000`` compiled with an
+       unbounded exponent). ``_validate_projection_expression`` now walks the
+       tree against an allowlist of node types.
+    2. Its ``eval()`` namespace did not pin ``__builtins__``, so CPython
+       auto-populated the full builtins dict -- ``__import__``, ``open``,
+       ``exec`` -- into the namespace. It is now pinned to ``{}``.
 
-    These tests assert that ``Projector`` rejects dangerous inputs the
-    same way ``SpanFilter`` does, and that the eval namespace is
-    sandboxed. They are expected to FAIL on the current code,
-    demonstrating the vulnerability.
+    These began as red tests demonstrating the vulnerability and are kept as
+    regression pins. ``Projector`` validation remains narrower than
+    ``SpanFilter``'s on purpose -- a projection is a value, not a predicate,
+    so the operand-type and boolean-position rules do not apply -- but the
+    structural allowlist and the sandbox must hold.
+
+    ``SpanFilter.__call__`` evaluates through the same mechanism and gets the
+    same pin below: the pinning is one dict literal that a refactor could
+    "simplify" away while passing every grammar test.
     """
+
+    def test_projector_rejects_confusable_identifiers(self) -> None:
+        # Python NFKC-normalizes identifiers, so a full-width projection name
+        # silently resolved to the ASCII field the user never spelled. The
+        # projector now runs the same inherited-surface rules as the filter.
+        with pytest.raises(SyntaxError, match="is interpreted as"):
+            Projector("ｎａｍｅ")
+
+    def test_span_filter_eval_namespace_has_no_builtins_access(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        span_filter = SpanFilter("name == 'x'")
+
+        captured_globals: list[dict[str, Any]] = []
+        real_eval = eval
+
+        def spy_eval(code: Any, globals_dict: dict[str, Any], locals_dict: Any = None) -> Any:
+            captured_globals.append(globals_dict)
+            return real_eval(code, globals_dict, locals_dict)
+
+        monkeypatch.setattr("phoenix.trace.dsl.filter.eval", spy_eval, raising=False)
+        span_filter(select(models.Span.id))
+
+        assert captured_globals
+        for globals_dict in captured_globals:
+            assert globals_dict.get("__builtins__") == {}, (
+                "SpanFilter eval namespace must pin __builtins__ to {}; "
+                "anything else exposes the full builtins dict to whatever "
+                "survives the translator."
+            )
 
     def test_projector_rejects_what_spanfilter_rejects(self) -> None:
         # ``SpanFilter`` rejects this via ``_validate_expression`` — but

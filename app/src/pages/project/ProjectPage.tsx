@@ -6,6 +6,7 @@ import {
   useDeferredValue,
   useEffect,
   useEffectEvent,
+  useRef,
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
@@ -27,8 +28,8 @@ import { TopNavActions } from "@phoenix/components/nav";
 import {
   CREATE_CODE_EVALUATOR_PARAM,
   CREATE_LLM_EVALUATOR_PARAM,
+  SPAN_FILTER_CONDITION_PARAM,
 } from "@phoenix/constants/searchParams";
-import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
@@ -54,6 +55,8 @@ import {
   ProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
 import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
+import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
+import { type SettledSpanFilterSeed, spanFilterSeed } from "./spanFilterSeed";
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -172,6 +175,31 @@ export function ProjectPageContent({
   );
 }
 
+/** Whether the URL already carries this condition. */
+function urlAlreadyHasCondition(condition: string): boolean {
+  return (
+    new URLSearchParams(window.location.search).get(
+      SPAN_FILTER_CONDITION_PARAM
+    ) === condition
+  );
+}
+
+/**
+ * The URL's condition when it needs no server answer, else null.
+ *
+ * Reads `location` rather than taking the search string, so the `useState`
+ * initializers below close over nothing local. The React Compiler hoists those
+ * initializers out of the component, and a captured local does not survive it.
+ */
+function settledSeedFromUrl(fallback: string): SettledSpanFilterSeed | null {
+  const seed = spanFilterSeed(
+    new URLSearchParams(window.location.search).get(
+      SPAN_FILTER_CONDITION_PARAM
+    ) ?? fallback
+  );
+  return seed.requiresServerValidation ? null : seed;
+}
+
 function ProjectPageContentBody({
   projectId,
   timeRangeISOStrings,
@@ -179,9 +207,6 @@ function ProjectPageContentBody({
   projectId: string;
   timeRangeISOStrings: TimeRangeISOStrings;
 }) {
-  const treatOrphansAsRoots = useProjectContext(
-    (state) => state.treatOrphansAsRoots
-  );
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
   const [creationMode, setCreationMode] =
@@ -237,6 +262,16 @@ function ProjectPageContentBody({
     useQueryLoader<ProjectPageTracesQueryType>(ProjectPageQueriesTracesQuery);
   const [spansQueryReference, loadSpansQuery] =
     useQueryLoader<ProjectPageSpansQueryType>(ProjectPageQueriesSpansQuery);
+  // Classified during the first render, not in the effect that follows it.
+  // A condition needing no server answer must never leave the page in the
+  // pending state, or the filter field mounts standalone for a frame and then
+  // moves into the table.
+  const [spansFilterSeed, setSpansFilterSeed] =
+    useState<SettledSpanFilterSeed | null>(() =>
+      settledSeedFromUrl(DEFAULT_SPAN_FILTER_CONDITION)
+    );
+  const [tracesFilterSeed, setTracesFilterSeed] =
+    useState<SettledSpanFilterSeed | null>(() => settledSeedFromUrl(""));
   const [sessionsQueryReference, loadSessionsQuery] =
     useQueryLoader<ProjectPageSessionsQueryType>(
       ProjectPageQueriesSessionsQuery
@@ -247,32 +282,136 @@ function ProjectPageContentBody({
     );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   const location = useLocation();
+  // React Router recreates this setter on every location change. The resolvers
+  // below are handed to the filter field, whose validation effect keys on their
+  // identity -- depending on the setter directly would revalidate on every URL
+  // write, and each pass would load and dispose another query.
+  const setSearchParamsRef = useRef(setSearchParams);
+  useEffect(() => {
+    setSearchParamsRef.current = setSearchParams;
+  }, [setSearchParams]);
+  // Read at load time rather than depended on, so a live window sliding
+  // forward does not reload the preload -- see the note on the tab loader.
+  const timeRangeRef = useRef(timeRangeISOStrings);
+  useEffect(() => {
+    timeRangeRef.current = timeRangeISOStrings;
+  }, [timeRangeISOStrings]);
+
+  /**
+   * Load the spans table from a condition whose validity and root scope are
+   * both settled. Called for the conditions this app classifies itself, and by
+   * `ProjectSpansPage` once the field has validated one it cannot.
+   *
+   * `persistToUrl` is false whenever the seed is not something the user asked
+   * for -- a fallback after validation failed, or this tab's own default when
+   * the URL named no condition. A fallback leaves the rejected text in the URL
+   * so it stays visible and editable while the field reports why it failed; a
+   * default is left out entirely, so the other tab does not inherit it.
+   */
+  const resolveSpansSeed = useCallback(
+    (seed: SettledSpanFilterSeed, persistToUrl = true) => {
+      startTransition(() => {
+        setSpansFilterSeed(seed);
+        // Before the new condition re-keys `SpanFiltersProvider` and it re-reads
+        // the URL, or a condition typed while waiting loses to the stale one
+        // still in the address bar. An empty condition is as writable as any
+        // other -- a present-but-empty param means deliberately cleared, while
+        // an absent one seeds the tab's default -- though when it arrived from
+        // the URL the already-has-it check makes the write a no-op.
+        if (persistToUrl && !urlAlreadyHasCondition(seed.condition)) {
+          setSearchParamsRef.current(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.set(SPAN_FILTER_CONDITION_PARAM, seed.condition);
+              return next;
+            },
+            { replace: true }
+          );
+        }
+        loadSpansQuery({
+          id: projectId,
+          timeRange: timeRangeRef.current,
+          filterCondition: seed.condition || null,
+          rootSpansOnly: seed.rootSpansOnly,
+        });
+      });
+    },
+    [projectId, loadSpansQuery]
+  );
+
   // Load the preloaded query backing the active tab's table. The time range is
   // read at load time (via an effect event, so it is not a reactive trigger)
   // rather than tracked as a dependency: live "last-N" windows slide forward on
-  // a timer, and these preloaded queries carry no span-filter argument, so
-  // reloading them on every slide would replace the table's filtered rows with
-  // unfiltered data — dropping an applied filter while streaming (see issue
-  // #14216). The tables instead own time-range and filter liveness through
-  // their own `refetch`, so the preloaded query only needs an initial window
-  // and reloads solely on project, tab, or orphan-span changes.
-  const loadTableQueryForTab = useEffectEvent(
-    (
-      currentTabIndex: number,
-      currentProjectId: string,
-      currentTreatOrphansAsRoots: boolean
-    ) => {
-      if (currentTabIndex === TAB_INDEX_MAP.spans) {
-        loadSpansQuery({
-          id: currentProjectId,
-          timeRange: timeRangeISOStrings,
-          orphanSpanAsRootSpan: currentTreatOrphansAsRoots,
-        });
-      } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
+  // a timer. Reloading a parent on every slide could replace the live
+  // connection with stale rows (see issue #14216). The tables instead own
+  // time-range and filter liveness through their own `refetch`; parent preloads
+  // need only an initial window and reload solely on project or tab changes.
+  /** As `resolveSpansSeed`, for the traces tab. */
+  const resolveTracesSeed = useCallback(
+    (seed: SettledSpanFilterSeed, persistToUrl = true) => {
+      startTransition(() => {
+        setTracesFilterSeed(seed);
+        if (persistToUrl && !urlAlreadyHasCondition(seed.condition)) {
+          setSearchParamsRef.current(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.set(SPAN_FILTER_CONDITION_PARAM, seed.condition);
+              return next;
+            },
+            { replace: true }
+          );
+        }
         loadTracesQuery({
-          id: currentProjectId,
-          timeRange: timeRangeISOStrings,
+          id: projectId,
+          timeRange: timeRangeRef.current,
+          filterCondition: seed.condition || null,
         });
+      });
+    },
+    [projectId, loadTracesQuery]
+  );
+
+  const loadTableQueryForTab = useEffectEvent(
+    (currentTabIndex: number, currentProjectId: string) => {
+      if (currentTabIndex === TAB_INDEX_MAP.spans) {
+        // A seed this app can classify loads now. Anything else needs the
+        // server, and asking needs the filter field, which `ProjectSpansPage`
+        // mounts on its own while this stays null. Nothing is fetched until
+        // the condition is known good.
+        const fromUrl = searchParams.get(SPAN_FILTER_CONDITION_PARAM);
+        const seed = spanFilterSeed(fromUrl ?? DEFAULT_SPAN_FILTER_CONDITION);
+        // Returning to a tab whose rows already answer this condition is not a
+        // reason to reload it. Re-resolving would tear the table down and
+        // rebuild it for the same result.
+        if (
+          spansQueryReference &&
+          spansFilterSeed?.condition === seed.condition
+        ) {
+          return;
+        }
+        if (seed.requiresServerValidation) {
+          setSpansFilterSeed(null);
+        } else {
+          // Persist only a condition the URL already carried. The two tabs
+          // share one param but default differently -- spans to root spans,
+          // traces to every span -- so writing a tab's own default would
+          // impose it on the other one at the next tab switch.
+          resolveSpansSeed(seed, fromUrl !== null);
+        }
+      } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
+        const fromUrl = searchParams.get(SPAN_FILTER_CONDITION_PARAM);
+        const seed = spanFilterSeed(fromUrl ?? "");
+        if (
+          tracesQueryReference &&
+          tracesFilterSeed?.condition === seed.condition
+        ) {
+          return;
+        }
+        if (seed.requiresServerValidation) {
+          setTracesFilterSeed(null);
+        } else {
+          resolveTracesSeed(seed, fromUrl !== null);
+        }
       } else if (currentTabIndex === TAB_INDEX_MAP.sessions) {
         loadSessionsQuery({
           id: currentProjectId,
@@ -287,9 +426,9 @@ function ProjectPageContentBody({
   );
   useEffect(() => {
     startTransition(() => {
-      loadTableQueryForTab(tabIndex, projectId as string, treatOrphansAsRoots);
+      loadTableQueryForTab(tabIndex, projectId as string);
     });
-  }, [tabIndex, projectId, treatOrphansAsRoots]);
+  }, [tabIndex, projectId]);
 
   const onTabChange = useCallback(
     (index: number) => {
@@ -321,8 +460,12 @@ function ProjectPageContentBody({
       <ProjectPageQueryReferenceContext.Provider
         value={{
           spansQueryReference: spansQueryReference ?? null,
+          spansFilterSeed,
+          resolveSpansSeed,
           sessionsQueryReference: sessionsQueryReference ?? null,
           tracesQueryReference: tracesQueryReference ?? null,
+          tracesFilterSeed,
+          resolveTracesSeed,
           projectConfigQueryReference: projectConfigQueryReference ?? null,
         }}
       >

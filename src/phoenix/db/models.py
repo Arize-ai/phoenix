@@ -35,7 +35,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.dialects.sqlite.base import SQLiteCompiler
+from sqlalchemy.dialects.sqlite.base import SQLiteCompiler, SQLiteDialect
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -173,7 +173,9 @@ def render_values_w_union(
 UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2", "LDAP"]
 EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN"]
-SandboxBackendType: TypeAlias = Literal["WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL"]
+SandboxBackendType: TypeAlias = Literal[
+    "WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL", "MONTY"
+]
 LanguageName: TypeAlias = Literal["PYTHON", "TYPESCRIPT"]
 GenerativeModelSDK: TypeAlias = Literal[
     "openai",
@@ -202,6 +204,11 @@ class JSONB(JSON):
 def _(*args: Any, **kwargs: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     return "JSONB"
+
+
+# Without this, reflection maps "JSONB" to NUMERIC, and Alembic batch_alter_table
+# rebuilds SQLite tables from reflection -- silently redeclaring JSON columns.
+SQLiteDialect.ischema_names["JSONB"] = JSONB
 
 
 JSON_ = (
@@ -1117,6 +1124,83 @@ def _(element: Any, compiler: SQLCompiler, **kw: Any) -> Any:
     )
 
 
+class SafeJsonFloat(expression.FunctionElement[float]):
+    """A JSON value as a number, or NULL when it is not one.
+
+    `CAST(jsonb AS FLOAT)` succeeds only while every row holds a number: a
+    single string value aborts the whole statement with `cannot cast jsonb
+    string to type double precision`. JSON columns are schemaless, so whether a
+    filter works becomes a property of the data rather than of the expression.
+
+    Shared by the span and experiment filter DSLs -- both compare against
+    schemaless JSON, and a partial conversion is a per-row failure in either.
+    """
+
+    type = Float()
+    inherit_cache = True
+
+
+class SafeJsonBoolean(expression.FunctionElement[bool]):
+    """A JSON value as a boolean, or NULL when it is not one.
+
+    As `SafeJsonFloat`, and additionally normalizing the three encodings a JSON
+    boolean arrives in: a real boolean, the strings `"true"`/`"false"`, and
+    `1`/`0`.
+    """
+
+    type = Boolean()
+    inherit_cache = True
+
+
+@compiles(SafeJsonFloat)
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    value = compiler.process(list(element.clauses)[0], **kw)
+    scalar = f"json_extract({value}, '$')"
+    return (
+        f"CASE WHEN json_type({value}) IN ('integer', 'real') THEN CAST({value} AS FLOAT) "
+        f"WHEN json_type({value}) = 'text' THEN CASE WHEN json_valid({scalar}) "
+        f"AND json_type({scalar}) IN ('integer', 'real') THEN CAST({scalar} AS FLOAT) END END"
+    )
+
+
+@compiles(SafeJsonFloat, "postgresql")
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    value = compiler.process(list(element.clauses)[0], **kw)
+    # `strict` matters: in lax mode a jsonpath auto-unwraps arrays, so
+    # `$.double()` applied to `[1, 2]` returns 1 and the row matches a
+    # comparison against a number it does not hold. SQLite yields NULL for the
+    # same value, so lax mode is also a cross-dialect divergence.
+    converted = f"jsonb_path_query_first({value}, 'strict $.double()', '{{}}'::jsonb, true)"
+    return f"CAST({converted} AS NUMERIC)"
+
+
+@compiles(SafeJsonBoolean)
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    value = compiler.process(list(element.clauses)[0], **kw)
+    scalar = f"lower(json_extract({value}, '$'))"
+    # SQLite's JSON functions return booleans as integers (JSON_QUOTE of an
+    # extracted true is '1', whose json_type is 'integer'), so real JSON
+    # booleans arrive here as 1/0 rather than 'true'/'false'.
+    return (
+        f"CASE json_type({value}) WHEN 'true' THEN 1 WHEN 'false' THEN 0 "
+        f"WHEN 'integer' THEN CASE json_extract({value}, '$') WHEN 1 THEN 1 WHEN 0 THEN 0 END "
+        f"WHEN 'text' THEN CASE {scalar} WHEN 'true' THEN 1 WHEN 'false' THEN 0 END END"
+    )
+
+
+@compiles(SafeJsonBoolean, "postgresql")
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    value = compiler.process(list(element.clauses)[0], **kw)
+    # The jsonpath `.boolean()` method requires PostgreSQL 17; this CASE works
+    # on every supported version.
+    scalar = f"({value} #>> '{{}}')"
+    return (
+        f"CASE jsonb_typeof({value}) WHEN 'boolean' THEN CAST({scalar} AS BOOLEAN) "
+        f"WHEN 'string' THEN CASE lower{scalar} WHEN 'true' THEN true WHEN 'false' THEN false END "
+        f"WHEN 'number' THEN CASE {scalar} WHEN '1' THEN true WHEN '0' THEN false END END"
+    )
+
+
 class TextContains(expression.FunctionElement[str]):
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     inherit_cache = True
@@ -1172,10 +1256,11 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 
 @compiles(CaseInsensitiveContains, "sqlite")
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
-    # Use sqlean's `text_lower` to handle non-ASCII characters
+    # sqlean's `text_casefold`, not `text_lower`: case folding is the operation
+    # Unicode defines for caseless matching.
     string, substring = list(element.clauses)
     result = compiler.process(
-        func.text_contains(func.text_lower(string), func.text_lower(substring)), **kw
+        func.text_contains(func.text_casefold(string), func.text_casefold(substring)), **kw
     )
     return result
 
@@ -2542,7 +2627,7 @@ class TokenPrice(HasId):
     token_type: Mapped[str]
     is_prompt: Mapped[bool]
     base_rate: Mapped[float]
-    customization: Mapped[TokenPriceCustomization] = mapped_column(_TokenCustomization)
+    customization: Mapped[Optional[TokenPriceCustomization]] = mapped_column(_TokenCustomization)
 
     model: Mapped["GenerativeModel"] = relationship(
         "GenerativeModel",

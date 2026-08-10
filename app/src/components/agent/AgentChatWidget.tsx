@@ -14,6 +14,13 @@ import {
   TooltipTrigger,
   VisuallyHidden,
 } from "@phoenix/components";
+import {
+  aiGlowBreathe,
+  aiGlowFlashOpacity,
+  aiGlowWipe,
+  aiGlowWipeContinuousCSS,
+  aiGlowWipeMaskCSS,
+} from "@phoenix/components/ai/glow";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenModal";
@@ -22,13 +29,6 @@ import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import { AgentFabPositioner } from "./AgentFabPositioner";
 import { FAB_RESTING_SIZE, FAB_STREAMING_SIZE } from "./agentFabPositioning";
 import { PxiGlyph, type PxiGlyphAnimation } from "./PxiGlyph";
-import {
-  pxiGlowBreathe,
-  pxiGlowFlashOpacity,
-  pxiGlowWipe,
-  pxiGlowWipeMaskCSS,
-  pxiThinkingGlowWipe,
-} from "./pxiStyles";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 
 export const OPEN_AGENT_HOTKEY = "mod+i";
@@ -84,8 +84,8 @@ const lightThemeGlyphThemeCSS = css`
 `;
 
 const shapeCSS = css`
-  --pxi-glow-box-shadow-rest: var(--pxi-glow-box-shadow-fab-rest);
-  --pxi-glow-box-shadow-strong: var(--pxi-glow-box-shadow-fab-strong);
+  --ai-glow-box-shadow-rest: var(--ai-glow-box-shadow-large-rest);
+  --ai-glow-box-shadow-strong: var(--ai-glow-box-shadow-large-strong);
   position: relative;
   display: flex;
   align-items: center;
@@ -144,31 +144,28 @@ const shapeContentCSS = css`
 
 const thinkingBorderCSS = css`
   .agent-chat-widget__shimmer {
-    ${pxiGlowWipeMaskCSS};
+    ${aiGlowWipeMaskCSS};
     position: absolute;
-    inset: calc(-1 * var(--pxi-glow-bleed));
+    inset: calc(-1 * var(--ai-glow-bleed));
     z-index: 0;
     border-radius: inherit;
     mix-blend-mode: plus-lighter;
     pointer-events: none;
     opacity: 1;
-    -webkit-mask-position: center;
-    mask-position: center;
-    /* Preserve the original 200% / 3000ms velocity across the full 240% path. */
-    animation: ${pxiThinkingGlowWipe} 3600ms linear infinite both -0.5s;
+    ${aiGlowWipeContinuousCSS};
   }
 
   .agent-chat-widget__shimmer::before {
     content: "";
     position: absolute;
-    inset: var(--pxi-glow-bleed);
+    inset: var(--ai-glow-bleed);
     border-radius: inherit;
     opacity: 1;
   }
 
   .agent-chat-widget__shimmer::before {
-    box-shadow: var(--pxi-glow-box-shadow-rest);
-    animation: ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out
+    box-shadow: var(--ai-glow-box-shadow-rest);
+    animation: ${aiGlowBreathe} var(--ai-glow-wipe-duration) ease-in-out
       infinite;
     z-index: -1;
   }
@@ -180,9 +177,9 @@ const restingHoverWipeCSS = css`
   }
 
   .agent-chat-widget__hover-shimmer {
-    ${pxiGlowWipeMaskCSS};
+    ${aiGlowWipeMaskCSS};
     position: absolute;
-    inset: calc(-1 * var(--pxi-glow-bleed));
+    inset: calc(-1 * var(--ai-glow-bleed));
     z-index: 0;
     border-radius: inherit;
     mix-blend-mode: plus-lighter;
@@ -192,9 +189,9 @@ const restingHoverWipeCSS = css`
   .agent-chat-widget__hover-shimmer::before {
     content: "";
     position: absolute;
-    inset: var(--pxi-glow-bleed);
+    inset: var(--ai-glow-bleed);
     border-radius: inherit;
-    box-shadow: var(--pxi-glow-box-shadow-rest);
+    box-shadow: var(--ai-glow-box-shadow-rest);
     opacity: 0;
     transition:
       opacity 240ms ease-out,
@@ -202,14 +199,13 @@ const restingHoverWipeCSS = css`
   }
 
   &:hover .agent-chat-widget__hover-shimmer {
-    animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration)
-      var(--pxi-glow-wipe-easing) infinite;
+    animation: ${aiGlowWipe} var(--ai-glow-wipe-duration)
+      var(--ai-glow-wipe-easing) infinite;
   }
 
   &:hover .agent-chat-widget__hover-shimmer::before {
-    opacity: var(--pxi-glow-opacity);
-    animation: ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out 1
-      both;
+    opacity: var(--ai-glow-opacity);
+    animation: ${aiGlowBreathe} var(--ai-glow-wipe-duration) ease-in-out 1 both;
   }
 
   &:hover .agent-chat-widget__content {
@@ -220,15 +216,15 @@ const restingHoverWipeCSS = css`
 const entranceHoverWipeCSS = css`
   @media (prefers-reduced-motion: no-preference) {
     &[data-entrance-animation="true"] .agent-chat-widget__hover-shimmer {
-      animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration)
-        var(--pxi-glow-wipe-easing) 1;
+      animation: ${aiGlowWipe} var(--ai-glow-wipe-duration)
+        var(--ai-glow-wipe-easing) 1;
     }
 
     &[data-entrance-animation="true"]
       .agent-chat-widget__hover-shimmer::before {
       animation:
-        ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out 1,
-        ${pxiGlowFlashOpacity} var(--pxi-glow-wipe-duration) linear 1;
+        ${aiGlowBreathe} var(--ai-glow-wipe-duration) ease-in-out 1,
+        ${aiGlowFlashOpacity} var(--ai-glow-wipe-duration) linear 1;
     }
 
     &[data-entrance-animation="true"] .agent-chat-widget__content {
@@ -236,14 +232,14 @@ const entranceHoverWipeCSS = css`
     }
 
     &[data-entrance-animation="true"]:hover .agent-chat-widget__hover-shimmer {
-      animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration)
-        var(--pxi-glow-wipe-easing) infinite;
+      animation: ${aiGlowWipe} var(--ai-glow-wipe-duration)
+        var(--ai-glow-wipe-easing) infinite;
     }
 
     &[data-entrance-animation="true"]:hover
       .agent-chat-widget__hover-shimmer::before {
-      opacity: var(--pxi-glow-opacity);
-      animation: ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out 1
+      opacity: var(--ai-glow-opacity);
+      animation: ${aiGlowBreathe} var(--ai-glow-wipe-duration) ease-in-out 1
         both;
     }
   }
@@ -251,8 +247,7 @@ const entranceHoverWipeCSS = css`
 
 const thinkingGlyphPulseCSS = css`
   .agent-chat-widget__content {
-    animation: ${glyphBreathe} var(--pxi-glow-wipe-duration) ease-in-out
-      infinite;
+    animation: ${glyphBreathe} var(--ai-glow-wipe-duration) ease-in-out infinite;
   }
 `;
 

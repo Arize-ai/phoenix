@@ -9,7 +9,9 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import (
+    TYPE_CHECKING,
     Annotated,
+    Any,
     ClassVar,
     Generic,
     Literal,
@@ -35,9 +37,23 @@ from typing_extensions import TypeAlias
 
 from phoenix.db.models import LanguageName, SandboxBackendType
 
+if TYPE_CHECKING:
+    from phoenix.server.monty_runtime import MontyRuntime
+
 
 class UnsupportedOperation(Exception):
     """Raised when a sandbox backend does not support a requested operation."""
+
+
+class SandboxValidationUnavailable(Exception):
+    """Raised when sandbox-backed code validation could not be performed."""
+
+
+@dataclass(frozen=True)
+class SandboxRuntimeContext:
+    """Application-owned runtimes available to sandbox backend adapters."""
+
+    monty: "MontyRuntime"
 
 
 # Dependency-spec grammar. Mirrored in app/src/pages/settings/sandboxes/utils.tsx.
@@ -233,6 +249,11 @@ class WASMConfig(_Config):
     language: Literal["PYTHON"] = "PYTHON"
 
 
+class MontyConfig(_Config):
+    backend_type: Literal["MONTY"] = "MONTY"
+    language: Literal["PYTHON"] = "PYTHON"
+
+
 class ModalConfig(
     _Config,
     SupportsEnvVars,
@@ -251,6 +272,7 @@ SandboxConfigModel: TypeAlias = Annotated[
         DenoConfig,
         VercelConfig,
         WASMConfig,
+        MontyConfig,
         ModalConfig,
     ],
     Field(discriminator="backend_type"),
@@ -377,6 +399,12 @@ class DenoDeployment(NoDeployment):
     backend_type: Literal["DENO"] = "DENO"
 
 
+class MontyDeployment(NoDeployment):
+    """Monty runs in local worker subprocesses; no deployment routing applies."""
+
+    backend_type: Literal["MONTY"] = "MONTY"
+
+
 SandboxDeploymentModel: TypeAlias = Annotated[
     Union[
         DaytonaDeployment,
@@ -385,6 +413,7 @@ SandboxDeploymentModel: TypeAlias = Annotated[
         ModalDeployment,
         WASMDeployment,
         DenoDeployment,
+        MontyDeployment,
     ],
     Field(discriminator="backend_type"),
 ]
@@ -565,6 +594,22 @@ class SandboxBackend(ABC):
         """Execute code in the sandbox session. No per-call env override."""
         ...
 
+    async def execute_with_inputs(
+        self,
+        code: str,
+        session_key: str,
+        *,
+        inputs: dict[str, Any],
+        timeout: Optional[int] = None,
+    ) -> ExecutionResult:
+        """Execute code with eagerly bound globals when the backend supports it.
+
+        Backends without a structured input channel execute ``code`` unchanged;
+        callers must embed any required fallback values in that code.
+        """
+        del inputs
+        return await self.execute(code, session_key=session_key, timeout=timeout)
+
     @abstractmethod
     async def close(self) -> None: ...
 
@@ -658,6 +703,8 @@ class SandboxAdapter(Generic[ConfigT, CredT, DeployT], ABC):
     display_name: ClassVar[str]
     hosting_type: ClassVar[Literal["local", "hosted"]]
     dependency_hints: ClassVar[Sequence[str]] = ()
+    language_dialect: ClassVar[Literal["full", "restricted"]] = "full"
+    runtime_notes: ClassVar[str] = "Full language runtime."
     credentials_model: ClassVar[Type[BaseModel]] = NoCredentials
     deployment_config_model: ClassVar[Type[BaseModel]] = NoDeployment
 
@@ -670,6 +717,16 @@ class SandboxAdapter(Generic[ConfigT, CredT, DeployT], ABC):
     def credential_specs(cls) -> list[ProviderCredentialSpec]:
         return credential_specs_from(cls.credentials_model)
 
+    async def validate_code(
+        self,
+        config: ConfigT,
+        code: str,
+        *,
+        runtime: Optional[SandboxRuntimeContext] = None,
+    ) -> Optional[str]:
+        """Return an authoring-time validation error for code, if any."""
+        return None
+
     # ClassVar[Type[ConfigT]] would conflict with TypeVar; use instance attr hint.
     config_model: Type[ConfigT]
 
@@ -681,6 +738,7 @@ class SandboxAdapter(Generic[ConfigT, CredT, DeployT], ABC):
         credentials: CredT,
         deployment: DeployT,
         user_env: Optional[Mapping[str, str]] = None,
+        runtime: Optional[SandboxRuntimeContext] = None,
     ) -> SandboxBackend:
         """Construct a SandboxBackend from typed config + credentials + deployment."""
         ...

@@ -38,7 +38,9 @@ NC := \033[0m # No Color
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	codegen-prompts sync-models schema-ddl check-graphql-permissions gen-otel-models \
+	gen-session-filter-ai-query-vocabulary check-session-filter-ai-query-vocabulary \
 	gh-comment-watch \
+	harbor-stage-environments harbor-publish-fixtures harbor-oracle harbor-run harbor-view \
 	clean clean-all
 
 help: ## Show this help message
@@ -100,7 +102,16 @@ help: ## Show this help message
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
 	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL (use ARGS= for arguments)"
 	@echo -e "  gen-otel-models        - Generate OTel GenAI semconv Pydantic models"
+	@echo -e "  gen-session-filter-ai-query-vocabulary   - Generate the session AI query vocabulary"
+	@echo -e "  check-session-filter-ai-query-vocabulary - Check the session AI query vocabulary for drift"
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
+	@echo -e ""
+	@echo -e "$(GREEN)Harbor Evals:$(NC)"
+	@echo -e "  harbor-stage-environments - Build the Phoenix wheel and stage each Harbor task environment"
+	@echo -e "  harbor-publish-fixtures   - Regenerate fixtures and publish to cloud storage"
+	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
+	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the real ServerAgent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
+	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
 	@echo -e "  $(YELLOW)build$(NC)                 - Build everything (Python + frontend + TypeScript packages)"
@@ -205,6 +216,7 @@ codegen-python-client: ## Generate Python client types from OpenAPI
 codegen-ts-client: ## Generate TypeScript client types from OpenAPI
 	@echo -e "$(CYAN)Generating TypeScript client types...$(NC)"
 	@cd $(JS_DIR)/packages/phoenix-client && $(PNPM) run --silent generate
+	@cd $(JS_DIR)/packages/phoenix-testing && $(PNPM) run --silent generate
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 codegen-ts-app: ## Generate TypeScript OpenAPI types for app/
@@ -283,7 +295,7 @@ typecheck-ts: ## Type check TypeScript packages (js/)
 	@echo -e "$(CYAN)Type checking TypeScript packages...$(NC)"
 	@cd $(JS_DIR) && $(PNPM) run --silent -r typecheck
 
-typecheck: typecheck-python typecheck-frontend typecheck-ts ## Type check all code (Python + frontend + TypeScript)
+typecheck: check-session-filter-ai-query-vocabulary typecheck-python typecheck-frontend typecheck-ts ## Type check all code (Python + frontend + TypeScript)
 	@echo -e "$(GREEN)✓ Type checking complete$(NC)"
 
 #=============================================================================
@@ -312,7 +324,6 @@ clean-notebooks: ## Clean Jupyter notebook output and metadata
 	@echo -e "$(CYAN)Cleaning Jupyter notebook metadata...$(NC)"
 	@find . -type f -name "*.ipynb" \
 		-not -path "*/tutorials/evals/*" \
-		-not -path "*/tutorials/ai_evals_course/*" \
 		-exec uv run jupyter nbconvert \
 			--ClearOutputPreprocessor.enabled=True \
 			--ClearMetadataPreprocessor.enabled=True \
@@ -358,6 +369,12 @@ build-ts: ## Build TypeScript packages
 
 build: build-python build-frontend build-ts ## Build everything (Python + frontend + TypeScript packages)
 	@echo -e "$(GREEN)✓ Build complete$(NC)"
+
+gen-session-filter-ai-query-vocabulary: ## Generate the session AI query vocabulary
+	@$(UV) run python scripts/generate_session_filter_ai_query_vocabulary.py
+
+check-session-filter-ai-query-vocabulary: ## Check the session AI query vocabulary for drift
+	@$(UV) run python scripts/generate_session_filter_ai_query_vocabulary.py --check
 
 #=============================================================================
 # Utilities
@@ -423,6 +440,62 @@ dev-mock-llm: ## Start the mock LLM server
 gh-comment-watch: ## Start the GitHub comment watcher
 	@echo -e "$(CYAN)Starting GH Comment Watch...$(NC)"
 	cd $(GH_COMMENT_WATCH_DIR) && $(PNPM) start
+
+#=============================================================================
+# Harbor Evals
+#=============================================================================
+
+HARBOR_TASK ?= evals/harbor/tasks/regression-triage
+HARBOR_MODEL ?= anthropic/claude-sonnet-4-5
+# Environment backend for trials (harbor run -e): docker, daytona, etc.
+# Cloud backends need credentials in the host env (e.g. DAYTONA_API_KEY).
+HARBOR_ENV ?= docker
+HARBOR_VERSION ?= 0.18.0
+# harbor needs Python >=3.12; pin explicitly so uvx doesn't inherit the
+# repo's .python-version (3.10).
+HARBOR_PYTHON ?= 3.13
+HARBOR_ATTEMPTS ?= 1
+# Retry trials that die on transient infrastructure errors (e.g. a cloud
+# sandbox failing to start); reward-scored failures are not retried.
+HARBOR_RETRIES ?= 1
+# Daytona sandboxes orphaned by a killed run (e.g. a canceled CI job) would
+# otherwise occupy org quota forever and starve later runs into
+# EnvironmentStartTimeoutError; have Daytona stop and delete them itself.
+ifeq ($(HARBOR_ENV),daytona)
+HARBOR_ENV_KWARGS := --ek auto_stop_interval_mins=30 --ek auto_delete_interval_mins=30
+endif
+UVX := uvx
+HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' harbor
+
+# The runner is staged into the task's Docker build context by stage_harbor_task_environments.sh.
+define check-harbor-staged
+	@test -f $(HARBOR_TASK)/environment/run_server_agent.py || \
+		{ echo -e "$(RED)Missing staged runner in $(HARBOR_TASK)/environment/ — run 'make harbor-stage-environments' first$(NC)"; exit 1; }
+endef
+
+harbor-stage-environments: ## Build the Phoenix wheel and stage each Harbor task environment
+	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
+	./evals/harbor/scripts/stage_harbor_task_environments.sh
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+harbor-publish-fixtures: ## Regenerate Harbor fixtures and publish to cloud storage
+	@echo -e "$(CYAN)Publishing Harbor fixtures...$(NC)"
+	./evals/harbor/scripts/publish_fixtures.sh
+
+harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK=..., HARBOR_ENV=...)
+	$(check-harbor-staged)
+	@echo -e "$(CYAN)Running Harbor oracle trial for $(HARBOR_TASK) on $(HARBOR_ENV)...$(NC)"
+	$(HARBOR) run -p $(HARBOR_TASK) -a oracle -e $(HARBOR_ENV) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
+
+harbor-run: ## Run the real ServerAgent Harbor trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=..., HARBOR_ATTEMPTS=...)
+	$(check-harbor-staged)
+	@echo -e "$(CYAN)Running Harbor ServerAgent trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on $(HARBOR_ENV)...$(NC)"
+	PYTHONPATH=. $(HARBOR) run -p $(HARBOR_TASK) \
+		-a evals.harbor.agents.phoenix_server_agent:PhoenixServerAgent \
+		-m $(HARBOR_MODEL) -e $(HARBOR_ENV) -k $(HARBOR_ATTEMPTS) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
+
+harbor-view: ## Browse Harbor job results in a local web viewer
+	$(HARBOR) view jobs
 
 #=============================================================================
 # Cleanup

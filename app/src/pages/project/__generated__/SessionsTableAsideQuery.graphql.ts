@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6eb513d36ee6bc67ea1636564427e9e7>>
+ * @generated SignedSource<<13125d116f5ad2d849cbf81e6e9106f8>>
  * @lightSyntaxTransform
  */
 
@@ -13,9 +13,8 @@ export type TimeRange = {
   start?: string | null;
 };
 export type SessionsTableAsideQuery$variables = {
-  filterIoSubstring?: string | null;
   id: string;
-  sessionId?: string | null;
+  sessionFilterCondition?: string | null;
   timeRange: TimeRange;
 };
 export type SessionsTableAsideQuery$data = {
@@ -39,51 +38,40 @@ const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "filterIoSubstring"
+  "name": "id"
 },
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "id"
+  "name": "sessionFilterCondition"
 },
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "sessionId"
-},
-v3 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
   "name": "timeRange"
 },
-v4 = [
+v3 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
+v4 = {
+  "kind": "Variable",
+  "name": "sessionFilterCondition",
+  "variableName": "sessionFilterCondition"
+},
 v5 = {
-  "kind": "Variable",
-  "name": "filterIoSubstring",
-  "variableName": "filterIoSubstring"
-},
-v6 = {
-  "kind": "Variable",
-  "name": "sessionId",
-  "variableName": "sessionId"
-},
-v7 = {
   "kind": "Variable",
   "name": "timeRange",
   "variableName": "timeRange"
 },
-v8 = [
-  (v5/*:: as any*/),
-  (v6/*:: as any*/),
-  (v7/*:: as any*/)
+v6 = [
+  (v4/*:: as any*/),
+  (v5/*:: as any*/)
 ],
-v9 = {
+v7 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -102,21 +90,21 @@ v9 = {
     },
     {
       "alias": null,
-      "args": (v8/*:: as any*/),
+      "args": (v6/*:: as any*/),
       "kind": "ScalarField",
       "name": "sessionCount",
       "storageKey": null
     },
     {
       "alias": null,
-      "args": (v8/*:: as any*/),
+      "args": (v6/*:: as any*/),
       "kind": "ScalarField",
       "name": "averageSessionDurationMs",
       "storageKey": null
     },
     {
       "alias": null,
-      "args": (v8/*:: as any*/),
+      "args": (v6/*:: as any*/),
       "kind": "ScalarField",
       "name": "averageTracesPerSession",
       "storageKey": null
@@ -124,14 +112,13 @@ v9 = {
     {
       "alias": "sessionDurationMsP50",
       "args": [
-        (v5/*:: as any*/),
         {
           "kind": "Literal",
           "name": "probability",
           "value": 0.5
         },
-        (v6/*:: as any*/),
-        (v7/*:: as any*/)
+        (v4/*:: as any*/),
+        (v5/*:: as any*/)
       ],
       "kind": "ScalarField",
       "name": "sessionDurationMsQuantile",
@@ -140,14 +127,13 @@ v9 = {
     {
       "alias": "sessionDurationMsP99",
       "args": [
-        (v5/*:: as any*/),
         {
           "kind": "Literal",
           "name": "probability",
           "value": 0.99
         },
-        (v6/*:: as any*/),
-        (v7/*:: as any*/)
+        (v4/*:: as any*/),
+        (v5/*:: as any*/)
       ],
       "kind": "ScalarField",
       "name": "sessionDurationMsQuantile",
@@ -169,8 +155,7 @@ return {
     "argumentDefinitions": [
       (v0/*:: as any*/),
       (v1/*:: as any*/),
-      (v2/*:: as any*/),
-      (v3/*:: as any*/)
+      (v2/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -178,13 +163,13 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v4/*:: as any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v9/*:: as any*/)
+          (v7/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -195,17 +180,16 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*:: as any*/),
-      (v3/*:: as any*/),
       (v0/*:: as any*/),
-      (v2/*:: as any*/)
+      (v2/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "SessionsTableAsideQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v4/*:: as any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -218,7 +202,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v9/*:: as any*/),
+          (v7/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -232,16 +216,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "271432fa765dad968dfacd96dad900d6",
+    "cacheID": "a18bc16f174b9628bada44104061bee2",
     "id": null,
     "metadata": {},
     "name": "SessionsTableAsideQuery",
     "operationKind": "query",
-    "text": "query SessionsTableAsideQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n  $filterIoSubstring: String\n  $sessionId: String\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      description\n      sessionCount(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring, sessionId: $sessionId)\n      averageSessionDurationMs(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring, sessionId: $sessionId)\n      averageTracesPerSession(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring, sessionId: $sessionId)\n      sessionDurationMsP50: sessionDurationMsQuantile(probability: 0.5, timeRange: $timeRange, filterIoSubstring: $filterIoSubstring, sessionId: $sessionId)\n      sessionDurationMsP99: sessionDurationMsQuantile(probability: 0.99, timeRange: $timeRange, filterIoSubstring: $filterIoSubstring, sessionId: $sessionId)\n      sessionAnnotationNames\n    }\n    id\n  }\n}\n"
+    "text": "query SessionsTableAsideQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n  $sessionFilterCondition: String\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      description\n      sessionCount(timeRange: $timeRange, sessionFilterCondition: $sessionFilterCondition)\n      averageSessionDurationMs(timeRange: $timeRange, sessionFilterCondition: $sessionFilterCondition)\n      averageTracesPerSession(timeRange: $timeRange, sessionFilterCondition: $sessionFilterCondition)\n      sessionDurationMsP50: sessionDurationMsQuantile(probability: 0.5, timeRange: $timeRange, sessionFilterCondition: $sessionFilterCondition)\n      sessionDurationMsP99: sessionDurationMsQuantile(probability: 0.99, timeRange: $timeRange, sessionFilterCondition: $sessionFilterCondition)\n      sessionAnnotationNames\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "67d25925d174621807b12661e70110e6";
+(node as any).hash = "649fd07e8ad63157bcd32750108c807b";
 
 export default node;

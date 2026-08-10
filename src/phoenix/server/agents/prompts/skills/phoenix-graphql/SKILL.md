@@ -41,7 +41,7 @@ Per-entity field references and examples are split into resources. Read **only**
 These apply to every entity:
 
 - **Pagination** is Relay-style: `first`/`after` args; responses have `edges { node { ... } }` and `pageInfo { hasNextPage endCursor }`. Cursors are opaque strings. Some connections (e.g. `Project.spans`, `Experiment.runs`, `ProjectSession.traces`) are forward-only.
-- **IDs**: the `id` field on any node is a Relay global ID (base64 of `TypeName:rowId`) — use it with `node(id:)`. OpenTelemetry hex IDs come from `Span.spanId` and `Trace.traceId` — use those for OTel lookups and `/redirects/spans/<spanId>` / `/redirects/traces/<traceId>` links. Note a `Span` has **no** `traceId` field; read it via the nested `trace { traceId }`. Never mix global IDs with OTel IDs.
+- **IDs**: the `id` field on any node is a Relay global ID (base64 of `TypeName:rowId`) — use it with `node(id:)`. OpenTelemetry hex IDs come from `Span.spanId` and `Trace.traceId` — use those for OTel lookups. Note a `Span` has **no** `traceId` field; read it via the nested `trace { traceId }`. Never mix global IDs with OTel IDs.
 - **`TimeRange`** input: `{ start: DateTime, end: DateTime }` — ISO 8601 strings; `end` is exclusive; both optional.
 - **`SpanSort`** input: `{ col: SpanColumn, dir: SortDir }`, e.g. `{ col: startTime, dir: desc }`. Useful `SpanColumn` values: `startTime`, `latencyMs`, `tokenCountTotal`, `cumulativeTokenCountTotal`, `tokenCostTotal`.
 - **`filterCondition`** is a Python-like DSL string over span fields, e.g. `span_kind == 'LLM'`, `status_code == 'ERROR'`, `latency_ms > 1000`, `'timeout' in output.value`, `evals['Hallucination'].label == 'hallucinated'`, `annotations['note'].score < 0.5`. Combine with `and`/`or`.
@@ -89,14 +89,14 @@ query Overview($name: String!, $timeRange: TimeRange) {
 
 Facts users need to call the API themselves:
 
-- **Endpoint**: `POST <phoenix-host>/graphql` with a JSON body `{ "query": "...", "variables": { ... } }`. A GraphiQL IDE is served on GET at the same path.
+- **Endpoint**: `POST <phoenix-endpoint>/graphql` with a JSON body `{ "query": "...", "variables": { ... } }`, where `<phoenix-endpoint>` is the Phoenix base URL from `PHOENIX_ENDPOINT`. A GraphiQL IDE is served on GET at the same path.
 - **Auth**: send a Phoenix API key as a bearer token: `Authorization: Bearer <API_KEY>`. API keys are created in Phoenix settings.
 - The GraphQL schema is primarily designed for the Phoenix UI and may change between versions; for stable programmatic access, recommend the REST API (`/v1/...`) and the `arize-phoenix-client` Python / `@arizeai/phoenix-client` TypeScript packages where they cover the need, and GraphQL for everything else.
 
 curl:
 
 ```bash
-curl -s "$PHOENIX_HOST/graphql" \
+curl -s "$PHOENIX_ENDPOINT/graphql" \
   -H "Authorization: Bearer $PHOENIX_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query": "query($n: String!) { getProjectByName(name: $n) { traceCount } }", "variables": {"n": "default"}}'
@@ -108,7 +108,7 @@ Python:
 import httpx
 
 resp = httpx.post(
-    f"{host}/graphql",
+    f"{endpoint}/graphql",
     headers={"Authorization": f"Bearer {api_key}"},
     json={"query": query, "variables": variables},
 )

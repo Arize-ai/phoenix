@@ -1,15 +1,26 @@
+import { Suspense } from "react";
+
 import {
   Button,
   Flex,
   Icon,
   Icons,
+  Loading,
   MenuContainer,
   MenuTrigger,
 } from "@phoenix/components";
 import { MetricsChartSelector } from "@phoenix/components/chart";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
-import { MAX_SELECTED_EXPERIMENT_METRIC_CHARTS } from "@phoenix/pages/dataset/constants";
-import { EXPERIMENT_METRIC_CHARTS } from "@phoenix/pages/dataset/metrics/chartCatalog";
+import {
+  type ExperimentMetricChartKey,
+  getExperimentAnnotationMetricChartKey,
+  getExperimentAnnotationName,
+} from "@phoenix/pages/dataset/constants";
+import {
+  EXPERIMENT_METRIC_CHARTS,
+  getExperimentMetricCharts,
+} from "@phoenix/pages/dataset/metrics/chartCatalog";
+import { useExperimentAnnotationMetricNames } from "@phoenix/pages/dataset/metrics/useExperimentAnnotationMetricNames";
 
 /**
  * The store-connected chart selector shown above the experiments table. Reads
@@ -34,6 +45,7 @@ export function ExperimentsMetricsChartSelector() {
 }
 
 function ConnectedChartSelectorMenu() {
+  const datasetId = useDatasetContext((state) => state.datasetId);
   const selectedChartKeys = useDatasetContext(
     (state) => state.experimentsMetricChartKeys
   );
@@ -41,11 +53,50 @@ function ConnectedChartSelectorMenu() {
     (state) => state.setExperimentsMetricChartKeys
   );
   return (
+    <Suspense fallback={<Loading />}>
+      <ExperimentChartSelectorMenu
+        datasetId={datasetId}
+        selectedChartKeys={selectedChartKeys}
+        onSelectionChange={setExperimentsMetricChartKeys}
+      />
+    </Suspense>
+  );
+}
+
+function ExperimentChartSelectorMenu({
+  datasetId,
+  selectedChartKeys,
+  onSelectionChange,
+}: {
+  datasetId: string;
+  selectedChartKeys: ExperimentMetricChartKey[];
+  onSelectionChange: (keys: ExperimentMetricChartKey[]) => void;
+}) {
+  const annotationNames = useExperimentAnnotationMetricNames(datasetId);
+  const annotationKeys = annotationNames.map(
+    getExperimentAnnotationMetricChartKey
+  );
+  const availableAnnotationKeys = new Set<ExperimentMetricChartKey>(
+    annotationKeys
+  );
+  // Keep a persisted annotation visible if it was deleted so the
+  // user can still deselect the empty chart.
+  const unavailableSelectedAnnotationKeys = selectedChartKeys.filter(
+    (key) =>
+      getExperimentAnnotationName(key) != null &&
+      !availableAnnotationKeys.has(key)
+  );
+  return (
     <MetricsChartSelector
-      options={EXPERIMENT_METRIC_CHARTS}
+      options={[
+        ...EXPERIMENT_METRIC_CHARTS,
+        ...getExperimentMetricCharts([
+          ...annotationKeys,
+          ...unavailableSelectedAnnotationKeys,
+        ]),
+      ]}
       selectedKeys={selectedChartKeys}
-      maxSelected={MAX_SELECTED_EXPERIMENT_METRIC_CHARTS}
-      onSelectionChange={setExperimentsMetricChartKeys}
+      onSelectionChange={onSelectionChange}
     />
   );
 }

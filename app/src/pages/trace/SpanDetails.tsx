@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useContext, useEffect, useRef } from "react";
+import { TabListStateContext } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
@@ -9,7 +10,7 @@ import {
   type PanelImperativeHandle,
   Separator,
 } from "react-resizable-panels";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate } from "react-router";
 
 import {
   Button,
@@ -30,7 +31,10 @@ import {
   View,
 } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
-import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
+import {
+  EDIT_ANNOTATION_HOTKEY,
+  NOTE_HOTKEY,
+} from "@phoenix/constants/annotationConstants";
 import { useNotifySuccess, usePreferencesContext } from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
 
@@ -44,7 +48,9 @@ import { SpanAside } from "./SpanAside";
 import { SpanAsideProvider, useOpenSpanAside } from "./SpanAsideContext";
 import { SpanDownloadMenu } from "./SpanDownloadMenu";
 import { SpanEventsList } from "./SpanEventsList";
-import { NOTE_HOTKEY } from "./SpanNotesEditor";
+import { SpanInfoCardsToggle } from "./SpanInfoCardsToggle";
+import { SpanNoteBar } from "./SpanNoteBar";
+import { SpanNoteBarProvider, useOpenSpanNoteBar } from "./SpanNoteBarContext";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
 
 type Span = Extract<SpanDetailsQuery$data["span"], { __typename: "Span" }>;
@@ -71,13 +77,14 @@ export function SpanDetails({
 }) {
   return (
     <SpanAsideProvider>
-      <SpanDetailsContent spanNodeId={spanNodeId} />
+      <SpanNoteBarProvider>
+        <SpanDetailsContent spanNodeId={spanNodeId} />
+      </SpanNoteBarProvider>
     </SpanAsideProvider>
   );
 }
 
 function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
-  const { projectId } = useParams();
   const isAnnotatingSpans = usePreferencesContext(
     (state) => state.isAnnotatingSpans
   );
@@ -85,6 +92,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     (state) => state.setIsAnnotatingSpans
   );
   const openSpanAside = useOpenSpanAside();
+  const openSpanNoteBar = useOpenSpanNoteBar();
 
   const asidePanelRef = useRef<PanelImperativeHandle>(null);
   // Sync the aside panel collapsed state with the isAnnotatingSpans preference.
@@ -116,6 +124,11 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
             trace {
               id
               traceId
+            }
+            # sourced from the span rather than the route so span details work
+            # when embedded outside a /projects/:projectId route
+            project {
+              id
             }
             name
             spanKind
@@ -179,14 +192,11 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
       "Expected a span, but got a different type" + span.__typename
     );
   }
-  if (projectId == null) {
-    throw new Error("Project ID is required to download a span");
-  }
 
-  useHotkeys(EDIT_ANNOTATION_HOTKEY, () => openSpanAside("annotations"), {
+  useHotkeys(EDIT_ANNOTATION_HOTKEY, () => openSpanAside(), {
     preventDefault: true,
   });
-  useHotkeys(NOTE_HOTKEY, () => openSpanAside("notes"), {
+  useHotkeys(NOTE_HOTKEY, () => openSpanNoteBar(), {
     preventDefault: true,
   });
 
@@ -228,7 +238,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
                     buttonText={isCondensedView ? null : "Add to Dataset"}
                   />
                   <SpanDownloadMenu
-                    projectId={projectId}
+                    projectId={span.project.id}
                     spanId={span.spanId}
                     traceId={span.trace.traceId}
                     buttonText={isCondensedView ? null : "Download"}
@@ -238,7 +248,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
             />
           </View>
           <Tabs>
-            <TabList>
+            <TabList extra={<SpanDetailsTabActions />}>
               <Tab id="info">Info</Tab>
               <Tab id="attributes">Attributes</Tab>
               <Tab id="events">
@@ -276,6 +286,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
               </View>
             </LazyTabPanel>
           </Tabs>
+          <SpanNoteBar spanNodeId={span.id} />
         </Flex>
       </Panel>
       <Separator
@@ -300,6 +311,16 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
       </Panel>
     </Group>
   );
+}
+
+/**
+ * Controls that sit level with the tabs and act on the selected panel. Only the
+ * info tab has any, so the slot is empty on the others rather than offering a
+ * control with nothing to act on.
+ */
+function SpanDetailsTabActions() {
+  const selectedTab = useContext(TabListStateContext)?.selectedKey;
+  return selectedTab === "info" ? <SpanInfoCardsToggle /> : null;
 }
 
 const spanInfoWrapCSS = css`

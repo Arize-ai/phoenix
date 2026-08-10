@@ -191,7 +191,7 @@ export const expandableRowsTableCSS = css`
 
 /**
  * Selectable rows plus the row-height states the toolbar toggle drives, composed
- * once so the three tracing tables cannot answer the same question differently.
+ * once so the tables that offer it cannot answer the same question differently.
  */
 export const expandableSelectableTableCSS = css(
   selectableTableCSS,

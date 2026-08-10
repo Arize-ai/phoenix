@@ -48,12 +48,17 @@ pxi.turn (AGENT, root)        input.value = "can you save this trace to a datase
 ├── add_spans_to_dataset (TOOL, ERROR)
 ├── bash (TOOL)
 ├── add_spans_to_dataset (TOOL)   ← retry
+├── call_subagent (TOOL)
+│   └── ServerAgent.iter (AGENT)
+│       ├── model (LLM)
+│       ├── query_phoenix (TOOL)
+│       └── read_skill_resource (TOOL)
 └── ... (last LLM span carries the complete transcript)
 ```
 
-**`tool_count_per_turn`** counts TOOL spans whose ancestor chain reaches the
-root without crossing another TOOL span (→ 8 here). A `call_subagent` counts
-as one tool; everything nested beneath it does not.
+**`tool_count_per_turn`** counts every TOOL span in the trace, including tools
+nested beneath another tool such as `call_subagent`. Metadata partitions the
+chronological total into top-level and nested tool names.
 
 ## How `user_friction` finds its target
 
@@ -103,7 +108,7 @@ Phoenix which roots already carry the evaluator's annotation and skips them:
 
 | Evaluator | Checkpoint identifier |
 |---|---|
-| `tool_count_per_turn` | `pxi-online-evals:tool-count-per-turn:v1` |
+| `tool_count_per_turn` | `pxi-online-evals:tool-count-per-turn:v2` |
 | `user_friction` | `pxi-online-evals:user-friction:v1:openai:gpt-5.5` |
 
 - The 48h lookback **overlaps** the 12h schedule ~4×, so missed or crashed

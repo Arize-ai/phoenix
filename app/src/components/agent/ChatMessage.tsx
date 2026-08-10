@@ -9,13 +9,13 @@ import {
   Message,
   MessageActions,
   MessageContent,
+  MessageCopyAction,
   MessageToolbar,
 } from "@phoenix/components/ai/message";
 import { MarkdownBlock } from "@phoenix/components/markdown";
 
 import { AssistantMessageActions } from "./AssistantMessageActions";
 import { GenerativeUI } from "./generativeUI";
-import { MessageCopyAction } from "./MessageCopyAction";
 import { MessageRewindActions } from "./MessageRewindActions";
 import type {
   MessageRewindMode,

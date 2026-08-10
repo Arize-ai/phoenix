@@ -16,6 +16,7 @@ from .types import (
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
+    SandboxRuntimeContext,
     compose_secret_values,
     compute_config_fingerprint,
 )
@@ -395,7 +396,9 @@ class E2BAdapter(SandboxAdapter[E2BConfig, E2BCredentials, E2BDeployment]):
         credentials: E2BCredentials,
         deployment: E2BDeployment,
         user_env: Optional[Mapping[str, str]] = None,
+        runtime: Optional[SandboxRuntimeContext] = None,
     ) -> SandboxBackend:
+        del runtime
         # Fail-closed: empty api_key would let the SDK silently fall back to
         # os.getenv("E2B_API_KEY"), bypassing Phoenix's credential resolution.
         api_key = credentials.E2B_API_KEY.get_secret_value()

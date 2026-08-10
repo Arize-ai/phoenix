@@ -1,7 +1,7 @@
 import type { SerializedStyles } from "@emotion/react";
 import { css } from "@emotion/react";
 
-import { JSONBlock } from "@phoenix/components/code";
+import { JSONBlock } from "@phoenix/components/code/JSONBlock";
 import { usePrettyText } from "@phoenix/hooks/usePrettyText";
 import { assertUnreachable } from "@phoenix/typeUtils";
 

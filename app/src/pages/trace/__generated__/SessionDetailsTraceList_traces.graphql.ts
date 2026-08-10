@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a88d13a67dedfc3ae18b36bc2bdcd3ba>>
+ * @generated SignedSource<<03fdb7189607165823bbd57bb05c3059>>
  * @lightSyntaxTransform
  */
 
@@ -46,7 +46,7 @@ export type SessionDetailsTraceList_traces$data = {
               };
             };
             readonly id: string;
-            readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup" | "TraceFeedbackActionToolbar_trace">;
+            readonly " $fragmentSpreads": FragmentRefs<"TraceActionToolbar_trace" | "TraceAnnotationSummaryGroup">;
           };
           readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
         } | null;
@@ -205,7 +205,7 @@ return {
                         {
                           "args": null,
                           "kind": "FragmentSpread",
-                          "name": "TraceFeedbackActionToolbar_trace"
+                          "name": "TraceActionToolbar_trace"
                         },
                         {
                           "alias": null,
@@ -395,6 +395,6 @@ return {
 };
 })();
 
-(node as any).hash = "f4fcbc5d46909736db5a9388eabe7617";
+(node as any).hash = "8010c5aec6c0c8fba5fc5a8756e8983b";
 
 export default node;

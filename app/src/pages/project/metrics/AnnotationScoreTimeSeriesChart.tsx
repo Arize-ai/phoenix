@@ -4,7 +4,6 @@ import {
   CartesianGrid,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -13,6 +12,7 @@ import {
 import { Text } from "@phoenix/components";
 import {
   ChartEmptyStateOverlay,
+  ChartResponsiveContainer,
   ChartTooltip,
   ChartTooltipItem,
   compactChartMargin,
@@ -133,7 +133,7 @@ export function AnnotationScoreTimeSeriesChart({
           message="No data in this time range"
           chartType="line"
         >
-          <ResponsiveContainer width="100%" height="100%">
+          <ChartResponsiveContainer>
             <LineChart
               data={chartData}
               margin={compactChartMargin}
@@ -170,7 +170,7 @@ export function AnnotationScoreTimeSeriesChart({
                 onToggleDataKey={toggleDataKey}
               />
             </LineChart>
-          </ResponsiveContainer>
+          </ChartResponsiveContainer>
         </ChartEmptyStateOverlay>
       )}
     </TimeRangeChartBrush>

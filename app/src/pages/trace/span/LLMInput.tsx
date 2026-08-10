@@ -1,6 +1,12 @@
 import type { ReactNode } from "react";
 
-import { Card, CopyToClipboardButton, Flex } from "@phoenix/components";
+import {
+  Card,
+  CardCollapsedPreview,
+  CopyToClipboardButton,
+  Flex,
+} from "@phoenix/components";
+import { inlineDividerCSS } from "@phoenix/components/core/styles";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownModeSelect,
@@ -13,16 +19,24 @@ import type {
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
+import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps } from "./constants";
 import { LLMInvocationParams } from "./LLMInvocationParams";
 import type { LLMIOView } from "./LLMIOViewSelect";
 import { LLMIOViewSelect, useLLMIOView } from "./LLMIOViewSelect";
+import { LLMMessagesCollapseToggle } from "./LLMMessagesCollapseToggle";
 import { LLMMessagesList } from "./LLMMessagesList";
 import { LLMPromptsList } from "./LLMPromptsList";
 import { LLMPromptTemplate } from "./LLMPromptTemplate";
 import { LLMToolSchemasList } from "./LLMToolSchemasList";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
 import type { SpanIOValue } from "./types";
+import {
+  formatJSONForCopy,
+  formatJSONStringsForCopy,
+  formatTextListForCopy,
+  getPromptTemplatePreview,
+} from "./utils";
 
 /**
  * The input side of an LLM span — the model card with a view select for
@@ -53,26 +67,32 @@ export function LLMInput({
   /** The invocation parameters as a JSON string */
   invocationParameters: string;
 }) {
-  let modelNameEl: ReactNode = null;
-  if (modelName != null) {
+  const toolCount = toolSchemas.length;
+  let subTitleEl: ReactNode = null;
+  if (modelName != null || toolCount > 0) {
     const normalizedProvider = provider?.toUpperCase();
     // Only show a provider icon when the provider is known
     const providerIcon =
+      modelName != null &&
       typeof normalizedProvider === "string" &&
       isModelProvider(normalizedProvider) ? (
         <GenerativeProviderIcon provider={normalizedProvider} height={16} />
       ) : null;
-    modelNameEl = (
+    subTitleEl = (
       <Flex direction="row" gap="size-100" alignItems="center">
         {providerIcon}
         {modelName}
+        {modelName != null && toolCount > 0 && (
+          <span aria-hidden css={inlineDividerCSS} />
+        )}
+        {toolCount > 0 && `${toolCount} ${toolCount === 1 ? "tool" : "tools"}`}
       </Flex>
     );
   }
 
   const hasInput = input != null && input.value != null;
   const hasInputMessages = inputMessages.length > 0;
-  const hasLLMToolSchemas = toolSchemas.length > 0;
+  const hasLLMToolSchemas = toolCount > 0;
   const hasPrompts = prompts.length > 0;
   const hasInvocationParams =
     Object.keys(safelyParseJSON(invocationParameters).json || {}).length > 0;
@@ -92,6 +112,14 @@ export function LLMInput({
         {...defaultCardProps}
         defaultOpen={false}
         title="Prompt Template"
+        headerContent={
+          <CardCollapsedPreview>
+            {getPromptTemplatePreview(promptTemplate)}
+          </CardCollapsedPreview>
+        }
+        extra={
+          <CopyToClipboardButton text={formatJSONForCopy(promptTemplate)} />
+        }
       >
         <LLMPromptTemplate promptTemplate={promptTemplate} />
       </Card>
@@ -105,20 +133,38 @@ export function LLMInput({
   ].filter(Boolean);
 
   const isRawView = view === "input" && hasInput;
+  const cardProps = useSpanInfoCardProps("input");
+
+  // Whatever the card is showing is what its copy button copies, so the reader
+  // never has to switch views to get at the content in front of them
+  let copyText: string | null = null;
+  switch (view) {
+    case "input-messages":
+      copyText = formatJSONForCopy(inputMessages);
+      break;
+    case "tools":
+      copyText = formatJSONStringsForCopy(toolSchemas);
+      break;
+    case "input":
+      copyText = input?.value ?? null;
+      break;
+    case "prompts":
+      copyText = formatTextListForCopy(prompts);
+      break;
+  }
 
   return (
     <MarkdownDisplayProvider>
       <Card
-        collapsible
+        {...defaultCardProps}
+        {...cardProps}
         title="Input"
-        subTitle={modelNameEl}
+        subTitle={subTitleEl}
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
-            {isRawView && (
-              <>
-                <ConnectedMarkdownModeSelect />
-                <CopyToClipboardButton text={input.value} />
-              </>
+            {isRawView && <ConnectedMarkdownModeSelect />}
+            {view === "input-messages" && (
+              <LLMMessagesCollapseToggle scope="input" />
             )}
             {views.length > 0 && (
               <LLMIOViewSelect
@@ -128,6 +174,9 @@ export function LLMInput({
                 onChange={setView}
               />
             )}
+            {/* the view switch sits immediately before copy, and copy remains
+                last so both controls stay in a consistent place */}
+            {copyText != null && <CopyToClipboardButton text={copyText} />}
           </Flex>
         }
       >

@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   Alert,
   Button,
+  Checkbox,
   ContextualHelp,
   Dialog,
   DialogCloseButton,
@@ -18,12 +19,14 @@ import {
   Icons,
   Input,
   Label,
+  ProgressCircle,
   SegmentedControl,
   SegmentedControlItem,
   Text,
   TextField,
   View,
 } from "@phoenix/components";
+import { formatInt } from "@phoenix/utils/numberFormatUtils";
 
 import {
   downloadSpanCollection,
@@ -73,9 +76,12 @@ export function SpanDownloadDialog({
   initialScope = "spans",
 }: SpanDownloadDialogProps) {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadedSpanCount, setDownloadedSpanCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [scope, setScope] = useState<SpanDownloadScope>(initialScope);
   const [format, setFormat] = useState<SpanDownloadFormat>("jsonl");
+  const [includeSpanAnnotations, setIncludeSpanAnnotations] = useState(true);
+  const [includeTraceAnnotations, setIncludeTraceAnnotations] = useState(true);
   const [timestamp] = useState(() => getSpanDownloadTimestamp());
   const getDefaultFileName = (downloadScope: SpanDownloadScope) =>
     `${sanitizeSpanDownloadFileName(fileNamePrefix)}-${downloadScope}-${timestamp}`;
@@ -83,9 +89,14 @@ export function SpanDownloadDialog({
     getDefaultFileName(initialScope)
   );
   const [isFileNameEdited, setIsFileNameEdited] = useState(false);
+  const progressLabel =
+    downloadedSpanCount === 0
+      ? "Starting download..."
+      : `Downloaded ${formatInt(downloadedSpanCount)} spans...`;
 
   const onDownload = async (close: () => void) => {
     setIsDownloading(true);
+    setDownloadedSpanCount(0);
     setError(null);
     const extension = SPAN_DOWNLOAD_FILE_EXTENSIONS[format];
     const fullFileName = fileName.endsWith(extension)
@@ -100,13 +111,19 @@ export function SpanDownloadDialog({
             ],
           };
     try {
-      await downloadSpanCollection({
+      const outcome = await downloadSpanCollection({
         projectId,
         ...idFilter,
         format,
         fileName: fullFileName,
+        includeSpanAnnotations,
+        includeTraceAnnotations,
+        onProgress: setDownloadedSpanCount,
       });
-      close();
+      // A dismissed save picker leaves the dialog open so the user can retry.
+      if (outcome === "completed") {
+        close();
+      }
     } catch (error) {
       setError(
         `Failed to download: ${error instanceof Error ? error.message : String(error)}`
@@ -205,6 +222,34 @@ export function SpanDownloadDialog({
                   </SegmentedControl>
                 </div>
               </Flex>
+              <div css={labeledGroupCSS}>
+                <Flex direction="row" alignItems="center" gap="size-50">
+                  <Label>Annotations</Label>
+                  <ContextualHelp variant="info">
+                    <Heading weight="heavy" level={4}>
+                      Include annotations
+                    </Heading>
+                    <Text>
+                      Adds span annotations to their spans and trace annotations
+                      once per trace as OpenInference semantic attributes.
+                    </Text>
+                  </ContextualHelp>
+                </Flex>
+                <Flex direction="row" gap="size-200">
+                  <Checkbox
+                    isSelected={includeSpanAnnotations}
+                    onChange={setIncludeSpanAnnotations}
+                  >
+                    Include span annotations
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={includeTraceAnnotations}
+                    onChange={setIncludeTraceAnnotations}
+                  >
+                    Include trace annotations
+                  </Checkbox>
+                </Flex>
+              </div>
               <TextField
                 value={fileName}
                 onChange={(value) => {
@@ -219,6 +264,20 @@ export function SpanDownloadDialog({
                   appended automatically.
                 </Text>
               </TextField>
+              {isDownloading ? (
+                <div role="status">
+                  <Flex direction="row" alignItems="center" gap="size-100">
+                    <ProgressCircle
+                      isIndeterminate
+                      size="S"
+                      aria-label="Downloading spans"
+                    />
+                    <Text size="XS" color="text-700">
+                      {progressLabel}
+                    </Text>
+                  </Flex>
+                </div>
+              ) : null}
             </Flex>
           </View>
           <DialogFooter>

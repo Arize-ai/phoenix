@@ -136,6 +136,12 @@ const tabListCSS = css`
       var(--global-dimension-size-50);
     .react-aria-Tab {
       padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+      // Lay the label out as a flex line rather than an inline one: a rail
+      // label pairs an icon with text, and inline layout leaves the taller
+      // icon's descender space below the label, which sits it above the
+      // center of its pill.
+      display: flex;
+      align-items: center;
     }
 
     // The selected tab is marked with a filled pill behind its label (the
@@ -218,14 +224,56 @@ const tabListCSS = css`
   }
 `;
 
+const tabListRowCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+
+  .react-aria-TabList {
+    // the tabs take the row and the extra content keeps its own width, so the
+    // tab list is what scrolls once there are more tabs than space
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .tab-list-row__extra {
+    // the margin, not the tab list's growth, is what holds this at the end —
+    // page level styles are free to pin the tab list's flex, and several do
+    margin-inline-start: auto;
+    flex: none;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
+    // the end inset matches the page gutter, so these controls line up with the
+    // actions in the header above rather than hugging the edge
+    padding-inline-start: var(--global-dimension-size-100);
+    padding-inline-end: var(--global-dimension-size-200);
+  }
+
+  // the tab list draws its bottom border only under the tabs themselves, so the
+  // row carries the rest of the edge across to the end
+  &:has(> [data-orientation="horizontal"]) {
+    box-shadow: inset 0 -1px 0 0 var(--tab-border-color);
+  }
+`;
+
 export function TabList<T extends object>({
   children,
+  extra,
   css: _css,
   className,
   ...props
-}: AriaTabListProps<T> & StylableProps) {
+}: AriaTabListProps<T> &
+  StylableProps & {
+    /**
+     * Content aligned to the end of the tab bar, level with the tabs. For
+     * horizontal tab lists — controls that act on the selected tab's panel.
+     */
+    extra?: React.ReactNode;
+  }) {
   const { ref, hasOverflowAtStart, hasOverflowAtEnd } = useHorizontalOverflow();
-  return (
+  const tabList = (
     <AriaTabList
       ref={ref}
       css={css(tabListCSS, _css)}
@@ -236,6 +284,15 @@ export function TabList<T extends object>({
     >
       {children}
     </AriaTabList>
+  );
+  if (extra == null) {
+    return tabList;
+  }
+  return (
+    <div className="tab-list-row" css={tabListRowCSS}>
+      {tabList}
+      <div className="tab-list-row__extra">{extra}</div>
+    </div>
   );
 }
 

@@ -5,6 +5,8 @@
 
 import { readEnvFileValueWithPath } from "@phoenix-config/env-file";
 
+import { DEFAULT_PHOENIX_PORT } from "./constants";
+import { ENV_PHOENIX_DISCOVER_CONFIG } from "./envFileParser";
 import type { Headers } from "./types";
 import { isHeaders } from "./types";
 
@@ -24,10 +26,41 @@ export const ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT";
 
 /**
  * Environment variable name for the Phoenix host address.
+ *
+ * On the Phoenix *server* this is the bind host (e.g. `0.0.0.0`), paired with
+ * {@link ENV_PHOENIX_PORT}. Some JS packages historically also read it as a
+ * client base URL; that use is legacy — prefer {@link ENV_PHOENIX_ENDPOINT}.
  * @example
  * process.env[ENV_PHOENIX_HOST] = "http://localhost:6006";
  */
 export const ENV_PHOENIX_HOST = "PHOENIX_HOST";
+
+/**
+ * Environment variable name for the Phoenix API endpoint: the base URL that
+ * API consumers — the `px` CLI and the API clients — send requests to.
+ *
+ * This is the canonical setting for every client surface, and is always a base
+ * URL (e.g. `http://localhost:6006`); it never carries the OTLP `/v1/traces`
+ * path. For where traces are *exported* to, see
+ * {@link ENV_PHOENIX_COLLECTOR_ENDPOINT}; when that is unset, trace export
+ * falls back to this variable and appends the OTLP path.
+ * @example
+ * process.env[ENV_PHOENIX_ENDPOINT] = "http://localhost:6006";
+ */
+export const ENV_PHOENIX_ENDPOINT = "PHOENIX_ENDPOINT";
+
+/**
+ * Undocumented compatibility fallback for the API base URL.
+ *
+ * This name appeared in the client docs for years but was never read by any
+ * code, so a value set from those docs silently did nothing. It is honored
+ * below {@link ENV_PHOENIX_COLLECTOR_ENDPOINT} so those configurations start
+ * working without retargeting anyone who set both. Do not document it or use
+ * it in new configuration — prefer {@link ENV_PHOENIX_ENDPOINT}.
+ *
+ * @internal
+ */
+export const ENV_PHOENIX_BASE_URL = "PHOENIX_BASE_URL";
 
 /**
  * Environment variable name for custom headers to include in Phoenix client requests.
@@ -38,11 +71,49 @@ export const ENV_PHOENIX_HOST = "PHOENIX_HOST";
 export const ENV_PHOENIX_CLIENT_HEADERS = "PHOENIX_CLIENT_HEADERS";
 
 /**
- * Environment variable name for the Phoenix collector endpoint (used for tracing).
+ * Environment variable name for the Phoenix collector endpoint: where traces
+ * are *exported* to, read by `register()` and the OTLP exporters it configures.
+ *
+ * The value may be either a base URL (`http://localhost:6006`) or an already
+ * fully-qualified OTLP traces URL (`http://localhost:6006/v1/traces`): Phoenix
+ * appends the `/v1/traces` path when it is missing and strips it when deriving
+ * an API base URL, so both shapes work. Exporters that POST to the URL
+ * verbatim — a bare `OTLPTraceExporter`, or a third-party exporter — need the
+ * suffixed form.
+ *
+ * This is the canonical variable for trace export; see
+ * {@link ENV_PHOENIX_ENDPOINT} for API access. Each concept falls back to the
+ * other's variable when its own is unset, so naming Phoenix once configures
+ * both.
  * @example
  * process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://localhost:6006";
  */
 export const ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT";
+
+/**
+ * Environment variable name for the OpenTelemetry OTLP base endpoint.
+ *
+ * Per the OpenTelemetry specification this is a *base* URL: the signal's path
+ * (`/v1/traces` for spans) is appended to it. Phoenix honors it below its own
+ * variables for both trace export and API access, so an OTel-generic
+ * configuration keeps working.
+ * @example
+ * process.env[ENV_OTEL_EXPORTER_OTLP_ENDPOINT] = "http://localhost:6006";
+ */
+export const ENV_OTEL_EXPORTER_OTLP_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT";
+
+/**
+ * Environment variable name for the OpenTelemetry OTLP *traces* endpoint.
+ *
+ * Per the OpenTelemetry specification this is the fully-qualified URL spans
+ * are POSTed to — no path is appended — so Phoenix exports to it verbatim. It
+ * is read for trace export only; API access never infers a base URL from it.
+ * @example
+ * process.env[ENV_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT] =
+ *   "http://localhost:6006/v1/traces";
+ */
+export const ENV_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT =
+  "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
 
 /**
  * Environment variable name for the Phoenix API key (used for authentication).
@@ -107,17 +178,39 @@ function getProcessEnvironment(): Partial<Record<string, string | undefined>> {
 }
 
 /**
+ * Normalizes a raw environment value: surrounding whitespace is insignificant,
+ * and a value that is empty once trimmed counts as unset. An exported-but-empty
+ * variable (`export PHOENIX_ENDPOINT=`) therefore falls through to the next
+ * candidate instead of stranding resolution on it.
+ */
+function normalizeEnvValue(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+/** Reads a normalized `.env.phoenix` value together with the file that supplied it. */
+function readEnvFileEntry(
+  envKey: string
+): { filePath: string; value: string } | undefined {
+  const entry = readEnvFileValueWithPath(envKey);
+  const value = normalizeEnvValue(entry?.value);
+  return entry && value !== undefined
+    ? { filePath: entry.filePath, value }
+    : undefined;
+}
+
+/**
  * Reads an environment variable from the process environment, falling back to
  * the nearest `.env.phoenix` file for `PHOENIX_`-prefixed keys (process wins).
  */
 export function getStrFromEnvironmentWithSource(
   envKey: string
 ): ResolvedEnvironmentValue {
-  const processValue = getProcessEnvironment()[envKey];
+  const processValue = normalizeEnvValue(getProcessEnvironment()[envKey]);
   if (processValue !== undefined) {
     return { source: { kind: "process" }, value: processValue };
   }
-  const fileValue = readEnvFileValueWithPath(envKey);
+  const fileValue = readEnvFileEntry(envKey);
   if (fileValue) {
     return {
       source: { filePath: fileValue.filePath, kind: "env-file" },
@@ -134,7 +227,7 @@ function readEnvValue(envKey: string): string | undefined {
 /**
  * Resolves a group of related environment variables as one two-tier unit:
  * the `.env.phoenix` file tier is consulted only when none of the group's
- * keys are set in the process environment.
+ * keys is set to a non-empty value in the process environment.
  *
  * @param envKeys - the environment variable names forming the group
  * @returns The resolved values, keyed by environment variable name.
@@ -152,7 +245,7 @@ export function resolveEnvironmentTierWithSource(
   const processValues: Partial<Record<string, string>> = {};
   const processEnvironment = getProcessEnvironment();
   for (const envKey of envKeys) {
-    const value = processEnvironment[envKey];
+    const value = normalizeEnvValue(processEnvironment[envKey]);
     if (value !== undefined) {
       processValues[envKey] = value;
     }
@@ -163,7 +256,7 @@ export function resolveEnvironmentTierWithSource(
   const fileValues: Partial<Record<string, string>> = {};
   let filePath: string | undefined;
   for (const envKey of envKeys) {
-    const result = readEnvFileValueWithPath(envKey);
+    const result = readEnvFileEntry(envKey);
     if (result) {
       fileValues[envKey] = result.value;
       filePath = result.filePath;
@@ -308,6 +401,468 @@ export function getProjectFromEnvironment(): string | undefined {
  */
 export function resetProjectConflictWarningForTesting(): void {
   hasWarnedProjectConflict = false;
+}
+
+/**
+ * Variables that carry a trace-export URL. A value read from one of these may
+ * legitimately carry the OTLP `/v1/traces` path, so deriving an API base URL
+ * from it strips that suffix.
+ */
+const COLLECTOR_ENV_KEYS = [
+  ENV_PHOENIX_COLLECTOR_ENDPOINT,
+  ENV_OTEL_EXPORTER_OTLP_ENDPOINT,
+] as const;
+
+/**
+ * Environment variables that locate the Phoenix server for API access,
+ * resolved as one tier group (see {@link resolveEnvironmentTier}). Ordered by
+ * precedence.
+ */
+const BASE_URL_ENV_KEYS = [
+  ENV_PHOENIX_ENDPOINT,
+  ...COLLECTOR_ENV_KEYS,
+  ENV_PHOENIX_BASE_URL,
+  ENV_PHOENIX_HOST,
+] as const;
+
+/**
+ * The base-URL variables whose presence in the process environment claims the
+ * tier for the whole group. {@link ENV_PHOENIX_BASE_URL} is deliberately
+ * absent: it is a compatibility fallback rather than a statement of where
+ * Phoenix lives, so a stale `PHOENIX_BASE_URL` left in a shell must not mask a
+ * `.env.phoenix` written by `px setup`. It joins whichever tier the group has
+ * already claimed.
+ */
+const TIER_CLAIMING_BASE_URL_ENV_KEYS = BASE_URL_ENV_KEYS.filter(
+  (envKey) => envKey !== ENV_PHOENIX_BASE_URL
+);
+
+/**
+ * The variables that *deliberately* name the API-access base URL. The rest of
+ * {@link BASE_URL_ENV_KEYS} are inferred fallbacks (trace-export / legacy /
+ * compatibility variables) and rank below these across tiers.
+ */
+const CANONICAL_BASE_URL_ENV_KEYS = [ENV_PHOENIX_ENDPOINT] as const;
+
+let hasWarnedBaseUrlConflict = false;
+
+/**
+ * Environment variables that configure a Phoenix connection. Test suites
+ * clear these before running so a developer's shell (e.g. Claude Code tracing
+ * exports `PHOENIX_ENDPOINT`) cannot leak into assertions.
+ */
+export const PHOENIX_CONNECTION_ENV_KEYS = [
+  ...BASE_URL_ENV_KEYS,
+  ENV_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+  ENV_PHOENIX_API_KEY,
+  ENV_PHOENIX_CLIENT_HEADERS,
+  ENV_PHOENIX_PROJECT,
+  ENV_PHOENIX_PROJECT_NAME,
+] as const;
+
+/**
+ * Clears the connection env vars a developer's shell may export (e.g. Claude
+ * Code tracing sets `PHOENIX_ENDPOINT`) so they cannot leak into test
+ * assertions. Call from a test-setup file before any configuration is read.
+ *
+ * @internal
+ */
+export function clearPhoenixConnectionEnvForTesting(): void {
+  for (const envKey of PHOENIX_CONNECTION_ENV_KEYS) {
+    delete process.env[envKey];
+  }
+}
+
+/**
+ * Isolates the process environment from a developer's machine for a test run:
+ * disables `.env.phoenix` discovery so a real credential file anywhere above
+ * the repo cannot leak in, and clears the connection variables their shell may
+ * export. Call once from a test-setup file, before any configuration is read.
+ *
+ * @internal
+ */
+export function isolatePhoenixEnvForTesting(): void {
+  process.env[ENV_PHOENIX_DISCOVER_CONFIG] = "false";
+  clearPhoenixConnectionEnvForTesting();
+}
+
+/**
+ * Returns the first key of `envKeys` that has a non-empty value in `values`,
+ * together with that value.
+ */
+function findFirstSetEnvKey(
+  envKeys: readonly string[],
+  values: Partial<Record<string, string | undefined>>
+): { envKey: string; value: string } | undefined {
+  for (const envKey of envKeys) {
+    const value = normalizeEnvValue(values[envKey]);
+    if (value !== undefined) {
+      return { envKey, value };
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Returns the first key of `envKeys` that has a value in the nearest
+ * `.env.phoenix` file, resolved as a source-tagged value.
+ */
+function readFirstEnvFileValue(
+  envKeys: readonly string[]
+): ResolvedBaseUrlValue | undefined {
+  for (const envKey of envKeys) {
+    const fileValue = readEnvFileEntry(envKey);
+    if (fileValue) {
+      return {
+        envKey,
+        source: { filePath: fileValue.filePath, kind: "env-file" },
+        value: fileValue.value,
+      };
+    }
+  }
+  return undefined;
+}
+
+/**
+ * The OTLP traces path as a suffix of a URL's path component. Matched ahead of
+ * any query string or fragment, so `…/v1/traces?tenant=a` strips too, and
+ * prefix-preserving, so `https://host/api/v1/traces` yields `https://host/api`.
+ * A repeated separator (`…//v1/traces`) and a trailing slash both strip; the
+ * match is case-sensitive because URL paths are.
+ */
+const OTLP_TRACES_PATH_SUFFIX = /\/+v1\/traces\/?(?=$|[?#])/;
+
+/** Removes the OTLP traces path from a trace-export URL to leave a base URL. */
+function stripOtlpTracesPath(value: string): string {
+  return value.replace(OTLP_TRACES_PATH_SUFFIX, "") || value;
+}
+
+/**
+ * Normalizes a base-URL candidate for API access:
+ *
+ * - a value inferred from a trace-export variable may legitimately carry the
+ *   OTLP `/v1/traces` path (verbatim exporters need it); the API base URL must
+ *   not, so the suffix is stripped
+ * - a legacy `PHOENIX_HOST` value may be a bare bind host (e.g. `0.0.0.0`)
+ *   rather than a URL; build a reachable http URL from it
+ *
+ * A `PHOENIX_ENDPOINT` value is used exactly as given: it is defined as a base
+ * URL, so nothing about it is inferred or rewritten.
+ */
+function normalizeBaseUrlCandidate({
+  envKey,
+  value,
+  port,
+}: {
+  envKey: string;
+  value: string;
+  port?: string;
+}): string {
+  if ((COLLECTOR_ENV_KEYS as readonly string[]).includes(envKey)) {
+    return stripOtlpTracesPath(value);
+  }
+  if (envKey === ENV_PHOENIX_HOST && !/^https?:\/\//i.test(value)) {
+    const host = value === "0.0.0.0" ? "127.0.0.1" : value;
+    return host.includes(":")
+      ? `http://${host}`
+      : `http://${host}:${port || DEFAULT_PHOENIX_PORT}`;
+  }
+  return value;
+}
+
+/**
+ * Resolves the API-access base URL from an arbitrary values record (e.g. an
+ * injected copy of `process.env`), applying the {@link BASE_URL_ENV_KEYS}
+ * precedence. Unlike {@link getBaseUrlFromEnvironment} this reads only the
+ * given record — no `.env.phoenix` discovery and no conflict warning.
+ */
+export function getBaseUrlFromValues(
+  values: Partial<Record<string, string | undefined>>
+): string | undefined {
+  const resolved = findFirstSetEnvKey(BASE_URL_ENV_KEYS, values);
+  if (!resolved) {
+    return undefined;
+  }
+  return normalizeBaseUrlCandidate({
+    ...resolved,
+    port: values[ENV_PHOENIX_PORT],
+  });
+}
+
+/**
+ * Resolves the base URL for **API access** — what the `px` CLI and the API
+ * clients send requests to.
+ *
+ * Precedence:
+ *
+ * 1. `PHOENIX_ENDPOINT` — the canonical API-access variable
+ * 2. `PHOENIX_COLLECTOR_ENDPOINT` — inferred: when only the trace-export
+ *    variable is set, API access assumes the same server (any `/v1/traces`
+ *    suffix is stripped)
+ * 3. `OTEL_EXPORTER_OTLP_ENDPOINT` — inferred from the OTel-standard base URL
+ * 4. `PHOENIX_BASE_URL` — undocumented compatibility fallback, see
+ *    {@link ENV_PHOENIX_BASE_URL}
+ * 5. `PHOENIX_HOST` — legacy; on the Phoenix server this variable is the bind
+ *    host, so relying on it as a client URL is discouraged
+ *
+ * The variables resolve as one tier group: the `.env.phoenix` file tier is
+ * consulted only when none of them is set in the process environment — with
+ * two exceptions. A process value merely inferred from a trace-export or
+ * legacy variable yields to a canonical `PHOENIX_ENDPOINT` declared in a
+ * discovered `.env.phoenix`; and `PHOENIX_BASE_URL` never claims the tier on
+ * its own, so a stale export of it cannot mask the file.
+ *
+ * Setting `PHOENIX_ENDPOINT` and `PHOENIX_COLLECTOR_ENDPOINT` to different
+ * values is legitimate (API access and trace ingest can live at different
+ * URLs) and does not warn. A differing `PHOENIX_HOST` that loses the
+ * resolution warns once.
+ *
+ * @returns The resolved base URL, or `undefined` if no variable is set.
+ *
+ * @example
+ * // With PHOENIX_ENDPOINT="http://localhost:6006"
+ * const baseUrl = getBaseUrlFromEnvironment();
+ * // Returns "http://localhost:6006"
+ */
+export function getBaseUrlFromEnvironment(): string | undefined {
+  return getBaseUrlFromEnvironmentWithSource().value;
+}
+
+/**
+ * How deliberately the resolved variable names the concept being resolved:
+ * `"canonical"` — the variable exists for this concept; `"inferred"` — a
+ * sibling concept's variable backfilled it; `"legacy"` — the historical
+ * `PHOENIX_HOST` fallback.
+ */
+export type ResolvedBaseUrlRank = "canonical" | "inferred" | "legacy";
+
+/** A resolved base URL together with the tier and variable that supplied it. */
+export interface ResolvedBaseUrlValue extends ResolvedEnvironmentValue {
+  /** The environment variable that supplied `value`. */
+  envKey?: string;
+  /** How deliberately `envKey` names the resolved concept. */
+  rank?: ResolvedBaseUrlRank;
+}
+
+/**
+ * The cross-tier exception to whole-group tier resolution: a process value
+ * merely inferred from a sibling variable must not mask the concept's
+ * canonical variable declared in a discovered `.env.phoenix`. Returns the
+ * file-tier canonical value when that exception applies.
+ */
+function fileCanonicalOverride({
+  source,
+  resolvedEnvKey,
+  canonicalKeys,
+}: {
+  source: EnvironmentValueSource | undefined;
+  resolvedEnvKey?: string;
+  canonicalKeys: readonly string[];
+}): ResolvedBaseUrlValue | undefined {
+  if (
+    source?.kind !== "process" ||
+    (resolvedEnvKey !== undefined && canonicalKeys.includes(resolvedEnvKey))
+  ) {
+    return undefined;
+  }
+  const fileCanonical = readFirstEnvFileValue(canonicalKeys);
+  return fileCanonical ? { ...fileCanonical, rank: "canonical" } : undefined;
+}
+
+/**
+ * Resolves the base-URL tier group. `PHOENIX_BASE_URL` is folded into whichever
+ * tier the group claims rather than claiming one itself — see
+ * {@link TIER_CLAIMING_BASE_URL_ENV_KEYS}.
+ */
+function resolveBaseUrlTier(): ResolvedEnvironmentTier {
+  const tier = resolveEnvironmentTierWithSource(
+    TIER_CLAIMING_BASE_URL_ENV_KEYS
+  );
+  const compatibility =
+    tier.source === undefined
+      ? getStrFromEnvironmentWithSource(ENV_PHOENIX_BASE_URL)
+      : {
+          source: tier.source,
+          value: readValueFromTier(ENV_PHOENIX_BASE_URL, tier.source),
+        };
+  if (compatibility.value === undefined) {
+    return tier;
+  }
+  return {
+    source: tier.source ?? compatibility.source,
+    values: { ...tier.values, [ENV_PHOENIX_BASE_URL]: compatibility.value },
+  };
+}
+
+/** Reads one variable from an already-claimed tier, never crossing into the other. */
+function readValueFromTier(
+  envKey: string,
+  source: EnvironmentValueSource
+): string | undefined {
+  return source.kind === "process"
+    ? normalizeEnvValue(getProcessEnvironment()[envKey])
+    : readEnvFileEntry(envKey)?.value;
+}
+
+/** How deliberately a base-URL variable names the API-access concept. */
+function getBaseUrlRank(envKey: string): ResolvedBaseUrlRank {
+  if ((CANONICAL_BASE_URL_ENV_KEYS as readonly string[]).includes(envKey)) {
+    return "canonical";
+  }
+  return envKey === ENV_PHOENIX_HOST ? "legacy" : "inferred";
+}
+
+/** Resolves the API-access base URL together with the tier that supplied it. */
+export function getBaseUrlFromEnvironmentWithSource(): ResolvedBaseUrlValue {
+  const { source, values } = resolveBaseUrlTier();
+  const resolved = findFirstSetEnvKey(BASE_URL_ENV_KEYS, values);
+
+  const override = fileCanonicalOverride({
+    source,
+    resolvedEnvKey: resolved?.envKey,
+    canonicalKeys: CANONICAL_BASE_URL_ENV_KEYS,
+  });
+  if (override) {
+    return override;
+  }
+  if (!resolved) {
+    return {};
+  }
+
+  const host = values[ENV_PHOENIX_HOST];
+  if (
+    host &&
+    resolved.envKey !== ENV_PHOENIX_HOST &&
+    host !== resolved.value &&
+    !hasWarnedBaseUrlConflict
+  ) {
+    hasWarnedBaseUrlConflict = true;
+    // eslint-disable-next-line no-console
+    console.warn(
+      `Both ${resolved.envKey} ("${resolved.value}") and ${ENV_PHOENIX_HOST} ("${host}") ` +
+        `are set to different values. Using ${resolved.envKey} ("${resolved.value}"). ` +
+        `${ENV_PHOENIX_HOST} is the Phoenix server's bind setting and is only read as a legacy fallback.`
+    );
+  }
+
+  return {
+    source,
+    envKey: resolved.envKey,
+    rank: getBaseUrlRank(resolved.envKey),
+    value: normalizeBaseUrlCandidate({
+      ...resolved,
+      // Only the legacy bare-host branch needs the port; reading it eagerly
+      // would cost an extra tier lookup on every resolution.
+      port:
+        resolved.envKey === ENV_PHOENIX_HOST
+          ? readEnvValue(ENV_PHOENIX_PORT)
+          : undefined,
+    }),
+  };
+}
+
+/**
+ * Environment variables that name where traces are exported, ordered by
+ * precedence and resolved as one tier group. Only the collector variable is
+ * canonical for this concept; the OTel-standard variables and the API-access
+ * variable are inferred fallbacks, so a configuration that names Phoenix once
+ * still exports spans there instead of silently to localhost.
+ */
+const TRACE_EXPORT_ENV_KEYS = [
+  ENV_PHOENIX_COLLECTOR_ENDPOINT,
+  ENV_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+  ENV_OTEL_EXPORTER_OTLP_ENDPOINT,
+  ENV_PHOENIX_ENDPOINT,
+] as const;
+
+/** The variable that *deliberately* names where traces are exported. */
+const CANONICAL_TRACE_EXPORT_ENV_KEYS = [
+  ENV_PHOENIX_COLLECTOR_ENDPOINT,
+] as const;
+
+/**
+ * How a resolved trace-export value must be treated when building the OTLP
+ * export URL: `"fully-qualified"` is already the URL spans are POSTed to and is
+ * used verbatim; `"base-or-full"` gets the `/v1/traces` path appended when it
+ * is missing.
+ */
+export type TraceExportUrlShape = "base-or-full" | "fully-qualified";
+
+/** A resolved trace-export endpoint together with how it must be treated. */
+export interface ResolvedTraceExportEndpoint extends ResolvedEnvironmentValue {
+  /** The environment variable that supplied `value`. */
+  envKey?: string;
+  /** How deliberately `envKey` names where traces are exported. */
+  rank?: ResolvedBaseUrlRank;
+  /** Whether `value` is already the OTLP traces URL or a server URL. */
+  shape?: TraceExportUrlShape;
+}
+
+/**
+ * Resolves where traces are exported, together with the tier and variable that
+ * supplied it.
+ *
+ * Precedence:
+ *
+ * 1. `PHOENIX_COLLECTOR_ENDPOINT` — the canonical trace-export variable,
+ *    accepted as either a base URL or a full OTLP traces URL
+ * 2. `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` — the OTel-standard fully-qualified
+ *    traces URL, exported to verbatim
+ * 3. `OTEL_EXPORTER_OTLP_ENDPOINT` — the OTel-standard base URL
+ * 4. `PHOENIX_ENDPOINT` — inferred: when only the API-access variable is set,
+ *    trace export assumes the same server
+ *
+ * Callers layer an explicit argument above the chain and a localhost default
+ * below it. As with API access the variables form one tier group, and a
+ * process value merely inferred from a sibling variable yields to a canonical
+ * `PHOENIX_COLLECTOR_ENDPOINT` in a discovered `.env.phoenix`.
+ *
+ * @returns The resolved endpoint, or an empty result if no variable is set.
+ */
+export function getTraceExportEndpointFromEnvironment(): ResolvedTraceExportEndpoint {
+  const { source, values } = resolveEnvironmentTierWithSource(
+    TRACE_EXPORT_ENV_KEYS
+  );
+  const resolved = findFirstSetEnvKey(TRACE_EXPORT_ENV_KEYS, values);
+
+  const override = fileCanonicalOverride({
+    source,
+    resolvedEnvKey: resolved?.envKey,
+    canonicalKeys: CANONICAL_TRACE_EXPORT_ENV_KEYS,
+  });
+  if (override) {
+    return { ...override, shape: "base-or-full" };
+  }
+  if (!resolved) {
+    return {};
+  }
+
+  return {
+    source,
+    envKey: resolved.envKey,
+    rank: (CANONICAL_TRACE_EXPORT_ENV_KEYS as readonly string[]).includes(
+      resolved.envKey
+    )
+      ? "canonical"
+      : "inferred",
+    shape:
+      resolved.envKey === ENV_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+        ? "fully-qualified"
+        : "base-or-full",
+    value: resolved.value,
+  };
+}
+
+/**
+ * Resets the one-time base-URL conflict warning latch.
+ *
+ * Intended for use in tests that need to exercise the warning path more than
+ * once within the same module instance.
+ *
+ * @internal
+ */
+export function resetBaseUrlConflictWarningForTesting(): void {
+  hasWarnedBaseUrlConflict = false;
 }
 
 /**

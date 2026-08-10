@@ -271,7 +271,9 @@ test.describe.serial("Server Evaluators", () => {
     // Click the label text instead which properly toggles the switch.
     await page.getByText("Case sensitive", { exact: true }).click();
 
-    // Click Update button
+    // Click Update button. Target the form's submit test id so the click does
+    // not also match the "Dismiss update notification" button in the version
+    // notice.
     await page.getByTestId("builtin-evaluator-form-submit-button").click();
 
     // Wait for dialog to close
@@ -378,7 +380,9 @@ test.describe.serial("Server Evaluators", () => {
     await descriptionInput.clear();
     await descriptionInput.fill(updatedDescription);
 
-    // Click Update button
+    // Click Update button. Scope to the dialog and match exactly so the
+    // accessible name does not also match the "Dismiss update notification"
+    // button in the version notice.
     await page
       .getByTestId("dialog")
       .getByRole("button", { name: "Update", exact: true })

@@ -45,6 +45,12 @@ describe("profile route information", () => {
         description:
           "Choose your theme, timezone, code language, and package manager defaults.",
       },
+      {
+        path: "/profile/generative-ai",
+        label: "Profile Generative AI",
+        description:
+          "Configure generative AI features: enable AI query for filter fields, choose the model — your browser's built-in on-device AI or a model provider with an API key — and manage the on-device model (download status, download it ahead of time, how to remove it).",
+      },
     ]);
   });
 
@@ -53,6 +59,7 @@ describe("profile route information", () => {
     ["personal API key", "/profile/api-keys"],
     ["revoke connected OAuth app", "/profile/apps"],
     ["change my timezone", "/profile/preferences"],
+    ["enable AI query", "/profile/generative-ai"],
   ])("finds %s at %s", (query, expectedPath) => {
     const result = getRouteInfoFromCatalog({
       catalog,

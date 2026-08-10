@@ -14,12 +14,13 @@ import {
 } from "@tanstack/react-table";
 import React, {
   startTransition,
+  Suspense,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
+import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
@@ -62,14 +63,14 @@ import {
 } from "../../components/table";
 import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import type { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
+import type { SessionsTableSessionFilterVocabularyQuery } from "./__generated__/SessionsTableSessionFilterVocabularyQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import {
   SessionInputValueTooltipCell,
   SessionOutputValueTooltipCell,
 } from "./IOValueTooltipCell";
 import { SessionColumnSelector } from "./SessionColumnSelector";
-import { useSessionSearchContext } from "./SessionSearchContext";
-import { SessionSearchField } from "./SessionSearchField";
+import { SessionFilterConditionField } from "./SessionFilterConditionField";
 import { SessionsTableAside } from "./SessionsTableAside";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
 import { spansTableCSS } from "./styles";
@@ -91,6 +92,53 @@ const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
+
+const toolbarFilterFieldCSS = css`
+  flex: 2 1 420px;
+  min-width: min(100%, 320px);
+`;
+
+const EMPTY_SESSION_FILTER_VOCABULARY = [] as const;
+
+/**
+ * The filter field, once its per-project autocomplete vocabulary has loaded.
+ * The vocabulary resolver scans annotation names and root-span attributes, so
+ * it is suspended separately from the table it sits above.
+ */
+function SessionFilterConditionFieldWithVocabulary({
+  projectId,
+  onValidCondition,
+}: {
+  projectId: string;
+  onValidCondition: (condition: string) => void;
+}) {
+  const data = useLazyLoadQuery<SessionsTableSessionFilterVocabularyQuery>(
+    graphql`
+      query SessionsTableSessionFilterVocabularyQuery($id: ID!) {
+        project: node(id: $id) {
+          ... on Project {
+            sessionFilterVocabulary {
+              name
+              type
+              description
+              category
+              iterableName
+            }
+          }
+        }
+      }
+    `,
+    { id: projectId }
+  );
+  return (
+    <SessionFilterConditionField
+      vocabulary={
+        data.project?.sessionFilterVocabulary ?? EMPTY_SESSION_FILTER_VOCABULARY
+      }
+      onValidCondition={onValidCondition}
+    />
+  );
+}
 
 const TableBody = <T extends { id: string }>({
   table,
@@ -149,7 +197,8 @@ export function SessionsTable(props: SessionsTableProps) {
   // we need a reference to the scrolling element for pagination logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const { filterIoSubstringOrSessionId } = useSessionSearchContext();
+  const [validSessionFilterCondition, setValidSessionFilterCondition] =
+    useState<string>("");
   const { fetchKey } = useStreamState();
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the current
@@ -173,18 +222,17 @@ export function SessionsTable(props: SessionsTableProps) {
             type: "ProjectSessionSort"
             defaultValue: { col: startTime, dir: desc }
           }
-          filterIoSubstring: { type: "String", defaultValue: null }
-          sessionId: { type: "String", defaultValue: null }
+          sessionFilterCondition: { type: "String", defaultValue: null }
         ) {
+          id
           name
           ...SessionColumnSelector_annotations
           sessions(
             first: $first
             after: $after
             sort: $sort
-            filterIoSubstring: $filterIoSubstring
+            sessionFilterCondition: $sessionFilterCondition
             timeRange: $timeRange
-            sessionId: $sessionId
           ) @connection(key: "SessionsTable_sessions") {
             edges {
               session: node {
@@ -354,7 +402,10 @@ export function SessionsTable(props: SessionsTableProps) {
       cell: ({ row }) => {
         return (
           <OverflowRow isExpanded={areRowsExpanded}>
-            <SessionAnnotationSummaryGroupTokens session={row.original} />
+            <SessionAnnotationSummaryGroupTokens
+              session={row.original}
+              showFilterActions
+            />
           </OverflowRow>
         );
       },
@@ -494,8 +545,7 @@ export function SessionsTable(props: SessionsTableProps) {
           sort: sort ? getGqlSessionSort(sort) : DEFAULT_SESSION_SORT,
           after: null,
           first: PAGE_SIZE,
-          filterIoSubstring: filterIoSubstringOrSessionId,
-          sessionId: filterIoSubstringOrSessionId,
+          sessionFilterCondition: validSessionFilterCondition || null,
           timeRange: timeRangeISOStrings,
         },
         { fetchPolicy: "store-and-network" }
@@ -504,7 +554,7 @@ export function SessionsTable(props: SessionsTableProps) {
   }, [
     sorting,
     refetch,
-    filterIoSubstringOrSessionId,
+    validSessionFilterCondition,
     fetchKey,
     timeRangeISOStrings,
   ]);
@@ -602,10 +652,30 @@ export function SessionsTable(props: SessionsTableProps) {
           borderBottomWidth="thin"
           flex="none"
         >
-          <Flex direction="row" gap="size-100" width="100%" alignItems="center">
-            <View flex="1 1 auto">
-              <SessionSearchField />
-            </View>
+          <Flex
+            direction="row"
+            gap="size-100"
+            width="100%"
+            alignItems="center"
+            wrap="wrap"
+          >
+            <div css={toolbarFilterFieldCSS}>
+              {/* Autocomplete data must not gate the table's first paint, so
+                  the field renders — and filters — before it arrives. */}
+              <Suspense
+                fallback={
+                  <SessionFilterConditionField
+                    vocabulary={EMPTY_SESSION_FILTER_VOCABULARY}
+                    onValidCondition={setValidSessionFilterCondition}
+                  />
+                }
+              >
+                <SessionFilterConditionFieldWithVocabulary
+                  projectId={data.id}
+                  onValidCondition={setValidSessionFilterCondition}
+                />
+              </Suspense>
+            </div>
             <TableMetricsChartSelector view="sessions" />
             <SessionColumnSelector
               columns={table.getAllColumns()}
@@ -744,7 +814,7 @@ export function SessionsTable(props: SessionsTableProps) {
           </Panel>
           <TableAsidePanel>
             <SessionsTableAside
-              filterIoSubstringOrSessionId={filterIoSubstringOrSessionId}
+              sessionFilterCondition={validSessionFilterCondition || null}
             />
           </TableAsidePanel>
         </Group>

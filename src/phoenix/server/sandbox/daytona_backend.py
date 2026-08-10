@@ -19,6 +19,7 @@ from .types import (
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
+    SandboxRuntimeContext,
     compose_secret_values,
     compute_config_fingerprint,
 )
@@ -379,7 +380,9 @@ class DaytonaAdapter(SandboxAdapter[DaytonaConfig, DaytonaCredentials, DaytonaDe
         credentials: DaytonaCredentials,
         deployment: DaytonaDeployment,
         user_env: Optional[Mapping[str, str]] = None,
+        runtime: Optional[SandboxRuntimeContext] = None,
     ) -> SandboxBackend:
+        del runtime
         # Fail-closed: empty api_key would let the SDK silently fall back to
         # os.getenv("DAYTONA_API_KEY"), bypassing Phoenix's credential resolution.
         lang = config.language

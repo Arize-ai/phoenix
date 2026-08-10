@@ -112,6 +112,17 @@ export const PanZoomOnly = {
   },
 };
 
+export const Medium = {
+  render: Template,
+  args: {
+    size: "M",
+    initialValue: {
+      timeRangeKey: "1h",
+      start: new Date(Date.now() - 60 * 60 * 1000),
+    },
+  },
+};
+
 export const Disabled = {
   render: Template,
   args: {

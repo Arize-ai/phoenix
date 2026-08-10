@@ -8,6 +8,8 @@ import {
   Summary,
   SummaryValue,
 } from "@phoenix/pages/project/AnnotationSummary";
+import { AnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
+import { useSessionFilters } from "@phoenix/pages/project/SessionFiltersContext";
 import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
 
 const useSessionAnnotationSummaryGroup = (
@@ -117,6 +119,24 @@ type SessionAnnotationSummaryGroupProps = {
   renderEmptyState?: () => React.ReactNode;
 };
 
+function SessionAnnotationTooltipFilterActions({
+  annotation,
+}: {
+  annotation: {
+    name: string;
+    label?: string | null;
+    score?: number | null;
+  };
+}) {
+  const { appendFilterCondition } = useSessionFilters();
+  return (
+    <AnnotationTooltipFilterActions
+      annotation={annotation}
+      onAppendFilterCondition={appendFilterCondition}
+    />
+  );
+}
+
 export const SessionAnnotationSummaryGroupTokens = ({
   session,
   showFilterActions = false,
@@ -138,6 +158,9 @@ export const SessionAnnotationSummaryGroupTokens = ({
       annotationsByName={annotationsByName}
       categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
       showFilterActions={showFilterActions}
+      renderFilterActions={(annotation) => (
+        <SessionAnnotationTooltipFilterActions annotation={annotation} />
+      )}
     />
   );
 };

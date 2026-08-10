@@ -91,7 +91,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "PXI chat trigger button. Shows the resting pill state, the single wipe border treatment used while streaming, and the retained animated glyph options for the thinking state.",
+          "PXI chat trigger button. Shows the resting pill state, the single glow wipe used while streaming, and the retained animated glyph options for the thinking state.",
       },
     },
   },

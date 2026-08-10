@@ -1,7 +1,13 @@
 import { css } from "@emotion/react";
 import { Fragment } from "react";
 
-import { Card, Flex, Heading, View } from "@phoenix/components";
+import {
+  Card,
+  CopyToClipboardButton,
+  Flex,
+  Heading,
+  View,
+} from "@phoenix/components";
 import {
   ConnectedMarkdownModeSelect,
   MarkdownDisplayProvider,
@@ -10,8 +16,10 @@ import type { AttributeDocument } from "@phoenix/openInference/tracing/types";
 
 import { RetrievalEvaluationLabel } from "../../project/RetrievalEvaluationLabel";
 import { DocumentItem } from "../DocumentItem";
+import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps } from "./constants";
 import type { DocumentEvaluation, RetrievalMetric } from "./types";
+import { formatJSONForCopy } from "./utils";
 
 /**
  * The output of a retriever span — the retrieved documents along with their
@@ -31,13 +39,20 @@ export function RetrieverOutput({
   spanNodeId: string;
 }) {
   const hasDocumentRetrievalMetrics = retrievalMetrics.length > 0;
+  const cardProps = useSpanInfoCardProps("output");
   return (
     <MarkdownDisplayProvider>
       <Card
         title="Output"
         subTitle="Documents"
         {...defaultCardProps}
-        extra={<ConnectedMarkdownModeSelect />}
+        {...cardProps}
+        extra={
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <ConnectedMarkdownModeSelect />
+            <CopyToClipboardButton text={formatJSONForCopy(documents)} />
+          </Flex>
+        }
       >
         {hasDocumentRetrievalMetrics && (
           <View

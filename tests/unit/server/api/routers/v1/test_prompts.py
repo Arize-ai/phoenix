@@ -225,6 +225,130 @@ class TestPrompts:
         response = await httpx_client.delete(url)
         assert response.status_code == 404
 
+    async def test_patch_prompt_by_name(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}"
+
+        response = await httpx_client.patch(
+            url,
+            json={
+                "description": "  Updated prompt  ",
+                "metadata": {"team": "ml-ops", "workflow": "prompt-eval"},
+            },
+        )
+
+        assert response.is_success
+        data = response.json()["data"]
+        assert (
+            from_global_id_with_expected_type(GlobalID.from_id(data.pop("id")), Prompt.__name__)
+            == prompt.id
+        )
+        assert data.pop("name") == prompt.name.root
+        assert data.pop("description") == "Updated prompt"
+        assert data.pop("metadata") == {"team": "ml-ops", "workflow": "prompt-eval"}
+        assert not data
+        async with db() as session:
+            updated_prompt = await session.scalar(select(models.Prompt).filter_by(id=prompt.id))
+            assert updated_prompt is not None
+            assert updated_prompt.description == "Updated prompt"
+            assert updated_prompt.metadata_ == {"team": "ml-ops", "workflow": "prompt-eval"}
+
+    async def test_patch_prompt_by_id_can_clear_fields(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        prompt_id = str(GlobalID(Prompt.__name__, str(prompt.id)))
+        url = f"v1/prompts/{quote_plus(prompt_id)}"
+
+        response = await httpx_client.patch(url, json={"description": None, "metadata": {}})
+
+        assert response.is_success
+        data = response.json()["data"]
+        assert "description" not in data
+        assert data["metadata"] == {}
+        async with db() as session:
+            updated_prompt = await session.scalar(select(models.Prompt).filter_by(id=prompt.id))
+            assert updated_prompt is not None
+            assert updated_prompt.description is None
+            assert updated_prompt.metadata_ == {}
+
+    async def test_patch_prompt_rejects_null_metadata(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}"
+
+        assert (await httpx_client.patch(url, json={"metadata": {"team": "ml-ops"}})).is_success
+
+        response = await httpx_client.patch(url, json={"metadata": None})
+
+        assert response.status_code == 422
+        async with db() as session:
+            unchanged_prompt = await session.scalar(select(models.Prompt).filter_by(id=prompt.id))
+            assert unchanged_prompt is not None
+            assert unchanged_prompt.metadata_ == {"team": "ml-ops"}
+
+    async def test_patch_prompt_omitted_fields_are_unchanged(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}"
+
+        assert (await httpx_client.patch(url, json={"metadata": {"team": "ml-ops"}})).is_success
+
+        response = await httpx_client.patch(url, json={"description": "only description"})
+
+        assert response.is_success
+        async with db() as session:
+            updated_prompt = await session.scalar(select(models.Prompt).filter_by(id=prompt.id))
+            assert updated_prompt is not None
+            assert updated_prompt.description == "only description"
+            assert updated_prompt.metadata_ == {"team": "ml-ops"}
+
+    async def test_patch_prompt_rejects_empty_body(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}"
+
+        response = await httpx_client.patch(url, json={})
+
+        assert response.status_code == 422
+
+    async def test_patch_prompt_not_found(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        url = "v1/prompts/nonexistent-prompt-name"
+
+        response = await httpx_client.patch(url, json={"description": "new"})
+
+        assert response.status_code == 404
+
+    async def test_patch_prompt_requires_body(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}"
+
+        response = await httpx_client.patch(url)
+
+        assert response.status_code == 422
+
     @pytest.mark.parametrize(
         "name",
         [

@@ -39,6 +39,14 @@ export default defineConfig(() => {
   // Uncomment below to visualize the bundle size after running the build command also uncomment import { visualizer } from "rollup-plugin-visualizer";
   // plugins.push(visualizer());
   return {
+    // Use a relative base so lazy-loaded chunk deps (__vite__mapDeps) resolve
+    // relative to the importing module's URL instead of being baked in as
+    // absolute "/assets/..." paths. This lets the bundle work when Phoenix is
+    // served under a path prefix (PHOENIX_HOST_ROOT_PATH, e.g. "/phoenix")
+    // behind a reverse proxy. The server's index.html template handles the
+    // prefix for entry assets via `basename`; this handles everything loaded
+    // from within the JS bundle. See https://github.com/Arize-ai/phoenix/issues/15178
+    base: "./",
     root: resolve(__dirname, "src"),
     plugins,
     publicDir: resolve(__dirname, "static"),

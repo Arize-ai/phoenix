@@ -4,7 +4,6 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -13,6 +12,7 @@ import {
 import { Text } from "@phoenix/components";
 import {
   ChartEmptyStateOverlay,
+  ChartResponsiveContainer,
   ChartTooltip,
   ChartTooltipItem,
   compactChartMargin,
@@ -149,7 +149,7 @@ export function TraceLatencyPercentilesTimeSeries({
           message="No data in this time range"
           chartType="line"
         >
-          <ResponsiveContainer width="100%" height="100%">
+          <ChartResponsiveContainer>
             <ComposedChart
               data={chartData}
               margin={compactChartMargin}
@@ -245,7 +245,7 @@ export function TraceLatencyPercentilesTimeSeries({
               />
               <Tooltip content={TooltipContent} {...defaultTooltipProps} />
             </ComposedChart>
-          </ResponsiveContainer>
+          </ChartResponsiveContainer>
         </ChartEmptyStateOverlay>
       )}
     </TimeRangeChartBrush>

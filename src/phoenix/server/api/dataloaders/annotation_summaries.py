@@ -22,10 +22,8 @@ Kind: TypeAlias = Literal["span", "trace", "session"]
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
+# A session filter DSL expression (see phoenix.trace.dsl.session_filter).
 SessionFilterCondition: TypeAlias = Optional[str]
-# Rowid of a single session to scope the summary to, used when the sessions
-# table search resolves to an exact session-ID match.
-SessionRowId: TypeAlias = Optional[int]
 AnnotationName: TypeAlias = str
 
 Segment: TypeAlias = tuple[
@@ -34,7 +32,6 @@ Segment: TypeAlias = tuple[
     TimeInterval,
     FilterCondition,
     SessionFilterCondition,
-    SessionRowId,
 ]
 Param: TypeAlias = AnnotationName
 
@@ -44,7 +41,6 @@ Key: TypeAlias = tuple[
     Optional[TimeRange],
     FilterCondition,
     SessionFilterCondition,
-    SessionRowId,
     AnnotationName,
 ]
 Result: TypeAlias = Optional[AnnotationSummary]
@@ -59,7 +55,6 @@ def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
         time_range,
         filter_condition,
         session_filter_condition,
-        session_rowid,
         eval_name,
     ) = key
     interval = (
@@ -71,12 +66,11 @@ def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
         interval,
         filter_condition,
         session_filter_condition,
-        session_rowid,
     ), eval_name
 
 
 _Section: TypeAlias = tuple[ProjectRowId, AnnotationName, Kind]
-_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilterCondition, SessionRowId]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilterCondition]
 
 
 class AnnotationSummaryCache(
@@ -104,7 +98,6 @@ class AnnotationSummaryCache(
                 interval,
                 filter_condition,
                 session_filter_condition,
-                session_rowid,
             ),
             annotation_name,
         ) = _cache_key_fn(key)
@@ -112,7 +105,6 @@ class AnnotationSummaryCache(
             interval,
             filter_condition,
             session_filter_condition,
-            session_rowid,
         )
 
 
@@ -159,7 +151,6 @@ def _get_stmt(
         (start_time, end_time),
         filter_condition,
         session_filter_condition,
-        session_rowid,
     ) = segment
 
     annotation_model: Union[
@@ -170,8 +161,8 @@ def _get_stmt(
     entity_model: Union[Type[models.Span], Type[models.Trace], Type[models.ProjectSession]]
     entity_join_model: Optional[Type[models.Base]]
     entity_id_column: Any
-    # The column holding the session rowid, used when a session filter narrows
-    # the summary to sessions whose root span input/output matches a substring.
+    # The column holding the session rowid, used when a session filter condition
+    # narrows the summary to the sessions it matches.
     session_rowid_column: Any
     # The column holding the project rowid, used to scope the (possibly
     # joined) entity rows to a project.
@@ -221,72 +212,54 @@ def _get_stmt(
         if end_time:
             time_range_conditions.append(time_column < end_time)
 
+    # The entity-count query below is the denominator of the reported fractions and the main
+    # query is the numerator, so the two have to select from the same rows. Both get their
+    # scope from this one function, and both reuse the one compiled session-filter subquery.
+    span_filter = SpanFilter(filter_condition) if kind == "span" and filter_condition else None
+    filtered_session_rowids = (
+        get_filtered_session_rowids_subquery(
+            session_filter_condition=session_filter_condition,
+            project_rowids=[project_rowid],
+            start_time=start_time,
+            end_time=end_time,
+        )
+        if session_filter_condition
+        else None
+    )
+
+    def scoped(stmt: Select[Any]) -> Select[Any]:
+        stmt = stmt.join(entity_model)
+        if entity_join_model is not None:
+            stmt = stmt.join_from(entity_model, entity_join_model)
+        stmt = stmt.where(project_rowid_column == project_rowid)
+        if span_filter is not None:
+            stmt = span_filter(stmt)
+        if filtered_session_rowids is not None:
+            stmt = stmt.where(session_rowid_column.in_(filtered_session_rowids))
+        stmt = stmt.where(or_(score_column.is_not(None), label_column.is_not(None)))
+        stmt = stmt.where(name_column.in_(annotation_names))
+        return stmt.where(*time_range_conditions)
+
     # First query: count distinct entities per annotation name
     # This is used later to calculate accurate fractions that account for entities without labels
-    entity_count_query = select(
-        name_column, func.count(distinct(entity_id_column)).label("entity_count")
+    entity_count_subquery = (
+        scoped(select(name_column, func.count(distinct(entity_id_column)).label("entity_count")))
+        .group_by(name_column)
+        .subquery()
     )
-
-    entity_count_query = entity_count_query.join(entity_model)
-    if entity_join_model is not None:
-        entity_count_query = entity_count_query.join_from(entity_model, entity_join_model)
-    entity_count_query = entity_count_query.where(project_rowid_column == project_rowid)
-
-    if session_filter_condition:
-        filtered_session_rowids = get_filtered_session_rowids_subquery(
-            session_filter_condition=session_filter_condition,
-            project_rowids=[project_rowid],
-            start_time=start_time,
-            end_time=end_time,
-        )
-        entity_count_query = entity_count_query.where(
-            session_rowid_column.in_(filtered_session_rowids)
-        )
-    if session_rowid is not None:
-        entity_count_query = entity_count_query.where(session_rowid_column == session_rowid)
-
-    entity_count_query = entity_count_query.where(
-        or_(score_column.is_not(None), label_column.is_not(None))
-    )
-    entity_count_query = entity_count_query.where(name_column.in_(annotation_names))
-    entity_count_query = entity_count_query.where(*time_range_conditions)
-
-    entity_count_query = entity_count_query.group_by(name_column)
-    entity_count_subquery = entity_count_query.subquery()
 
     # Main query: gets raw annotation data with counts per (span/trace)+name+label
-    base_stmt = select(
-        entity_id_column,
-        name_column,
-        label_column,
-        func.count().label("record_count"),
-        func.count(label_column).label("label_count"),
-        func.count(score_column).label("score_count"),
-        func.sum(score_column).label("score_sum"),
-    )
-
-    base_stmt = base_stmt.join(entity_model)
-    if entity_join_model is not None:
-        base_stmt = base_stmt.join_from(entity_model, entity_join_model)
-    base_stmt = base_stmt.where(project_rowid_column == project_rowid)
-    if kind == "span" and filter_condition:
-        sf = SpanFilter(filter_condition)
-        base_stmt = sf(base_stmt)
-
-    if session_filter_condition:
-        filtered_session_rowids = get_filtered_session_rowids_subquery(
-            session_filter_condition=session_filter_condition,
-            project_rowids=[project_rowid],
-            start_time=start_time,
-            end_time=end_time,
+    base_stmt = scoped(
+        select(
+            entity_id_column,
+            name_column,
+            label_column,
+            func.count().label("record_count"),
+            func.count(label_column).label("label_count"),
+            func.count(score_column).label("score_count"),
+            func.sum(score_column).label("score_sum"),
         )
-        base_stmt = base_stmt.where(session_rowid_column.in_(filtered_session_rowids))
-    if session_rowid is not None:
-        base_stmt = base_stmt.where(session_rowid_column == session_rowid)
-
-    base_stmt = base_stmt.where(or_(score_column.is_not(None), label_column.is_not(None)))
-    base_stmt = base_stmt.where(name_column.in_(annotation_names))
-    base_stmt = base_stmt.where(*time_range_conditions)
+    )
 
     # Group to get one row per (span/trace)+name+label combination
     base_stmt = base_stmt.group_by(entity_id_column, name_column, label_column)

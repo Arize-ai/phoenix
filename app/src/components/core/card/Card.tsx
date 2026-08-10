@@ -4,6 +4,7 @@ import { useEffect, useEffectEvent, useId, useState } from "react";
 import { Heading } from "../content";
 import { DisclosureArrow } from "../icon";
 import { useStyleProps, viewStyleProps } from "../utils";
+import { CardProvider } from "./CardContext";
 import { cardCSS } from "./styles";
 import type { CardProps } from "./types";
 
@@ -19,16 +20,19 @@ function Card({
   interactiveTitle = false,
   collapseButtonLabel,
   defaultOpen = true,
+  isOpen,
   scrollBody = false,
   extra,
   onCollapseChange,
+  onOpenChange,
   testId,
   ...otherProps
 }: CardProps & { ref?: Ref<HTMLElement> }) {
   const { styleProps } = useStyleProps(otherProps, viewStyleProps);
-  const [isCollapsed, setIsCollapsed] = useState(
+  const [uncontrolledIsCollapsed, setUncontrolledIsCollapsed] = useState(
     collapsible ? !defaultOpen : false
   );
+  const isCollapsed = isOpen == null ? uncontrolledIsCollapsed : !isOpen;
 
   const headerId = useId();
   const collapseButtonId = useId();
@@ -60,8 +64,11 @@ function Card({
     </div>
   );
 
+  // The local state is kept in step even while `isOpen` controls the card, so a
+  // card that later drops back to uncontrolled resumes where the reader left it.
   const toggleCollapsed = () => {
-    setIsCollapsed(!isCollapsed);
+    setUncontrolledIsCollapsed(!isCollapsed);
+    onOpenChange?.(isCollapsed);
   };
 
   // With `interactiveTitle` the toggle itself is only the arrow, so the rest of
@@ -103,35 +110,35 @@ function Card({
   );
 
   return (
-    <section
-      ref={ref}
-      css={cardCSS(styleProps.style)}
-      className="card"
-      data-collapsible={collapsible}
-      data-collapsed={isCollapsed}
-      data-title-separator={titleSeparator}
-      data-testid={testId}
-      style={styleProps.style}
-    >
-      <header id={headerId}>
-        {collapsible ? (
-          interactiveTitle ? (
-            <div
-              className="card__collapsible-header"
-              onClick={handleHeaderClick}
-            >
-              {collapseButton}
-              {headingContents}
-            </div>
+    <CardProvider isCollapsed={isCollapsed}>
+      <section
+        ref={ref}
+        css={cardCSS(styleProps.style)}
+        className="card"
+        data-collapsible={collapsible}
+        data-collapsed={isCollapsed}
+        data-title-separator={titleSeparator}
+        data-testid={testId}
+        style={styleProps.style}
+      >
+        <header id={headerId}>
+          {collapsible ? (
+            interactiveTitle ? (
+              <div
+                className="card__collapsible-header"
+                onClick={handleHeaderClick}
+              >
+                {collapseButton}
+                {headingContents}
+              </div>
+            ) : (
+              collapseButton
+            )
           ) : (
-            collapseButton
-          )
-        ) : (
-          headingContents
-        )}
-        {extra}
-      </header>
-      {
+            headingContents
+          )}
+          {extra}
+        </header>
         <div
           className="card__body"
           id={bodyId}
@@ -141,8 +148,8 @@ function Card({
         >
           {children}
         </div>
-      }
-    </section>
+      </section>
+    </CardProvider>
   );
 }
 

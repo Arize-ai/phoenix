@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { Flex, View } from "@phoenix/components";
-import { RichTokenBreakdown } from "@phoenix/components/RichTokenCostBreakdown";
+import { RichTokenBreakdown } from "@phoenix/components/RichTokenBreakdown";
 import { formatCost, formatInt } from "@phoenix/utils/numberFormatUtils";
 
 const meta = {
@@ -21,6 +21,11 @@ const meta = {
     formatter: {
       control: false,
       description: "Formats the total and segment values.",
+    },
+    totalLabel: {
+      control: "text",
+      description:
+        'Qualifies the total, e.g. "Total", "Average", or the name of the group being broken down.',
     },
   },
   render: (args) => (
@@ -63,7 +68,8 @@ export const CachedConversation: Story = {
       <Flex direction="column" gap="size-300">
         <RichTokenBreakdown {...args} />
         <RichTokenBreakdown
-          valueLabel="prompt tokens"
+          valueLabel="tokens"
+          totalLabel="Prompt"
           totalValue={15_937}
           formatter={formatInt}
           segments={[

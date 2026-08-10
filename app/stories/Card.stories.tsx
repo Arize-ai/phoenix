@@ -3,10 +3,13 @@ import type { Meta, StoryFn } from "@storybook/react";
 import {
   Button,
   Card,
+  CardCollapsedPreview,
   Counter,
+  Flex,
   OverflowRow,
   Text,
   Token,
+  View,
 } from "@phoenix/components";
 
 const meta: Meta = {
@@ -34,6 +37,11 @@ const meta: Meta = {
       control: "boolean",
       description: "Whether the card can be collapsed/expanded",
     },
+    preview: {
+      control: "text",
+      description:
+        "Story-only: rendered as a <CardCollapsedPreview> in the card's headerContent, which shows itself only while the card is collapsed",
+    },
     width: {
       control: "text",
       description: "Width of the card",
@@ -45,6 +53,23 @@ export default meta;
 
 const Template: StoryFn = (args) => (
   <Card {...args} title={args.title}>
+    <Text>
+      This is the card content. You can put any content here including text,
+      buttons, forms, or other components.
+    </Text>
+  </Card>
+);
+
+/**
+ * A collapsed card excerpts its body by composing a `CardCollapsedPreview` into
+ * the header content — the card itself has no preview prop.
+ */
+const PreviewTemplate: StoryFn = ({ preview, ...args }) => (
+  <Card
+    {...args}
+    title={args.title}
+    headerContent={<CardCollapsedPreview>{preview}</CardCollapsedPreview>}
+  >
     <Text>
       This is the card content. You can put any content here including text,
       buttons, forms, or other components.
@@ -80,6 +105,59 @@ export const Collapsible = {
     collapsible: true,
     width: "400px",
   },
+};
+
+export const CollapsedPreview = {
+  render: PreviewTemplate,
+
+  args: {
+    title: "assistant",
+    collapsible: true,
+    defaultOpen: false,
+    preview:
+      "Hi, I am your friendly assistant. I can look up the weather, search your documents, and answer questions about them.",
+    width: "400px",
+  },
+};
+
+/**
+ * The shape span details actually renders: collapsed message cards inside an
+ * open card. Each preview answers to its own card — the open outer card must
+ * not hide the previews nested under it.
+ *
+ * No excerpt here is pre-ellipsised. An ellipsis in this story is one the
+ * browser drew, so a preview that stopped truncating and started hard-clipping
+ * shows up rather than blending in.
+ */
+export const NestedCollapsedPreviews = {
+  render: () => (
+    <Card title="Input" collapsible width="480px">
+      <View padding="size-200">
+        <Flex direction="column" gap="size-100">
+          {[
+            [
+              "system",
+              "You are a friendly assistant that helps users answer questions about their observability data.",
+            ],
+            ["user", "What's the weather in SF today?"],
+            ["assistant", 'get_weather({"city":"San Francisco"})'],
+          ].map(([role, preview]) => (
+            <Card
+              key={role}
+              title={role}
+              collapsible
+              defaultOpen={false}
+              headerContent={
+                <CardCollapsedPreview>{preview}</CardCollapsedPreview>
+              }
+            >
+              <Text>The message body.</Text>
+            </Card>
+          ))}
+        </Flex>
+      </View>
+    </Card>
+  ),
 };
 
 export const WithExtra = {

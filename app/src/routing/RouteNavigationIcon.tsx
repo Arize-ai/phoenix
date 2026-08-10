@@ -19,6 +19,7 @@ const ROUTE_NAVIGATION_ICONS: Record<
   Person: <Icons.Person />,
   PlayCircle: <Icons.PlayCircle />,
   Scale: <Icons.Scale />,
+  Sparkles: <Icons.Sparkles />,
   Trace: <Icons.Trace />,
 };
 

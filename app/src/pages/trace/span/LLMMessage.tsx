@@ -1,11 +1,10 @@
-import {
-  MessageAttributePostfixes,
-  SemanticAttributePrefixes,
-} from "@arizeai/openinference-semantic-conventions";
+import { MessageAttributePostfixes } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 
+import type { CardProps } from "@phoenix/components";
 import {
   Card,
+  CardCollapsedPreview,
   CopyToClipboardButton,
   Disclosure,
   DisclosureGroup,
@@ -30,28 +29,35 @@ import {
 
 import { defaultCardProps } from "./constants";
 import { MessageContentsList } from "./MessageContentsList";
+import { formatJSONForCopy, getMessagePreview, getToolCalls } from "./utils";
 
 /**
  * Displays a single LLM message (input or output) including its contents,
  * tool calls, and function calls.
+ *
+ * Whether the message is expanded is decided by the list it belongs to, so the
+ * collapse-all control and the reader's clicks act on the same state.
  */
-export function LLMMessage({ message }: { message: AttributeMessage }) {
+export function LLMMessage({
+  message,
+  isOpen,
+  onOpenChange,
+}: {
+  message: AttributeMessage;
+} & Pick<CardProps, "isOpen" | "onOpenChange">) {
   const messageContent = message[MessageAttributePostfixes.content];
   const normalizedContent = formatContentAsString(messageContent, {
     unquotePlainString: true,
   });
   // as of multi-modal models, a message can also be a list
   const messagesContents = message[MessageAttributePostfixes.contents];
-  const toolCalls = message[MessageAttributePostfixes.tool_calls]
-    ?.map((obj) => obj[SemanticAttributePrefixes.tool_call])
-    .filter(Boolean);
+  const toolCalls = getToolCalls(message);
   const hasFunctionCall =
     message[MessageAttributePostfixes.function_call_arguments_json] &&
     message[MessageAttributePostfixes.function_call_name];
   const role = message[MessageAttributePostfixes.role] || "unknown";
   const messageStyles = useChatMessageStyles(role);
-  const toolCallDisclosureIds =
-    toolCalls?.map((_, idx) => `tool-call-${idx}`) || [];
+  const toolCallDisclosureIds = toolCalls.map((_, idx) => `tool-call-${idx}`);
   const toolResultId = message[MessageAttributePostfixes.tool_call_id];
 
   return (
@@ -59,17 +65,26 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
       <Card
         {...defaultCardProps}
         {...messageStyles}
+        isOpen={isOpen}
+        onOpenChange={onOpenChange}
         title={
           role +
           (message[MessageAttributePostfixes.name]
             ? `: ${message[MessageAttributePostfixes.name]}`
             : "")
         }
+        headerContent={
+          <CardCollapsedPreview>
+            {getMessagePreview(message)}
+          </CardCollapsedPreview>
+        }
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             <ConnectedMarkdownModeSelect />
+            {/* the message as a whole for anything the content field does not
+                carry on its own -- multi-modal contents, tool calls */}
             <CopyToClipboardButton
-              text={messageContent || JSON.stringify(message)}
+              text={messageContent || formatJSONForCopy(message)}
             />
           </Flex>
         }
@@ -83,19 +98,11 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
           <DisclosureGroup
             css={css`
               width: 100%;
-              // when any .disclosure__trigger is hovered, show the child .copy-to-clipboard-button
+              // the copy buttons in these rows stay visible rather than
+              // appearing on hover: an action a reader has to find by pointing
+              // at it is one touch users cannot reach at all
               .disclosure__trigger {
                 width: 100%;
-                .copy-to-clipboard-button {
-                  visibility: hidden;
-                }
-              }
-              .disclosure__trigger:hover,
-              .disclosure__trigger:focus-within,
-              .disclosure__trigger:focus-visible {
-                .copy-to-clipboard-button {
-                  visibility: visible;
-                }
               }
             `}
             defaultExpandedKeys={[
@@ -136,11 +143,8 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
                 </ConnectedMarkdownBlock>
               </View>
             ) : null}
-            {(toolCalls?.length ?? 0) > 0
-              ? toolCalls?.map((toolCall, idx) => {
-                  if (!toolCall) {
-                    return null;
-                  }
+            {toolCalls.length > 0
+              ? toolCalls.map((toolCall, idx) => {
                   const id = toolCall.id;
                   const parsedArguments = safelyParseJSON(
                     toolCall?.function?.arguments as string

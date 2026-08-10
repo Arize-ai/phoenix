@@ -72,6 +72,37 @@ class CategoricalAnnotationValue(TypedDict):
     score: NotRequired[float]
 
 
+class ChatCompletionErrorDetail(TypedDict):
+    message: str
+    type: str
+    param: NotRequired[str]
+    code: NotRequired[str]
+
+
+class ChatCompletionErrorResponse(TypedDict):
+    error: ChatCompletionErrorDetail
+
+
+class ChatCompletionMessage(TypedDict):
+    content: str
+    role: NotRequired[str]
+
+
+class ChatCompletionStreamOptions(TypedDict):
+    include_usage: NotRequired[bool]
+
+
+class ChatCompletionTextPart(TypedDict):
+    type: Literal["text"]
+    text: str
+
+
+class ChatCompletionUsage(TypedDict):
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+
 class CodeEvaluatorContext(TypedDict):
     type: Literal["code_evaluator"]
     evaluatorNodeId: NotRequired[str]
@@ -85,6 +116,14 @@ class CreateDatasetLabelRequestBody(TypedDict):
     name: str
     color: str
     description: NotRequired[str]
+
+
+class CreateDatasetSplitRequestBody(TypedDict):
+    name: str
+    description: NotRequired[str]
+    color: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+    example_ids: NotRequired[Sequence[str]]
 
 
 class CreateExperimentRequestBody(TypedDict):
@@ -169,6 +208,17 @@ class DatasetLabel(TypedDict):
     color: str
 
 
+class DatasetSplit(TypedDict):
+    id: str
+    name: str
+    description: Optional[str]
+    color: str
+    metadata: Mapping[str, Any]
+    example_count: int
+    created_at: str
+    updated_at: str
+
+
 class DatasetVersion(TypedDict):
     version_id: str
     description: Optional[str]
@@ -223,6 +273,12 @@ class ExperimentRun(TypedDict):
     experiment_id: str
     trace_id: NotRequired[str]
     error: NotRequired[str]
+
+
+class ExperimentTag(TypedDict):
+    id: str
+    name: str
+    description: Optional[str]
 
 
 class FileUIPart(TypedDict):
@@ -311,6 +367,10 @@ class ListExperimentRunsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class ListExperimentTagsResponseBody(TypedDict):
+    data: Sequence[ExperimentTag]
+
+
 class ListExperimentsResponseBody(TypedDict):
     data: Sequence[Experiment]
     next_cursor: Optional[str]
@@ -357,6 +417,11 @@ class OtlpStatus(TypedDict):
     message: NotRequired[str]
 
 
+class PatchPromptRequestBody(TypedDict):
+    description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+
+
 class PlaygroundBuiltinModelContext(TypedDict):
     type: Literal["builtin"]
     provider: str
@@ -401,7 +466,6 @@ class ProjectContext(TypedDict):
     type: Literal["project"]
     projectNodeId: str
     spanFilter: NotRequired[str]
-    rootSpansOnly: NotRequired[bool]
 
 
 class PromptData(TypedDict):
@@ -720,6 +784,15 @@ class SetDatasetLabelsRequestBody(TypedDict):
     dataset_label_ids: NotRequired[Sequence[str]]
 
 
+class SetExperimentTagRequestBody(TypedDict):
+    name: str
+    description: NotRequired[str]
+
+
+class SetExperimentTagResponseBody(TypedDict):
+    data: ExperimentTag
+
+
 class SetProjectAnnotationConfigsRequestBody(TypedDict):
     annotation_config_ids: Sequence[str]
 
@@ -970,6 +1043,19 @@ class UpdateDatasetLabelResponseBody(TypedDict):
     data: DatasetLabel
 
 
+class UpdateDatasetSplitRequestBody(TypedDict):
+    name: NotRequired[str]
+    description: NotRequired[str]
+    color: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+    add_example_ids: NotRequired[Sequence[str]]
+    remove_example_ids: NotRequired[Sequence[str]]
+
+
+class UpdateDatasetSplitResponseBody(TypedDict):
+    data: DatasetSplit
+
+
 class UpdateExperimentRequestBody(TypedDict):
     name: NotRequired[str]
     description: NotRequired[str]
@@ -1149,6 +1235,17 @@ class CategoricalAnnotationConfigData(TypedDict):
     description: NotRequired[str]
 
 
+class ChatCompletionChoice(TypedDict):
+    message: ChatCompletionMessage
+    finish_reason: str
+    index: NotRequired[int]
+
+
+class ChatCompletionRequestMessage(TypedDict):
+    role: Literal["system", "developer", "user", "assistant"]
+    content: Union[str, Sequence[ChatCompletionTextPart]]
+
+
 class ContinuousAnnotationConfig(TypedDict):
     type: Literal["CONTINUOUS"]
     name: str
@@ -1172,8 +1269,31 @@ class CreateApiKeyResponseBody(TypedDict):
     data: CreatedApiKey
 
 
+class CreateChatCompletionRequestBody(TypedDict):
+    model: str
+    messages: Sequence[ChatCompletionRequestMessage]
+    stream: NotRequired[bool]
+    temperature: NotRequired[float]
+    top_p: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    stop: NotRequired[Union[str, Sequence[str]]]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    seed: NotRequired[int]
+    n: NotRequired[int]
+    stream_options: NotRequired[ChatCompletionStreamOptions]
+    tools: NotRequired[Sequence[Any]]
+    tool_choice: NotRequired[Any]
+    response_format: NotRequired[Mapping[str, Any]]
+
+
 class CreateDatasetLabelResponseBody(TypedDict):
     data: DatasetLabel
+
+
+class CreateDatasetSplitResponseBody(TypedDict):
+    data: DatasetSplit
 
 
 class CreateExperimentResponseBody(TypedDict):
@@ -1414,6 +1534,10 @@ class ListDatasetExamplesData(TypedDict):
 
 class ListDatasetExamplesResponseBody(TypedDict):
     data: ListDatasetExamplesData
+
+
+class PatchPromptResponseBody(TypedDict):
+    data: Prompt
 
 
 class PlaygroundContext(TypedDict):
@@ -1664,6 +1788,15 @@ class AssistantMessageMetadata(TypedDict):
     trace: NotRequired[AssistantMessageMetadataTraceIds]
     turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
+
+
+class ChatCompletion(TypedDict):
+    id: str
+    created: int
+    model: str
+    choices: Sequence[ChatCompletionChoice]
+    usage: ChatCompletionUsage
+    object: NotRequired[str]
 
 
 class CreateAnnotationConfigResponseBody(TypedDict):

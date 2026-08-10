@@ -1,5 +1,6 @@
 import {
   Card,
+  CopyToClipboardButton,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -13,7 +14,9 @@ import {
 import type { AttributeDocument } from "@phoenix/openInference/tracing/types";
 
 import { DocumentItem } from "../DocumentItem";
+import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps, documentsListCSS } from "./constants";
+import { formatJSONForCopy } from "./utils";
 
 /**
  * The input side of a reranker span — the query and the documents that were
@@ -28,11 +31,22 @@ export function RerankerInput({
   inputDocuments: AttributeDocument[];
 }) {
   const numInputDocuments = inputDocuments.length;
+  const cardProps = useSpanInfoCardProps("input");
   return (
     <Card
       title="Input"
-      subTitle={`${numInputDocuments} ${numInputDocuments === 1 ? "document" : "documents"}`}
+      subTitle={`${numInputDocuments} ${
+        numInputDocuments === 1 ? "document" : "documents"
+      }`}
       {...defaultCardProps}
+      {...cardProps}
+      // the card holds both halves of the reranker's input, so copying it hands
+      // back the pair rather than whichever disclosure happens to be open
+      extra={
+        <CopyToClipboardButton
+          text={formatJSONForCopy({ query, documents: inputDocuments })}
+        />
+      }
     >
       <MarkdownDisplayProvider>
         <DisclosureGroup defaultExpandedKeys={["query"]}>

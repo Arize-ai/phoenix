@@ -85,8 +85,8 @@ from .session_trace_latency_ms_quantile import SessionTraceLatencyMsQuantileData
 from .span_annotations import SpanAnnotationsDataLoader
 from .span_by_id import SpanByIdDataLoader
 from .span_cost_by_span import SpanCostBySpanDataLoader
-from .span_cost_detail_summary_entries_by_generative_model import (
-    SpanCostDetailSummaryEntriesByGenerativeModelDataLoader,
+from .span_cost_detail_summary_entries_by_model_and_scope import (
+    SpanCostDetailSummaryEntriesByModelAndScopeDataLoader,
 )
 from .span_cost_detail_summary_entries_by_span import SpanCostDetailSummaryEntriesBySpanDataLoader
 from .span_cost_detail_summary_entries_by_trace import SpanCostDetailSummaryEntriesByTraceDataLoader
@@ -198,6 +198,7 @@ class DataLoaders:
     experiment_expected_run_counts: ExperimentExpectedRunCountsDataLoader
     last_experiment_errors: LastExperimentErrorsDataLoader
     experiment_fields: TableFieldsDataLoader
+    experiment_tag_fields: TableFieldsDataLoader
     experiment_repeated_run_group_annotation_summaries: (
         ExperimentRepeatedRunGroupAnnotationSummariesDataLoader
     )
@@ -254,8 +255,8 @@ class DataLoaders:
     span_by_id: SpanByIdDataLoader
     span_cost_by_span: SpanCostBySpanDataLoader
     span_cost_detail_fields: TableFieldsDataLoader
-    span_cost_detail_summary_entries_by_generative_model: (
-        SpanCostDetailSummaryEntriesByGenerativeModelDataLoader
+    span_cost_detail_summary_entries_by_model_and_scope: (
+        SpanCostDetailSummaryEntriesByModelAndScopeDataLoader
     )
     span_cost_detail_summary_entries_by_project_session: (
         SpanCostDetailSummaryEntriesByProjectSessionDataLoader
@@ -360,6 +361,7 @@ def build_data_loaders(
         experiment_expected_run_counts=ExperimentExpectedRunCountsDataLoader(db),
         last_experiment_errors=LastExperimentErrorsDataLoader(db),
         experiment_fields=TableFieldsDataLoader(db, models.Experiment),
+        experiment_tag_fields=TableFieldsDataLoader(db, models.ExperimentTag),
         experiment_repeated_run_group_annotation_summaries=ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(
             db
         ),
@@ -434,7 +436,7 @@ def build_data_loaders(
         span_fields=TableFieldsDataLoader(db, models.Span),
         span_by_id=SpanByIdDataLoader(db),
         span_cost_by_span=SpanCostBySpanDataLoader(db),
-        span_cost_detail_summary_entries_by_generative_model=SpanCostDetailSummaryEntriesByGenerativeModelDataLoader(
+        span_cost_detail_summary_entries_by_model_and_scope=SpanCostDetailSummaryEntriesByModelAndScopeDataLoader(
             db
         ),
         span_cost_detail_summary_entries_by_project_session=SpanCostDetailSummaryEntriesByProjectSessionDataLoader(

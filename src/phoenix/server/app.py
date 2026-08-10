@@ -64,6 +64,7 @@ from phoenix.config import (
     OAuth2ClientConfig,
     get_env_allow_external_resources,
     get_env_allowed_providers,
+    get_env_allowed_sandbox_providers,
     get_env_csrf_trusted_origins,
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_database_usage_insertion_blocking_threshold_percentage,
@@ -136,6 +137,7 @@ from phoenix.server.middleware.anonymous_cors import (
     anonymous_paths,
 )
 from phoenix.server.middleware.gzip import GZipMiddleware
+from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer
@@ -145,6 +147,7 @@ from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.sandbox._download import prefetch_wasm_binary_if_needed
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
+from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.settings.registry import SETTINGS_REGISTRY
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
@@ -201,6 +204,7 @@ NEW_DB_AGE_THRESHOLD_MINUTES = 2
 
 ProjectName: TypeAlias = str
 _Callback: TypeAlias = Callable[[], Union[None, Awaitable[None]]]
+_WelcomeMessage: TypeAlias = Callable[[SystemSettings], str]
 
 
 def import_object_from_file(file_path: str, object_name: str) -> Any:
@@ -449,17 +453,13 @@ async def version() -> PlainTextResponse:
     return PlainTextResponse(f"{phoenix_version}")
 
 
-def _db(
-    engine: AsyncEngine,
-) -> Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]]:
+def _db(engine: AsyncEngine) -> Callable[[], AbstractAsyncContextManager[AsyncSession]]:
     Session = async_sessionmaker(engine, expire_on_commit=False)
 
     @contextlib.asynccontextmanager
-    async def factory(lock: Optional[asyncio.Lock] = None) -> AsyncIterator[AsyncSession]:
-        async with contextlib.AsyncExitStack() as stack:
-            if lock:
-                await stack.enter_async_context(lock)
-            yield await stack.enter_async_context(Session.begin())
+    async def factory() -> AsyncIterator[AsyncSession]:
+        async with Session.begin() as session:
+            yield session
 
     return factory
 
@@ -634,6 +634,7 @@ def _lifespan(
     db_disk_usage_monitor: DbDiskUsageMonitor,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
+    sandbox_runtime: SandboxRuntimeContext,
     online_eval_producer: Optional[OnlineEvalProducer] = None,
     online_eval_consumer: Optional[OnlineEvalConsumer] = None,
     token_store: Optional[TokenStore] = None,
@@ -646,7 +647,7 @@ def _lifespan(
     initial_annotation_precursors: Iterable[AnnotationPrecursor] = (),
     scaffolder_config: Optional[ScaffolderConfig] = None,
     grpc_interceptors: Iterable[ServerInterceptor] = (),
-    welcome_message: str | None = None,
+    welcome_message: Optional[_WelcomeMessage] = None,
     docs_mcp_server: Optional[MCPToolset[Any]] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
@@ -655,7 +656,6 @@ def _lifespan(
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
                 await res
-        db.lock = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
         await system_settings.bootstrap()
         async with AsyncExitStack() as stack:
             (
@@ -688,6 +688,7 @@ def _lifespan(
             await stack.enter_async_context(generative_model_store)
             await stack.enter_async_context(system_settings)
             await stack.enter_async_context(db_disk_usage_monitor)
+            await stack.enter_async_context(sandbox_runtime.monty)
             # ``sandbox_session_manager`` must enter before ``experiment_runner``
             # so ``AsyncExitStack`` tears them down in reverse and the runner
             # (which consumes the manager) stops first. If the runner outlived
@@ -713,6 +714,19 @@ def _lifespan(
                         "Failed to initialize docs MCP server; continuing without docs capability.",
                         exc_info=True,
                     )
+            # Probe the shared runtime once when either consumer can use it.
+            # Failure is non-fatal because Monty is an optional server feature.
+            if (
+                getattr(app.state, "mcp_code_mode_sandbox", None) is not None
+                or "MONTY" in get_env_allowed_sandbox_providers()
+            ):
+                try:
+                    await sandbox_runtime.monty.probe_runtime()
+                except Exception:
+                    logger.warning(
+                        "Monty runtime startup probe failed; continuing startup.",
+                        exc_info=True,
+                    )
             # Start the mounted MCP server's session manager (set in create_app).
             if (mcp_http_app := getattr(app.state, "mcp_http_app", None)) is not None:
                 await stack.enter_async_context(mcp_http_app.lifespan(app))
@@ -727,7 +741,12 @@ def _lifespan(
                 await stack.enter_async_context(token_store)
             _warn_if_missing_aioboto3()
             if welcome_message:
-                print(welcome_message, flush=True)
+                # The banner is cosmetic and renders after migrations have run and
+                # ports are bound, so a defect in it must not abort a started server.
+                try:
+                    print(welcome_message(system_settings), flush=True)
+                except Exception:
+                    logger.exception("Failed to render the startup banner")
             yield {
                 "event_queue": dml_event_handler,
                 "enqueue_annotations": enqueue_annotations,
@@ -768,6 +787,7 @@ def create_graphql_router(
     span_cost_calculator: SpanCostCalculator,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
+    sandbox_runtime: SandboxRuntimeContext,
     encrypt: Callable[[bytes], bytes],
     decrypt: Callable[[bytes], bytes],
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
@@ -805,6 +825,7 @@ def create_graphql_router(
             span_cost_calculator=span_cost_calculator,
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
+            sandbox_runtime=sandbox_runtime,
             encrypt=encrypt,
             decrypt=decrypt,
             cache_for_dataloaders=cache_for_dataloaders,
@@ -923,7 +944,7 @@ def create_app(
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
     allowed_origins: Optional[list[str]] = None,
     management_url: Optional[str] = None,
-    welcome_message: str | None = None,
+    welcome_message: Optional[_WelcomeMessage] = None,
 ) -> FastAPI:
     verify_server_environment_variables()
     _validate_oauth2_idp_names(oauth2_client_configs or [])
@@ -1036,12 +1057,14 @@ def create_app(
         graphql_schema_extensions.append(_OpenTelemetryExtension)
     encryption_service = EncryptionService(secret=secret)
     redactor = Redactor(secret=secret or SecretStr(""))
+    sandbox_runtime = SandboxRuntimeContext(monty=MontyRuntime())
     sandbox_session_manager = SandboxSessionManager()
     experiment_runner = ExperimentRunner(
         db,
         decrypt=encryption_service.decrypt,
         tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
         sandbox_session_manager=sandbox_session_manager,
+        sandbox_runtime=sandbox_runtime,
     )
     online_eval_producer: Optional[OnlineEvalProducer] = None
     online_eval_consumer: Optional[OnlineEvalConsumer] = None
@@ -1092,6 +1115,7 @@ def create_app(
         span_cost_calculator=span_cost_calculator,
         experiment_runner=experiment_runner,
         sandbox_session_manager=sandbox_session_manager,
+        sandbox_runtime=sandbox_runtime,
         encrypt=encryption_service.encrypt,
         decrypt=encryption_service.decrypt,
     )
@@ -1124,6 +1148,7 @@ def create_app(
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
+            sandbox_runtime=sandbox_runtime,
             online_eval_producer=online_eval_producer,
             online_eval_consumer=online_eval_consumer,
             grpc_interceptors=grpc_interceptors,
@@ -1214,6 +1239,7 @@ def create_app(
 
     app.openapi = _openapi  # type: ignore[method-assign]
     mcp_http_app = None
+    mcp_code_mode_sandbox = None
     if mcp_mount_path is not None:
         # Build after ``app.openapi`` is customized so the generated tools mirror
         # the same /v1 schema, and mount before the static UI ("/") catch-all so
@@ -1225,7 +1251,10 @@ def create_app(
             create_phoenix_mcp_app,
         )
 
-        mcp_http_app = create_phoenix_mcp_app(app)
+        mcp_http_app, mcp_code_mode_sandbox = create_phoenix_mcp_app(
+            app,
+            monty_runtime=sandbox_runtime.monty,
+        )
         # The guard reads scope["user"], so it is installed exactly when the
         # AuthenticationMiddleware that populates it is (token_store above).
         app.mount(
@@ -1236,6 +1265,9 @@ def create_app(
         # clients are configured with; rewrite it to the mount root before routing.
         app.add_middleware(MountPathNormalizer)
     app.state.mcp_http_app = mcp_http_app
+    # FastMCP adapter backed by ``sandbox_runtime.monty``. None unless code mode
+    # is enabled.
+    app.state.mcp_code_mode_sandbox = mcp_code_mode_sandbox
     # Consumed by the OAuth2 authorization server (resource-indicator validation)
     # and the protected-resource metadata routes; None when the mount is disabled.
     app.state.mcp_mount_path = mcp_mount_path
@@ -1320,6 +1352,7 @@ def create_app(
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
     app.state.docs_mcp_server = docs_mcp_server
     app.state.sandbox_session_manager = sandbox_session_manager
+    app.state.sandbox_runtime = sandbox_runtime
     app.state.online_eval_producer = online_eval_producer
     app.state.online_eval_consumer = online_eval_consumer
     app.state.graphql_schema = graphql_schema
@@ -1329,6 +1362,7 @@ def create_app(
         span_cost_calculator=span_cost_calculator,
         experiment_runner=experiment_runner,
         sandbox_session_manager=sandbox_session_manager,
+        sandbox_runtime=sandbox_runtime,
         encrypt=encryption_service.encrypt,
         decrypt=encryption_service.decrypt,
         cache_for_dataloaders=cache_for_dataloaders,
@@ -1431,6 +1465,7 @@ def _get_build_graphql_context_function(
     span_cost_calculator: SpanCostCalculator,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
+    sandbox_runtime: SandboxRuntimeContext,
     encrypt: Callable[[bytes], bytes],
     decrypt: Callable[[bytes], bytes],
     cache_for_dataloaders: Optional[CacheForDataLoaders],
@@ -1458,6 +1493,7 @@ def _get_build_graphql_context_function(
             span_cost_calculator=span_cost_calculator,
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
+            sandbox_runtime=sandbox_runtime,
             encrypt=encrypt,
             decrypt=decrypt,
             cache_for_dataloaders=cache_for_dataloaders,

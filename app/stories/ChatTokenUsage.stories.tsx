@@ -5,7 +5,7 @@ import { Button, Text } from "@phoenix/components";
 import {
   ChatTokenUsage,
   ChatTokenUsageDetails,
-} from "@phoenix/components/agent/ChatTokenUsage";
+} from "@phoenix/components/ai/token-usage";
 
 const meta = {
   title: "Agent/Chat Token Usage",
