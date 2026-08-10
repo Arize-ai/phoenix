@@ -420,15 +420,16 @@ schema-ddl: ## Compile DDL schema from PostgreSQL and SQLite databases (ARGS=/SQ
 	@echo -e "$(CYAN)Compiling DDL schema...$(NC)"
 	@$(UV) pip install --strict psycopg[binary] testing.postgresql pglast ty
 	@$(UV) pip install --no-sources --strict --reinstall-package arize-phoenix .
-	@cd scripts/ddl && $(UV) run ty check generate_ddl_postgresql.py && $(UV) run python generate_ddl_postgresql.py $(ARGS)
+	@cd scripts/ddl && $(UV) run ty check *.py && $(UV) run pytest -q -rN test_*.py
+	@cd scripts/ddl && $(UV) run python generate_ddl_postgresql.py $(ARGS)
 ifeq (,$(SKIP_SQLITE))
-	@cd scripts/ddl && $(UV) run ty check generate_ddl_sqlite.py && $(UV) run python generate_ddl_sqlite.py $(SQLITE_ARGS)
+	@cd scripts/ddl && $(UV) run python generate_ddl_sqlite.py $(SQLITE_ARGS)
 else
 	@echo -e "$(YELLOW)Skipping SQLite: ARGS targets an external PostgreSQL database (pass SQLITE_ARGS= to run it too)$(NC)"
 endif
-	@cd scripts/ddl && $(UV) run ty check validate_schema_assets.py && $(UV) run python validate_schema_assets.py --postgresql-args "$(ARGS)" --sqlite-args "$(SQLITE_ARGS)"
+	@cd scripts/ddl && $(UV) run python validate_schema_assets.py --postgresql-args "$(ARGS)" --sqlite-args "$(SQLITE_ARGS)"
 ifeq (,$(strip $(ARGS))$(strip $(SQLITE_ARGS)))
-	@cd scripts/ddl && $(UV) run ty check compare_schemas.py && $(UV) run python compare_schemas.py
+	@cd scripts/ddl && $(UV) run python compare_schemas.py
 else
 	@echo -e "$(YELLOW)Skipping cross-dialect comparison: ARGS/SQLITE_ARGS may not have written the canonical files$(NC)"
 endif

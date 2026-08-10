@@ -33,25 +33,36 @@ def _writes_canonical(args: str, *, canonical_output: Path, external_output: Pat
     return resolved.resolve() == canonical_output.resolve()
 
 
+def _canonical_assets(
+    postgresql_args: str,
+    sqlite_args: str,
+) -> tuple[tuple[SupportedSQLDialectName, str], ...]:
+    """Return packaged assets whose generator invocation wrote canonical output."""
+    generator_args = {
+        "postgresql": postgresql_args,
+        "sqlite": sqlite_args,
+    }
+    assets: list[tuple[SupportedSQLDialectName, str]] = []
+    for dialect, filename in SCHEMA_ASSETS:
+        if _writes_canonical(
+            generator_args[dialect],
+            canonical_output=DDL_DIRECTORY / filename,
+            external_output=Path(__file__).with_name(filename),
+        ):
+            assets.append((dialect, filename))
+    return tuple(assets)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--postgresql-args", default="")
     parser.add_argument("--sqlite-args", default="")
     args = parser.parse_args()
-    writes_postgresql = _writes_canonical(
-        args.postgresql_args,
-        canonical_output=DDL_DIRECTORY / "postgresql_schema.sql",
-        external_output=Path(__file__).with_name("postgresql_schema.sql"),
-    )
-    writes_sqlite = _writes_canonical(
-        args.sqlite_args,
-        canonical_output=DDL_DIRECTORY / "sqlite_schema.sql",
-        external_output=Path(__file__).with_name("sqlite_schema.sql"),
-    )
-    if not (writes_postgresql and writes_sqlite):
-        print("Skipping canonical DDL validation: a generator wrote a non-canonical output")
+    assets = _canonical_assets(args.postgresql_args, args.sqlite_args)
+    if not assets:
+        print("Skipping canonical DDL validation: no generator wrote a canonical output")
         return 0
-    for dialect, filename in SCHEMA_ASSETS:
+    for dialect, filename in assets:
         path = DDL_DIRECTORY / filename
         tables = parse_schema_asset(path.read_text(encoding="utf-8"), dialect)
         print(f"{filename}: loader recognized {len(tables)} tables")
