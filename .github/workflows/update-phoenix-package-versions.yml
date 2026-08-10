@@ -64,6 +64,43 @@ jobs:
             echo "✓ Versions already match for $PACKAGE_NAME: $CURRENT_VERSION"
           fi
 
+      # This workflow is dispatched by publish.yaml the moment the PyPI upload
+      # returns, but the *simple index* that resolvers read trails the upload by
+      # up to a couple of minutes while the CDN revalidates. CI installs the
+      # root package with `uv pip install --no-sources .` (see tox.ini), which
+      # deliberately resolves the workspace siblings from PyPI, so a PR opened
+      # inside that window fails with "No solution found ... only
+      # $PACKAGE_NAME<=<previous version> is available". Hold the PR until the
+      # index actually serves the new version.
+      #
+      # Two consecutive confirmations, because the failure mode was one CI leg
+      # seeing the version and another not: the purge reaches CDN nodes
+      # unevenly, so a single lucky response is not evidence that the whole
+      # fleet is serving it.
+      - name: Wait for version to be resolvable on PyPI
+        if: steps.check-update.outputs.needs_update == 'true'
+        run: |
+          CONFIRMATIONS=0
+          for attempt in $(seq 1 40); do
+            if curl -sf -H 'Accept: application/vnd.pypi.simple.v1+json' \
+                 -H 'Cache-Control: no-cache' \
+                 "https://pypi.org/simple/$PACKAGE_NAME/" \
+                 | jq -e --arg v "$PACKAGE_VERSION" '.versions | index($v)' > /dev/null; then
+              CONFIRMATIONS=$((CONFIRMATIONS + 1))
+              if [ "$CONFIRMATIONS" -ge 2 ]; then
+                echo "✓ $PACKAGE_NAME==$PACKAGE_VERSION is in the PyPI simple index"
+                exit 0
+              fi
+              echo "· $PACKAGE_NAME==$PACKAGE_VERSION seen ($CONFIRMATIONS/2 confirmations)"
+            else
+              CONFIRMATIONS=0
+              echo "· $PACKAGE_NAME==$PACKAGE_VERSION not in the simple index yet (attempt $attempt/40)"
+            fi
+            sleep 15
+          done
+          echo "::error::$PACKAGE_NAME==$PACKAGE_VERSION never appeared in the PyPI simple index; not opening a PR that cannot resolve"
+          exit 1
+
       - name: Update pyproject.toml
         if: steps.check-update.outputs.needs_update == 'true'
         run: |
