@@ -513,7 +513,7 @@ class TestStoredCodeEvaluatorPreview:
 
         backend = AsyncMock()
         fenced_stdout = f"{PHOENIX_RESULT_BEGIN}\n0.75\n{PHOENIX_RESULT_END}\n"
-        backend.execute = AsyncMock(
+        backend.execute_with_inputs = AsyncMock(
             return_value=ExecutionResult(stdout=fenced_stdout, stderr="", error=None)
         )
         backend.close = AsyncMock(return_value=None)
