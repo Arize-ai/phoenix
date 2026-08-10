@@ -2,6 +2,8 @@ import {
   getToolName,
   isToolUIPart,
   lastAssistantMessageIsCompleteWithToolCalls,
+  type DynamicToolUIPart,
+  type ToolUIPart,
   type UIMessage,
 } from "ai";
 
@@ -20,6 +22,7 @@ import {
   REMOVE_PROMPT_INSTANCE_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 
+import { isResolvedClientToolOutputPart } from "./chatUtils";
 import { getUnresolvedToolCalls } from "./interruptToolCalls";
 
 export const USER_INTERRUPT_ERROR = "The user has interrupted this tool call.";
@@ -39,6 +42,42 @@ export function shouldSendAutomaticallyAfterToolOutput({
     return false;
   }
   return lastAssistantMessageIsCompleteWithToolCalls({ messages });
+}
+
+/**
+ * The trailing assistant message's resolved client tool outputs that are
+ * eligible for an eager flush to the tool-outputs endpoint — outputs the
+ * server has not yet persisted, on a turn that stays open because sibling
+ * tool calls are still pending. Empty when every call has resolved (the
+ * normal chat continuation carries the outputs instead) or when the tail
+ * holds interrupted or navigation-cancel outputs, which follow the
+ * new-user-message path rather than continuing this turn.
+ */
+export function getFlushableClientToolOutputs({
+  messages,
+  isFlushed,
+}: {
+  messages: UIMessage[];
+  /** Whether an output already reached the server (persisted or in flight). */
+  isFlushed: (toolCallId: string) => boolean;
+}): Array<ToolUIPart | DynamicToolUIPart> {
+  const message = messages[messages.length - 1];
+  if (!message || message.role !== "assistant") {
+    return [];
+  }
+  if (hasInterruptedToolCall({ messages, errorText: USER_INTERRUPT_ERROR })) {
+    return [];
+  }
+  if (hasApprovalNavigationCancel(messages)) {
+    return [];
+  }
+  if (getUnresolvedToolCalls(messages).length === 0) {
+    return [];
+  }
+  return message.parts.filter(
+    (part): part is ToolUIPart | DynamicToolUIPart =>
+      isResolvedClientToolOutputPart(part) && !isFlushed(part.toolCallId)
+  );
 }
 
 export function shouldKeepTurnOpenForPendingToolOutput({

@@ -5,6 +5,8 @@ const CHAT_PATH_TEMPLATE =
   "/v1/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof paths;
 const COMPACT_PATH_TEMPLATE =
   "/v1/agents/{agent_id}/sessions/{session_id}/compact" satisfies keyof paths;
+const TOOL_OUTPUTS_PATH_TEMPLATE =
+  "/v1/agents/{agent_id}/sessions/{session_id}/tool_outputs" satisfies keyof paths;
 const ASSISTANT_AGENT_ID = "assistant";
 
 /**
@@ -87,5 +89,14 @@ export function buildAgentCompactApiUrl(sessionId: string): string {
       "{session_id}",
       encodeURIComponent(sessionId)
     )
+  );
+}
+
+export function buildAgentToolOutputsApiUrl(sessionId: string): string {
+  return prependBasename(
+    TOOL_OUTPUTS_PATH_TEMPLATE.replace(
+      "{agent_id}",
+      ASSISTANT_AGENT_ID
+    ).replace("{session_id}", encodeURIComponent(sessionId))
   );
 }
