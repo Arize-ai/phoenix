@@ -339,6 +339,9 @@ def test_the_instructions_name_the_tools_the_surface_actually_exposes() -> None:
         assert tool in rendered
     assert "enable_tool_group" not in rendered
     assert "read-only" in rendered.lower()
+    assert "not through `call_tool` inside `execute`" in rendered
+    assert 'detail="detailed"' in rendered
+    assert "Check for its `error` key" in rendered
 
 
 async def test_the_instructions_account_for_every_directly_named_catalog_tool() -> None:
