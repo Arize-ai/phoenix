@@ -633,6 +633,19 @@ def load_allowlist(dialect: SupportedSQLDialectName) -> Allowlist:
                         for virtual in collisions
                     )
                 )
+            exposed_columns = frozenset(physical_table.columns) | virtual_columns
+            if table.time_column is not None and table.time_column not in exposed_columns:
+                raise ValueError(
+                    f"Allowlisted table {table_name!r} has a time column not exposed by "
+                    f"the DDL or virtual-column policy: {table.time_column!r}."
+                )
+            unknown_notes = sorted(set(table.column_notes) - exposed_columns)
+            if unknown_notes:
+                unknown_note_names = ", ".join(repr(name) for name in unknown_notes)
+                raise ValueError(
+                    f"Allowlisted table {table_name!r} has notes for columns not exposed by "
+                    f"the DDL or virtual-column policy: {unknown_note_names}."
+                )
             table_specs[table_name] = TableSpec(
                 name=table_name,
                 area=area_name,

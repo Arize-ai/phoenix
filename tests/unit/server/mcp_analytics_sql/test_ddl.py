@@ -281,6 +281,62 @@ def test_allowlist_rejects_case_insensitive_physical_virtual_collisions(
         allowlist_module.load_allowlist.cache_clear()
 
 
+@pytest.mark.parametrize(
+    ("time_column", "column_notes", "error"),
+    [
+        ("missing_time", {}, "time column not exposed"),
+        (None, {"missing_note": "stale"}, "notes for columns not exposed"),
+    ],
+)
+def test_allowlist_rejects_curation_for_unexposed_columns(
+    monkeypatch: pytest.MonkeyPatch,
+    time_column: str | None,
+    column_notes: dict[str, str],
+    error: str,
+) -> None:
+    """DDL migrations must not leave incorrect column guidance behind."""
+    from types import MappingProxyType
+
+    from phoenix.server.mcp_analytics_sql import allowlist as allowlist_module
+    from phoenix.server.mcp_analytics_sql.manifest import (
+        AnalyticsSqlManifest,
+        Area,
+        TableCuration,
+    )
+
+    test_manifest = AnalyticsSqlManifest(
+        areas=MappingProxyType(
+            {
+                "test": Area(
+                    tables=MappingProxyType(
+                        {
+                            "widgets": TableCuration(
+                                time_column=time_column,
+                                column_notes=column_notes,
+                            )
+                        }
+                    )
+                )
+            }
+        )
+    )
+    schema = {
+        "widgets": TableSchema(
+            create_table_ddl="CREATE TABLE widgets (id INTEGER);",
+            columns=("id",),
+            quoted_columns=frozenset(),
+        )
+    }
+    monkeypatch.setattr(allowlist_module, "manifest", lambda: test_manifest)
+    monkeypatch.setattr(allowlist_module, "load_dialect_schema", lambda dialect: schema)
+    allowlist_module.load_allowlist.cache_clear()
+    try:
+        with pytest.raises(ValueError, match=error):
+            allowlist_module.load_allowlist("sqlite")
+    finally:
+        allowlist_module.load_allowlist.cache_clear()
+
+
 @pytest.mark.parametrize("backend", DIALECTS)
 def test_raw_foreign_keys_can_name_nonallowlisted_tables(backend: str) -> None:
     """The loader asset is authoritative even when an FK target is not queryable."""

@@ -19,12 +19,18 @@ is allowed but has never been executed is only theoretically allowed.
 from __future__ import annotations
 
 import asyncio
+import threading
+from typing import Any
 
 import pytest
 from sqlalchemy import text
 
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError
-from phoenix.server.mcp_analytics_sql.execute import ExecuteParams, execute_analytics_sql
+from phoenix.server.mcp_analytics_sql.execute import (
+    ExecuteParams,
+    ExecutionSemaphore,
+    execute_analytics_sql,
+)
 from phoenix.server.mcp_analytics_sql.teaching import describe_sql_schema
 from phoenix.server.types import DbSessionFactory
 
@@ -565,6 +571,7 @@ async def test_no_window_is_imposed_when_none_is_asked_for(
 
 async def test_cancelling_a_query_stops_the_worker(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A caller going away must stop the work, not merely stop waiting for it.
 
@@ -584,7 +591,46 @@ async def test_cancelling_a_query_stops_the_worker(
     the load-bearing assertion — raising it means the cancel reached a query
     that was genuinely still running.
     """
+    from phoenix.server.mcp_analytics_sql import execute as execute_module
+
     db, db_path = analytics_sqlite_db
+    semaphore = ExecutionSemaphore()
+    monkeypatch.setattr(execute_module, "EXECUTION_SEMAPHORE", semaphore)
+    statement_started = threading.Event()
+    close_started = threading.Event()
+    allow_close = threading.Event()
+    sqlean_module = execute_module.sqlean  # type: ignore[attr-defined]
+    real_connect = sqlean_module.connect
+
+    async def wait_for_event(event: threading.Event) -> None:
+        for _ in range(100):
+            if event.is_set():
+                return
+            await asyncio.sleep(0.01)
+        raise AssertionError("timed out waiting for SQLite worker")
+
+    class GatedConnection:
+        def __init__(self, connection: Any) -> None:
+            self._connection = connection
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self._connection, name)
+
+        def set_authorizer(self, *args: Any) -> None:
+            statement_started.set()
+            self._connection.set_authorizer(*args)
+
+        def close(self) -> None:
+            close_started.set()
+            allow_close.wait(timeout=1)
+            self._connection.close()
+
+    monkeypatch.setattr(
+        sqlean_module,
+        "connect",
+        lambda *args, **kwargs: GatedConnection(real_connect(*args, **kwargs)),
+    )
+
     async with db() as session:
         await session.execute(
             text(
@@ -619,13 +665,28 @@ async def test_cancelling_a_query_stops_the_worker(
     task = asyncio.create_task(
         execute_analytics_sql(db, ExecuteParams(sql=expensive), sqlite_db_path=db_path)
     )
-    await asyncio.sleep(0.1)
-    task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await task
+    try:
+        # The authorizer is installed in the SQLite worker, so this guarantees
+        # cancellation reaches a live worker rather than only earlier setup.
+        await wait_for_event(statement_started)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
 
-    # The connection is per-statement, so a follow-up must still succeed rather
-    # than inherit anything from the abandoned one.
+        # Hold cleanup briefly so this assertion cannot race the worker's done
+        # callback. The timeout and finally prevent a test failure from
+        # stranding a worker thread or its semaphore permit.
+        await wait_for_event(close_started)
+        assert semaphore._locks["sqlite"].locked()
+    finally:
+        allow_close.set()
+        if not task.done():
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+    # Once cleanup releases that slot, a follow-up must succeed rather than
+    # inherit any statement-local authorizer or progress-handler state.
     result = await execute_analytics_sql(
         db, ExecuteParams(sql="SELECT count(*) AS n FROM projects"), sqlite_db_path=db_path
     )
