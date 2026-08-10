@@ -18,8 +18,6 @@ from phoenix.client.helpers.sdk.google_genai.generate_content import (
     _ToolKwargsConversion,
     to_chat_messages_and_kwargs,
 )
-from phoenix.client.types import PromptVersion
-from phoenix.client.types.prompts import GoogleGenAIPrompt
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 
 
@@ -372,29 +370,6 @@ class TestToolKwargsGuards:
         )
         assert "tools" not in obj
         assert "tool_config" not in obj
-
-
-class TestPromptVersionFormatting:
-    def test_google_provider_uses_google_genai_by_default(self) -> None:
-        prompt = PromptVersion(
-            [
-                v1.PromptMessage(role="system", content="Be concise."),
-                v1.PromptMessage(role="user", content="Hello"),
-            ],
-            model_name="gemini-2.0-flash",
-            model_provider="GOOGLE",
-            template_format="NONE",
-        )
-
-        formatted = prompt.format()
-
-        assert isinstance(formatted, GoogleGenAIPrompt)
-        assert formatted.kwargs["model"] == "gemini-2.0-flash"
-        assert formatted.kwargs["config"].system_instruction == "Be concise."
-        assert len(formatted.messages) == 1
-        assert isinstance(formatted.messages[0], genai_types.Content)
-        assert formatted.messages[0].role == "user"
-        assert _first_part(formatted.messages[0]).text == "Hello"
 
 
 def _first_part(content: genai_types.Content) -> genai_types.Part:

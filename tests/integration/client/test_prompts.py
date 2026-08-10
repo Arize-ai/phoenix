@@ -33,6 +33,7 @@ from anthropic.types import (
 )
 from anthropic.types.message_create_params import MessageCreateParamsBase
 from deepdiff.diff import DeepDiff
+from google.genai import types as genai_types
 from openai import pydantic_function_tool
 from openai.lib._parsing import type_to_response_format_param
 from openai.types.chat import (
@@ -44,6 +45,7 @@ from openai.types.chat.completion_create_params import CompletionCreateParamsBas
 from openai.types.shared_params import ResponseFormatJSONSchema
 from phoenix.client import Client as _PhoenixClient
 from phoenix.client.types import PromptVersion
+from phoenix.client.types.prompts import GoogleGenAIPrompt
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 from pydantic import BaseModel, ConfigDict, Field, create_model
 from typing_extensions import assert_never
@@ -586,6 +588,41 @@ _CREATE_CHAT_PROMPT = """
 
 
 class TestClient:
+    def test_google_genai_default_formatting(
+        self,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+        prompt = _create_chat_prompt(
+            _app,
+            api_key,
+            messages=[
+                PromptMessageInput(
+                    role="SYSTEM",
+                    content=[ContentPartInput(text=TextContentValueInput(text="Be concise."))],
+                ),
+                PromptMessageInput(
+                    role="USER",
+                    content=[ContentPartInput(text=TextContentValueInput(text="Hello"))],
+                ),
+            ],
+            model_provider="GOOGLE",
+            model_name="gemini-2.0-flash",
+            invocation_parameters={"google": {}},
+        )
+
+        formatted = prompt.format()
+
+        assert isinstance(formatted, GoogleGenAIPrompt)
+        assert formatted.kwargs["model"] == "gemini-2.0-flash"
+        assert formatted.kwargs["config"].system_instruction == "Be concise."
+        assert len(formatted.messages) == 1
+        assert isinstance(formatted.messages[0], genai_types.Content)
+        assert formatted.messages[0].role == "user"
+        assert formatted.messages[0].parts is not None
+        assert formatted.messages[0].parts[0].text == "Hello"
+        _can_recreate_via_client(_app, prompt, api_key)
+
     @pytest.mark.parametrize(
         "template_format",
         ["F_STRING", "MUSTACHE", "NONE"],
