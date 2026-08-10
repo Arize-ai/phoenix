@@ -173,8 +173,6 @@ export function useAgentSessionSync({
       // client still shows Accept/Reject affordances for; drop any pending
       // approval state the synced transcript marks as terminal.
       cleanupResolvedPendingToolState(store.getState(), syncedMessages);
-      // The replacement reverted any locally recovered tool calls to the
-      // server's still-pending copies; re-run the recovery pass.
       getTurnClientState(chatInstance)?.recoverPendingToolCalls();
       // Record the applied tail (from the full fetch, not the probe: the
       // transcript may have moved again in between) so unchanged idle ticks

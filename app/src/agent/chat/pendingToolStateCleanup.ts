@@ -1,4 +1,4 @@
-import { getToolOrDynamicToolName, isToolUIPart, type UIMessage } from "ai";
+import { getToolName, isToolUIPart, type UIMessage } from "ai";
 
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
@@ -97,7 +97,7 @@ export function cleanupResolvedPendingToolState(
       }
       cleanupPendingToolState(
         state,
-        getToolOrDynamicToolName(part),
+        getToolName(part),
         part.toolCallId
       );
     }

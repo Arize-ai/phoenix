@@ -1,13 +1,13 @@
 import type { Chat } from "@ai-sdk/react";
 
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import type { AgentUIMessage, AgentUIMessagePart } from "@phoenix/agent/chat/types";
 import type { components } from "@phoenix/api/__generated__/v1";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import type { AgentCapabilities, AgentCapabilityKey } from "../capabilities";
 
 export type AddToolOutput = Chat<AgentUIMessage>["addToolOutput"];
-export type AppendMessagePart = (part: AgentUIMessage["parts"][number]) => void;
+export type AppendMessagePart = (part: AgentUIMessagePart) => void;
 
 type PhoenixToolCallProviderMetadata =
   components["schemas"]["PhoenixToolCallProviderMetadata"];
@@ -59,13 +59,7 @@ export type AgentToolDefinition = {
   name: string;
   uiBehavior?: AgentToolUIBehavior;
   requiredCapabilities?: AgentCapabilityKey[];
-  /**
-   * Dispatching this tool only stages pending approval/elicitation state,
-   * with no side effects until accept, so the chat runtime may re-dispatch
-   * an unresolved call from the persisted transcript on session load to
-   * restore its Accept/Reject affordances. Leave unset for tools that
-   * execute on dispatch — rehydrating those would re-run them every reload.
-   */
+  /** Safe to re-dispatch on reload: dispatch only shows an Accept/Reject prompt. */
   rehydratable?: boolean;
   /**
    * Parse the raw tool-call input and execute the handler. Emits an
@@ -99,8 +93,8 @@ function resolveInvalidInputErrorText(
  * @param config.invalidInputErrorText - message (or builder) for invalid input
  * @param config.requiredCapabilities - capability keys gated by the kernel
  * @param config.uiBehavior - chat UI surfacing hints
- * @param config.rehydratable - dispatch only stages approval state, so
- * unresolved calls are safely re-dispatched on session load
+ * @param config.rehydratable - dispatch only shows an approval prompt, so
+ * re-dispatching on page reload is safe
  * @param config.execute - handler invoked with parsed input
  */
 export function defineTool<TInput>(config: {

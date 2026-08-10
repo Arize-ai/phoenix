@@ -15,7 +15,7 @@ import {
 import { flushToolOutputs } from "@phoenix/agent/chat/toolOutputFlush";
 import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import type { AgentUIMessage, AgentUIMessagePart } from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import {
   isRehydratableAgentTool,
@@ -47,12 +47,6 @@ import { getRemovedUserMessageText } from "./removedUserMessageText";
 
 export type TurnClientState = {
   toolTimings: ReturnType<typeof createClientToolTimingRecorder>;
-  /**
-   * Re-run the pending tool-call recovery pass against the chat's current
-   * transcript. The session-sync poll calls this after replacing the
-   * transcript with the server's copy, which reverts locally recovered
-   * parts to pending.
-   */
   recoverPendingToolCalls: () => void;
 };
 
@@ -143,12 +137,7 @@ export function createAgentSessionChat({
         });
     },
   });
-  /**
-   * Dispatch a tool call into the frontend registry — shared by the live
-   * stream's `onToolCall` and the rehydration pass below. Targets the
-   * runtime-owned chat instance so tool outputs attach to the correct
-   * conversation even if the visible React surface remounts mid-request.
-   */
+  /** Execute a tool call in the browser and add its output to the chat. */
   const runAgentToolCall = (toolCall: AgentToolCall) => {
     const isServerExecuted =
       toolCall.providerMetadata?.phoenix?.toolExecutionEnvironment === "server";
@@ -317,21 +306,11 @@ export function createAgentSessionChat({
       turnCompletionGate.handleFinish({ finalMessages, message });
     },
   });
-  const seedTailMessage = seedMessages[seedMessages.length - 1];
-  if (seedTailMessage?.role === "assistant") {
-    // The seed is already persisted server-side; acknowledge its tail so
-    // the first automatic continuation after a reload doesn't wait on a
-    // stream acknowledgement that will never arrive.
-    transcriptPersistence.acknowledge({ messageId: seedTailMessage.id });
+  const lastSeedMessage = seedMessages[seedMessages.length - 1];
+  if (lastSeedMessage?.role === "assistant") {
+    // don't trigger a continuation of the conversation on load
+    transcriptPersistence.acknowledge({ messageId: lastSeedMessage.id });
   }
-  // Restore the transcript tail's pending approvals and error out its
-  // unrecoverable pending calls (see partitionPendingClientToolCalls). The
-  // errors are written to the transcript directly — via `addToolOutput` they
-  // would fire an automatic continuation while the page's surfaces are still
-  // mounting with contexts unadvertised — and reach the server with the next
-  // user-triggered send. Re-staging an already-staged approval just rebinds
-  // it, so the session-sync poll can safely re-run this after replacing the
-  // transcript.
   const recoverPendingToolCalls = () => {
     const { rehydratableToolCalls, staleToolCalls } =
       partitionPendingClientToolCalls({
@@ -360,7 +339,7 @@ function appendPartToToolMessage({
 }: {
   messages: AgentUIMessage[];
   toolCallId: string;
-  part: AgentUIMessage["parts"][number];
+  part: AgentUIMessagePart;
 }): AgentUIMessage[] {
   const messageIndex = messages.findIndex((message) =>
     message.parts.some(

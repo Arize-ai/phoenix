@@ -5,7 +5,7 @@ import {
   partitionPendingClientToolCalls,
   resolveStalePendingToolCallParts,
 } from "@phoenix/agent/chat/rehydratePendingToolCalls";
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import type { AgentUIMessage, AgentUIMessagePart } from "@phoenix/agent/chat/types";
 
 const CLIENT_EXECUTION_METADATA = {
   phoenix: { toolExecutionEnvironment: "client" },
@@ -28,14 +28,14 @@ function pendingClientToolPart({
   toolCallId: string;
   toolName?: string;
   input?: unknown;
-}): AgentUIMessage["parts"][number] {
+}): AgentUIMessagePart {
   return {
     type: `tool-${toolName}`,
     toolCallId,
     state: "input-available",
     input,
     callProviderMetadata: CLIENT_EXECUTION_METADATA,
-  } as AgentUIMessage["parts"][number];
+  } as AgentUIMessagePart;
 }
 
 describe("partitionPendingClientToolCalls", () => {
@@ -119,7 +119,7 @@ describe("partitionPendingClientToolCalls", () => {
             input: {},
             output: { status: "accepted" },
             callProviderMetadata: CLIENT_EXECUTION_METADATA,
-          } as AgentUIMessage["parts"][number],
+          } as AgentUIMessagePart,
           {
             type: `tool-${NON_REHYDRATABLE_TOOL}`,
             toolCallId: "tool-call-2",
@@ -127,7 +127,7 @@ describe("partitionPendingClientToolCalls", () => {
             input: {},
             output: { status: "applied" },
             callProviderMetadata: CLIENT_EXECUTION_METADATA,
-          } as AgentUIMessage["parts"][number],
+          } as AgentUIMessagePart,
           pendingClientToolPart({ toolCallId: "tool-call-3" }),
         ],
       },
@@ -153,7 +153,7 @@ describe("partitionPendingClientToolCalls", () => {
             state: "input-available",
             input: {},
             callProviderMetadata: SERVER_EXECUTION_METADATA,
-          } as AgentUIMessage["parts"][number],
+          } as AgentUIMessagePart,
           {
             type: `tool-${NON_REHYDRATABLE_TOOL}`,
             toolCallId: "tool-call-2",
@@ -161,7 +161,7 @@ describe("partitionPendingClientToolCalls", () => {
             input: {},
             providerExecuted: true,
             callProviderMetadata: CLIENT_EXECUTION_METADATA,
-          } as AgentUIMessage["parts"][number],
+          } as AgentUIMessagePart,
         ],
       },
     ];

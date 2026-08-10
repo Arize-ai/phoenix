@@ -1,20 +1,39 @@
-import { getToolOrDynamicToolName } from "ai";
+import {
+  type DynamicToolUIPart,
+  getToolName,
+  isDynamicToolUIPart,
+  type ToolUIPart,
+} from "ai";
 
 import type { AgentToolCall } from "@phoenix/agent/extensions/toolRegistry";
 
 import { isPendingClientToolCallPart } from "./chatUtils";
-import type { AgentUIMessage } from "./types";
+import type { AgentUIMessage, AgentUIMessagePart } from "./types";
+
+export const PENDING_TOOL_CALL_NOT_RESTORED_ERROR =
+  "This tool call can't be restored from the saved session. " +
+  "Call the tool again if the action is still needed.";
 
 /**
- * Error output recorded for a pending tool call whose in-memory state did not
- * survive a page reload and cannot be rebuilt from the transcript. Read by
- * both the model — which may re-propose the action — and the tool part's
- * error rendering in the chat UI.
+ * Copy a pending tool call part into its `output-error` variant.
  */
-export const PENDING_TOOL_CALL_NOT_RESTORED_ERROR =
-  "This tool call was awaiting client-side handling when the page reloaded, " +
-  "and its pending state could not be restored from the saved conversation. " +
-  "Call the tool again if the action is still needed.";
+function toNotRestoredErrorPart(
+  part: ToolUIPart | DynamicToolUIPart
+): AgentUIMessagePart {
+  const resolved = {
+    toolCallId: part.toolCallId,
+    title: part.title,
+    toolMetadata: part.toolMetadata,
+    providerExecuted: part.providerExecuted,
+    state: "output-error" as const,
+    input: part.input,
+    errorText: PENDING_TOOL_CALL_NOT_RESTORED_ERROR,
+    callProviderMetadata: part.callProviderMetadata,
+  };
+  return isDynamicToolUIPart(part)
+    ? { ...resolved, type: "dynamic-tool", toolName: part.toolName }
+    : { ...resolved, type: part.type };
+}
 
 /**
  * Return a new transcript with the trailing assistant message's named tool
@@ -37,20 +56,12 @@ export function resolveStalePendingToolCallParts({
     }
     return {
       ...message,
-      parts: message.parts.map((part) => {
-        if (
-          !isPendingClientToolCallPart(part) ||
-          !staleToolCallIds.has(part.toolCallId)
-        ) {
-          return part;
-        }
-        // TS cannot narrow a spread of a union member back into the union.
-        return {
-          ...part,
-          state: "output-error",
-          errorText: PENDING_TOOL_CALL_NOT_RESTORED_ERROR,
-        } as unknown as AgentUIMessage["parts"][number];
-      }),
+      parts: message.parts.map((part) =>
+        isPendingClientToolCallPart(part) &&
+        staleToolCallIds.has(part.toolCallId)
+          ? toNotRestoredErrorPart(part)
+          : part
+      ),
     };
   });
 }
@@ -65,21 +76,12 @@ export type PartitionedPendingToolCalls = {
   staleToolCalls: AgentToolCall[];
 };
 
-/**
- * Partition the trailing assistant message's unresolved client tool calls by
- * what a fresh chat can do with them after a page load: the in-memory state
- * behind pending approvals is lost on refresh, so calls of `rehydratable`
- * tools are re-dispatched to re-stage it, and every other pending call must
- * be resolved with an error or it renders as an unresolvable spinner. Only
- * the trailing message is scanned — `addToolOutput` can only resolve calls
- * there, and older pending calls are repaired server-side.
- */
+/** Partition the trailing assistant message's pending client tool calls into rehydratable (safe to re-dispatch) and stale (resolve with an error). */
 export function partitionPendingClientToolCalls({
   messages,
   isRehydratableTool,
 }: {
   messages: AgentUIMessage[];
-  /** Whether the named tool's dispatch is a pure approval-staging step. */
   isRehydratableTool: (toolName: string) => boolean;
 }): PartitionedPendingToolCalls {
   const rehydratableToolCalls: AgentToolCall[] = [];
@@ -92,13 +94,11 @@ export function partitionPendingClientToolCalls({
     if (!isPendingClientToolCallPart(part)) {
       continue;
     }
-    const toolName = getToolOrDynamicToolName(part);
+    const toolName = getToolName(part);
     const toolCall: AgentToolCall = {
       toolCallId: part.toolCallId,
       toolName,
       input: part.input,
-      // The SDK's ProviderMetadata and the registry's phoenix namespace
-      // spell the same wire shape.
       providerMetadata:
         part.callProviderMetadata as AgentToolCall["providerMetadata"],
     };
