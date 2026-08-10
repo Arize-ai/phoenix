@@ -3,9 +3,12 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Optional
+from uuid import UUID
+
+from pydantic_core import to_jsonable_python
 
 #: What each lossy conversion costs, keyed by the name recorded for it. Stated
 #: because the conversion is invisible in the result: an exact decimal and the
@@ -74,6 +77,10 @@ def _normalize_value(value: Any, applied: Optional[set[str]] = None) -> Any:
         return value.astimezone(timezone.utc).isoformat()
     if isinstance(value, date):
         return value.isoformat()
+    if isinstance(value, timedelta):
+        return to_jsonable_python(value)
+    if isinstance(value, UUID):
+        return str(value)
     if isinstance(value, dict):
         return {key: _normalize_value(item, applied) for key, item in value.items()}
     if isinstance(value, list):

@@ -1,7 +1,9 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import timedelta
 from decimal import Decimal
 from typing import cast
+from uuid import UUID
 
 import pytest
 from sqlalchemy import text
@@ -156,6 +158,21 @@ async def test_a_mistyped_column_is_reported_not_leaked(db: DbSessionFactory) ->
     assert "exists but is not part of" not in message
     for leaked in ("sqlalchemy", "asyncpg", "Traceback", "ProgrammingError"):
         assert leaked not in message
+
+
+@pytest.mark.postgres_only
+async def test_postgres_intervals_are_normalized_before_result_validation(
+    analytics_postgres_db: DbSessionFactory,
+) -> None:
+    result = await execute_analytics_sql(
+        analytics_postgres_db,
+        ExecuteParams(sql="SELECT end_time - start_time AS duration FROM spans", row_limit=1),
+    )
+
+    assert result.envelope.rows
+    duration = result.envelope.rows[0][0]
+    assert isinstance(duration, str)
+    assert duration.startswith("P")
 
 
 @pytest.mark.postgres_only
@@ -571,6 +588,18 @@ class TestLossyNormalisationIsReported:
             {"costs": [9007199254740992.0]}
         ]
         assert "decimal_to_float" in applied
+
+    def test_postgres_driver_value_types_are_json_safe(self) -> None:
+        applied: set[str] = set()
+
+        assert normalize_row_values(
+            [
+                timedelta(seconds=1.5),
+                UUID("00000000-0000-0000-0000-000000000001"),
+            ],
+            applied,
+        ) == ["PT1.5S", "00000000-0000-0000-0000-000000000001"]
+        assert applied == set()
 
     def test_a_non_finite_float_is_flagged(self) -> None:
         applied: set[str] = set()
