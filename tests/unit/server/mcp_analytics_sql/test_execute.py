@@ -1,8 +1,11 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from decimal import Decimal
 from typing import cast
 
 import pytest
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlglot import exp, parse_one
 
 from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
@@ -11,7 +14,9 @@ from phoenix.server.mcp_analytics_sql.execute import (
     ExecuteParams,
     _estimated_rows,
     _rewrite_attribution,
+    _sqlite_read_uri,
     execute_analytics_sql,
+    resolve_sqlite_db_path,
 )
 from phoenix.server.mcp_analytics_sql.normalize import (
     LOSSY_CONVERSION_NOTES,
@@ -55,24 +60,19 @@ async def test_denied_table(analytics_sqlite_db: tuple[DbSessionFactory, str]) -
     assert exc.value.code is ErrorCode.RELATION_NOT_ALLOWED
 
 
-async def test_path_is_resolved_from_config_when_caller_omits_it(
+async def test_path_is_resolved_from_db_factory_when_caller_omits_it(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Execution must work without the caller threading the database path through.
+    """Execution must use its session factory instead of process configuration.
 
     The analytics read opens its own connection, so it needs a filesystem path.
-    Every call site having to supply one is a standing invitation to forget, and
-    forgetting is indistinguishable at the point of failure from a database that
-    genuinely has no path -- both surface as the same refusal. Resolving from
-    configuration removes the choice.
-
-    This is a regression test. The tool layer once called through without the
-    path, so every file-backed SQLite deployment refused analytics SQL while
-    reporting that the database was in-memory.
+    The MCP tool has only a `DbSessionFactory`, and notebook sessions and CLI
+    overrides can intentionally point that factory at a different database than
+    the environment. A configuration lookup would silently read the wrong file.
     """
-    db, db_path = analytics_sqlite_db
-    monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", f"sqlite:///{db_path}")
+    db, _ = analytics_sqlite_db
+    monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", "sqlite:///:memory:")
 
     result = await execute_analytics_sql(
         db,
@@ -81,18 +81,54 @@ async def test_path_is_resolved_from_config_when_caller_omits_it(
     assert result.envelope["rows"][0][0] == 1
 
 
-async def test_in_memory_is_refused_and_says_so_accurately(
+async def test_missing_sqlite_path_is_refused_and_says_so_accurately(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The refusal must name the real cause, since it is the only clue a caller gets."""
+    from phoenix.server.mcp_analytics_sql import execute as execute_module
+
     db, _ = analytics_sqlite_db
-    monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", "sqlite:///:memory:")
+
+    async def resolve_no_path(_: DbSessionFactory) -> None:
+        return None
+
+    monkeypatch.setattr(execute_module, "resolve_sqlite_db_path", resolve_no_path)
 
     with pytest.raises(AnalyticsSqlError) as exc:
         await execute_analytics_sql(db, ExecuteParams(sql="SELECT count(*) FROM projects"))
     assert exc.value.code is ErrorCode.BACKEND_UNAVAILABLE
     assert "in-memory" in exc.value.message
+
+
+def test_sqlite_read_uri_escapes_filename_delimiters() -> None:
+    assert _sqlite_read_uri("/tmp/a?b#c.db") == "file:/tmp/a%3Fb%23c.db?mode=ro"
+
+
+async def test_sqlite_path_discovery_returns_an_analytics_error_when_it_cannot_connect() -> None:
+    from phoenix.server.mcp_analytics_sql import execute as execute_module
+
+    class FailingDb:
+        @asynccontextmanager
+        async def read(self) -> AsyncIterator[None]:
+            raise SQLAlchemyError("unavailable")
+            yield
+
+    with pytest.raises(AnalyticsSqlError) as exc:
+        await resolve_sqlite_db_path(cast(DbSessionFactory, FailingDb()))
+    assert exc.value.code is ErrorCode.BACKEND_UNAVAILABLE
+
+    class RawDriverFailingDb:
+        @asynccontextmanager
+        async def read(self) -> AsyncIterator[None]:
+            raise execute_module.sqlean.dbapi2.OperationalError(  # type: ignore[attr-defined]
+                "unavailable"
+            )
+            yield
+
+    with pytest.raises(AnalyticsSqlError) as exc:
+        await resolve_sqlite_db_path(cast(DbSessionFactory, RawDriverFailingDb()))
+    assert exc.value.code is ErrorCode.BACKEND_UNAVAILABLE
 
 
 @pytest.mark.postgres_only

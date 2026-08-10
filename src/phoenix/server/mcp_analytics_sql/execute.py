@@ -12,14 +12,13 @@ from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from typing import Any, Optional, cast
+from urllib.parse import quote
 
 import sqlean
 from sqlalchemy import text
-from sqlalchemy.engine import make_url
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import TextClause
 
-from phoenix.config import get_env_database_connection_str
 from phoenix.db.helpers import SupportedSQLDialect, SupportedSQLDialectName
 from phoenix.server.mcp_analytics_sql.allowlist import (
     PLAN_GATE_ALLOWED_FUNCTIONS,
@@ -452,30 +451,39 @@ def _sqlite_authorizer(
     return authorizer
 
 
-def resolve_sqlite_db_path() -> Optional[str]:
-    """Filesystem path of the configured SQLite database, or None if it has none.
+async def resolve_sqlite_db_path(db: DbSessionFactory) -> Optional[str]:
+    """Filesystem path of the factory's SQLite database, or None if it has none.
 
     Analytics reads open their own read-only connection rather than borrowing the
-    application's, so they need a path rather than an engine. Returns None for an
-    in-memory database, which cannot be opened a second time read-only and is the
-    one SQLite configuration this surface declines.
-
-    Callers must not skip this and pass None themselves: the caller cannot
-    distinguish "no path exists" from "nobody looked", and those produce the same
-    refusal with very different causes.
+    application's, so they need its file path rather than an engine. Discover it
+    from the supplied factory instead of global configuration: notebook sessions
+    and CLI overrides can legitimately use a different database.
     """
-    url = make_url(get_env_database_connection_str())
-    if not url.drivername.startswith("sqlite"):
-        return None
-    database = url.database
-    if not database or database.startswith(":memory:"):
+    try:
+        async with db.read() as session:
+            result = await session.execute(text("PRAGMA database_list"))
+            database = next(
+                (str(row[2]) for row in result if row[1] == "main" and row[2]),
+                None,
+            )
+    except (SQLAlchemyError, sqlite3.Error, sqlean.dbapi2.Error) as exc:
+        logger.error("analytics sql: unable to discover SQLite database path - %s", exc)
+        raise AnalyticsSqlError(
+            code=ErrorCode.BACKEND_UNAVAILABLE,
+            message="Analytics SQL could not open the configured SQLite database.",
+        ) from exc
+    if database is None:
         logger.debug(
-            "analytics sql: no file-backed sqlite database (url=%s)",
-            url.render_as_string(),
+            "analytics sql: no file-backed main SQLite database",
         )
         return None
     logger.debug("analytics sql: resolved sqlite database path %s", database)
     return database
+
+
+def _sqlite_read_uri(db_path: str) -> str:
+    """Read-only SQLite URI for a filesystem path."""
+    return f"file:{quote(db_path, safe='/')}?mode=ro"
 
 
 async def execute_analytics_sql(
@@ -488,7 +496,7 @@ async def execute_analytics_sql(
         "postgresql" if db.dialect is SupportedSQLDialect.POSTGRESQL else "sqlite"
     )
     if dialect == "sqlite" and sqlite_db_path is None:
-        sqlite_db_path = resolve_sqlite_db_path()
+        sqlite_db_path = await resolve_sqlite_db_path(db)
     if dialect == "sqlite" and not sqlite_db_path:
         raise AnalyticsSqlError(
             code=ErrorCode.BACKEND_UNAVAILABLE,
@@ -508,7 +516,9 @@ async def execute_analytics_sql(
         allowlist = replace(allowlist, pg_schema=schema)
 
     call_id = _next_call_id()
-    await EXECUTION_SEMAPHORE.acquire(dialect)
+    semaphore = EXECUTION_SEMAPHORE
+    await semaphore.acquire(dialect)
+    release_semaphore = True
     try:
         try:
             root = parse_sql(params.sql, dialect=dialect)
@@ -576,13 +586,24 @@ async def execute_analytics_sql(
                 ctx=ctx,
             )
         else:
-            result = await _execute_sqlite_file(
-                sqlite_db_path or "",
-                rendered,
-                allowlist=allowlist,
-                validate_only=params.validate_only,
-                ctx=ctx,
-            )
+            try:
+                result = await _execute_sqlite_file(
+                    sqlite_db_path or "",
+                    rendered,
+                    allowlist=allowlist,
+                    validate_only=params.validate_only,
+                    ctx=ctx,
+                )
+            except _SQLiteWorkerCancellation as exc:
+                # Shielding lets the worker close its per-statement connection
+                # after the caller disconnects. Keep SQLite's width-one permit
+                # until that cleanup has completed, while preserving prompt
+                # cancellation for the caller.
+                release_semaphore = False
+                exc.worker.add_done_callback(
+                    lambda worker: _release_sqlite_after_worker(worker, semaphore)
+                )
+                raise
         logger.debug(
             "analytics sql: %s completed in %.1fms rows=%s partial=%s",
             call_id,
@@ -592,7 +613,8 @@ async def execute_analytics_sql(
         )
         return result
     finally:
-        EXECUTION_SEMAPHORE.release(dialect)
+        if release_semaphore:
+            semaphore.release(dialect)
 
 
 # SQLAlchemy's asyncpg dialect uses the `numeric_dollar` paramstyle, and its
@@ -867,6 +889,31 @@ _SQLITE_RUNTIME_ERRORS: tuple[type[BaseException], ...] = (
 )
 
 
+class _SQLiteWorkerCancellation(asyncio.CancelledError):
+    """Cancellation whose worker must finish before SQLite capacity is released."""
+
+    def __init__(
+        self,
+        worker: asyncio.Task[tuple[list[str], list[list[Any]], bool, list[str], bool]],
+    ) -> None:
+        self.worker = worker
+
+
+def _release_sqlite_after_worker(
+    worker: asyncio.Task[tuple[list[str], list[list[Any]], bool, list[str], bool]],
+    semaphore: ExecutionSemaphore,
+) -> None:
+    """Consume an abandoned worker result, then return its SQLite capacity."""
+    try:
+        worker.result()
+    except BaseException:
+        # The caller has already been cancelled. Its eventual result cannot be
+        # delivered, but must be consumed so asyncio does not report it later.
+        pass
+    finally:
+        semaphore.release("sqlite")
+
+
 async def _execute_sqlite_file(
     db_path: str,
     rendered_sql: str,
@@ -890,7 +937,7 @@ async def _execute_sqlite_file(
         # or they would be stripped mid-query. mode=ro is fixed at open time and
         # cannot be imposed afterwards. sqlean, not the standard library, so the
         # function set matches what the allowlist was verified against.
-        conn = sqlean.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn = sqlean.connect(_sqlite_read_uri(db_path), uri=True)
 
         # SQLite has no statement_timeout, so the only way to bound a running
         # query is to interrupt it from the progress handler. Checking only the
@@ -959,22 +1006,15 @@ async def _execute_sqlite_file(
             conn.set_progress_handler(None, 0)
             conn.close()
 
+    worker = asyncio.create_task(asyncio.to_thread(run))
     try:
-        columns, rows, partial, notes, backend_validated = await asyncio.to_thread(run)
+        columns, rows, partial, notes, backend_validated = await asyncio.shield(worker)
     except asyncio.CancelledError:
-        # A cancelled await abandons the worker; it does not stop it. Python has
-        # no safe way to kill a thread, so without this the query runs on to the
-        # full deadline while its semaphore slot has already been handed to
-        # someone else -- and with SQLite's width of one, the serialisation this
-        # module promises quietly stops holding for up to thirty seconds.
-        #
-        # Setting the flag here, from the event loop, is what the flag was for:
-        # the progress handler observes it within its step interval and asks
-        # SQLite to abort. Until now it was only ever set from inside the
-        # worker's own `finally`, which runs after the query has finished and so
-        # could never interrupt anything.
+        # Cancelling a to_thread await leaves its worker running. Interrupt it
+        # through the progress handler, then let execute_analytics_sql defer
+        # returning SQLite's width-one permit until that worker exits.
         cancelled.set()
-        raise
+        raise _SQLiteWorkerCancellation(worker) from None
     except AnalyticsSqlError:
         raise
     except _SQLITE_RUNTIME_ERRORS as exc:
