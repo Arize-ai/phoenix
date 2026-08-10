@@ -960,17 +960,23 @@ class EvaluatorMutationMixin:
             assert isinstance(user := request.user, PhoenixUser)
             user_id = int(user.identity)
 
+        # Validated before the write session opens: the helper takes the session
+        # factory and opens its own session, which would otherwise nest inside
+        # the transaction below.
+        sandbox_config_id = await _validate_code_evaluator_sandbox_config(
+            info.context.db,
+            sandbox_config_global_id=input.sandbox_config_id,
+            language=input.language.value,
+            action="creating this evaluator",
+            source_code=input.source_code,
+            sandbox_runtime=info.context.sandbox_runtime,
+        )
+
         try:
             async with info.context.db() as session:
                 if await session.get(models.Project, project_id) is None:
                     raise NotFound(f"Project not found: {input.project_id}")
                 evaluator_name = await _generate_unique_evaluator_name(session, name)
-                sandbox_config_id = await _validate_code_evaluator_sandbox_config(
-                    session,
-                    sandbox_config_global_id=input.sandbox_config_id,
-                    language=input.language.value,
-                    action="creating this evaluator",
-                )
                 evaluator = models.CodeEvaluator(
                     name=evaluator_name,
                     description=input.description,
@@ -1051,6 +1057,52 @@ class EvaluatorMutationMixin:
             assert isinstance(user := request.user, PhoenixUser)
             user_id = int(user.identity)
 
+        # Validated before the write session opens: the helper takes the session
+        # factory and opens its own session, which would otherwise nest inside
+        # the transaction below.
+        validated_sandbox_config_id: Optional[int] = None
+        if input.sandbox_config_id is not UNSET and input.sandbox_config_id is not None:
+            async with info.context.db() as session:
+                current_pair = (
+                    await session.execute(
+                        select(models.ProjectEvaluatorCriteria, models.CodeEvaluator)
+                        .join(
+                            models.CodeEvaluator,
+                            models.ProjectEvaluatorCriteria.evaluator_id == models.CodeEvaluator.id,
+                        )
+                        .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+                    )
+                ).one_or_none()
+                if current_pair is None:
+                    raise NotFound(
+                        f"CODE project evaluator not found: {input.project_evaluator_id}"
+                    )
+                _, current_evaluator = current_pair
+                current_language = current_evaluator.language
+                current_with_version = await code_evaluator_with_latest_version(
+                    session, current_evaluator.id
+                )
+                stored_source_code = (
+                    current_with_version[1].source_code
+                    if current_with_version is not None and current_with_version[1] is not None
+                    else ""
+                )
+            # Source code supplied in this same request is what will be stored,
+            # so the sandbox is validated against that rather than the version
+            # it is about to replace.
+            validated_sandbox_config_id = await _validate_code_evaluator_sandbox_config(
+                info.context.db,
+                sandbox_config_global_id=input.sandbox_config_id,
+                language=current_language,
+                action="updating this evaluator",
+                source_code=(
+                    input.source_code
+                    if input.source_code is not UNSET and input.source_code is not None
+                    else stored_source_code
+                ),
+                sandbox_runtime=info.context.sandbox_runtime,
+            )
+
         try:
             async with info.context.db() as session:
                 pair = (
@@ -1086,12 +1138,7 @@ class EvaluatorMutationMixin:
                     if input.sandbox_config_id is None:
                         sandbox_config_id = None
                     else:
-                        sandbox_config_id = await _validate_code_evaluator_sandbox_config(
-                            session,
-                            sandbox_config_global_id=input.sandbox_config_id,
-                            language=evaluator.language,
-                            action="updating this evaluator",
-                        )
+                        sandbox_config_id = validated_sandbox_config_id
                     if evaluator.sandbox_config_id != sandbox_config_id:
                         evaluator.sandbox_config_id = sandbox_config_id
                         shared_evaluator_changed = True
