@@ -42,6 +42,22 @@ async def test_select_count_projects_sqlite(
     assert result.envelope.rows[0][0] == 1
 
 
+async def test_validate_only_marks_its_empty_success(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+) -> None:
+    """Validation accepts a statement without returning its data."""
+    db, db_path = analytics_sqlite_db
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql="SELECT count(*) AS c FROM projects", validate_only=True),
+        sqlite_db_path=db_path,
+    )
+
+    assert result.envelope.columns == []
+    assert result.envelope.rows == []
+    assert result.envelope.notes == ["validate_only: statement accepted; no data rows executed"]
+
+
 async def test_select_count_projects_postgresql(db: DbSessionFactory) -> None:
     if db.dialect.value != "postgresql":
         pytest.skip("postgresql only")

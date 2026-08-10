@@ -587,7 +587,7 @@ async def execute_analytics_sql(
         if len(params.sql.encode("utf-8")) > MAX_SQL_BYTES:
             raise AnalyticsSqlError(
                 code=ErrorCode.UNSUPPORTED_SYNTAX,
-                message="SQL is too large to return within the response size limit.",
+                message=f"SQL text exceeds the {MAX_SQL_BYTES // (1024 * 1024)} MiB input limit.",
             )
         if dialect == "sqlite" and sqlite_db_path is None:
             sqlite_db_path = await resolve_sqlite_db_path(db)
@@ -636,6 +636,8 @@ async def execute_analytics_sql(
                 db, tables=allowlist.tables, pg_schema=allowlist.pg_schema
             ),
         )
+        if params.row_limit is not None and requested != row_limit:
+            ctx.notes.append(f"row_limit clamped to {row_limit}")
         root = rewrite(root, ctx)
         rendered = render(root, dialect=dialect)
 
@@ -687,6 +689,8 @@ async def execute_analytics_sql(
                     lambda worker: _release_sqlite_after_worker(worker, semaphore)
                 )
                 raise
+        if params.validate_only:
+            result.envelope.notes.append("validate_only: statement accepted; no data rows executed")
         logger.debug(
             "analytics sql: %s completed in %.1fms rows=%s partial=%s",
             call_id,

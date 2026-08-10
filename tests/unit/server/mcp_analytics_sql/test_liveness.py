@@ -448,6 +448,7 @@ async def test_row_limit_is_clamped(
         sqlite_db_path=db_path,
     )
     assert result.envelope.applied.row_limit == MAX_ROW_LIMIT
+    assert result.envelope.notes == [f"row_limit clamped to {MAX_ROW_LIMIT}"]
 
 
 NEWLY_ALLOWED = [

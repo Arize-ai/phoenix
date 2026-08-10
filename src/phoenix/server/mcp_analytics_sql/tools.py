@@ -275,11 +275,12 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         envelope when the SQL cannot be accepted.
 
         `row_count_is_partial` is the authoritative answer to whether the result
-        was truncated: one row beyond the limit is fetched, and the flag is set
-        only when that row actually arrived. `estimated_rows` is available only
-        on PostgreSQL, where it is the planner's untruncated-row estimate. It
-        is not a count, it can be out by a large factor over JSON paths, and it
-        never answers the truncation question -- that is what the flag is for.
+        was truncated by either row or response-byte limits. One row beyond the
+        row limit is fetched, and `notes` identifies the limit that applied.
+        `estimated_rows` is available only on PostgreSQL, where it is the
+        planner's untruncated-row estimate. It is not a count, it can be out by
+        a large factor over JSON paths, and it never answers the truncation
+        question -- that is what the flag is for.
 
         `applied` describes the effective dialect, row limit, and rewrites;
         `backend_validated` says whether the backend execution gate ran; `notes`
@@ -288,6 +289,9 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         Code-mode `call_tool` already returns this envelope as a dictionary.
         Check for an `error` key before reading `rows`. Preserve any error in
         your summary; do not call `json.loads` on the result.
+
+        With `validate_only=True`, Phoenix validates the statement but does not
+        execute it for data; the successful empty result carries a note saying so.
         """
         try:
             result = await execute_analytics_sql(
