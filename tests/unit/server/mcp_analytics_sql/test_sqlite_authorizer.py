@@ -37,6 +37,40 @@ def test_sqlite_authorizer_denies_table_and_function(tmp_path: Path) -> None:
         ro.close()
 
 
+def test_sqlite_authorizer_denies_state_changes_and_attached_databases(tmp_path: Path) -> None:
+    """The engine backstop must hold if a non-SELECT bypasses admission."""
+    db_path = tmp_path / "auth.db"
+    conn_rw = sqlite3.connect(db_path)
+    conn_rw.execute("CREATE TABLE spans(id INTEGER)")
+    conn_rw.close()
+
+    guarded = sqlite3.connect(db_path)
+    guarded.set_authorizer(_sqlite_authorizer(frozenset({"spans"}), frozenset()))
+
+    def denies(sql: str) -> bool:
+        try:
+            guarded.execute(sql)
+        except sqlite3.Error:
+            return True
+        return False
+
+    try:
+        assert denies("ATTACH DATABASE ':memory:' AS evil")
+        assert denies("DELETE FROM spans")
+        assert (
+            _sqlite_authorizer(frozenset({"spans"}), frozenset())(
+                sqlite3.SQLITE_READ,
+                "spans",
+                "id",
+                "evil",
+                None,
+            )
+            == sqlite3.SQLITE_DENY
+        )
+    finally:
+        guarded.close()
+
+
 def test_denial_distinguishes_a_bypass_from_a_layering_defect(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

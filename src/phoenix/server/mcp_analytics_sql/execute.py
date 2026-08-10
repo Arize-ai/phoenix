@@ -72,6 +72,41 @@ BYTE_LIMIT = 262_144
 PG_STATEMENT_TIMEOUT_MS = 30_000
 SQLITE_TIMEOUT_SECONDS = 30
 
+# Admission is the primary policy layer, but the SQLite authorizer must still
+# refuse actions that could change state or bring another database into scope if
+# a parser or rewrite regression reaches the engine.
+_SQLITE_STATE_CHANGING_ACTIONS = frozenset(
+    {
+        sqlite3.SQLITE_ATTACH,
+        sqlite3.SQLITE_DETACH,
+        sqlite3.SQLITE_ALTER_TABLE,
+        sqlite3.SQLITE_ANALYZE,
+        sqlite3.SQLITE_CREATE_INDEX,
+        sqlite3.SQLITE_CREATE_TABLE,
+        sqlite3.SQLITE_CREATE_TEMP_INDEX,
+        sqlite3.SQLITE_CREATE_TEMP_TABLE,
+        sqlite3.SQLITE_CREATE_TEMP_TRIGGER,
+        sqlite3.SQLITE_CREATE_TEMP_VIEW,
+        sqlite3.SQLITE_CREATE_TRIGGER,
+        sqlite3.SQLITE_CREATE_VIEW,
+        sqlite3.SQLITE_DELETE,
+        sqlite3.SQLITE_DROP_INDEX,
+        sqlite3.SQLITE_DROP_TABLE,
+        sqlite3.SQLITE_DROP_TEMP_INDEX,
+        sqlite3.SQLITE_DROP_TEMP_TABLE,
+        sqlite3.SQLITE_DROP_TEMP_TRIGGER,
+        sqlite3.SQLITE_DROP_TEMP_VIEW,
+        sqlite3.SQLITE_DROP_TRIGGER,
+        sqlite3.SQLITE_DROP_VIEW,
+        sqlite3.SQLITE_INSERT,
+        sqlite3.SQLITE_PRAGMA,
+        sqlite3.SQLITE_REINDEX,
+        sqlite3.SQLITE_SAVEPOINT,
+        sqlite3.SQLITE_TRANSACTION,
+        sqlite3.SQLITE_UPDATE,
+    }
+)
+
 
 @dataclass
 class ExecutionSemaphore:
@@ -366,8 +401,22 @@ def _sqlite_authorizer(
                 denials.append(_Denial(code=code, identifier=identifier, message=message))
             return sqlite3.SQLITE_DENY
 
+        if action in _SQLITE_STATE_CHANGING_ACTIONS:
+            operation = arg1 or "SQLite operation"
+            return deny(
+                ErrorCode.NOT_READ_ONLY,
+                operation,
+                "Only read-only SELECT statements are permitted.",
+            )
+
         if action == sqlite3.SQLITE_READ:
             table = arg1 or ""
+            if dbname not in (None, "main", "temp"):
+                return deny(
+                    ErrorCode.RELATION_NOT_ALLOWED,
+                    table or dbname,
+                    f"reading from attached database {dbname!r} is not permitted",
+                )
             # Reached through a relation the statement never declared, which
             # means a view or trigger standing in the database. Admission
             # approved a set of tables; it approved no indirection, and this
