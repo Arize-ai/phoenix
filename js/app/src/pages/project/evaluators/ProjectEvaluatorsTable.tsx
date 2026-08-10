@@ -5,11 +5,20 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { startTransition, useCallback, useEffect, useMemo } from "react";
 import { graphql, readInlineData, usePaginationFragment } from "react-relay";
 
-import { Flex, LoadMoreButton, Text, View } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  LoadMoreButton,
+  Text,
+  View,
+} from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
@@ -42,20 +51,30 @@ type TableRow = ReturnType<typeof readRow>;
 export function ProjectEvaluatorsTable({
   project,
   projectId,
+  filter,
 }: {
   project: ProjectEvaluatorsTable_project$key;
   projectId: string;
+  /** Free-text name search from the toolbar; empty means unfiltered. */
+  filter: string;
 }) {
   "use no memo";
-  const { data, hasNext, isLoadingNext, loadNext } = usePaginationFragment(
+  const {
+    data,
+    hasNext,
+    isLoadingNext,
+    loadNext: _loadNext,
+    refetch,
+  } = usePaginationFragment(
     graphql`
       fragment ProjectEvaluatorsTable_project on Project
       @refetchable(queryName: "ProjectEvaluatorsTablePaginationQuery")
       @argumentDefinitions(
         first: { type: "Int", defaultValue: 30 }
         after: { type: "String", defaultValue: null }
+        filter: { type: "ProjectEvaluatorFilter", defaultValue: null }
       ) {
-        evaluators(first: $first, after: $after)
+        evaluators(first: $first, after: $after, filter: $filter)
           @connection(key: "ProjectEvaluatorsTable_evaluators") {
           edges {
             node {
@@ -67,6 +86,25 @@ export function ProjectEvaluatorsTable({
     `,
     project
   );
+  const trimmedFilter = filter.trim();
+  // Filtered server-side; a client-side filter would only see the loaded page.
+  useEffect(() => {
+    startTransition(() => {
+      refetch(
+        {
+          filter: trimmedFilter ? { col: "name", value: trimmedFilter } : null,
+        },
+        { fetchPolicy: "store-and-network" }
+      );
+    });
+  }, [trimmedFilter, refetch]);
+  const loadNext = useCallback(() => {
+    _loadNext(PAGE_SIZE, {
+      UNSTABLE_extraVariables: {
+        filter: trimmedFilter ? { col: "name", value: trimmedFilter } : null,
+      },
+    });
+  }, [_loadNext, trimmedFilter]);
   const tableData = useMemo(
     () => data.evaluators.edges.map(({ node }) => readRow(node)),
     [data.evaluators.edges]
@@ -158,7 +196,17 @@ export function ProjectEvaluatorsTable({
             ))}
           </thead>
           {rows.length === 0 ? (
-            <ProjectEvaluatorsEmptyGallery projectId={projectId} />
+            trimmedFilter ? (
+              <TableEmptyWrap>
+                <CompactEmptyState
+                  icon={<Icon svg={<Icons.Scale />} />}
+                  description="No evaluators match your search"
+                  isFiltered
+                />
+              </TableEmptyWrap>
+            ) : (
+              <ProjectEvaluatorsEmptyGallery projectId={projectId} />
+            )
           ) : (
             <tbody>
               {rows.map((row) => (
@@ -181,7 +229,7 @@ export function ProjectEvaluatorsTable({
             <Flex justifyContent="center">
               <LoadMoreButton
                 isLoadingNext={isLoadingNext}
-                onLoadMore={() => loadNext(PAGE_SIZE)}
+                onLoadMore={loadNext}
               />
             </Flex>
           </View>
