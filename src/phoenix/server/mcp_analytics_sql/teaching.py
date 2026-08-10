@@ -7,42 +7,6 @@ from phoenix.server.mcp_analytics_sql.ddl import DetailLevel, render_schema_ddl,
 
 logger = logging.getLogger(__name__)
 
-FULL_EXAMPLES = {
-    "attribute_shape_sampling_sqlite": (
-        "SELECT key, json_each.type AS shape, COUNT(*) "
-        "FROM spans, json_each(attributes) GROUP BY key, shape ORDER BY 3 DESC"
-    ),
-    "attribute_shape_sampling_postgresql": (
-        "SELECT key, jsonb_typeof(value) AS shape, COUNT(*) "
-        "FROM spans, jsonb_each(attributes) GROUP BY key, shape ORDER BY 3 DESC"
-    ),
-    # What is addressable inside one span's attributes, and how large each part
-    # is. The key space is undeclared, so this is how a caller finds out what
-    # paths exist before writing one -- including keys that contain a dot and
-    # are therefore siblings of the object they appear to be nested in.
-    "attribute_keys_of_one_span_sqlite": (
-        "SELECT je.key, je.type AS shape, length(je.value) AS bytes "
-        "FROM spans s, json_each(s.attributes) je WHERE s.span_id = 'SPAN_ID'"
-    ),
-    # A trace's shape: every span with its parent, in order. The parent link is
-    # what makes a trace navigable -- a sibling of the span an evaluator flagged
-    # is where the cause usually is, and a flat list cannot show that.
-    "trace_structure_sqlite": (
-        "SELECT s.span_id, s.parent_id, s.name, s.span_kind, s.start_time "
-        "FROM spans s JOIN traces t ON t.id = s.trace_rowid "
-        "WHERE t.trace_id = 'TRACE_ID' ORDER BY s.start_time"
-    ),
-    "trace_structure_postgresql": (
-        "SELECT s.span_id, s.parent_id, s.name, s.span_kind, s.start_time "
-        "FROM spans s JOIN traces t ON t.id = s.trace_rowid "
-        "WHERE t.trace_id = 'TRACE_ID' ORDER BY s.start_time"
-    ),
-    "attribute_keys_of_one_span_postgresql": (
-        "SELECT je.key, jsonb_typeof(je.value) AS shape, length(je.value::text) AS bytes "
-        "FROM spans s, jsonb_each(s.attributes) je WHERE s.span_id = 'SPAN_ID'"
-    ),
-}
-
 
 def describe_sql_schema(
     *,
@@ -112,14 +76,4 @@ def _describe_sql_schema(
             f"-- No allowlisted table matched {filters}. Call describeSqlSchema "
             "with no arguments to list every table available."
         )
-    sections = [schema_ddl]
-
-    if detail == "full":
-        key = (
-            "attribute_shape_sampling_postgresql"
-            if dialect == "postgresql"
-            else "attribute_shape_sampling_sqlite"
-        )
-        sections.append(f"-- what is inside `attributes`, and how often:\n{FULL_EXAMPLES[key]};")
-
-    return "\n\n".join(section for section in sections if section)
+    return schema_ddl
