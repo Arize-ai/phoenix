@@ -241,6 +241,24 @@ CASES: tuple[AdmissionCase, ...] = (
         dialect="sqlite",
     ),
     AdmissionCase(
+        sql="SELECT name, COUNT(*) FROM spans GROUP BY ROLLUP(name)",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="SQLite parses ROLLUP but cannot execute it; refuse before opening the backend",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT name, COUNT(*) FROM spans GROUP BY CUBE(name)",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="SQLite parses CUBE but cannot execute it; PostgreSQL remains covered by grammar tests",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT name, COUNT(*) FROM spans GROUP BY GROUPING SETS ((name), ())",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="SQLite parses GROUPING SETS but cannot execute it",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
         sql="SELECT gradient_start_color FROM projects",
         expect=AdmissionOutcome.ADMIT,
         note="a physical DDL column is admitted even though older manifest policy omitted it",

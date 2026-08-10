@@ -55,6 +55,7 @@ async def test_schema_carries_the_invariants_the_envelope_does_not(
     assert "percentile(x, p)" in text or "percentile_cont(p)" in text
     assert 'detail="detailed"' in text
     assert "cannot use a direct index" in text
+    assert "`->` yields JSON text" in text
 
 
 def test_postgres_preamble_advertises_its_percentile_spelling() -> None:

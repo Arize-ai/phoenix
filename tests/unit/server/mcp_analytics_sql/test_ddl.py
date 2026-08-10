@@ -153,6 +153,12 @@ def test_filters_narrow_the_rendering() -> None:
     ]
     assert matched == ["-- spans: One OpenTelemetry span"]
 
+    # Virtual columns are queryable too, so discovery must not make them look
+    # like a typo. `latency_ms` is available on spans and traces.
+    virtual = render_schema_ddl(search="latency_ms", detail="brief", dialect="sqlite")
+    assert "-- spans: One OpenTelemetry span" in virtual
+    assert "-- traces" in virtual
+
 
 def test_brief_is_a_catalogue_and_detailed_is_a_schema() -> None:
     """Brief names tables; only detailed spends tokens on columns."""

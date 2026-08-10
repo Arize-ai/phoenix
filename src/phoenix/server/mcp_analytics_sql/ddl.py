@@ -166,7 +166,7 @@ def _matches(spec: TableSpec, search: str) -> bool:
     needle = search.lower()
     if needle in spec.name.lower():
         return True
-    return any(needle in column.lower() for column in spec.columns)
+    return any(needle in name.lower() for name in (*spec.columns, *spec.virtual_columns))
 
 
 def validate_ddl(ddl: str, dialect: str) -> None:
