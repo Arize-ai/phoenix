@@ -30,13 +30,6 @@ from phoenix.client.helpers.sdk.google_genai.generate_content import (
 from phoenix.client.helpers.sdk.google_genai.generate_content import (
     to_chat_messages_and_kwargs as to_messages_google_genai,
 )
-from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
-    GoogleModelKwargs,
-    create_prompt_version_from_google,
-)
-from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
-    to_chat_messages_and_kwargs as to_messages_google,
-)
 from phoenix.client.helpers.sdk.openai.chat import (
     OpenAIChatCompletionModelKwargs,
     create_prompt_version_from_openai,
@@ -50,7 +43,6 @@ if TYPE_CHECKING:
     from anthropic.types import MessageParam
     from anthropic.types.message_create_params import MessageCreateParamsBase
     from google.genai import types as genai_types
-    from google.generativeai import protos
     from openai.types.chat import ChatCompletionMessageParam
     from openai.types.chat.completion_create_params import CompletionCreateParamsBase
 
@@ -268,14 +260,6 @@ class PromptVersion:
                     formatter=formatter,
                 )
             )
-        if sdk == "google_generativeai":
-            return GoogleGenerativeaiPrompt(
-                *to_messages_google(
-                    obj,
-                    variables=variables,
-                    formatter=formatter,
-                )
-            )
         if sdk == "google_genai":
             return GoogleGenAIPrompt(
                 *to_messages_google_genai(
@@ -409,25 +393,6 @@ class PromptVersion:
             )
         )
 
-    @classmethod
-    def from_google_generativeai(
-        cls,
-        obj: Any,
-        /,
-        *,
-        template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
-        description: Optional[str] = None,
-        model_provider: Literal["GOOGLE"] = "GOOGLE",
-    ) -> Self:
-        return cls._loads(
-            create_prompt_version_from_google(
-                obj,
-                description=description,
-                template_format=template_format,
-                model_provider=model_provider,
-            )
-        )
-
 
 @dataclass(frozen=True)
 class _FormattedPrompt(ABC, abc.Mapping[str, Any]):
@@ -479,12 +444,6 @@ class AnthropicPrompt(_FormattedPrompt):
 
 
 @dataclass(frozen=True)
-class GoogleGenerativeaiPrompt(_FormattedPrompt):
-    messages: Sequence[protos.Content]
-    kwargs: GoogleModelKwargs
-
-
-@dataclass(frozen=True)
 class GoogleGenAIPrompt(_FormattedPrompt):
     """
     Represents a formatted prompt for the Google GenAI SDK (google-genai).
@@ -503,37 +462,9 @@ class GoogleGenAIPrompt(_FormattedPrompt):
 SDK: TypeAlias = Literal[
     "anthropic",  # https://pypi.org/project/anthropic/
     "google_genai",  # https://pypi.org/project/google-genai/
-    "google_generativeai",  # https://pypi.org/project/google-generativeai/ (deprecated)
     "openai",  # https://pypi.org/project/openai/
     "boto3",  # https://boto3.amazonaws.com/v1/documentation/api/latest/index.html
 ]
-
-
-def _default_google_sdk() -> SDK:
-    """
-    Prefers the legacy ``google-generativeai`` SDK for backwards compatibility,
-    but falls back to the new ``google-genai`` SDK when only the latter is
-    installed.
-
-    The legacy package pins ``protobuf<6``, which cannot be resolved alongside
-    packages that require ``protobuf>=6`` (e.g. ``langgraph-cli[inmem]``), so
-    such environments can install only ``google-genai``. The two Google SDKs do
-    not conflict with each other, so pass ``sdk="google_genai"`` explicitly to
-    select the new SDK when both are installed.
-    """
-    from importlib.util import find_spec
-
-    try:
-        if find_spec("google.generativeai") is not None:
-            return "google_generativeai"
-    except ModuleNotFoundError:
-        return "google_generativeai"
-    try:
-        if find_spec("google.genai") is not None:
-            return "google_genai"
-    except ModuleNotFoundError:
-        pass
-    return "google_generativeai"
 
 
 def _to_sdk(
@@ -561,7 +492,7 @@ def _to_sdk(
     if model_provider == "ANTHROPIC":
         return "anthropic"
     if model_provider == "GOOGLE":
-        return _default_google_sdk()
+        return "google_genai"
     if model_provider == "DEEPSEEK":
         return "openai"
     if model_provider == "XAI":
