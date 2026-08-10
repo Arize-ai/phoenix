@@ -15,7 +15,10 @@ import {
 import { flushToolOutputs } from "@phoenix/agent/chat/toolOutputFlush";
 import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
-import type { AgentUIMessage, AgentUIMessagePart } from "@phoenix/agent/chat/types";
+import type {
+  AgentUIMessage,
+  AgentUIMessagePart,
+} from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import {
   isRehydratableAgentTool,

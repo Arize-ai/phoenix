@@ -95,11 +95,7 @@ export function cleanupResolvedPendingToolState(
       if (!isToolUIPart(part) || !RESOLVED_TOOL_STATES.has(part.state)) {
         continue;
       }
-      cleanupPendingToolState(
-        state,
-        getToolName(part),
-        part.toolCallId
-      );
+      cleanupPendingToolState(state, getToolName(part), part.toolCallId);
     }
   }
 }

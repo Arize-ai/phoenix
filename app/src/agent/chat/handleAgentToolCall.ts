@@ -1,6 +1,9 @@
 import type { Chat } from "@ai-sdk/react";
 
-import type { AgentUIMessage, AgentUIMessagePart } from "@phoenix/agent/chat/types";
+import type {
+  AgentUIMessage,
+  AgentUIMessagePart,
+} from "@phoenix/agent/chat/types";
 /**
  * For the workflow to add, edit, or remove a PXI tool, see the `defineTool` /
  * `defineClientActionTool` helpers in

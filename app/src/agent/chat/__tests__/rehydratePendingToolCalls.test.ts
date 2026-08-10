@@ -5,7 +5,10 @@ import {
   partitionPendingClientToolCalls,
   resolveStalePendingToolCallParts,
 } from "@phoenix/agent/chat/rehydratePendingToolCalls";
-import type { AgentUIMessage, AgentUIMessagePart } from "@phoenix/agent/chat/types";
+import type {
+  AgentUIMessage,
+  AgentUIMessagePart,
+} from "@phoenix/agent/chat/types";
 
 const CLIENT_EXECUTION_METADATA = {
   phoenix: { toolExecutionEnvironment: "client" },

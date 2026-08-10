@@ -1,6 +1,9 @@
 import type { Chat } from "@ai-sdk/react";
 
-import type { AgentUIMessage, AgentUIMessagePart } from "@phoenix/agent/chat/types";
+import type {
+  AgentUIMessage,
+  AgentUIMessagePart,
+} from "@phoenix/agent/chat/types";
 import type { components } from "@phoenix/api/__generated__/v1";
 import type { AgentStore } from "@phoenix/store/agentStore";
 

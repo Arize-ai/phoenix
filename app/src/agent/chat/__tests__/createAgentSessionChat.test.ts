@@ -7,7 +7,10 @@ import {
   getTurnClientState,
 } from "@phoenix/agent/chat/createAgentSessionChat";
 import { PENDING_TOOL_CALL_NOT_RESTORED_ERROR } from "@phoenix/agent/chat/rehydratePendingToolCalls";
-import type { AgentUIMessage, AgentUIMessagePart } from "@phoenix/agent/chat/types";
+import type {
+  AgentUIMessage,
+  AgentUIMessagePart,
+} from "@phoenix/agent/chat/types";
 import { CREATE_ANNOTATION_CONFIG_TOOL_NAME } from "@phoenix/agent/tools/annotationConfig";
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { createAgentStore } from "@phoenix/store/agentStore";
