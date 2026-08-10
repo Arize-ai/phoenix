@@ -386,15 +386,18 @@ def _sqlite_authorizer(
                     f"read reached through {via!r}, which this statement did not declare",
                     kind="bypass",
                 )
-            # Order matters here, and it did not used to. A table-level read --
-            # what `count(*)` emits, since it names no column -- presents with
-            # no database attached, exactly like a transient table. So the
-            # transient accept below cannot come first: placed there it returned
-            # OK before the catalog deny and before the allowlist check, which
-            # made `SELECT (SELECT count(*) FROM users)` and the same over
-            # sqlite_master pass this gate. Admission refuses both, so nothing
-            # leaked, but the backstop this function exists to be was absent for
-            # every count-shaped read.
+            # A table-level read -- what `count(*)` emits, since it names no
+            # column -- has no database name. SQLite uses the same callback
+            # shape when a CTE shadows a physical table:
+            #
+            #   WITH users AS (SELECT 1) SELECT count(*) FROM users
+            #       ('users', '', None, None)
+            #
+            # The callback therefore cannot tell the statement-local `users`
+            # from the physical table. Admission and the finished-tree check
+            # already verify every physical table reference; accepting names
+            # declared by the statement preserves that decision instead of
+            # refusing an otherwise valid CTE.
             if table == "sqlite_master":
                 return deny(
                     ErrorCode.RELATION_NOT_ALLOWED,
@@ -402,23 +405,13 @@ def _sqlite_authorizer(
                     "reading the database catalog is not permitted; "
                     "use describeSqlSchema to discover tables and columns",
                 )
+            if table in introduced_relations:
+                return sqlite3.SQLITE_OK
             # A real table that is not allowlisted is refused however the read
-            # presents, with or without a database name, and ahead of every
-            # accept below.
-            #
-            # An earlier revision put the declared-relation accept first, gated
-            # on `dbname is None`, to stop a caller's CTE being reported as an
-            # admission bypass. Both halves of that were wrong. A caller CTE
-            # shadowing a table emits no *read* event -- SQLite resolves the
-            # name before any read is authorized, and the only event it does
-            # deliver is a SELECT naming the CTE -- so the accept was not what
-            # let those statements run. And a table-level read,
-            # which `count(*)` emits, presents as `(table, '', None, None)`:
-            # `dbname is None` is true for the *physical* table, so the gate
-            # accepted `count(*)` over a forbidden table whenever a caller
-            # aliased any subquery to its name. `introduced_relations` is a flat
-            # set of caller-chosen strings, which is not a basis for skipping
-            # the one check that exists to catch an admission bypass.
+            # presents, with or without a database name. This is a backstop for
+            # physical tables that were not admitted; it follows the
+            # statement-local relation check because SQLite's callback loses
+            # that distinction for aggregate-only reads.
             if table in _phoenix_table_names() and table not in allow_tables:
                 return deny(
                     ErrorCode.RELATION_NOT_ALLOWED,
@@ -427,15 +420,6 @@ def _sqlite_authorizer(
                     "describeSqlSchema lists the tables that are",
                     kind="bypass",
                 )
-            # A relation this statement declared. Kept because a read reported
-            # against such a name must not be refused for being unknown to the
-            # manifest; no probed shape produces one, since a read through a
-            # CTE or subquery names the base table instead, so treat this as a
-            # backstop for shapes not enumerated rather than a described case.
-            # Reached only for statement-local names, not persisted Phoenix
-            # tables, so accepting here cannot bypass table admission.
-            if table in introduced_relations:
-                return sqlite3.SQLITE_OK
             # A table-valued function is reported as a read of a pseudo-table
             # named after the function. Its rows come from the JSON value passed
             # in, not from storage, so the table allowlist has nothing to say

@@ -373,8 +373,9 @@ class TestRewriteAttribution:
 class TestDeclaredRelationsShadowingPhoenixTables:
     """A caller CTE named after a Phoenix table is a query, not an incident.
 
-    The authorizer denied it as an admission bypass and logged it as such, so a
-    reader of the log could not tell a real bypass from this. See F1.
+    SQLite authorizer events distinguish a physical table read from a
+    statement-local relation. Both a projected column and an aggregate-only
+    read must preserve that distinction.
     """
 
     async def test_a_cte_named_after_a_denied_table_runs(
@@ -388,6 +389,33 @@ class TestDeclaredRelationsShadowingPhoenixTables:
         )
 
         assert result.envelope["rows"] == [[1]]
+
+    async def test_an_aggregate_over_a_shadowing_cte_runs(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        """`count(*)` has no column name, so SQLite reports a table-level read."""
+        db, db_path = analytics_sqlite_db
+        result = await execute_analytics_sql(
+            db,
+            ExecuteParams(sql="WITH users AS (SELECT 1 AS n) SELECT count(*) FROM users"),
+            sqlite_db_path=db_path,
+        )
+
+        assert result.envelope["rows"] == [[1]]
+
+    async def test_a_subquery_alias_cannot_hide_the_base_table(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        """Admission must still inspect the forbidden table inside the subquery."""
+        db, db_path = analytics_sqlite_db
+        with pytest.raises(AnalyticsSqlError) as exc:
+            await execute_analytics_sql(
+                db,
+                ExecuteParams(sql="SELECT count(*) FROM (SELECT id FROM users) AS users"),
+                sqlite_db_path=db_path,
+            )
+
+        assert exc.value.code is ErrorCode.RELATION_NOT_ALLOWED
 
     async def test_the_base_table_is_unreachable_through_the_shadow(
         self, analytics_sqlite_db: tuple[DbSessionFactory, str]
