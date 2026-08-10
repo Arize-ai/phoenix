@@ -58,7 +58,7 @@ export function getFlushableClientToolOutputs({
   isFlushed,
 }: {
   messages: UIMessage[];
-  /** Whether an output already reached the server (persisted or in flight). */
+  /** Whether an earlier flush already persisted an output to the server. */
   isFlushed: (toolCallId: string) => boolean;
 }): Array<ToolUIPart | DynamicToolUIPart> {
   const message = messages[messages.length - 1];

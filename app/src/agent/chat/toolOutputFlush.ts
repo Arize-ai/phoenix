@@ -36,12 +36,12 @@ export function createToolOutputFlusher({
   toolTimings?: ClientToolTimingRecorder | null;
 }) {
   const flushedToolCallIds = new Set<string>();
-  const inFlightToolCallIds = new Set<string>();
   let latestMessages: AgentUIMessage[] = [];
-  let activeFlush: Promise<void> | null = null;
+  // Serializes flush requests; a pass never observes an in-flight sibling.
+  let flushQueue: Promise<void> = Promise.resolve();
 
   const isFlushed = (toolCallId: string): boolean =>
-    flushedToolCallIds.has(toolCallId) || inFlightToolCallIds.has(toolCallId);
+    flushedToolCallIds.has(toolCallId);
 
   const collectFlushableOutputs = () => {
     const trailingMessage = latestMessages.at(-1);
@@ -65,72 +65,55 @@ export function createToolOutputFlusher({
     };
   };
 
-  const runFlushLoop = async (): Promise<void> => {
-    for (;;) {
-      const { toolOutputs, lastMessageId } = collectFlushableOutputs();
-      if (toolOutputs.length === 0) {
-        return;
-      }
-      const toolCallIds = toolOutputs.map(
-        (toolOutput) => toolOutput.toolCallId
-      );
-      toolCallIds.forEach((toolCallId) => inFlightToolCallIds.add(toolCallId));
-      let persisted = false;
-      try {
-        const body: SubmitToolOutputsRequestBody = {
-          // The AI SDK's tool UI parts and the generated wire schema describe
-          // the same Vercel data-stream shapes but spell optionality
-          // differently.
-          toolOutputs:
-            toolOutputs as unknown as SubmitToolOutputsRequestBody["toolOutputs"],
-          lastMessageId,
-        };
-        const response = await fetchFn(flushUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        persisted = response.ok;
-      } catch {
-        // Network failures are benign: the outputs stay eligible and the
-        // final chat continuation re-carries them regardless.
-      } finally {
-        toolCallIds.forEach((toolCallId) =>
-          inFlightToolCallIds.delete(toolCallId)
-        );
-      }
-      if (!persisted) {
-        // Leave the outputs for a later resolution event instead of retrying
-        // in a tight loop; the chat continuation is the durable fallback.
-        return;
-      }
-      toolCallIds.forEach((toolCallId) => flushedToolCallIds.add(toolCallId));
-      // Loop: outputs that resolved while the request was in flight flush now.
+  const flushOnce = async (): Promise<void> => {
+    const { toolOutputs, lastMessageId } = collectFlushableOutputs();
+    if (toolOutputs.length === 0) {
+      return;
     }
+    const toolCallIds = toolOutputs.map((toolOutput) => toolOutput.toolCallId);
+    let persisted = false;
+    try {
+      const body: SubmitToolOutputsRequestBody = {
+        // The AI SDK's tool UI parts and the generated wire schema describe
+        // the same Vercel data-stream shapes but spell optionality
+        // differently.
+        toolOutputs:
+          toolOutputs as unknown as SubmitToolOutputsRequestBody["toolOutputs"],
+        lastMessageId,
+      };
+      const response = await fetchFn(flushUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      persisted = response.ok;
+    } catch {
+      // Network failures are benign: the outputs stay eligible and the
+      // final chat continuation re-carries them regardless.
+    }
+    if (!persisted) {
+      // Leave the outputs for a later resolution event instead of retrying
+      // in a tight loop; the chat continuation is the durable fallback.
+      return;
+    }
+    toolCallIds.forEach((toolCallId) => flushedToolCallIds.add(toolCallId));
   };
 
   return {
     /**
      * Flush any newly resolved client tool outputs in the trailing assistant
-     * message. Fire-and-forget: requests are serialized, and outputs that
-     * resolve mid-flight are picked up when the active request settles.
+     * message. Fire-and-forget: each call chains one flush pass onto the
+     * queue, so outputs that resolve mid-flight post once the active request
+     * settles.
      */
     maybeFlush: (messages: AgentUIMessage[]): void => {
       latestMessages = messages;
-      if (activeFlush !== null) {
-        return;
-      }
-      const flush = runFlushLoop().finally(() => {
-        if (activeFlush === flush) {
-          activeFlush = null;
-        }
-      });
-      activeFlush = flush;
+      // The catch keeps an unexpected rejection from wedging the queue.
+      flushQueue = flushQueue.then(flushOnce).catch(() => {});
     },
     /** Reset all tracking when the logical turn completes. */
     clear: (): void => {
       flushedToolCallIds.clear();
-      inFlightToolCallIds.clear();
       latestMessages = [];
     },
   };
