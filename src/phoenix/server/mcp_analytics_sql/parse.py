@@ -332,6 +332,12 @@ def _check_dialect_specific_syntax(
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
                 f"{node.key.upper()} is not supported by SQLite. Use ordinary GROUP BY.",
             )
+        if isinstance(node, (exp.ILike, exp.SimilarTo)):
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                f"{node.key.upper()} is not supported by SQLite. Use LIKE, or lower(...) LIKE "
+                "lower(...) for case-insensitive matching.",
+            )
     return None
 
 
@@ -361,10 +367,10 @@ _ALLOWED_STRUCTURAL_CLASSES: frozenset[str] = frozenset(
     Add Alias All Any Between Block Boolean CTE Column Copy Credentials Cube
     DPipe DataType Distinct Div Dot Drop EQ Escape Except Fetch Filter From GT
     GTE Glob Group GroupingSets Having Identifier In Interval Intersect Into Is
-    JSONKeyValue JSONPath JSONPathKey JSONPathRoot Join LT LTE Lateral Like Limit
+    ILike JSONKeyValue JSONPath JSONPathKey JSONPathRoot Join LT LTE Lateral Like Limit
     LimitOptions Literal Lock Mod Mul NEQ Neg Not Null NullSafeEQ NullSafeNEQ
     ObjectIdentifier Offset Order Ordered Paren Rollup Select Star Sub Subquery
-    Table TableAlias Tuple Union Values Var Where Window WindowSpec With
+    SimilarTo Table TableAlias Tuple Union Values Var Where Window WindowSpec With
     WithinGroup
     """.split()
 )
@@ -1110,6 +1116,14 @@ def _check_column_references(
             for projection in scope.expression.expressions
             if isinstance(projection, exp.Alias) and projection.alias
         }
+        input_columns = {
+            column.casefold()
+            for table_name in set(by_reference.values())
+            for column in (
+                *allowlist.table_specs[table_name].columns,
+                *allowlist.table_specs[table_name].virtual_columns,
+            )
+        }
         # NATURAL JOIN names none of its join keys, so its behavior changes when
         # physical schemas evolve. Keep join criteria explicit rather than
         # silently taking every same-named column.
@@ -1155,21 +1169,24 @@ def _check_column_references(
                 )
         for column in columns:
             if (
+                dialect == "postgresql"
+                and id(column) in having_columns
+                and not column.table
+                and not localities.is_alias_bound(column)
+                and column.name.casefold() in output_aliases
+                and column.name.casefold() not in input_columns
+            ):
+                return AdmissionResult(
+                    AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                    f"`HAVING {column.name}` refers to a SELECT alias. PostgreSQL does not "
+                    "allow that, so repeat its expression (for example, "
+                    "`HAVING COUNT(*) >= 50`).",
+                )
+            if (
                 not column.table
                 and not localities.is_alias_bound(column)
                 and column.name.casefold() in {reference.casefold() for reference in by_reference}
             ):
-                if (
-                    dialect == "postgresql"
-                    and id(column) in having_columns
-                    and column.name.casefold() in output_aliases
-                ):
-                    return AdmissionResult(
-                        AdmissionOutcome.UNSUPPORTED_SYNTAX,
-                        f"`HAVING {column.name}` refers to a SELECT alias. PostgreSQL does not "
-                        "allow that, so repeat its expression (for example, "
-                        "`HAVING COUNT(*) >= 50`).",
-                    )
                 return AdmissionResult(
                     AdmissionOutcome.UNSUPPORTED_SYNTAX,
                     f"{column.name!r} names a table here, so it selects the whole row "
