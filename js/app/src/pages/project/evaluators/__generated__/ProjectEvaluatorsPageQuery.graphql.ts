@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<190822e07fb07cb9d72e9addc1894231>>
+ * @generated SignedSource<<73baeaaeec65037620cdccb76819f671>>
  * @lightSyntaxTransform
  */
 
@@ -236,7 +236,9 @@ return {
               {
                 "alias": null,
                 "args": (v4/*:: as any*/),
-                "filters": null,
+                "filters": [
+                  "filter"
+                ],
                 "handle": "connection",
                 "key": "ProjectEvaluatorsTable_evaluators",
                 "kind": "LinkedHandle",

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0fddde0a7ec83a998fa7eafecf3d70fa>>
+ * @generated SignedSource<<41257a23e83fe69735107a60219f9167>>
  * @lightSyntaxTransform
  */
 
@@ -46,6 +46,11 @@ return {
       "name": "after"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filter"
+    },
+    {
       "defaultValue": 30,
       "kind": "LocalArgument",
       "name": "first"
@@ -84,7 +89,13 @@ return {
   "selections": [
     {
       "alias": "evaluators",
-      "args": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "filter",
+          "variableName": "filter"
+        }
+      ],
       "concreteType": "ProjectEvaluatorConnection",
       "kind": "LinkedField",
       "name": "__ProjectEvaluatorsTable_evaluators_connection",
@@ -223,6 +234,6 @@ return {
 };
 })();
 
-(node as any).hash = "1955deb1a62439f39c55f2ce985be809";
+(node as any).hash = "e32f1d4594df375d4292c05d795eecba";
 
 export default node;
