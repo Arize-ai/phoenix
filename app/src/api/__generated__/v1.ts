@@ -1591,7 +1591,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/agents/{agent_id}/sessions": {
+    "/v1/agent_sessions": {
         parameters: {
             query?: never;
             header?: never;
@@ -1615,7 +1615,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/agents/{agent_id}/sessions/{session_id}": {
+    "/v1/agent_sessions/{session_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1639,7 +1639,7 @@ export interface paths {
         patch: operations["patchAgentSession"];
         trace?: never;
     };
-    "/v1/agents/{agent_id}/sessions/{session_id}/messages": {
+    "/v1/agent_sessions/{session_id}/messages": {
         parameters: {
             query?: never;
             header?: never;
@@ -1659,7 +1659,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/agents/{agent_id}/sessions/{session_id}/compact": {
+    "/v1/agent_sessions/{session_id}/compact": {
         parameters: {
             query?: never;
             header?: never;
@@ -1676,7 +1676,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/agents/{agent_id}/sessions/{session_id}/chat": {
+    "/v1/agent_sessions/{session_id}/chat": {
         parameters: {
             query?: never;
             header?: never;
@@ -2191,6 +2191,12 @@ export interface components {
              * @default false
              */
             attachUserId?: boolean;
+            /**
+             * Useragenttype
+             * @description Which Phoenix user agent type is driving the turn: ``web`` for the browser assistant, ``headless`` for terminal and scripted clients. Selects the agent configuration the turn runs on.
+             * @enum {string}
+             */
+            userAgentType: "web" | "headless";
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
             /**
@@ -2204,7 +2210,7 @@ export interface components {
              * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
              */
             requestedSkills?: string[];
-            /** @description The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on — or switching to — an unexpected model. Change the session's model with ``PATCH .../sessions/{session_id}``. */
+            /** @description The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on — or switching to — an unexpected model. Change the session's model with ``PATCH .../agent_sessions/{session_id}``. */
             model: components["schemas"]["AgentModelSelection"];
             /**
              * Trigger
@@ -11851,9 +11857,7 @@ export interface operations {
                 limit?: number;
             };
             header?: never;
-            path: {
-                agent_id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -11909,9 +11913,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                agent_id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody: {
@@ -11990,7 +11992,6 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                agent_id: string;
                 session_id: string;
             };
             cookie?: never;
@@ -12049,7 +12050,6 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                agent_id: string;
                 session_id: string;
             };
             cookie?: never;
@@ -12143,7 +12143,6 @@ export interface operations {
             };
             header?: never;
             path: {
-                agent_id: string;
                 session_id: string;
             };
             cookie?: never;
@@ -12202,7 +12201,6 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                agent_id: string;
                 session_id: string;
             };
             cookie?: never;
@@ -12301,7 +12299,6 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                agent_id: string;
                 session_id: string;
             };
             cookie?: never;

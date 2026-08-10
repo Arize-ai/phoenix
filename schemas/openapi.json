@@ -8242,7 +8242,7 @@
         }
       }
     },
-    "/v1/agents/{agent_id}/sessions": {
+    "/v1/agent_sessions": {
       "post": {
         "tags": [
           "chat"
@@ -8250,17 +8250,6 @@
         "summary": "Create Session",
         "description": "Create a persisted agent session owned by the requesting user.",
         "operationId": "createAgentSession",
-        "parameters": [
-          {
-            "name": "agent_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Agent Id"
-            }
-          }
-        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -8353,15 +8342,6 @@
         "operationId": "listAgentSessions",
         "parameters": [
           {
-            "name": "agent_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Agent Id"
-            }
-          },
-          {
             "name": "cursor",
             "in": "query",
             "required": false,
@@ -8446,7 +8426,7 @@
         }
       }
     },
-    "/v1/agents/{agent_id}/sessions/{session_id}": {
+    "/v1/agent_sessions/{session_id}": {
       "patch": {
         "tags": [
           "chat"
@@ -8455,15 +8435,6 @@
         "description": "Update a persisted session's mutable fields.",
         "operationId": "patchAgentSession",
         "parameters": [
-          {
-            "name": "agent_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Agent Id"
-            }
-          },
           {
             "name": "session_id",
             "in": "path",
@@ -8576,15 +8547,6 @@
         "operationId": "getAgentSession",
         "parameters": [
           {
-            "name": "agent_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Agent Id"
-            }
-          },
-          {
             "name": "session_id",
             "in": "path",
             "required": true,
@@ -8648,7 +8610,7 @@
         }
       }
     },
-    "/v1/agents/{agent_id}/sessions/{session_id}/messages": {
+    "/v1/agent_sessions/{session_id}/messages": {
       "get": {
         "tags": [
           "chat"
@@ -8657,15 +8619,6 @@
         "description": "Page through an owned session's persisted transcript, oldest first.",
         "operationId": "listAgentSessionMessages",
         "parameters": [
-          {
-            "name": "agent_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Agent Id"
-            }
-          },
           {
             "name": "session_id",
             "in": "path",
@@ -8760,7 +8713,7 @@
         }
       }
     },
-    "/v1/agents/{agent_id}/sessions/{session_id}/compact": {
+    "/v1/agent_sessions/{session_id}/compact": {
       "post": {
         "tags": [
           "chat"
@@ -8768,15 +8721,6 @@
         "summary": "Compact Agent Session",
         "operationId": "compactAgentSession",
         "parameters": [
-          {
-            "name": "agent_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Agent Id"
-            }
-          },
           {
             "name": "session_id",
             "in": "path",
@@ -8891,7 +8835,7 @@
         }
       }
     },
-    "/v1/agents/{agent_id}/sessions/{session_id}/chat": {
+    "/v1/agent_sessions/{session_id}/chat": {
       "post": {
         "tags": [
           "chat"
@@ -8899,15 +8843,6 @@
         "summary": "Chat",
         "operationId": "agentSessionChat",
         "parameters": [
-          {
-            "name": "agent_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Agent Id"
-            }
-          },
           {
             "name": "session_id",
             "in": "path",
@@ -10132,6 +10067,15 @@
             "description": "When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.",
             "default": false
           },
+          "userAgentType": {
+            "type": "string",
+            "enum": [
+              "web",
+              "headless"
+            ],
+            "title": "Useragenttype",
+            "description": "Which Phoenix user agent type is driving the turn: ``web`` for the browser assistant, ``headless`` for terminal and scripted clients. Selects the agent configuration the turn runs on."
+          },
           "contexts": {
             "items": {
               "$ref": "#/components/schemas/ChatContext"
@@ -10158,7 +10102,7 @@
           },
           "model": {
             "$ref": "#/components/schemas/AgentModelSelection",
-            "description": "The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on \u2014 or switching to \u2014 an unexpected model. Change the session's model with ``PATCH .../sessions/{session_id}``."
+            "description": "The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on \u2014 or switching to \u2014 an unexpected model. Change the session's model with ``PATCH .../agent_sessions/{session_id}``."
           },
           "trigger": {
             "type": "string",
@@ -10217,6 +10161,7 @@
         },
         "type": "object",
         "required": [
+          "userAgentType",
           "model",
           "id"
         ],

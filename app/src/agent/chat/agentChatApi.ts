@@ -2,10 +2,9 @@ import type { components, paths } from "@phoenix/api/__generated__/v1";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 const CHAT_PATH_TEMPLATE =
-  "/v1/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof paths;
+  "/v1/agent_sessions/{session_id}/chat" satisfies keyof paths;
 const COMPACT_PATH_TEMPLATE =
-  "/v1/agents/{agent_id}/sessions/{session_id}/compact" satisfies keyof paths;
-const ASSISTANT_AGENT_ID = "assistant";
+  "/v1/agent_sessions/{session_id}/compact" satisfies keyof paths;
 
 /**
  * The `code` discriminator of every HTTP 409 the agent session routes return,
@@ -74,18 +73,12 @@ export function parseAgentSessionConflictCode(
 
 export function buildAgentChatApiUrl(sessionId: string): string {
   return prependBasename(
-    CHAT_PATH_TEMPLATE.replace("{agent_id}", ASSISTANT_AGENT_ID).replace(
-      "{session_id}",
-      encodeURIComponent(sessionId)
-    )
+    CHAT_PATH_TEMPLATE.replace("{session_id}", encodeURIComponent(sessionId))
   );
 }
 
 export function buildAgentCompactApiUrl(sessionId: string): string {
   return prependBasename(
-    COMPACT_PATH_TEMPLATE.replace("{agent_id}", ASSISTANT_AGENT_ID).replace(
-      "{session_id}",
-      encodeURIComponent(sessionId)
-    )
+    COMPACT_PATH_TEMPLATE.replace("{session_id}", encodeURIComponent(sessionId))
   );
 }

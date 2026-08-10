@@ -221,10 +221,11 @@ async def test_new_chat_route_is_unaffected_by_the_legacy_registration(
         agent_session_id = str(GlobalID("AgentSession", str(agent_session.id)))
 
     response = await httpx_client.post(
-        f"/v1/agents/assistant/sessions/{agent_session_id}/chat",
+        f"/v1/agent_sessions/{agent_session_id}/chat",
         json={
             "trigger": "submit-message",
             "id": session_id,
+            "userAgentType": "web",
             "message": _user_message("hello"),
             "model": {
                 "providerType": "builtin",
@@ -243,7 +244,7 @@ async def test_new_contract_body_on_the_legacy_url_is_rejected(
     httpx_client: httpx.AsyncClient,
 ) -> None:
     """The legacy route only speaks the full-transcript shape; the session
-    routes' single-``message`` body belongs to /v1/agents/... instead."""
+    routes' single-``message`` body belongs to /v1/agent_sessions/... instead."""
     response = await httpx_client.post(
         f"/agents/server/sessions/{_CLIENT_MINTED_SESSION_ID}/chat",
         json={
