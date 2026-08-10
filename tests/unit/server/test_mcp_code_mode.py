@@ -7,6 +7,7 @@ containment.
 from __future__ import annotations
 
 import asyncio
+import logging
 import textwrap
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
@@ -78,6 +79,21 @@ async def test_returns_trailing_expression(provider: MontyPoolSandboxProvider) -
     assert await provider.run("40 + 2") == 42
 
 
+async def test_debug_log_records_submitted_program(
+    provider: MontyPoolSandboxProvider, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Failures from a host callback need the guest source for diagnosis."""
+    code = "return 40 + 2"
+    with caplog.at_level(logging.DEBUG, logger="phoenix.server.mcp_code_mode"):
+        assert await provider.run(code) == 42
+
+    assert any(
+        record.name == "phoenix.server.mcp_code_mode"
+        and record.message == f"MCP code-mode execute submitted (consumer=mcp, code={code!r})"
+        for record in caplog.records
+    )
+
+
 async def test_calls_async_external_function(provider: MontyPoolSandboxProvider) -> None:
     """``call_tool`` reaches the host and its result flows back into the guest."""
 
@@ -90,6 +106,36 @@ async def test_calls_async_external_function(provider: MontyPoolSandboxProvider)
         external_functions={"call_tool": call_tool},
     )
     assert result == 42
+
+
+async def test_debug_log_records_host_callback_arguments(
+    provider: MontyPoolSandboxProvider, caplog: pytest.LogCaptureFixture
+) -> None:
+    async def call_tool(tool_name: str, params: dict[str, Any]) -> dict[str, str]:
+        assert tool_name == "describeSqlSchema"
+        assert params["secret"] == "do-not-log"
+        return {"ok": "yes"}
+
+    with caplog.at_level(logging.DEBUG, logger="phoenix.server.mcp_code_mode"):
+        assert (
+            await provider.run(
+                "return await call_tool('describeSqlSchema', "
+                "{'detail': 'brief', 'secret': 'do-not-log'})",
+                external_functions={"call_tool": call_tool},
+            )
+        ) == {"ok": "yes"}
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert any(
+        "host callback submitted" in message
+        and "tool='describeSqlSchema'" in message
+        and "params={'detail': 'brief', 'secret': 'do-not-log'}" in message
+        for message in messages
+    )
+    assert any(
+        "host callback completed" in message and "result_type=dict" in message
+        for message in messages
+    )
 
 
 async def test_external_function_timeout_is_not_misclassified_as_capacity(
@@ -110,11 +156,21 @@ async def test_inputs_are_bound_as_globals(provider: MontyPoolSandboxProvider) -
     assert await provider.run("return x + y", inputs={"x": 1, "y": 2}) == 3
 
 
-async def test_guest_exception_reaches_the_caller(provider: MontyPoolSandboxProvider) -> None:
+async def test_guest_exception_reaches_the_caller(
+    provider: MontyPoolSandboxProvider, caplog: pytest.LogCaptureFixture
+) -> None:
     """Guest errors reach the model with detail, not rewritten into ``ToolError``."""
-    with pytest.raises(MontyRuntimeError) as exc_info:
-        await provider.run("raise ValueError('boom')")
+    code = "raise ValueError('boom')"
+    with caplog.at_level(logging.WARNING, logger="phoenix.server.mcp_code_mode"):
+        with pytest.raises(MontyRuntimeError) as exc_info:
+            await provider.run(code)
     assert "boom" in str(exc_info.value)
+    assert any(
+        "MCP code-mode execute failed" in record.getMessage()
+        and f"code_length={len(code)}" in record.getMessage()
+        and "error=MontyRuntimeError: ValueError: boom" in record.getMessage()
+        for record in caplog.records
+    )
 
 
 async def test_syntax_error_reaches_the_caller(provider: MontyPoolSandboxProvider) -> None:
