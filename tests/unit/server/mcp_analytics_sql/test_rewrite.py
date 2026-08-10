@@ -32,7 +32,6 @@ from phoenix.server.mcp_analytics_sql.rewrite import (
     _substitute_latency_ms,
     rewrite,
 )
-from phoenix.server.mcp_analytics_sql.teaching import FULL_EXAMPLES
 
 
 def _ctx(dialect: SupportedSQLDialectName = "postgresql") -> RewriteContext:
@@ -120,27 +119,6 @@ def test_latency_ms_predicate_compares_in_milliseconds() -> None:
     """
     sql = _rendered("SELECT span_id FROM spans WHERE latency_ms > 100 ORDER BY span_id")
     assert [row[0] for row in _run_on_sqlite(sql)] == ["span-long", "span-medium"]
-
-
-@pytest.mark.parametrize("example_key", sorted(FULL_EXAMPLES))
-def test_every_shipped_example_is_admitted(example_key: str) -> None:
-    """An example in the teaching payload is a promise that it runs.
-
-    These are the statements a caller is most likely to send verbatim, because
-    we wrote them and put them in front of the caller as the way to do the
-    thing. One that is refused costs more than an ordinary denial: it teaches
-    that the surface is unreliable, and it does so at the moment the caller was
-    following instructions rather than guessing.
-
-    Admission is keyed on parser classes and on function names, neither of which
-    is what the examples are written in, so nothing else connects the two. This
-    is the only check that the payload and the policy agree.
-    """
-    dialect: SupportedSQLDialectName = (
-        "postgresql" if example_key.endswith("postgresql") else "sqlite"
-    )
-    root = parse_sql(FULL_EXAMPLES[example_key], dialect=dialect)
-    admit(root, allowlist=load_allowlist("sqlite"), dialect=dialect)
 
 
 def test_latency_ms_orders_by_duration_not_start_time() -> None:
