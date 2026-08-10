@@ -48,10 +48,6 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
     """
     lines = [f"-- Phoenix analytics SQL. Write {dialect} SQL against the tables below."]
     lines.append(
-        "-- Phoenix admits a portable subset shared by SQLite and PostgreSQL. "
-        "In particular, repeat aggregate expressions in HAVING instead of SELECT aliases."
-    )
-    lines.append(
         "-- The global allowlisted schema defines queryable tables, even when this response is "
         "filtered. Raw FOREIGN KEY targets outside that allowlist are descriptive; queries "
         "against them are refused."

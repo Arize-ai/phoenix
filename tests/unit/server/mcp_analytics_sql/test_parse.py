@@ -1004,20 +1004,38 @@ class TestStructuralPolicyIsDefaultDeny:
             result = self._admit(sql, dialect)
             assert result.outcome is AdmissionOutcome.ADMIT, f"{dialect}: {sql} -> {result.detail}"
 
-    @pytest.mark.parametrize("dialect", ["postgresql", "sqlite"])
-    def test_having_select_alias_explains_the_portable_rewrite(
-        self, dialect: SupportedSQLDialectName
-    ) -> None:
-        """SQLite accepts aliases in HAVING, but PostgreSQL does not.
-
-        A name collision with the `spans` relation reached the whole-row
-        backstop first and produced a true but irrelevant error. The portable
-        repair is to repeat the aggregate expression, which this assertion
-        keeps actionable without admitting cross-dialect divergence.
-        """
+    def test_having_select_alias_uses_sqlite_semantics(self) -> None:
+        """SQLite resolves this bare name to the output alias, not the relation."""
         result = self._admit(
             "SELECT COUNT(*) AS spans FROM spans s HAVING spans >= 50",
-            dialect,
+            "sqlite",
+        )
+
+        assert result.outcome is AdmissionOutcome.ADMIT, result.detail
+
+    def test_sqlite_having_input_column_beats_a_matching_output_alias(self) -> None:
+        """SQLite only resolves a HAVING alias when no input column carries its name."""
+        root = parse_sql(
+            "SELECT COUNT(*) AS name FROM spans HAVING name IS NOT NULL",
+            dialect="sqlite",
+        )
+        localities = query_local_columns(
+            root,
+            allowlist=load_allowlist("sqlite"),
+            dialect="sqlite",
+        )
+        having = root.args["having"]
+        assert isinstance(having, exp.Having)
+        column = next(having.find_all(exp.Column))
+
+        assert not localities.is_alias_bound(column)
+        assert self._admit(root.sql(dialect="sqlite"), "sqlite").outcome is AdmissionOutcome.ADMIT
+
+    def test_having_select_alias_explains_the_postgres_rewrite(self) -> None:
+        """PostgreSQL does not resolve output aliases in HAVING."""
+        result = self._admit(
+            "SELECT COUNT(*) AS spans FROM spans s HAVING spans >= 50",
+            "postgresql",
         )
 
         assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX

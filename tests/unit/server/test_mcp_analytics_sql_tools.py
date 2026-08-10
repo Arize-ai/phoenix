@@ -53,7 +53,6 @@ async def test_schema_carries_the_invariants_the_envelope_does_not(
     assert "Common allowed functions" in text
     assert "percent_rank" in text
     assert "percentile(x, p)" in text or "percentile_cont(p)" in text
-    assert "portable subset shared by SQLite and PostgreSQL" in text
     assert 'detail="detailed"' in text
     assert "cannot use a direct index" in text
 
