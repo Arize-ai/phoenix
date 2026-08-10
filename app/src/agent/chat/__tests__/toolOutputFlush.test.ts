@@ -1,5 +1,5 @@
 import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
-import { createToolOutputFlusher } from "@phoenix/agent/chat/toolOutputFlush";
+import { flushToolOutputs } from "@phoenix/agent/chat/toolOutputFlush";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 
 const FLUSH_URL = "/v1/agent_sessions/session-1/tool_outputs";
@@ -51,17 +51,18 @@ async function settle(): Promise<void> {
   await Promise.resolve();
 }
 
-describe("createToolOutputFlusher", () => {
+describe("flushToolOutputs", () => {
   it("posts resolved outputs while sibling calls stay pending", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse());
-    const flush = createToolOutputFlusher({
+
+    flushToolOutputs({
+      message: assistantMessage([
+        resolvedToolPart("call-1"),
+        pendingToolPart("call-2"),
+      ]),
       flushUrl: FLUSH_URL,
       fetch: fetchMock,
     });
-
-    flush(
-      assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")])
-    );
     await settle();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -75,21 +76,24 @@ describe("createToolOutputFlusher", () => {
 
   it("re-posts every resolved output on each call; the endpoint dedupes", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse());
-    const flush = createToolOutputFlusher({
+
+    flushToolOutputs({
+      message: assistantMessage([
+        resolvedToolPart("call-1"),
+        pendingToolPart("call-2"),
+      ]),
       flushUrl: FLUSH_URL,
       fetch: fetchMock,
     });
-
-    flush(
-      assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")])
-    );
-    flush(
-      assistantMessage([
+    flushToolOutputs({
+      message: assistantMessage([
         resolvedToolPart("call-1"),
         resolvedToolPart("call-2"),
         pendingToolPart("call-3"),
-      ])
-    );
+      ]),
+      flushUrl: FLUSH_URL,
+      fetch: fetchMock,
+    });
     await settle();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -103,14 +107,15 @@ describe("createToolOutputFlusher", () => {
 
   it("does not flush when every tool call has resolved", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse());
-    const flush = createToolOutputFlusher({
+
+    flushToolOutputs({
+      message: assistantMessage([
+        resolvedToolPart("call-1"),
+        resolvedToolPart("call-2"),
+      ]),
       flushUrl: FLUSH_URL,
       fetch: fetchMock,
     });
-
-    flush(
-      assistantMessage([resolvedToolPart("call-1"), resolvedToolPart("call-2")])
-    );
     await settle();
 
     // The normal chat continuation carries the outputs instead.
@@ -119,14 +124,15 @@ describe("createToolOutputFlusher", () => {
 
   it("swallows network failures without surfacing them", async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error("offline"));
-    const flush = createToolOutputFlusher({
+
+    flushToolOutputs({
+      message: assistantMessage([
+        resolvedToolPart("call-1"),
+        pendingToolPart("call-2"),
+      ]),
       flushUrl: FLUSH_URL,
       fetch: fetchMock,
     });
-
-    flush(
-      assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")])
-    );
     await settle();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -139,15 +145,16 @@ describe("createToolOutputFlusher", () => {
     });
     toolTimings.recordStart("call-1");
     toolTimings.recordEnd("call-1");
-    const flush = createToolOutputFlusher({
+
+    flushToolOutputs({
+      message: assistantMessage([
+        resolvedToolPart("call-1"),
+        pendingToolPart("call-2"),
+      ]),
       flushUrl: FLUSH_URL,
       fetch: fetchMock,
       toolTimings,
     });
-
-    flush(
-      assistantMessage([resolvedToolPart("call-1"), pendingToolPart("call-2")])
-    );
     await settle();
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);

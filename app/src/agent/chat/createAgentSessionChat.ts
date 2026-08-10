@@ -8,7 +8,7 @@ import {
 } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
-import { createToolOutputFlusher } from "@phoenix/agent/chat/toolOutputFlush";
+import { flushToolOutputs } from "@phoenix/agent/chat/toolOutputFlush";
 import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
@@ -88,12 +88,8 @@ export function createAgentSessionChat({
   onTranscriptSynced: (tail: AgentSessionSyncState) => void;
 }): Chat<AgentUIMessage> {
   const chatApiUrl = buildAgentChatApiUrl(sessionId);
+  const toolOutputsApiUrl = buildAgentToolOutputsApiUrl(sessionId);
   const toolTimings = createClientToolTimingRecorder();
-  const flushToolOutputs = createToolOutputFlusher({
-    flushUrl: buildAgentToolOutputsApiUrl(sessionId),
-    fetch: authFetch,
-    toolTimings,
-  });
   // The selection the most recent send asserted, kept so a model-stale
   // rejection can distinguish another client's change from this client
   // racing its own in-flight change.
@@ -215,7 +211,12 @@ export function createAgentSessionChat({
       if (!shouldSendAutomatically) {
         const trailingMessage = messages.at(-1);
         if (trailingMessage) {
-          flushToolOutputs(trailingMessage);
+          flushToolOutputs({
+            message: trailingMessage,
+            flushUrl: toolOutputsApiUrl,
+            fetch: authFetch,
+            toolTimings,
+          });
         }
         return false;
       }
