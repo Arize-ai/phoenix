@@ -1,16 +1,9 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 
 import {
   ChartEmptyStateOverlay,
+  ChartResponsiveContainer,
   InteractiveLegend,
   compactChartMargin,
   defaultCartesianGridProps,
@@ -114,7 +107,7 @@ export function TopModelsByCost({
       message={emptyStateMessage}
       chartType="barHorizontal"
     >
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer>
         <BarChart
           data={chartData}
           margin={compactChartMargin}
@@ -175,7 +168,7 @@ export function TopModelsByCost({
             onToggleDataKey={toggleDataKey}
           />
         </BarChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </ChartEmptyStateOverlay>
   );
 }

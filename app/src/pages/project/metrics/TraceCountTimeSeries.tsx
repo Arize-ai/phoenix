@@ -1,17 +1,10 @@
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 
 import {
   ChartEmptyStateOverlay,
+  ChartResponsiveContainer,
   InteractiveLegend,
   TimeRangeChartBrush,
   compactChartMargin,
@@ -109,7 +102,7 @@ export function TraceCountTimeSeries({
           message="No data in this time range"
           chartType="bar"
         >
-          <ResponsiveContainer width="100%" height="100%">
+          <ChartResponsiveContainer>
             <BarChart
               data={chartData}
               margin={compactChartMargin}
@@ -155,7 +148,7 @@ export function TraceCountTimeSeries({
                 onToggleDataKey={toggleDataKey}
               />
             </BarChart>
-          </ResponsiveContainer>
+          </ChartResponsiveContainer>
         </ChartEmptyStateOverlay>
       )}
     </TimeRangeChartBrush>

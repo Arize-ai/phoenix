@@ -1,15 +1,8 @@
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 
 import {
   ChartEmptyStateOverlay,
+  ChartResponsiveContainer,
   InteractiveLegend,
   compactChartMargin,
   compactLegendProps,
@@ -76,7 +69,7 @@ export function ExperimentTokensChart({
       message="No token data"
       chartType="bar"
     >
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer>
         <BarChart
           data={chartData}
           margin={compactChartMargin}
@@ -120,7 +113,7 @@ export function ExperimentTokensChart({
             )}
           />
         </BarChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </ChartEmptyStateOverlay>
   );
 }
