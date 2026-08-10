@@ -374,6 +374,28 @@ _PhoenixToolCallCallbackProviderMetadataAdapter: TypeAdapter[
 ] = TypeAdapter(PhoenixToolCallCallbackProviderMetadata)
 
 
+def _validate_submitted_tool_outputs(tool_outputs: Sequence[ToolOutputUIPart]) -> None:
+    """Validate the wire-level invariants shared by every ``toolOutputs`` payload."""
+    tool_call_ids = [tool_output.tool_call_id for tool_output in tool_outputs]
+    if len(tool_call_ids) != len(set(tool_call_ids)):
+        raise ValueError("Each toolOutputs entry must have a distinct toolCallId")
+    for tool_output in tool_outputs:
+        call_provider_metadata = tool_output.call_provider_metadata
+        if isinstance(call_provider_metadata, dict):
+            phoenix_metadata = call_provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY)
+            if phoenix_metadata is not None:
+                _PhoenixToolCallCallbackProviderMetadataAdapter.validate_python(phoenix_metadata)
+        result_provider_metadata = tool_output.result_provider_metadata
+        if (
+            isinstance(result_provider_metadata, dict)
+            and result_provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY) is not None
+        ):
+            raise ValueError(
+                "toolOutputs resultProviderMetadata has no schema for the "
+                f"{_PHOENIX_PROVIDER_METADATA_KEY!r} namespace"
+            )
+
+
 class ChatSubmitMessage(_ChatRequestMixin):
     """Assistant chat submit request carrying the turn's new inputs."""
 
@@ -424,26 +446,7 @@ class ChatSubmitMessage(_ChatRequestMixin):
             raise ValueError(
                 "Compaction checkpoints are created by the compact route and cannot be submitted"
             )
-        tool_call_ids = [tool_output.tool_call_id for tool_output in self.tool_outputs]
-        if len(tool_call_ids) != len(set(tool_call_ids)):
-            raise ValueError("Each toolOutputs entry must have a distinct toolCallId")
-        for tool_output in self.tool_outputs:
-            call_provider_metadata = tool_output.call_provider_metadata
-            if isinstance(call_provider_metadata, dict):
-                phoenix_metadata = call_provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY)
-                if phoenix_metadata is not None:
-                    _PhoenixToolCallCallbackProviderMetadataAdapter.validate_python(
-                        phoenix_metadata
-                    )
-            result_provider_metadata = tool_output.result_provider_metadata
-            if (
-                isinstance(result_provider_metadata, dict)
-                and result_provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY) is not None
-            ):
-                raise ValueError(
-                    "toolOutputs resultProviderMetadata has no schema for the "
-                    f"{_PHOENIX_PROVIDER_METADATA_KEY!r} namespace"
-                )
+        _validate_submitted_tool_outputs(self.tool_outputs)
         return self
 
 
@@ -628,6 +631,48 @@ class CompactAgentSessionResponseBody(ResponseBody[PhoenixUIMessage]):
     """The checkpoint message this request created. A 200 always means a new
     checkpoint was persisted; every other outcome is an HTTP 409 whose body's
     ``code`` says why (see ``AgentSessionConflictError``)."""
+
+
+class SubmitAgentSessionToolOutputsRequestBody(_CamelBaseModel):
+    """Persist resolved client tool outputs without continuing the turn.
+
+    Carries Vercel AI data-stream tool-output parts, so it follows the chat
+    route's camelCase wire casing rather than the session CRUD routes'
+    snake_case (see ``_CamelBaseModel``).
+    """
+
+    tool_outputs: list[ToolOutputUIPart] = Field(
+        min_length=1,
+        description=(
+            "Client-executed tool results for pending tool calls on the "
+            "transcript's trailing assistant message, matched by "
+            "``toolCallId``. Outputs for calls the server has already "
+            "resolved are ignored, so resending is idempotent; an output "
+            "that matches no call (or renames its tool) is rejected with "
+            "HTTP 409 and code ``agent_session_tool_outputs_conflict``."
+        ),
+    )
+    last_message_id: str = Field(
+        description=(
+            "The id of the trailing assistant message whose pending tool "
+            "calls the outputs resolve, used for optimistic concurrency. On "
+            "mismatch the server rejects the submission with HTTP 409 and "
+            "code ``agent_session_messages_stale`` — the client should "
+            "refetch the session before retrying."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _validate_tool_outputs(self) -> "SubmitAgentSessionToolOutputsRequestBody":
+        _validate_submitted_tool_outputs(self.tool_outputs)
+        return self
+
+
+class SubmitAgentSessionToolOutputsResponseBody(ResponseBody[PhoenixUIMessage]):
+    """The trailing assistant message with the submitted outputs applied.
+
+    A 200 means the outputs are durable; the turn stays open until a chat
+    continuation resolves every pending call and runs the model."""
 
 
 _PydanticAIUIMessageListAdapter: TypeAdapter[list[PydanticAIUIMessage]] = TypeAdapter(
@@ -2659,6 +2704,90 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 db_session_factory,
                 agent_session_rowid=agent_session_rowid,
             )
+
+    @router.post(
+        "/agents/{agent_id}/sessions/{session_id}/tool_outputs",
+        operation_id="submitAgentSessionToolOutputs",
+        response_model=SubmitAgentSessionToolOutputsResponseBody,
+        response_model_by_alias=True,
+        response_model_exclude_unset=True,
+        responses=add_errors_to_responses(
+            [400, 401, 403, 404, 507],
+            responses=dict(_CONFLICT_RESPONSES),
+        ),
+    )
+    async def submit_agent_session_tool_outputs(
+        agent_id: str,
+        session_id: str,
+        request: Request,
+        request_body: SubmitAgentSessionToolOutputsRequestBody,
+    ) -> SubmitAgentSessionToolOutputsResponseBody:
+        """Persist resolved client tool outputs for the session's open turn.
+
+        A turn that stops on unresolved client tool calls stays open while the
+        user works through approvals. Each resolved output can be submitted
+        here as it lands so the persisted transcript reflects it immediately —
+        the model does not run, and the unanswered calls keep their pending
+        states. The turn is continued (and completed) by the chat route once
+        every pending call resolves; because outputs for already-resolved
+        calls are ignored, that final continuation may idempotently re-carry
+        outputs submitted here.
+        """
+        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
+            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
+        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
+            raise HTTPException(status_code=403, detail="Server agent is disabled")
+        user = request.user if "user" in request.scope else None
+        phoenix_user = user if isinstance(user, PhoenixUser) else None
+        request_user_id = int(phoenix_user.identity) if phoenix_user is not None else None
+        db_session_factory: DbSessionFactory = request.app.state.db
+        async with db_session_factory() as session:
+            agent_session = await _refresh_and_load_agent_session(
+                session,
+                agent_session_id=session_id,
+                user_id=request_user_id,
+            )
+            agent_session_rowid = agent_session.id
+            # Claim the turn lock before reading the trailing message: the
+            # conditional UPDATE serializes concurrent submissions on the
+            # session row, so this transaction reads its predecessor's
+            # committed outputs instead of overwriting them.
+            if not await _claim_agent_session_turn_lock(
+                session,
+                agent_session_rowid=agent_session_rowid,
+            ):
+                raise AgentSessionConflict("agent_session_busy")
+            latest_row = await session.scalar(
+                select(models.AgentSessionMessage)
+                .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
+                .order_by(models.AgentSessionMessage.id.desc())
+                .limit(1)
+            )
+            if latest_row is None or latest_row.message_id != request_body.last_message_id:
+                raise AgentSessionConflict("agent_session_messages_stale")
+            latest_message = latest_row.message
+            if latest_message.role != "assistant":
+                raise AgentSessionConflict(
+                    "agent_session_tool_outputs_conflict",
+                    (
+                        "Tool outputs were submitted but the session's latest "
+                        "transcript message is not an assistant message; reload "
+                        "the conversation"
+                    ),
+                )
+            updated_message = _apply_tool_outputs(latest_message, request_body.tool_outputs)
+            if updated_message is not None:
+                latest_row.message = updated_message
+            # Release inside the same transaction: the claim, the applied
+            # outputs, and the release commit atomically, so a failure rolls
+            # everything back and never leaves the lock claimed.
+            await _clear_agent_session_turn_lock(
+                session,
+                agent_session_rowid=agent_session_rowid,
+            )
+        return SubmitAgentSessionToolOutputsResponseBody(
+            data=updated_message if updated_message is not None else latest_message
+        )
 
     @router.post(
         "/agents/{agent_id}/sessions/{session_id}/chat",

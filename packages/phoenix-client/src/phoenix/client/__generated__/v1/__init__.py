@@ -1763,6 +1763,18 @@ class SpansResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class SubmitAgentSessionToolOutputsRequestBody(TypedDict):
+    toolOutputs: Sequence[
+        Union[
+            PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart,
+        ]
+    ]
+    lastMessageId: str
+
+
 class ToolApprovalRequestedPart(TypedDict):
     type: str
     toolCallId: str
@@ -2044,6 +2056,10 @@ class PromptMessage(TypedDict):
     content: Union[
         str, Sequence[Union[TextContentPart, ToolCallContentPart, ToolResultContentPart]]
     ]
+
+
+class SubmitAgentSessionToolOutputsResponseBody(TypedDict):
+    data: PhoenixUIMessage
 
 
 class ChatRequest(TypedDict):
