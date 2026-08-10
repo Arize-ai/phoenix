@@ -9,8 +9,8 @@ import {
 import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import {
-  PENDING_TOOL_CALL_NOT_RESTORED_ERROR,
   partitionPendingClientToolCalls,
+  resolveStalePendingToolCallParts,
 } from "@phoenix/agent/chat/rehydratePendingToolCalls";
 import { flushToolOutputs } from "@phoenix/agent/chat/toolOutputFlush";
 import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
@@ -325,8 +325,12 @@ export function createAgentSessionChat({
   // re-dispatch the seeded tail's unresolved client tool calls for tools
   // whose dispatch only stages approval state, re-creating their inline
   // Accept/Reject affordances. Pending calls of every other tool are
-  // unrecoverable — resolve them with an error so the turn proceeds instead
-  // of rendering an unresolvable spinner.
+  // unrecoverable — resolve them with an error so the tool part renders a
+  // failure instead of an unresolvable spinner. The errors are written to
+  // the transcript directly (not via `addToolOutput`) so no automatic
+  // continuation fires while the page's surfaces are still mounting and
+  // their contexts are unadvertised; the outputs reach the server with the
+  // next user-triggered send.
   const { rehydratableToolCalls, staleToolCalls } =
     partitionPendingClientToolCalls({
       messages: seedMessages,
@@ -335,14 +339,12 @@ export function createAgentSessionChat({
   for (const toolCall of rehydratableToolCalls) {
     runAgentToolCall(toolCall);
   }
-  for (const toolCall of staleToolCalls) {
-    void chat.addToolOutput({
-      state: "output-error",
-      tool: toolCall.toolName,
-      toolCallId: toolCall.toolCallId,
-      errorText: PENDING_TOOL_CALL_NOT_RESTORED_ERROR,
-    });
-  }
+  chat.messages = resolveStalePendingToolCallParts({
+    messages: chat.messages,
+    staleToolCallIds: new Set(
+      staleToolCalls.map((toolCall) => toolCall.toolCallId)
+    ),
+  });
   turnClientStateByChat.set(chat, { toolTimings });
   return chat;
 }

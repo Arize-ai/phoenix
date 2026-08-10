@@ -30,13 +30,14 @@ afterEach(() => {
 });
 
 describe("createAgentSessionChat rehydration", () => {
-  it("resolves a seeded pending call of a non-rehydratable tool with an error", async () => {
-    // Resolving the stale call can trigger the automatic continuation;
-    // keep the request from leaving the test.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(() => new Promise<never>(() => undefined))
-    );
+  it("resolves a seeded pending call of a non-rehydratable tool with an error without sending a request", async () => {
+    // The stale error must not trigger an automatic continuation: at
+    // chat-creation time the page's surfaces have not advertised their
+    // contexts yet, so an immediate request would misrepresent the user's
+    // view to the server. The error output rides along with the next
+    // user-triggered send instead.
+    const fetchMock = vi.fn(() => new Promise<never>(() => undefined));
+    vi.stubGlobal("fetch", fetchMock);
     const store = createAgentStore();
     const seedMessages: AgentUIMessage[] = [
       {
@@ -72,6 +73,7 @@ describe("createAgentSessionChat rehydration", () => {
       state: "output-error",
       errorText: PENDING_TOOL_CALL_NOT_RESTORED_ERROR,
     });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("re-stages a seeded pending approval so a page refresh restores the Accept/Reject card", async () => {

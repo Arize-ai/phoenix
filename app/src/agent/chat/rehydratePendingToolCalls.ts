@@ -11,11 +11,62 @@ import type { AgentUIMessage } from "./types";
  * page reload and cannot be rebuilt from the transcript. Read by both the
  * model — which may re-propose the action — and the tool part's error
  * rendering in the chat UI.
+ *
+ * The error is applied to the chat transcript directly rather than through
+ * `addToolOutput`, deliberately NOT triggering an automatic continuation: at
+ * chat-creation time the page's surfaces have not yet advertised their
+ * contexts to the agent store, so an immediate request would misrepresent
+ * the user's view to the server (e.g. dropping the playground context — and
+ * with it the playground skill — mid-turn). The resolved error outputs ride
+ * along as `toolOutputs` on the next user-triggered send instead, by which
+ * point contexts have settled.
  */
 export const PENDING_TOOL_CALL_NOT_RESTORED_ERROR =
   "This tool call was awaiting client-side handling when the page reloaded, " +
   "and its pending state could not be restored from the saved conversation. " +
   "Call the tool again if the action is still needed.";
+
+/**
+ * Return a new transcript with the trailing assistant message's named tool
+ * calls resolved as {@link PENDING_TOOL_CALL_NOT_RESTORED_ERROR} errors.
+ * Inputs and call metadata are preserved so the parts remain valid
+ * `toolOutputs` for a later send.
+ */
+export function resolveStalePendingToolCallParts({
+  messages,
+  staleToolCallIds,
+}: {
+  messages: AgentUIMessage[];
+  staleToolCallIds: ReadonlySet<string>;
+}): AgentUIMessage[] {
+  if (staleToolCallIds.size === 0) {
+    return messages;
+  }
+  return messages.map((message, index) => {
+    if (index !== messages.length - 1 || message.role !== "assistant") {
+      return message;
+    }
+    return {
+      ...message,
+      parts: message.parts.map((part) => {
+        if (
+          !isPendingClientToolCallPart(part) ||
+          !staleToolCallIds.has(part.toolCallId)
+        ) {
+          return part;
+        }
+        // The spread re-tags the part's state discriminant; TS cannot narrow
+        // a spread of a union member back into the union, so re-assert the
+        // part type the same way the toolOutputs wire cast does.
+        return {
+          ...part,
+          state: "output-error",
+          errorText: PENDING_TOOL_CALL_NOT_RESTORED_ERROR,
+        } as unknown as AgentUIMessage["parts"][number];
+      }),
+    };
+  });
+}
 
 export type PartitionedPendingToolCalls = {
   /**

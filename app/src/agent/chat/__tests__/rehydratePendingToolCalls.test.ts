@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { partitionPendingClientToolCalls } from "@phoenix/agent/chat/rehydratePendingToolCalls";
+import {
+  PENDING_TOOL_CALL_NOT_RESTORED_ERROR,
+  partitionPendingClientToolCalls,
+  resolveStalePendingToolCallParts,
+} from "@phoenix/agent/chat/rehydratePendingToolCalls";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 
 const CLIENT_EXECUTION_METADATA = {
@@ -194,5 +198,57 @@ describe("partitionPendingClientToolCalls", () => {
     expect(
       partitionPendingClientToolCalls({ messages: [], isRehydratableTool })
     ).toEqual({ rehydratableToolCalls: [], staleToolCalls: [] });
+  });
+});
+
+describe("resolveStalePendingToolCallParts", () => {
+  it("errors the named pending calls on the trailing assistant message, preserving input and metadata", () => {
+    const messages = [
+      createMessage({
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          pendingClientToolPart({
+            toolCallId: "tool-call-1",
+            toolName: NON_REHYDRATABLE_TOOL,
+            input: { spec: {} },
+          }),
+          pendingClientToolPart({ toolCallId: "tool-call-2" }),
+        ],
+      }),
+    ];
+
+    const resolved = resolveStalePendingToolCallParts({
+      messages,
+      staleToolCallIds: new Set(["tool-call-1"]),
+    });
+
+    expect(resolved[0]?.parts[0]).toMatchObject({
+      state: "output-error",
+      errorText: PENDING_TOOL_CALL_NOT_RESTORED_ERROR,
+      toolCallId: "tool-call-1",
+      input: { spec: {} },
+      callProviderMetadata: CLIENT_EXECUTION_METADATA,
+    });
+    // The sibling pending call and the original transcript are untouched.
+    expect(resolved[0]?.parts[1]).toMatchObject({ state: "input-available" });
+    expect(messages[0]?.parts[0]).toMatchObject({ state: "input-available" });
+  });
+
+  it("returns the transcript unchanged when there are no stale calls", () => {
+    const messages = [
+      createMessage({
+        id: "assistant-1",
+        role: "assistant",
+        parts: [pendingClientToolPart({ toolCallId: "tool-call-1" })],
+      }),
+    ];
+
+    expect(
+      resolveStalePendingToolCallParts({
+        messages,
+        staleToolCallIds: new Set(),
+      })
+    ).toBe(messages);
   });
 });
