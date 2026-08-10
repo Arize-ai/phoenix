@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 
 import {
   Button,
@@ -13,7 +14,7 @@ import {
 } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { DeleteProjectEvaluatorDialog } from "@phoenix/pages/project/evaluators/DeleteProjectEvaluatorDialog";
-import { EditProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/EditProjectEvaluatorSlideover";
+import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 
 enum ProjectEvaluatorAction {
   EDIT = "edit",
@@ -31,7 +32,8 @@ export function ProjectEvaluatorActionMenu({
   evaluatorKind: "LLM" | "CODE" | "BUILTIN";
   evaluatorName: string;
 }) {
-  const [isEditOpen, setIsEditOpen] = useState(false);
+  const navigate = useNavigate();
+  const paths = useProjectEvaluatorPaths();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const canEdit = evaluatorKind === "LLM" || evaluatorKind === "CODE";
   return (
@@ -48,7 +50,7 @@ export function ProjectEvaluatorActionMenu({
             onAction={(action) => {
               switch (action) {
                 case ProjectEvaluatorAction.EDIT:
-                  setIsEditOpen(true);
+                  navigate(paths.edit(projectEvaluatorId));
                   break;
                 case ProjectEvaluatorAction.DELETE:
                   setIsDeleteOpen(true);
@@ -83,14 +85,6 @@ export function ProjectEvaluatorActionMenu({
           </Menu>
         </Popover>
       </MenuTrigger>
-      {canEdit ? (
-        <EditProjectEvaluatorSlideover
-          projectEvaluatorId={projectEvaluatorId}
-          evaluatorKind={evaluatorKind}
-          isOpen={isEditOpen}
-          onOpenChange={setIsEditOpen}
-        />
-      ) : null}
       <DeleteProjectEvaluatorDialog
         projectEvaluatorId={projectEvaluatorId}
         projectId={projectId}

@@ -76,6 +76,26 @@ export type ProjectEvaluatorCreationMode =
       requiredVariables: string[];
     };
 
+/**
+ * The slideover heading, which names both the flow and the kind of evaluator
+ * being created. The `Dialog` takes its accessible name from this heading, so
+ * the two can never drift apart.
+ */
+export function getProjectEvaluatorCreationTitle(
+  creationMode: ProjectEvaluatorCreationMode
+): string {
+  if (creationMode.kind === "scratch") {
+    return "Create new LLM evaluator";
+  }
+  if (creationMode.kind === "newCode") {
+    return "Create new code evaluator";
+  }
+  if (creationMode.kind === "copy") {
+    return `Copy LLM evaluator “${creationMode.initialState.name}”`;
+  }
+  return `Attach code evaluator “${creationMode.name}”`;
+}
+
 export const CreateProjectEvaluatorSlideover = ({
   projectId,
   creationMode,
@@ -103,7 +123,9 @@ export const CreateProjectEvaluatorSlideover = ({
         }}
       >
         <Modal variant="slideover" size="fullscreen">
-          <Dialog aria-label="Create project evaluator">
+          {/* No `aria-label`: the dialog is named by its title heading, so the
+              accessible name always matches the visible one. */}
+          <Dialog>
             {({ close }) => (
               <Suspense fallback={<Loading />}>
                 <CreateProjectEvaluatorDialogForMode
@@ -245,10 +267,13 @@ const CreateProjectEvaluatorDialog = ({
     notifySuccess({ title: "Evaluator created" });
   };
 
+  const title = getProjectEvaluatorCreationTitle(creationMode);
+
   return (
     <EvaluatorStoreProvider initialState={initialState}>
       {creationMode.kind === "newCode" ? (
         <CreateNewCodeProjectEvaluatorDialog
+          title={title}
           projectId={projectId}
           scope={scope}
           onScopeChange={setScope}
@@ -257,6 +282,7 @@ const CreateProjectEvaluatorDialog = ({
         />
       ) : creationMode.kind === "code" ? (
         <AttachCodeProjectEvaluatorDialog
+          title={title}
           projectId={projectId}
           creationMode={creationMode}
           scope={scope}
@@ -266,6 +292,7 @@ const CreateProjectEvaluatorDialog = ({
         />
       ) : (
         <CreateLlmProjectEvaluatorDialog
+          title={title}
           projectId={projectId}
           scope={scope}
           onScopeChange={setScope}
@@ -279,12 +306,14 @@ const CreateProjectEvaluatorDialog = ({
 };
 
 function CreateNewCodeProjectEvaluatorDialog({
+  title,
   projectId,
   scope,
   onScopeChange,
   onSuccess,
   registerDirtyCheck,
 }: {
+  title: string;
   projectId: string;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
@@ -300,6 +329,7 @@ function CreateNewCodeProjectEvaluatorDialog({
   trackStoreForDirtyCheck(store);
   return (
     <CreateProjectCodeEvaluatorDialogContent
+      title={title}
       projectId={projectId}
       scope={scope}
       onScopeChange={onScopeChange}
@@ -309,6 +339,7 @@ function CreateNewCodeProjectEvaluatorDialog({
 }
 
 function AttachCodeProjectEvaluatorDialog({
+  title,
   projectId,
   creationMode,
   scope,
@@ -316,6 +347,7 @@ function AttachCodeProjectEvaluatorDialog({
   onSuccess,
   registerDirtyCheck,
 }: {
+  title: string;
   projectId: string;
   creationMode: Extract<ProjectEvaluatorCreationMode, { kind: "code" }>;
   scope: ProjectEvaluatorScope;
@@ -353,6 +385,7 @@ function AttachCodeProjectEvaluatorDialog({
     `);
   return (
     <ProjectCodeEvaluatorDialogContent
+      title={title}
       projectId={projectId}
       evaluatorId={creationMode.evaluatorId}
       evaluatorName={creationMode.name}
@@ -402,6 +435,7 @@ function AttachCodeProjectEvaluatorDialog({
 }
 
 function CreateLlmProjectEvaluatorDialog({
+  title,
   projectId,
   scope,
   onScopeChange,
@@ -409,6 +443,7 @@ function CreateLlmProjectEvaluatorDialog({
   onSuccess,
   registerDirtyCheck,
 }: {
+  title: string;
   projectId: string;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
@@ -484,6 +519,7 @@ function CreateLlmProjectEvaluatorDialog({
 
   return (
     <ScratchLlmDialogContent
+      title={title}
       projectId={projectId}
       scope={scope}
       onScopeChange={onScopeChange}
@@ -498,6 +534,7 @@ function CreateLlmProjectEvaluatorDialog({
 }
 
 const ScratchLlmDialogContent = ({
+  title,
   projectId,
   scope,
   onScopeChange,
@@ -508,6 +545,7 @@ const ScratchLlmDialogContent = ({
   isSubmitting,
   error,
 }: {
+  title: string;
   projectId: string;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
@@ -521,7 +559,7 @@ const ScratchLlmDialogContent = ({
   const submitHint = useProjectEvaluatorSubmitHint({ isFilterValid });
   return (
     <EditLLMEvaluatorDialogContent
-      title="Create project evaluator"
+      title={title}
       onClose={onClose}
       onSubmit={onSubmit}
       isSubmitting={isSubmitting}

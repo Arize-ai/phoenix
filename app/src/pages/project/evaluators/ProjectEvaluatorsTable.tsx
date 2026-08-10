@@ -205,7 +205,7 @@ export function ProjectEvaluatorsTable({
                 />
               </TableEmptyWrap>
             ) : (
-              <ProjectEvaluatorsEmptyGallery projectId={projectId} />
+              <ProjectEvaluatorsEmptyGallery />
             )
           ) : (
             <tbody>
