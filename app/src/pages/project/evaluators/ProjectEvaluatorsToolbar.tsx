@@ -18,7 +18,7 @@ export function ProjectEvaluatorsToolbar({
 }) {
   return (
     <View
-      padding="size-200"
+      padding="size-100"
       borderBottomWidth="thin"
       borderBottomColor="default"
       flex="none"
