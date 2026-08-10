@@ -1,3 +1,4 @@
+import base64
 from typing import Any, cast
 
 import pytest
@@ -28,6 +29,7 @@ from phoenix.server.mcp_analytics_sql.parse import (
 )
 from phoenix.server.mcp_analytics_sql.rewrite import (
     RewriteContext,
+    _decode_node_id,
     _substitute_graphql_node_id,
     _substitute_latency_ms,
     rewrite,
@@ -45,6 +47,30 @@ def test_star_expansion() -> None:
     out = render(rewrite(root, _ctx()), dialect="postgresql")
     assert "spans.trace_rowid" in out
     assert not out.startswith("SELECT *")
+
+
+@pytest.mark.parametrize("spelling", ["SPANS", "Spans"])
+def test_postgres_schema_qualification_uses_unquoted_table_folding(spelling: str) -> None:
+    root = parse_sql(f"SELECT id FROM {spelling}", dialect="postgresql")
+    root = admit(root, allowlist=load_allowlist("sqlite"), dialect="postgresql")
+    out = render(rewrite(root, _ctx()), dialect="postgresql")
+    assert "public" in out
+
+
+def test_quoted_cte_name_does_not_hide_an_unquoted_base_table_virtual_column() -> None:
+    root = parse_sql(
+        'WITH "X" AS (SELECT 1 AS dummy) SELECT X.latency_ms FROM spans AS x',
+        dialect="postgresql",
+    )
+    root = admit(root, allowlist=load_allowlist("sqlite"), dialect="postgresql")
+    out = render(rewrite(root, _ctx()), dialect="postgresql")
+    assert "X.latency_ms" not in out
+    assert "X.start_time" in out and "X.end_time" in out
+
+
+def test_oversized_graphql_node_id_is_not_converted_to_an_integer() -> None:
+    value = base64.b64encode(f"Project:{'9' * 5000}".encode()).decode()
+    assert _decode_node_id(value, "Project") is None
 
 
 def test_count_star_unaffected() -> None:

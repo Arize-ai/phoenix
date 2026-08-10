@@ -283,6 +283,11 @@ def _plan_verification_failed(
     )
 
 
+def _remaining_pg_timeout_ms(deadline: float) -> int:
+    """Milliseconds still available to this request across planning and execution."""
+    return max(0, int((deadline - time.monotonic()) * 1000))
+
+
 def verify_postgres_plan(
     plan_json: list[dict[str, Any]], *, allowlist: Allowlist, schema: str
 ) -> None:
@@ -461,8 +466,6 @@ def _sqlite_authorizer(
                     "reading the database catalog is not permitted; "
                     "use describeSqlSchema to discover tables and columns",
                 )
-            if table in introduced_relations:
-                return sqlite3.SQLITE_OK
             # A real table that is not allowlisted is refused however the read
             # presents, with or without a database name. This is a backstop for
             # physical tables that were not admitted; it follows the
@@ -476,6 +479,8 @@ def _sqlite_authorizer(
                     "describeSqlSchema lists the tables that are",
                     kind="bypass",
                 )
+            if table in introduced_relations:
+                return sqlite3.SQLITE_OK
             # A table-valued function is reported as a read of a pseudo-table
             # named after the function. Its rows come from the JSON value passed
             # in, not from storage, so the table allowlist has nothing to say
@@ -781,6 +786,7 @@ async def _execute_postgres(
         await session.execute(text(f"SET LOCAL statement_timeout = '{PG_STATEMENT_TIMEOUT_MS}'"))
         await session.execute(text("SET LOCAL work_mem = '64MB'"))
         await session.execute(text("SET LOCAL temp_file_limit = '512MB'"))
+        deadline = time.monotonic() + PG_STATEMENT_TIMEOUT_MS / 1000
 
         # EXPLAIN resolves names, so a name error surfaces here rather than at
         # the statement below and needs the same mapping. PostgreSQL's own text
@@ -795,6 +801,8 @@ async def _execute_postgres(
         except SQLAlchemyError as exc:
             detail = _postgres_detail(exc)
             logger.debug("analytics sql: postgres plan resolution failed - %s", exc)
+            if "statement timeout" in str(exc).lower() or "canceling statement" in str(exc).lower():
+                raise AnalyticsSqlError(code=ErrorCode.TIMEOUT, message="Query timed out.") from exc
             raise AnalyticsSqlError(
                 code=ErrorCode.EXECUTION_ERROR,
                 message=(
@@ -836,6 +844,10 @@ async def _execute_postgres(
             )
 
         try:
+            remaining_timeout_ms = _remaining_pg_timeout_ms(deadline)
+            if remaining_timeout_ms <= 0:
+                raise AnalyticsSqlError(code=ErrorCode.TIMEOUT, message="Query timed out.")
+            await session.execute(text(f"SET LOCAL statement_timeout = '{remaining_timeout_ms}'"))
             result = await session.stream(_as_text(rendered_sql))
             columns, rows, partial, notes = await _consume_stream(result, row_limit=ctx.row_limit)
         except AnalyticsSqlError:

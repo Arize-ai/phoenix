@@ -199,7 +199,7 @@ _STAR_MODIFIERS = {
 
 
 def _check_double_quoted_timestamp_operands(
-    root: exp.Expression, *, allowlist: Allowlist
+    root: exp.Expression, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
 ) -> Optional[AdmissionResult]:
     """Refuse a double-quoted operand compared against a timestamp column.
 
@@ -218,7 +218,7 @@ def _check_double_quoted_timestamp_operands(
     columns = timestamp_column_names(allowlist.tables)
     if not columns:
         return None
-    local = query_local_columns(root, allowlist=allowlist)
+    local = query_local_columns(root, allowlist=allowlist, dialect=dialect)
 
     def offender(
         column: Optional[exp.Expression], operand: Optional[exp.Expression]
@@ -647,7 +647,9 @@ class ColumnLocality:
         return self._by_reference.get(id(node)) is Locality.OUTPUT_ALIAS
 
 
-def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> ColumnLocality:
+def query_local_columns(
+    root: exp.Expression, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
+) -> ColumnLocality:
     """Which column references resolve to something query-local, and on what evidence.
 
     An advertised column that is not stored -- ``latency_ms``, ``graphql_node_id``
@@ -690,6 +692,15 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> Column
     # that is simply wrong, and silently so, since nothing downstream can tell a
     # marking made from knowledge of the tables from one made in their absence.
     table_specs = allowlist.table_specs
+    quoted_derived_aliases = {
+        alias
+        for relation in root.find_all(exp.CTE, exp.Subquery)
+        if (alias_expression := relation.args.get("alias"))
+        and isinstance(alias_expression, exp.TableAlias)
+        and isinstance(alias_expression.this, exp.Identifier)
+        and alias_expression.this.args.get("quoted")
+        and (alias := relation.alias)
+    }
     local: dict[int, Locality] = {}
     for scope in scope_root.traverse():
         derived_aliases: set[str] = set()
@@ -697,7 +708,11 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> Column
         for alias, source in scope.sources.items():
             if isinstance(source, exp.Table):
                 continue
-            derived_aliases.add(alias.lower())
+            derived_aliases.add(
+                alias
+                if dialect == "postgresql" and alias in quoted_derived_aliases
+                else alias.casefold()
+            )
             expression = getattr(source, "expression", None)
             if expression is not None:
                 derived_projections.update(name.lower() for name in expression.named_selects)
@@ -717,7 +732,16 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> Column
                 if isinstance(projection, exp.Alias) and projection.alias
             }
         for column in scope.columns:
-            table = (column.table or "").lower()
+            table_identifier = column.args.get("table")
+            table = (
+                (column.table or "")
+                if (
+                    dialect == "postgresql"
+                    and isinstance(table_identifier, exp.Identifier)
+                    and table_identifier.args.get("quoted")
+                )
+                else (column.table or "").casefold()
+            )
             if table:
                 if table in derived_aliases:
                     local[id(column)] = Locality.DERIVED_QUALIFIED
@@ -769,7 +793,11 @@ def query_local_columns(root: exp.Expression, *, allowlist: Allowlist) -> Column
 
 
 def _timestamp_literals(
-    root: exp.Expression, columns: frozenset[str], *, allowlist: Allowlist
+    root: exp.Expression,
+    columns: frozenset[str],
+    *,
+    allowlist: Allowlist,
+    dialect: SupportedSQLDialectName,
 ) -> list[exp.Literal]:
     """Every string literal compared against a column that holds a timestamp.
 
@@ -778,7 +806,7 @@ def _timestamp_literals(
     and rewriting the literal beside it to storage format changes a comparison
     the caller wrote against their own data.
     """
-    local = query_local_columns(root, allowlist=allowlist)
+    local = query_local_columns(root, allowlist=allowlist, dialect=dialect)
     found: list[exp.Literal] = []
 
     def collect(left: Optional[exp.Expression], right: Optional[exp.Expression]) -> None:
@@ -799,7 +827,7 @@ def _timestamp_literals(
 
 
 def _check_timestamp_literals(
-    root: exp.Expression, *, allowlist: Allowlist
+    root: exp.Expression, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
 ) -> Optional[AdmissionResult]:
     """Refuse a timestamp literal that names an instant without saying which one.
 
@@ -818,7 +846,7 @@ def _check_timestamp_literals(
     columns = timestamp_column_names(allowlist.tables)
     if not columns:
         return None
-    for literal in _timestamp_literals(root, columns, allowlist=allowlist):
+    for literal in _timestamp_literals(root, columns, allowlist=allowlist, dialect=dialect):
         parsed = parse_timestamp_literal(literal.this)
         if parsed is None or parsed.is_aware or not parsed.has_time:
             continue
@@ -986,7 +1014,7 @@ def _check_column_references(
     Query-local relations retain their own names; the manifest cannot validate
     those projections.
     """
-    localities = query_local_columns(root, allowlist=allowlist)
+    localities = query_local_columns(root, allowlist=allowlist, dialect=dialect)
     try:
         scope_root = build_scope(root)
     except SqlglotError as exc:
@@ -1218,11 +1246,11 @@ def admit(
         # spelling that works.
         or _check_lossy_shapes(root)
         or _check_structural_policy(root)
-        or _check_double_quoted_timestamp_operands(root, allowlist=allowlist)
+        or _check_double_quoted_timestamp_operands(root, allowlist=allowlist, dialect=dialect)
         or _check_functions(root, allowlist=allowlist, dialect=dialect)
         or _check_base_tables(root, allowlist=allowlist, dialect=dialect)
         or _check_column_references(root, allowlist=allowlist, dialect=dialect)
-        or _check_timestamp_literals(root, allowlist=allowlist)
+        or _check_timestamp_literals(root, allowlist=allowlist, dialect=dialect)
     )
     if failure is not None:
         raise admission_error_from_outcome(

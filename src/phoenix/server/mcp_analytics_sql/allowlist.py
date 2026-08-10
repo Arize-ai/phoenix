@@ -519,44 +519,53 @@ SRF_NODE_TYPES: frozenset[str] = frozenset({"Function Scan", "ProjectSet"})
 # not two. Checking every extracted name against the unnest family alone would
 # reject the scalar, so the gate checks against everything admission permits and
 # refuses only what is in neither set.
-PLAN_GATE_ALLOWED_FUNCTIONS: frozenset[str] = UNNEST_FUNCTIONS | frozenset(
-    {
-        # Emitted by our own rewrites, never by a caller. `graphql_node_id`
-        # becomes encode(convert_to(...)) on PostgreSQL, so any statement
-        # combining that column with a set-returning function had its plan
-        # refused as a suspected bypass -- by the layer whose warning text says
-        # such a refusal "should be investigated rather than dismissed". A gate
-        # that fires on its own side's output trains the reader to ignore it.
-        "encode",
-        "convert_to",
-        "count",
-        "sum",
-        "avg",
-        "min",
-        "max",
-        "round",
-        "abs",
-        "coalesce",
-        "nullif",
-        "row_number",
-        "rank",
-        "dense_rank",
-        "ntile",
-        "json_extract",
-        "jsonb_extract_path",
-        "jsonb_extract_path_text",
-        "json_type",
-        "date_trunc",
-        "extract",
-        "to_char",
-        "date_part",
-        "percentile_cont",
-        "percentile_disc",
-        "upper",
-        "lower",
-        "length",
-        "cast",
-    }
+PLAN_GATE_ALLOWED_FUNCTIONS: frozenset[str] = (
+    UNNEST_FUNCTIONS
+    | ALLOWED_ANON_FUNCTIONS_BY_DIALECT["postgresql"]
+    | frozenset(
+        name.casefold()
+        for function_class in ALLOWED_FUNC_CLASSES_BY_DIALECT["postgresql"]
+        for name in function_class.sql_names()
+    )
+    | frozenset(
+        {
+            # Emitted by our own rewrites, never by a caller. `graphql_node_id`
+            # becomes encode(convert_to(...)) on PostgreSQL, so any statement
+            # combining that column with a set-returning function had its plan
+            # refused as a suspected bypass -- by the layer whose warning text says
+            # such a refusal "should be investigated rather than dismissed". A gate
+            # that fires on its own side's output trains the reader to ignore it.
+            "encode",
+            "convert_to",
+            "count",
+            "sum",
+            "avg",
+            "min",
+            "max",
+            "round",
+            "abs",
+            "coalesce",
+            "nullif",
+            "row_number",
+            "rank",
+            "dense_rank",
+            "ntile",
+            "json_extract",
+            "jsonb_extract_path",
+            "jsonb_extract_path_text",
+            "json_type",
+            "date_trunc",
+            "extract",
+            "to_char",
+            "date_part",
+            "percentile_cont",
+            "percentile_disc",
+            "upper",
+            "lower",
+            "length",
+            "cast",
+        }
+    )
 )
 
 
