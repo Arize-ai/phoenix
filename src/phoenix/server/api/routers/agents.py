@@ -632,9 +632,9 @@ class SubmitAgentSessionToolOutputsRequestBody(_CamelBaseModel):
         min_length=1,
         description=(
             "Client tool results for pending calls on the trailing assistant "
-            "message, matched by ``toolCallId``. Outputs for already-resolved "
-            "calls are ignored (resending is idempotent); an output matching "
-            "no call is rejected with HTTP 409 and code "
+            "message, matched by ``toolCallId``. Resending a persisted output "
+            "verbatim is a no-op; an output that differs from the persisted "
+            "result or matches no call is rejected with HTTP 409 and code "
             "``agent_session_tool_outputs_conflict``."
         ),
     )
@@ -1710,9 +1710,10 @@ def _apply_tool_outputs(
 ) -> PhoenixUIMessage | None:
     """Resolve the assistant message's pending tool calls with submitted outputs.
 
-    Outputs are matched by ``toolCallId``. An output for an already-resolved
-    call is ignored so retried sends stay idempotent; an output that matches
-    no call (or renames the tool) is an inconsistent request and conflicts.
+    Outputs are matched by ``toolCallId``. Resending a persisted output
+    verbatim is an ignored no-op so retried sends stay idempotent; an output
+    that differs from the persisted result, matches no call, or renames the
+    tool is an inconsistent request and conflicts.
     Returns the updated message, or None when no outputs were applied.
     """
     tool_calls_by_id: dict[_ToolCallId, tuple[_PartIndex, ToolUIPart | DynamicToolUIPart]] = {}
@@ -1742,7 +1743,17 @@ def _apply_tool_outputs(
                 ),
             )
         if not isinstance(call_part, _UNRESOLVED_TOOL_PART_TYPES):
-            # Already resolved (e.g. a retried send); keep the persisted result.
+            if call_part != tool_output:
+                raise AgentSessionConflict(
+                    "agent_session_tool_outputs_conflict",
+                    (
+                        f"Tool output {tool_output.tool_call_id!r} differs from "
+                        "the persisted result for its already-resolved call; "
+                        "reload the conversation"
+                    ),
+                )
+            # An identical resend (e.g. the chat continuation re-carrying a
+            # flushed output); keep the persisted result.
             continue
         parts[matched_index] = tool_output
         changed = True

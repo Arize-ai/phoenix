@@ -5672,7 +5672,7 @@ export interface components {
         SubmitAgentSessionToolOutputsRequestBody: {
             /**
              * Tooloutputs
-             * @description Client tool results for pending calls on the trailing assistant message, matched by ``toolCallId``. Outputs for already-resolved calls are ignored (resending is idempotent); an output matching no call is rejected with HTTP 409 and code ``agent_session_tool_outputs_conflict``.
+             * @description Client tool results for pending calls on the trailing assistant message, matched by ``toolCallId``. Resending a persisted output verbatim is a no-op; an output that differs from the persisted result or matches no call is rejected with HTTP 409 and code ``agent_session_tool_outputs_conflict``.
              */
             toolOutputs: (components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"])[];
             /**

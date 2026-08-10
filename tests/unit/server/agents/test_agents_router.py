@@ -1296,7 +1296,7 @@ def _pending_client_tool_output(**overrides: Any) -> dict[str, Any]:
     }
 
 
-async def test_submitted_tool_outputs_keep_the_persisted_result_for_resolved_calls(
+async def test_submitted_tool_outputs_ignore_identical_resends_for_resolved_calls(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
 ) -> None:
@@ -1318,16 +1318,96 @@ async def test_submitted_tool_outputs_keep_the_persisted_result_for_resolved_cal
     )
     assert first_response.status_code == 200
 
-    # A retried submission with a different payload is ignored: the call is
-    # already resolved and the persisted result wins.
+    # A verbatim resend (e.g. the chat continuation re-carrying a flushed
+    # output) is an idempotent no-op.
     retry_response = await httpx_client.post(
+        _tool_outputs_url(agent_session_id),
+        json=_tool_outputs_body(
+            [_pending_client_tool_output()],
+            last_message_id=_message_uuid("assistant-1"),
+        ),
+    )
+    assert retry_response.status_code == 200
+
+    resolved_part = await _load_pending_tool_part(db)
+    assert resolved_part["state"] == "output-available"
+    assert resolved_part["output"] == {"applied": True}
+
+
+async def test_submitted_tool_outputs_reject_divergent_resends_for_resolved_calls(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[
+            _user_message("edit the prompt"),
+            _assistant_message_with_pending_client_tool(),
+        ],
+    )
+
+    first_response = await httpx_client.post(
+        _tool_outputs_url(agent_session_id),
+        json=_tool_outputs_body(
+            [_pending_client_tool_output()],
+            last_message_id=_message_uuid("assistant-1"),
+        ),
+    )
+    assert first_response.status_code == 200
+
+    # A resend that disagrees with the persisted result means the client's
+    # view has diverged from the transcript (e.g. another tab resolved the
+    # same call differently).
+    divergent_response = await httpx_client.post(
         _tool_outputs_url(agent_session_id),
         json=_tool_outputs_body(
             [_pending_client_tool_output(output={"applied": False})],
             last_message_id=_message_uuid("assistant-1"),
         ),
     )
-    assert retry_response.status_code == 200
+    assert divergent_response.status_code == 409
+    assert divergent_response.json()["code"] == "agent_session_tool_outputs_conflict"
+
+    resolved_part = await _load_pending_tool_part(db)
+    assert resolved_part["state"] == "output-available"
+    assert resolved_part["output"] == {"applied": True}
+
+
+async def test_chat_continuation_rejects_divergent_outputs_for_resolved_calls(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    session_id = "25252525-2525-4525-8525-252525252525"
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[
+            _user_message("edit the prompt"),
+            _assistant_message_with_pending_client_tool(),
+        ],
+    )
+
+    flush_response = await httpx_client.post(
+        _tool_outputs_url(agent_session_id),
+        json=_tool_outputs_body(
+            [_pending_client_tool_output()],
+            last_message_id=_message_uuid("assistant-1"),
+        ),
+    )
+    assert flush_response.status_code == 200
+
+    continuation_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            None,
+            toolOutputs=[_pending_client_tool_output(output={"applied": False})],
+            lastMessageId=_message_uuid("assistant-1"),
+        ),
+    )
+    assert continuation_response.status_code == 409
+    assert continuation_response.json()["code"] == "agent_session_tool_outputs_conflict"
 
     resolved_part = await _load_pending_tool_part(db)
     assert resolved_part["state"] == "output-available"
@@ -2411,7 +2491,7 @@ def test_merge_applies_tool_outputs_to_the_trailing_assistant_message() -> None:
     assert streaming_metadata["pydantic_ai"]["outcome"] == "interrupted"
 
 
-def test_merge_ignores_tool_outputs_for_already_resolved_tool_calls() -> None:
+def test_merge_ignores_identical_tool_outputs_for_already_resolved_tool_calls() -> None:
     persisted = _validated_messages(
         [_user_message("run a command"), _assistant_message_with_tool_states()]
     )
@@ -2422,7 +2502,11 @@ def test_merge_ignores_tool_outputs_for_already_resolved_tool_calls() -> None:
         tool_outputs=[
             ToolOutputAvailablePart.model_validate(_tool_output()),
             ToolOutputAvailablePart.model_validate(
-                _tool_output(toolCallId="tool-call-done", output={"stdout": "overwritten"})
+                _tool_output(
+                    toolCallId="tool-call-done",
+                    input={"command": "pwd"},
+                    output={"stdout": "/"},
+                )
             ),
         ],
     )
@@ -2431,6 +2515,28 @@ def test_merge_ignores_tool_outputs_for_already_resolved_tool_calls() -> None:
     assert continued is not None
     parts = _parts_by_tool_call_id(continued)
     assert parts["tool-call-done"].output == {"stdout": "/"}
+
+
+def test_merge_rejects_divergent_tool_outputs_for_already_resolved_tool_calls() -> None:
+    persisted = _validated_messages(
+        [_user_message("run a command"), _assistant_message_with_tool_states()]
+    )
+
+    with pytest.raises(AgentSessionConflict) as exc_info:
+        _merge_messages(
+            old_messages=persisted,
+            new_message=None,
+            tool_outputs=[
+                ToolOutputAvailablePart.model_validate(
+                    _tool_output(
+                        toolCallId="tool-call-done",
+                        input={"command": "pwd"},
+                        output={"stdout": "overwritten"},
+                    )
+                )
+            ],
+        )
+    assert exc_info.value.code == "agent_session_tool_outputs_conflict"
 
 
 def test_merge_rejects_tool_outputs_that_match_no_tool_call() -> None:
