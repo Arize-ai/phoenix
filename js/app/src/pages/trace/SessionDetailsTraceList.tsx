@@ -35,7 +35,9 @@ import {
 import { MessageActions } from "@phoenix/components/ai/message/MessageActions";
 import { MessageCopyAction } from "@phoenix/components/ai/message/MessageCopyAction";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation/optimizationUtils";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
+import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
@@ -194,6 +196,10 @@ type RootSpanProps = {
   rootSpan: SessionTraceRootSpan;
 };
 
+type AnnotationConfigsProps = {
+  annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
+};
+
 function RootSpanStartTime({ rootSpan }: RootSpanProps) {
   const { fullTimeFormatter } = useTimeFormatters();
   const startDate = new Date(rootSpan.startTime);
@@ -219,7 +225,10 @@ function RootSpanEndTime({ rootSpan }: RootSpanProps) {
   );
 }
 
-function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
+function RootSpanOutputMetadata({
+  rootSpan,
+  annotationConfigsByName,
+}: RootSpanProps & AnnotationConfigsProps) {
   const [isAnnotationDialogOpen, setIsAnnotationDialogOpen] = useState(false);
 
   return (
@@ -283,10 +292,12 @@ function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
         <Flex direction="row" gap="size-50" wrap="wrap">
           <TraceAnnotationSummaryGroupTokens
             trace={rootSpan.trace}
+            annotationConfigsByName={annotationConfigsByName}
             renderEmptyState={() => null}
           />
           <AnnotationSummaryGroupTokens
             span={rootSpan}
+            annotationConfigsByName={annotationConfigsByName}
             renderEmptyState={() => null}
           />
         </Flex>
@@ -349,7 +360,9 @@ function SessionTurnDetail({
   index,
   traceId,
   rootSpan,
-}: RootSpanProps & { traceId: string; index: number }) {
+  annotationConfigsByName,
+}: RootSpanProps &
+  AnnotationConfigsProps & { traceId: string; index: number }) {
   const user = getUserFromRootSpanAttributes(rootSpan.attributes);
   const inputLabel = user != null ? `USER: ${user}` : "INPUT";
   const inputText = rootSpan.input?.value ?? "";
@@ -393,7 +406,10 @@ function SessionTurnDetail({
         css={messageWrapCSS}
       >
         <RootSpanMessage role="OUTPUT" value={rootSpan.output?.value} />
-        <RootSpanOutputMetadata rootSpan={rootSpan} />
+        <RootSpanOutputMetadata
+          rootSpan={rootSpan}
+          annotationConfigsByName={annotationConfigsByName}
+        />
       </Flex>
     </Flex>
   );
@@ -616,6 +632,9 @@ export function SessionDetailsTraceList({
         after: { type: "String", defaultValue: null }
       ) {
         numTraces
+        project {
+          ...ProjectAnnotationConfigFragment
+        }
         traces(first: $first, after: $after)
           @connection(key: "SessionDetailsTraceList_traces") {
           edges {
@@ -662,6 +681,9 @@ export function SessionDetailsTraceList({
       }
     `,
     queryData.session
+  );
+  const annotationConfigsByName = useProjectAnnotationConfigsByName(
+    data.project
   );
 
   const sessionRootSpans = useMemo(() => {
@@ -835,6 +857,7 @@ export function SessionDetailsTraceList({
                       index={index}
                       traceId={traceId}
                       rootSpan={rootSpan}
+                      annotationConfigsByName={annotationConfigsByName}
                     />
                   </View>
                 </View>

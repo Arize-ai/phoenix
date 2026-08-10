@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { Flex } from "@phoenix/components";
@@ -10,38 +10,20 @@ import {
   Summary,
   SummaryValue,
 } from "@phoenix/pages/project/AnnotationSummary";
-import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
+
+import { hasAnnotationValue } from "./annotationUtils";
+import type { AnnotationOptimizationConfig } from "./optimizationUtils";
 
 const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
   const data = useFragment<AnnotationSummaryGroup$key>(
     graphql`
       fragment AnnotationSummaryGroup on Span {
-        project {
-          id
-          annotationConfigs {
-            edges {
-              node {
-                ... on AnnotationConfigBase {
-                  annotationType
-                }
-                ... on CategoricalAnnotationConfig {
-                  id
-                  name
-                  optimizationDirection
-                  values {
-                    label
-                    score
-                  }
-                }
-              }
-            }
-          }
-        }
         spanAnnotations {
           id
           name
           label
           score
+          explanation
           annotatorKind
           createdAt
           user {
@@ -65,62 +47,39 @@ const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
     span
   );
   const { spanAnnotations, spanAnnotationSummaries } = data;
-  const sortedSummariesByName = useMemo(
-    () =>
-      spanAnnotationSummaries
-        // Note annotations are not displayed in summary groups
-        .filter((summary) => summary.name !== "note")
-        .sort((a, b) => {
-          return a.name.localeCompare(b.name);
-        }),
-    [spanAnnotationSummaries]
-  );
+  const sortedSummariesByName = spanAnnotationSummaries
+    // Note annotations are not displayed in summary groups
+    .filter((summary) => summary.name !== "note")
+    .sort((a, b) => {
+      return a.name.localeCompare(b.name);
+    });
   // newest first
-  const annotationsByName = useMemo(
-    () =>
-      spanAnnotations.reduce<Record<string, typeof spanAnnotations>>(
-        (acc, annotation) => {
-          if (annotation.label == null && annotation.score == null) {
-            return acc;
-          }
-          if (!acc[annotation.name]) {
-            acc[annotation.name] = [annotation];
-          } else {
-            acc[annotation.name] = [annotation, ...acc[annotation.name]].sort(
-              (a, b) => {
-                return (
-                  new Date(b.createdAt).getTime() -
-                  new Date(a.createdAt).getTime()
-                );
-              }
-            );
-          }
-          return acc;
-        },
-        {}
-      ),
-    [spanAnnotations]
-  );
-  const categoricalAnnotationConfigsByName = useMemo(() => {
-    return data.project.annotationConfigs.edges.reduce<
-      Record<string, AnnotationConfigCategorical>
-    >((acc, edge) => {
-      const name = edge.node.name;
-      if (name && edge.node.annotationType === "CATEGORICAL") {
-        acc[name] = edge.node as AnnotationConfigCategorical;
-      }
-      return acc;
-    }, {});
-  }, [data.project.annotationConfigs]);
+  const annotationsByName = spanAnnotations.reduce<
+    Partial<Record<string, typeof spanAnnotations>>
+  >((acc, annotation) => {
+    const annotationsForName = acc[annotation.name];
+    if (annotationsForName == null) {
+      acc[annotation.name] = [annotation];
+    } else {
+      acc[annotation.name] = [annotation, ...annotationsForName].sort(
+        (a, b) => {
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        }
+      );
+    }
+    return acc;
+  }, {});
   return {
     sortedSummariesByName,
     annotationsByName,
-    categoricalAnnotationConfigsByName,
   };
 };
 
 type AnnotationSummaryGroupProps = {
   span: AnnotationSummaryGroup$key;
+  annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
   showFilterActions?: boolean;
   renderFilterActions?: (annotation: Annotation) => React.ReactNode;
   renderEmptyState?: () => React.ReactNode;
@@ -149,20 +108,19 @@ export const AnnotationSummaryGroupStacksRow = ({
 
 export const AnnotationSummaryGroupTokens = ({
   span,
+  annotationConfigsByName,
   showFilterActions = false,
   renderFilterActions,
   renderEmptyState,
 }: AnnotationSummaryGroupProps) => {
-  const {
-    sortedSummariesByName,
-    annotationsByName,
-    categoricalAnnotationConfigsByName,
-  } = useAnnotationSummaryGroup(span);
+  const { sortedSummariesByName, annotationsByName } =
+    useAnnotationSummaryGroup(span);
 
   // a summary of explanation-only annotations has no label or score to render a
   // token from, so counting it would leave the caller a blank run of tokens
   const summariesWithTokens = sortedSummariesByName.filter(
-    (summary) => annotationsByName[summary.name]?.[0] != null
+    (summary) =>
+      annotationsByName[summary.name]?.some(hasAnnotationValue) === true
   );
 
   if (summariesWithTokens.length === 0 && renderEmptyState) {
@@ -173,7 +131,7 @@ export const AnnotationSummaryGroupTokens = ({
     <AnnotationSummaryTokens
       summaries={summariesWithTokens}
       annotationsByName={annotationsByName}
-      categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
+      annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
       renderFilterActions={renderFilterActions}
     />
@@ -182,18 +140,17 @@ export const AnnotationSummaryGroupTokens = ({
 
 export const AnnotationSummaryGroupStacks = ({
   span,
+  annotationConfigsByName,
   renderEmptyState,
   leadingDivider = false,
 }: AnnotationSummaryGroupProps & { leadingDivider?: boolean }) => {
-  const {
-    sortedSummariesByName,
-    annotationsByName,
-    categoricalAnnotationConfigsByName,
-  } = useAnnotationSummaryGroup(span);
+  const { sortedSummariesByName, annotationsByName } =
+    useAnnotationSummaryGroup(span);
 
   const stacks = sortedSummariesByName
     .map((summary) => {
-      const latestAnnotation = annotationsByName[summary.name]?.[0];
+      const latestAnnotation =
+        annotationsByName[summary.name]?.find(hasAnnotationValue);
       if (!latestAnnotation) {
         return null;
       }
@@ -206,9 +163,9 @@ export const AnnotationSummaryGroupStacks = ({
             count={summary.count}
             scoreCount={summary.scoreCount}
             labelCount={summary.labelCount}
-            annotationConfig={
-              categoricalAnnotationConfigsByName[latestAnnotation.name]
-            }
+            annotationConfig={annotationConfigsByName.get(
+              latestAnnotation.name
+            )}
           />
         </Summary>
       );

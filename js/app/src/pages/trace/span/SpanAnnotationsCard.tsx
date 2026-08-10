@@ -19,6 +19,7 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { RowExpandToggleButton } from "@phoenix/components/table";
 import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
@@ -57,7 +58,12 @@ function SpanAnnotationSummaryTokens({
     graphql`
       query SpanAnnotationsCardSummaryQuery($id: ID!) {
         span: node(id: $id) {
-          ...AnnotationSummaryGroup
+          ... on Span {
+            project {
+              ...ProjectAnnotationConfigFragment
+            }
+            ...AnnotationSummaryGroup
+          }
         }
       }
     `,
@@ -65,12 +71,16 @@ function SpanAnnotationSummaryTokens({
     // usually already in the store, pulled in by the span details query
     { fetchPolicy: "store-or-network" }
   );
+  const annotationConfigsByName = useProjectAnnotationConfigsByName(
+    data.span?.project
+  );
   if (data.span == null) {
     return null;
   }
   return (
     <AnnotationSummaryGroupTokens
       span={data.span}
+      annotationConfigsByName={annotationConfigsByName}
       renderEmptyState={renderEmptyState}
     />
   );

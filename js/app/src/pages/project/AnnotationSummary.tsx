@@ -16,7 +16,7 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
-import type { AnnotationConfig } from "@phoenix/components/annotation";
+import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import {
   ChartTooltipDivider,
@@ -209,7 +209,7 @@ export function AnnotationSummaryValueView({
       labelCount={summary?.labelCount}
       annotationConfig={
         annotationConfigs?.edges.find((edge) => edge.node.name === name)
-          ?.node as AnnotationConfig | undefined
+          ?.node as AnnotationOptimizationConfig | undefined
       }
     />
   );
@@ -296,7 +296,7 @@ function getStableColor(
   colors: string[],
   fallbackIndex: number,
   label: string,
-  annotationConfig?: AnnotationConfig
+  annotationConfig?: AnnotationOptimizationConfig
 ) {
   if (
     !annotationConfig ||
@@ -316,9 +316,12 @@ function getStableColor(
         (aScore - bScore)
       );
     })
-    .map((v) => v.label);
+    .map((v) => v.label)
+    .filter((label): label is string => label != null);
   const index = sortedLabels.indexOf(label);
-  return colors[index % colors.length];
+  return colors[
+    index === -1 ? fallbackIndex % colors.length : index % colors.length
+  ];
 }
 
 function useAnnotationSummaryChartColors(name: string) {
@@ -401,7 +404,8 @@ type SummaryValuePreviewProps = {
   /**
    * The annotation config for the annotation, if available.
    */
-  annotationConfig?: AnnotationConfig;
+  annotationConfig?: AnnotationOptimizationConfig;
+  positiveOptimization?: boolean | null;
 } & SizingProps;
 
 export function SummaryValuePreview({
@@ -412,6 +416,7 @@ export function SummaryValuePreview({
   disableAnimation,
   meanScoreFallback,
   annotationConfig,
+  positiveOptimization,
 }: SummaryValuePreviewProps) {
   const colors = useAnnotationSummaryChartColors(name);
   const hasMeanScore = typeof meanScore === "number";
@@ -455,6 +460,7 @@ export function SummaryValuePreview({
           fallback={meanScoreFallback}
           value={meanScore}
           size={size === "S" ? size : "L"}
+          positiveOptimization={positiveOptimization}
         />
       ) : (
         // When there is no mean score, a "--" mean score next to the pie chart
@@ -526,7 +532,7 @@ export function SummaryValueBreakdown({
   annotationName: string;
   labelFractions?: readonly { label: string; fraction: number }[];
   meanScore?: number | null;
-  annotationConfig?: AnnotationConfig;
+  annotationConfig?: AnnotationOptimizationConfig;
   count?: number | null;
   scoreCount?: number | null;
   labelCount?: number | null;
@@ -609,7 +615,7 @@ export function SummaryValueLabels({
 }: {
   name: string;
   labelFractions: readonly { label: string; fraction: number }[];
-  annotationConfig?: AnnotationConfig;
+  annotationConfig?: AnnotationOptimizationConfig;
 }) {
   if (labelFractions.length === 0) {
     return null;

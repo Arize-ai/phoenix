@@ -28,7 +28,9 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
+import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation/optimizationUtils";
 import { SessionAnnotationSummaryGroupStacks } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
+import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionAnnotationsEditor } from "@phoenix/components/trace/SessionAnnotationsEditor";
@@ -64,6 +66,7 @@ function SessionDetailsHeader({
   projectId,
   isAnnotating,
   onIsAnnotatingChange,
+  annotationConfigsByName,
 }: {
   session: NonNullable<SessionDetailsQuery$data["session"]>;
   tokenUsage?: NonNullable<SessionDetailsQuery$data["session"]>["tokenUsage"];
@@ -73,6 +76,7 @@ function SessionDetailsHeader({
   projectId?: string;
   isAnnotating: boolean;
   onIsAnnotatingChange: (isAnnotating: boolean) => void;
+  annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
 }) {
   return (
     <View padding="size-200">
@@ -149,6 +153,7 @@ function SessionDetailsHeader({
           >
             <SessionAnnotationSummaryGroupStacks
               session={session}
+              annotationConfigsByName={annotationConfigsByName}
               renderEmptyState={() => null}
               leadingDivider
             />
@@ -210,6 +215,7 @@ export function SessionDetails(props: SessionDetailsProps) {
           ... on ProjectSession {
             project {
               id
+              ...ProjectAnnotationConfigFragment
             }
             numTraces
             tokenUsage {
@@ -247,6 +253,9 @@ export function SessionDetails(props: SessionDetailsProps) {
   if (data.session == null) {
     throw new Error("Session not found");
   }
+  const annotationConfigsByName = useProjectAnnotationConfigsByName(
+    data.session.project
+  );
   const traceCount = data.session.numTraces ?? 0;
   const projectId = data.session.project?.id;
 
@@ -364,6 +373,7 @@ export function SessionDetails(props: SessionDetailsProps) {
               tokenUsage={data.session.tokenUsage}
               latencyP50={data.session.latencyP50}
               sessionId={sessionId}
+              annotationConfigsByName={annotationConfigsByName}
               projectId={projectId}
               isAnnotating={isAnnotating}
               onIsAnnotatingChange={setIsAnnotating}

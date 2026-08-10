@@ -5,3 +5,4 @@ export * from "./optimizationUtils";
 export * from "./AnnotationScoreText";
 export * from "./types";
 export * from "./AnnotationNameAndValue";
+export * from "./useProjectAnnotationConfigsByName";

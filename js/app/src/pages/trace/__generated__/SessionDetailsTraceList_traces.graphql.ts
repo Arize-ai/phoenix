@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<03fdb7189607165823bbd57bb05c3059>>
+ * @generated SignedSource<<85270d50511274ad3a5bd72cf0056d29>>
  * @lightSyntaxTransform
  */
 
@@ -13,6 +13,9 @@ import { FragmentRefs } from "relay-runtime";
 export type SessionDetailsTraceList_traces$data = {
   readonly id: string;
   readonly numTraces: number;
+  readonly project: {
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigFragment">;
+  };
   readonly traces: {
     readonly edges: ReadonlyArray<{
       readonly trace: {
@@ -146,6 +149,22 @@ return {
       "args": null,
       "kind": "ScalarField",
       "name": "numTraces",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "Project",
+      "kind": "LinkedField",
+      "name": "project",
+      "plural": false,
+      "selections": [
+        {
+          "args": null,
+          "kind": "FragmentSpread",
+          "name": "ProjectAnnotationConfigFragment"
+        }
+      ],
       "storageKey": null
     },
     {
@@ -395,6 +414,6 @@ return {
 };
 })();
 
-(node as any).hash = "8010c5aec6c0c8fba5fc5a8756e8983b";
+(node as any).hash = "7d81432e5ac882f5bd63233655756250";
 
 export default node;

@@ -31,6 +31,7 @@ import {
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
+import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -309,6 +310,7 @@ export function SpansTable(props: SpansTableProps) {
         ) {
           name
           spanAnnotationNames
+          ...ProjectAnnotationConfigFragment
           ...SpanColumnSelector_annotations
           ...SpanColumnSelector_traceAnnotations
           spans(
@@ -392,6 +394,7 @@ export function SpansTable(props: SpansTableProps) {
       `,
       props.project
     );
+  const annotationConfigsByName = useProjectAnnotationConfigsByName(data);
 
   const pagination = useTracePagination();
   const setTraceSequence = pagination?.setTraceSequence;
@@ -547,6 +550,7 @@ export function SpansTable(props: SpansTableProps) {
           <OverflowRow isExpanded={areRowsExpanded}>
             <AnnotationSummaryGroupTokens
               span={row.original}
+              annotationConfigsByName={annotationConfigsByName}
               showFilterActions
             />
             {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
@@ -595,7 +599,10 @@ export function SpansTable(props: SpansTableProps) {
       cell: ({ row }) => {
         return (
           <OverflowRow isExpanded={areRowsExpanded}>
-            <TraceAnnotationSummaryGroupTokens trace={row.original.trace} />
+            <TraceAnnotationSummaryGroupTokens
+              trace={row.original.trace}
+              annotationConfigsByName={annotationConfigsByName}
+            />
           </OverflowRow>
         );
       },

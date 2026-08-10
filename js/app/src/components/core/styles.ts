@@ -4,16 +4,21 @@ import { css } from "@emotion/react";
  * The outlined pill worn by annotation labels and the controls that stand in for
  * them (an overflow row's "+N" badge), so the two cannot drift apart.
  */
-export const outlinedPillCSS = css`
-  border-radius: var(--global-dimension-size-50);
-  border: 1px solid var(--global-border-color-default);
+export const clickablePillCSS = css`
   transition: background-color 0.2s;
   &[data-clickable="true"] {
     cursor: pointer;
-    &:hover {
+    &:hover,
+    &[data-hovered] {
       background-color: var(--global-color-gray-300);
     }
   }
+`;
+
+export const outlinedPillCSS = css`
+  border-radius: var(--global-dimension-size-50);
+  border: 1px solid var(--global-border-color-default);
+  ${clickablePillCSS};
 `;
 
 /**

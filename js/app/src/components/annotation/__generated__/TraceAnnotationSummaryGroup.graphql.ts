@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7df481dd66302cd8fa8401f4583457c9>>
+ * @generated SignedSource<<6efa5df9d2ca744dceb78a65298da5b7>>
  * @lightSyntaxTransform
  */
 
@@ -8,28 +8,9 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
 export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
-export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type TraceAnnotationSummaryGroup$data = {
-  readonly project: {
-    readonly annotationConfigs: {
-      readonly edges: ReadonlyArray<{
-        readonly node: {
-          readonly annotationType?: AnnotationType;
-          readonly id?: string;
-          readonly name?: string;
-          readonly optimizationDirection?: OptimizationDirection;
-          readonly values?: ReadonlyArray<{
-            readonly label: string;
-            readonly score: number | null;
-          }>;
-        };
-      }>;
-    };
-    readonly id: string;
-  };
   readonly traceAnnotationSummaries: ReadonlyArray<{
     readonly count: number;
     readonly labelCount: number;
@@ -44,6 +25,7 @@ export type TraceAnnotationSummaryGroup$data = {
   readonly traceAnnotations: ReadonlyArray<{
     readonly annotatorKind: AnnotatorKind;
     readonly createdAt: string;
+    readonly explanation: string | null;
     readonly id: string;
     readonly label: string | null;
     readonly name: string;
@@ -65,28 +47,14 @@ var v0 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "name",
   "storageKey": null
 },
 v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "label",
-  "storageKey": null
-},
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "score",
   "storageKey": null
 };
 return {
@@ -98,103 +66,34 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": "Project",
-      "kind": "LinkedField",
-      "name": "project",
-      "plural": false,
-      "selections": [
-        (v0/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "AnnotationConfigConnection",
-          "kind": "LinkedField",
-          "name": "annotationConfigs",
-          "plural": false,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "AnnotationConfigEdge",
-              "kind": "LinkedField",
-              "name": "edges",
-              "plural": true,
-              "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "concreteType": null,
-                  "kind": "LinkedField",
-                  "name": "node",
-                  "plural": false,
-                  "selections": [
-                    {
-                      "kind": "InlineFragment",
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "annotationType",
-                          "storageKey": null
-                        }
-                      ],
-                      "type": "AnnotationConfigBase",
-                      "abstractKey": "__isAnnotationConfigBase"
-                    },
-                    {
-                      "kind": "InlineFragment",
-                      "selections": [
-                        (v0/*:: as any*/),
-                        (v1/*:: as any*/),
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "optimizationDirection",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": "CategoricalAnnotationValue",
-                          "kind": "LinkedField",
-                          "name": "values",
-                          "plural": true,
-                          "selections": [
-                            (v2/*:: as any*/),
-                            (v3/*:: as any*/)
-                          ],
-                          "storageKey": null
-                        }
-                      ],
-                      "type": "CategoricalAnnotationConfig",
-                      "abstractKey": null
-                    }
-                  ],
-                  "storageKey": null
-                }
-              ],
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
       "concreteType": "TraceAnnotation",
       "kind": "LinkedField",
       "name": "traceAnnotations",
       "plural": true,
       "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "id",
+          "storageKey": null
+        },
         (v0/*:: as any*/),
         (v1/*:: as any*/),
-        (v2/*:: as any*/),
-        (v3/*:: as any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "score",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "explanation",
+          "storageKey": null
+        },
         {
           "alias": null,
           "args": null,
@@ -281,7 +180,7 @@ return {
               "name": "fraction",
               "storageKey": null
             },
-            (v2/*:: as any*/)
+            (v1/*:: as any*/)
           ],
           "storageKey": null
         },
@@ -292,7 +191,7 @@ return {
           "name": "meanScore",
           "storageKey": null
         },
-        (v1/*:: as any*/)
+        (v0/*:: as any*/)
       ],
       "storageKey": null
     }
@@ -302,6 +201,6 @@ return {
 };
 })();
 
-(node as any).hash = "e7ae39b92a3d988c3293d53e493b6ad2";
+(node as any).hash = "2063d3eb17ef59cc477a7d5742b87fae";
 
 export default node;

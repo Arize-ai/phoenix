@@ -8,6 +8,7 @@ import {
   type AnnotationOptimizationConfig,
   getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";
+import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation";
 import {
   AnnotationMetricsChart,
   type AnnotationMetricsSeries,
@@ -45,7 +46,6 @@ import {
   PROJECT_METRICS_CHART_SYNC_ID,
   useMetricQueryFetchOptions,
 } from "./types";
-import { useProjectAnnotationConfigsByName } from "./useProjectAnnotationConfigsByName";
 
 type AnnotationMetricsData = ReadonlyArray<{
   readonly timestamp: string;
@@ -553,7 +553,7 @@ function useSpanAnnotationMetricsSeries(
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            ...ProjectAnnotationMetricsConfigFragment
+            ...ProjectAnnotationConfigFragment
               @arguments(annotationConfigNames: [$annotationName], first: 1)
             spanAnnotationMetricsTimeSeries(
               annotationName: $annotationName
@@ -605,7 +605,7 @@ function useTraceAnnotationMetricsSeries(
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            ...ProjectAnnotationMetricsConfigFragment
+            ...ProjectAnnotationConfigFragment
               @arguments(annotationConfigNames: [$annotationName], first: 1)
             traceAnnotationMetricsTimeSeries(
               annotationName: $annotationName
@@ -657,7 +657,7 @@ function useSessionAnnotationMetricsSeries(
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            ...ProjectAnnotationMetricsConfigFragment
+            ...ProjectAnnotationConfigFragment
               @arguments(annotationConfigNames: [$annotationName], first: 1)
             sessionAnnotationMetricsTimeSeries(
               annotationName: $annotationName

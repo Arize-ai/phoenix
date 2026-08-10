@@ -54,6 +54,13 @@ vi.mock("@phoenix/components/datetime", async (importOriginal) => ({
   useTimeRange: () => timeRangeState,
 }));
 
+vi.mock(
+  "@phoenix/components/annotation/useProjectAnnotationConfigsByName",
+  () => ({
+    useProjectAnnotationConfigsByName: () => new Map(),
+  })
+);
+
 vi.mock("@phoenix/contexts/StreamStateContext", () => ({
   useStreamState: () => ({ fetchKey: 0 }),
 }));
