@@ -10,6 +10,7 @@ from phoenix.server.mcp_analytics_sql.parse import AdmissionOutcome, try_parse_a
 from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext
 from phoenix.server.mcp_analytics_sql.tools import (
     _EXECUTE_SQL_OUTPUT_SCHEMA,
+    _preamble,
     register_analytics_sql_tools,
 )
 from phoenix.server.types import DbSessionFactory
@@ -49,6 +50,14 @@ async def test_schema_carries_the_invariants_the_envelope_does_not(
     assert "bytes per row" in text and "per response" in text
     assert "global allowlisted schema defines queryable tables" in text
     assert "FOREIGN KEY targets outside that allowlist are descriptive" in text
+    assert "Common allowed functions" in text
+    assert "percent_rank" in text
+    assert "percentile(x, p)" in text or "percentile_cont(p)" in text
+
+
+def test_postgres_preamble_advertises_its_percentile_spelling() -> None:
+    """The function names must match the backend that will execute the query."""
+    assert "percentile_cont(p) WITHIN GROUP" in _preamble("postgresql", None)
 
 
 async def test_filtered_schema_does_not_limit_the_global_allowlist(analytics_mcp: FastMCP) -> None:
@@ -100,6 +109,8 @@ async def test_execute_sql_declares_its_envelope(analytics_mcp: FastMCP) -> None
     error_properties = error_schema["properties"]["error"]["properties"]
     assert {"code", "message", "identifiers"} <= set(error_properties)
     assert set(error_properties["code"]["enum"]) == {code.value for code in ErrorCode}
+    assert "error" in (tool.description or "")
+    assert "json.loads" in (tool.description or "")
 
 
 async def test_envelope_matches_the_declared_schema(analytics_mcp: FastMCP) -> None:

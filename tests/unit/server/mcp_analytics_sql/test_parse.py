@@ -1004,6 +1004,26 @@ class TestStructuralPolicyIsDefaultDeny:
             result = self._admit(sql, dialect)
             assert result.outcome is AdmissionOutcome.ADMIT, f"{dialect}: {sql} -> {result.detail}"
 
+    @pytest.mark.parametrize("dialect", ["postgresql", "sqlite"])
+    def test_having_select_alias_explains_the_portable_rewrite(
+        self, dialect: SupportedSQLDialectName
+    ) -> None:
+        """SQLite accepts aliases in HAVING, but PostgreSQL does not.
+
+        A name collision with the `spans` relation reached the whole-row
+        backstop first and produced a true but irrelevant error. The portable
+        repair is to repeat the aggregate expression, which this assertion
+        keeps actionable without admitting cross-dialect divergence.
+        """
+        result = self._admit(
+            "SELECT COUNT(*) AS spans FROM spans s HAVING spans >= 50",
+            dialect,
+        )
+
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert "HAVING spans" in result.detail
+        assert "HAVING COUNT(*) >= 50" in result.detail
+
     @pytest.mark.parametrize(
         "sql,construct",
         [
