@@ -196,7 +196,7 @@ describe("getFlushableClientToolOutputs", () => {
     expect(outputs).toEqual([]);
   });
 
-  it("returns nothing once every call has resolved", () => {
+  it("returns the final output once every call has resolved", () => {
     const messages = [
       createMessage({
         id: "assistant-1",
@@ -214,10 +214,15 @@ describe("getFlushableClientToolOutputs", () => {
       }),
     ];
 
-    // The normal chat continuation carries the outputs instead.
-    expect(
-      getFlushableClientToolOutputs({ messages, isFlushed: () => false })
-    ).toEqual([]);
+    // The bare chat continuation carries no outputs, so the last one must
+    // flush before the turn resumes.
+    const outputs = getFlushableClientToolOutputs({
+      messages,
+      isFlushed: () => false,
+    });
+    expect(outputs.map((output) => output.toolCallId)).toEqual([
+      "tool-call-resolved",
+    ]);
   });
 
   it("returns nothing when the tail holds a user-interrupted output", () => {

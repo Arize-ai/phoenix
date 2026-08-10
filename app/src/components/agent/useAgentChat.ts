@@ -111,15 +111,13 @@ export function useAgentChat({
   const [compactionStatus, setCompactionStatus] = useState<string | null>(null);
   const isDraft = sessionId == null || sessionId === DRAFT_SESSION_ID;
   const isCompacting = useAgentContext((state) =>
-    sessionId
-      ? (state.isCompactionPendingBySessionId[sessionId] ?? false)
-      : false
+    sessionId ? state.isCompactionPendingBySessionId[sessionId] ?? false : false
   );
   const pendingElicitation = useAgentContext((state) =>
-    sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
+    sessionId ? state.pendingElicitationBySessionId[sessionId] ?? null : null
   );
   const isBusyElsewhere = useAgentContext((state) =>
-    sessionId ? (state.isBusyElsewhereBySessionId[sessionId] ?? false) : false
+    sessionId ? state.isBusyElsewhereBySessionId[sessionId] ?? false : false
   );
 
   /**
@@ -215,10 +213,9 @@ export function useAgentChat({
   });
 
   // Local lifecycle cleanup for interrupted client tools: pending calls are
-  // resolved as output-error so the UI settles, pending dialogs are cleared,
-  // and the next send carries the errors to the server as toolOutputs so the
-  // persisted transcript resolves them too. Anything the client can't report
-  // (e.g. a killed tab) is repaired authoritatively server-side at merge time.
+  // resolved as output-error so the UI settles and pending dialogs are
+  // cleared. The errors stay client-side — the server repairs the still-
+  // pending calls authoritatively as interrupted when the next turn starts.
   const addInterruptedToolOutputs = async ({
     messages,
     errorText,

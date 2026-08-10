@@ -217,8 +217,8 @@ export function createAgentSessionChat({
       const shouldSendAutomatically =
         await turnCompletionGate.handleSendAutomaticallyWhen({ messages });
       if (!shouldSendAutomatically) {
-        // The turn is not continuing yet; eagerly persist any newly resolved
-        // client tool outputs while their siblings stay pending.
+        // The turn is not continuing yet; persist any newly resolved client
+        // tool outputs while their siblings stay pending.
         toolOutputFlusher.maybeFlush(messages);
         return false;
       }
@@ -226,9 +226,19 @@ export function createAgentSessionChat({
       if (assistantMessage?.role !== "assistant") {
         return false;
       }
-      return transcriptPersistence.waitForMessage({
+      const transcriptPersisted = await transcriptPersistence.waitForMessage({
         messageId: assistantMessage.id,
       });
+      if (!transcriptPersisted) {
+        return false;
+      }
+      // The continuation carries no outputs of its own, so every resolved
+      // output must land on the tool_outputs route first. On persistent flush
+      // failure the continuation still fires: the server rejects it with a
+      // visible agent_session_tool_outputs_pending conflict instead of the
+      // turn stalling silently.
+      await toolOutputFlusher.flushAndWait(messages);
+      return true;
     },
     onError: (error) => {
       transcriptPersistence.cancelPendingWaiters();

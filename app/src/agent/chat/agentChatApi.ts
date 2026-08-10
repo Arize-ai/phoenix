@@ -48,6 +48,7 @@ const AGENT_SESSION_CONFLICT_CODES = [
   "agent_session_model_stale",
   "agent_session_messages_stale",
   "agent_session_tool_outputs_conflict",
+  "agent_session_tool_outputs_pending",
   "agent_session_already_compact",
   "agent_session_compaction_conflict",
 ] as const satisfies readonly AgentSessionConflictCode[];

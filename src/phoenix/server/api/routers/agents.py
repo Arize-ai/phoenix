@@ -47,7 +47,7 @@ from pydantic import (
 )
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult
-from pydantic_ai.messages import ModelMessage
+from pydantic_ai.messages import ModelMessage, ModelRequest
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
     SubmitMessage as PydanticAISubmitMessage,
@@ -404,19 +404,13 @@ class ChatSubmitMessage(_ChatRequestMixin):
     message: PhoenixUIMessage | None = Field(
         default=None,
         description=(
-            "The turn's new user message to append. May be omitted for client-tool "
-            "continuation, where ``toolOutputs`` resolve the trailing "
-            "assistant message's pending tool calls instead."
-        ),
-    )
-    tool_outputs: list[ToolOutputUIPart] = Field(
-        default_factory=list,
-        description=(
-            "Client-executed tool results for pending tool calls on the "
-            "transcript's trailing assistant message, matched by "
-            "``toolCallId``. Submitted alone they continue the assistant "
-            "turn; submitted with ``message`` they resolve dangling tool "
-            "calls before the new user turn runs."
+            "The turn's new user message to append. May be omitted for a bare "
+            "client-tool continuation: once every pending tool call on the "
+            "trailing assistant message has been resolved via the "
+            "``tool_outputs`` route, a message-less request resumes the turn "
+            "and runs the model. A continuation whose tail still has pending "
+            "calls is rejected with HTTP 409 and code "
+            "``agent_session_tool_outputs_pending``."
         ),
     )
     last_message_id: str | None = Field(
@@ -433,8 +427,6 @@ class ChatSubmitMessage(_ChatRequestMixin):
 
     @model_validator(mode="after")
     def _validate_turn_inputs(self) -> "ChatSubmitMessage":
-        if self.message is None and not self.tool_outputs:
-            raise ValueError("A chat submit request requires a message, toolOutputs, or both")
         if self.message is not None and self.message.role != "user":
             raise ValueError("Only user messages can be submitted")
         if (
@@ -446,7 +438,6 @@ class ChatSubmitMessage(_ChatRequestMixin):
             raise ValueError(
                 "Compaction checkpoints are created by the compact route and cannot be submitted"
             )
-        _validate_submitted_tool_outputs(self.tool_outputs)
         return self
 
 
@@ -484,6 +475,7 @@ AgentSessionConflictCode = Literal[
     "agent_session_model_stale",
     "agent_session_messages_stale",
     "agent_session_tool_outputs_conflict",
+    "agent_session_tool_outputs_pending",
     "agent_session_already_compact",
     "agent_session_compaction_conflict",
 ]
@@ -504,6 +496,10 @@ class AgentSessionConflictError(V1RoutesBaseModel):
       mismatch). Unlike ``agent_session_messages_stale`` this is not a
       concurrent-writer race but an inconsistent request; fix the client
       rather than retrying.
+    - ``agent_session_tool_outputs_pending``: a bare continuation asked the
+      turn to resume while the trailing assistant message still has pending
+      tool calls. Submit the missing outputs via the ``tool_outputs`` route,
+      then retry the continuation.
     - ``agent_session_already_compact``: there are no complete turns to
       compact — either nothing new has finished since the transcript's latest
       checkpoint, or a concurrent request's checkpoint already covers them.
@@ -1779,78 +1775,83 @@ class _MergedTranscript:
     """The model-facing transcript for this turn."""
 
     updated_messages: dict[_MessageId, PhoenixUIMessage]
-    """Persisted messages rewritten by the merge (applied ``toolOutputs`` and
-    interrupted-tool repairs); persist under the turn lock before the model runs."""
+    """Persisted messages rewritten by the merge (interrupted-tool repairs);
+    persist under the turn lock before the model runs."""
 
     continued_assistant_message: PhoenixUIMessage | None
-    """The trailing assistant message this turn continues when the request
-    carried only ``toolOutputs``; None for a new user turn."""
+    """The trailing assistant message a bare (message-less) continuation
+    resumes; None for a new user turn."""
 
     superseded_assistant_message: PhoenixUIMessage | None
     """The trailing assistant message of a turn this request superseded.
 
-    A turn that stops on unresolved client tool calls stays open: only a
-    ``toolOutputs``-only request continues it, finishing the turn and emitting
-    its deferred ``pxi.turn`` root span. A request carrying a new user message
-    starts a new turn instead, superseding the open one — its dangling calls
-    are resolved at merge time (by ``toolOutputs`` sent alongside the message,
-    or repaired as interrupted without them), but the continuation that would
-    have emitted the root span never runs. None when the request continues
-    the turn or the tail had nothing pending."""
+    A turn that stops on unresolved client tool calls stays open: its outputs
+    arrive via the ``tool_outputs`` route, and only a bare continuation
+    resumes it, finishing the turn and emitting its deferred ``pxi.turn``
+    root span. A request carrying a new user message starts a new turn
+    instead, superseding the open one — dangling calls whose outputs never
+    reached the ``tool_outputs`` route are repaired as interrupted at merge
+    time, but the continuation that would have emitted the root span never
+    runs. None when the request continues the turn or the tail had nothing
+    pending."""
 
 
 def _merge_messages(
     *,
     old_messages: Sequence[PhoenixUIMessage],
     new_message: PhoenixUIMessage | None,
-    tool_outputs: Sequence[ToolOutputUIPart] = (),
 ) -> _MergedTranscript:
     messages = list(old_messages)
     updated_messages: dict[_MessageId, PhoenixUIMessage] = {}
-    if tool_outputs:
+    if new_message is None:
+        # A bare continuation resumes the trailing assistant turn. Tool
+        # outputs reach the transcript only through the tool_outputs route,
+        # so the tail must already be fully resolved before the model runs.
         if not messages or messages[-1].role != "assistant":
             raise AgentSessionConflict(
                 "agent_session_tool_outputs_conflict",
                 (
-                    "Tool outputs were submitted but the session's latest "
+                    "A continuation was submitted but the session's latest "
                     "transcript message is not an assistant message; reload "
                     "the conversation"
                 ),
             )
-        merged_tail = _apply_tool_outputs(messages[-1], tool_outputs)
-        if merged_tail is not None:
-            updated_messages[merged_tail.id] = merged_tail
-            messages[-1] = merged_tail
+        if any(isinstance(part, _UNRESOLVED_TOOL_PART_TYPES) for part in messages[-1].parts):
+            raise AgentSessionConflict(
+                "agent_session_tool_outputs_pending",
+                (
+                    "The trailing assistant message still has pending tool "
+                    "calls; submit their outputs via the tool_outputs route, "
+                    "then retry the continuation"
+                ),
+            )
+        return _MergedTranscript(
+            messages=messages,
+            updated_messages=updated_messages,
+            continued_assistant_message=messages[-1],
+            superseded_assistant_message=None,
+        )
+    assert new_message.role == "user", "request validation rejects non-user messages"
     for index, message in enumerate(messages):
         repaired_message = _resolve_interrupted_tool_parts(message)
         if repaired_message is not None:
             updated_messages[repaired_message.id] = repaired_message
             messages[index] = repaired_message
-    if new_message is not None:
-        assert new_message.role == "user", "request validation rejects non-user messages"
-        # A rewritten assistant tail means it still had pending tool calls —
-        # a turn that ended awaiting outputs and is now superseded by the new
-        # user message instead of continued.
-        last_message = messages[-1] if messages else None
-        last_message_had_pending_tool_calls = (
-            last_message is not None
-            and last_message.role == "assistant"
-            and last_message.id in updated_messages
-        )
-        superseded_assistant_message = last_message if last_message_had_pending_tool_calls else None
-        return _MergedTranscript(
-            messages=[*messages, new_message],
-            updated_messages=updated_messages,
-            continued_assistant_message=None,
-            superseded_assistant_message=superseded_assistant_message,
-        )
-    assert tool_outputs, "request validation requires a message, toolOutputs, or both"
-    assert messages[-1].role == "assistant", "the tool-output branch guarantees an assistant tail"
+    # A rewritten assistant tail means it still had pending tool calls —
+    # a turn that ended awaiting outputs and is now superseded by the new
+    # user message instead of continued.
+    last_message = messages[-1] if messages else None
+    last_message_had_pending_tool_calls = (
+        last_message is not None
+        and last_message.role == "assistant"
+        and last_message.id in updated_messages
+    )
+    superseded_assistant_message = last_message if last_message_had_pending_tool_calls else None
     return _MergedTranscript(
-        messages=messages,
+        messages=[*messages, new_message],
         updated_messages=updated_messages,
-        continued_assistant_message=messages[-1],
-        superseded_assistant_message=None,
+        continued_assistant_message=None,
+        superseded_assistant_message=superseded_assistant_message,
     )
 
 
@@ -2848,9 +2849,23 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 merged_transcript = _merge_messages(
                     old_messages=[row.message for row in session_history],
                     new_message=body.message,
-                    tool_outputs=body.tool_outputs,
                 )
                 transcript_messages = merged_transcript.messages
+                if merged_transcript.continued_assistant_message is not None:
+                    # A resolved tail alone cannot distinguish a turn awaiting
+                    # its continuation from one that already completed; the
+                    # model-facing transcript can. A completed turn ends with
+                    # a model response, and rerunning it would double-run the
+                    # model (and violate pydantic-ai's request-last invariant).
+                    model_messages = _to_pydantic_ai_messages(transcript_messages)
+                    if not model_messages or not isinstance(model_messages[-1], ModelRequest):
+                        raise AgentSessionConflict(
+                            "agent_session_tool_outputs_conflict",
+                            (
+                                "The trailing assistant turn is already "
+                                "complete; there is nothing to continue"
+                            ),
+                        )
                 session_model = get_agent_session_model(agent_session)
                 await _claim_agent_session_turn_lock_for_model(
                     session,
@@ -3210,8 +3225,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     else:
                         # Persist the submitted user message and its generated response.
                         assert body.message is not None, (
-                            "request validation requires a message or toolOutputs, and "
-                            "the merge continues the assistant turn for toolOutputs-only"
+                            "the merge continues the assistant turn for message-less requests"
                         )
                         turn_messages = [body.message, generated_assistant_message]
                     try:

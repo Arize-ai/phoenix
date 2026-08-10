@@ -45,13 +45,14 @@ export function shouldSendAutomaticallyAfterToolOutput({
 }
 
 /**
- * The trailing assistant message's resolved client tool outputs that are
- * eligible for an eager flush to the tool-outputs endpoint — outputs the
- * server has not yet persisted, on a turn that stays open because sibling
- * tool calls are still pending. Empty when every call has resolved (the
- * normal chat continuation carries the outputs instead) or when the tail
- * holds interrupted or navigation-cancel outputs, which follow the
- * new-user-message path rather than continuing this turn.
+ * The trailing assistant message's resolved client tool outputs that must be
+ * flushed to the tool-outputs endpoint — outputs the server has not yet
+ * persisted. The endpoint is the only path outputs take to the server: each
+ * one flushes as it resolves while sibling calls stay pending, and the last
+ * one flushes before the bare chat continuation resumes the turn. Empty when
+ * the tail holds interrupted or navigation-cancel outputs, which follow the
+ * new-user-message path (where the server repairs unresolved calls as
+ * interrupted) rather than continuing this turn.
  */
 export function getFlushableClientToolOutputs({
   messages,
@@ -69,9 +70,6 @@ export function getFlushableClientToolOutputs({
     return [];
   }
   if (hasApprovalNavigationCancel(messages)) {
-    return [];
-  }
-  if (getUnresolvedToolCalls(messages).length === 0) {
     return [];
   }
   return message.parts.filter(

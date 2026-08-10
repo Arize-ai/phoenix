@@ -1798,6 +1798,10 @@ export interface components {
          *       mismatch). Unlike ``agent_session_messages_stale`` this is not a
          *       concurrent-writer race but an inconsistent request; fix the client
          *       rather than retrying.
+         *     - ``agent_session_tool_outputs_pending``: a bare continuation asked the
+         *       turn to resume while the trailing assistant message still has pending
+         *       tool calls. Submit the missing outputs via the ``tool_outputs`` route,
+         *       then retry the continuation.
          *     - ``agent_session_already_compact``: there are no complete turns to
          *       compact — either nothing new has finished since the transcript's latest
          *       checkpoint, or a concurrent request's checkpoint already covers them.
@@ -1811,7 +1815,7 @@ export interface components {
              * @description Machine-readable reason the request conflicted.
              * @enum {string}
              */
-            code: "agent_session_busy" | "agent_session_model_stale" | "agent_session_messages_stale" | "agent_session_tool_outputs_conflict" | "agent_session_already_compact" | "agent_session_compaction_conflict";
+            code: "agent_session_busy" | "agent_session_model_stale" | "agent_session_messages_stale" | "agent_session_tool_outputs_conflict" | "agent_session_tool_outputs_pending" | "agent_session_already_compact" | "agent_session_compaction_conflict";
             /**
              * Message
              * @description Optional human-readable elaboration on the conflict.
@@ -2243,13 +2247,8 @@ export interface components {
             trigger?: "submit-message";
             /** Id */
             id: string;
-            /** @description The turn's new user message to append. May be omitted for client-tool continuation, where ``toolOutputs`` resolve the trailing assistant message's pending tool calls instead. */
+            /** @description The turn's new user message to append. May be omitted for a bare client-tool continuation: once every pending tool call on the trailing assistant message has been resolved via the ``tool_outputs`` route, a message-less request resumes the turn and runs the model. A continuation whose tail still has pending calls is rejected with HTTP 409 and code ``agent_session_tool_outputs_pending``. */
             message?: components["schemas"]["PhoenixUIMessage"] | null;
-            /**
-             * Tooloutputs
-             * @description Client-executed tool results for pending tool calls on the transcript's trailing assistant message, matched by ``toolCallId``. Submitted alone they continue the assistant turn; submitted with ``message`` they resolve dangling tool calls before the new user turn runs.
-             */
-            toolOutputs?: (components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"])[];
             /**
              * Lastmessageid
              * @description The id of the last transcript message the client has rendered, used for optimistic concurrency. Omit when the session has no messages; required (and validated against the persisted transcript) once it does. On mismatch the server rejects the send with HTTP 409 and code ``agent_session_messages_stale`` — the client should refetch the session before retrying.

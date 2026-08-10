@@ -86,7 +86,7 @@ describe("cleanupResolvedPendingToolState", () => {
               "The tool call was interrupted before a result was produced.",
           }
         : {}),
-    }) as AgentUIMessage["parts"][number];
+    } as AgentUIMessage["parts"][number]);
 
   it("clears pending state for tool calls the transcript shows as resolved", () => {
     const state = createStateStub();

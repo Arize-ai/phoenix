@@ -335,7 +335,7 @@ describe("buildAgentChatRequestBody", () => {
     expect(body.lastMessageId).toBe("compaction-1");
   });
 
-  it("sends resolved client tool outputs instead of the assistant message on continuations", () => {
+  it("sends a bare continuation for a trailing assistant message", () => {
     const continuationAssistant: AgentUIMessage = {
       id: "assistant-1",
       role: "assistant",
@@ -388,17 +388,15 @@ describe("buildAgentChatRequestBody", () => {
       },
     });
 
-    // The server owns the assistant message; only the client-executed tool
-    // outputs travel, and the message field is omitted entirely.
+    // The server owns the assistant message, and its outputs already arrived
+    // via the tool_outputs route — the continuation carries no payload.
     expect(body.message).toBeUndefined();
-    expect(body.toolOutputs?.map((part) => part.toolCallId)).toEqual([
-      "call-1",
-    ]);
+    expect("toolOutputs" in body).toBe(false);
     // The continued assistant message is itself the persisted transcript tail.
     expect(body.lastMessageId).toBe("assistant-1");
   });
 
-  it("attaches interrupted client tool outputs to a superseding user message", () => {
+  it("sends only the user message when superseding an interrupted turn", () => {
     const interruptedAssistant: AgentUIMessage = {
       id: "assistant-1",
       role: "assistant",
@@ -445,10 +443,10 @@ describe("buildAgentChatRequestBody", () => {
       },
     });
 
+    // Outputs travel only via the tool_outputs route; anything unresolved
+    // server-side is repaired as interrupted when the new turn starts.
     expect(body.message?.id).toBe("user-2");
-    expect(body.toolOutputs?.map((part) => part.toolCallId)).toEqual([
-      "call-1",
-    ]);
+    expect("toolOutputs" in body).toBe(false);
     expect(body.lastMessageId).toBe("assistant-1");
   });
 });

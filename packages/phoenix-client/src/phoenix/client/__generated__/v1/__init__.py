@@ -14,6 +14,7 @@ class AgentSessionConflictError(TypedDict):
         "agent_session_model_stale",
         "agent_session_messages_stale",
         "agent_session_tool_outputs_conflict",
+        "agent_session_tool_outputs_pending",
         "agent_session_already_compact",
         "agent_session_compaction_conflict",
     ]
@@ -2092,16 +2093,6 @@ class ChatRequest(TypedDict):
     requestedSkills: NotRequired[Sequence[str]]
     trigger: NotRequired[str]
     message: NotRequired[PhoenixUIMessage]
-    toolOutputs: NotRequired[
-        Sequence[
-            Union[
-                PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart,
-                PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart,
-                PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart,
-                PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart,
-            ]
-        ]
-    ]
     lastMessageId: NotRequired[str]
 
 

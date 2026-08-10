@@ -9,19 +9,23 @@ type SubmitToolOutputsRequestBody =
   components["schemas"]["SubmitAgentSessionToolOutputsRequestBody"];
 
 /**
- * Eagerly persists resolved client tool outputs while sibling tool calls on
- * the trailing assistant message are still pending.
+ * Persists resolved client tool outputs to the session's tool-outputs
+ * endpoint — the only path outputs take to the server.
  *
- * A turn that stops on several client tool approvals stays open until every
- * call resolves, so without flushing, the first Accept/Reject would sit on
- * its result client-side and the persisted transcript would not reflect it.
- * Each newly resolved output is posted to the session's tool-outputs
- * endpoint, which applies it under the turn lock without running the model.
+ * A turn that stops on client tool calls stays open until every call
+ * resolves. Each newly resolved output is posted as it lands, so the
+ * persisted transcript reflects it while sibling calls are still pending,
+ * and the bare chat continuation that finally resumes the turn carries no
+ * outputs of its own — it requires every flush to have landed first
+ * ({@link ToolOutputFlusher.flushAndWait}).
  *
- * Flushing is best-effort: the endpoint ignores outputs for calls it has
- * already resolved, and the final chat continuation re-carries every resolved
- * output, so a failed or skipped flush loses nothing. Failed flushes are
- * simply retried on the next resolution event.
+ * Mid-approval flushes are still failure-tolerant: the endpoint ignores
+ * outputs for calls it has already resolved, so a failed flush is simply
+ * retried on the next resolution event, and `flushAndWait` retries once more
+ * before the continuation. If outputs still cannot land, the continuation
+ * proceeds and the server rejects it with a visible
+ * `agent_session_tool_outputs_pending` conflict rather than stalling
+ * silently.
  */
 export function createToolOutputFlusher({
   flushUrl,
@@ -109,6 +113,16 @@ export function createToolOutputFlusher({
     }
   };
 
+  const startFlush = (): Promise<void> => {
+    const flush = runFlushLoop().finally(() => {
+      if (activeFlush === flush) {
+        activeFlush = null;
+      }
+    });
+    activeFlush = flush;
+    return flush;
+  };
+
   return {
     /**
      * Flush any newly resolved client tool outputs in the trailing assistant
@@ -120,12 +134,23 @@ export function createToolOutputFlusher({
       if (activeFlush !== null) {
         return;
       }
-      const flush = runFlushLoop().finally(() => {
-        if (activeFlush === flush) {
-          activeFlush = null;
+      startFlush();
+    },
+    /**
+     * Flush and wait until every flushable output has reached the server —
+     * the gate a bare chat continuation passes before resuming the turn.
+     * Retries a failed pass once; returns whether all outputs landed.
+     */
+    flushAndWait: async (messages: AgentUIMessage[]): Promise<boolean> => {
+      latestMessages = messages;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const flush = activeFlush ?? startFlush();
+        await flush;
+        if (collectFlushableOutputs().toolOutputs.length === 0) {
+          return true;
         }
-      });
-      activeFlush = flush;
+      }
+      return false;
     },
     /** Reset all tracking when the logical turn completes. */
     clear: (): void => {

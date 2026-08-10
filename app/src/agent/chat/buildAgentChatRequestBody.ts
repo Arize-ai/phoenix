@@ -11,7 +11,6 @@ import {
   type AgentServerConfig,
 } from "@phoenix/store/agentStore";
 
-import { isResolvedClientToolOutputPart } from "./chatUtils";
 import type { ClientToolTimingRecorder } from "./clientToolTimings";
 import { toServerSafeUIMessages } from "./serverSafeMessages";
 import type { AgentUIMessage } from "./types";
@@ -56,29 +55,6 @@ type ClientToolTimingMetadata = Pick<
   components["schemas"]["PhoenixToolCallCallbackProviderMetadata"],
   "clientStartedAt" | "clientEndedAt"
 >;
-
-/**
- * A tool part in a terminal AI SDK output state (`output-available` /
- * `output-error`), as the chat endpoint's `toolOutputs` field models it.
- */
-type ChatToolOutput = NonNullable<
-  BuildAgentChatRequestBodyResult["toolOutputs"]
->[number];
-
-/**
- * Extract the assistant message's resolved client-executed tool parts — the
- * `toolOutputs` a send may carry. The server matches them by `toolCallId`,
- * applies them to its persisted copy of the message, and ignores outputs for
- * tool calls it has already resolved, so resending is idempotent.
- */
-function getClientToolOutputs(message: AgentUIMessage): ChatToolOutput[] {
-  const resolvedClientToolParts = message.parts.filter((part) =>
-    isResolvedClientToolOutputPart(part)
-  );
-  // The AI SDK's tool UI parts and the generated wire schema describe the
-  // same Vercel data-stream shapes but spell optionality differently.
-  return resolvedClientToolParts as unknown as ChatToolOutput[];
-}
 
 export type AgentChatRequestBodyPatch = Pick<
   BuildAgentChatRequestBodyResult,
@@ -163,24 +139,12 @@ export function buildAgentChatRequestBody({
     throw new Error("A chat submit request requires a message to send");
   }
   if (trailingMessage.role === "assistant") {
-    // Client-tool continuation: the server owns the assistant message, so
-    // only the resolved client tool outputs are sent, not the message itself.
-    const [enrichedAssistant] = enrichMessagesWithClientToolTimings({
-      messages: [trailingMessage],
-      toolTimings,
-    });
-    const toolOutputs = getClientToolOutputs(
-      enrichedAssistant ?? trailingMessage
-    );
-    if (toolOutputs.length === 0) {
-      throw new Error(
-        "A chat continuation requires resolved client tool outputs to send"
-      );
-    }
+    // Bare client-tool continuation: the resolved outputs already reached the
+    // server via the tool_outputs route, so the request carries no payload —
+    // it only asks the server to resume the turn it owns.
     return {
       ...base,
       trigger: "submit-message",
-      toolOutputs,
       lastMessageId: getLastPersistedMessageId(messages),
     };
   }
@@ -193,26 +157,14 @@ export function buildAgentChatRequestBody({
   if (!message) {
     throw new Error("A chat submit request requires a message to send");
   }
-  // A new user message supersedes the previous assistant turn. Any of its
-  // client tool results that never reached the server (e.g. tools marked as
-  // interrupted after Stop) ride along as toolOutputs so the persisted
-  // transcript resolves them; the server ignores already-resolved calls and
-  // authoritatively marks anything still unresolved as interrupted.
-  const precedingMessage = messages.at(-2);
-  const toolOutputs =
-    precedingMessage?.role === "assistant"
-      ? getClientToolOutputs(
-          enrichMessagesWithClientToolTimings({
-            messages: [precedingMessage],
-            toolTimings,
-          })[0] ?? precedingMessage
-        )
-      : [];
+  // A new user message supersedes the previous assistant turn. Client tool
+  // results reach the server only via the tool_outputs route; anything still
+  // unresolved server-side is authoritatively repaired as interrupted when
+  // the new turn starts.
   return {
     ...base,
     trigger: "submit-message",
     message,
-    ...(toolOutputs.length > 0 ? { toolOutputs } : {}),
     lastMessageId: getLastPersistedMessageId(messages),
   };
 }

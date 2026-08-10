@@ -106,13 +106,15 @@ describe("createToolOutputFlusher", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("does not flush when every tool call has resolved", async () => {
+  it("flushes the final output once every tool call has resolved", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse());
     const flusher = createToolOutputFlusher({
       flushUrl: FLUSH_URL,
       fetch: fetchMock,
     });
 
+    // The bare chat continuation carries no outputs, so even a fully
+    // resolved tail must flush.
     flusher.maybeFlush([
       userMessage(),
       assistantMessage([
@@ -122,7 +124,75 @@ describe("createToolOutputFlusher", () => {
     ]);
     await settle();
 
-    // The normal chat continuation carries the outputs instead.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.toolOutputs).toHaveLength(2);
+  });
+
+  it("flushAndWait resolves true once every output has landed", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse());
+    const flusher = createToolOutputFlusher({
+      flushUrl: FLUSH_URL,
+      fetch: fetchMock,
+    });
+
+    const flushed = await flusher.flushAndWait([
+      userMessage(),
+      assistantMessage([
+        resolvedToolPart("call-1"),
+        resolvedToolPart("call-2"),
+      ]),
+    ]);
+
+    expect(flushed).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("flushAndWait retries a failed pass once before giving up", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(errorResponse())
+      .mockResolvedValue(okResponse());
+    const flusher = createToolOutputFlusher({
+      flushUrl: FLUSH_URL,
+      fetch: fetchMock,
+    });
+
+    const flushed = await flusher.flushAndWait([
+      userMessage(),
+      assistantMessage([resolvedToolPart("call-1")]),
+    ]);
+
+    expect(flushed).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("flushAndWait resolves false when outputs cannot land", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(errorResponse());
+    const flusher = createToolOutputFlusher({
+      flushUrl: FLUSH_URL,
+      fetch: fetchMock,
+    });
+
+    const flushed = await flusher.flushAndWait([
+      userMessage(),
+      assistantMessage([resolvedToolPart("call-1")]),
+    ]);
+
+    expect(flushed).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("flushAndWait is a no-op when nothing needs flushing", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse());
+    const flusher = createToolOutputFlusher({
+      flushUrl: FLUSH_URL,
+      fetch: fetchMock,
+    });
+
+    const flushed = await flusher.flushAndWait([userMessage()]);
+
+    expect(flushed).toBe(true);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
