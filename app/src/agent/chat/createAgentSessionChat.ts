@@ -48,11 +48,10 @@ import { getRemovedUserMessageText } from "./removedUserMessageText";
 export type TurnClientState = {
   toolTimings: ReturnType<typeof createClientToolTimingRecorder>;
   /**
-   * Re-run the pending tool-call recovery pass (re-stage rehydratable
-   * approvals, error out stale calls) against the chat's current transcript.
-   * The session-sync poll calls this after replacing the transcript with the
-   * server's copy, which reverts locally recovered parts to their persisted
-   * pending states.
+   * Re-run the pending tool-call recovery pass against the chat's current
+   * transcript. The session-sync poll calls this after replacing the
+   * transcript with the server's copy, which reverts locally recovered
+   * parts to pending.
    */
   recoverPendingToolCalls: () => void;
 };
@@ -145,12 +144,10 @@ export function createAgentSessionChat({
     },
   });
   /**
-   * Dispatch one tool call into the frontend registry with the timing and
-   * message wiring both entry points share: the AI SDK's `onToolCall` during
-   * a live stream, and the seeded-transcript rehydration pass below. Tool
-   * execution targets the runtime-owned chat instance so tool outputs
-   * continue to attach to the correct conversation even if the visible React
-   * surface remounts during the request.
+   * Dispatch a tool call into the frontend registry — shared by the live
+   * stream's `onToolCall` and the rehydration pass below. Targets the
+   * runtime-owned chat instance so tool outputs attach to the correct
+   * conversation even if the visible React surface remounts mid-request.
    */
   const runAgentToolCall = (toolCall: AgentToolCall) => {
     const isServerExecuted =
@@ -322,26 +319,19 @@ export function createAgentSessionChat({
   });
   const seedTailMessage = seedMessages[seedMessages.length - 1];
   if (seedTailMessage?.role === "assistant") {
-    // The seeded transcript came from the server, so its trailing assistant
-    // message is persisted by construction. Seed the acknowledgement so the
-    // first automatic continuation after a reload — e.g. accepting a
-    // rehydrated approval — does not wait on a stream acknowledgement that
-    // will never arrive.
+    // The seed is already persisted server-side; acknowledge its tail so
+    // the first automatic continuation after a reload doesn't wait on a
+    // stream acknowledgement that will never arrive.
     transcriptPersistence.acknowledge({ messageId: seedTailMessage.id });
   }
-  // Restore pending approval state lost with the previous page's memory:
-  // re-dispatch the transcript tail's unresolved client tool calls for tools
-  // whose dispatch only stages approval state, re-creating their inline
-  // Accept/Reject affordances. Pending calls of every other tool are
-  // unrecoverable — resolve them with an error so the tool part renders a
-  // failure instead of an unresolvable spinner. The errors are written to
-  // the transcript directly (not via `addToolOutput`) so no automatic
-  // continuation fires while the page's surfaces are still mounting and
-  // their contexts are unadvertised; the outputs reach the server with the
-  // next user-triggered send. Runs at creation against the seed and again
-  // whenever the session-sync poll replaces the transcript with the server's
-  // copy (where recovered calls are still pending); re-staging an approval
-  // that is already staged just rebinds it, so re-running is idempotent.
+  // Restore the transcript tail's pending approvals and error out its
+  // unrecoverable pending calls (see partitionPendingClientToolCalls). The
+  // errors are written to the transcript directly — via `addToolOutput` they
+  // would fire an automatic continuation while the page's surfaces are still
+  // mounting with contexts unadvertised — and reach the server with the next
+  // user-triggered send. Re-staging an already-staged approval just rebinds
+  // it, so the session-sync poll can safely re-run this after replacing the
+  // transcript.
   const recoverPendingToolCalls = () => {
     const { rehydratableToolCalls, staleToolCalls } =
       partitionPendingClientToolCalls({

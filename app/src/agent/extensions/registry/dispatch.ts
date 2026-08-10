@@ -57,9 +57,8 @@ export type AgentToolDispatcher = {
   /** Returns the UI surfacing hints declared by a tool, if any. */
   getAgentToolUIBehavior: (toolName: string) => AgentToolUIBehavior | undefined;
   /**
-   * Whether a tool declared its dispatch as a pure approval-staging step, so
-   * an unresolved call can be re-dispatched from the seeded transcript on
-   * session load. False for unregistered tools.
+   * Whether a tool declared `rehydratable`, so an unresolved call can be
+   * re-dispatched on session load. False for unregistered tools.
    */
   isRehydratableAgentTool: (toolName: string) => boolean;
 };

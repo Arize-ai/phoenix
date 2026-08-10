@@ -22,9 +22,8 @@ export type ResolvedToolOutputPart<TOOLS extends UITools = UITools> = Extract<
 >;
 
 /**
- * Whether a tool part is client-executed, identified by the
- * `phoenix.toolExecutionEnvironment` call provider metadata the server stamps
- * on every tool call it delegates to the browser.
+ * Whether the server stamped this tool call as delegated to the browser, via
+ * its `phoenix.toolExecutionEnvironment` call provider metadata.
  */
 function isClientExecutedToolPart(
   part: Pick<DynamicToolUIPart, "providerExecuted" | "callProviderMetadata">
@@ -60,8 +59,7 @@ export function isResolvedClientToolOutputPart<TOOLS extends UITools>(
 
 /**
  * Whether a message part is a client-executed tool call still awaiting its
- * output (`input-available`) — the parts a seeded transcript may need to
- * re-dispatch on session load to restore pending approval state.
+ * output (`input-available`).
  */
 export function isPendingClientToolCallPart<TOOLS extends UITools>(
   part: UIMessagePart<UIDataTypes, TOOLS>

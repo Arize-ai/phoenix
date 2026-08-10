@@ -60,15 +60,11 @@ export type AgentToolDefinition = {
   uiBehavior?: AgentToolUIBehavior;
   requiredCapabilities?: AgentCapabilityKey[];
   /**
-   * Declares that dispatching this tool is a pure staging step — it only
-   * parks pending approval/elicitation state for the user to act on, with no
-   * side effects until accept — so re-dispatching an unresolved call from its
-   * persisted input is safe. On session load the chat runtime re-dispatches
-   * unresolved calls of rehydratable tools from the seeded transcript to
-   * restore their Accept/Reject affordances after a page refresh.
-   *
-   * Leave unset for tools that execute on dispatch (reads, client actions):
-   * rehydrating those would re-run them on every reload.
+   * Dispatching this tool only stages pending approval/elicitation state,
+   * with no side effects until accept, so the chat runtime may re-dispatch
+   * an unresolved call from the persisted transcript on session load to
+   * restore its Accept/Reject affordances. Leave unset for tools that
+   * execute on dispatch — rehydrating those would re-run them every reload.
    */
   rehydratable?: boolean;
   /**
@@ -103,8 +99,8 @@ function resolveInvalidInputErrorText(
  * @param config.invalidInputErrorText - message (or builder) for invalid input
  * @param config.requiredCapabilities - capability keys gated by the kernel
  * @param config.uiBehavior - chat UI surfacing hints
- * @param config.rehydratable - dispatch only stages pending approval state, so
- * unresolved calls are safely re-dispatched from the seeded transcript on load
+ * @param config.rehydratable - dispatch only stages approval state, so
+ * unresolved calls are safely re-dispatched on session load
  * @param config.execute - handler invoked with parsed input
  */
 export function defineTool<TInput>(config: {

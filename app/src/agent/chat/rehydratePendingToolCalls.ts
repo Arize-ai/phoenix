@@ -6,20 +6,10 @@ import { isPendingClientToolCallPart } from "./chatUtils";
 import type { AgentUIMessage } from "./types";
 
 /**
- * Error output recorded for a pending tool call whose in-memory state (a
- * mounted surface's client action, an unstaged approval) did not survive a
- * page reload and cannot be rebuilt from the transcript. Read by both the
- * model — which may re-propose the action — and the tool part's error
- * rendering in the chat UI.
- *
- * The error is applied to the chat transcript directly rather than through
- * `addToolOutput`, deliberately NOT triggering an automatic continuation: at
- * chat-creation time the page's surfaces have not yet advertised their
- * contexts to the agent store, so an immediate request would misrepresent
- * the user's view to the server (e.g. dropping the playground context — and
- * with it the playground skill — mid-turn). The resolved error outputs ride
- * along as `toolOutputs` on the next user-triggered send instead, by which
- * point contexts have settled.
+ * Error output recorded for a pending tool call whose in-memory state did not
+ * survive a page reload and cannot be rebuilt from the transcript. Read by
+ * both the model — which may re-propose the action — and the tool part's
+ * error rendering in the chat UI.
  */
 export const PENDING_TOOL_CALL_NOT_RESTORED_ERROR =
   "This tool call was awaiting client-side handling when the page reloaded, " +
@@ -28,9 +18,8 @@ export const PENDING_TOOL_CALL_NOT_RESTORED_ERROR =
 
 /**
  * Return a new transcript with the trailing assistant message's named tool
- * calls resolved as {@link PENDING_TOOL_CALL_NOT_RESTORED_ERROR} errors.
- * Inputs and call metadata are preserved so the parts remain valid
- * `toolOutputs` for a later send.
+ * calls resolved as {@link PENDING_TOOL_CALL_NOT_RESTORED_ERROR} errors,
+ * preserving inputs and metadata so they remain valid `toolOutputs`.
  */
 export function resolveStalePendingToolCallParts({
   messages,
@@ -55,9 +44,7 @@ export function resolveStalePendingToolCallParts({
         ) {
           return part;
         }
-        // The spread re-tags the part's state discriminant; TS cannot narrow
-        // a spread of a union member back into the union, so re-assert the
-        // part type the same way the toolOutputs wire cast does.
+        // TS cannot narrow a spread of a union member back into the union.
         return {
           ...part,
           state: "output-error",
@@ -69,37 +56,23 @@ export function resolveStalePendingToolCallParts({
 }
 
 export type PartitionedPendingToolCalls = {
-  /**
-   * Pending calls of tools whose dispatch only stages approval state —
-   * re-dispatch these through the normal tool-call path to restore their
-   * Accept/Reject affordances.
-   */
+  /** Pending calls safe to re-dispatch to re-stage their approval state. */
   rehydratableToolCalls: AgentToolCall[];
   /**
-   * Pending calls of tools that execute on dispatch (reads, client actions):
-   * re-dispatching would re-run them, and their pending UI state is
-   * unrecoverable — resolve these with
-   * {@link PENDING_TOOL_CALL_NOT_RESTORED_ERROR} so the turn can proceed
-   * instead of spinning forever.
+   * Pending calls that would re-execute if re-dispatched; resolve these with
+   * {@link PENDING_TOOL_CALL_NOT_RESTORED_ERROR} instead.
    */
   staleToolCalls: AgentToolCall[];
 };
 
 /**
- * Partition the seeded tail's unresolved client tool calls by what a freshly
- * created chat can do with them after a page load.
- *
- * Pending tool affordances (inline Accept/Reject cards, elicitation prompts)
- * live in in-memory store state created when the tool call was dispatched
- * during a live stream, so a refresh loses them even though the unresolved
- * call — id, name, and full input — is persisted in the transcript. Calls of
- * tools whose registry definition declares `rehydratable` can be safely
- * re-dispatched to re-stage that state; every other pending call is stale and
- * must be resolved with an error, or it renders as an unresolvable spinner
- * and the server keeps the turn open forever.
- *
- * Only the trailing assistant message is scanned: `addToolOutput` can only
- * resolve calls there, and older pending calls are repaired server-side.
+ * Partition the trailing assistant message's unresolved client tool calls by
+ * what a fresh chat can do with them after a page load: the in-memory state
+ * behind pending approvals is lost on refresh, so calls of `rehydratable`
+ * tools are re-dispatched to re-stage it, and every other pending call must
+ * be resolved with an error or it renders as an unresolvable spinner. Only
+ * the trailing message is scanned — `addToolOutput` can only resolve calls
+ * there, and older pending calls are repaired server-side.
  */
 export function partitionPendingClientToolCalls({
   messages,
@@ -124,9 +97,8 @@ export function partitionPendingClientToolCalls({
       toolCallId: part.toolCallId,
       toolName,
       input: part.input,
-      // Validated structurally by isPendingClientToolCallPart; the SDK's
-      // ProviderMetadata and the registry's phoenix namespace spell the same
-      // wire shape.
+      // The SDK's ProviderMetadata and the registry's phoenix namespace
+      // spell the same wire shape.
       providerMetadata:
         part.callProviderMetadata as AgentToolCall["providerMetadata"],
     };

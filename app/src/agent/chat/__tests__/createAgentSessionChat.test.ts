@@ -34,11 +34,6 @@ afterEach(() => {
 
 describe("createAgentSessionChat rehydration", () => {
   it("resolves a seeded pending call of a non-rehydratable tool with an error without sending a request", async () => {
-    // The stale error must not trigger an automatic continuation: at
-    // chat-creation time the page's surfaces have not advertised their
-    // contexts yet, so an immediate request would misrepresent the user's
-    // view to the server. The error output rides along with the next
-    // user-triggered send instead.
     const fetchMock = vi.fn(() => new Promise<never>(() => undefined));
     vi.stubGlobal("fetch", fetchMock);
     const store = createAgentStore();
@@ -78,9 +73,8 @@ describe("createAgentSessionChat rehydration", () => {
     });
     expect(fetchMock).not.toHaveBeenCalled();
 
-    // The session-sync poll replaces the transcript with the server's copy,
-    // where the stale call is still pending — reverting the local recovery.
-    // The exposed recovery pass re-applies it.
+    // Session sync replacing the transcript with the server's copy (where
+    // the call is still pending) reverts the recovery; re-running re-applies.
     chat.messages = seedMessages;
     getTurnClientState(chat)?.recoverPendingToolCalls();
     expect(

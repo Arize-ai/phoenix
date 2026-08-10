@@ -20,10 +20,6 @@ const NON_REHYDRATABLE_TOOL = "edit_prompt_instance";
 
 const isRehydratableTool = (toolName: string) => toolName === REHYDRATABLE_TOOL;
 
-function createMessage(message: AgentUIMessage): AgentUIMessage {
-  return message;
-}
-
 function pendingClientToolPart({
   toolCallId,
   toolName = REHYDRATABLE_TOOL,
@@ -44,8 +40,8 @@ function pendingClientToolPart({
 
 describe("partitionPendingClientToolCalls", () => {
   it("collects pending client calls of rehydratable tools from the trailing assistant message", () => {
-    const messages = [
-      createMessage({
+    const messages: AgentUIMessage[] = [
+      {
         id: "assistant-1",
         role: "assistant",
         parts: [
@@ -55,7 +51,7 @@ describe("partitionPendingClientToolCalls", () => {
             input: { name: "relevance" },
           }),
         ],
-      }),
+      },
     ];
 
     expect(
@@ -80,8 +76,8 @@ describe("partitionPendingClientToolCalls", () => {
   });
 
   it("partitions pending calls of non-rehydratable tools as stale", () => {
-    const messages = [
-      createMessage({
+    const messages: AgentUIMessage[] = [
+      {
         id: "assistant-1",
         role: "assistant",
         parts: [
@@ -92,7 +88,7 @@ describe("partitionPendingClientToolCalls", () => {
             input: { spec: {} },
           }),
         ],
-      }),
+      },
     ];
 
     const { rehydratableToolCalls, staleToolCalls } =
@@ -111,8 +107,8 @@ describe("partitionPendingClientToolCalls", () => {
   });
 
   it("skips resolved calls so accepted work is neither re-staged nor errored", () => {
-    const messages = [
-      createMessage({
+    const messages: AgentUIMessage[] = [
+      {
         id: "assistant-1",
         role: "assistant",
         parts: [
@@ -134,7 +130,7 @@ describe("partitionPendingClientToolCalls", () => {
           } as AgentUIMessage["parts"][number],
           pendingClientToolPart({ toolCallId: "tool-call-3" }),
         ],
-      }),
+      },
     ];
 
     const { rehydratableToolCalls, staleToolCalls } =
@@ -146,8 +142,8 @@ describe("partitionPendingClientToolCalls", () => {
   });
 
   it("skips server-executed and provider-executed calls entirely", () => {
-    const messages = [
-      createMessage({
+    const messages: AgentUIMessage[] = [
+      {
         id: "assistant-1",
         role: "assistant",
         parts: [
@@ -167,7 +163,7 @@ describe("partitionPendingClientToolCalls", () => {
             callProviderMetadata: CLIENT_EXECUTION_METADATA,
           } as AgentUIMessage["parts"][number],
         ],
-      }),
+      },
     ];
 
     expect(
@@ -176,17 +172,17 @@ describe("partitionPendingClientToolCalls", () => {
   });
 
   it("ignores pending calls on non-trailing messages", () => {
-    const messages = [
-      createMessage({
+    const messages: AgentUIMessage[] = [
+      {
         id: "assistant-1",
         role: "assistant",
         parts: [pendingClientToolPart({ toolCallId: "tool-call-1" })],
-      }),
-      createMessage({
+      },
+      {
         id: "user-1",
         role: "user",
         parts: [{ type: "text", text: "hello" }],
-      }),
+      },
     ];
 
     expect(
@@ -203,8 +199,8 @@ describe("partitionPendingClientToolCalls", () => {
 
 describe("resolveStalePendingToolCallParts", () => {
   it("errors the named pending calls on the trailing assistant message, preserving input and metadata", () => {
-    const messages = [
-      createMessage({
+    const messages: AgentUIMessage[] = [
+      {
         id: "assistant-1",
         role: "assistant",
         parts: [
@@ -215,7 +211,7 @@ describe("resolveStalePendingToolCallParts", () => {
           }),
           pendingClientToolPart({ toolCallId: "tool-call-2" }),
         ],
-      }),
+      },
     ];
 
     const resolved = resolveStalePendingToolCallParts({
@@ -236,12 +232,12 @@ describe("resolveStalePendingToolCallParts", () => {
   });
 
   it("returns the transcript unchanged when there are no stale calls", () => {
-    const messages = [
-      createMessage({
+    const messages: AgentUIMessage[] = [
+      {
         id: "assistant-1",
         role: "assistant",
         parts: [pendingClientToolPart({ toolCallId: "tool-call-1" })],
-      }),
+      },
     ];
 
     expect(
