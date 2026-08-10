@@ -65,12 +65,22 @@ def test_quoted_cte_name_does_not_hide_an_unquoted_base_table_virtual_column() -
     root = admit(root, allowlist=load_allowlist("sqlite"), dialect="postgresql")
     out = render(rewrite(root, _ctx()), dialect="postgresql")
     assert "X.latency_ms" not in out
-    assert "X.start_time" in out and "X.end_time" in out
+    assert "x.start_time" in out and "x.end_time" in out
 
 
 def test_oversized_graphql_node_id_is_not_converted_to_an_integer() -> None:
     value = base64.b64encode(f"Project:{'9' * 5000}".encode()).decode()
     assert _decode_node_id(value, "Project") is None
+
+
+def test_case_folded_cte_shadow_is_not_qualified_as_a_physical_table() -> None:
+    root = parse_sql(
+        "WITH SPANS AS (SELECT 999999 AS id) SELECT id FROM spans", dialect="postgresql"
+    )
+    root = admit(root, allowlist=load_allowlist("sqlite"), dialect="postgresql")
+    out = render(rewrite(root, _ctx()), dialect="postgresql")
+    assert "public.spans" not in out
+    assert "FROM spans" in out
 
 
 def test_count_star_unaffected() -> None:

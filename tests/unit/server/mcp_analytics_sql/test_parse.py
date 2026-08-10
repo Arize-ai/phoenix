@@ -135,6 +135,23 @@ def test_parser_contract() -> None:
         )
 
 
+@pytest.mark.parametrize("dialect", ["sqlite", "postgresql"])
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "WITH X AS (SELECT 1 AS value) SELECT value FROM x",
+        "WITH x AS (SELECT 1 AS value) SELECT value FROM X",
+    ],
+)
+def test_unquoted_cte_references_follow_engine_case_folding(
+    dialect: SupportedSQLDialectName, sql: str
+) -> None:
+    assert (
+        try_parse_and_admit(sql, dialect=dialect, allowlist=minimal_admission_allowlist()).outcome
+        is AdmissionOutcome.ADMIT
+    )
+
+
 class TestDdlColumnsAreQueryable:
     """Every physical DDL column is admitted alongside virtual overlays."""
 
