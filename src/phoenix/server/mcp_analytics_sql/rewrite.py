@@ -431,9 +431,7 @@ def _star_sources(node: exp.Select, scope: Optional[Any]) -> list[tuple[str, str
         if expression is None:
             return
         if isinstance(expression, exp.Table) and expression.name:
-            source = (
-                scope.sources.get(expression.alias_or_name) if scope is not None else expression
-            )
+            source = scope.sources.get(expression.alias_or_name) if scope is not None else None
             if isinstance(source, exp.Table):
                 sources.append((source.name, expression.alias_or_name))
             else:
@@ -458,6 +456,21 @@ def _star_sources(node: exp.Select, scope: Optional[Any]) -> list[tuple[str, str
     return sources
 
 
+def _matches_star_source(
+    explicit: str,
+    identifier: Optional[exp.Expression],
+    source: tuple[str, str],
+    dialect: SupportedSQLDialectName,
+) -> bool:
+    """Whether a qualified star names a physical source under SQL identifier rules."""
+    name, alias = source
+    if dialect == "sqlite":
+        return explicit.casefold() in {name.casefold(), alias.casefold()}
+    if isinstance(identifier, exp.Identifier) and identifier.args.get("quoted"):
+        return explicit in source
+    return explicit.casefold() in {name.casefold(), alias.casefold()}
+
+
 def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     changed = False
     scope_root = build_scope(root)
@@ -480,10 +493,12 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
             # and passes `t.*` through to the engine, which returns every
             # physical column rather than the manifest's.
             explicit = ""
+            explicit_identifier: Optional[exp.Expression] = None
             if isinstance(expression, exp.Star):
                 pass
             elif isinstance(expression, exp.Column) and isinstance(expression.this, exp.Star):
                 explicit = expression.table or ""
+                explicit_identifier = expression.args.get("table")
             else:
                 new_exprs.append(expression)
                 continue
@@ -492,7 +507,9 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                 targets = [
                     (name, alias)
                     for name, alias in _star_sources(node, scope_by_expression.get(id(node)))
-                    if explicit in (name, alias)
+                    if _matches_star_source(
+                        explicit, explicit_identifier, (name, alias), ctx.dialect
+                    )
                 ] or [("", explicit)]
             else:
                 targets = _star_sources(node, scope_by_expression.get(id(node)))

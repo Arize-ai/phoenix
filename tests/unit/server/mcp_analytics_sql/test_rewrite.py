@@ -425,6 +425,27 @@ def test_qualified_star_expands_to_manifest_columns() -> None:
     assert "s.span_id" in out
 
 
+@pytest.mark.parametrize(
+    ("backend", "sql", "expected"),
+    [
+        ("sqlite", "SELECT Spans.* FROM spans", "span_id"),
+        ("sqlite", "SELECT S.* FROM spans AS s", "span_id"),
+        ("postgresql", "SELECT S.* FROM spans AS s", "span_id"),
+    ],
+)
+def test_unquoted_qualified_star_uses_identifier_folding(
+    backend: SupportedSQLDialectName,
+    sql: str,
+    expected: str,
+) -> None:
+    root = parse_sql(sql, dialect=backend)
+    out = render(
+        rewrite(admit(root, allowlist=load_allowlist("sqlite"), dialect=backend), _ctx(backend)),
+        dialect=backend,
+    )
+    assert expected in out
+
+
 def test_schema_qualification_does_not_redirect_a_cte_to_its_base_table() -> None:
     """A CTE named after a table must keep resolving to the CTE.
 

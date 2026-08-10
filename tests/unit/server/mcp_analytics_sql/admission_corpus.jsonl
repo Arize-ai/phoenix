@@ -16,7 +16,7 @@
 {"sql": "SELECT substring(name, 1, 2) FROM spans", "expect": "admit", "note": "allowlisted 2026-08-02: substring only ever shortens its input"}
 {"sql": "SELECT repeat(name, 1000000000) FROM spans", "expect": "function_not_allowed", "note": "repeat can allocate unbounded memory from a small statement"}
 {"sql": "SELECT md5(name) FROM spans", "expect": "function_not_allowed", "note": "hash function with a dedicated node class"}
-{"sql": "WITH users AS (SELECT 1 AS id) SELECT * FROM users", "expect": "admit", "note": "a CTE named after a denied table is a lexical symbol, not that table; over-eager scoping would wrongly refuse this"}
+{"sql": "WITH users AS (SELECT 1 AS id) SELECT id FROM users", "expect": "admit", "note": "a CTE named after a denied table is a lexical symbol, not that table; over-eager scoping would wrongly refuse this"}
 {"sql": "SELECT * FROM users WHERE id IN (WITH users AS (SELECT 1 AS id) SELECT id FROM users)", "expect": "relation_not_allowed", "note": "the inner CTE must not make the outer reference to the real denied table acceptable"}
 {"sql": "WITH x AS (SELECT * FROM users) SELECT * FROM x", "expect": "relation_not_allowed", "note": "a denied table inside a CTE body is still a real relation"}
 {"sql": "SELECT count(*), max(end_time) FROM spans GROUP BY span_kind", "expect": "admit", "note": "allowed aggregates"}

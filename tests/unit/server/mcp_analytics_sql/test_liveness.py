@@ -336,7 +336,7 @@ async def test_a_name_offered_by_both_a_table_and_a_derived_relation_is_refused_
     assert "ambiguous" in caught.value.message.casefold()
 
 
-@pytest.mark.postgresql
+@pytest.mark.postgres_only
 async def test_the_same_collision_is_refused_by_postgresql(
     analytics_postgres_db: DbSessionFactory,
 ) -> None:

@@ -420,9 +420,11 @@ async def resolve_pg_schema(db: DbSessionFactory) -> str:
                 )
         except Exception:
             logger.debug("analytics sql: schema resolution failed", exc_info=True)
-            resolved = None
-    resolved = resolved or "public"
-    _SCHEMA_CACHE[key] = resolved
+            return "public"
+    if resolved:
+        _SCHEMA_CACHE[key] = resolved
+    else:
+        resolved = "public"
     logger.debug("analytics sql: resolved postgres schema to %r", resolved)
     return resolved
 
