@@ -24,6 +24,7 @@ from phoenix.server.mcp_analytics_sql.normalize import (
 )
 from phoenix.server.mcp_analytics_sql.parse import (
     _allowlisted_table_name,
+    _scope_columns,
     _timestamp_literals,
     query_local_columns,
 )
@@ -609,6 +610,35 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     # means the column some derived relation projected under the name, not the
     # duration this pass computes.
     query_local = query_local_columns(root, allowlist=ctx.allowlist, dialect=ctx.dialect)
+    scope_root = build_scope(root)
+    if scope_root is not None:
+        for scope in scope_root.traverse():
+            duration_sources = sum(
+                isinstance(source, exp.Table)
+                and (
+                    table_name := _allowlisted_table_name(
+                        source, allowlist=ctx.allowlist, dialect=ctx.dialect
+                    )
+                )
+                is not None
+                and "latency_ms" in ctx.allowlist.table_specs[table_name].virtual_columns
+                for source in scope.sources.values()
+            )
+            if duration_sources < 2:
+                continue
+            for column in _scope_columns(scope.expression):
+                if (
+                    (column.name or "").casefold() == "latency_ms"
+                    and not column.table
+                    and not query_local.is_local(column)
+                ):
+                    raise AnalyticsSqlError(
+                        code=ErrorCode.UNSUPPORTED_SYNTAX,
+                        message=(
+                            "`latency_ms` is ambiguous across multiple duration tables. "
+                            "Qualify it with a table alias (for example, `t.latency_ms`)."
+                        ),
+                    )
 
     for node in list(root.find_all(exp.Column)):
         if (node.name or "").lower() == "latency_ms" and not query_local.is_local(node):
@@ -823,7 +853,8 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
     # the schema's own "to area root" hint teaches -- while `latency_ms`, listed
     # beside it and described in the same preamble sentence, worked in both. A
     # qualified reference names its table, so a join is only ambiguous for a
-    # bare `graphql_node_id`, which stays untouched as before.
+    # bare `graphql_node_id`, which is refused instead of reaching the database
+    # as a nonexistent physical column.
     by_alias = _graphql_types_in_scope(root)
     fallback = TABLE_GRAPHQL_TYPES.get(_single_table_name(root) or "")
     if not by_alias and fallback is None:
@@ -870,6 +901,14 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
             continue
         type_name = type_for(column)
         if type_name is None:
+            if not column.table:
+                raise AnalyticsSqlError(
+                    code=ErrorCode.UNSUPPORTED_SYNTAX,
+                    message=(
+                        "`graphql_node_id` is ambiguous across multiple GraphQL tables. "
+                        "Qualify it with a table alias (for example, `t.graphql_node_id`)."
+                    ),
+                )
             continue
         written = exp.column("id", table=column.table or None)
         ctx.substituted_columns[written.sql()] = "graphql_node_id"
