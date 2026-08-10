@@ -1,5 +1,5 @@
 from secrets import token_hex
-from typing import Any
+from typing import Any, Optional
 
 import pytest
 from sqlalchemy import func, select
@@ -88,6 +88,16 @@ query($id: ID!) {{
     ... on Project {{
       name
       evaluators {{ edges {{ node {{ {_PROJECT_EVALUATOR_FIELDS} }} }} }}
+    }}
+  }}
+}}
+"""
+
+_FILTERED_PROJECT_EVALUATORS = f"""
+query($id: ID!, $filter: ProjectEvaluatorFilter) {{
+  node(id: $id) {{
+    ... on Project {{
+      evaluators(filter: $filter) {{ edges {{ node {{ {_PROJECT_EVALUATOR_FIELDS} }} }} }}
     }}
   }}
 }}
@@ -526,6 +536,40 @@ async def test_project_llm_evaluator_create_update_delete(
         {"input": {"projectEvaluatorIds": [created["id"]]}},
     )
     assert delete_result.data and not delete_result.errors
+
+
+async def test_project_evaluators_filters_by_name(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    project = await _add_project(db)
+    project_gid = str(GlobalID("Project", str(project.id)))
+    for name in ("hallucination-judge", "toxicity-judge", "relevance"):
+        result = await gql_client.execute(
+            _CREATE_LLM,
+            {"input": _llm_input(project, name=name, text="Evaluate {{input}}")},
+        )
+        assert result.data and not result.errors
+
+    async def _names(filter_value: Optional[str]) -> list[str]:
+        result = await gql_client.execute(
+            _FILTERED_PROJECT_EVALUATORS,
+            {
+                "id": project_gid,
+                "filter": None if filter_value is None else {"col": "name", "value": filter_value},
+            },
+        )
+        assert result.data and not result.errors
+        return [edge["node"]["name"] for edge in result.data["node"]["evaluators"]["edges"]]
+
+    all_names = ["hallucination-judge", "relevance", "toxicity-judge"]
+    assert await _names(None) == all_names
+    # Substring match spanning more than one evaluator, and case insensitive.
+    assert await _names("judge") == ["hallucination-judge", "toxicity-judge"]
+    assert await _names("HALLUC") == ["hallucination-judge"]
+    assert await _names("nothing-matches-this") == []
+    # A blank search is not a filter -- it must not exclude everything.
+    assert await _names("   ") == all_names
 
 
 async def test_update_project_llm_evaluator_preserves_description_and_owner_on_no_op_save(
