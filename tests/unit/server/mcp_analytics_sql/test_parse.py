@@ -1042,6 +1042,19 @@ class TestStructuralPolicyIsDefaultDeny:
         assert "HAVING spans" in result.detail
         assert "HAVING COUNT(*) >= 50" in result.detail
 
+    def test_having_select_alias_explains_the_postgres_rewrite_without_name_collision(
+        self,
+    ) -> None:
+        """The actionable error does not depend on an alias matching a table name."""
+        result = self._admit(
+            "SELECT COUNT(*) AS n FROM spans GROUP BY span_kind HAVING n > 0",
+            "postgresql",
+        )
+
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert "HAVING n" in result.detail
+        assert "HAVING COUNT(*) >= 50" in result.detail
+
     @pytest.mark.parametrize(
         "sql,construct",
         [

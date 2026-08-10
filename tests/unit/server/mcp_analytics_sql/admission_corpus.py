@@ -235,6 +235,44 @@ CASES: tuple[AdmissionCase, ...] = (
         dialect="sqlite",
     ),
     AdmissionCase(
+        sql="SELECT EXTRACT(epoch FROM start_time) AS seconds FROM spans",
+        expect=AdmissionOutcome.FUNCTION_NOT_ALLOWED,
+        note="SQLGlot parses EXTRACT for SQLite, but its FROM grammar is PostgreSQL-only",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT EXTRACT(epoch FROM start_time) AS seconds FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="PostgreSQL supports the standard EXTRACT(field FROM value) grammar",
+    ),
+    AdmissionCase(
+        sql="SELECT name ILIKE '%root%' FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="PostgreSQL supports case-insensitive LIKE predicates",
+    ),
+    AdmissionCase(
+        sql="SELECT name NOT ILIKE '%root%' FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="PostgreSQL supports negated case-insensitive LIKE predicates",
+    ),
+    AdmissionCase(
+        sql="SELECT name ILIKE '%root%' FROM spans",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="SQLite has no ILIKE grammar, so admit neither spelling of its case-insensitive match",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT name SIMILAR TO '%root%' FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="PostgreSQL supports SQL-standard pattern predicates",
+    ),
+    AdmissionCase(
+        sql="SELECT name SIMILAR TO '%root%' FROM spans",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="SQLite has no SIMILAR TO grammar",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
         sql="SELECT strftime('%Y-%m-%d %H', start_time) AS bucket FROM spans GROUP BY bucket",
         expect=AdmissionOutcome.ADMIT,
         note="strftime is SQLite's hour bucketing and parses to TimeToStr, a class name the caller never writes",

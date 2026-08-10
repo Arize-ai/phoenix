@@ -504,6 +504,22 @@ async def test_amplifying_neighbours_stay_denied(
     assert exc.value.code is ErrorCode.FUNCTION_NOT_ALLOWED
 
 
+async def test_sqlite_refuses_postgres_extract_syntax_before_execution(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+) -> None:
+    """SQLGlot parses EXTRACT for SQLite even though SQLite cannot execute it."""
+    from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
+
+    db, db_path = analytics_sqlite_db
+    with pytest.raises(AnalyticsSqlError) as exc:
+        await execute_analytics_sql(
+            db,
+            ExecuteParams(sql="SELECT EXTRACT(epoch FROM start_time) FROM spans"),
+            sqlite_db_path=db_path,
+        )
+    assert exc.value.code is ErrorCode.FUNCTION_NOT_ALLOWED
+
+
 @pytest.mark.parametrize(
     ("row_limit", "expect_rows", "expect_partial"),
     [(4, 4, True), (5, 5, False), (6, 5, False)],

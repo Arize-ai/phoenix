@@ -30,7 +30,6 @@ ALLOWED_FUNC_CLASSES: frozenset[type[exp.Func]] = frozenset(
         exp.Coalesce,
         exp.Nullif,
         exp.Round,
-        exp.Extract,
         exp.RowNumber,
         exp.Rank,
         exp.DenseRank,
@@ -104,6 +103,12 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
     "postgresql": ALLOWED_FUNC_CLASSES
     | frozenset(
         {
+            # SQLite's date functions accept a string modifier instead of the
+            # SQL-standard EXTRACT(field FROM value) grammar. SQLGlot parses
+            # that grammar for SQLite, but SQLite cannot execute it, so keep
+            # the common class PostgreSQL-only rather than deferring failure
+            # until after opening the analytics connection.
+            exp.Extract,
             # Ordered-set aggregates. SQLite reaches percentiles through a plain
             # call, percentile(x, 90), rather than WITHIN GROUP, so this class is
             # Postgres only.
