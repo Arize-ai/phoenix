@@ -183,14 +183,14 @@ export function ColumnSelectorMenu({
   const trimmedQuery = searchQuery.trim();
   const isFiltering = trimmedQuery.length > 0;
   const filteredColumns = useMemo(() => {
-    if (!isFiltering) {
+    if (!trimmedQuery) {
       return orderedColumns;
     }
     const query = trimmedQuery.toLowerCase();
     return orderedColumns.filter((column) =>
       column.label.toLowerCase().includes(query)
     );
-  }, [orderedColumns, isFiltering, trimmedQuery]);
+  }, [orderedColumns, trimmedQuery]);
 
   // Reordering a filtered list is ambiguous, so it is only enabled when the
   // full list is shown
