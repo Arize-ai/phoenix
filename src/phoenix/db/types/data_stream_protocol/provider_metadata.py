@@ -35,6 +35,13 @@ class PhoenixToolCallCallbackProviderMetadata(PhoenixToolCallProviderMetadata):
     client_ended_at: str | None = None
     """RFC3339 browser timestamp taken when client tool execution ended."""
 
+    outcome: Literal["interrupted"] | None = None
+    """The call was closed out by a lifecycle cleanup (user stop, surface
+    teardown, server-side repair) rather than by execution producing a real
+    result. Phoenix-owned mirror of the ``pydantic_ai`` namespace's
+    ``outcome``, which is upstream's private round-trip channel and not a
+    client contract."""
+
 
 PydanticAIToolPartKind = Literal["tool-search", "capability-load"]
 """Local pin of pydantic-ai's ``ToolPartKind``."""

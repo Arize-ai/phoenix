@@ -1,7 +1,4 @@
-import {
-  shouldKeepTurnOpenForPendingToolOutput,
-  shouldSendAutomaticallyAfterToolOutput,
-} from "./shouldSendAutomatically";
+import { shouldKeepTurnOpenForPendingToolOutput } from "./shouldSendAutomatically";
 import type { AgentUIMessage } from "./types";
 
 export type TurnFinish = {
@@ -25,16 +22,18 @@ export type TurnFinish = {
 export function createTurnCompletionGate({
   endTurn,
   finalize,
-  getShouldSendAutomatically = (messages) =>
-    shouldSendAutomaticallyAfterToolOutput({ messages }),
+  getShouldSendAutomatically,
   getShouldKeepTurnOpen = shouldKeepTurnOpenForPendingToolOutput,
 }: {
   /** Clears client state for the completed logical turn. Must not reject. */
   endTurn: (error?: unknown) => Promise<void>;
   /** Persists the finished turn (store mirror, usage, summary). */
   finalize: (finish: TurnFinish) => void;
-  /** Overridable for tests. Defaults to the shared send-decision helper. */
-  getShouldSendAutomatically?: (messages: AgentUIMessage[]) => boolean;
+  /**
+   * The shared send-decision helper, closed over the caller's interrupted
+   * tool-call marks.
+   */
+  getShouldSendAutomatically: (messages: AgentUIMessage[]) => boolean;
   /** Overridable for tests. Defaults to the shared keep-open helper. */
   getShouldKeepTurnOpen?: (options: {
     messages: AgentUIMessage[];

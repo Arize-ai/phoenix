@@ -1,14 +1,13 @@
-import type { Chat } from "@ai-sdk/react";
-import type { UIMessage } from "ai";
 import { z } from "zod";
 
+import type { AddToolOutput } from "@phoenix/agent/extensions/registry/defineTool";
 import { emptyToolInputSchema } from "@phoenix/agent/tools/emptyToolInput";
 import {
   chatMessageRolesSchema,
   chatMessageSchema,
 } from "@phoenix/pages/playground/schemas";
 
-export type PromptEditToolOutputSender = Chat<UIMessage>["addToolOutput"];
+export type PromptEditToolOutputSender = AddToolOutput;
 
 const promptToolCallsSchema = chatMessageSchema.shape.toolCalls.unwrap();
 

@@ -1643,6 +1643,8 @@ async def test_user_turn_persists_interrupted_repair_for_dangling_client_tool(
     assert phoenix_metadata["toolExecutionEnvironment"] == "client"
     # pydantic-ai reads the outcome back from its metadata namespace on load.
     assert repaired_part["callProviderMetadata"]["pydantic_ai"]["outcome"] == "interrupted"
+    # The phoenix namespace mirrors the outcome as the client-facing contract.
+    assert phoenix_metadata["outcome"] == "interrupted"
 
 
 async def test_user_turn_applies_submitted_tool_output_error_resolutions(
@@ -1680,6 +1682,7 @@ async def test_user_turn_applies_submitted_tool_output_error_resolutions(
                         "phoenix": {
                             "toolExecutionEnvironment": "client",
                             "toolInputEmittedAt": "2026-08-05T20:35:35+00:00",
+                            "outcome": "interrupted",
                         }
                     },
                 }
@@ -1692,6 +1695,8 @@ async def test_user_turn_applies_submitted_tool_output_error_resolutions(
     resolved_part = await _load_pending_tool_part(db)
     assert resolved_part["state"] == "output-error"
     assert resolved_part["errorText"] == "The user has interrupted this tool call."
+    # The client-stamped interrupted outcome survives persistence verbatim.
+    assert resolved_part["callProviderMetadata"]["phoenix"]["outcome"] == "interrupted"
 
 
 def test_turn_trace_context_is_clamped_and_used_for_metadata() -> None:
@@ -2431,6 +2436,9 @@ def test_merge_appends_user_message_and_repairs_unresolved_tool_calls() -> None:
     assert "interrupted" in parts["tool-call-unresolved"].output
     interrupted_metadata = parts["tool-call-unresolved"].call_provider_metadata
     assert interrupted_metadata["pydantic_ai"]["outcome"] == "interrupted"
+    # The phoenix namespace is only stamped when it already exists on the part:
+    # its required toolExecutionEnvironment field can't be synthesized here.
+    assert "phoenix" not in interrupted_metadata
     assert parts["tool-call-streaming"].state == "output-available"
     # The genuinely completed call is left untouched — no interrupted outcome.
     assert parts["tool-call-done"].state == "output-available"

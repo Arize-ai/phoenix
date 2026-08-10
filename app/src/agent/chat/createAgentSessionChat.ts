@@ -12,6 +12,7 @@ import {
   partitionPendingClientToolCalls,
   resolveStalePendingToolCallParts,
 } from "@phoenix/agent/chat/rehydratePendingToolCalls";
+import { shouldSendAutomaticallyAfterToolOutput } from "@phoenix/agent/chat/shouldSendAutomatically";
 import { flushToolOutputs } from "@phoenix/agent/chat/toolOutputFlush";
 import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
@@ -107,6 +108,11 @@ export function createAgentSessionChat({
   let lastAssertedModelSelection: AgentModelSelection | null = null;
   const transcriptPersistence = createTranscriptPersistenceCoordinator();
   const turnCompletionGate = createTurnCompletionGate({
+    getShouldSendAutomatically: (messages) =>
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        interruptedToolCallIds: store.getState().interruptedToolCallIds,
+      }),
     endTurn: async () => {
       store.getState().setSessionResponsePending(sessionId, false);
       toolTimings.clear();
@@ -150,8 +156,14 @@ export function createAgentSessionChat({
     void handleAgentToolCall({
       toolCall,
       sessionId,
-      addToolOutput: async (toolOutput) => {
+      addToolOutput: async ({ outcome, ...toolOutput }) => {
         toolTimings.recordEnd(toolCall.toolCallId);
+        // Record the lifecycle outcome before the output lands: adding the
+        // output fires `sendAutomaticallyWhen`, whose suppression predicate
+        // reads the mark.
+        if (outcome === "interrupted") {
+          store.getState().markToolCallInterrupted(toolCall.toolCallId);
+        }
         await chat.addToolOutput(toolOutput);
       },
       appendMessagePart: (part) => {
@@ -193,6 +205,7 @@ export function createAgentSessionChat({
             contexts: selectActiveContexts(store.getState()),
             modelSelection,
             toolTimings,
+            interruptedToolCallIds: store.getState().interruptedToolCallIds,
           }),
         };
       },
@@ -222,6 +235,7 @@ export function createAgentSessionChat({
             flushUrl: toolOutputsApiUrl,
             fetch: authFetch,
             toolTimings,
+            interruptedToolCallIds: store.getState().interruptedToolCallIds,
           });
         }
         return false;

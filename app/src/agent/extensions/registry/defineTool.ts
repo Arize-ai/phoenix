@@ -9,7 +9,24 @@ import type { AgentStore } from "@phoenix/store/agentStore";
 
 import type { AgentCapabilities, AgentCapabilityKey } from "../capabilities";
 
-export type AddToolOutput = Chat<AgentUIMessage>["addToolOutput"];
+/**
+ * `Chat.addToolOutput` arguments plus Phoenix's lifecycle-outcome channel.
+ * `outcome: "interrupted"` marks a resolution written by a lifecycle cleanup
+ * (e.g. the hosting surface tore down a pending approval) rather than by
+ * execution producing a real result; the chat runtime records it so the
+ * auto-continuation predicates and the persisted transcript can identify the
+ * call as interrupted. The AI SDK's own `addToolOutput` has no metadata
+ * channel, so the field is stripped before the output is forwarded to it.
+ */
+export type AgentToolOutput = Parameters<
+  Chat<AgentUIMessage>["addToolOutput"]
+>[0] & {
+  outcome?: "interrupted";
+};
+
+export type AddToolOutput = (
+  toolOutput: AgentToolOutput
+) => void | PromiseLike<void>;
 export type AppendMessagePart = (part: AgentUIMessagePart) => void;
 
 type PhoenixToolCallProviderMetadata =

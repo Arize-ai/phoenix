@@ -4,18 +4,10 @@ import {
   getFlushableClientToolOutputs,
   shouldKeepTurnOpenForPendingToolOutput,
   shouldSendAutomaticallyAfterToolOutput,
-  USER_INTERRUPT_ERROR,
 } from "@phoenix/agent/chat/shouldSendAutomatically";
 import {
-  EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
-  EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-} from "@phoenix/agent/tools/codeEvaluatorDraft";
-import {
-  EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
   EDIT_PROMPT_TOOL_NAME,
   READ_PROMPT_TOOL_NAME,
-  REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR,
-  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 
 function createMessage(message: UIMessage): UIMessage {
@@ -40,7 +32,12 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
       }),
     ];
 
-    expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(true);
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        interruptedToolCallIds: {},
+      })
+    ).toBe(true);
   });
 
   it("continues after ordinary tool errors", () => {
@@ -60,10 +57,15 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
       }),
     ];
 
-    expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(true);
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        interruptedToolCallIds: {},
+      })
+    ).toBe(true);
   });
 
-  it("does not continue after user-interrupted tool errors", () => {
+  it("does not continue after tool calls marked interrupted by this client", () => {
     const messages = [
       createMessage({
         id: "assistant-1",
@@ -74,16 +76,21 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
             toolCallId: "tool-call-1",
             state: "output-error",
             input: {},
-            errorText: USER_INTERRUPT_ERROR,
+            errorText: "The user has interrupted this tool call.",
           },
         ],
       }),
     ];
 
-    expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(false);
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        interruptedToolCallIds: { "tool-call-1": true },
+      })
+    ).toBe(false);
   });
 
-  it("does not continue after navigation-cancelled edit_prompt_instance", () => {
+  it("does not continue after tool parts persisted with an interrupted outcome", () => {
     const messages = [
       createMessage({
         id: "assistant-1",
@@ -92,55 +99,52 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
           {
             type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
             toolCallId: "tool-call-1",
-            state: "output-error",
+            state: "output-available",
             input: {},
-            errorText: EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
+            output:
+              "The tool call was interrupted before a result was produced.",
+            callProviderMetadata: {
+              phoenix: {
+                toolExecutionEnvironment: "client",
+                outcome: "interrupted",
+              },
+            },
           },
         ],
       }),
     ];
 
-    expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(false);
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        interruptedToolCallIds: {},
+      })
+    ).toBe(false);
   });
 
-  it("does not continue after navigation-cancelled remove_prompt_instance", () => {
+  it("ignores marks for tool calls that are not on the trailing message", () => {
     const messages = [
       createMessage({
         id: "assistant-1",
         role: "assistant",
         parts: [
           {
-            type: `tool-${REMOVE_PROMPT_INSTANCE_TOOL_NAME}`,
-            toolCallId: "tool-call-1",
-            state: "output-error",
+            type: `tool-${READ_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-2",
+            state: "output-available",
             input: {},
-            errorText: REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR,
+            output: "done",
           },
         ],
       }),
     ];
 
-    expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(false);
-  });
-
-  it("does not continue after navigation-cancelled edit_code_evaluator_draft", () => {
-    const messages = [
-      createMessage({
-        id: "assistant-1",
-        role: "assistant",
-        parts: [
-          {
-            type: `tool-${EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME}`,
-            toolCallId: "tool-call-1",
-            state: "output-error",
-            input: {},
-            errorText: EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
-          },
-        ],
-      }),
-    ];
-
-    expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(false);
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        interruptedToolCallIds: { "tool-call-from-older-turn": true },
+      })
+    ).toBe(true);
   });
 });
 
@@ -179,6 +183,7 @@ describe("getFlushableClientToolOutputs", () => {
   it("returns resolved client outputs while sibling calls stay pending", () => {
     const outputs = getFlushableClientToolOutputs({
       message: partiallyResolvedAssistantMessage(),
+      interruptedToolCallIds: {},
     });
 
     expect(outputs.map((output) => output.toolCallId)).toEqual([
@@ -203,33 +208,27 @@ describe("getFlushableClientToolOutputs", () => {
     });
 
     // The normal chat continuation carries the outputs instead.
-    expect(getFlushableClientToolOutputs({ message })).toEqual([]);
+    expect(
+      getFlushableClientToolOutputs({ message, interruptedToolCallIds: {} })
+    ).toEqual([]);
   });
 
-  it("returns nothing when the tail holds a user-interrupted output", () => {
+  it("returns nothing when the tail holds an interrupted output", () => {
     const message = partiallyResolvedAssistantMessage();
     message.parts.push({
       type: `tool-${READ_PROMPT_TOOL_NAME}`,
       toolCallId: "tool-call-interrupted",
       state: "output-error",
       input: {},
-      errorText: USER_INTERRUPT_ERROR,
+      errorText: "The user has interrupted this tool call.",
     });
 
-    expect(getFlushableClientToolOutputs({ message })).toEqual([]);
-  });
-
-  it("returns nothing when the tail holds a navigation-cancelled output", () => {
-    const message = partiallyResolvedAssistantMessage();
-    message.parts.push({
-      type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
-      toolCallId: "tool-call-cancelled",
-      state: "output-error",
-      input: {},
-      errorText: EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
-    });
-
-    expect(getFlushableClientToolOutputs({ message })).toEqual([]);
+    expect(
+      getFlushableClientToolOutputs({
+        message,
+        interruptedToolCallIds: { "tool-call-interrupted": true },
+      })
+    ).toEqual([]);
   });
 
   it("ignores resolved outputs that are not client-executed", () => {
@@ -254,7 +253,9 @@ describe("getFlushableClientToolOutputs", () => {
       ],
     });
 
-    expect(getFlushableClientToolOutputs({ message })).toEqual([]);
+    expect(
+      getFlushableClientToolOutputs({ message, interruptedToolCallIds: {} })
+    ).toEqual([]);
   });
 
   it("returns nothing when the message is not an assistant message", () => {
@@ -264,7 +265,9 @@ describe("getFlushableClientToolOutputs", () => {
       parts: [{ type: "text", text: "hello" }],
     });
 
-    expect(getFlushableClientToolOutputs({ message })).toEqual([]);
+    expect(
+      getFlushableClientToolOutputs({ message, interruptedToolCallIds: {} })
+    ).toEqual([]);
   });
 });
 

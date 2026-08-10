@@ -1,12 +1,10 @@
-import type { Chat } from "@ai-sdk/react";
-import type { UIMessage } from "ai";
 import { z } from "zod";
 
+import type { AddToolOutput } from "@phoenix/agent/extensions/registry/defineTool";
 import { ANNOTATOR_KINDS } from "@phoenix/constants";
 import { isGlobalIdOfType } from "@phoenix/utils/globalIdUtils";
 
-export type BatchSpanAnnotateToolOutputSender =
-  Chat<UIMessage>["addToolOutput"];
+export type BatchSpanAnnotateToolOutputSender = AddToolOutput;
 
 const OTEL_SPAN_ID_PATTERN = /^[0-9a-f]{16}$/i;
 

@@ -14,6 +14,7 @@ import {
 import { isResolvedClientToolOutputPart } from "./chatUtils";
 import type { ClientToolTimingRecorder } from "./clientToolTimings";
 import { toServerSafeUIMessages } from "./serverSafeMessages";
+import type { InterruptedToolCallIds } from "./shouldSendAutomatically";
 import type { AgentUIMessage } from "./types";
 
 export type AgentModelSelection =
@@ -44,6 +45,11 @@ type BuildAgentChatRequestBodyOptions = {
   modelSelection: AgentModelSelection;
   /** Browser execution timings added to completed client-tool parts. */
   toolTimings?: ClientToolTimingRecorder | null;
+  /**
+   * Tool calls this client resolved as interrupted; their outgoing parts are
+   * stamped with `phoenix.outcome = "interrupted"`.
+   */
+  interruptedToolCallIds?: InterruptedToolCallIds;
 };
 
 type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequestBody"];
@@ -133,6 +139,7 @@ export function buildAgentChatRequestBody({
   contexts,
   modelSelection,
   toolTimings = null,
+  interruptedToolCallIds = {},
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   const traceRecording = getEffectiveTraceRecordingSettings({
     agentsConfig,
@@ -162,9 +169,10 @@ export function buildAgentChatRequestBody({
   if (trailingMessage.role === "assistant") {
     // Client-tool continuation: the server owns the assistant message, so
     // only the resolved client tool outputs are sent, not the message itself.
-    const [enrichedAssistant] = enrichMessagesWithClientToolTimings({
+    const [enrichedAssistant] = enrichMessagesWithClientToolMetadata({
       messages: [trailingMessage],
       toolTimings,
+      interruptedToolCallIds,
     });
     const toolOutputs = getClientToolOutputs(
       enrichedAssistant ?? trailingMessage
@@ -182,9 +190,10 @@ export function buildAgentChatRequestBody({
     };
   }
   const [message] = toServerSafeUIMessages(
-    enrichMessagesWithClientToolTimings({
+    enrichMessagesWithClientToolMetadata({
       messages: [trailingMessage],
       toolTimings,
+      interruptedToolCallIds,
     })
   );
   if (!message) {
@@ -199,9 +208,10 @@ export function buildAgentChatRequestBody({
   const toolOutputs =
     precedingMessage?.role === "assistant"
       ? getClientToolOutputs(
-          enrichMessagesWithClientToolTimings({
+          enrichMessagesWithClientToolMetadata({
             messages: [precedingMessage],
             toolTimings,
+            interruptedToolCallIds,
           })[0] ?? precedingMessage
         )
       : [];
@@ -234,17 +244,20 @@ function getLastPersistedMessageId(
     : messages.at(-2)?.id;
 }
 
-/** Return a copy of resolved tool parts annotated with complete client timings. */
-export function enrichMessagesWithClientToolTimings({
+/**
+ * Return a copy of resolved tool parts annotated with the client-recorded
+ * facts of their resolution: complete execution timings, and the interrupted
+ * outcome for calls a lifecycle cleanup closed out instead of a real result.
+ */
+export function enrichMessagesWithClientToolMetadata({
   messages,
   toolTimings,
+  interruptedToolCallIds = {},
 }: {
   messages: AgentUIMessage[];
   toolTimings: ClientToolTimingRecorder | null;
+  interruptedToolCallIds?: InterruptedToolCallIds;
 }): AgentUIMessage[] {
-  if (toolTimings == null) {
-    return messages;
-  }
   return messages.map((message) => {
     let hasChangedPart = false;
     const parts = message.parts.map((part) => {
@@ -254,15 +267,19 @@ export function enrichMessagesWithClientToolTimings({
       if (!isResolvedToolPart) {
         return part;
       }
-      const timing = toolTimings.get(part.toolCallId);
-      if (timing == null) {
+      const timing = toolTimings?.get(part.toolCallId) ?? null;
+      const isInterrupted = interruptedToolCallIds[part.toolCallId] === true;
+      if (timing == null && !isInterrupted) {
         return part;
       }
       hasChangedPart = true;
-      const timingMetadata: ClientToolTimingMetadata = {
-        clientStartedAt: timing.startedAt,
-        clientEndedAt: timing.endedAt,
-      };
+      const timingMetadata: ClientToolTimingMetadata | null =
+        timing == null
+          ? null
+          : {
+              clientStartedAt: timing.startedAt,
+              clientEndedAt: timing.endedAt,
+            };
       return {
         ...part,
         callProviderMetadata: {
@@ -270,6 +287,7 @@ export function enrichMessagesWithClientToolTimings({
           phoenix: {
             ...part.callProviderMetadata?.phoenix,
             ...timingMetadata,
+            ...(isInterrupted ? { outcome: "interrupted" as const } : null),
           },
         },
       };

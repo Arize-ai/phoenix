@@ -1,7 +1,6 @@
-import type { Chat } from "@ai-sdk/react";
-import type { UIMessage } from "ai";
 import { z } from "zod";
 
+import type { AddToolOutput } from "@phoenix/agent/extensions/registry/defineTool";
 import { emptyToolInputSchema } from "@phoenix/agent/tools/emptyToolInput";
 import { normalizeAliases } from "@phoenix/agent/tools/playgroundPrompt";
 import {
@@ -11,8 +10,7 @@ import {
 
 import type { OutputConfigDraft } from "./types";
 
-export type CodeEvaluatorEditToolOutputSender =
-  Chat<UIMessage>["addToolOutput"];
+export type CodeEvaluatorEditToolOutputSender = AddToolOutput;
 
 // The Python tool schema (agents/tools/*) is the model-facing source of truth
 // for these enums; this TS layer only validates what the client dispatches.

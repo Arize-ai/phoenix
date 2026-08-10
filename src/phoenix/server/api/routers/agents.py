@@ -1616,6 +1616,19 @@ def _metadata_with_interrupted_outcome(
     )
     metadata.outcome = "interrupted"
     result[_PYDANTIC_AI_PROVIDER_METADATA_KEY] = metadata.model_dump(exclude_none=True)
+    # Mirror the outcome into the phoenix namespace, the client-facing contract
+    # for identifying interrupted calls. Skipped when the namespace is absent:
+    # its toolExecutionEnvironment field is required, so an outcome-only
+    # payload would not validate.
+    phoenix_payload = result.get(_PHOENIX_PROVIDER_METADATA_KEY)
+    if phoenix_payload is not None:
+        phoenix_metadata = _PhoenixToolCallCallbackProviderMetadataAdapter.validate_python(
+            phoenix_payload
+        )
+        phoenix_metadata.outcome = "interrupted"
+        result[_PHOENIX_PROVIDER_METADATA_KEY] = phoenix_metadata.model_dump(
+            by_alias=True, exclude_none=True
+        )
     return result
 
 

@@ -21013,6 +21013,19 @@
             ],
             "default": null,
             "title": "Clientendedat"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "const": "interrupted",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Outcome"
           }
         },
         "required": [

@@ -90,6 +90,7 @@ export function bindPendingPromptToolWriteActions({
         tool: WRITE_PROMPT_TOOLS_TOOL_NAME,
         toolCallId: pendingWrite.toolCallId,
         errorText: WRITE_PROMPT_TOOLS_NAVIGATION_CANCEL_ERROR,
+        outcome: "interrupted",
       });
     },
   };

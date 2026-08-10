@@ -1,10 +1,9 @@
-import type { Chat } from "@ai-sdk/react";
-import type { UIMessage } from "ai";
 import { z } from "zod";
 
+import type { AddToolOutput } from "@phoenix/agent/extensions/registry/defineTool";
 import { isGlobalIdOfType } from "@phoenix/utils/globalIdUtils";
 
-export type PatchExperimentToolOutputSender = Chat<UIMessage>["addToolOutput"];
+export type PatchExperimentToolOutputSender = AddToolOutput;
 
 const experimentIdSchema = z
   .string()

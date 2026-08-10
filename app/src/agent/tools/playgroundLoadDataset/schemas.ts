@@ -1,10 +1,9 @@
-import type { Chat } from "@ai-sdk/react";
-import type { UIMessage } from "ai";
 import { z } from "zod";
 
+import type { AddToolOutput } from "@phoenix/agent/extensions/registry/defineTool";
 import { normalizeAliases } from "@phoenix/agent/tools/playgroundPrompt";
 
-export type LoadDatasetToolOutputSender = Chat<UIMessage>["addToolOutput"];
+export type LoadDatasetToolOutputSender = AddToolOutput;
 
 // Must agree with the server-owned PARAMETERS: datasetName required, splitName optional.
 export const loadDatasetInputSchema = z

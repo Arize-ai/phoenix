@@ -60,6 +60,7 @@ export function bindPendingCodeEvaluatorEditActions({
         tool: EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
         toolCallId: pendingEdit.toolCallId,
         errorText: EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
+        outcome: "interrupted",
       });
     },
   };

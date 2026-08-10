@@ -1,8 +1,11 @@
 import type { components } from "@phoenix/api/__generated__/v1";
 
-import { enrichMessagesWithClientToolTimings } from "./buildAgentChatRequestBody";
+import { enrichMessagesWithClientToolMetadata } from "./buildAgentChatRequestBody";
 import type { ClientToolTimingRecorder } from "./clientToolTimings";
-import { getFlushableClientToolOutputs } from "./shouldSendAutomatically";
+import {
+  getFlushableClientToolOutputs,
+  type InterruptedToolCallIds,
+} from "./shouldSendAutomatically";
 import type { AgentUIMessage } from "./types";
 
 type SubmitToolOutputsRequestBody =
@@ -17,6 +20,7 @@ export function flushToolOutputs({
   flushUrl,
   fetch: fetchFn,
   toolTimings = null,
+  interruptedToolCallIds = {},
 }: {
   /** The transcript's trailing assistant message. */
   message: AgentUIMessage;
@@ -26,13 +30,17 @@ export function flushToolOutputs({
   fetch: typeof fetch;
   /** Browser execution timings added to the flushed tool parts. */
   toolTimings?: ClientToolTimingRecorder | null;
+  /** Tool calls this client resolved as interrupted; suppresses the flush. */
+  interruptedToolCallIds?: InterruptedToolCallIds;
 }): void {
-  const [enrichedMessage] = enrichMessagesWithClientToolTimings({
+  const [enrichedMessage] = enrichMessagesWithClientToolMetadata({
     messages: [message],
     toolTimings,
+    interruptedToolCallIds,
   });
   const toolOutputs = getFlushableClientToolOutputs({
     message: enrichedMessage ?? message,
+    interruptedToolCallIds,
   });
   if (toolOutputs.length === 0) {
     return;
