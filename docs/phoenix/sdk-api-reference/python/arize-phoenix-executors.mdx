@@ -1,0 +1,28 @@
+---
+title: "arize-phoenix-executors"
+description: "Shared internals for the Phoenix Python packages — not a public API"
+---
+
+[![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-executors)](https://pypi.org/project/arize-phoenix-executors/)
+
+`arize-phoenix-executors` holds one copy of the rate limiter and the task executors that
+`arize-phoenix-client` and `arize-phoenix-evals` both use. It exists so those packages share a
+single implementation — and a single set of exception *class objects*, since the executors decide
+how to handle a failure with `isinstance` checks that only work when both sides agree on identity.
+
+<Warning>
+This package is an implementation detail. It carries no API stability promise, and anything in it
+may change or be removed in any release. You do not need to install it directly — it arrives as a
+dependency of the packages below, and it has no documented API of its own.
+</Warning>
+
+## What to use instead
+
+<CardGroup cols={2}>
+  <Card title="arize-phoenix-client" href="/docs/phoenix/sdk-api-reference/python/arize-phoenix-client">
+    Lightweight client for the Phoenix server's REST interface
+  </Card>
+  <Card title="arize-phoenix-evals" href="/docs/phoenix/sdk-api-reference/python/arize-phoenix-evals">
+    Tooling to evaluate LLM applications
+  </Card>
+</CardGroup>

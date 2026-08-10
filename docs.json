@@ -931,7 +931,8 @@
               "docs/phoenix/sdk-api-reference",
               "docs/phoenix/sdk-api-reference/python/arize-phoenix-client",
               "docs/phoenix/sdk-api-reference/python/arize-phoenix-evals",
-              "docs/phoenix/sdk-api-reference/python/arize-phoenix-otel"
+              "docs/phoenix/sdk-api-reference/python/arize-phoenix-otel",
+              "docs/phoenix/sdk-api-reference/python/arize-phoenix-executors"
             ]
           },
           {
