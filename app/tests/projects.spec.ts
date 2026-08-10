@@ -209,7 +209,10 @@ test.describe.serial("Projects", () => {
 
     // The slideover is a route of its own, so it is linkable and closable with
     // the browser's back button.
-    await expect(page).toHaveURL(/\/projects\/.+\/evaluators\/new\/llm$/);
+    // `(\?|$)` throughout: the project pages always carry a time-range param.
+    await expect(page).toHaveURL(
+      /\/projects\/[^/]+\/evaluators\/new\/llm(\?|$)/
+    );
     const createDialog = page.getByRole("dialog", {
       name: "Create new LLM evaluator",
     });
@@ -219,7 +222,7 @@ test.describe.serial("Projects", () => {
     ).toBeVisible();
     await page.goBack();
     await expect(createDialog).not.toBeVisible();
-    await expect(page).toHaveURL(/\/projects\/.+\/evaluators$/);
+    await expect(page).toHaveURL(/\/projects\/[^/]+\/evaluators(\?|$)/);
     await page.goForward();
     await expect(createDialog).toBeVisible();
     // The annotation output has a "Name" field too; the evaluator's own name is
@@ -248,7 +251,9 @@ test.describe.serial("Projects", () => {
       .getByRole("button", { name: "Evaluator actions" })
       .click();
     await page.getByRole("menuitem", { name: "Edit" }).click();
-    await expect(page).toHaveURL(/\/projects\/.+\/evaluators\/.+\/edit$/);
+    await expect(page).toHaveURL(
+      /\/projects\/[^/]+\/evaluators\/[^/]+\/edit(\?|$)/
+    );
     const editDialog = page.getByRole("dialog", {
       name: `Edit LLM evaluator “${evaluatorName}”`,
     });
