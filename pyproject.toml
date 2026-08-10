@@ -193,7 +193,7 @@ daytona = [
   "daytona-sdk>=0.140.0",
 ]
 vercel = [
-  "vercel>=0.5.8",  # 0.5.8 exposes `network_policy` on AsyncSandbox.create
+  "vercel>=0.5.8,<0.8",  # 0.5.8 exposes `network_policy` on AsyncSandbox.create; 0.8 requires a sandbox API migration.
   "websockets>=14.0",
 ]
 modal = [
@@ -238,7 +238,7 @@ container = [
   "wasmtime>=15.0",
   "e2b-code-interpreter>=0.0.12",
   "daytona-sdk>=0.140.0",
-  "vercel>=0.5.8",
+  "vercel>=0.5.8,<0.8",
   "websockets>=14.0",
   "modal>=1.2.0",
 ]
