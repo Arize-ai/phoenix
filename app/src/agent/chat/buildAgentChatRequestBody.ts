@@ -10,8 +10,8 @@ import {
   type AgentPermissions,
   type AgentServerConfig,
 } from "@phoenix/store/agentStore";
-import { isRecord } from "@phoenix/utils/typeUtils";
 
+import { isResolvedClientToolOutputPart } from "./chatUtils";
 import type { ClientToolTimingRecorder } from "./clientToolTimings";
 import { toServerSafeUIMessages } from "./serverSafeMessages";
 import type { AgentUIMessage } from "./types";
@@ -73,25 +73,9 @@ type ChatToolOutput = NonNullable<
  * tool calls it has already resolved, so resending is idempotent.
  */
 function getClientToolOutputs(message: AgentUIMessage): ChatToolOutput[] {
-  const resolvedClientToolParts = message.parts.filter((part): boolean => {
-    if (!isToolUIPart(part)) {
-      return false;
-    }
-    if (part.state !== "output-available" && part.state !== "output-error") {
-      return false;
-    }
-    if (part.providerExecuted) {
-      return false;
-    }
-    const callProviderMetadata: unknown = part.callProviderMetadata;
-    const phoenixMetadata: unknown = isRecord(callProviderMetadata)
-      ? callProviderMetadata.phoenix
-      : null;
-    return (
-      isRecord(phoenixMetadata) &&
-      phoenixMetadata.toolExecutionEnvironment === "client"
-    );
-  });
+  const resolvedClientToolParts = message.parts.filter((part) =>
+    isResolvedClientToolOutputPart(part)
+  );
   // The AI SDK's tool UI parts and the generated wire schema describe the
   // same Vercel data-stream shapes but spell optionality differently.
   return resolvedClientToolParts as unknown as ChatToolOutput[];

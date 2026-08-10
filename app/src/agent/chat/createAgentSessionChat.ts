@@ -8,6 +8,7 @@ import {
 } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
+import { createToolOutputFlusher } from "@phoenix/agent/chat/toolOutputFlush";
 import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
@@ -32,6 +33,7 @@ import {
   SESSION_MESSAGES_STALE_ERROR_CODE,
   SESSION_MODEL_STALE_ERROR_CODE,
   buildAgentChatApiUrl,
+  buildAgentToolOutputsApiUrl,
   parseAgentSessionConflictCode,
 } from "./agentChatApi";
 import { getRemovedUserMessageText } from "./removedUserMessageText";
@@ -87,6 +89,14 @@ export function createAgentSessionChat({
 }): Chat<AgentUIMessage> {
   const chatApiUrl = buildAgentChatApiUrl(sessionId);
   const toolTimings = createClientToolTimingRecorder();
+  // Persists each resolved client tool output (e.g. the first of several
+  // approvals) while sibling calls are still pending, so the server-side
+  // transcript reflects it before the turn's final chat continuation.
+  const toolOutputFlusher = createToolOutputFlusher({
+    flushUrl: buildAgentToolOutputsApiUrl(sessionId),
+    fetch: authFetch,
+    toolTimings,
+  });
   // The selection the most recent send asserted, kept so a model-stale
   // rejection can distinguish another client's change from this client
   // racing its own in-flight change.
@@ -96,6 +106,7 @@ export function createAgentSessionChat({
     endTurn: async () => {
       store.getState().setSessionResponsePending(sessionId, false);
       toolTimings.clear();
+      toolOutputFlusher.clear();
     },
     finalize: () => {
       // The server persisted the turn's transcript (and possibly a
@@ -206,6 +217,9 @@ export function createAgentSessionChat({
       const shouldSendAutomatically =
         await turnCompletionGate.handleSendAutomaticallyWhen({ messages });
       if (!shouldSendAutomatically) {
+        // The turn is not continuing yet; eagerly persist any newly resolved
+        // client tool outputs while their siblings stay pending.
+        toolOutputFlusher.maybeFlush(messages);
         return false;
       }
       const assistantMessage = messages.at(-1);
