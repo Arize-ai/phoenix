@@ -57,6 +57,11 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
         extensions = engine.extensions
         loaded = f"; sqlean extensions: {', '.join(extensions)}" if extensions else ""
         lines.append(f"-- backend: {engine.name}{version}{loaded}")
+    if dialect == "sqlite":
+        lines.append(
+            "-- Continuous percentiles: use `percentile(x, p)`, where p is 0–100 "
+            "(e.g. `percentile(latency_ms, 50)`); `median` and `percentile_cont` are unavailable."
+        )
     backstop = "statement_timeout" if dialect == "postgresql" else "sqlite_progress_handler"
     lines.append(
         f"-- read-only. {DEFAULT_ROW_LIMIT} rows by default, {MAX_ROW_LIMIT} max; "
