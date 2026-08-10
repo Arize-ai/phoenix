@@ -622,9 +622,9 @@ class Locality(Enum):
     relation the query itself builds. ``OUTPUT_ALIAS`` models where a name binds,
     and the rule differs by clause -- a bare ``ORDER BY`` key takes the select
     list before the input columns, while ``GROUP BY`` takes an input column when
-    one carries the name and the alias only otherwise. Both measured on both
-    engines. That makes it a model of the engine rather than a fact about the
-    tree, which is why disclosure checks decline it.
+    one carries the name and the alias only otherwise. SQLite extends the latter
+    rule to ``HAVING``; PostgreSQL does not. This makes it a model of the engine
+    rather than a fact about the tree, which is why disclosure checks decline it.
 
     ``DERIVED_PROJECTION`` is the weaker of the two structural cases: an
     unqualified name a derived relation projects can also be offered by a base
@@ -686,7 +686,7 @@ def query_local_columns(
     them is a defect. Star expansion keeps its own scan (`_star_sources`), which
     reads sources rather than resolving references.
 
-    Three ways a reference can be local, and the third is why ``build_scope`` is
+    Four ways a reference can be local, and the last two are why ``build_scope`` is
     necessary but not sufficient:
 
     1. Qualified, where the qualifier names a derived relation. Both a CTE's own
@@ -696,8 +696,11 @@ def query_local_columns(
        engines resolve that against the output first, and ``build_scope`` does
        not report it as a source column at all, so it has to be walked
        separately.
+    4. Unqualified in SQLite's ``HAVING``, where a select-list alias is used
+       only when no input column has the name. PostgreSQL does not bind aliases
+       there, so this case is deliberately dialect-specific.
 
-    ``GROUP BY`` is deliberately absent from the third case, and the two clauses
+    ``GROUP BY`` is deliberately absent as a separate case, and the two clauses
     are not symmetric. Both engines resolve a bare ``GROUP BY`` name against the
     *input* columns first, falling back to an output alias only when no source
     column carries the name.
@@ -792,26 +795,35 @@ def query_local_columns(
                     # category disclosure checks decline.
                     local.setdefault(id(key), Locality.OUTPUT_ALIAS)
         # GROUP BY takes the input column when one carries the name and the
-        # output alias only otherwise, so it is local only in the second case.
+        # output alias only otherwise. SQLite applies the same precedence in
+        # HAVING; PostgreSQL does not permit output aliases there at all.
+        offered = {
+            column.casefold()
+            for alias, source in scope.sources.items()
+            if isinstance(source, exp.Table) and source.name in table_specs
+            for column in table_specs[source.name].columns
+        } | {
+            virtual.casefold()
+            for alias, source in scope.sources.items()
+            if isinstance(source, exp.Table) and source.name in table_specs
+            for virtual in table_specs[source.name].virtual_columns
+        }
         group_clause = select.args.get("group") if select else None
         if group_clause is not None:
-            offered = {
-                column.casefold()
-                for alias, source in scope.sources.items()
-                if isinstance(source, exp.Table) and source.name in table_specs
-                for column in table_specs[source.name].columns
-            } | {
-                virtual.casefold()
-                for alias, source in scope.sources.items()
-                if isinstance(source, exp.Table) and source.name in table_specs
-                for virtual in table_specs[source.name].virtual_columns
-            }
             for group_column in _within_scope(group_clause, exp.Column):
                 if not isinstance(group_column, exp.Column):
                     continue
                 name = (group_column.name or "").lower()
                 if not group_column.table and name in output_aliases and name not in offered:
                     local.setdefault(id(group_column), Locality.OUTPUT_ALIAS)
+        having_clause = select.args.get("having") if dialect == "sqlite" and select else None
+        if having_clause is not None:
+            for having_column in _within_scope(having_clause, exp.Column):
+                if not isinstance(having_column, exp.Column):
+                    continue
+                name = (having_column.name or "").lower()
+                if not having_column.table and name in output_aliases and name not in offered:
+                    local.setdefault(id(having_column), Locality.OUTPUT_ALIAS)
     return ColumnLocality(local)
 
 
@@ -1126,11 +1138,15 @@ def _check_column_references(
                 and not localities.is_alias_bound(column)
                 and column.name.casefold() in {reference.casefold() for reference in by_reference}
             ):
-                if id(column) in having_columns and column.name.casefold() in output_aliases:
+                if (
+                    dialect == "postgresql"
+                    and id(column) in having_columns
+                    and column.name.casefold() in output_aliases
+                ):
                     return AdmissionResult(
                         AdmissionOutcome.UNSUPPORTED_SYNTAX,
-                        f"`HAVING {column.name}` refers to a SELECT alias. Phoenix requires "
-                        "portable SQL here, so repeat its expression in HAVING (for example, "
+                        f"`HAVING {column.name}` refers to a SELECT alias. PostgreSQL does not "
+                        "allow that, so repeat its expression (for example, "
                         "`HAVING COUNT(*) >= 50`).",
                     )
                 return AdmissionResult(
