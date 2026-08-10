@@ -377,8 +377,7 @@ function ProjectPageContentBody({
   const onTabChange = useCallback(
     (index: number) => {
       startTransition(() => {
-        // The evaluators tab owns these; drop them so a creation slideover does
-        // not reopen when the user comes back to the tab.
+        // The evaluators tab owns these; drop them so it does not reopen.
         const search = withSearchParams(
           clearSelectionScopedParams(location.search),
           (params) => {

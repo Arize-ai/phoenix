@@ -87,8 +87,7 @@ export function ProjectEvaluatorsTable({
     project
   );
   const trimmedFilter = filter.trim();
-  // The connection is filtered server-side so paging stays consistent with the
-  // search -- a client-side filter would only ever see the loaded page.
+  // Filtered server-side; a client-side filter would only see the loaded page.
   useEffect(() => {
     startTransition(() => {
       refetch(

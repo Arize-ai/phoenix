@@ -20,8 +20,7 @@ export function ProjectEvaluatorsPage() {
   invariant(projectId, "projectId is required");
   const [filter, setFilter] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
-  // Two of the four creation modes are linkable today; the rest are selection
-  // driven. See #15297 for moving all of them onto routes.
+  // Only two of the four creation modes are linkable today; see #15297.
   const shouldOpenScratchFromUrl =
     searchParams.get(CREATE_LLM_EVALUATOR_PARAM) === "true";
   const shouldOpenNewCodeFromUrl =

@@ -94,11 +94,7 @@ def _patch_playground_client(monkeypatch: pytest.MonkeyPatch, client: _StubLLMCl
 
 class _StubSandboxBackend:
     secret_values: tuple[str, ...] = ()
-    # Duck-typed rather than a SandboxBackend subclass, since the stubbed session
-    # manager never invokes the backend's abstract methods. That means the real
-    # class's attribute defaults are not inherited and have to be mirrored here:
-    # CodeEvaluatorRunner reads `provider` to pick the Python harness, and empty
-    # is SandboxBackend's own default for a non-Monty backend.
+    # Duck-typed, so SandboxBackend's defaults must be mirrored.
     provider: str = ""
 
 
