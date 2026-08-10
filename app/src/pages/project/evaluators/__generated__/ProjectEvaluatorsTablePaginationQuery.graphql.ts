@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8c886ff43e7b1e0fa4aeacd1d05e4e84>>
+ * @generated SignedSource<<4fb7526f611a86bf3404cb887e325e60>>
  * @lightSyntaxTransform
  */
 
@@ -9,8 +9,14 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type ProjectEvaluatorFilterColumn = "name";
+export type ProjectEvaluatorFilter = {
+  col: ProjectEvaluatorFilterColumn;
+  value: string;
+};
 export type ProjectEvaluatorsTablePaginationQuery$variables = {
   after?: string | null;
+  filter?: ProjectEvaluatorFilter | null;
   first?: number | null;
   id: string;
 };
@@ -30,6 +36,11 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "after"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "filter"
   },
   {
     "defaultValue": 30,
@@ -54,6 +65,11 @@ v2 = [
     "kind": "Variable",
     "name": "after",
     "variableName": "after"
+  },
+  {
+    "kind": "Variable",
+    "name": "filter",
+    "variableName": "filter"
   },
   {
     "kind": "Variable",
@@ -246,7 +262,9 @@ return {
               {
                 "alias": null,
                 "args": (v2/*:: as any*/),
-                "filters": null,
+                "filters": [
+                  "filter"
+                ],
                 "handle": "connection",
                 "key": "ProjectEvaluatorsTable_evaluators",
                 "kind": "LinkedHandle",
@@ -262,16 +280,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f9012014df16916951937bc118ef17e1",
+    "cacheID": "54db04379164fa924f78bc296643425d",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorsTablePaginationQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorsTablePaginationQuery(\n  $after: String = null\n  $first: Int = 30\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectEvaluatorsTable_project_2HEEH6\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_project_2HEEH6 on Project {\n  evaluators(first: $first, after: $after) {\n    edges {\n      node {\n        ...ProjectEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  evaluator {\n    __typename\n    kind\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorsTablePaginationQuery(\n  $after: String = null\n  $filter: ProjectEvaluatorFilter = null\n  $first: Int = 30\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectEvaluatorsTable_project_G9cLv\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_project_G9cLv on Project {\n  evaluators(first: $first, after: $after, filter: $filter) {\n    edges {\n      node {\n        ...ProjectEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  evaluator {\n    __typename\n    kind\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1955deb1a62439f39c55f2ce985be809";
+(node as any).hash = "e32f1d4594df375d4292c05d795eecba";
 
 export default node;
