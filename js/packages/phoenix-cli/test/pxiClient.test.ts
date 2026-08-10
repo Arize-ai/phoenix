@@ -79,9 +79,9 @@ describe("PXI client", () => {
     expect(request).toMatchObject({
       id: "session-1",
       trigger: "submit-message",
-      ingestTraces: true,
+      recordLocalTraces: true,
       exportRemoteTraces: true,
-      attachUserId: true,
+      instrumentUserId: true,
       editPermission: "bypass",
       model: {
         providerType: "builtin",

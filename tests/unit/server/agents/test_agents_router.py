@@ -135,7 +135,7 @@ def _chat_body(
     body: dict[str, Any] = {
         "trigger": "submit-message",
         "id": session_id,
-        "userAgentType": "web",
+        "headless": False,
         "model": {
             "providerType": "builtin",
             "provider": "OPENAI",
@@ -153,7 +153,7 @@ def _headless_chat_body(
     message: dict[str, Any] | None,
     **overrides: Any,
 ) -> dict[str, Any]:
-    return _chat_body(session_id, message, userAgentType="headless", **overrides)
+    return _chat_body(session_id, message, headless=True, **overrides)
 
 
 def _stream_chunks(response_text: str) -> list[dict[str, Any]]:
@@ -2437,7 +2437,7 @@ async def test_server_agent_bash_shell_state_persists_across_chat_turns(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Mirror of ``test_bash_shell_state_persists_across_chat_turns`` for
-    ``userAgentType="headless"``: pins the snapshot wiring ``build_server_agent``
+    ``headless=True``: pins the snapshot wiring ``build_server_agent``
     gained for the session route."""
     session_id = "57575757-5757-4757-8757-575757575757"
     agent_session_id = await _create_agent_session_row(db)
@@ -2920,7 +2920,7 @@ async def test_chat_rejects_a_turn_asserting_a_model_the_session_is_not_on(
         assert agent_session.heartbeat_at is None
 
 
-async def test_chat_rejects_unknown_user_agent_types(
+async def test_chat_rejects_non_boolean_headless(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
 ) -> None:
@@ -2930,7 +2930,7 @@ async def test_chat_rejects_unknown_user_agent_types(
         json=_chat_body(
             "11111111-1111-4111-8111-111111111111",
             _user_message("hello"),
-            userAgentType="nonexistent",
+            headless="nonexistent",
         ),
     )
     assert response.status_code == 422
@@ -3087,7 +3087,7 @@ async def _post_traced_continuation_turn(
         json=_chat_body(
             session_id,
             None,
-            ingestTraces=True,
+            recordLocalTraces=True,
             toolOutputs=[
                 {
                     "type": "tool-edit_prompt_instance",
@@ -3212,7 +3212,7 @@ async def test_new_user_message_closes_superseded_turn_trace(
         json=_chat_body(
             session_id,
             _user_message("never mind, new topic", message_id=_message_uuid("msg-user-2")),
-            ingestTraces=True,
+            recordLocalTraces=True,
             lastMessageId=assistant_tail["id"],
         ),
     )
@@ -3321,7 +3321,7 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
         json=_chat_body(
             session_request_id,
             _user_message("first question"),
-            ingestTraces=True,
+            recordLocalTraces=True,
         ),
     )
     assert first_response.status_code == 200
@@ -3333,7 +3333,7 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
             session_request_id,
             _user_message("second question", message_id=_message_uuid("msg-user-2")),
             lastMessageId=await _last_stored_message_id(db),
-            ingestTraces=True,
+            recordLocalTraces=True,
         ),
     )
     assert second_response.status_code == 200

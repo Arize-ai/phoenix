@@ -2171,32 +2171,15 @@ export interface components {
          */
         ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["SessionContext"] | components["schemas"]["PromptContext"] | components["schemas"]["PromptVersionContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["LlmEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"] | components["schemas"]["SubagentsContext"];
         /**
-         * ChatRequest
+         * ChatRequestBody
          * @description Assistant chat submit request payload.
          */
-        ChatRequest: {
+        ChatRequestBody: {
             /**
-             * Ingesttraces
-             * @default false
+             * Headless
+             * @description Whether a headless client (terminal or scripted) is driving the turn, as opposed to the browser assistant. Selects the agent configuration the turn runs on.
              */
-            ingestTraces?: boolean;
-            /**
-             * Exportremotetraces
-             * @default false
-             */
-            exportRemoteTraces?: boolean;
-            /**
-             * Attachuserid
-             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
-             * @default false
-             */
-            attachUserId?: boolean;
-            /**
-             * Useragenttype
-             * @description Which Phoenix user agent type is driving the turn: ``web`` for the browser assistant, ``headless`` for terminal and scripted clients. Selects the agent configuration the turn runs on.
-             * @enum {string}
-             */
-            userAgentType: "web" | "headless";
+            headless: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
             /**
@@ -2232,6 +2215,22 @@ export interface components {
              * @description The id of the last transcript message the client has rendered, used for optimistic concurrency. Omit when the session has no messages; required (and validated against the persisted transcript) once it does. On mismatch the server rejects the send with HTTP 409 and code ``agent_session_messages_stale`` — the client should refetch the session before retrying.
              */
             lastMessageId?: string | null;
+            /**
+             * Recordlocaltraces
+             * @default false
+             */
+            recordLocalTraces?: boolean;
+            /**
+             * Exportremotetraces
+             * @default false
+             */
+            exportRemoteTraces?: boolean;
+            /**
+             * Instrumentuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            instrumentUserId?: boolean;
         };
         /**
          * CodeEvaluatorContext
@@ -12305,7 +12304,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ChatRequest"];
+                "application/json": components["schemas"]["ChatRequestBody"];
             };
         };
         responses: {

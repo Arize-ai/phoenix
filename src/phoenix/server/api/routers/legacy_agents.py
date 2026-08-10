@@ -186,7 +186,7 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
         )
         recording = request.app.state.system_settings.agent_trace_recording
         ingest_traces, export_remote_traces = _resolve_trace_recording(
-            ingest_traces=body.ingest_traces,
+            record_local_traces=body.ingest_traces,
             export_remote_traces=body.export_remote_traces,
             allow_local_traces=recording.allow_local_traces,
             allow_remote_export=recording.allow_remote_export,

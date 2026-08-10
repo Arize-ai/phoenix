@@ -316,38 +316,26 @@ def _resolve_browser_clock(messages: Sequence[PhoenixUIMessage]) -> AppContext |
     return None
 
 
-class _ObservabilityMixin(_CamelBaseModel):
-    """Per-request observability flags"""
+ToolOutputUIPart = (
+    ToolOutputAvailablePart
+    | ToolOutputErrorPart
+    | DynamicToolOutputAvailablePart
+    | DynamicToolOutputErrorPart
+)
 
-    ingest_traces: bool = False
-    export_remote_traces: bool = False
-    attach_user_id: bool = Field(
-        default=False,
+_PhoenixToolCallCallbackProviderMetadataAdapter: TypeAdapter[
+    PhoenixToolCallCallbackProviderMetadata
+] = TypeAdapter(PhoenixToolCallCallbackProviderMetadata)
+
+
+class ChatRequestBody(_CamelBaseModel):
+    """Assistant chat submit request payload."""
+
+    headless: bool = Field(
         description=(
-            "When true and the request is authenticated as a PhoenixUser, attaches "
-            "the user's email as the OpenInference ``user.id`` span attribute on "
-            "all traced work for this request."
-        ),
-    )
-
-
-UserAgentType = Literal["web", "headless"]
-"""Which Phoenix user agent type is driving a chat turn: ``web`` for the
-browser assistant, ``headless`` for terminal and scripted clients."""
-
-
-class _ChatRequestMixin(_ObservabilityMixin):
-    """Phoenix-specific extensions added to Vercel AI request messages."""
-
-    model_config = ConfigDict(
-        protected_namespaces=(),  # allow ``model`` field; pydantic reserves ``model_*``
-    )
-
-    user_agent_type: UserAgentType = Field(
-        description=(
-            "Which Phoenix user agent type is driving the turn: ``web`` for the "
-            "browser assistant, ``headless`` for terminal and scripted "
-            "clients. Selects the agent configuration the turn runs on."
+            "Whether a headless client (terminal or scripted) is driving the "
+            "turn, as opposed to the browser assistant. Selects the agent "
+            "configuration the turn runs on."
         ),
     )
     contexts: list[ChatContext] = Field(default_factory=list)
@@ -372,23 +360,6 @@ class _ChatRequestMixin(_ObservabilityMixin):
             "``PATCH .../agent_sessions/{session_id}``."
         ),
     )
-
-
-ToolOutputUIPart = (
-    ToolOutputAvailablePart
-    | ToolOutputErrorPart
-    | DynamicToolOutputAvailablePart
-    | DynamicToolOutputErrorPart
-)
-
-_PhoenixToolCallCallbackProviderMetadataAdapter: TypeAdapter[
-    PhoenixToolCallCallbackProviderMetadata
-] = TypeAdapter(PhoenixToolCallCallbackProviderMetadata)
-
-
-class ChatSubmitMessage(_ChatRequestMixin):
-    """Assistant chat submit request carrying the turn's new inputs."""
-
     trigger: Literal["submit-message"] = "submit-message"
     id: str
     message: PhoenixUIMessage | None = Field(
@@ -420,9 +391,19 @@ class ChatSubmitMessage(_ChatRequestMixin):
             "client should refetch the session before retrying."
         ),
     )
+    record_local_traces: bool = False
+    export_remote_traces: bool = False
+    instrument_user_id: bool = Field(
+        default=False,
+        description=(
+            "When true and the request is authenticated as a PhoenixUser, attaches "
+            "the user's email as the OpenInference ``user.id`` span attribute on "
+            "all traced work for this request."
+        ),
+    )
 
     @model_validator(mode="after")
-    def _validate_turn_inputs(self) -> "ChatSubmitMessage":
+    def _validate_turn_inputs(self) -> "ChatRequestBody":
         if self.message is None and not self.tool_outputs:
             raise ValueError("A chat submit request requires a message, toolOutputs, or both")
         if self.message is not None and self.message.role != "user":
@@ -457,10 +438,6 @@ class ChatSubmitMessage(_ChatRequestMixin):
                     f"{_PHOENIX_PROVIDER_METADATA_KEY!r} namespace"
                 )
         return self
-
-
-class ChatRequest(ChatSubmitMessage):
-    """Assistant chat submit request payload."""
 
 
 class CreateAgentSessionRequestBody(V1RoutesBaseModel):
@@ -648,7 +625,7 @@ _PydanticAIUIMessageListAdapter: TypeAdapter[list[PydanticAIUIMessage]] = TypeAd
 
 
 def _to_pydantic_ai_request_data(
-    request_data: ChatSubmitMessage,
+    request_data: ChatRequestBody,
     *,
     messages: Sequence[PhoenixUIMessage],
 ) -> PydanticAISubmitMessage:
@@ -1264,7 +1241,7 @@ def _contexts_need_model_provider_availability(contexts: ResolvedContexts) -> bo
 
 def _resolve_trace_recording(
     *,
-    ingest_traces: bool,
+    record_local_traces: bool,
     export_remote_traces: bool,
     allow_local_traces: bool,
     allow_remote_export: bool,
@@ -1272,13 +1249,13 @@ def _resolve_trace_recording(
     if get_env_phoenix_agents_force_tracing():
         return True, True
     return (
-        ingest_traces and allow_local_traces,
+        record_local_traces and allow_local_traces,
         export_remote_traces and allow_remote_export,
     )
 
 
-def _resolve_attach_user_id(attach_user_id: bool) -> bool:
-    return get_env_phoenix_agents_force_tracing() or attach_user_id
+def _resolve_attach_user_id(instrument_user_id: bool) -> bool:
+    return get_env_phoenix_agents_force_tracing() or instrument_user_id
 
 
 class _SubagentMessageChunksClosed:
@@ -1501,7 +1478,7 @@ async def _upsert_project_sessions(
 
 
 def _maybe_using_user(
-    attach_user_id: bool,
+    instrument_user_id: bool,
     phoenix_user_email: str | None,
 ) -> AbstractContextManager[Any]:
     """Return a ``using_user`` context manager when the opt-in is set and the
@@ -1510,7 +1487,7 @@ def _maybe_using_user(
     Attaches the Phoenix user email as the ``user.id`` OpenInference attribute
     to all spans created inside the context so traces can be filtered by user.
     """
-    if attach_user_id and phoenix_user_email:
+    if instrument_user_id and phoenix_user_email:
         return using_user(phoenix_user_email)
     return nullcontext()
 
@@ -2650,17 +2627,17 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
     async def chat(
         session_id: str,
         request: Request,
-        request_body: ChatRequest,
+        request_body: ChatRequestBody,
     ) -> Response:
-        if request_body.user_agent_type == "headless" and get_env_phoenix_agents_disable_bash():
+        if request_body.headless and get_env_phoenix_agents_disable_bash():
             raise HTTPException(status_code=403, detail="Headless agent is disabled")
         body = request_body
         db_session_factory: DbSessionFactory = request.app.state.db
         request_received_at = datetime.now(timezone.utc)
-        attach_user_id = _resolve_attach_user_id(body.attach_user_id)
+        instrument_user_id = _resolve_attach_user_id(body.instrument_user_id)
         recording = request.app.state.system_settings.agent_trace_recording
-        ingest_traces, export_remote_traces = _resolve_trace_recording(
-            ingest_traces=body.ingest_traces,
+        record_local_traces, export_remote_traces = _resolve_trace_recording(
+            record_local_traces=body.record_local_traces,
             export_remote_traces=body.export_remote_traces,
             allow_local_traces=recording.allow_local_traces,
             allow_remote_export=recording.allow_remote_export,
@@ -2729,13 +2706,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         enable_remote_export=export_remote_traces,
                         project_name=project_name,
                     )
-                    if (ingest_traces or export_remote_traces)
+                    if (record_local_traces or export_remote_traces)
                     else None
                 )
                 tracer_provider = tracer.tracer_provider if tracer is not None else None
                 sandbox_availability = SandboxAvailability()
                 model_provider_availability = ModelProviderAvailability()
-                agent_supports_availability_gate = body.user_agent_type == "web"
+                agent_supports_availability_gate = not body.headless
                 async with request.app.state.db() as session:
                     if agent_supports_availability_gate:
                         if _contexts_need_sandbox_availability(resolved_contexts):
@@ -2803,7 +2780,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 [Callable[[AgentRunResult[Any]], AsyncIterator[BaseChunk]]],
                 AsyncIterator[BaseChunk],
             ]
-            if body.user_agent_type == "headless":
+            if body.headless:
                 server_agent = build_server_agent(
                     model=model,
                     schema=request.app.state.graphql_schema,
@@ -2986,7 +2963,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     with (
                         detached_otel_context(parent_context),
                         using_session(session_id=otel_session_id),
-                        _maybe_using_user(attach_user_id, phoenix_user_email),
+                        _maybe_using_user(instrument_user_id, phoenix_user_email),
                     ):
                         summary = await summarize_messages(
                             messages=adapter.messages,
@@ -3180,14 +3157,14 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             messages=transcript_messages[:-1],
                             received_at=request_received_at,
                             session_id=otel_session_id,
-                            user_email=phoenix_user_email if attach_user_id else None,
+                            user_email=phoenix_user_email if instrument_user_id else None,
                         )
                     if session_needs_title:
                         summary_task = asyncio.create_task(_summarize_untitled_session())
                     with (
                         detached_otel_context(parent_context),
                         using_session(session_id=otel_session_id),
-                        _maybe_using_user(attach_user_id, phoenix_user_email),
+                        _maybe_using_user(instrument_user_id, phoenix_user_email),
                     ):
                         raw_stream = run_agent_stream(_on_complete)
                         assert _is_async_generator(raw_stream)
@@ -3297,10 +3274,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                         else (str(stream_error) or type(stream_error).__name__)
                                     ),
                                     end_time=datetime.now(timezone.utc),
-                                    user_email=phoenix_user_email if attach_user_id else None,
+                                    user_email=phoenix_user_email if instrument_user_id else None,
                                 )
                             tracer.tracer_provider.force_flush()
-                            if ingest_traces:
+                            if record_local_traces:
                                 project_id = await _ensure_project_exists(
                                     request.app.state.db, project_name
                                 )

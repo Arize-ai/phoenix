@@ -2046,13 +2046,10 @@ class PromptMessage(TypedDict):
     ]
 
 
-class ChatRequest(TypedDict):
-    userAgentType: Literal["web", "headless"]
+class ChatRequestBody(TypedDict):
+    headless: bool
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     id: str
-    ingestTraces: NotRequired[bool]
-    exportRemoteTraces: NotRequired[bool]
-    attachUserId: NotRequired[bool]
     contexts: NotRequired[
         Sequence[
             Union[
@@ -2088,6 +2085,9 @@ class ChatRequest(TypedDict):
         ]
     ]
     lastMessageId: NotRequired[str]
+    recordLocalTraces: NotRequired[bool]
+    exportRemoteTraces: NotRequired[bool]
+    instrumentUserId: NotRequired[bool]
 
 
 class CompactAgentSessionResponseBody(TypedDict):

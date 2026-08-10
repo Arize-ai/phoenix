@@ -225,7 +225,7 @@ async def test_new_chat_route_is_unaffected_by_the_legacy_registration(
         json={
             "trigger": "submit-message",
             "id": session_id,
-            "userAgentType": "web",
+            "headless": False,
             "message": _user_message("hello"),
             "model": {
                 "providerType": "builtin",

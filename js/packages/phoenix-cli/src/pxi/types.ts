@@ -65,14 +65,14 @@ export type PxiContext = Extract<
  * each one, `"bypass"` lets them run unattended (where the server supports it).
  */
 export type PxiEditPermission = NonNullable<
-  SchemasV1["ChatRequest"]["editPermission"]
+  SchemasV1["ChatRequestBody"]["editPermission"]
 >;
 
 /**
  * The request body POSTed to the agent-session chat endpoint. The server owns
  * the session transcript, so each turn carries only its trailing message.
  *
- * Derived from the generated `ChatRequest` schema, with every field the CLI
+ * Derived from the generated `ChatRequestBody` schema, with every field the CLI
  * sends made required (the schema marks server-defaulted fields optional) and
  * `message` swapped for the SDK-typed {@link PxiMessage}. Fields the CLI never
  * sends (`requestedSkills`, `turnTraceContext`, and `toolOutputs` — the CLI
@@ -80,7 +80,7 @@ export type PxiEditPermission = NonNullable<
  */
 export type PxiChatRequest = Required<
   Omit<
-    SchemasV1["ChatRequest"],
+    SchemasV1["ChatRequestBody"],
     "message" | "requestedSkills" | "turnTraceContext" | "toolOutputs"
   >
 > & {
