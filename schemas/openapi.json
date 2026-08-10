@@ -18475,7 +18475,7 @@
           "lastMessageId": {
             "type": "string",
             "title": "Lastmessageid",
-            "description": "The trailing assistant message's id, used for optimistic concurrency. On mismatch the submission is rejected with HTTP 409 and code ``agent_session_messages_stale``."
+            "description": "The trailing assistant message's id. On mismatch the submission is rejected with HTTP 409 and code ``agent_session_messages_stale``."
           }
         },
         "type": "object",
@@ -18484,7 +18484,7 @@
           "lastMessageId"
         ],
         "title": "SubmitAgentSessionToolOutputsRequestBody",
-        "description": "Persist resolved client tool outputs without continuing the turn.\n\nFollows the chat route's camelCase wire casing (see ``_CamelBaseModel``)."
+        "description": "Persist resolved client tool outputs without continuing the turn."
       },
       "SubmitAgentSessionToolOutputsResponseBody": {
         "properties": {
@@ -18497,7 +18497,7 @@
           "data"
         ],
         "title": "SubmitAgentSessionToolOutputsResponseBody",
-        "description": "The trailing assistant message with the submitted outputs applied.\n\nThe turn stays open until a chat continuation resolves every pending call."
+        "description": "The trailing assistant message with the submitted outputs applied."
       },
       "TextContentPart": {
         "properties": {

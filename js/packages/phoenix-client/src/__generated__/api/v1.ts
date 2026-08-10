@@ -5666,8 +5666,6 @@ export interface components {
         /**
          * SubmitAgentSessionToolOutputsRequestBody
          * @description Persist resolved client tool outputs without continuing the turn.
-         *
-         *     Follows the chat route's camelCase wire casing (see ``_CamelBaseModel``).
          */
         SubmitAgentSessionToolOutputsRequestBody: {
             /**
@@ -5677,15 +5675,13 @@ export interface components {
             toolOutputs: (components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"])[];
             /**
              * Lastmessageid
-             * @description The trailing assistant message's id, used for optimistic concurrency. On mismatch the submission is rejected with HTTP 409 and code ``agent_session_messages_stale``.
+             * @description The trailing assistant message's id. On mismatch the submission is rejected with HTTP 409 and code ``agent_session_messages_stale``.
              */
             lastMessageId: string;
         };
         /**
          * SubmitAgentSessionToolOutputsResponseBody
          * @description The trailing assistant message with the submitted outputs applied.
-         *
-         *     The turn stays open until a chat continuation resolves every pending call.
          */
         SubmitAgentSessionToolOutputsResponseBody: {
             data: components["schemas"]["PhoenixUIMessage"];

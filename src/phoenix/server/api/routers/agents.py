@@ -623,10 +623,7 @@ class CompactAgentSessionResponseBody(ResponseBody[PhoenixUIMessage]):
 
 
 class SubmitAgentSessionToolOutputsRequestBody(_CamelBaseModel):
-    """Persist resolved client tool outputs without continuing the turn.
-
-    Follows the chat route's camelCase wire casing (see ``_CamelBaseModel``).
-    """
+    """Persist resolved client tool outputs without continuing the turn."""
 
     tool_outputs: list[ToolOutputUIPart] = Field(
         min_length=1,
@@ -640,8 +637,7 @@ class SubmitAgentSessionToolOutputsRequestBody(_CamelBaseModel):
     )
     last_message_id: str = Field(
         description=(
-            "The trailing assistant message's id, used for optimistic "
-            "concurrency. On mismatch the submission is rejected with HTTP "
+            "The trailing assistant message's id. On mismatch the submission is rejected with HTTP "
             "409 and code ``agent_session_messages_stale``."
         ),
     )
@@ -653,9 +649,7 @@ class SubmitAgentSessionToolOutputsRequestBody(_CamelBaseModel):
 
 
 class SubmitAgentSessionToolOutputsResponseBody(ResponseBody[PhoenixUIMessage]):
-    """The trailing assistant message with the submitted outputs applied.
-
-    The turn stays open until a chat continuation resolves every pending call."""
+    """The trailing assistant message with the submitted outputs applied."""
 
 
 _PydanticAIUIMessageListAdapter: TypeAdapter[list[PydanticAIUIMessage]] = TypeAdapter(
@@ -1708,14 +1702,7 @@ def _apply_tool_outputs(
     message: PhoenixUIMessage,
     tool_outputs: Sequence[ToolOutputUIPart],
 ) -> PhoenixUIMessage | None:
-    """Resolve the assistant message's pending tool calls with submitted outputs.
-
-    Outputs are matched by ``toolCallId``. Resending a persisted output
-    verbatim is an ignored no-op so retried sends stay idempotent; an output
-    that differs from the persisted result, matches no call, or renames the
-    tool is an inconsistent request and conflicts.
-    Returns the updated message, or None when no outputs were applied.
-    """
+    """Resolve the assistant message's pending tool calls with submitted outputs."""
     tool_calls_by_id: dict[_ToolCallId, tuple[_PartIndex, ToolUIPart | DynamicToolUIPart]] = {}
     for index, part in enumerate(message.parts):
         if isinstance(part, ToolUIPart | DynamicToolUIPart):
@@ -1752,8 +1739,6 @@ def _apply_tool_outputs(
                         "reload the conversation"
                     ),
                 )
-            # An identical resend (e.g. the chat continuation re-carrying a
-            # flushed output); keep the persisted result.
             continue
         parts[matched_index] = tool_output
         changed = True
@@ -2669,7 +2654,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
     @router.post(
         "/agent_sessions/{session_id}/tool_outputs",
         operation_id="submitAgentSessionToolOutputs",
-        response_model=SubmitAgentSessionToolOutputsResponseBody,
         response_model_by_alias=True,
         response_model_exclude_unset=True,
         responses=add_errors_to_responses(
@@ -2723,8 +2707,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             updated_message = _apply_tool_outputs(latest_message, request_body.tool_outputs)
             if updated_message is not None:
                 latest_row.message = updated_message
-            # Release in the same transaction so the claim, the outputs, and
-            # the release commit atomically.
             await _clear_agent_session_turn_lock(
                 session,
                 agent_session_rowid=agent_session_rowid,
