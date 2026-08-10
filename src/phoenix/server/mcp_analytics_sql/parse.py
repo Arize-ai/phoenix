@@ -576,6 +576,16 @@ def _within_scope(clause: exp.Expression, kind: type[exp.Expression]) -> list[ex
     ]
 
 
+def _scope_columns(expression: exp.Expr) -> list[exp.Column]:
+    """Column nodes belonging to this scope, excluding nested query scopes."""
+    return [
+        node
+        for child in expression.iter_expressions()
+        for node in child.walk(prune=lambda n: isinstance(n, (exp.Select, exp.Subquery)))
+        if isinstance(node, exp.Column)
+    ]
+
+
 class Locality(Enum):
     """Why a reference is query-local, which decides who may act on it.
 
@@ -936,18 +946,18 @@ def _check_column_references(
             if isinstance(source, exp.Table) and source.name in allowlist.table_specs:
                 by_reference[reference] = source.name
                 by_reference[source.name] = source.name
-        # Raw table nodes as well, not only what `sources` kept. A reference-name
-        # collision silently drops a table from that map, and a check that reads
-        # it alone then skips the scope rather than failing closed. The collision
-        # itself is refused during admission, but this map is what the rest of
-        # this function reasons over, so it is built from the nodes that are
-        # actually there.
-        for node in scope.expression.find_all(exp.Table):
+        # Scope-local table nodes as well, not only what `sources` kept. A
+        # reference-name collision silently drops a table from that map, and a
+        # check that reads it alone then skips the scope rather than failing
+        # closed. Do not descend through subqueries: their tables cannot supply
+        # an unqualified column in this scope.
+        for node in scope.tables:
             if node.name in allowlist.table_specs:
                 by_reference.setdefault(node.alias or node.name, node.name)
                 by_reference.setdefault(node.name, node.name)
         if not by_reference:
             continue
+        columns = _scope_columns(scope.expression)
         # NATURAL JOIN names none of its join keys, so its behavior changes when
         # physical schemas evolve. Keep join criteria explicit rather than
         # silently taking every same-named column.
@@ -991,7 +1001,7 @@ def _check_column_references(
                     f"Composite field access ({dot.sql()}) is not supported. "
                     "Name the column, or expand the function in the FROM clause.",
                 )
-        for column in scope.expression.find_all(exp.Column):
+        for column in columns:
             if (
                 not column.table
                 and not localities.is_alias_bound(column)
@@ -1012,7 +1022,7 @@ def _check_column_references(
             not (isinstance(source, exp.Table) and source.name in allowlist.table_specs)
             for source in scope.sources.values()
         )
-        for column in scope.expression.find_all(exp.Column):
+        for column in columns:
             if localities.is_structurally_local(column) or isinstance(column.this, exp.Star):
                 continue
             name = column.name or ""

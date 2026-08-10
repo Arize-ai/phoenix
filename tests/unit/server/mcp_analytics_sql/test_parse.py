@@ -166,6 +166,15 @@ class TestDdlColumnsAreQueryable:
         assert "is not a column of that table" in caught.value.message
         assert "Did you mean span_kind" in caught.value.message
 
+    def test_a_subquery_table_cannot_validate_an_outer_column(self) -> None:
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql(
+                "SELECT status_message FROM traces WHERE EXISTS (SELECT 1 FROM spans)",
+                allowlist=load_allowlist("sqlite"),
+                dialect="sqlite",
+            )
+        assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
+
     @pytest.mark.parametrize(
         "sql,expected",
         [

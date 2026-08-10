@@ -265,6 +265,28 @@ async def test_the_schema_is_resolved_not_assumed(
     catalog._SCHEMA_CACHE.clear()
 
 
+async def test_a_failed_schema_probe_does_not_cache_the_public_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phoenix.server.mcp_analytics_sql.catalog as catalog
+
+    class FailingDb:
+        dialect = type("Dialect", (), {"value": "postgresql"})()
+
+        @asynccontextmanager
+        async def read(self) -> AsyncIterator[None]:
+            raise SQLAlchemyError("temporarily unavailable")
+            yield
+
+    catalog._SCHEMA_CACHE.clear()
+    monkeypatch.setattr(catalog, "get_env_database_schema", lambda: None)
+    try:
+        assert await catalog.resolve_pg_schema(cast(DbSessionFactory, FailingDb())) == "public"
+        assert catalog._SCHEMA_CACHE == {}
+    finally:
+        catalog._SCHEMA_CACHE.clear()
+
+
 async def test_a_pyformat_literal_runs_on_sqlite(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
 ) -> None:
@@ -540,6 +562,14 @@ class TestLossyNormalisationIsReported:
 
         assert "decimal_to_float" in applied
         assert "binary floating-point" in LOSSY_CONVERSION_NOTES["decimal_to_float"]
+
+    def test_a_nested_decimal_that_loses_precision_is_flagged(self) -> None:
+        applied: set[str] = set()
+
+        assert normalize_row_values([{"costs": [Decimal("9007199254740993")]}], applied) == [
+            {"costs": [9007199254740992.0]}
+        ]
+        assert "decimal_to_float" in applied
 
     def test_a_non_finite_float_is_flagged(self) -> None:
         applied: set[str] = set()

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import math
 import re
 from dataclasses import dataclass
@@ -75,8 +74,10 @@ def _normalize_value(value: Any, applied: Optional[set[str]] = None) -> Any:
         return value.astimezone(timezone.utc).isoformat()
     if isinstance(value, date):
         return value.isoformat()
-    if isinstance(value, (dict, list)):
-        return json.loads(json.dumps(value, default=str))
+    if isinstance(value, dict):
+        return {key: _normalize_value(item, applied) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_normalize_value(item, applied) for item in value]
     if isinstance(value, bytes):
         decoded = value.decode("utf-8", errors="replace")
         if decoded.encode("utf-8", errors="replace") != value:
