@@ -1676,6 +1676,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/agent_sessions/{session_id}/tool_outputs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Agent Session Tool Outputs
+         * @description Persist resolved client tool outputs for the session's open turn.
+         *
+         *     A turn that stops on unresolved client tool calls stays open while the
+         *     user works through approvals. Each resolved output can be submitted
+         *     here as it lands so the persisted transcript reflects it immediately —
+         *     the model does not run, and the unanswered calls keep their pending
+         *     states. The turn is continued (and completed) by the chat route once
+         *     every pending call resolves; because outputs for already-resolved
+         *     calls are ignored, that final continuation may idempotently re-carry
+         *     outputs submitted here.
+         */
+        post: operations["submitAgentSessionToolOutputs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/agent_sessions/{session_id}/chat": {
         parameters: {
             query?: never;
@@ -5642,6 +5671,36 @@ export interface components {
             type: "subagents";
             /** Enabled */
             enabled: boolean;
+        };
+        /**
+         * SubmitAgentSessionToolOutputsRequestBody
+         * @description Persist resolved client tool outputs without continuing the turn.
+         *
+         *     Carries Vercel AI data-stream tool-output parts, so it follows the chat
+         *     route's camelCase wire casing rather than the session CRUD routes'
+         *     snake_case (see ``_CamelBaseModel``).
+         */
+        SubmitAgentSessionToolOutputsRequestBody: {
+            /**
+             * Tooloutputs
+             * @description Client-executed tool results for pending tool calls on the transcript's trailing assistant message, matched by ``toolCallId``. Outputs for calls the server has already resolved are ignored, so resending is idempotent; an output that matches no call (or renames its tool) is rejected with HTTP 409 and code ``agent_session_tool_outputs_conflict``.
+             */
+            toolOutputs: (components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"])[];
+            /**
+             * Lastmessageid
+             * @description The id of the trailing assistant message whose pending tool calls the outputs resolve, used for optimistic concurrency. On mismatch the server rejects the submission with HTTP 409 and code ``agent_session_messages_stale`` — the client should refetch the session before retrying.
+             */
+            lastMessageId: string;
+        };
+        /**
+         * SubmitAgentSessionToolOutputsResponseBody
+         * @description The trailing assistant message with the submitted outputs applied.
+         *
+         *     A 200 means the outputs are durable; the turn stays open until a chat
+         *     continuation resolves every pending call and runs the model.
+         */
+        SubmitAgentSessionToolOutputsResponseBody: {
+            data: components["schemas"]["PhoenixUIMessage"];
         };
         /** TextContentPart */
         TextContentPart: {
@@ -12280,6 +12339,95 @@ export interface operations {
                 };
                 content: {
                     "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    submitAgentSessionToolOutputs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitAgentSessionToolOutputsRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmitAgentSessionToolOutputsResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description The request conflicts with the session's current state; the body's ``code`` field says how. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSessionConflictError"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Insufficient Storage */

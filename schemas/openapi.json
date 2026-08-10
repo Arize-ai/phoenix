@@ -8835,6 +8835,119 @@
         }
       }
     },
+    "/v1/agent_sessions/{session_id}/tool_outputs": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Submit Agent Session Tool Outputs",
+        "description": "Persist resolved client tool outputs for the session's open turn.\n\nA turn that stops on unresolved client tool calls stays open while the\nuser works through approvals. Each resolved output can be submitted\nhere as it lands so the persisted transcript reflects it immediately \u2014\nthe model does not run, and the unanswered calls keep their pending\nstates. The turn is continued (and completed) by the chat route once\nevery pending call resolves; because outputs for already-resolved\ncalls are ignored, that final continuation may idempotently re-carry\noutputs submitted here.",
+        "operationId": "submitAgentSessionToolOutputs",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitAgentSessionToolOutputsRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitAgentSessionToolOutputsResponseBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the session's current state; the body's ``code`` field says how.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSessionConflictError"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/agent_sessions/{session_id}/chat": {
       "post": {
         "tags": [
@@ -18334,6 +18447,57 @@
         ],
         "title": "SubagentsContext",
         "description": "User's per-turn request to expose the subagent-spawning tool."
+      },
+      "SubmitAgentSessionToolOutputsRequestBody": {
+        "properties": {
+          "toolOutputs": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"
+                }
+              ]
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Tooloutputs",
+            "description": "Client-executed tool results for pending tool calls on the transcript's trailing assistant message, matched by ``toolCallId``. Outputs for calls the server has already resolved are ignored, so resending is idempotent; an output that matches no call (or renames its tool) is rejected with HTTP 409 and code ``agent_session_tool_outputs_conflict``."
+          },
+          "lastMessageId": {
+            "type": "string",
+            "title": "Lastmessageid",
+            "description": "The id of the trailing assistant message whose pending tool calls the outputs resolve, used for optimistic concurrency. On mismatch the server rejects the submission with HTTP 409 and code ``agent_session_messages_stale`` \u2014 the client should refetch the session before retrying."
+          }
+        },
+        "type": "object",
+        "required": [
+          "toolOutputs",
+          "lastMessageId"
+        ],
+        "title": "SubmitAgentSessionToolOutputsRequestBody",
+        "description": "Persist resolved client tool outputs without continuing the turn.\n\nCarries Vercel AI data-stream tool-output parts, so it follows the chat\nroute's camelCase wire casing rather than the session CRUD routes'\nsnake_case (see ``_CamelBaseModel``)."
+      },
+      "SubmitAgentSessionToolOutputsResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PhoenixUIMessage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SubmitAgentSessionToolOutputsResponseBody",
+        "description": "The trailing assistant message with the submitted outputs applied.\n\nA 200 means the outputs are durable; the turn stays open until a chat\ncontinuation resolves every pending call and runs the model."
       },
       "TextContentPart": {
         "properties": {

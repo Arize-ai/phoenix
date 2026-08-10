@@ -106,6 +106,18 @@ def _patch_session_url(agent_session_id: str) -> str:
     return f"/v1/agent_sessions/{agent_session_id}"
 
 
+def _tool_outputs_url(agent_session_id: str) -> str:
+    return f"/v1/agent_sessions/{agent_session_id}/tool_outputs"
+
+
+def _tool_outputs_body(
+    tool_outputs: list[dict[str, Any]],
+    *,
+    last_message_id: str,
+) -> dict[str, Any]:
+    return {"toolOutputs": tool_outputs, "lastMessageId": last_message_id}
+
+
 def _compact_body() -> dict[str, Any]:
     return {
         "model": {
@@ -307,6 +319,36 @@ def _client_tool_model() -> FunctionModel:
             yield "done"
         else:
             yield {1: DeltaToolCall(name="list_datasets", json_args="{}")}
+
+    def function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
+        return ModelResponse(parts=[])
+
+    return FunctionModel(function=function, stream_function=stream_function)
+
+
+def _two_client_tool_model() -> FunctionModel:
+    """Request two client tools, then finish after both results are submitted."""
+
+    async def stream_function(
+        messages: list[ModelMessage],
+        agent_info: AgentInfo,
+    ) -> AsyncIterator[str | DeltaToolCalls]:
+        # Unlike the single-call double above, resolved calls load as
+        # alternating call/return messages, so count returns across the
+        # whole history rather than just the trailing message.
+        tool_result_count = sum(
+            1
+            for message in messages
+            for part in message.parts
+            if isinstance(part, ToolReturnPart) and part.tool_name == "list_datasets"
+        )
+        if tool_result_count >= 2:
+            yield "done"
+        else:
+            yield {
+                1: DeltaToolCall(name="list_datasets", json_args="{}"),
+                2: DeltaToolCall(name="list_datasets", json_args="{}"),
+            }
 
     def function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
         return ModelResponse(parts=[])
@@ -1113,6 +1155,332 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
         isinstance(part, TextUIPart) and part.text == "done"
         for part in persisted_assistant.message.parts
     )
+
+
+async def test_submitted_tool_outputs_persist_partially_without_running_the_model(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_id = "49494949-4949-4449-8449-494949494949"
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+    )
+    build_model_calls = 0
+    remaining_models = iter([_two_client_tool_model(), _two_client_tool_model()])
+
+    async def _fake_build_model(*args: object, **kwargs: object) -> FunctionModel:
+        nonlocal build_model_calls
+        build_model_calls += 1
+        return next(remaining_models)
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+
+    first_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(session_id, _user_message("list my datasets twice")),
+    )
+    assert first_response.status_code == 200
+    first_start = next(
+        chunk for chunk in _stream_chunks(first_response.text) if chunk["type"] == "start"
+    )
+    assistant_message_id = first_start["messageId"]
+    assert build_model_calls == 1
+
+    async with db() as session:
+        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
+        assert agent_session_rowid is not None
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+    pending_parts = [
+        part for part in stored_messages[-1]["parts"] if part["type"] == "tool-list_datasets"
+    ]
+    assert len(pending_parts) == 2
+    assert all(part["state"] == "input-available" for part in pending_parts)
+    answered_call, unanswered_call = pending_parts
+
+    def _tool_output_for(pending_part: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "type": "tool-list_datasets",
+            "toolCallId": pending_part["toolCallId"],
+            "state": "output-available",
+            "input": pending_part.get("input"),
+            "output": {"datasets": []},
+        }
+
+    submit_response = await httpx_client.post(
+        _tool_outputs_url(agent_session_id),
+        json=_tool_outputs_body(
+            [_tool_output_for(answered_call)],
+            last_message_id=assistant_message_id,
+        ),
+    )
+    assert submit_response.status_code == 200
+    # The submission persists outputs without continuing the turn: no model
+    # run, and the response is the updated assistant message, not a stream.
+    assert build_model_calls == 1
+    response_message = submit_response.json()["data"]
+    assert response_message["id"] == assistant_message_id
+    response_parts_by_call_id = {
+        part["toolCallId"]: part
+        for part in response_message["parts"]
+        if part["type"] == "tool-list_datasets"
+    }
+    assert response_parts_by_call_id[answered_call["toolCallId"]]["state"] == "output-available"
+    assert response_parts_by_call_id[unanswered_call["toolCallId"]]["state"] == "input-available"
+
+    async with db() as session:
+        stored = await session.scalar(select(models.AgentSession))
+        assert stored is not None
+        # The submission's transient turn-lock claim was released on commit.
+        assert stored.heartbeat_at is None
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+    assert len(stored_messages) == 2
+    persisted_parts_by_call_id = {
+        part["toolCallId"]: part
+        for part in stored_messages[-1]["parts"]
+        if part["type"] == "tool-list_datasets"
+    }
+    applied_part = persisted_parts_by_call_id[answered_call["toolCallId"]]
+    assert applied_part["state"] == "output-available"
+    assert applied_part["output"] == {"datasets": []}
+    # The unanswered call is untouched — still pending, not repaired.
+    assert persisted_parts_by_call_id[unanswered_call["toolCallId"]] == unanswered_call
+
+    # The final chat continuation re-carries the submitted output alongside
+    # the remaining one; the server ignores the already-resolved call.
+    final_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            None,
+            toolOutputs=[
+                _tool_output_for(answered_call),
+                _tool_output_for(unanswered_call),
+            ],
+            lastMessageId=assistant_message_id,
+        ),
+    )
+    assert final_response.status_code == 200
+    # With every pending call resolved, the continuation runs the model.
+    assert build_model_calls == 2
+    final_acknowledgement = next(
+        chunk
+        for chunk in _stream_chunks(final_response.text)
+        if chunk["type"] == "data-transcript-persisted"
+    )
+    assert final_acknowledgement["data"]["messageId"] == assistant_message_id
+
+    async with db() as session:
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+    final_assistant_message = stored_messages[-1]
+    final_tool_parts = [
+        part for part in final_assistant_message["parts"] if part["type"] == "tool-list_datasets"
+    ]
+    assert all(part["state"] == "output-available" for part in final_tool_parts)
+    assert any(
+        part["type"] == "text" and part["text"] == "done"
+        for part in final_assistant_message["parts"]
+    )
+
+
+def _pending_client_tool_output(**overrides: Any) -> dict[str, Any]:
+    """A resolved output for ``_assistant_message_with_pending_client_tool``'s call."""
+    return {
+        "type": "tool-edit_prompt_instance",
+        "toolCallId": "tool-call-pending",
+        "state": "output-available",
+        "input": {"instanceId": 3},
+        "output": {"applied": True},
+        **overrides,
+    }
+
+
+async def test_submitted_tool_outputs_keep_the_persisted_result_for_resolved_calls(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[
+            _user_message("edit the prompt"),
+            _assistant_message_with_pending_client_tool(),
+        ],
+    )
+
+    first_response = await httpx_client.post(
+        _tool_outputs_url(agent_session_id),
+        json=_tool_outputs_body(
+            [_pending_client_tool_output()],
+            last_message_id=_message_uuid("assistant-1"),
+        ),
+    )
+    assert first_response.status_code == 200
+
+    # A retried submission with a different payload is ignored: the call is
+    # already resolved and the persisted result wins.
+    retry_response = await httpx_client.post(
+        _tool_outputs_url(agent_session_id),
+        json=_tool_outputs_body(
+            [_pending_client_tool_output(output={"applied": False})],
+            last_message_id=_message_uuid("assistant-1"),
+        ),
+    )
+    assert retry_response.status_code == 200
+
+    resolved_part = await _load_pending_tool_part(db)
+    assert resolved_part["state"] == "output-available"
+    assert resolved_part["output"] == {"applied": True}
+
+
+async def test_submitted_tool_outputs_reject_unknown_tool_call_ids(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[
+            _user_message("edit the prompt"),
+            _assistant_message_with_pending_client_tool(),
+        ],
+    )
+
+    response = await httpx_client.post(
+        _tool_outputs_url(agent_session_id),
+        json=_tool_outputs_body(
+            [_pending_client_tool_output(toolCallId="tool-call-unknown")],
+            last_message_id=_message_uuid("assistant-1"),
+        ),
+    )
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "agent_session_tool_outputs_conflict"
+    pending_part = await _load_pending_tool_part(db)
+    assert pending_part["state"] == "input-available"
+    async with db() as session:
+        stored = await session.scalar(select(models.AgentSession))
+        assert stored is not None
+        # The rejection rolled back the transient turn-lock claim.
+        assert stored.heartbeat_at is None
+
+
+async def test_submitted_tool_outputs_reject_a_stale_last_message_id(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[
+            _user_message("edit the prompt"),
+            _assistant_message_with_pending_client_tool(),
+        ],
+    )
+
+    response = await httpx_client.post(
+        _tool_outputs_url(agent_session_id),
+        json=_tool_outputs_body(
+            [_pending_client_tool_output()],
+            last_message_id=_message_uuid("assistant-0"),
+        ),
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {"code": "agent_session_messages_stale"}
+    pending_part = await _load_pending_tool_part(db)
+    assert pending_part["state"] == "input-available"
+
+
+async def test_submitted_tool_outputs_reject_a_busy_session(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[
+            _user_message("edit the prompt"),
+            _assistant_message_with_pending_client_tool(),
+        ],
+    )
+    live_heartbeat = datetime.now(timezone.utc)
+    async with db() as session:
+        await session.execute(update(models.AgentSession).values(heartbeat_at=live_heartbeat))
+
+    response = await httpx_client.post(
+        _tool_outputs_url(agent_session_id),
+        json=_tool_outputs_body(
+            [_pending_client_tool_output()],
+            last_message_id=_message_uuid("assistant-1"),
+        ),
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {"code": "agent_session_busy"}
+    async with db() as session:
+        stored = await session.scalar(select(models.AgentSession))
+        assert stored is not None
+        # The streaming turn's lock is untouched.
+        assert stored.heartbeat_at is not None
+    pending_part = await _load_pending_tool_part(db)
+    assert pending_part["state"] == "input-available"
+
+
+async def test_submitted_tool_outputs_take_over_a_stale_turn_lock(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[
+            _user_message("edit the prompt"),
+            _assistant_message_with_pending_client_tool(),
+        ],
+    )
+    stale_heartbeat = datetime.now(timezone.utc) - TURN_LOCK_STALENESS - timedelta(seconds=1)
+    async with db() as session:
+        await session.execute(update(models.AgentSession).values(heartbeat_at=stale_heartbeat))
+
+    response = await httpx_client.post(
+        _tool_outputs_url(agent_session_id),
+        json=_tool_outputs_body(
+            [_pending_client_tool_output()],
+            last_message_id=_message_uuid("assistant-1"),
+        ),
+    )
+
+    assert response.status_code == 200
+    resolved_part = await _load_pending_tool_part(db)
+    assert resolved_part["state"] == "output-available"
+    async with db() as session:
+        stored = await session.scalar(select(models.AgentSession))
+        assert stored is not None
+        assert stored.heartbeat_at is None
+
+
+async def test_submitted_tool_outputs_reject_a_non_assistant_tail(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[_user_message("edit the prompt")],
+    )
+
+    response = await httpx_client.post(
+        _tool_outputs_url(agent_session_id),
+        json=_tool_outputs_body(
+            [_pending_client_tool_output()],
+            last_message_id=_DEFAULT_USER_MESSAGE_ID,
+        ),
+    )
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "agent_session_tool_outputs_conflict"
 
 
 def _assistant_message_with_pending_client_tool() -> dict[str, Any]:
