@@ -135,7 +135,7 @@ def _chat_body(
     body: dict[str, Any] = {
         "trigger": "submit-message",
         "id": session_id,
-        "userAgent": "web",
+        "userAgentType": "web",
         "model": {
             "providerType": "builtin",
             "provider": "OPENAI",
@@ -153,7 +153,7 @@ def _headless_chat_body(
     message: dict[str, Any] | None,
     **overrides: Any,
 ) -> dict[str, Any]:
-    return _chat_body(session_id, message, userAgent="headless", **overrides)
+    return _chat_body(session_id, message, userAgentType="headless", **overrides)
 
 
 def _stream_chunks(response_text: str) -> list[dict[str, Any]]:
@@ -2437,7 +2437,7 @@ async def test_server_agent_bash_shell_state_persists_across_chat_turns(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Mirror of ``test_bash_shell_state_persists_across_chat_turns`` for
-    ``userAgent="headless"``: pins the snapshot wiring ``build_server_agent``
+    ``userAgentType="headless"``: pins the snapshot wiring ``build_server_agent``
     gained for the session route."""
     session_id = "57575757-5757-4757-8757-575757575757"
     agent_session_id = await _create_agent_session_row(db)
@@ -2920,7 +2920,7 @@ async def test_chat_rejects_a_turn_asserting_a_model_the_session_is_not_on(
         assert agent_session.heartbeat_at is None
 
 
-async def test_chat_rejects_unknown_user_agents(
+async def test_chat_rejects_unknown_user_agent_types(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
 ) -> None:
@@ -2930,7 +2930,7 @@ async def test_chat_rejects_unknown_user_agents(
         json=_chat_body(
             "11111111-1111-4111-8111-111111111111",
             _user_message("hello"),
-            userAgent="nonexistent",
+            userAgentType="nonexistent",
         ),
     )
     assert response.status_code == 422

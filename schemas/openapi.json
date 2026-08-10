@@ -10067,14 +10067,14 @@
             "description": "When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.",
             "default": false
           },
-          "userAgent": {
+          "userAgentType": {
             "type": "string",
             "enum": [
               "web",
               "headless"
             ],
-            "title": "Useragent",
-            "description": "Which Phoenix user agent is driving the turn: ``web`` for the browser assistant, ``headless`` for terminal and scripted clients. Selects the agent configuration the turn runs on."
+            "title": "Useragenttype",
+            "description": "Which Phoenix user agent type is driving the turn: ``web`` for the browser assistant, ``headless`` for terminal and scripted clients. Selects the agent configuration the turn runs on."
           },
           "contexts": {
             "items": {
@@ -10161,7 +10161,7 @@
         },
         "type": "object",
         "required": [
-          "userAgent",
+          "userAgentType",
           "model",
           "id"
         ],

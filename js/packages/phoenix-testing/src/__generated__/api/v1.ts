@@ -2192,11 +2192,11 @@ export interface components {
              */
             attachUserId?: boolean;
             /**
-             * Useragent
-             * @description Which Phoenix user agent is driving the turn: ``web`` for the browser assistant, ``headless`` for terminal and scripted clients. Selects the agent configuration the turn runs on.
+             * Useragenttype
+             * @description Which Phoenix user agent type is driving the turn: ``web`` for the browser assistant, ``headless`` for terminal and scripted clients. Selects the agent configuration the turn runs on.
              * @enum {string}
              */
-            userAgent: "web" | "headless";
+            userAgentType: "web" | "headless";
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
             /**

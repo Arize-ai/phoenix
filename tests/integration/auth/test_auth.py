@@ -2231,7 +2231,7 @@ class TestVercelChatStreamRouterAuth:
         return {
             "trigger": "submit-message",
             "id": "test-msg-id",
-            "userAgent": "web",
+            "userAgentType": "web",
             "message": {
                 "id": "msg-1",
                 "role": "user",
