@@ -1,14 +1,5 @@
 # Changelog
 
-## Unreleased
-
-### ⚠ BREAKING CHANGES
-
-* **client:** remove the deprecated `google-generativeai` prompt formatter. Install
-  `google-genai` and use `PromptVersion.format()` or
-  `PromptVersion.format(sdk="google_genai")`. `sdk="google_generativeai"` and
-  `PromptVersion.from_google_generativeai()` are no longer supported.
-
 ## [2.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.12.0...arize-phoenix-client-v2.13.0) (2026-07-12)
 
 
