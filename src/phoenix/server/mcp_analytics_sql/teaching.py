@@ -7,9 +7,6 @@ from phoenix.server.mcp_analytics_sql.ddl import DetailLevel, render_schema_ddl,
 
 logger = logging.getLogger(__name__)
 
-BRIEF_BYTE_BUDGET = 8_192
-DETAILED_BYTE_BUDGET = 32_768
-
 FULL_EXAMPLES = {
     "attribute_shape_sampling_sqlite": (
         "SELECT key, json_each.type AS shape, COUNT(*) "
@@ -125,12 +122,4 @@ def _describe_sql_schema(
         )
         sections.append(f"-- what is inside `attributes`, and how often:\n{FULL_EXAMPLES[key]};")
 
-    text = "\n\n".join(section for section in sections if section)
-
-    # The budget is a signal to whoever tunes this surface, so it is stated in
-    # the document rather than raised: a caller who asked for `detailed` still
-    # wants the schema, and losing it to a size complaint helps nobody.
-    budget = BRIEF_BYTE_BUDGET if detail == "brief" else DETAILED_BYTE_BUDGET
-    if detail in ("brief", "detailed") and len(text.encode("utf-8")) > budget:
-        text += f"\n\n-- note: {detail} schema exceeds its {budget} byte budget"
-    return text
+    return "\n\n".join(section for section in sections if section)
