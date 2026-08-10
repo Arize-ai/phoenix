@@ -190,8 +190,12 @@ export const expandableRowsTableCSS = css`
     }
   }
   &[data-rows="expanded"] {
-    ${CLIPPED_DATA_CELL_SELECTOR} {
+    // every data cell starts on the row's first line, including the selection
+    // and action cells that are exempt from clipping below
+    td.${TABLE_DATA_CELL_CLASS} {
       vertical-align: top;
+    }
+    ${CLIPPED_DATA_CELL_SELECTOR} {
       overflow: hidden;
       // long unbroken values (ids, serialized JSON) wrap within the cell
       // rather than widening the column

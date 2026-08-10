@@ -123,6 +123,7 @@ export function ResizableTable<DataRow>({
                     <td
                       key={cell.id}
                       className={TABLE_DATA_CELL_CLASS}
+                      data-column-id={cell.column.id}
                       align={cell.column.columnDef.meta?.textAlign}
                       style={getCommonPinningStyles(cell.column)}
                     >

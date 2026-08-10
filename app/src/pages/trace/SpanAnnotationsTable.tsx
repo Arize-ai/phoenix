@@ -10,6 +10,7 @@ import {
   ResizableTable,
   UserCell,
 } from "@phoenix/components/table";
+import { ACTIONS_COLUMN_ID } from "@phoenix/components/table/constants";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
 import { SpanAnnotationDeleteButton } from "@phoenix/components/trace/SpanAnnotationDeleteButton";
@@ -26,7 +27,6 @@ import type { SpanAnnotationsTableQuery } from "./__generated__/SpanAnnotationsT
 type SpanAnnotation =
   SpanAnnotationsTable_annotations$data["spanAnnotations"][number];
 
-const ACTIONS_COLUMN_ID = "actions";
 const PINNED_RIGHT_COLUMN_IDS = [ACTIONS_COLUMN_ID];
 const DEFAULT_SORTING = [{ id: "createdAt", desc: true }];
 
