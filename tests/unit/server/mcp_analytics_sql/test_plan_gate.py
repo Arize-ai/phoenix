@@ -153,6 +153,10 @@ async def test_names_the_function_it_refuses(db: DbSessionFactory) -> None:
             "SELECT coalesce(name, 'fallback('), jsonb_each(attributes) FROM spans",
             id="literal-with-parenthesis",
         ),
+        pytest.param(
+            "SELECT substring(name, 1, 1), jsonb_each(attributes) FROM spans",
+            id="admitted-scalar-beside-srf",
+        ),
     ],
 )
 async def test_the_gate_does_not_refuse_our_own_rewrites(db: DbSessionFactory, sql: str) -> None:

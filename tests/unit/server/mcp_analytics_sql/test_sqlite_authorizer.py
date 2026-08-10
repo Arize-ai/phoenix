@@ -37,6 +37,28 @@ def test_sqlite_authorizer_denies_table_and_function(tmp_path: Path) -> None:
         ro.close()
 
 
+def test_cte_name_cannot_mask_a_forbidden_physical_table(tmp_path: Path) -> None:
+    db_path = tmp_path / "auth.db"
+    connection = sqlite3.connect(db_path)
+    connection.executescript(
+        "CREATE TABLE spans(id INTEGER); "
+        "CREATE TABLE api_keys(secret TEXT); "
+        "INSERT INTO api_keys VALUES('TOPSECRET');"
+    )
+    connection.set_authorizer(
+        _sqlite_authorizer(
+            frozenset({"spans"}), frozenset(), introduced_relations=frozenset({"api_keys"})
+        )
+    )
+    try:
+        with pytest.raises(sqlite3.Error):
+            connection.execute(
+                "WITH api_keys AS (SELECT secret FROM main.api_keys) SELECT secret FROM api_keys"
+            ).fetchall()
+    finally:
+        connection.close()
+
+
 def test_sqlite_authorizer_denies_state_changes_and_attached_databases(tmp_path: Path) -> None:
     """The engine backstop must hold if a non-SELECT bypasses admission."""
     db_path = tmp_path / "auth.db"

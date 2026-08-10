@@ -1311,7 +1311,7 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
             read="sqlite",
         )
         locality = query_local_columns(
-            cast(exp.Expression, root), allowlist=load_allowlist("sqlite")
+            cast(exp.Expression, root), allowlist=load_allowlist("sqlite"), dialect="sqlite"
         )
 
         assert not any(locality.is_local(column) for column in root.find_all(exp.Column))
@@ -1329,14 +1329,18 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
             "SELECT id AS gradient_start_color FROM projects ORDER BY gradient_start_color",
             read="sqlite",
         )
-        alias = query_local_columns(cast(exp.Expression, alias_root), allowlist=allowlist)
+        alias = query_local_columns(
+            cast(exp.Expression, alias_root), allowlist=allowlist, dialect="sqlite"
+        )
         marked = [c for c in alias_root.find_all(exp.Column) if alias.is_local(c)]
         assert marked, "the bare sort key is local"
         assert all(alias.is_alias_bound(c) for c in marked)
         assert not any(alias.is_structurally_local(c) for c in marked)
 
         derived_root = parse_one("SELECT q.user_id FROM (SELECT 1 AS user_id) q", read="sqlite")
-        derived = query_local_columns(cast(exp.Expression, derived_root), allowlist=allowlist)
+        derived = query_local_columns(
+            cast(exp.Expression, derived_root), allowlist=allowlist, dialect="sqlite"
+        )
         structural = [c for c in derived_root.find_all(exp.Column) if derived.is_local(c)]
         assert structural, "a qualified reference into a subquery is structural evidence"
         assert all(derived.is_structurally_local(c) for c in structural)
@@ -1369,6 +1373,7 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
                 exp.Expression, parse_one("SELECT id AS v FROM projects ORDER BY v", read="sqlite")
             ),
             allowlist=load_allowlist("sqlite"),
+            dialect="sqlite",
         )
 
         with pytest.raises(TypeError):

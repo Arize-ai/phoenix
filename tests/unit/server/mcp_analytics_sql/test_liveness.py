@@ -548,6 +548,39 @@ async def test_partial_flag_is_honest_at_the_boundary(
     assert result.envelope.row_count_is_partial is expect_partial
 
 
+async def test_partial_flag_stays_honest_when_caller_repeats_the_tool_limit(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+) -> None:
+    db, db_path = analytics_sqlite_db
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql="SELECT id FROM spans LIMIT 2", row_limit=2),
+        sqlite_db_path=db_path,
+    )
+    assert result.envelope.row_count == 2
+    assert result.envelope.row_count_is_partial is True
+
+
+async def test_sqlite_timestamp_subtraction_returns_elapsed_seconds(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+) -> None:
+    db, db_path = analytics_sqlite_db
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(
+            sql=(
+                "SELECT end_time - start_time AS duration, latency_ms "
+                "FROM spans WHERE span_id = 'span-1'"
+            )
+        ),
+        sqlite_db_path=db_path,
+    )
+    assert result.envelope.rows
+    duration, latency_ms = result.envelope.rows[0]
+    assert duration != 0
+    assert latency_ms != 0
+
+
 async def test_no_window_is_imposed_when_none_is_asked_for(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
 ) -> None:

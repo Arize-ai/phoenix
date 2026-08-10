@@ -22,7 +22,11 @@ from phoenix.server.mcp_analytics_sql.normalize import (
     parse_timestamp_literal,
     timestamp_column_names,
 )
-from phoenix.server.mcp_analytics_sql.parse import _timestamp_literals, query_local_columns
+from phoenix.server.mcp_analytics_sql.parse import (
+    _allowlisted_table_name,
+    _timestamp_literals,
+    query_local_columns,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +143,7 @@ def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     root = _expand_stars(root, ctx)
     root = _substitute_latency_ms(root, ctx)
     root = _substitute_graphql_node_id(root, ctx)
+    root = _rewrite_sqlite_timestamp_subtraction(root, ctx)
     root = _normalize_timestamp_literals(root, ctx)
     root = _canonicalize_json_extract(root, ctx)
     root = _qualify_schema(root, ctx)
@@ -181,7 +186,7 @@ def _assert_rewrites_preserved_policy(root: exp.Expression, ctx: RewriteContext)
         name = table.name or ""
         if not name or name in ctx.introduced_relations:
             continue
-        if name not in ctx.allowlist.tables:
+        if _allowlisted_table_name(table, allowlist=ctx.allowlist, dialect=ctx.dialect) is None:
             logger.error(
                 "analytics sql: rewrite produced a reference to %r, which is not "
                 "allowlisted and was not declared by the statement",
@@ -299,7 +304,7 @@ def _normalize_timestamp_literals(root: exp.Expression, ctx: RewriteContext) -> 
         return root
     changed = False
     saw_bare_date = False
-    for literal in _timestamp_literals(root, columns, allowlist=ctx.allowlist):
+    for literal in _timestamp_literals(root, columns, allowlist=ctx.allowlist, dialect=ctx.dialect):
         parsed = parse_timestamp_literal(literal.this)
         if parsed is None:
             continue
@@ -579,8 +584,8 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     a float must behave like one wherever it appears -- ``latency_ms > 100``
     has to mean the same hundred milliseconds as a projected ``latency_ms`` of
     100, or the advertisement is a lie in one of the two places. Comparing the
-    raw timestamp difference in a predicate would be cheaper to build and would
-    silently mean seconds on one backend and an interval on the other.
+    raw SQLite timestamp subtraction coerces stored text to zero, so a sibling
+    rewrite gives timestamp subtraction elapsed-seconds semantics there.
 
     Two rendering hazards govern how the tree is built, and both produce
     plausible SQL that computes the wrong number rather than failing.
@@ -603,7 +608,7 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     # identity is stable across the walk below. A reference this marks local
     # means the column some derived relation projected under the name, not the
     # duration this pass computes.
-    query_local = query_local_columns(root, allowlist=ctx.allowlist)
+    query_local = query_local_columns(root, allowlist=ctx.allowlist, dialect=ctx.dialect)
 
     for node in list(root.find_all(exp.Column)):
         if (node.name or "").lower() == "latency_ms" and not query_local.is_local(node):
@@ -657,6 +662,44 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     return root
 
 
+def _rewrite_sqlite_timestamp_subtraction(
+    root: exp.Expression, ctx: RewriteContext
+) -> exp.Expression:
+    """Give subtraction of stored SQLite timestamps its elapsed-seconds meaning."""
+    if ctx.dialect != "sqlite":
+        return root
+    timestamp_columns = timestamp_column_names(ctx.allowlist.tables)
+    query_local = query_local_columns(root, allowlist=ctx.allowlist, dialect=ctx.dialect)
+    changed = False
+    for node in list(root.find_all(exp.Sub)):
+        left, right = node.this, node.expression
+        if not (
+            isinstance(left, exp.Column)
+            and isinstance(right, exp.Column)
+            and (left.name or "").casefold() in timestamp_columns
+            and (right.name or "").casefold() in timestamp_columns
+            and not query_local.is_local(left)
+            and not query_local.is_local(right)
+        ):
+            continue
+        node.replace(
+            exp.paren(
+                exp.Sub(
+                    this=exp.Anonymous(
+                        this="unixepoch", expressions=[left.copy(), exp.Literal.string("subsec")]
+                    ),
+                    expression=exp.Anonymous(
+                        this="unixepoch", expressions=[right.copy(), exp.Literal.string("subsec")]
+                    ),
+                )
+            )
+        )
+        changed = True
+    if changed:
+        ctx.applied.append("sqlite_timestamp_subtraction")
+    return root
+
+
 def _qualify_schema(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     """Point unqualified table references at the schema the tables live in.
 
@@ -691,7 +734,11 @@ def _qualify_schema(root: exp.Expression, ctx: RewriteContext) -> exp.Expression
             # which a name-matching rule cannot express.
             if not isinstance(source, exp.Table):
                 continue
-            if source.name in ctx.allowlist.tables and not source.db:
+            if (
+                _allowlisted_table_name(source, allowlist=ctx.allowlist, dialect=ctx.dialect)
+                is not None
+                and not source.db
+            ):
                 source.set("db", exp.to_identifier(ctx.allowlist.pg_schema))
                 changed = True
     if changed:
@@ -704,9 +751,16 @@ def _inject_limit(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     # limit: UNION deduplicates and INTERSECT sorts, so the engine can be made to
     # materialise both sides in full even though the caller only reads the first
     # page. Handling Select alone let those reach the backend unbounded.
-    if isinstance(root, (exp.Select, exp.Union, exp.Intersect, exp.Except)) and (
-        root.args.get("limit") is None
-    ):
+    if not isinstance(root, (exp.Select, exp.Union, exp.Intersect, exp.Except)):
+        return root
+    limit = root.args.get("limit")
+    should_probe = limit is None
+    if isinstance(limit, exp.Limit) and isinstance(limit.expression, exp.Literal):
+        try:
+            should_probe = int(limit.expression.this) >= ctx.row_limit
+        except ValueError:
+            pass
+    if should_probe:
         # One more row than the caller asked for. Fetching exactly the limit
         # makes truncation undetectable: a result of exactly N rows is
         # indistinguishable from a result that had N+1, because the row that
@@ -714,7 +768,11 @@ def _inject_limit(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
         # limit and reports partial only when this extra row actually arrived,
         # which is the difference between a flag that is sometimes right and one
         # that is always right.
-        root.set("limit", exp.Limit(expression=exp.Literal.number(ctx.row_limit + 1)))
+        probe_limit = exp.Limit(expression=exp.Literal.number(ctx.row_limit + 1))
+        if limit is None:
+            root.set("limit", probe_limit)
+        else:
+            limit.replace(probe_limit)
         ctx.applied.append("limit_injection")
     return root
 
@@ -728,7 +786,10 @@ def _decode_node_id(value: str, type_name: str) -> Optional[int]:
     prefix, _, payload = decoded.partition(":")
     if prefix != type_name or not payload.isdigit():
         return None
-    return int(payload)
+    try:
+        return int(payload)
+    except ValueError:
+        return None
 
 
 def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
@@ -770,7 +831,7 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
     # The same resolution `latency_ms` uses. Without it a derived relation
     # projecting this column has its outer reference rewritten into an expression
     # over an `id` that relation does not provide.
-    query_local = query_local_columns(root, allowlist=ctx.allowlist)
+    query_local = query_local_columns(root, allowlist=ctx.allowlist, dialect=ctx.dialect)
 
     def is_node_id(node: exp.Expression) -> bool:
         return (

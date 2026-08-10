@@ -177,6 +177,20 @@ async def test_postgres_intervals_are_normalized_before_result_validation(
 
 
 @pytest.mark.postgres_only
+async def test_quoted_cte_alias_does_not_hide_unquoted_virtual_column(
+    analytics_postgres_db: DbSessionFactory,
+) -> None:
+    result = await execute_analytics_sql(
+        analytics_postgres_db,
+        ExecuteParams(
+            sql='WITH "X" AS (SELECT 1 AS dummy) SELECT X.latency_ms FROM spans AS x',
+            row_limit=1,
+        ),
+    )
+    assert result.envelope.backend_validated is True
+
+
+@pytest.mark.postgres_only
 @pytest.mark.parametrize(
     "sql",
     [
