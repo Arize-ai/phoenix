@@ -1,4 +1,5 @@
 import asyncio
+import importlib.util
 import os
 import platform
 import queue
@@ -9,15 +10,20 @@ import textwrap
 import threading
 import time
 from typing import Any, Iterator, Sequence, Union, overload
+from unittest import mock
 from unittest.mock import AsyncMock, Mock
 
 import nest_asyncio  # type: ignore[import-untyped]
 import pytest
+from phoenix.executors import exceptions as shared_exceptions
 from phoenix.executors import executors as shared_executors
 
+from phoenix.client import exceptions as client_exceptions
+from phoenix.client.exceptions import SpanCreationError
 from phoenix.client.utils import executors
 from phoenix.client.utils.executors import (
     AsyncExecutor,
+    ConcurrencyController,
     ExecutionStatus,
     SyncExecutor,
     get_executor_on_sync_context,
@@ -652,6 +658,10 @@ def test_re_exports_are_the_shared_objects_not_copies() -> None:
         assert getattr(executors, name) is getattr(shared_executors, name)
 
 
+@pytest.mark.skipif(
+    importlib.util.find_spec("phoenix.evals") is None,
+    reason="there is no import order to exercise when arize-phoenix-evals is not installed",
+)
 @pytest.mark.parametrize(
     "first_import",
     ["phoenix.client.utils.executors", "phoenix.evals"],
@@ -681,3 +691,24 @@ def test_legacy_class_lookup_survives_either_import_order(first_import: str) -> 
     )
     result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
+
+
+def test_exceptions_re_export_the_shared_base() -> None:
+    # The executors sort failures by exception class identity. This package declares its own
+    # subclasses of the base below, so a locally-redeclared base would drop every one of them out
+    # of the tier it selects without changing a single call site.
+    assert client_exceptions.PhoenixException is shared_exceptions.PhoenixException
+    assert "PhoenixException" in client_exceptions.__all__
+
+
+async def test_this_package_s_domain_error_fails_fast() -> None:
+    async def always_raises(payload: Any) -> Any:
+        raise SpanCreationError("spans rejected")
+
+    executor = AsyncExecutor(always_raises, concurrency=1, max_retries=2, exit_on_error=False)
+    with mock.patch.object(ConcurrencyController, "record_error") as record_error:
+        _, details = await executor.execute([0])
+
+    assert len(details[0].exceptions) == 1, "a domain error is not worth retrying"
+    assert details[0].status is ExecutionStatus.FAILED
+    assert record_error.call_count == 0, "and it says nothing about the provider's rate limits"
