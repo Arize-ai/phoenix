@@ -364,6 +364,20 @@ def test_star_over_a_query_local_relation_is_a_normal_refusal() -> None:
         rewrite(admit(root, allowlist=load_allowlist("sqlite"), dialect="sqlite"), _ctx("sqlite"))
 
 
+@pytest.mark.parametrize("backend", ["sqlite", "postgresql"])
+def test_star_over_a_cte_shadowing_an_allowlisted_table_is_a_normal_refusal(
+    backend: SupportedSQLDialectName,
+) -> None:
+    """A CTE name must not make star expansion read the physical table's schema."""
+    root = parse_sql(
+        "WITH projects AS (SELECT 1 AS n) SELECT * FROM projects",
+        dialect=backend,
+    )
+    with pytest.raises(AnalyticsSqlError) as exc:
+        rewrite(admit(root, allowlist=load_allowlist("sqlite"), dialect=backend), _ctx(backend))
+    assert "query-local relation" in exc.value.message
+
+
 def test_latency_ms_keeps_its_name_in_the_select_list() -> None:
     """An advertised column has to come back under the name it was advertised as."""
     root = parse_sql("SELECT latency_ms FROM spans", dialect="sqlite")

@@ -57,8 +57,17 @@ def test_sqlite_authorizer_denies_state_changes_and_attached_databases(tmp_path:
     try:
         assert denies("ATTACH DATABASE ':memory:' AS evil")
         assert denies("DELETE FROM spans")
+        authorizer = _sqlite_authorizer(frozenset({"spans"}), frozenset())
         assert (
-            _sqlite_authorizer(frozenset({"spans"}), frozenset())(
+            authorizer(sqlite3.SQLITE_CREATE_VTABLE, "virtual_spans", None, "main", None)
+            == sqlite3.SQLITE_DENY
+        )
+        assert (
+            authorizer(sqlite3.SQLITE_DROP_VTABLE, "virtual_spans", None, "main", None)
+            == sqlite3.SQLITE_DENY
+        )
+        assert (
+            authorizer(
                 sqlite3.SQLITE_READ,
                 "spans",
                 "id",

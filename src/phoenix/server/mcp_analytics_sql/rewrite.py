@@ -4,7 +4,7 @@ import base64
 import logging
 from binascii import Error as BinasciiError
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 
 from sqlglot import exp
 from sqlglot.optimizer.scope import build_scope
@@ -417,7 +417,7 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
     return root
 
 
-def _star_sources(node: exp.Select) -> list[tuple[str, str]]:
+def _star_sources(node: exp.Select, scope: Optional[Any]) -> list[tuple[str, str]]:
     """Every relation a bare ``*`` in this SELECT draws from, as (table, alias).
 
     A star means "every column of everything in the FROM clause", so the joins
@@ -431,7 +431,16 @@ def _star_sources(node: exp.Select) -> list[tuple[str, str]]:
         if expression is None:
             return
         if isinstance(expression, exp.Table) and expression.name:
-            sources.append((expression.name, expression.alias_or_name))
+            source = (
+                scope.sources.get(expression.alias_or_name) if scope is not None else expression
+            )
+            if isinstance(source, exp.Table):
+                sources.append((source.name, expression.alias_or_name))
+            else:
+                # A CTE parses as a Table too, but resolves to a nested scope.
+                # Its projection is query-local rather than part of the
+                # manifest, so it follows the same refusal path as a subquery.
+                sources.append(("", expression.alias_or_name))
         else:
             # A derived table, a table-valued function, or anything else whose
             # columns come from the query rather than the manifest. Recorded
@@ -451,6 +460,12 @@ def _star_sources(node: exp.Select) -> list[tuple[str, str]]:
 
 def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     changed = False
+    scope_root = build_scope(root)
+    scope_by_expression = (
+        {id(scope.expression): scope for scope in scope_root.traverse()}
+        if scope_root is not None
+        else {}
+    )
 
     for node in list(root.walk()):
         if not isinstance(node, exp.Select):
@@ -476,11 +491,11 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
             if explicit:
                 targets = [
                     (name, alias)
-                    for name, alias in _star_sources(node)
+                    for name, alias in _star_sources(node, scope_by_expression.get(id(node)))
                     if explicit in (name, alias)
-                ] or [(explicit, explicit)]
+                ] or [("", explicit)]
             else:
-                targets = _star_sources(node)
+                targets = _star_sources(node, scope_by_expression.get(id(node)))
 
             if not targets:
                 raise AnalyticsSqlError(
