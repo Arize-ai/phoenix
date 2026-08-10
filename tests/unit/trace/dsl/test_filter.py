@@ -86,11 +86,11 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
     [
         (
             "parent_id is not None and 'abc' in name or span_kind == 'LLM' and span_id in ('123',)",
-            "or_(and_(parent_id != None, TextContains(name, 'abc')), and_(span_kind == 'LLM', span_id.in_(('123',))))",
+            "or_(and_(parent_id != None, CaseInsensitiveContains(name, 'abc')), and_(span_kind == 'LLM', span_id.in_(('123',))))",
         ),
         (
             "(parent_id is None or 'abc' not in name) and not (span_kind != 'LLM' or span_id not in ('123',))",
-            "and_(or_(parent_id == None, not_(TextContains(name, 'abc'))), not_(or_(span_kind != 'LLM', span_id.not_in(('123',)))))",
+            "and_(or_(parent_id == None, not_(CaseInsensitiveContains(name, 'abc'))), not_(or_(span_kind != 'LLM', span_id.not_in(('123',)))))",
         ),
         (
             "1000 < latency_ms < 2000 or status_code == 'ERROR' or 2000 <= cumulative_llm_token_count_total",
@@ -102,7 +102,7 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
         ),
         (
             "first.value in (1,) and second.value in ('2',) and '3' in third.value",
-            "and_(SafeJsonFloat(attributes[['first', 'value']]).in_((1,)), attributes[['second', 'value']].as_string().in_(('2',)), TextContains(attributes[['third', 'value']].as_string(), '3'))",
+            "and_(SafeJsonFloat(attributes[['first', 'value']]).in_((1,)), attributes[['second', 'value']].as_string().in_(('2',)), CaseInsensitiveContains(attributes[['third', 'value']].as_string(), '3'))",
         ),
         (
             "'1.0' < my.value < 2.0",
@@ -178,7 +178,7 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
         ),
         (
             "'cha' in span_kind",
-            "TextContains(span_kind, 'CHA')",
+            "CaseInsensitiveContains(span_kind, 'CHA')",
         ),
         (
             "status_code == 'error'",
@@ -194,7 +194,7 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
         ),
         (
             "'err' in status_code",
-            "TextContains(status_code, 'ERR')",
+            "CaseInsensitiveContains(status_code, 'ERR')",
         ),
         # `parent_span` root predicate: `parent_span is None` / `parent_span is not None` become
         # references to correlated EXISTS predicates bound in SpanFilter.__call__.
@@ -934,6 +934,33 @@ async def test_filter_annotation_name_uses_python_string_escaping(
             """metadata['café'] == 'yes' and span_annotation_0_label_00000000000000000000000000000000 == 'good'""",
             id="unicode-before-annotation",
         ),
+        pytest.param(
+            """trace_annotations['quality'].score >= 0.5""",
+            "trace_annotation_0_score_00000000000000000000000000000000 >= 0.5",
+            id="trace-annotation-score",
+        ),
+        pytest.param(
+            """trace_annotations['quality'].label == 'good'""",
+            "trace_annotation_0_label_00000000000000000000000000000000 == 'good'",
+            id="trace-annotation-label",
+        ),
+        pytest.param(
+            """trace_annotations['quality']""",
+            "trace_annotation_0_exists_00000000000000000000000000000000",
+            id="bare-trace-annotation-exists",
+        ),
+        pytest.param(
+            """trace_annotations['q'].score > 0.5 and annotations['q'].score < 0.5""",
+            "trace_annotation_0_score_00000000000000000000000000000000 > 0.5 "
+            "and span_annotation_1_score_00000000000000000000000000000000 < 0.5",
+            id="mixed-trace-and-span-annotation",
+        ),
+        pytest.param(
+            """annotations['q'].score < 0.5 and trace_annotations['q'].score > 0.5""",
+            "span_annotation_0_score_00000000000000000000000000000000 < 0.5 "
+            "and trace_annotation_1_score_00000000000000000000000000000000 > 0.5",
+            id="mixed-span-and-trace-annotation",
+        ),
     ],
 )
 def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
@@ -944,6 +971,177 @@ def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
     ):
         aliased, _ = _apply_eval_aliasing(filter_condition)
         assert aliased == expected
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("trace_annotations['quality'].score >= 0.5", id="score"),
+        pytest.param("trace_annotations['quality'].label == 'good'", id="label"),
+        pytest.param("trace_annotations['quality']", id="exists"),
+    ],
+)
+async def test_trace_annotation_filter_joins_trace_annotation_relation(
+    db: DbSessionFactory,
+    condition: str,
+    default_project: Any,
+    abc_project: Any,
+) -> None:
+    span_filter = SpanFilter(condition)
+    assert [relation.kind for relation in span_filter._aliased_annotation_relations] == ["trace"]
+    statement = span_filter(select(models.Span.id)).order_by(models.Span.id)
+    compiled = str(statement)
+    assert "trace_annotations" in compiled
+    assert "span_annotations" not in compiled
+    async with db() as session:
+        trace_rowid = await session.scalar(
+            select(models.Trace.id).where(models.Trace.trace_id == "0123")
+        )
+        assert trace_rowid is not None
+        expected = list(
+            await session.scalars(
+                select(models.Span.id)
+                .where(models.Span.trace_rowid == trace_rowid)
+                .order_by(models.Span.id)
+            )
+        )
+        await session.execute(
+            insert(models.TraceAnnotation).values(
+                trace_rowid=trace_rowid,
+                name="quality",
+                label="good",
+                score=0.75,
+                explanation="clear rationale",
+                metadata_={},
+                annotator_kind="LLM",
+                identifier="",
+                source="APP",
+                user_id=None,
+            )
+        )
+        await session.execute(
+            insert(models.TraceAnnotation).values(
+                trace_rowid=trace_rowid,
+                name="quality",
+                label="good",
+                score=0.9,
+                explanation="clear secondary rationale",
+                metadata_={},
+                annotator_kind="LLM",
+                identifier="secondary",
+                source="APP",
+                user_id=None,
+            )
+        )
+        assert list(await session.scalars(statement)) == expected
+
+
+async def test_annotation_syntax_in_string_literal_is_not_aliased(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    condition = '''name == "trace_annotations['quality'].score"'''
+    span_filter = SpanFilter(condition)
+    assert not span_filter._aliased_annotation_relations
+    async with db() as session:
+        await session.execute(span_filter(select(models.Span.id)))
+
+
+def test_trace_annotation_name_with_escaped_quote() -> None:
+    span_filter = SpanFilter(r'trace_annotations["reviewer \"A\""].score >= 0.5')
+    assert [relation.name for relation in span_filter._aliased_annotation_relations] == [
+        'reviewer "A"'
+    ]
+
+
+async def test_span_and_trace_annotations_join_distinct_relations(
+    db: DbSessionFactory,
+    default_project: Any,
+    abc_project: Any,
+) -> None:
+    span_filter = SpanFilter(
+        "annotations['quality'].score >= 0.5 and trace_annotations['quality'].score >= 0.5"
+    )
+    assert sorted(relation.kind for relation in span_filter._aliased_annotation_relations) == [
+        "span",
+        "trace",
+    ]
+    statement = span_filter(select(models.Span.id))
+    compiled = str(statement)
+    assert "trace_annotations" in compiled
+    assert "span_annotations" in compiled
+    async with db() as session:
+        trace_rows = await session.execute(
+            select(models.Trace.trace_id, models.Trace.id).where(
+                models.Trace.trace_id.in_(["0123", "012"])
+            )
+        )
+        trace_rowids: dict[str, int] = dict(trace_rows.tuples().all())
+        span_rows = await session.execute(
+            select(models.Span.span_id, models.Span.id).where(
+                models.Span.span_id.in_(["2345", "4567", "234"])
+            )
+        )
+        span_rowids: dict[str, int] = dict(span_rows.tuples().all())
+        await session.execute(
+            insert(models.TraceAnnotation),
+            [
+                {
+                    "trace_rowid": trace_rowids["0123"],
+                    "name": "quality",
+                    "score": 0.9,
+                    "metadata_": {},
+                    "annotator_kind": "LLM",
+                    "identifier": "",
+                    "source": "APP",
+                },
+                {
+                    "trace_rowid": trace_rowids["012"],
+                    "name": "quality",
+                    "score": 0.1,
+                    "metadata_": {},
+                    "annotator_kind": "LLM",
+                    "identifier": "",
+                    "source": "APP",
+                },
+            ],
+        )
+        await session.execute(
+            insert(models.SpanAnnotation),
+            [
+                {
+                    "span_rowid": span_rowids["2345"],
+                    "name": "quality",
+                    "score": 0.9,
+                    "metadata_": {},
+                    "annotator_kind": "LLM",
+                    "identifier": "",
+                    "source": "APP",
+                },
+                {
+                    "span_rowid": span_rowids["4567"],
+                    "name": "quality",
+                    "score": 0.1,
+                    "metadata_": {},
+                    "annotator_kind": "LLM",
+                    "identifier": "",
+                    "source": "APP",
+                },
+                {
+                    "span_rowid": span_rowids["234"],
+                    "name": "quality",
+                    "score": 0.9,
+                    "metadata_": {},
+                    "annotator_kind": "LLM",
+                    "identifier": "",
+                    "source": "APP",
+                },
+            ],
+        )
+
+        matched_span_rowids = list(await session.scalars(statement))
+
+    assert matched_span_rowids == [span_rowids["2345"]]
 
 
 class TestProjectorValidationGap:

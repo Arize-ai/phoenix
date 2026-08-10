@@ -63,8 +63,8 @@ Connect to your Phoenix deployment with the standard client environment variable
 run the suite with pytest:
 
 ```bash
-export PHOENIX_COLLECTOR_ENDPOINT=...   # your Phoenix endpoint
-export PHOENIX_API_KEY=...              # if your deployment requires authentication
+export PHOENIX_ENDPOINT=...              # your Phoenix endpoint
+export PHOENIX_API_KEY=...               # if your deployment requires authentication
 pytest
 ```
 
@@ -233,7 +233,7 @@ enabling recording.
 | `PHOENIX_TEST_DATASET` | _(file path)_ | Names the dataset for every collected test, taking precedence over both `phoenix_dataset` and the marker's `dataset=`. When unset, each test falls back to its marker `dataset=` or, failing that, its file path. Combine it with pytest's own selection (`-m`, `-k`, or a path) to turn a subset of the suite into a named dataset per run, for example `PHOENIX_TEST_DATASET=smoke pytest -m smoke`. |
 
 The connection to Phoenix uses the standard client variables:
-`PHOENIX_COLLECTOR_ENDPOINT`, `PHOENIX_API_KEY`, and `PHOENIX_CLIENT_HEADERS`.
+`PHOENIX_ENDPOINT`, `PHOENIX_API_KEY`, and `PHOENIX_CLIENT_HEADERS`.
 
 To iterate locally without recording anything to Phoenix, disable tracking:
 
@@ -295,7 +295,7 @@ jobs:
       - run: pip install "arize-phoenix-client[pytest]" pytest
       - name: Run eval suite
         env:
-          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_ENDPOINT: ${{ secrets.PHOENIX_ENDPOINT }}
           PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
         run: pytest tests/evals
 ```

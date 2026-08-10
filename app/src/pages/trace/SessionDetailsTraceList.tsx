@@ -32,6 +32,8 @@ import {
   Truncate,
   View,
 } from "@phoenix/components";
+import { MessageActions } from "@phoenix/components/ai/message/MessageActions";
+import { MessageCopyAction } from "@phoenix/components/ai/message/MessageCopyAction";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
@@ -59,7 +61,7 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { TraceFeedbackActionToolbar } from "./TraceFeedbackActionToolbar";
+import { TraceActionToolbar } from "./TraceActionToolbar";
 
 export const sessionDetailsTraceListQuery = graphql`
   query SessionDetailsTraceListQuery($id: ID!, $first: Int!) {
@@ -253,8 +255,9 @@ function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
               <LatencyText latencyMs={rootSpan.latencyMs} />
             ) : null}
           </Flex>
-          <TraceFeedbackActionToolbar
+          <TraceActionToolbar
             trace={rootSpan.trace}
+            copyText={rootSpan.output?.value}
             onAnnotate={() => {
               setIsAnnotationDialogOpen(true);
             }}
@@ -349,6 +352,8 @@ function SessionTurnDetail({
 }: RootSpanProps & { traceId: string; index: number }) {
   const user = getUserFromRootSpanAttributes(rootSpan.attributes);
   const inputLabel = user != null ? `USER: ${user}` : "INPUT";
+  const inputText = rootSpan.input?.value ?? "";
+  const hasInputText = Boolean(inputText.trim());
 
   return (
     <Flex direction="column" gap="size-200">
@@ -365,7 +370,20 @@ function SessionTurnDetail({
           role="INPUT"
           value={rootSpan.input?.value}
         />
-        <RootSpanStartTime rootSpan={rootSpan} />
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          width="100%"
+          gap="size-100"
+        >
+          <RootSpanStartTime rootSpan={rootSpan} />
+          {hasInputText ? (
+            <MessageActions aria-label="Input message actions">
+              <MessageCopyAction text={inputText} />
+            </MessageActions>
+          ) : null}
+        </Flex>
       </Flex>
       <Flex
         direction="column"
@@ -597,7 +615,7 @@ export function SessionDetailsTraceList({
                 trace {
                   id
                   ...TraceAnnotationSummaryGroup
-                  ...TraceFeedbackActionToolbar_trace
+                  ...TraceActionToolbar_trace
                   costSummary {
                     total {
                       cost

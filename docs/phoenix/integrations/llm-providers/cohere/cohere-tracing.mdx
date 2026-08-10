@@ -1,0 +1,66 @@
+---
+title: "Cohere Tracing"
+description: Instrument LLM calls made using Cohere's Python client via the CohereInstrumentor
+---
+
+Cohere builds enterprise-grade large language models for chat, search, and retrieval-augmented generation. The Cohere Python client can be instrumented using the [`openinference-instrumentation-cohere`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-cohere) package.
+
+## Install
+
+```bash
+pip install openinference-instrumentation-cohere cohere
+```
+
+The instrumentor requires `cohere >= 5.13.0`.
+
+## Setup
+
+Set the `CO_API_KEY` environment variable to authenticate calls made using the client.
+
+```bash
+export CO_API_KEY=[your_key_here]
+```
+
+Connect your application to Phoenix with the `register` function, then enable the `CohereInstrumentor`:
+
+```python
+from openinference.instrumentation.cohere import CohereInstrumentor
+from phoenix.otel import register
+
+# configure the Phoenix tracer
+tracer_provider = register(project_name="my-llm-app")
+
+CohereInstrumentor().instrument(tracer_provider=tracer_provider)
+```
+
+## Run Cohere
+
+```python
+import cohere
+
+co = cohere.ClientV2()
+response = co.chat(
+    model="command-a-03-2025",
+    messages=[{"role": "user", "content": "Why is the sky blue?"}],
+)
+print(response.message.content[0].text)
+```
+
+## Observe
+
+Now that you have tracing setup, all chat calls made with the Cohere v2 client will be streamed to your running Phoenix for observability and evaluation. Spans capture the input messages, output message, invocation parameters, tool definitions and tool calls, and token counts from Cohere's `usage.tokens`.
+
+## Coverage
+
+The instrumentor traces the Cohere **v2** client (`cohere.ClientV2` and `cohere.AsyncClientV2`), covering both the `chat` and `chat_stream` methods. Streamed calls finish their span when the returned iterator is exhausted, with the accumulated output message, tool calls, and token counts.
+
+The following are **not** traced and produce no spans:
+
+* The v1 client (`cohere.Client`)
+* The embed, rerank, and classify endpoints
+
+## Resources
+
+* [Example chat script](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-cohere/examples/chat.py)
+
+* [OpenInference package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-cohere)

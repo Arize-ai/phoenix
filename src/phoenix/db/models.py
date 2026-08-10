@@ -35,7 +35,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.dialects.sqlite.base import SQLiteCompiler
+from sqlalchemy.dialects.sqlite.base import SQLiteCompiler, SQLiteDialect
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -202,6 +202,11 @@ class JSONB(JSON):
 def _(*args: Any, **kwargs: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     return "JSONB"
+
+
+# Without this, reflection maps "JSONB" to NUMERIC, and Alembic batch_alter_table
+# rebuilds SQLite tables from reflection -- silently redeclaring JSON columns.
+SQLiteDialect.ischema_names["JSONB"] = JSONB
 
 
 JSON_ = (
@@ -1219,10 +1224,11 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 
 @compiles(CaseInsensitiveContains, "sqlite")
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
-    # Use sqlean's `text_lower` to handle non-ASCII characters
+    # sqlean's `text_casefold`, not `text_lower`: case folding is the operation
+    # Unicode defines for caseless matching.
     string, substring = list(element.clauses)
     result = compiler.process(
-        func.text_contains(func.text_lower(string), func.text_lower(substring)), **kw
+        func.text_contains(func.text_casefold(string), func.text_casefold(substring)), **kw
     )
     return result
 

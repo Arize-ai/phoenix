@@ -5,7 +5,7 @@ import * as CallbackManagerModule from "@langchain/core/callbacks/manager";
 import "dotenv/config";
 
 const provider = register({
-  projectName: "langchain-travel-agent",
+  projectName: process.env.PHOENIX_PROJECT_NAME ?? "langchain-travel-agent",
 });
 
 const lcInstrumentation = new LangChainInstrumentation();

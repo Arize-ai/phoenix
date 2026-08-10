@@ -1,29 +1,35 @@
-import { fetchQuery, graphql } from "react-relay";
+import { graphql, loadQuery } from "react-relay";
 import type { LoaderFunctionArgs } from "react-router";
+import invariant from "tiny-invariant";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { sessionLoaderQuery } from "./__generated__/sessionLoaderQuery.graphql";
 
-/**
- * Loads in the necessary page data for the dataset page
- */
-export async function sessionLoader(args: LoaderFunctionArgs) {
-  const { sessionId } = args.params;
-  return await fetchQuery<sessionLoaderQuery>(
-    RelayEnvironment,
-    graphql`
-      query sessionLoaderQuery($id: ID!) {
-        session: node(id: $id) {
-          id
-          ... on ProjectSession {
-            sessionId
-          }
-        }
+export const sessionLoaderQueryNode = graphql`
+  query sessionLoaderQuery($id: ID!) {
+    session: node(id: $id) {
+      id
+      ... on ProjectSession {
+        sessionId
       }
-    `,
-    {
-      id: sessionId as string,
     }
-  ).toPromise();
+  }
+`;
+
+/** Loads the session identifier shown in the session drawer title. */
+export function sessionLoader({ params }: LoaderFunctionArgs) {
+  const { sessionId } = params;
+  invariant(sessionId, "sessionId is required");
+
+  const queryRef = loadQuery<sessionLoaderQuery>(
+    RelayEnvironment,
+    sessionLoaderQueryNode,
+    { id: sessionId },
+    { fetchPolicy: "store-or-network" }
+  );
+
+  return { queryRef };
 }
+
+export type SessionLoaderData = ReturnType<typeof sessionLoader>;

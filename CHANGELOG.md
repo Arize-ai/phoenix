@@ -1,5 +1,102 @@
 # Changelog
 
+## [19.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.20.0...arize-phoenix-v19.21.0) (2026-08-10)
+
+
+### Features
+
+* **api:** add REST endpoints for setting tags on experiments ([#15237](https://github.com/Arize-ai/phoenix/issues/15237)) ([c892873](https://github.com/Arize-ai/phoenix/commit/c8928738d8a9cd70875e01852306de7060febf5d))
+* **sessions:** AI query for the session filter ([#15090](https://github.com/Arize-ai/phoenix/issues/15090)) ([6e3e7cf](https://github.com/Arize-ai/phoenix/commit/6e3e7cf735dffa4f6a83b9087afef09d0415121f))
+
+
+### Bug Fixes
+
+* **deps:** cap vercel below 0.8 ([#15278](https://github.com/Arize-ai/phoenix/issues/15278)) ([7b1860a](https://github.com/Arize-ai/phoenix/commit/7b1860ab579351ab978332ca04a2b8e958d5654a))
+* **deps:** update arize-phoenix-evals to 3.4.0 ([#15232](https://github.com/Arize-ai/phoenix/issues/15232)) ([e270d20](https://github.com/Arize-ai/phoenix/commit/e270d20dd661045c171c3aab3215e1ab98c4b7eb))
+* **mcp:** contain malformed Monty error payloads ([#15244](https://github.com/Arize-ai/phoenix/issues/15244)) ([d88ca00](https://github.com/Arize-ai/phoenix/commit/d88ca008d41146d4f109589bda0d60d437ec0f1c))
+* **trace:** cast the object-typed parameters fixture to satisfy tsc ([1f7cc4b](https://github.com/Arize-ai/phoenix/commit/1f7cc4b6576645c1c779c1a9de11f3a4ab2da75a))
+* **trace:** coerce object json_schema in getLLMAttributes toolSchemas ([f7e2515](https://github.com/Arize-ai/phoenix/commit/f7e2515ad3f9d3866e02a0a2144de9346331b403))
+* **trace:** stringify tool attributes rebuilt as objects ([#14984](https://github.com/Arize-ai/phoenix/issues/14984)) ([4b4dad5](https://github.com/Arize-ai/phoenix/commit/4b4dad5f031b15ef74261d79f83a89169f17bcc3))
+* **ui:** debounce responsive chart resizing ([#15257](https://github.com/Arize-ai/phoenix/issues/15257)) ([2c5c49d](https://github.com/Arize-ai/phoenix/commit/2c5c49d38a580eef95c6b02307cd39a21e92b09f))
+
+## [19.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.19.1...arize-phoenix-v19.20.0) (2026-08-10)
+
+
+### Features
+
+* add copy actions to session turns ([#14811](https://github.com/Arize-ai/phoenix/issues/14811)) ([b9999ae](https://github.com/Arize-ai/phoenix/commit/b9999ae4745e8f33eb7f512663bf7df56338da23))
+* **server:** add dataset split create/update/delete REST endpoints ([#14046](https://github.com/Arize-ai/phoenix/issues/14046)) ([b4d9b19](https://github.com/Arize-ai/phoenix/commit/b4d9b19e6c681cedcf627fc27dc48f13c7320b73))
+
+
+### Bug Fixes
+
+* **app:** unblock project navigation during loader fetches ([#14967](https://github.com/Arize-ai/phoenix/issues/14967)) ([e11b1c3](https://github.com/Arize-ai/phoenix/commit/e11b1c359327058d00784ff2f7c908601024dde0))
+* **deps:** update arize-phoenix-otel to 0.17.0 ([f413867](https://github.com/Arize-ai/phoenix/commit/f41386742d29fcf2a6ed4ead0c15787d65b5153f))
+
+## [19.19.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.19.0...arize-phoenix-v19.19.1) (2026-08-08)
+
+
+### Bug Fixes
+
+* **app:** make the Mastra snippet's OTLP path append idempotent ([10688a4](https://github.com/Arize-ai/phoenix/commit/10688a4784951ce6547161c74c39f3b4d9b3a327))
+* close remaining endpoint-variable foot guns in Python and onboarding ([ed90e0e](https://github.com/Arize-ai/phoenix/commit/ed90e0edf16fe7dfe3e6d0c5ae0925a3457daf18))
+* **db:** fold case with sqlean's text_casefold in CaseInsensitiveContains ([#15156](https://github.com/Arize-ai/phoenix/issues/15156)) ([e7b8e98](https://github.com/Arize-ai/phoenix/commit/e7b8e988967f071de8b5fb47bd6dff8d8ca9a5a1))
+* **db:** reflect JSONB back as JSONB on SQLite ([#15074](https://github.com/Arize-ai/phoenix/issues/15074)) ([bde8151](https://github.com/Arize-ai/phoenix/commit/bde815160ca8c623e8492c87c4e93bae3112c84c))
+* Set relative base path in vite.config.mts ([8ff33c6](https://github.com/Arize-ai/phoenix/commit/8ff33c69dc7ae8832b1b2369250c4113289b3a64))
+* tracer leak and cost tracking guards ([#15084](https://github.com/Arize-ai/phoenix/issues/15084)) ([70c1225](https://github.com/Arize-ai/phoenix/commit/70c1225ec9d3dcfeb1e5bcaa123fed9f42bcbfd5))
+
+
+### Performance Improvements
+
+* **db:** give SQLite reads their own connection pool ([#15075](https://github.com/Arize-ai/phoenix/issues/15075)) ([0a280c9](https://github.com/Arize-ai/phoenix/commit/0a280c90ae69b0d90f7516bb8416cc2d4e197f20))
+* **ui:** keep span-filter action consumers out of per-keystroke renders ([30fe604](https://github.com/Arize-ai/phoenix/commit/30fe604af931d3c22c28a47342bde5f23a69dd70))
+
+
+### Documentation
+
+* add AG2 tracing integration page ([#15196](https://github.com/Arize-ai/phoenix/issues/15196)) ([90bcff0](https://github.com/Arize-ai/phoenix/commit/90bcff0e475ce251b2866a57892b49bf3118e884))
+* add AG2, Together AI, Cohere, and Ollama to README integrations table ([ed7175b](https://github.com/Arize-ai/phoenix/commit/ed7175bd62bfb419ec4f1b9a65789b4f647fda90))
+* add Cohere Python instrumentor integration page ([#15192](https://github.com/Arize-ai/phoenix/issues/15192)) ([0e8a95f](https://github.com/Arize-ai/phoenix/commit/0e8a95f709b8742f8047a9046fb912e07eb90f60))
+* add Ollama LLM provider integration page ([#15187](https://github.com/Arize-ai/phoenix/issues/15187)) ([#15213](https://github.com/Arize-ai/phoenix/issues/15213)) ([a4be07b](https://github.com/Arize-ai/phoenix/commit/a4be07b80fdfd2d668ebd403b9ab7e8105774d58))
+* add Phoenix release notes ([ffb971c](https://github.com/Arize-ai/phoenix/commit/ffb971cb102f1c6949c9b0329263715c93db1d0b))
+* add Together AI tracing integration page ([fb5dd8d](https://github.com/Arize-ai/phoenix/commit/fb5dd8d363df168ebc28b48681e30700cf195d4c)), closes [#15186](https://github.com/Arize-ai/phoenix/issues/15186)
+* explain why vite base is relative (PHOENIX_HOST_ROOT_PATH support) ([68e57b5](https://github.com/Arize-ai/phoenix/commit/68e57b5521b2e12dc9a750a878732ecb5f57a9fc))
+* inline the OTLP path at the exporter instead of a named variable ([02b7f6f](https://github.com/Arize-ai/phoenix/commit/02b7f6f2af8f2b314d05806ae0b892a0e25eb677))
+* **js:** simplify Mastra onboarding snippet to declarative traces endpoint ([5583ff9](https://github.com/Arize-ai/phoenix/commit/5583ff99629f6ac9005bed88f4f22f1e8ea36cbf))
+* trim endpoint docs to in-place corrections ([0f6aa07](https://github.com/Arize-ai/phoenix/commit/0f6aa07cdc8084189e58d0ec686df3ec2fc7e60c))
+
+## [19.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.18.0...arize-phoenix-v19.19.0) (2026-08-06)
+
+
+### Features
+
+* **ui:** collapse all but the last message in LLM spans ([#15173](https://github.com/Arize-ai/phoenix/issues/15173)) ([11f418f](https://github.com/Arize-ai/phoenix/commit/11f418fb86bce253736d551129849cddffe17297))
+
+
+### Bug Fixes
+
+* **db:** replace sqlean.py with arize-phoenix-sqlean ([#15139](https://github.com/Arize-ai/phoenix/issues/15139)) ([0fc6f0a](https://github.com/Arize-ai/phoenix/commit/0fc6f0afd98e1c2a43a479e08b0922feb43ade16))
+
+
+### Documentation
+
+* remove Arize AX from tutorial and get-started flows ([#15171](https://github.com/Arize-ai/phoenix/issues/15171)) ([e75fec0](https://github.com/Arize-ai/phoenix/commit/e75fec0399c2e99b67067f6da839c5b3c3a0ad0d))
+* update API reference to include chat completions ([#15114](https://github.com/Arize-ai/phoenix/issues/15114)) ([3af38bd](https://github.com/Arize-ai/phoenix/commit/3af38bd088eb2e0055ed12c3ca68fc020aa68ee3))
+
+## [19.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.17.0...arize-phoenix-v19.18.0) (2026-08-05)
+
+
+### Features
+
+* add REST endpoint for prompt metadata updates ([#13731](https://github.com/Arize-ai/phoenix/issues/13731)) ([244ef9c](https://github.com/Arize-ai/phoenix/commit/244ef9c7e0da3f60c5e800dc25c26c826ebc3c3f))
+* **sessions:** expression filter DSL ([#14101](https://github.com/Arize-ai/phoenix/issues/14101)) ([64f505b](https://github.com/Arize-ai/phoenix/commit/64f505b91dea65841ada8ceb7d35dd85d032ea68))
+
+
+### Bug Fixes
+
+* **cost-tracking:** sync LiteLLM above_NNNk_tokens tier rates as threshold_based customizations ([#14329](https://github.com/Arize-ai/phoenix/issues/14329)) ([e80d01a](https://github.com/Arize-ai/phoenix/commit/e80d01a4ee140b78f06f0a0943b12bea7a134ead))
+* **ui:** size time-range control buttons explicitly so Safari renders them uniformly ([#15082](https://github.com/Arize-ai/phoenix/issues/15082)) ([1169f00](https://github.com/Arize-ai/phoenix/commit/1169f00463b8dd062fcbcd7671ecbc91c3770500))
+
 ## [19.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.16.0...arize-phoenix-v19.17.0) (2026-08-04)
 
 

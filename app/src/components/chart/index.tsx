@@ -1,6 +1,7 @@
 export * from "./ChartEmptyStateOverlay";
 export * from "./ChartPanel";
 export * from "./ChartPanelStrip";
+export * from "./ChartResponsiveContainer";
 export * from "./DeferredChartPanel";
 export * from "./ChartTypeIcon";
 export * from "./AnnotationMetricsChart";

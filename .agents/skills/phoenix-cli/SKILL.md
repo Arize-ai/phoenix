@@ -24,20 +24,31 @@ px trace list
 px trace get <trace-id>
 px trace annotate <trace-id>
 px trace add-note <trace-id>
+px trace delete <trace-identifier>
 px trace-annotations delete
 px span list
 px span annotate <span-id>
 px span add-note <span-id>
+px span delete <span-identifier>
 px span-annotations delete
 px session list
 px session get <session-id>
 px session annotate <session-id>
 px session add-note <session-id>
+px session delete <session-id>
 px session-annotations delete
 px dataset list
 px dataset get <name>
+px dataset delete <dataset-identifier>
+px experiment list
+px experiment get <id>
+px experiment delete <experiment-id>
+px prompt list
+px prompt get <prompt-identifier>
+px prompt delete <prompt-identifier>
 px project list
 px project get <name>
+px project delete <project-identifier>
 px annotation-config list
 px annotation-config get <identifier>
 px annotation-config create
@@ -52,15 +63,27 @@ px profile create <name>
 px profile use <name>
 px profile edit <name>
 px profile delete <name>
+px api graphql <query>
+px docs fetch
+px setup
+px self update
 ```
+
+Every `delete` above is gated: it requires
+`PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` in the environment and prompts for
+confirmation unless `-y`/`--yes` is passed (`px profile delete` is local-only and
+takes `--yes` without the env gate). Without the env var the command exits
+without deleting anything.
 
 ## Setup
 
 ```bash
-export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_ENDPOINT=http://localhost:6006
 export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if auth is enabled
 ```
+
+`PHOENIX_ENDPOINT` is the base URL for API access. It usually holds the same URL as `PHOENIX_COLLECTOR_ENDPOINT`; when only the collector variable is set, the CLI uses it for API access too.
 
 For interactive local use, `px auth login` stores an OAuth session in the selected profile; the session acts with the permissions of the user who logged in. API keys take precedence over OAuth tokens when both are configured.
 OAuth access tokens are refreshed automatically for REST, GraphQL, and PXI
@@ -126,7 +149,7 @@ px setup skills                      # install the Phoenix coding-agent skills
 
 Wire the Phoenix remote MCP server (`<endpoint>/mcp`) into a coding agent so it
 can query Phoenix data. The endpoint is inferred from `--endpoint`, the active
-profile, or `PHOENIX_HOST`. Bare command prompts for scope (global default) then
+profile, or `PHOENIX_ENDPOINT`. Bare command prompts for scope (global default) then
 agent; `--agent` skips both prompts.
 
 ```bash
@@ -346,7 +369,12 @@ px session annotate <session-id> --name reviewer --label pass --identifier "<cod
 px session add-note <session-id> --text "verified by agent"
 px session add-note <session-id> --text "verified by agent" --identifier "<coding-annotation-id>"  # tag + upsert on identifier
 px session-annotations delete --identifier "<coding-annotation-id>" --all -y              # nuke every annotation tied to this coding annotation identifier
+px session delete <session-id> -y                                                        # requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true
 ```
+
+`session list` has no filter flag. To select sessions by shape — error counts,
+token totals, tool use, annotation labels — use the session filter expression
+language through GraphQL (see [Session filter expressions](#session-filter-expressions)).
 
 ### Session JSON shape
 
@@ -418,6 +446,61 @@ px api graphql '{ __type(name: "Project") { fields { name type { name } } } }' |
 ```
 
 Key root fields: `projects`, `datasets`, `prompts`, `evaluators`, `projectCount`, `datasetCount`, `promptCount`, `evaluatorCount`, `viewer`.
+
+### Session filter expressions
+
+`px session list` has no filter flag, so selecting sessions by shape means going
+through GraphQL. `Project.sessions` takes a `sessionFilterCondition` — a Python
+expression over per-session values, the session-grain sibling of the span filter
+language:
+
+```bash
+px api graphql '{
+  projects(first: 1) { edges { node { sessions(
+    first: 10
+    sessionFilterCondition: "num_traces > 5 and any(span.status_code == \"ERROR\" for span in spans)"
+  ) { edges { node { sessionId numTraces numTracesWithError } } } } } }
+}' | jq '.data.projects.edges[0].node.sessions.edges[].node'
+```
+
+Discover the bindable names for a project rather than guessing — the vocabulary
+is generated from the compiler's own bindings, so it cannot drift from what
+compiles:
+
+```bash
+px api graphql '{ projects(first: 1) { edges { node { sessionFilterVocabulary {
+  name type category description iterableName } } } } }' \
+  | jq '.data.projects.edges[0].node.sessionFilterVocabulary[] | {name, type, category}'
+
+# Check an expression before running it
+px api graphql '{ projects(first: 1) { edges { node {
+  validateSessionFilterCondition(condition: "num_traces > 5") { isValid errorMessage }
+} } } }'
+```
+
+Commonly bound names: `session_id`, `start_time`, `end_time`, `duration_ms`,
+`num_traces`, `num_traces_with_error`, `token_count_prompt`,
+`token_count_completion`, `token_count_total`, `prompt_cost`, `completion_cost`,
+`total_cost`, `tool_span_count`, `llm_span_count`, the root-span text values
+`first_input` / `last_output` and their existential counterparts `any_input` /
+`any_output`, root-span attribute access via `attributes["llm.model_name"]`
+(with `user.id` and `metadata["key"]` accepted as proxies), the iterables
+`spans`, `traces`, `session_annotations`, and `span_annotations` for
+comprehensions (`any(...)` / `all(...)` / `len([...])`), and
+`annotations["name"].score|.label` for session annotations. Three rules the DSL
+legislates and an agent will otherwise get wrong:
+
+- **A missing value fails every comparison, in both directions.** A session with
+  no recorded input matches neither `'x' in first_input` nor its negation. Target
+  the missing case explicitly with `is None`.
+- **`in` against a string ignores case; `==` matches exactly.** This holds at
+  every grain, so the same query gives the same answer in the spans view.
+- **`any_input` / `any_output` are containment tests, not values.** Write
+  `'refund' in any_input`, never `any_input == 'refund'`.
+
+On fields that accept both grains (e.g. `Project.recordCount`),
+`sessionFilterCondition` and the span-grain `filterCondition` are mutually
+exclusive — passing both is a request error.
 
 ## Docs
 

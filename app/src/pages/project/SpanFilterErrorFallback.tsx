@@ -2,7 +2,7 @@ import { Alert, Text, View } from "@phoenix/components";
 
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { isKnownRootSpanCondition } from "./spanFilterRootScopeConstants";
-import { useSpanFilters } from "./SpanFiltersContext";
+import { useSpanFilterCondition } from "./SpanFiltersContext";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 
 /**
@@ -36,7 +36,7 @@ export function SpanFilterErrorFallback({
   error?: string | null;
   onResolved: (seed: SettledSpanFilterSeed, persistToUrl?: boolean) => void;
 }) {
-  const { filterCondition } = useSpanFilters();
+  const filterCondition = useSpanFilterCondition();
   // The root-span predicates are written by this app, not by the user, and a
   // tab defaults to one -- so a non-empty condition is not by itself evidence
   // that anyone filtered. Naming the filter as the likely cause is only honest

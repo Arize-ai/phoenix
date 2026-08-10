@@ -22,7 +22,10 @@ import {
   spanFilterAIQueryDSL,
   spanFilterSnippets,
 } from "./spanFilterDSL";
-import { useSpanFilters } from "./SpanFiltersContext";
+import {
+  useSpanFilterActions,
+  useSpanFilterCondition,
+} from "./SpanFiltersContext";
 import {
   openInferenceAttributeCompletions,
   openInferenceAttributeValueCompletionSource,
@@ -46,8 +49,8 @@ const spanFilterAIQuery: DSLFilterAIQueryProps = {
 };
 
 /**
- * Fetches the annotation names that actually exist on the project's spans so
- * the typeahead can suggest real values rather than made-up examples
+ * Fetches the annotation names that exist on the project's spans and traces so
+ * the typeahead can suggest real values rather than made-up examples.
  */
 async function fetchAnnotationCompletions(
   projectId: string
@@ -59,20 +62,33 @@ async function fetchAnnotationCompletions(
         project: node(id: $id) {
           ... on Project {
             spanAnnotationNames
+            traceAnnotationsNames
           }
         }
       }
     `,
     { id: projectId }
   ).toPromise();
-  return createAnnotationMemberCompletions({
-    accessor: "annotations",
-    noun: "annotation",
-    sectionName: "Annotations",
-    // notes are a pseudo-annotation deliberately hidden from
-    // annotation-name surfaces
-    names: getNonNoteAnnotationNames(data?.project?.spanAnnotationNames ?? []),
-  });
+  return [
+    ...createAnnotationMemberCompletions({
+      accessor: "annotations",
+      noun: "annotation",
+      sectionName: "Annotations",
+      // notes are a pseudo-annotation deliberately hidden from
+      // annotation-name surfaces
+      names: getNonNoteAnnotationNames(
+        data?.project?.spanAnnotationNames ?? []
+      ),
+    }),
+    ...createAnnotationMemberCompletions({
+      accessor: "trace_annotations",
+      noun: "trace annotation",
+      sectionName: "Trace Annotations",
+      names: getNonNoteAnnotationNames(
+        data?.project?.traceAnnotationsNames ?? []
+      ),
+    }),
+  ];
 }
 
 /**
@@ -114,7 +130,8 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     placeholder = "filter condition (e.x. span_kind == 'LLM')",
   } = props;
   const [isConditionValid, setIsConditionValid] = useState<boolean>(true);
-  const { filterCondition, setFilterCondition } = useSpanFilters();
+  const filterCondition = useSpanFilterCondition();
+  const { setFilterCondition } = useSpanFilterActions();
   const deferredFilterCondition = useDeferredValue(filterCondition);
 
   const projectId = useTracingContext((state) => state.projectId);

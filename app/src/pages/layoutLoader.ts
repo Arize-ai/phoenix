@@ -1,4 +1,4 @@
-import { fetchQuery, graphql } from "react-relay";
+import { graphql, loadQuery } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -13,12 +13,15 @@ export const layoutLoaderGql = graphql`
   }
 `;
 
-export async function layoutLoader() {
-  return await fetchQuery<layoutLoaderQuery>(
+export function layoutLoader() {
+  const queryRef = loadQuery<layoutLoaderQuery>(
     RelayEnvironment,
     layoutLoaderGql,
-    {}
-  ).toPromise();
+    {},
+    { fetchPolicy: "store-and-network" }
+  );
+
+  return { queryRef };
 }
 
-export type LayoutLoaderData = Awaited<ReturnType<typeof layoutLoader>>;
+export type LayoutLoaderData = ReturnType<typeof layoutLoader>;

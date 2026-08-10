@@ -24,22 +24,24 @@ import {
   StatsSection,
 } from "./TableAside";
 
+type SessionsTableAsideProps = {
+  /**
+   * The filter the sessions table is showing, or null when it is unfiltered.
+   * Every statistic below is scoped to it, so the panel and the table always
+   * describe the same sessions.
+   */
+  sessionFilterCondition: string | null;
+};
+
 /**
  * Top-level session stats for the sessions table — session count, average
- * traces (turns) per session, session duration (average and P50/P99), and
+ * traces per session, session duration (average and P50/P99), and
  * per-annotation summaries. Mirrors {@link SpansTableAside} so the sessions
  * tab gets the same collapsible stats panel as the spans tab.
  */
-export function SessionsTableAside(props: {
-  /**
-   * The sessions table search text. Like the table, the stats treat it as
-   * both an input/output substring filter and an exact session-ID lookup,
-   * with an exact match taking precedence.
-   */
-  filterIoSubstringOrSessionId?: string | null;
-}) {
-  const filterIoSubstringOrSessionId =
-    props.filterIoSubstringOrSessionId || null;
+export function SessionsTableAside({
+  sessionFilterCondition,
+}: SessionsTableAsideProps) {
   const projectId = useTracingContext((state) => state.projectId);
   const { timeRangeISOStrings } = useTimeRange();
   const { fetchKey } = useStreamState();
@@ -48,8 +50,7 @@ export function SessionsTableAside(props: {
       query SessionsTableAsideQuery(
         $id: ID!
         $timeRange: TimeRange!
-        $filterIoSubstring: String
-        $sessionId: String
+        $sessionFilterCondition: String
       ) {
         project: node(id: $id) {
           ... on Project {
@@ -57,30 +58,25 @@ export function SessionsTableAside(props: {
             description
             sessionCount(
               timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
+              sessionFilterCondition: $sessionFilterCondition
             )
             averageSessionDurationMs(
               timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
+              sessionFilterCondition: $sessionFilterCondition
             )
             averageTracesPerSession(
               timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
+              sessionFilterCondition: $sessionFilterCondition
             )
             sessionDurationMsP50: sessionDurationMsQuantile(
               probability: 0.5
               timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
+              sessionFilterCondition: $sessionFilterCondition
             )
             sessionDurationMsP99: sessionDurationMsQuantile(
               probability: 0.99
               timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
+              sessionFilterCondition: $sessionFilterCondition
             )
             sessionAnnotationNames
           }
@@ -90,8 +86,7 @@ export function SessionsTableAside(props: {
     {
       id: projectId,
       timeRange: timeRangeISOStrings,
-      filterIoSubstring: filterIoSubstringOrSessionId,
-      sessionId: filterIoSubstringOrSessionId,
+      sessionFilterCondition,
     },
     { fetchKey, fetchPolicy: "store-and-network" }
   );
@@ -112,7 +107,13 @@ export function SessionsTableAside(props: {
         <View padding="size-200" overflow="auto" height="100%">
           <Flex direction="column" gap="size-300" minWidth="size-3400">
             <Flex direction="column" gap="size-200" alignItems="start">
-              <StatItem label="Total Sessions">
+              <StatItem
+                label={
+                  sessionFilterCondition
+                    ? "Matching Sessions"
+                    : "Total Sessions"
+                }
+              >
                 <Text size="L" fontFamily="mono">
                   {intFormatter(project?.sessionCount)}
                 </Text>
@@ -144,9 +145,7 @@ export function SessionsTableAside(props: {
                   >
                     <SessionAnnotationSummary
                       annotationName={name}
-                      filterIoSubstringOrSessionId={
-                        filterIoSubstringOrSessionId
-                      }
+                      sessionFilterCondition={sessionFilterCondition}
                     />
                   </ErrorBoundary>
                 ))}

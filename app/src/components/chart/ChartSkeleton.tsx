@@ -1,17 +1,11 @@
 import { css } from "@emotion/react";
 import type { HTMLAttributes, Ref } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { pulseAnimation } from "@phoenix/components/core/loading";
 import { classNames } from "@phoenix/utils/classNames";
 
+import { ChartResponsiveContainer } from "./ChartResponsiveContainer";
 import {
   compactChartMargin,
   compactTimeXAxisProps,
@@ -95,7 +89,7 @@ export function ChartSkeleton({
       {...props}
     >
       <div className="chart-skeleton__plot" aria-hidden>
-        <ResponsiveContainer width="100%" height="100%">
+        <ChartResponsiveContainer>
           <BarChart
             data={PLACEHOLDER_DATA}
             margin={compactChartMargin}
@@ -125,7 +119,7 @@ export function ChartSkeleton({
               isAnimationActive={false}
             />
           </BarChart>
-        </ResponsiveContainer>
+        </ChartResponsiveContainer>
       </div>
       <div className="chart-skeleton__legend" aria-hidden>
         {Array.from({ length: 2 }, (_, itemIndex) => (

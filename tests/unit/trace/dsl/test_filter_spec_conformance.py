@@ -183,6 +183,7 @@ REJECTED = [
     ("1 in [1, 2]", "compares two literals"),
     # unsupported operators
     ("latency_ms ** 2 > 10", "invalid arithmetic operator"),
+    ("latency_ms // 2 > 0", "invalid arithmetic operator: //"),
     ("name == 'a' & status_code == 'b'", "invalid arithmetic operator"),
     # reserved keyword misuse. Traversal is rejected *breadth-first* -- every
     # dotted or subscripted shape under `parent_span`, not just column access --

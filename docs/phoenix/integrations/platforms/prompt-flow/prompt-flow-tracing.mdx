@@ -3,7 +3,7 @@ title: "Prompt Flow Tracing"
 description: Create flows using Microsoft PromptFlow and send their traces to Phoenix
 ---
 
-This integration will allow you to trace [Microsoft PromptFlow](https://github.com/microsoft/promptflow) flows and send their traces into[`arize-phoenix`](https://github.com/Arize-ai/phoenix).
+This integration will allow you to trace [Microsoft PromptFlow](https://github.com/microsoft/promptflow) flows and send their traces into [`arize-phoenix`](https://github.com/Arize-ai/phoenix).
 
 ## Install
 
@@ -15,12 +15,20 @@ pip install promptflow
 
 Set up the OpenTelemetry endpoint to point to Phoenix and use Prompt flow's `setup_exporter_from_environ` to start tracing any further flows and LLM calls.
 
-```swift
+Prompt flow exports to the endpoint as given, so it must be the full OTLP traces URL — including the `/v1/traces` path:
+
+```bash
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
+```
+
+```python
 import os
 from opentelemetry.sdk.environment_variables import OTEL_EXPORTER_OTLP_ENDPOINT
 from promptflow.tracing._start_trace import setup_exporter_from_environ
 
-endpoint = f"{os.environ["PHOENIX_COLLECTOR_ENDPOINT]}/v1/traces" # replace with your Phoenix endpoint if self-hosting
+endpoint = os.environ.get(
+    "PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006/v1/traces"
+)
 os.environ[OTEL_EXPORTER_OTLP_ENDPOINT] = endpoint
 setup_exporter_from_environ()
 ```

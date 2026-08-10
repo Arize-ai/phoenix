@@ -14,6 +14,8 @@ production DSLs the filter fields actually ship:
 
 - `spanFilterPrompt.eval.ts` — the span DSL from
   `src/pages/project/spanFilterDSL.ts`
+- `sessionFilterPrompt.eval.ts` — the session DSL from
+  `src/pages/project/sessionFilterDSL.ts`, backed by a generated core vocabulary
 - `experimentRunFilterPrompt.eval.ts` — the experiment run DSL from
   `src/pages/experiment/experimentRunFilterDSL.ts`
 - `spanFilterIntent.eval.ts` — semantic fidelity over the span DSL:
@@ -22,7 +24,7 @@ production DSLs the filter fields actually ship:
   (`'sorry' in output.value`), not literal echoes of the request
   (`'apology' in input.value`)
 
-The two prompt suites grade correctness: each model in `googleModels.ts`
+The correctness prompt suites grade each model in `googleModels.ts`: each
 translates the requests in the suite's case file, and a case counts as
 correct on a normalized exact match, or when the judge model rules the
 expression equivalent. The intent suite has no accepted-expression list —
@@ -31,6 +33,10 @@ described phenomenon, expected fields, and illustrative surface forms
 instead. A suite passes only when its gated rate (`filter_correct`, or
 `intent_captured` for the intent suite) clears the model's bar — raise
 those bars as the prompt improves.
+
+The session DSL's static AI vocabulary is generated from the server compiler
+bindings. Run `make gen-session-filter-ai-query-vocabulary` after changing that
+surface; `make check-session-filter-ai-query-vocabulary` detects drift.
 
 The Gemma model proxies the default on-device browser model (Gemma is
 Gemini Nano's open-model family, and it takes the system prompt folded

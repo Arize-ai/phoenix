@@ -118,6 +118,14 @@ class CreateDatasetLabelRequestBody(TypedDict):
     description: NotRequired[str]
 
 
+class CreateDatasetSplitRequestBody(TypedDict):
+    name: str
+    description: NotRequired[str]
+    color: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+    example_ids: NotRequired[Sequence[str]]
+
+
 class CreateExperimentRequestBody(TypedDict):
     name: NotRequired[str]
     description: NotRequired[str]
@@ -200,6 +208,17 @@ class DatasetLabel(TypedDict):
     color: str
 
 
+class DatasetSplit(TypedDict):
+    id: str
+    name: str
+    description: Optional[str]
+    color: str
+    metadata: Mapping[str, Any]
+    example_count: int
+    created_at: str
+    updated_at: str
+
+
 class DatasetVersion(TypedDict):
     version_id: str
     description: Optional[str]
@@ -254,6 +273,12 @@ class ExperimentRun(TypedDict):
     experiment_id: str
     trace_id: NotRequired[str]
     error: NotRequired[str]
+
+
+class ExperimentTag(TypedDict):
+    id: str
+    name: str
+    description: Optional[str]
 
 
 class FileUIPart(TypedDict):
@@ -342,6 +367,10 @@ class ListExperimentRunsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class ListExperimentTagsResponseBody(TypedDict):
+    data: Sequence[ExperimentTag]
+
+
 class ListExperimentsResponseBody(TypedDict):
     data: Sequence[Experiment]
     next_cursor: Optional[str]
@@ -386,6 +415,11 @@ class OAuth2User(OAuth2UserData):
 class OtlpStatus(TypedDict):
     code: NotRequired[int]
     message: NotRequired[str]
+
+
+class PatchPromptRequestBody(TypedDict):
+    description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
 
 
 class PlaygroundBuiltinModelContext(TypedDict):
@@ -750,6 +784,15 @@ class SetDatasetLabelsRequestBody(TypedDict):
     dataset_label_ids: NotRequired[Sequence[str]]
 
 
+class SetExperimentTagRequestBody(TypedDict):
+    name: str
+    description: NotRequired[str]
+
+
+class SetExperimentTagResponseBody(TypedDict):
+    data: ExperimentTag
+
+
 class SetProjectAnnotationConfigsRequestBody(TypedDict):
     annotation_config_ids: Sequence[str]
 
@@ -1000,6 +1043,19 @@ class UpdateDatasetLabelResponseBody(TypedDict):
     data: DatasetLabel
 
 
+class UpdateDatasetSplitRequestBody(TypedDict):
+    name: NotRequired[str]
+    description: NotRequired[str]
+    color: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+    add_example_ids: NotRequired[Sequence[str]]
+    remove_example_ids: NotRequired[Sequence[str]]
+
+
+class UpdateDatasetSplitResponseBody(TypedDict):
+    data: DatasetSplit
+
+
 class UpdateExperimentRequestBody(TypedDict):
     name: NotRequired[str]
     description: NotRequired[str]
@@ -1234,6 +1290,10 @@ class CreateChatCompletionRequestBody(TypedDict):
 
 class CreateDatasetLabelResponseBody(TypedDict):
     data: DatasetLabel
+
+
+class CreateDatasetSplitResponseBody(TypedDict):
+    data: DatasetSplit
 
 
 class CreateExperimentResponseBody(TypedDict):
@@ -1474,6 +1534,10 @@ class ListDatasetExamplesData(TypedDict):
 
 class ListDatasetExamplesResponseBody(TypedDict):
     data: ListDatasetExamplesData
+
+
+class PatchPromptResponseBody(TypedDict):
+    data: Prompt
 
 
 class PlaygroundContext(TypedDict):

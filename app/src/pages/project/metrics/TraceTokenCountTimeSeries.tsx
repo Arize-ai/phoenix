@@ -1,18 +1,11 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 import type { TooltipContentProps } from "recharts";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 
 import { Text } from "@phoenix/components";
 import {
   ChartEmptyStateOverlay,
+  ChartResponsiveContainer,
   ChartTooltip,
   ChartTooltipItem,
   InteractiveLegend,
@@ -243,7 +236,7 @@ export function TraceTokenCountTimeSeries({
           message="No data in this time range"
           chartType="bar"
         >
-          <ResponsiveContainer width="100%" height="100%">
+          <ChartResponsiveContainer>
             <BarChart
               data={chartData}
               margin={compactChartMargin}
@@ -289,7 +282,7 @@ export function TraceTokenCountTimeSeries({
                 onToggleDataKey={toggleDataKey}
               />
             </BarChart>
-          </ResponsiveContainer>
+          </ChartResponsiveContainer>
         </ChartEmptyStateOverlay>
       )}
     </TimeRangeChartBrush>
@@ -348,7 +341,7 @@ function TraceTokenDetailsTimeSeries({
           message="No data in this time range"
           chartType="bar"
         >
-          <ResponsiveContainer width="100%" height="100%">
+          <ChartResponsiveContainer>
             <BarChart
               data={chartData}
               margin={compactChartMargin}
@@ -397,7 +390,7 @@ function TraceTokenDetailsTimeSeries({
                 onToggleDataKey={toggleDataKey}
               />
             </BarChart>
-          </ResponsiveContainer>
+          </ChartResponsiveContainer>
         </ChartEmptyStateOverlay>
       )}
     </TimeRangeChartBrush>

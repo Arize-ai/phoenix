@@ -1,6 +1,7 @@
 import { MessageAttributePostfixes } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 
+import type { CardProps } from "@phoenix/components";
 import {
   Card,
   CardCollapsedPreview,
@@ -33,8 +34,17 @@ import { formatJSONForCopy, getMessagePreview, getToolCalls } from "./utils";
 /**
  * Displays a single LLM message (input or output) including its contents,
  * tool calls, and function calls.
+ *
+ * Whether the message is expanded is decided by the list it belongs to, so the
+ * collapse-all control and the reader's clicks act on the same state.
  */
-export function LLMMessage({ message }: { message: AttributeMessage }) {
+export function LLMMessage({
+  message,
+  isOpen,
+  onOpenChange,
+}: {
+  message: AttributeMessage;
+} & Pick<CardProps, "isOpen" | "onOpenChange">) {
   const messageContent = message[MessageAttributePostfixes.content];
   const normalizedContent = formatContentAsString(messageContent, {
     unquotePlainString: true,
@@ -55,6 +65,8 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
       <Card
         {...defaultCardProps}
         {...messageStyles}
+        isOpen={isOpen}
+        onOpenChange={onOpenChange}
         title={
           role +
           (message[MessageAttributePostfixes.name]

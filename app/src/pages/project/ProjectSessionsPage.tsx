@@ -8,9 +8,8 @@ import {
   ProjectPageQueriesSessionsQuery,
   useProjectPageQueryReferenceContext,
 } from "@phoenix/pages/project/ProjectPageQueries";
-import { SessionSearchProvider } from "@phoenix/pages/project/SessionSearchContext";
+import { SessionFiltersProvider } from "@phoenix/pages/project/SessionFiltersContext";
 import { SessionsTable } from "@phoenix/pages/project/SessionsTable";
-import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
 import { SessionPaginationProvider } from "@phoenix/pages/trace/SessionPaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
 
@@ -25,11 +24,7 @@ function SessionsTabContent({
     ProjectPageQueriesSessionsQuery,
     queryReference
   );
-  return (
-    <SessionSearchProvider>
-      <SessionsTable project={data.project} />
-    </SessionSearchProvider>
-  );
+  return <SessionsTable project={data.project} />;
 }
 
 export const ProjectSessionsPage = () => {
@@ -40,14 +35,14 @@ export const ProjectSessionsPage = () => {
   return (
     <TracingRoot>
       <SessionPaginationProvider>
-        <SpanFiltersProvider>
+        <SessionFiltersProvider>
           <Suspense fallback={<Loading />}>
             <SessionsTabContent queryReference={sessionsQueryReference} />
           </Suspense>
-        </SpanFiltersProvider>
-        <Suspense>
-          <Outlet />
-        </Suspense>
+          <Suspense>
+            <Outlet />
+          </Suspense>
+        </SessionFiltersProvider>
       </SessionPaginationProvider>
     </TracingRoot>
   );
