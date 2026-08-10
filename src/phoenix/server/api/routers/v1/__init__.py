@@ -16,6 +16,7 @@ from .datasets import router as datasets_router
 from .documents import router as documents_router
 from .experiment_evaluations import router as experiment_evaluations_router
 from .experiment_runs import router as experiment_runs_router
+from .experiment_tags import router as experiment_tags_router
 from .experiments import router as experiments_router
 from .projects import router as projects_router
 from .prompts import router as prompts_router
@@ -64,6 +65,7 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
     viewer_restricted_router.include_router(dataset_labels_router)
     viewer_restricted_router.include_router(datasets_router)
     viewer_restricted_router.include_router(experiments_router)
+    viewer_restricted_router.include_router(experiment_tags_router)
     viewer_restricted_router.include_router(experiment_runs_router)
     viewer_restricted_router.include_router(experiment_evaluations_router)
     viewer_restricted_router.include_router(traces_router)

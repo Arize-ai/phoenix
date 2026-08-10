@@ -4021,6 +4021,213 @@
         }
       }
     },
+    "/v1/experiments/{experiment_id}/tags": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "List the tags applied to an experiment",
+        "description": "List the tags currently pointing at this experiment. Tags are scoped to the experiment's dataset, so a tag appears here only while this experiment owns it.",
+        "operationId": "listExperimentTags",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the experiment",
+              "title": "Experiment Id"
+            },
+            "description": "The ID of the experiment"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The tags currently applied to the experiment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListExperimentTagsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid experiment ID"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Assign a tag to an experiment",
+        "description": "Assign a tag to an experiment. Tags are scoped to the experiment's dataset and each tag name points at a single experiment, so assigning a tag that another experiment on the same dataset owns atomically moves the tag to this experiment. Re-assigning a tag the experiment already owns is idempotent and replaces the description. Assigning the reserved 'baseline' tag makes this experiment the dataset's baseline; ephemeral experiments cannot become the baseline.",
+        "operationId": "setExperimentTag",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the experiment",
+              "title": "Experiment Id"
+            },
+            "description": "The ID of the experiment"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetExperimentTagRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The tag as it now applies to the experiment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetExperimentTagResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid experiment ID or request body, or the experiment is ephemeral and cannot be tagged as the baseline"
+          }
+        }
+      }
+    },
+    "/v1/experiments/{experiment_id}/tags/{tag_identifier}": {
+      "delete": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Remove a tag from an experiment",
+        "description": "Remove a tag, identified by its node ID or name, from the experiment that owns it. This operation is idempotent and never steals a tag from another experiment: if the experiment does not currently own the tag, the request is a no-op.",
+        "operationId": "deleteExperimentTag",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the experiment",
+              "title": "Experiment Id"
+            },
+            "description": "The ID of the experiment"
+          },
+          {
+            "name": "tag_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The node ID or name of the tag to remove",
+              "title": "Tag Identifier"
+            },
+            "description": "The node ID or name of the tag to remove"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful tag removal"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid experiment ID or tag identifier"
+          }
+        }
+      }
+    },
     "/v1/experiments/{experiment_id}/runs": {
       "post": {
         "tags": [
@@ -12112,6 +12319,39 @@
         ],
         "title": "ExperimentRun"
       },
+      "ExperimentTag": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The node ID of the tag"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the tag"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The description of the tag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description"
+        ],
+        "title": "ExperimentTag"
+      },
       "FileUIPart": {
         "properties": {
           "type": {
@@ -13263,6 +13503,22 @@
           "next_cursor"
         ],
         "title": "ListExperimentRunsResponseBody"
+      },
+      "ListExperimentTagsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ExperimentTag"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ListExperimentTagsResponseBody"
       },
       "ListExperimentsResponseBody": {
         "properties": {
@@ -16988,6 +17244,43 @@
         },
         "type": "object",
         "title": "SetDatasetLabelsRequestBody"
+      },
+      "SetExperimentTagRequestBody": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier",
+            "description": "The name of the tag to assign, e.g. 'baseline'. If another experiment on the same dataset already owns this tag, the tag is moved to this experiment."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "An optional description of the tag (replaces any existing description)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SetExperimentTagRequestBody"
+      },
+      "SetExperimentTagResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ExperimentTag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SetExperimentTagResponseBody"
       },
       "SetProjectAnnotationConfigsRequestBody": {
         "properties": {
