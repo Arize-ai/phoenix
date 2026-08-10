@@ -9,7 +9,7 @@ export type AIQueryEvalModel = {
   modelId: string;
   /** The tier of the AI query feature this model simulates. */
   simulates: string;
-  /** The `filter_correct` pass rate the correctness suites must reach to pass. */
+  /** The `filter_correct` pass rate the span and experiment-run correctness suites must reach to pass. */
   minPassRate: number;
   sessionMinPassRate: number;
   /**

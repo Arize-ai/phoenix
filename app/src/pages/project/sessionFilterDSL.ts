@@ -16,11 +16,8 @@ export type SessionFilterVocabularyTerm = Omit<
 };
 
 /**
- * The loop variable a collection's comprehensions use — `any(span… for span in
- * spans)`, `any(trace… for trace in traces)`. Whole words, not letters. It also
- * qualifies an element field wherever one is named on its own, since the
- * session compiler rejects a bare element name. A collection the map doesn't
- * know falls back to its singular.
+ * The session compiler rejects a bare element name, so element fields are
+ * qualified by these loop variables.
  */
 export const sessionFilterLoopVariables: Partial<Record<string, string>> = {
   spans: "span",

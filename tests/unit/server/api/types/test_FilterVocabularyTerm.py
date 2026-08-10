@@ -1,3 +1,6 @@
+"""Exercises scripts/generate_session_filter_ai_query_vocabulary.py, whose --check mode
+guards the checked-in sessionFilterCoreVocabulary.generated.ts against drift."""
+
 import subprocess
 import sys
 from pathlib import Path

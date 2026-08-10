@@ -16,7 +16,6 @@ production DSLs the filter fields actually ship:
   `src/pages/project/spanFilterDSL.ts`
 - `sessionFilterPrompt.eval.ts` — the session DSL from
   `src/pages/project/sessionFilterDSL.ts`, backed by a generated core vocabulary
-  and cases based on observed usability failures
 - `experimentRunFilterPrompt.eval.ts` — the experiment run DSL from
   `src/pages/experiment/experimentRunFilterDSL.ts`
 - `spanFilterIntent.eval.ts` — semantic fidelity over the span DSL:
@@ -25,7 +24,7 @@ production DSLs the filter fields actually ship:
   (`'sorry' in output.value`), not literal echoes of the request
   (`'apology' in input.value`)
 
-The correctness prompt suites grade each model in `googleModels.ts`: it
+The correctness prompt suites grade each model in `googleModels.ts`: each
 translates the requests in the suite's case file, and a case counts as
 correct on a normalized exact match, or when the judge model rules the
 expression equivalent. The intent suite has no accepted-expression list —

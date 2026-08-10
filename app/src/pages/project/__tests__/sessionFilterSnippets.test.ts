@@ -4,23 +4,27 @@ import { MAX_BROWSE_SUGGESTIONS } from "@phoenix/components/filter";
 
 import { sessionFilterCoreVocabulary } from "../sessionFilterCoreVocabulary.generated";
 import {
+  sessionFilterAIQueryDSL,
   sessionFilterLoopVariables,
   sessionFilterSnippets,
 } from "../sessionFilterDSL";
 
 describe("session filter loop variables", () => {
-  it("names a loop variable for every collection in the generated vocabulary", () => {
-    // A newly generated collection must be named here rather than take the
-    // singularizing fallback, which can produce a variable the compiler and
-    // the vocabulary's own descriptions disagree about.
-    const iterableNames = new Set(
-      sessionFilterCoreVocabulary
-        .map(({ iterableName }) => iterableName)
-        .filter((name): name is string => Boolean(name))
+  it("qualifies every generated collection field with its named loop variable", () => {
+    const fieldNames = new Set(
+      sessionFilterAIQueryDSL.fields.map(({ name }) => name)
     );
 
     expect(
-      [...iterableNames].filter((name) => !sessionFilterLoopVariables[name])
+      sessionFilterCoreVocabulary
+        .filter((term): term is typeof term & { iterableName: string } =>
+          Boolean(term.iterableName)
+        )
+        .map(
+          ({ iterableName, name }) =>
+            `${sessionFilterLoopVariables[iterableName]}.${name}`
+        )
+        .filter((qualified) => !fieldNames.has(qualified))
     ).toEqual([]);
   });
 });
