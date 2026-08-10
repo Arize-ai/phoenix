@@ -1,0 +1,6 @@
+-r ../ci.txt
+# The last arize-phoenix-evals that defines its own RateLimitError and PhoenixException instead of
+# re-exporting the shared ones. An exact pin, not a `<` bound: consolidation lands inside 3.x, so
+# any range would resolve to a consolidated evals the day one publishes and the skew these tests
+# exercise would silently disappear.
+arize-phoenix-evals==3.3.0

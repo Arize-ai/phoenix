@@ -439,7 +439,7 @@ exclude-newer = "3 days"
 # versions are immediately resolvable. arize-phoenix-sqlean is not a workspace
 # member — it is a setup.py C extension — so it resolves from PyPI and needs
 # this to be installable at all on the day it publishes.
-exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z", arize-phoenix-sqlean = "2099-12-31T00:00:00Z" }
+exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-executors = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z", arize-phoenix-sqlean = "2099-12-31T00:00:00Z" }
 # litellm 1.83.x hard-pins `openai==2.24.0` and `python-dotenv==1.0.1`, which
 # conflict with pydantic-ai (needs openai>=2.29.0) and fastmcp (needs
 # python-dotenv>=1.1.0). Override the over-restrictive pins so resolution
@@ -459,4 +459,5 @@ exclude = ["packages/phoenix-sqlean"]
 [tool.uv.sources]
 arize-phoenix-client = { workspace = true }
 arize-phoenix-evals = { workspace = true }
+arize-phoenix-executors = { workspace = true }
 arize-phoenix-otel = { workspace = true }

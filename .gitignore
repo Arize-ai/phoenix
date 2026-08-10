@@ -69,6 +69,9 @@ internal_docs/vignettes/**/pnpm-lock.yaml
 /packages/phoenix-evals/__init__.py
 /packages/phoenix-evals/src/__init__.py
 /packages/phoenix-evals/src/phoenix/__init__.py
+/packages/phoenix-executors/__init__.py
+/packages/phoenix-executors/src/__init__.py
+/packages/phoenix-executors/src/phoenix/__init__.py
 /packages/phoenix-otel/__init__.py
 /packages/phoenix-otel/src/__init__.py
 /packages/phoenix-otel/src/phoenix/__init__.py
