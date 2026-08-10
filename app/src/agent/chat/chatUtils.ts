@@ -22,6 +22,27 @@ export type ResolvedToolOutputPart<TOOLS extends UITools = UITools> = Extract<
 >;
 
 /**
+ * Whether a tool part is client-executed, identified by the
+ * `phoenix.toolExecutionEnvironment` call provider metadata the server stamps
+ * on every tool call it delegates to the browser.
+ */
+function isClientExecutedToolPart(
+  part: Pick<DynamicToolUIPart, "providerExecuted" | "callProviderMetadata">
+): boolean {
+  if (part.providerExecuted) {
+    return false;
+  }
+  const callProviderMetadata: unknown = part.callProviderMetadata;
+  const phoenixMetadata: unknown = isRecord(callProviderMetadata)
+    ? callProviderMetadata.phoenix
+    : null;
+  return (
+    isRecord(phoenixMetadata) &&
+    phoenixMetadata.toolExecutionEnvironment === "client"
+  );
+}
+
+/**
  * Whether a message part is a client-executed tool call in a terminal output
  * state — the parts a request may carry to the server as `toolOutputs`.
  */
@@ -34,15 +55,22 @@ export function isResolvedClientToolOutputPart<TOOLS extends UITools>(
   if (part.state !== "output-available" && part.state !== "output-error") {
     return false;
   }
-  if (part.providerExecuted) {
+  return isClientExecutedToolPart(part);
+}
+
+/**
+ * Whether a message part is a client-executed tool call still awaiting its
+ * output (`input-available`) — the parts a seeded transcript may need to
+ * re-dispatch on session load to restore pending approval state.
+ */
+export function isPendingClientToolCallPart<TOOLS extends UITools>(
+  part: UIMessagePart<UIDataTypes, TOOLS>
+): part is ToolUIPart<TOOLS> | DynamicToolUIPart {
+  if (!isToolUIPart(part)) {
     return false;
   }
-  const callProviderMetadata: unknown = part.callProviderMetadata;
-  const phoenixMetadata: unknown = isRecord(callProviderMetadata)
-    ? callProviderMetadata.phoenix
-    : null;
-  return (
-    isRecord(phoenixMetadata) &&
-    phoenixMetadata.toolExecutionEnvironment === "client"
-  );
+  if (part.state !== "input-available") {
+    return false;
+  }
+  return isClientExecutedToolPart(part);
 }

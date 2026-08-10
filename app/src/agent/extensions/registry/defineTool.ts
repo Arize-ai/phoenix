@@ -60,14 +60,23 @@ export type AgentToolDefinition = {
   uiBehavior?: AgentToolUIBehavior;
   requiredCapabilities?: AgentCapabilityKey[];
   /**
+   * Declares that dispatching this tool is a pure staging step — it only
+   * parks pending approval/elicitation state for the user to act on, with no
+   * side effects until accept — so re-dispatching an unresolved call from its
+   * persisted input is safe. On session load the chat runtime re-dispatches
+   * unresolved calls of rehydratable tools from the seeded transcript to
+   * restore their Accept/Reject affordances after a page refresh.
+   *
+   * Leave unset for tools that execute on dispatch (reads, client actions):
+   * rehydrating those would re-run them on every reload.
+   */
+  rehydratable?: boolean;
+  /**
    * Parse the raw tool-call input and execute the handler. Emits an
    * `output-error` itself when the input fails to parse. The kernel calls this
    * only after the server-environment guard and capability gate have passed.
    */
   dispatch: (context: AgentToolDispatchContext) => Promise<void>;
-  // TODO(pending-tool-rehydration): a future `rehydration?` field can declare
-  // how a pending tool serializes its UI state and rebinds runtime
-  // dependencies, replacing each tool's bespoke Zustand + page-level logic.
 };
 
 /** Resolves a tool's invalid-input message, which may depend on the input. */
@@ -94,6 +103,8 @@ function resolveInvalidInputErrorText(
  * @param config.invalidInputErrorText - message (or builder) for invalid input
  * @param config.requiredCapabilities - capability keys gated by the kernel
  * @param config.uiBehavior - chat UI surfacing hints
+ * @param config.rehydratable - dispatch only stages pending approval state, so
+ * unresolved calls are safely re-dispatched from the seeded transcript on load
  * @param config.execute - handler invoked with parsed input
  */
 export function defineTool<TInput>(config: {
@@ -102,12 +113,14 @@ export function defineTool<TInput>(config: {
   invalidInputErrorText: string | ((input: unknown) => string);
   requiredCapabilities?: AgentCapabilityKey[];
   uiBehavior?: AgentToolUIBehavior;
+  rehydratable?: boolean;
   execute: (context: AgentToolHandlerContext<TInput>) => Promise<void>;
 }): AgentToolDefinition {
   return {
     name: config.name,
     uiBehavior: config.uiBehavior,
     requiredCapabilities: config.requiredCapabilities,
+    rehydratable: config.rehydratable,
     dispatch: async (context) => {
       const input = config.parseInput(context.toolCall.input);
       if (input == null) {

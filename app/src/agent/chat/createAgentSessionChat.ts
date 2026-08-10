@@ -8,11 +8,16 @@ import {
 } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
+import { collectRehydratableToolCalls } from "@phoenix/agent/chat/rehydratePendingToolCalls";
 import { flushToolOutputs } from "@phoenix/agent/chat/toolOutputFlush";
 import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
+import {
+  isRehydratableAgentTool,
+  type AgentToolCall,
+} from "@phoenix/agent/extensions/toolRegistry";
 import { authFetch } from "@phoenix/authFetch";
 import {
   readAgentSessionModelSelection,
@@ -26,7 +31,6 @@ import {
   type RelayEnvironment,
 } from "@phoenix/components/agent/agentSessionRelay";
 import type { AgentStore } from "@phoenix/store/agentStore";
-import { isRecord } from "@phoenix/utils/typeUtils";
 
 import {
   SESSION_BUSY_ERROR_CODE,
@@ -129,6 +133,37 @@ export function createAgentSessionChat({
         });
     },
   });
+  /**
+   * Dispatch one tool call into the frontend registry with the timing and
+   * message wiring both entry points share: the AI SDK's `onToolCall` during
+   * a live stream, and the seeded-transcript rehydration pass below. Tool
+   * execution targets the runtime-owned chat instance so tool outputs
+   * continue to attach to the correct conversation even if the visible React
+   * surface remounts during the request.
+   */
+  const runAgentToolCall = (toolCall: AgentToolCall) => {
+    const isServerExecuted =
+      toolCall.providerMetadata?.phoenix?.toolExecutionEnvironment === "server";
+    if (!isServerExecuted) {
+      toolTimings.recordStart(toolCall.toolCallId);
+    }
+    void handleAgentToolCall({
+      toolCall,
+      sessionId,
+      addToolOutput: async (toolOutput) => {
+        toolTimings.recordEnd(toolCall.toolCallId);
+        await chat.addToolOutput(toolOutput);
+      },
+      appendMessagePart: (part) => {
+        chat.messages = appendPartToToolMessage({
+          messages: chat.messages,
+          toolCallId: toolCall.toolCallId,
+          part,
+        });
+      },
+      agentStore: store,
+    });
+  };
   const chat = new Chat<AgentUIMessage>({
     id: sessionId,
     messages: seedMessages,
@@ -162,37 +197,8 @@ export function createAgentSessionChat({
         };
       },
     }),
-    // Tool execution must target the runtime-owned chat instance so
-    // tool outputs continue to attach to the correct conversation
-    // even if the visible React surface remounts during the request.
     onToolCall: ({ toolCall }) => {
-      const providerMetadata =
-        "providerMetadata" in toolCall ? toolCall.providerMetadata : null;
-      const phoenixMetadata = isRecord(providerMetadata)
-        ? providerMetadata.phoenix
-        : null;
-      const isServerExecuted =
-        isRecord(phoenixMetadata) &&
-        phoenixMetadata.toolExecutionEnvironment === "server";
-      if (!isServerExecuted) {
-        toolTimings.recordStart(toolCall.toolCallId);
-      }
-      void handleAgentToolCall({
-        toolCall,
-        sessionId,
-        addToolOutput: async (toolOutput) => {
-          toolTimings.recordEnd(toolCall.toolCallId);
-          await chat.addToolOutput(toolOutput);
-        },
-        appendMessagePart: (part) => {
-          chat.messages = appendPartToToolMessage({
-            messages: chat.messages,
-            toolCallId: toolCall.toolCallId,
-            part,
-          });
-        },
-        agentStore: store,
-      });
+      runAgentToolCall(toolCall);
     },
     onData: (dataPart) => {
       if (dataPart.type === "data-session-summary") {
@@ -303,6 +309,25 @@ export function createAgentSessionChat({
       turnCompletionGate.handleFinish({ finalMessages, message });
     },
   });
+  const seedTailMessage = seedMessages[seedMessages.length - 1];
+  if (seedTailMessage?.role === "assistant") {
+    // The seeded transcript came from the server, so its trailing assistant
+    // message is persisted by construction. Seed the acknowledgement so the
+    // first automatic continuation after a reload — e.g. accepting a
+    // rehydrated approval — does not wait on a stream acknowledgement that
+    // will never arrive.
+    transcriptPersistence.acknowledge({ messageId: seedTailMessage.id });
+  }
+  // Restore pending approval state lost with the previous page's memory:
+  // re-dispatch the seeded tail's unresolved client tool calls for tools
+  // whose dispatch only stages approval state, re-creating their inline
+  // Accept/Reject affordances.
+  for (const toolCall of collectRehydratableToolCalls({
+    messages: seedMessages,
+    isRehydratableTool: isRehydratableAgentTool,
+  })) {
+    runAgentToolCall(toolCall);
+  }
   turnClientStateByChat.set(chat, { toolTimings });
   return chat;
 }

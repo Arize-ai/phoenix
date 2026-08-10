@@ -1,0 +1,106 @@
+import { Environment, Network, RecordSource, Store } from "relay-runtime";
+import { describe, expect, it } from "vitest";
+
+import { createAgentSessionChat } from "@phoenix/agent/chat/createAgentSessionChat";
+import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import { CREATE_ANNOTATION_CONFIG_TOOL_NAME } from "@phoenix/agent/tools/annotationConfig";
+import { createAgentStore } from "@phoenix/store/agentStore";
+
+const CLIENT_EXECUTION_METADATA = {
+  phoenix: { toolExecutionEnvironment: "client" },
+};
+
+function createRelayEnvironment() {
+  return new Environment({
+    network: Network.create(() => Promise.resolve({ data: {} })),
+    store: new Store(new RecordSource()),
+  });
+}
+
+async function flushMicrotasks() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+describe("createAgentSessionChat rehydration", () => {
+  it("re-stages a seeded pending approval so a page refresh restores the Accept/Reject card", async () => {
+    const store = createAgentStore();
+    const seedMessages: AgentUIMessage[] = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "propose an annotation config" }],
+      },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: `tool-${CREATE_ANNOTATION_CONFIG_TOOL_NAME}`,
+            toolCallId: "tool-call-1",
+            state: "input-available",
+            input: {
+              type: "categorical",
+              name: "quality",
+              values: [
+                { label: "good", score: 1 },
+                { label: "bad", score: 0 },
+              ],
+            },
+            callProviderMetadata: CLIENT_EXECUTION_METADATA,
+          } as AgentUIMessage["parts"][number],
+        ],
+      },
+    ];
+
+    createAgentSessionChat({
+      sessionId: "test-session",
+      seedMessages,
+      store,
+      relayEnvironment: createRelayEnvironment(),
+      onTranscriptSynced: () => undefined,
+    });
+    await flushMicrotasks();
+
+    const pending =
+      store.getState().pendingAnnotationConfigWritesByToolCallId["tool-call-1"];
+    expect(pending).toBeDefined();
+    expect(pending?.preview.kind).toBe("create");
+    expect(pending?.accept).toBeDefined();
+    expect(pending?.reject).toBeDefined();
+  });
+
+  it("does not stage anything when the seeded tail has no pending client tool calls", async () => {
+    const store = createAgentStore();
+    const seedMessages: AgentUIMessage[] = [
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: `tool-${CREATE_ANNOTATION_CONFIG_TOOL_NAME}`,
+            toolCallId: "tool-call-1",
+            state: "output-available",
+            input: {},
+            output: { status: "accepted" },
+            callProviderMetadata: CLIENT_EXECUTION_METADATA,
+          } as AgentUIMessage["parts"][number],
+          { type: "text", text: "Created the config." },
+        ],
+      },
+    ];
+
+    createAgentSessionChat({
+      sessionId: "test-session",
+      seedMessages,
+      store,
+      relayEnvironment: createRelayEnvironment(),
+      onTranscriptSynced: () => undefined,
+    });
+    await flushMicrotasks();
+
+    expect(store.getState().pendingAnnotationConfigWritesByToolCallId).toEqual(
+      {}
+    );
+  });
+});
