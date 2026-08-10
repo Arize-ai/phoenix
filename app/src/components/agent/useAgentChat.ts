@@ -230,7 +230,7 @@ export function useAgentChat({
 
     unresolvedToolCalls.forEach((toolCall) => {
       // Mark before adding the output: the output fires
-      // `sendAutomaticallyWhen`, whose suppression predicate reads the mark.
+      // `sendAutomaticallyWhen`, which reads the mark.
       store.getState().markToolCallInterrupted(toolCall.toolCallId);
       cleanupPendingToolState(
         store.getState(),

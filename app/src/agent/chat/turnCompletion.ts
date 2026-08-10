@@ -29,10 +29,7 @@ export function createTurnCompletionGate({
   endTurn: (error?: unknown) => Promise<void>;
   /** Persists the finished turn (store mirror, usage, summary). */
   finalize: (finish: TurnFinish) => void;
-  /**
-   * The shared send-decision helper, closed over the caller's interrupted
-   * tool-call marks.
-   */
+  /** Send-decision helper, closed over the caller's interrupted-call marks. */
   getShouldSendAutomatically: (messages: AgentUIMessage[]) => boolean;
   /** Overridable for tests. Defaults to the shared keep-open helper. */
   getShouldKeepTurnOpen?: (options: {

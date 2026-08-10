@@ -158,9 +158,8 @@ export function createAgentSessionChat({
       sessionId,
       addToolOutput: async ({ outcome, ...toolOutput }) => {
         toolTimings.recordEnd(toolCall.toolCallId);
-        // Record the lifecycle outcome before the output lands: adding the
-        // output fires `sendAutomaticallyWhen`, whose suppression predicate
-        // reads the mark.
+        // Mark before adding the output: the output fires
+        // `sendAutomaticallyWhen`, which reads the mark.
         if (outcome === "interrupted") {
           store.getState().markToolCallInterrupted(toolCall.toolCallId);
         }

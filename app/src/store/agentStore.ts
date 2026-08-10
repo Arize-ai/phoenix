@@ -542,13 +542,10 @@ export interface AgentState extends AgentProps {
     pendingLoad: PendingLoadDataset | null
   ) => void;
 
-  // -- Tool calls this client resolved as interrupted rather than executed --
-  // Marked when a lifecycle cleanup (user stop, hosting surface teardown)
-  // closes out a call without a real result. Read by the auto-send/flush
-  // predicates and projected into `callProviderMetadata.phoenix.outcome` when
-  // the resolved parts are sent to the server. Entries are retained: ids are
-  // globally unique, the map is tiny, and a mark must outlive its turn so the
-  // next send can still stamp outputs that ride along with a new user message.
+  // -- Tool calls a lifecycle cleanup (user stop, surface teardown) resolved
+  // as interrupted rather than executed. Entries are never pruned: ids are
+  // globally unique, the map is tiny, and a mark must outlive its turn so a
+  // later send can still stamp outputs riding along with a new user message.
   interruptedToolCallIds: Partial<Record<string, true>>;
   markToolCallInterrupted: (toolCallId: string) => void;
 }

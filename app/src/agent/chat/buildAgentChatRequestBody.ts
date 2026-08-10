@@ -45,10 +45,7 @@ type BuildAgentChatRequestBodyOptions = {
   modelSelection: AgentModelSelection;
   /** Browser execution timings added to completed client-tool parts. */
   toolTimings?: ClientToolTimingRecorder | null;
-  /**
-   * Tool calls this client resolved as interrupted; their outgoing parts are
-   * stamped with `phoenix.outcome = "interrupted"`.
-   */
+  /** Tool calls this client resolved as interrupted; stamped as `phoenix.outcome` on outgoing parts. */
   interruptedToolCallIds?: InterruptedToolCallIds;
 };
 
@@ -245,9 +242,8 @@ function getLastPersistedMessageId(
 }
 
 /**
- * Return a copy of resolved tool parts annotated with the client-recorded
- * facts of their resolution: complete execution timings, and the interrupted
- * outcome for calls a lifecycle cleanup closed out instead of a real result.
+ * Return a copy of resolved tool parts annotated with client execution
+ * timings and, where marked, the interrupted outcome.
  */
 export function enrichMessagesWithClientToolMetadata({
   messages,

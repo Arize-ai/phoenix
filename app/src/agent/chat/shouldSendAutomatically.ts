@@ -14,10 +14,7 @@ import { getUnresolvedToolCalls } from "./interruptToolCalls";
 
 export const USER_INTERRUPT_ERROR = "The user has interrupted this tool call.";
 
-/**
- * Tool call ids this client resolved as interrupted rather than executed;
- * mirrors `interruptedToolCallIds` in the agent store.
- */
+/** Tool call ids this client resolved as interrupted; mirrors the agent store's `interruptedToolCallIds`. */
 export type InterruptedToolCallIds = Partial<Record<string, true>>;
 
 // The AI SDK auto-continues after completed tool calls; suppress that when the last result is a local lifecycle cleanup, not model input.
@@ -72,11 +69,9 @@ export function shouldKeepTurnOpenForPendingToolOutput({
 }
 
 /**
- * Whether a resolved tool part was closed out as interrupted — by this
- * client (recorded in {@link InterruptedToolCallIds} when a user stop or a
- * hosting-surface teardown resolves the call) or by a persisted repair
- * carrying `callProviderMetadata.phoenix.outcome`. Interrupted resolutions
- * are lifecycle cleanups, not model input.
+ * Whether a resolved tool part was closed out by a lifecycle cleanup rather
+ * than a real result: marked in {@link InterruptedToolCallIds} by this
+ * client, or persisted with `phoenix.outcome = "interrupted"`.
  */
 export function isInterruptedToolCallPart({
   part,
