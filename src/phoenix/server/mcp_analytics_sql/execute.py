@@ -752,6 +752,25 @@ def _postgres_detail(exc: SQLAlchemyError) -> str:
     return " ".join(detail.split()).rstrip(".") + "."
 
 
+def _postgres_execution_error_message(exc: Exception) -> str:
+    """Expose PostgreSQL's safe detail only when SQLAlchemy wrapped it.
+
+    SQLAlchemy wraps failures raised when opening the streaming cursor, where
+    `_postgres_detail` retains PostgreSQL's message and hint without driver
+    noise. Iteration can raise raw driver exceptions instead, so preserve the
+    generic message there rather than treating arbitrary exception text as safe
+    to expose.
+    """
+    if isinstance(exc, SQLAlchemyError):
+        return (
+            f"The statement was accepted but the database could not run it: {_postgres_detail(exc)}"
+        )
+    return (
+        "The statement was accepted but the database could not run it. "
+        "The server log records the underlying error."
+    )
+
+
 def _estimated_rows(plan_json: list[dict[str, Any]]) -> Optional[int]:
     """The planner's estimate for the statement before any LIMIT truncates it.
 
@@ -901,11 +920,7 @@ async def _execute_postgres(
             logger.error("analytics sql: postgres execution failed - %s", exc)
             raise AnalyticsSqlError(
                 code=ErrorCode.EXECUTION_ERROR,
-                message=(
-                    "The statement was accepted but the database could not run it. "
-                    "The server log records the underlying error. "
-                    "validate_only=true reports resolution errors without executing."
-                ),
+                message=_postgres_execution_error_message(exc),
             ) from exc
         return ExecuteResult(
             envelope=_success_envelope(

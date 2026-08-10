@@ -17,6 +17,7 @@ from phoenix.server.mcp_analytics_sql.execute import (
     MAX_RESPONSE_BYTES,
     ExecuteParams,
     _estimated_rows,
+    _postgres_execution_error_message,
     _rewrite_attribution,
     _serialized_envelope_bytes,
     _sqlite_read_uri,
@@ -202,6 +203,26 @@ async def test_sqlite_path_discovery_returns_an_analytics_error_when_it_cannot_c
     with pytest.raises(AnalyticsSqlError) as exc:
         await resolve_sqlite_db_path(cast(DbSessionFactory, RawDriverFailingDb()))
     assert exc.value.code is ErrorCode.BACKEND_UNAVAILABLE
+
+
+def test_postgres_streaming_sqlalchemy_errors_keep_actionable_detail() -> None:
+    """The post-plan execution path follows the same safe-detail policy as EXPLAIN."""
+    message = _postgres_execution_error_message(
+        SQLAlchemyError('column "span_kindd" does not exist\nHINT: Perhaps you meant "span_kind".')
+    )
+
+    assert 'column "span_kindd" does not exist' in message
+    assert 'HINT: Perhaps you meant "span_kind"' in message
+
+
+def test_postgres_streaming_raw_driver_errors_remain_generic() -> None:
+    """Raw iteration exceptions lack the wrapper that marks their text safe."""
+    message = _postgres_execution_error_message(RuntimeError("internal driver detail"))
+
+    assert message == (
+        "The statement was accepted but the database could not run it. "
+        "The server log records the underlying error."
+    )
 
 
 @pytest.mark.postgres_only
