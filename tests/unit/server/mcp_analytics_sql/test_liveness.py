@@ -561,6 +561,22 @@ async def test_partial_flag_stays_honest_when_caller_repeats_the_tool_limit(
     assert result.envelope.row_count_is_partial is True
 
 
+async def test_negative_sqlite_limit_cannot_disable_the_work_cap(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+) -> None:
+    db, db_path = analytics_sqlite_db
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql="SELECT id FROM spans ORDER BY name LIMIT -1", row_limit=2),
+        sqlite_db_path=db_path,
+    )
+    assert result.envelope.row_count == 2
+    assert result.envelope.row_count_is_partial is True
+    assert "limit_injection" in result.envelope.applied.rewrites
+    assert result.envelope.applied.executed is not None
+    assert "LIMIT 3" in result.envelope.applied.executed
+
+
 async def test_sqlite_timestamp_subtraction_returns_elapsed_seconds(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
 ) -> None:

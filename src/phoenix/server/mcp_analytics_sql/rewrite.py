@@ -755,11 +755,14 @@ def _inject_limit(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
         return root
     limit = root.args.get("limit")
     should_probe = limit is None
-    if isinstance(limit, exp.Limit) and isinstance(limit.expression, exp.Literal):
+    if isinstance(limit, exp.Limit) and limit.expression is not None:
         try:
-            should_probe = int(limit.expression.this) >= ctx.row_limit
+            requested_limit = int(limit.expression.sql(dialect=ctx.dialect))
+            should_probe = requested_limit < 0 or requested_limit >= ctx.row_limit
         except ValueError:
-            pass
+            # An expression or placeholder can be unbounded at execution time.
+            # Replacing it is safer than trusting a value admission cannot see.
+            should_probe = True
     if should_probe:
         # One more row than the caller asked for. Fetching exactly the limit
         # makes truncation undetectable: a result of exactly N rows is
