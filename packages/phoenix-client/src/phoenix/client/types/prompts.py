@@ -26,6 +26,7 @@ from phoenix.client.helpers.sdk.anthropic.messages import (
 )
 from phoenix.client.helpers.sdk.google_genai.generate_content import (
     GoogleGenAIModelKwargs,
+    create_prompt_version_from_google_genai,
 )
 from phoenix.client.helpers.sdk.google_genai.generate_content import (
     to_chat_messages_and_kwargs as to_messages_google_genai,
@@ -213,6 +214,7 @@ class PromptVersion:
             "format",
             "from_openai",
             "from_anthropic",
+            "from_google_genai",
         ]
 
     @property
@@ -387,6 +389,45 @@ class PromptVersion:
         return cls._loads(
             create_prompt_version_from_anthropic(
                 obj,
+                description=description,
+                template_format=template_format,
+                model_provider=model_provider,
+            )
+        )
+
+    @classmethod
+    def from_google_genai(
+        cls,
+        model: str,
+        contents: Sequence[genai_types.Content],
+        /,
+        *,
+        config: Optional[
+            Union[genai_types.GenerateContentConfig, genai_types.GenerateContentConfigDict]
+        ] = None,
+        template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
+        description: Optional[str] = None,
+        model_provider: Literal["GOOGLE"] = "GOOGLE",
+    ) -> Self:
+        """
+        Creates a prompt version from Google GenAI ``generate_content`` parameters.
+
+        Args:
+            model: The Google model name.
+            contents: The content sequence passed to ``generate_content``.
+            config: Optional Google GenAI generation configuration.
+            template_format: The format of the template to use. Defaults to ``"MUSTACHE"``.
+            description: An optional prompt description.
+            model_provider: The model provider. Defaults to ``"GOOGLE"``.
+
+        Returns:
+            PromptVersion: The prompt version.
+        """
+        return cls._loads(
+            create_prompt_version_from_google_genai(
+                model,
+                contents,
+                config=config,
                 description=description,
                 template_format=template_format,
                 model_provider=model_provider,

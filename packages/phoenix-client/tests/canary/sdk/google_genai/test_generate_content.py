@@ -1,7 +1,7 @@
 # pyright: reportUnknownMemberType=false
 import json
 from secrets import token_hex
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 
 import pytest
 from deepdiff.diff import DeepDiff
@@ -16,6 +16,7 @@ from phoenix.client.helpers.sdk.google_genai.generate_content import (
     _TextContentPartConversion,
     _ToolKwargs,
     _ToolKwargsConversion,
+    create_prompt_version_from_google_genai,
     to_chat_messages_and_kwargs,
 )
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
@@ -234,6 +235,19 @@ class TestToolKwargsConversion:
             new_obj["tool_config"].model_dump(exclude_none=True),
         )
 
+    def test_raw_tool_round_trip(self) -> None:
+        obj: _ToolKwargs = {
+            "tools": [genai_types.Tool(google_search=genai_types.GoogleSearch())],
+        }
+
+        new_obj = _ToolKwargsConversion.to_google(_ToolKwargsConversion.from_google(obj))
+
+        assert "tools" in new_obj
+        assert not DeepDiff(
+            obj["tools"][0].model_dump(exclude_none=True),
+            new_obj["tools"][0].model_dump(exclude_none=True),
+        )
+
 
 class TestToolMessages:
     def test_tool_call_and_result_are_preserved(self) -> None:
@@ -348,6 +362,61 @@ class TestInvocationParameters:
         config = kwargs["config"]
         assert config.response_mime_type == "application/json"
         assert config.response_json_schema == schema
+
+
+class TestPromptVersionConversion:
+    def test_round_trip(self) -> None:
+        schema = {"type": "object", "properties": {"answer": {"type": "string"}}}
+        contents = [genai_types.Content(role="user", parts=[genai_types.Part(text="Hello")])]
+        config = genai_types.GenerateContentConfig(
+            system_instruction="Be concise.",
+            temperature=0.0,
+            max_output_tokens=128,
+            stop_sequences=["END"],
+            thinking_config=genai_types.ThinkingConfig(
+                thinking_budget=1024,
+                include_thoughts=True,
+            ),
+            tools=cast(Any, _TOOLS),
+            tool_config=genai_types.ToolConfig(
+                function_calling_config=genai_types.FunctionCallingConfig(
+                    mode=genai_types.FunctionCallingConfigMode.ANY,
+                )
+            ),
+            response_mime_type="application/json",
+            response_json_schema=schema,
+        )
+
+        prompt = create_prompt_version_from_google_genai(
+            "gemini-2.0-flash",
+            contents,
+            config=config,
+            template_format="NONE",
+        )
+        new_contents, kwargs = to_chat_messages_and_kwargs(prompt)
+
+        assert not DeepDiff(
+            [content.model_dump(exclude_none=True) for content in contents],
+            [content.model_dump(exclude_none=True) for content in new_contents],
+        )
+        assert kwargs["model"] == "gemini-2.0-flash"
+        assert kwargs["config"].system_instruction == "Be concise."
+        assert kwargs["config"].temperature == 0.0
+        assert kwargs["config"].max_output_tokens == 128
+        assert kwargs["config"].stop_sequences == ["END"]
+        assert kwargs["config"].thinking_config is not None
+        assert kwargs["config"].thinking_config.thinking_budget == 1024
+        assert kwargs["config"].thinking_config.include_thoughts is True
+        assert kwargs["config"].response_mime_type == "application/json"
+        assert kwargs["config"].response_json_schema == schema
+
+    def test_unsupported_config_is_rejected(self) -> None:
+        with pytest.raises(NotImplementedError, match="candidate_count"):
+            create_prompt_version_from_google_genai(
+                "gemini-2.0-flash",
+                [genai_types.Content(role="user", parts=[genai_types.Part(text="Hello")])],
+                config=genai_types.GenerateContentConfig(candidate_count=2),
+            )
 
 
 class TestToolKwargsGuards:

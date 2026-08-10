@@ -45,7 +45,6 @@ from openai.types.chat.completion_create_params import CompletionCreateParamsBas
 from openai.types.shared_params import ResponseFormatJSONSchema
 from phoenix.client import Client as _PhoenixClient
 from phoenix.client.types import PromptVersion
-from phoenix.client.types.prompts import GoogleGenAIPrompt
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 from pydantic import BaseModel, ConfigDict, Field, create_model
 from typing_extensions import assert_never
@@ -587,42 +586,23 @@ _CREATE_CHAT_PROMPT = """
 """
 
 
+def _from_google_genai(
+    obj: dict[str, Any],
+    /,
+    *,
+    template_format: Literal["F_STRING", "MUSTACHE", "NONE"],
+    model_provider: Literal["GOOGLE"],
+) -> PromptVersion:
+    return PromptVersion.from_google_genai(
+        obj["model"],
+        cast(Sequence[genai_types.Content], obj["messages"]),
+        config=cast(genai_types.GenerateContentConfig, obj["config"]),
+        template_format=template_format,
+        model_provider=model_provider,
+    )
+
+
 class TestClient:
-    def test_google_genai_default_formatting(
-        self,
-        _app: _AppInfo,
-    ) -> None:
-        api_key = _app.admin_secret
-        prompt = _create_chat_prompt(
-            _app,
-            api_key,
-            messages=[
-                PromptMessageInput(
-                    role="SYSTEM",
-                    content=[ContentPartInput(text=TextContentValueInput(text="Be concise."))],
-                ),
-                PromptMessageInput(
-                    role="USER",
-                    content=[ContentPartInput(text=TextContentValueInput(text="Hello"))],
-                ),
-            ],
-            model_provider="GOOGLE",
-            model_name="gemini-2.0-flash",
-            invocation_parameters={"google": {}},
-        )
-
-        formatted = prompt.format()
-
-        assert isinstance(formatted, GoogleGenAIPrompt)
-        assert formatted.kwargs["model"] == "gemini-2.0-flash"
-        assert formatted.kwargs["config"].system_instruction == "Be concise."
-        assert len(formatted.messages) == 1
-        assert isinstance(formatted.messages[0], genai_types.Content)
-        assert formatted.messages[0].role == "user"
-        assert formatted.messages[0].parts is not None
-        assert formatted.messages[0].parts[0].text == "Hello"
-        _can_recreate_via_client(_app, prompt, api_key)
-
     @pytest.mark.parametrize(
         "template_format",
         ["F_STRING", "MUSTACHE", "NONE"],
@@ -1189,6 +1169,24 @@ class TestClient:
                     tool_choice=ToolChoiceAnyParam(type="any"),
                 ),
                 id="anthropic-tool-result-list",
+            ),
+            pytest.param(
+                "GOOGLE",
+                _from_google_genai,
+                {
+                    "model": "gemini-2.0-flash",
+                    "messages": [
+                        genai_types.Content(
+                            role="user",
+                            parts=[genai_types.Part(text="Write a poem about {topic}.")],
+                        )
+                    ],
+                    "config": genai_types.GenerateContentConfig(
+                        system_instruction="You are {role}.",
+                        temperature=0.0,
+                    ),
+                },
+                id="google-genai-system-instruction",
             ),
         ],
     )

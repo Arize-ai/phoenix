@@ -10,6 +10,7 @@ from typing import (
     Literal,
     Mapping,
     Optional,
+    Sequence,
     TypedDict,
     Union,
     cast,
@@ -56,14 +57,102 @@ __all__ = [
 
 
 def create_prompt_version_from_google_genai(
-    obj: Any,
+    model: str,
+    contents: Sequence[genai_types.Content],
     /,
     *,
+    config: Optional[
+        Union[genai_types.GenerateContentConfig, genai_types.GenerateContentConfigDict]
+    ] = None,
     description: Optional[str] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     model_provider: Literal["GOOGLE"] = "GOOGLE",
 ) -> v1.PromptVersionData:
-    raise NotImplementedError
+    from google.genai import types as genai_types
+
+    config = genai_types.GenerateContentConfig.model_validate(config or {})
+    _validate_supported_config(config)
+    messages = _system_messages_from_google(
+        cast(
+            "Optional[Union[str, genai_types.Content, Sequence[genai_types.Content]]]",
+            config.system_instruction,
+        )
+    )
+    messages.extend(_ContentConversion.from_google(content) for content in contents)
+    ans = v1.PromptVersionData(
+        model_provider=model_provider,
+        model_name=model,
+        template=v1.PromptChatTemplate(type="chat", messages=messages),
+        template_type="CHAT",
+        template_format=template_format,
+        invocation_parameters=_InvocationParametersConversion.from_google(config),
+    )
+    tool_kwargs: _ToolKwargs = {}
+    if tools := config.model_dump(exclude_none=True).get("tools"):
+        tool_kwargs["tools"] = [genai_types.Tool.model_validate(tool) for tool in tools]
+    if config.tool_config:
+        tool_kwargs["tool_config"] = config.tool_config
+    if tools := _ToolKwargsConversion.from_google(tool_kwargs):
+        ans["tools"] = tools
+    if response_format := _ResponseFormatConversion.from_google(config):
+        ans["response_format"] = response_format
+    if description:
+        ans["description"] = description
+    return ans
+
+
+def _validate_supported_config(config: genai_types.GenerateContentConfig) -> None:
+    supported_fields = {
+        "temperature",
+        "max_output_tokens",
+        "stop_sequences",
+        "presence_penalty",
+        "frequency_penalty",
+        "top_p",
+        "top_k",
+        "thinking_config",
+        "system_instruction",
+        "tools",
+        "tool_config",
+        "response_mime_type",
+        "response_json_schema",
+    }
+    unsupported_fields = set(config.model_dump(exclude_none=True)) - supported_fields
+    if unsupported_fields:
+        raise NotImplementedError(
+            "Unsupported Google GenAI config fields: " + ", ".join(sorted(unsupported_fields))
+        )
+
+
+def _system_messages_from_google(
+    obj: Optional[Union[str, genai_types.Content, Sequence[genai_types.Content]]],
+    /,
+) -> list[v1.PromptMessage]:
+    if obj is None:
+        return []
+    if isinstance(obj, str):
+        return [v1.PromptMessage(role="system", content=obj)]
+    contents: Sequence[genai_types.Content]
+    if isinstance(obj, genai_types.Content):
+        contents = [obj]
+    elif isinstance(obj, Sequence) and all(
+        isinstance(content, genai_types.Content) for content in obj
+    ):
+        contents = cast("Sequence[genai_types.Content]", obj)  # pyright: ignore[reportUnnecessaryCast]
+    else:
+        raise NotImplementedError("Only text and Content system instructions are supported")
+    messages: list[v1.PromptMessage] = []
+    for content in contents:
+        parts = [
+            _TextContentPartConversion.from_google(part)
+            for part in content.parts or ()
+            if _has_text(part)
+        ]
+        if len(parts) != len(content.parts or ()):
+            raise NotImplementedError("Only text system instructions are supported")
+        if parts:
+            messages.append(v1.PromptMessage(role="system", content=parts))
+    return messages
 
 
 def to_chat_messages_and_kwargs(
@@ -197,6 +286,64 @@ class _ThinkingConfigConversion:
             return None
         return genai_types.ThinkingConfig.model_validate(kwargs)
 
+    @staticmethod
+    def from_google(
+        obj: genai_types.ThinkingConfig,
+    ) -> v1.PromptGoogleThinkingConfig:
+        ans = v1.PromptGoogleThinkingConfig()
+        if obj.thinking_budget is not None:
+            ans["thinking_budget"] = obj.thinking_budget
+        if obj.include_thoughts is not None:
+            ans["include_thoughts"] = obj.include_thoughts
+        if thinking_level := getattr(obj, "thinking_level", None):
+            ans["thinking_level"] = thinking_level.lower()
+        return ans
+
+
+class _InvocationParametersConversion:
+    @staticmethod
+    def from_google(
+        obj: genai_types.GenerateContentConfig,
+    ) -> v1.PromptGoogleInvocationParameters:
+        parameters = v1.PromptGoogleInvocationParametersContent()
+        for field in (
+            "temperature",
+            "max_output_tokens",
+            "presence_penalty",
+            "frequency_penalty",
+            "top_p",
+            "top_k",
+        ):
+            if (value := getattr(obj, field)) is not None:
+                parameters[field] = value
+        if obj.stop_sequences is not None:
+            parameters["stop_sequences"] = list(obj.stop_sequences)
+        if obj.thinking_config is not None:
+            parameters["thinking_config"] = _ThinkingConfigConversion.from_google(
+                obj.thinking_config
+            )
+        return v1.PromptGoogleInvocationParameters(type="google", google=parameters)
+
+
+class _ResponseFormatConversion:
+    @staticmethod
+    def from_google(
+        obj: genai_types.GenerateContentConfig,
+    ) -> Optional[v1.PromptResponseFormatJSONSchema]:
+        if obj.response_mime_type != "application/json":
+            return None
+        if obj.response_json_schema is None:
+            raise NotImplementedError(
+                "Google GenAI JSON response formatting requires `response_json_schema`"
+            )
+        return v1.PromptResponseFormatJSONSchema(
+            type="json_schema",
+            json_schema=v1.PromptResponseFormatJSONSchemaDefinition(
+                name="response",
+                schema=cast("Mapping[str, Any]", obj.response_json_schema),
+            ),
+        )
+
 
 class _ToolKwargsConversion:
     @staticmethod
@@ -233,11 +380,17 @@ class _ToolKwargsConversion:
     ) -> Optional[v1.PromptTools]:
         if not obj:
             return None
-        tools: list[v1.PromptToolFunction] = []
+        tools: list[Union[v1.PromptToolFunction, v1.PromptToolRaw]] = []
         if "tools" in obj:
             for tool in obj["tools"]:
                 for fd in tool.function_declarations or ():
                     tools.append(_FunctionDeclarationConversion.from_google(fd))
+                raw = tool.model_dump(exclude_none=True)
+                raw.pop("function_declarations", None)
+                if raw:
+                    tools.append(v1.PromptToolRaw(type="raw", raw=raw))
+        if not tools:
+            return None
         ans = v1.PromptTools(
             type="tools",
             tools=tools,
