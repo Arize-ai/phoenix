@@ -1,16 +1,9 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 
 import {
   ChartEmptyStateOverlay,
+  ChartResponsiveContainer,
   InteractiveLegend,
   compactChartMargin,
   defaultCartesianGridProps,
@@ -100,7 +93,7 @@ export function TopModelsByToken({
       message="No data in this time range"
       chartType="barHorizontal"
     >
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer>
         <BarChart
           data={chartData}
           margin={compactChartMargin}
@@ -162,7 +155,7 @@ export function TopModelsByToken({
             onToggleDataKey={toggleDataKey}
           />
         </BarChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </ChartEmptyStateOverlay>
   );
 }

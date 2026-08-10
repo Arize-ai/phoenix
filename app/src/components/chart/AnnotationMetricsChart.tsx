@@ -10,7 +10,6 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -33,6 +32,7 @@ import {
   getAnnotationOtherFraction,
 } from "./annotationMetricsUtils";
 import { ChartEmptyStateOverlay } from "./ChartEmptyStateOverlay";
+import { ChartResponsiveContainer } from "./ChartResponsiveContainer";
 import { ChartTooltip, ChartTooltipItem } from "./ChartTooltip";
 import { getCategoryChartColor, useCategoryChartColors } from "./colors";
 import {
@@ -185,7 +185,7 @@ function AnnotationMetricsChartContent({
       message={emptyStateMessage}
       chartType={isScoreView ? "line" : "bar"}
     >
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer>
         <ComposedChart
           data={chartData}
           margin={isScoreView ? SCORE_CHART_MARGIN : compactChartMargin}
@@ -282,7 +282,7 @@ function AnnotationMetricsChartContent({
             ]}
           />
         </ComposedChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </ChartEmptyStateOverlay>
   );
 }
