@@ -8,6 +8,7 @@ import {
 } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
+import { flushToolOutputs } from "@phoenix/agent/chat/toolOutputFlush";
 import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
@@ -32,6 +33,7 @@ import {
   SESSION_MESSAGES_STALE_ERROR_CODE,
   SESSION_MODEL_STALE_ERROR_CODE,
   buildAgentChatApiUrl,
+  buildAgentToolOutputsApiUrl,
   parseAgentSessionConflictCode,
 } from "./agentChatApi";
 import { getRemovedUserMessageText } from "./removedUserMessageText";
@@ -86,6 +88,7 @@ export function createAgentSessionChat({
   onTranscriptSynced: (tail: AgentSessionSyncState) => void;
 }): Chat<AgentUIMessage> {
   const chatApiUrl = buildAgentChatApiUrl(sessionId);
+  const toolOutputsApiUrl = buildAgentToolOutputsApiUrl(sessionId);
   const toolTimings = createClientToolTimingRecorder();
   // The selection the most recent send asserted, kept so a model-stale
   // rejection can distinguish another client's change from this client
@@ -206,6 +209,15 @@ export function createAgentSessionChat({
       const shouldSendAutomatically =
         await turnCompletionGate.handleSendAutomaticallyWhen({ messages });
       if (!shouldSendAutomatically) {
+        const trailingMessage = messages.at(-1);
+        if (trailingMessage) {
+          flushToolOutputs({
+            message: trailingMessage,
+            flushUrl: toolOutputsApiUrl,
+            fetch: authFetch,
+            toolTimings,
+          });
+        }
         return false;
       }
       const assistantMessage = messages.at(-1);

@@ -20,6 +20,10 @@ import {
   REMOVE_PROMPT_INSTANCE_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 
+import {
+  isResolvedClientToolOutputPart,
+  type ResolvedToolOutputPart,
+} from "./chatUtils";
 import { getUnresolvedToolCalls } from "./interruptToolCalls";
 
 export const USER_INTERRUPT_ERROR = "The user has interrupted this tool call.";
@@ -39,6 +43,32 @@ export function shouldSendAutomaticallyAfterToolOutput({
     return false;
   }
   return lastAssistantMessageIsCompleteWithToolCalls({ messages });
+}
+
+/**
+ * Resolved client tool outputs on a message whose sibling tool calls are
+ * still pending. May include outputs the server already persisted.
+ */
+export function getFlushableClientToolOutputs({
+  message,
+}: {
+  /** The transcript's trailing assistant message. */
+  message: UIMessage;
+}): ResolvedToolOutputPart[] {
+  if (message.role !== "assistant") {
+    return [];
+  }
+  const messages = [message];
+  if (hasInterruptedToolCall({ messages, errorText: USER_INTERRUPT_ERROR })) {
+    return [];
+  }
+  if (hasApprovalNavigationCancel(messages)) {
+    return [];
+  }
+  if (getUnresolvedToolCalls(messages).length === 0) {
+    return [];
+  }
+  return message.parts.filter((part) => isResolvedClientToolOutputPart(part));
 }
 
 export function shouldKeepTurnOpenForPendingToolOutput({

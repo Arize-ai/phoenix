@@ -8835,6 +8835,119 @@
         }
       }
     },
+    "/v1/agent_sessions/{session_id}/tool_outputs": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Submit Agent Session Tool Outputs",
+        "description": "Persist resolved client tool outputs for the session's open turn.",
+        "operationId": "submitAgentSessionToolOutputs",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitAgentSessionToolOutputsRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitAgentSessionToolOutputsResponseBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the session's current state; the body's ``code`` field says how.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSessionConflictError"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/agent_sessions/{session_id}/chat": {
       "post": {
         "tags": [
@@ -18334,6 +18447,57 @@
         ],
         "title": "SubagentsContext",
         "description": "User's per-turn request to expose the subagent-spawning tool."
+      },
+      "SubmitAgentSessionToolOutputsRequestBody": {
+        "properties": {
+          "toolOutputs": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"
+                }
+              ]
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Tooloutputs",
+            "description": "Client tool results for pending calls on the trailing assistant message, matched by ``toolCallId``. Resending a persisted output verbatim is a no-op; an output that differs from the persisted result or matches no call is rejected with HTTP 409 and code ``agent_session_tool_outputs_conflict``."
+          },
+          "lastMessageId": {
+            "type": "string",
+            "title": "Lastmessageid",
+            "description": "The trailing assistant message's id. On mismatch the submission is rejected with HTTP 409 and code ``agent_session_messages_stale``."
+          }
+        },
+        "type": "object",
+        "required": [
+          "toolOutputs",
+          "lastMessageId"
+        ],
+        "title": "SubmitAgentSessionToolOutputsRequestBody",
+        "description": "Persist resolved client tool outputs without continuing the turn."
+      },
+      "SubmitAgentSessionToolOutputsResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PhoenixUIMessage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SubmitAgentSessionToolOutputsResponseBody",
+        "description": "The trailing assistant message with the submitted outputs applied."
       },
       "TextContentPart": {
         "properties": {

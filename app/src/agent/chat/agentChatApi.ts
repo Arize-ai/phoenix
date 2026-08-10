@@ -5,6 +5,8 @@ const CHAT_PATH_TEMPLATE =
   "/v1/agent_sessions/{session_id}/chat" satisfies keyof paths;
 const COMPACT_PATH_TEMPLATE =
   "/v1/agent_sessions/{session_id}/compact" satisfies keyof paths;
+const TOOL_OUTPUTS_PATH_TEMPLATE =
+  "/v1/agent_sessions/{session_id}/tool_outputs" satisfies keyof paths;
 
 /**
  * The `code` discriminator of every HTTP 409 the agent session routes return,
@@ -80,5 +82,14 @@ export function buildAgentChatApiUrl(sessionId: string): string {
 export function buildAgentCompactApiUrl(sessionId: string): string {
   return prependBasename(
     COMPACT_PATH_TEMPLATE.replace("{session_id}", encodeURIComponent(sessionId))
+  );
+}
+
+export function buildAgentToolOutputsApiUrl(sessionId: string): string {
+  return prependBasename(
+    TOOL_OUTPUTS_PATH_TEMPLATE.replace(
+      "{session_id}",
+      encodeURIComponent(sessionId)
+    )
   );
 }
