@@ -36,7 +36,9 @@ from phoenix.server.mcp_analytics_sql.parse import (
     _timestamp_comparison_pairs,
     _tree_depth,
     admit_sql,
+    parse_sql,
     query_local_columns,
+    render,
     try_parse_and_admit,
 )
 from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
@@ -148,6 +150,26 @@ def test_unquoted_cte_references_follow_engine_case_folding(
 ) -> None:
     assert (
         try_parse_and_admit(sql, dialect=dialect, allowlist=minimal_admission_allowlist()).outcome
+        is AdmissionOutcome.ADMIT
+    )
+
+
+def test_identifier_normalization_does_not_apply_unicode_casefold_expansions() -> None:
+    root = parse_sql(
+        "SELECT count(*) AS straße, avg(id) AS strasse FROM spans", dialect="postgresql"
+    )
+    rendered = render(root, dialect="postgresql")
+    assert "straße" in rendered
+    assert "strasse" in rendered
+
+
+def test_sqlite_quoted_cte_references_are_case_insensitive() -> None:
+    assert (
+        try_parse_and_admit(
+            'WITH "Foo" AS (SELECT 1 AS value) SELECT value FROM foo',
+            dialect="sqlite",
+            allowlist=minimal_admission_allowlist(),
+        ).outcome
         is AdmissionOutcome.ADMIT
     )
 
