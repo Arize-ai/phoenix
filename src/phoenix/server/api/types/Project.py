@@ -11,11 +11,13 @@ import strawberry
 from aioitertools.itertools import groupby, islice
 from openinference.semconv.trace import SpanAttributes
 from pandas import DataFrame
-from sqlalchemy import Select, and_, case, desc, distinct, exists, false, func, or_, select
+from sqlalchemy import Select, and_, case, desc, distinct, exists, func, or_, select
+from sqlalchemy import cast as sqlalchemy_cast
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import tuple_
 from sqlalchemy.sql.functions import percentile_cont
+from sqlalchemy.sql.sqltypes import String
 from strawberry import ID, UNSET, lazy
 from strawberry.relay import Connection, Edge, GlobalID, Node, NodeID, PageInfo
 from strawberry.types import Info
@@ -29,6 +31,7 @@ from phoenix.server.api.annotation_metrics import build_entity_weighted_annotati
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.extensions import RequireForwardPaginationExtension
+from phoenix.server.api.input_types.ProjectEvaluatorFilter import ProjectEvaluatorFilter
 from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionSort,
     ProjectSessionSortConfig,
@@ -336,6 +339,7 @@ class Project(Node):
         last: Optional[int] = None,
         after: Optional[str] = None,
         before: Optional[str] = None,
+        filter: Optional[ProjectEvaluatorFilter] = UNSET,
     ) -> Connection[ProjectEvaluator]:
         args = ConnectionArgs(
             first=first,
@@ -343,17 +347,20 @@ class Project(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db.read() as session:
-            records = list(
-                await session.scalars(
-                    select(models.ProjectEvaluatorCriteria)
-                    .where(models.ProjectEvaluatorCriteria.project_id == self.id)
-                    .order_by(
-                        models.ProjectEvaluatorCriteria.name,
-                        models.ProjectEvaluatorCriteria.id,
-                    )
-                )
+        stmt = (
+            select(models.ProjectEvaluatorCriteria)
+            .where(models.ProjectEvaluatorCriteria.project_id == self.id)
+            .order_by(
+                models.ProjectEvaluatorCriteria.name,
+                models.ProjectEvaluatorCriteria.id,
             )
+        )
+        if filter and (value := filter.value.strip()):
+            column = getattr(models.ProjectEvaluatorCriteria, filter.col.value)
+            # `name` is an Identifier-typed column; compare it as text so LIKE applies.
+            stmt = stmt.where(sqlalchemy_cast(column, String).ilike(f"%{value}%"))
+        async with info.context.db.read() as session:
+            records = list(await session.scalars(stmt))
         return connection_from_list(
             data=[ProjectEvaluator(id=record.id, db_record=record) for record in records],
             args=args,
