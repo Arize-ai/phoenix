@@ -28,8 +28,8 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
+import { SpanAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SpanAnnotationSummaryGroup";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
@@ -386,7 +386,7 @@ export function SpansTable(props: SpansTableProps) {
                     cost
                   }
                 }
-                ...AnnotationSummaryGroup
+                ...SpanAnnotationSummaryGroup
               }
             }
           }
@@ -548,7 +548,7 @@ export function SpansTable(props: SpansTableProps) {
       cell: ({ row }) => {
         return (
           <OverflowRow isExpanded={areRowsExpanded}>
-            <AnnotationSummaryGroupTokens
+            <SpanAnnotationSummaryGroupTokens
               span={row.original}
               annotationConfigsByName={annotationConfigsByName}
               showFilterActions

@@ -38,8 +38,8 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
+import { SpanAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SpanAnnotationSummaryGroup";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
@@ -387,7 +387,7 @@ export function TracesTable(props: TracesTableProps) {
                   meanScore
                   name
                 }
-                ...AnnotationSummaryGroup
+                ...SpanAnnotationSummaryGroup
                 documentRetrievalMetrics {
                   evaluationName
                   ndcg
@@ -426,7 +426,7 @@ export function TracesTable(props: TracesTableProps) {
                         annotatorKind
                         createdAt
                       }
-                      ...AnnotationSummaryGroup
+                      ...SpanAnnotationSummaryGroup
                       documentRetrievalMetrics {
                         evaluationName
                         ndcg
@@ -644,7 +644,7 @@ export function TracesTable(props: TracesTableProps) {
             row.original.documentRetrievalMetrics.length === 0;
           return (
             <OverflowRow isExpanded={areRowsExpanded}>
-              <AnnotationSummaryGroupTokens
+              <SpanAnnotationSummaryGroupTokens
                 span={row.original}
                 annotationConfigsByName={annotationConfigsByName}
                 showFilterActions

@@ -18,7 +18,7 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
-import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import { SpanAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SpanAnnotationSummaryGroup";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { RowExpandToggleButton } from "@phoenix/components/table";
@@ -62,7 +62,7 @@ function SpanAnnotationSummaryTokens({
             project {
               ...ProjectAnnotationConfigFragment
             }
-            ...AnnotationSummaryGroup
+            ...SpanAnnotationSummaryGroup
           }
         }
       }
@@ -78,7 +78,7 @@ function SpanAnnotationSummaryTokens({
     return null;
   }
   return (
-    <AnnotationSummaryGroupTokens
+    <SpanAnnotationSummaryGroupTokens
       span={data.span}
       annotationConfigsByName={annotationConfigsByName}
       renderEmptyState={renderEmptyState}

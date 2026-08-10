@@ -2,7 +2,7 @@ import React from "react";
 import { graphql, useFragment } from "react-relay";
 
 import type { SessionAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/SessionAnnotationSummaryGroup.graphql";
-import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroupStacksRow";
 import { AnnotationSummaryTokens } from "@phoenix/components/annotation/AnnotationSummaryTokens";
 import {
   Summary,

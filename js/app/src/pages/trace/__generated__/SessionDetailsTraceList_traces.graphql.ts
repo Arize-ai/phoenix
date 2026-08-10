@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<85270d50511274ad3a5bd72cf0056d29>>
+ * @generated SignedSource<<5eedbbb55c94eb746646d6fdd04334ec>>
  * @lightSyntaxTransform
  */
 
@@ -51,7 +51,7 @@ export type SessionDetailsTraceList_traces$data = {
             readonly id: string;
             readonly " $fragmentSpreads": FragmentRefs<"TraceActionToolbar_trace" | "TraceAnnotationSummaryGroup">;
           };
-          readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
+          readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationSummaryGroup">;
         } | null;
         readonly traceId: string;
       };
@@ -343,7 +343,7 @@ return {
                     {
                       "args": null,
                       "kind": "FragmentSpread",
-                      "name": "AnnotationSummaryGroup"
+                      "name": "SpanAnnotationSummaryGroup"
                     }
                   ],
                   "storageKey": null
@@ -414,6 +414,6 @@ return {
 };
 })();
 
-(node as any).hash = "7d81432e5ac882f5bd63233655756250";
+(node as any).hash = "8f284b1ae92cf554ea536ed246157971";
 
 export default node;

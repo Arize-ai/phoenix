@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d6aed24def35e6e6ed2dbee24522277c>>
+ * @generated SignedSource<<402c0c1d4121c0a4387d1414447a2163>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,7 @@
 import { ReaderFragment } from 'relay-runtime';
 export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
-export type AnnotationSummaryGroup$data = {
+export type SpanAnnotationSummaryGroup$data = {
   readonly spanAnnotationSummaries: ReadonlyArray<{
     readonly count: number;
     readonly labelCount: number;
@@ -35,11 +35,11 @@ export type AnnotationSummaryGroup$data = {
       readonly username: string;
     } | null;
   }>;
-  readonly " $fragmentType": "AnnotationSummaryGroup";
+  readonly " $fragmentType": "SpanAnnotationSummaryGroup";
 };
-export type AnnotationSummaryGroup$key = {
-  readonly " $data"?: AnnotationSummaryGroup$data;
-  readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
+export type SpanAnnotationSummaryGroup$key = {
+  readonly " $data"?: SpanAnnotationSummaryGroup$data;
+  readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationSummaryGroup">;
 };
 
 const node: ReaderFragment = (function(){
@@ -61,7 +61,7 @@ return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "AnnotationSummaryGroup",
+  "name": "SpanAnnotationSummaryGroup",
   "selections": [
     {
       "alias": null,
@@ -201,6 +201,6 @@ return {
 };
 })();
 
-(node as any).hash = "6e529e85ad179e4277972797c09cb1f6";
+(node as any).hash = "bc67c1d38a765c8525f44448048b57c1";
 
 export default node;

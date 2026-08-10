@@ -34,8 +34,8 @@ import {
 } from "@phoenix/components";
 import { MessageActions } from "@phoenix/components/ai/message/MessageActions";
 import { MessageCopyAction } from "@phoenix/components/ai/message/MessageCopyAction";
-import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation/optimizationUtils";
+import { SpanAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SpanAnnotationSummaryGroup";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
@@ -295,7 +295,7 @@ function RootSpanOutputMetadata({
             annotationConfigsByName={annotationConfigsByName}
             renderEmptyState={() => null}
           />
-          <AnnotationSummaryGroupTokens
+          <SpanAnnotationSummaryGroupTokens
             span={rootSpan}
             annotationConfigsByName={annotationConfigsByName}
             renderEmptyState={() => null}
@@ -673,7 +673,7 @@ export function SessionDetailsTraceList({
                 startTime
                 endTime
                 spanId
-                ...AnnotationSummaryGroup
+                ...SpanAnnotationSummaryGroup
               }
             }
           }

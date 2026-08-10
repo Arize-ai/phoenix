@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4332b28c4057dd4475eceec55c30e2d2>>
+ * @generated SignedSource<<216072d6d2c31d1292e078daaed268ee>>
  * @lightSyntaxTransform
  */
 
@@ -17,7 +17,7 @@ export type SpanAnnotationsCardSummaryQuery$data = {
     readonly project?: {
       readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigFragment">;
     };
-    readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
+    readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationSummaryGroup">;
   };
 };
 export type SpanAnnotationsCardSummaryQuery = {
@@ -133,7 +133,7 @@ return {
               {
                 "args": null,
                 "kind": "FragmentSpread",
-                "name": "AnnotationSummaryGroup"
+                "name": "SpanAnnotationSummaryGroup"
               }
             ],
             "type": "Span",
@@ -419,16 +419,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "613ac00ef9677ac1e4513b30b8c07a4b",
+    "cacheID": "8cf64a9da09963611a7cb530db014477",
     "id": null,
     "metadata": {},
     "name": "SpanAnnotationsCardSummaryQuery",
     "operationKind": "query",
-    "text": "query SpanAnnotationsCardSummaryQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      project {\n        ...ProjectAnnotationConfigFragment\n        id\n      }\n      ...AnnotationSummaryGroup\n    }\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment ProjectAnnotationConfigFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query SpanAnnotationsCardSummaryQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      project {\n        ...ProjectAnnotationConfigFragment\n        id\n      }\n      ...SpanAnnotationSummaryGroup\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationSummaryGroup on Span {\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8d6681393d611a301e4e13b592b3a5e7";
+(node as any).hash = "7f32a41074daf371819379fc68a67ad3";
 
 export default node;

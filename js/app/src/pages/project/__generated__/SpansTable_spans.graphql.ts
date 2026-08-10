@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<58a0d4e7a0f2f3b427a92f0e32d6d9d3>>
+ * @generated SignedSource<<414adaf38c3152db0b009326fa867ade>>
  * @lightSyntaxTransform
  */
 
@@ -83,7 +83,7 @@ export type SpansTable_spans$data = {
           readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup">;
         };
         readonly userId: string | null;
-        readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
+        readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationSummaryGroup">;
       };
     }>;
   };
@@ -566,7 +566,7 @@ return {
                 {
                   "args": null,
                   "kind": "FragmentSpread",
-                  "name": "AnnotationSummaryGroup"
+                  "name": "SpanAnnotationSummaryGroup"
                 }
               ],
               "storageKey": null
@@ -634,6 +634,6 @@ return {
 };
 })();
 
-(node as any).hash = "6800dce1498946b1985c63ed00d7e9af";
+(node as any).hash = "ff4b6917beb7bd451330320b52d1ca5c";
 
 export default node;
