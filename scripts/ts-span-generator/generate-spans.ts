@@ -19,7 +19,7 @@ import { register } from "@arizeai/phoenix-otel";
 const PROJECT_NAME = process.env.PHOENIX_PROJECT_NAME ?? "incident-copilot";
 const SESSION_ID = "incident-2026-08-06-checkout";
 const USER_ID = "oncall@example.com";
-const MODEL = "gpt-4o";
+const MODEL = "gpt-5.6-luna";
 
 // ---------------------------------------------------------------------------
 // Conversation
