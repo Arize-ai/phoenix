@@ -19,10 +19,18 @@ REPO = os.environ.get("PHOENIX_REPO", "Arize-ai/phoenix")
 ROSTER_TEAMS = [
     t.strip() for t in os.environ.get("PHOENIX_ROSTER_TEAM", "oss-eng").split(",") if t.strip()
 ]
-ROSTER_LABEL = ", ".join(f"@{ORG}/{t}" for t in ROSTER_TEAMS)
 ROSTER_EXCLUDE = {
     p.strip().lower() for p in os.environ.get("PHOENIX_ROSTER_EXCLUDE", "").split(",") if p.strip()
 }
+# Collaborators who carry sprint work without belonging to a roster team —
+# contractors, cross-org contributors, anyone not yet added to the org teams.
+ROSTER_INCLUDE = [
+    p.strip() for p in os.environ.get("PHOENIX_ROSTER_INCLUDE", "").split(",") if p.strip()
+]
+ROSTER_LABEL = ", ".join(
+    [f"@{ORG}/{t}" for t in ROSTER_TEAMS]
+    + [f"+{p}" for p in ROSTER_INCLUDE if p.lower() not in ROSTER_EXCLUDE]
+)
 
 # Ticket-load guardrails: everyone should be fed, nobody should be buried.
 MIN_TICKETS = int(os.environ.get("PHOENIX_MIN_TICKETS", "3"))
@@ -276,12 +284,14 @@ def stranded(items: Iterable[Item], past: Iterable[Sprint]) -> list[Item]:
 
 
 def roster() -> list[str]:
-    """Live membership of the roster team(s), minus PHOENIX_ROSTER_EXCLUDE."""
+    """Live membership of the roster team(s), plus PHOENIX_ROSTER_INCLUDE,
+    minus PHOENIX_ROSTER_EXCLUDE. Exclude wins over include."""
     logins = {
         login
         for team in ROSTER_TEAMS
         for login in gh_json("api", f"orgs/{ORG}/teams/{team}/members", "--jq", "[.[].login]")
     }
+    logins.update(ROSTER_INCLUDE)
     return sorted((lg for lg in logins if lg.lower() not in ROSTER_EXCLUDE), key=str.lower)
 
 
