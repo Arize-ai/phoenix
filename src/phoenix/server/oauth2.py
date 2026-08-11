@@ -455,6 +455,12 @@ class OAuth2Clients:
             # client_assertion_callable so the token is always read fresh from disk.
             client_kwargs["token_endpoint_auth_method"] = "none"
             token_file = config.azure_workload_identity_token_file
+            if token_file is None:
+                raise ValueError(
+                    "AZURE_FEDERATED_TOKEN_FILE environment variable is not set. "
+                    "The Azure Workload Identity webhook must be installed and the pod "
+                    "must be labelled with azure.workload.identity/use=true."
+                )
 
             def _read_sa_token() -> str:
                 with open(token_file) as fh:  # noqa: WPS110
