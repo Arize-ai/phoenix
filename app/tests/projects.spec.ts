@@ -23,6 +23,7 @@ async function createProject(
 const EVALUATORS_URL = /\/projects\/[^/]+\/evaluators(\?|$)/;
 const NEW_LLM_EVALUATOR_URL = /\/projects\/[^/]+\/evaluators\/new\/llm(\?|$)/;
 const EDIT_EVALUATOR_URL = /\/projects\/[^/]+\/evaluators\/[^/]+\/edit(\?|$)/;
+const EVALUATOR_DETAILS_URL = /\/projects\/[^/]+\/evaluators\/[^/]+(\?|$)/;
 
 async function clickSortableHeaderAndExpect(
   header: Locator,
@@ -261,6 +262,19 @@ test.describe.serial("Projects", () => {
       evaluatorRow.getByRole("cell", { name: "100%" })
     ).toBeVisible();
 
+    // The evaluator's name links to its read-only details page.
+    await evaluatorRow
+      .getByRole("link", { name: evaluatorName, exact: true })
+      .click();
+    await expect(page).toHaveURL(EVALUATOR_DETAILS_URL);
+    await expect(
+      page.getByRole("heading", { name: `Evaluator: ${evaluatorName}` })
+    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Scope" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Prompt" })).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(EVALUATORS_URL);
+
     await evaluatorRow
       .getByRole("button", { name: "Evaluator actions" })
       .click();
@@ -274,6 +288,16 @@ test.describe.serial("Projects", () => {
     await editDialog.getByRole("button", { name: "Update" }).click();
     await expect(editDialog).not.toBeVisible();
 
+    // The edit slideover is nested under the details page, so saving lands on
+    // the details view showing the fresh name.
+    await expect(page).toHaveURL(EVALUATOR_DETAILS_URL);
+    await expect(
+      page.getByRole("heading", { name: `Evaluator: ${updatedEvaluatorName}` })
+    ).toBeVisible();
+
+    // Deletion lives on the list's row action menu, not the details page.
+    await page.goBack();
+    await expect(page).toHaveURL(EVALUATORS_URL);
     const updatedRow = table
       .getByRole("row")
       .filter({ hasText: updatedEvaluatorName });
