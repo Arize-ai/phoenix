@@ -1154,9 +1154,7 @@ class EvaluatorMutationMixin:
                     _raise_on_uninferable_evaluate_signature(
                         input.source_code, Language(evaluator.language)
                     )
-                    locked = await code_evaluator_with_latest_version_for_update(
-                        session, evaluator.id
-                    )
+                    locked = await code_evaluator_with_latest_version(session, evaluator.id)
                     if locked is None:
                         raise NotFound(
                             f"CODE project evaluator not found: {input.project_evaluator_id}"
