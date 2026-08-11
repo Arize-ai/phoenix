@@ -122,6 +122,21 @@ class Evaluator(Node):
         return connection_from_list([Dataset(id=d.id, db_record=d) for d in dataset_records], args)
 
     @strawberry.field
+    async def projects(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        after: Optional[CursorString] = UNSET,
+    ) -> Connection[Annotated["Project", strawberry.lazy(".Project")]]:
+        args = ConnectionArgs(first=first, after=after if isinstance(after, CursorString) else None)
+        project_records = await info.context.data_loaders.projects_by_evaluator.load(self.id)
+        from .Project import Project
+
+        return connection_from_list(
+            [Project(id=project.id, db_record=project) for project in project_records], args
+        )
+
+    @strawberry.field
     async def dataset_evaluators(
         self,
         info: Info[Context, None],

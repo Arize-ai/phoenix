@@ -21,6 +21,7 @@ import { Flex, Icon, Icons, Text } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
+import { ProjectToken } from "@phoenix/components/project";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
@@ -86,6 +87,16 @@ const readRow = (row: EvaluatorsTable_row$key) => {
             node {
               id
               name
+            }
+          }
+        }
+        projects(first: 10) {
+          edges {
+            node {
+              id
+              name
+              gradientStartColor
+              gradientEndColor
             }
           }
         }
@@ -182,6 +193,23 @@ const filterRows = (
     return [{ ...parent, children: matchingChildren }];
   });
 };
+
+const UsedInLink = ({
+  to,
+  icon,
+  name,
+}: {
+  to: string;
+  icon: React.ReactNode;
+  name: string;
+}) => (
+  <Link to={to}>
+    <Flex direction="row" gap="size-50" alignItems="center">
+      <Icon svg={icon} />
+      <Truncate maxWidth="10rem">{name}</Truncate>
+    </Flex>
+  </Link>
+);
 
 type EvaluatorsTableProps = {
   /**
@@ -369,23 +397,43 @@ export const EvaluatorsTable = ({
         cell: ({ row }) => {
           if (row.original.rowType === "evaluator") {
             const datasets = row.original.data.datasets?.edges ?? [];
-            if (datasets.length === 0) {
+            const projects = row.original.data.projects?.edges ?? [];
+            if (datasets.length === 0 && projects.length === 0) {
               return "--";
             }
             return (
               <Flex direction="row" gap="size-100" wrap="wrap">
                 {datasets.map(({ node }) => (
-                  <Link key={node.id} to={`/datasets/${node.id}`}>
-                    {node.name}
+                  <UsedInLink
+                    key={node.id}
+                    to={`/datasets/${node.id}`}
+                    icon={<Icons.Database />}
+                    name={node.name}
+                  />
+                ))}
+                {projects.map(({ node }) => (
+                  <Link
+                    key={node.id}
+                    to={`/projects/${node.id}/evaluators`}
+                    style={{ textDecoration: "none" }}
+                  >
+                    <ProjectToken
+                      name={node.name}
+                      gradientStartColor={node.gradientStartColor}
+                      gradientEndColor={node.gradientEndColor}
+                      maxWidth="10rem"
+                    />
                   </Link>
                 ))}
               </Flex>
             );
           }
           return (
-            <Link to={`/datasets/${row.original.data.dataset.id}`}>
-              {row.original.data.dataset.name}
-            </Link>
+            <UsedInLink
+              to={`/datasets/${row.original.data.dataset.id}`}
+              icon={<Icons.Database />}
+              name={row.original.data.dataset.name}
+            />
           );
         },
       },
