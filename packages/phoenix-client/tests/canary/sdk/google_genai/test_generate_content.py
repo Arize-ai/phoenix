@@ -46,21 +46,60 @@ class TestContentConversion:
             new_obj.model_dump(exclude_none=True),
         )
 
-    def test_function_response_requires_matching_function_call(self) -> None:
+    def test_idless_function_responses_are_preserved(self) -> None:
+        contents = [
+            genai_types.Content(
+                role="model",
+                parts=[
+                    genai_types.Part(
+                        function_call=genai_types.FunctionCall(name="get_weather", args={})
+                    ),
+                    genai_types.Part(
+                        function_call=genai_types.FunctionCall(name="get_population", args={})
+                    ),
+                ],
+            ),
+            genai_types.Content(
+                role="user",
+                parts=[
+                    genai_types.Part(
+                        function_response=genai_types.FunctionResponse(
+                            name="get_weather",
+                            response={"temperature": 20},
+                        )
+                    ),
+                    genai_types.Part(
+                        function_response=genai_types.FunctionResponse(
+                            name="get_population",
+                            response={"population": 2_000_000},
+                        )
+                    ),
+                ],
+            ),
+        ]
+
+        prompt = create_prompt_version_from_google_genai("gemini-2.0-flash", contents)
+        messages, _ = to_chat_messages_and_kwargs(prompt)
+
+        assert messages[1].parts is not None
+        assert [
+            part.function_response.name if part.function_response is not None else None
+            for part in messages[1].parts
+        ] == ["get_weather", "get_population"]
+
+    def test_function_response_requires_an_id_or_name(self) -> None:
         content = genai_types.Content(
             role="user",
             parts=[
                 genai_types.Part(
                     function_response=genai_types.FunctionResponse(
-                        id="call-1",
-                        name="get_weather",
                         response={"temperature": 20},
                     )
                 )
             ],
         )
 
-        with pytest.raises(NotImplementedError, match="preceding matching function call"):
+        with pytest.raises(NotImplementedError, match="id, name"):
             create_prompt_version_from_google_genai("gemini-2.0-flash", [content])
 
     @pytest.mark.parametrize(

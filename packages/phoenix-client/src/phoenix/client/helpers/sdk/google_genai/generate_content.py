@@ -681,14 +681,19 @@ class _ContentConversion:
             elif _has_function_response(part):
                 function_response = part.function_response
                 assert function_response is not None
-                if (
-                    not function_response.id
-                    or not function_response.name
-                    or tool_call_names is None
-                    or tool_call_names.get(function_response.id) != function_response.name
+                if not function_response.id and not function_response.name:
+                    raise NotImplementedError(
+                        "Google GenAI function responses require an id, name, or preceding matching "
+                        "function call"
+                    )
+                if not function_response.name and (
+                    tool_call_names is None
+                    or function_response.id is None
+                    or tool_call_names.get(function_response.id) is None
                 ):
                     raise NotImplementedError(
-                        "Google GenAI function responses require a preceding matching function call"
+                        "Google GenAI function responses without a name require a preceding "
+                        "matching function call"
                     )
                 parts.append(_ToolResultContentPartConversion.from_google(part))
             else:
@@ -731,7 +736,9 @@ class _ToolCallContentPartConversion:
         fc = obj.function_call
         return v1.ToolCallContentPart(
             type="tool_call",
-            tool_call_id=fc.id or "",
+            # Google matches id-less responses by function name. Phoenix uses
+            # `tool_call_id` for that relation, so use the name as a stable key.
+            tool_call_id=fc.id or fc.name or "",
             tool_call=v1.ToolCallFunction(
                 type="function",
                 name=fc.name or "",
@@ -774,7 +781,7 @@ class _ToolResultContentPartConversion:
         response = fr.response
         return v1.ToolResultContentPart(
             type="tool_result",
-            tool_call_id=fr.id or "",
+            tool_call_id=fr.id or fr.name or "",
             tool_result=dict(response) if isinstance(response, Mapping) else response,
         )
 
