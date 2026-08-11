@@ -18,6 +18,12 @@ from typing_extensions import assert_never
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    AnnotationType,
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationValue,
+    OptimizationDirection,
+)
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
@@ -2123,6 +2129,55 @@ class TestProject:
         assert (
             await self._node("sessionAnnotationNameCounts{name count}", project, httpx_client) == []
         )
+
+    async def test_annotation_configs_filter_by_name_and_project(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        async with db() as session:
+            project = await _add_project(session, name="annotation-config-filter-test")
+            other_project = await _add_project(
+                session, name="annotation-config-filter-other-project"
+            )
+            configs = [
+                models.AnnotationConfig(
+                    name=name,
+                    config=CategoricalAnnotationConfig(
+                        type=AnnotationType.CATEGORICAL.value,
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        values=[CategoricalAnnotationValue(label="Good", score=1.0)],
+                    ),
+                )
+                for name in ("correctness", "relevance", "other-project-only")
+            ]
+            session.add_all(configs)
+            await session.flush()
+            session.add_all(
+                [
+                    models.ProjectAnnotationConfig(
+                        project_id=project.id,
+                        annotation_config_id=configs[0].id,
+                    ),
+                    models.ProjectAnnotationConfig(
+                        project_id=project.id,
+                        annotation_config_id=configs[1].id,
+                    ),
+                    models.ProjectAnnotationConfig(
+                        project_id=other_project.id,
+                        annotation_config_id=configs[2].id,
+                    ),
+                ]
+            )
+
+        annotation_configs = await self._node(
+            'annotationConfigs(names: ["relevance", "other-project-only"]) '
+            "{edges{node{... on AnnotationConfigBase{name}}}}",
+            project,
+            httpx_client,
+        )
+
+        assert annotation_configs == {"edges": [{"node": {"name": "relevance"}}]}
 
     @pytest.fixture
     async def _data(

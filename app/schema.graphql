@@ -2947,7 +2947,17 @@ type Project implements Node {
   The bindable terms of the session filter expression language for this project, for autocomplete, agent discovery, and docs. Static terms derive from the filter compiler's own bindings so they cannot drift from what compiles; observed per-project names (session annotations, root-span attribute paths) are folded in. Observed names come from the project's 1000 most recently started sessions; root-span attributes are sampled newest-first within that window up to a 2 MiB scan budget. This is a discovery aid rather than a complete list: a name that only older sessions carry drops out of the suggestions once 1000 newer sessions exist, and still filters correctly when typed by hand.
   """
   sessionFilterVocabulary: [FilterVocabularyTerm!]!
-  annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
+  annotationConfigs(
+    first: Int = 50
+    last: Int = null
+    after: String = null
+    before: String = null
+
+    """
+    When provided, return only annotation configs whose name exactly matches one of the given names.
+    """
+    names: [String!]
+  ): AnnotationConfigConnection!
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
   updatedAt: DateTime!
