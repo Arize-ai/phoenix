@@ -63,6 +63,23 @@ class TestContentConversion:
         with pytest.raises(NotImplementedError, match="preceding matching function call"):
             create_prompt_version_from_google_genai("gemini-2.0-flash", [content])
 
+    @pytest.mark.parametrize(
+        "part",
+        [
+            genai_types.Part(text="private reasoning", thought=True),
+            genai_types.Part(
+                function_call=genai_types.FunctionCall(id="call-1", name="f", args={}),
+                thought_signature=b"signature",
+            ),
+        ],
+    )
+    def test_thought_parts_are_rejected(self, part: genai_types.Part) -> None:
+        with pytest.raises(NotImplementedError, match="thought parts"):
+            create_prompt_version_from_google_genai(
+                "gemini-2.0-flash",
+                [genai_types.Content(role="model", parts=[part])],
+            )
+
 
 class TestTextPartConversion:
     def test_round_trip(self) -> None:
@@ -567,6 +584,23 @@ class TestPromptVersionConversion:
                 "gemini-2.0-flash",
                 [genai_types.Content(role="user", parts=[genai_types.Part(text="Hello")])],
                 config=genai_types.GenerateContentConfig(candidate_count=2),
+            )
+
+    @pytest.mark.parametrize(
+        "config",
+        [
+            genai_types.GenerateContentConfig(response_mime_type="text/x.enum"),
+            genai_types.GenerateContentConfig(response_json_schema={"type": "object"}),
+        ],
+    )
+    def test_unsupported_response_format_is_rejected(
+        self, config: genai_types.GenerateContentConfig
+    ) -> None:
+        with pytest.raises(NotImplementedError, match="response"):
+            create_prompt_version_from_google_genai(
+                "gemini-2.0-flash",
+                [genai_types.Content(role="user", parts=[genai_types.Part(text="Hello")])],
+                config=config,
             )
 
     def test_unsupported_content_part_is_rejected(self) -> None:

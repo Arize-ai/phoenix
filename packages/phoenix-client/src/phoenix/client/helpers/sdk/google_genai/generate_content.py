@@ -350,8 +350,17 @@ class _ResponseFormatConversion:
     def from_google(
         obj: genai_types.GenerateContentConfig,
     ) -> Optional[v1.PromptResponseFormatJSONSchema]:
-        if obj.response_mime_type != "application/json":
+        if obj.response_mime_type is None:
+            if obj.response_json_schema is not None:
+                raise NotImplementedError(
+                    "Google GenAI response JSON schemas require `response_mime_type` "
+                    "to be `application/json`"
+                )
             return None
+        if obj.response_mime_type != "application/json":
+            raise NotImplementedError(
+                "Only `application/json` Google GenAI response MIME types are supported"
+            )
         if obj.response_json_schema is None:
             raise NotImplementedError(
                 "Google GenAI JSON response formatting requires `response_json_schema`"
@@ -660,6 +669,8 @@ class _ContentConversion:
         role = _RoleConversion.from_google(obj)
         parts: list[_ContentPart] = []
         for part in obj.parts or ():
+            if part.thought or part.thought_signature:
+                raise NotImplementedError("Google GenAI thought parts are not supported")
             if _has_text(part):
                 parts.append(_TextContentPartConversion.from_google(part))
             elif _has_function_call(part):
