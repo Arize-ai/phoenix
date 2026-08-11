@@ -2436,8 +2436,6 @@ def test_merge_appends_user_message_and_repairs_unresolved_tool_calls() -> None:
     assert "interrupted" in parts["tool-call-unresolved"].output
     interrupted_metadata = parts["tool-call-unresolved"].call_provider_metadata
     assert interrupted_metadata["pydantic_ai"]["outcome"] == "interrupted"
-    # The phoenix namespace is only stamped when it already exists on the part:
-    # its required toolExecutionEnvironment field can't be synthesized here.
     assert "phoenix" not in interrupted_metadata
     assert parts["tool-call-streaming"].state == "output-available"
     # The genuinely completed call is left untouched — no interrupted outcome.
