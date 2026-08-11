@@ -256,13 +256,21 @@ def _response_to_oi_message(msg: ModelResponse) -> Message:
 
 
 def _to_oi_tools(params: ModelRequestParameters) -> list[Tool]:
+    """Convert the request's tool definitions to OpenInference ``llm.tools`` entries.
+
+    Each ``tool.json_schema`` carries the full tool definition — name,
+    description, and parameters — rather than the bare parameters schema, so
+    the tools advertised to the model surface with their identity intact.
+    """
     tools: list[Tool] = []
     for tool_def in params.function_tools or []:
-        schema: dict[str, Any] = {**tool_def.parameters_json_schema}
-        schema.setdefault("title", tool_def.name)
+        definition: dict[str, Any] = {"name": tool_def.name}
         if tool_def.description:
-            schema.setdefault("description", tool_def.description)
-        tools.append({"json_schema": schema})
+            definition["description"] = tool_def.description
+        definition["parameters_json_schema"] = tool_def.parameters_json_schema
+        if tool_def.strict is not None:
+            definition["strict"] = tool_def.strict
+        tools.append({"json_schema": definition})
     return tools
 
 

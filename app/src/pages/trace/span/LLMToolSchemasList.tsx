@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { css } from "@emotion/react";
 
 import {
@@ -6,14 +7,17 @@ import {
   Counter,
   Flex,
   Text,
+  View,
 } from "@phoenix/components";
 import { SpanKindIcon } from "@phoenix/components/trace";
 
 import { defaultCardProps } from "./constants";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
+import { getToolSchemaDisplayParts } from "./utils";
 
 /**
- * A card displaying a single tool JSON schema available to the LLM.
+ * A card displaying a single tool available to the LLM — its name and
+ * description when the definition carries them, and its JSON schema.
  */
 function LLMToolSchema({
   toolSchema,
@@ -22,10 +26,14 @@ function LLMToolSchema({
   toolSchema: string;
   index: number;
 }) {
+  const { name, description } = useMemo(
+    () => getToolSchemaDisplayParts(toolSchema),
+    [toolSchema]
+  );
   const titleEl = (
     <Flex direction="row" gap="size-100" alignItems="center">
       <SpanKindIcon spanKind="tool" />
-      <Text weight="heavy">Tool</Text>
+      <Text weight="heavy">{name != null ? `Tool: ${name}` : "Tool"}</Text>
     </Flex>
   );
 
@@ -38,13 +46,30 @@ function LLMToolSchema({
       borderColor="yellow-300"
       extra={<CopyToClipboardButton text={toolSchema} />}
     >
+      {description != null ? (
+        <View
+          paddingStart="size-200"
+          paddingEnd="size-200"
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          borderBottomColor="default"
+          borderBottomWidth="thin"
+        >
+          <Flex direction="column" alignItems="start" gap="size-50">
+            <Text color="text-700" fontStyle="italic">
+              Description
+            </Text>
+            <Text>{description}</Text>
+          </Flex>
+        </View>
+      ) : null}
       <MimeTypeCodeBlock value={toolSchema} mimeType={"json"} />
     </Card>
   );
 }
 
 /**
- * A list of the tool JSON schemas available to the LLM.
+ * A list of the tools available to the LLM.
  */
 export function LLMToolSchemasList({ toolSchemas }: { toolSchemas: string[] }) {
   return (
