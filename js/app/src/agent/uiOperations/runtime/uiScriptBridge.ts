@@ -45,9 +45,25 @@ export type UiScriptWorkerLike = {
 
 /** Spawn the real module worker (Vite bundles it via the URL constructor). */
 export function createUiScriptWorker(): UiScriptWorkerLike {
-  return new Worker(new URL("./uiScriptWorker.ts", import.meta.url), {
-    type: "module",
-  });
+  const workerUrl = new URL("./uiScriptWorker.ts", import.meta.url);
+  if (workerUrl.origin === globalThis.location.origin) {
+    return new Worker(workerUrl, { type: "module" });
+  }
+  // Dev-mode split origin: the app page (e.g. :6006) loads its modules from
+  // the Vite dev server (e.g. :5173), and `new Worker()` requires a
+  // same-origin script URL. Bounce through a same-origin blob module that
+  // imports the cross-origin worker module (served with CORS by Vite).
+  const blobSource = `import ${JSON.stringify(workerUrl.href)};`;
+  const blobUrl = URL.createObjectURL(
+    new Blob([blobSource], { type: "text/javascript" })
+  );
+  try {
+    return new Worker(blobUrl, { type: "module" });
+  } finally {
+    // The constructor dereferences the URL synchronously; revoking here
+    // avoids leaking one object URL per script run.
+    URL.revokeObjectURL(blobUrl);
+  }
 }
 
 /**
