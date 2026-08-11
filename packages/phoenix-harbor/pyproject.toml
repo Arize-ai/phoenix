@@ -1,0 +1,64 @@
+[project]
+name = "arize-phoenix-harbor"
+version = "0.1.0"
+description = "Record Harbor evaluation jobs in Arize Phoenix"
+readme = "README.md"
+requires-python = ">=3.12, <3.15"
+license = { text = "Apache-2.0" }
+license-files = { paths = ["LICENSE", "IP_NOTICE"] }
+authors = [
+  { name = "Arize AI", email = "phoenix-devs@arize.com" },
+]
+classifiers = [
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+  "arize-phoenix-client>=2.10.0",
+  "harbor>=0.18.0",
+]
+
+[project.entry-points."harbor.plugins"]
+phoenix = "phoenix_harbor:PhoenixJobPlugin"
+
+[project.optional-dependencies]
+test = [
+  "mypy",
+  "pytest",
+  "ruff",
+]
+
+[project.urls]
+Documentation = "https://arize.com/docs/phoenix/"
+Issues = "https://github.com/Arize-ai/phoenix/issues"
+Source = "https://github.com/Arize-ai/phoenix"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/phoenix_harbor"]
+
+[tool.hatch.build]
+only-packages = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.format]
+line-ending = "native"
+
+[tool.mypy]
+explicit_package_bases = true
+follow_untyped_imports = true
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -453,8 +453,9 @@ override-dependencies = [
 [tool.uv.workspace]
 members = ["packages/*"]
 # phoenix-sqlean is a vendored setup.py-based C extension (fork of
-# nalgeon/sqlean.py), not a uv-managed project.
-exclude = ["packages/phoenix-sqlean"]
+# nalgeon/sqlean.py), not a uv-managed project. phoenix-harbor requires
+# Python 3.12 through Harbor, while the root workspace supports Python 3.10.
+exclude = ["packages/phoenix-harbor", "packages/phoenix-sqlean"]
 
 [tool.uv.sources]
 arize-phoenix-client = { workspace = true }
