@@ -41,6 +41,7 @@ from phoenix.server.api.helpers.playground_clients import (
     AzureOpenAIReasoningNonStreamingClient,
     AzureOpenAIResponsesAPIStreamingClient,
     AzureOpenAIStreamingClient,
+    GoogleStreamingClient,
     OpenAIBaseStreamingClient,
     OpenAIReasoningNonStreamingClient,
     OpenAIResponsesAPIStreamingClient,
@@ -56,6 +57,25 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.types import DbSessionFactory
 from tests.unit.vcr import CustomVCR
+
+
+class TestGoogleStreamingClient:
+    @pytest.fixture
+    def client(self) -> GoogleStreamingClient:
+        return object.__new__(GoogleStreamingClient)
+
+    def test_rate_limit_error(self, client: GoogleStreamingClient) -> None:
+        from google.genai.errors import ClientError
+
+        assert client.is_rate_limit_error(ClientError(429, {}))
+        assert not client.is_rate_limit_error(ClientError(400, {}))
+
+    def test_transient_error(self, client: GoogleStreamingClient) -> None:
+        from google.genai.errors import ClientError, ServerError
+
+        assert client.is_transient_error(ServerError(500, {}))
+        assert not client.is_transient_error(ClientError(400, {}))
+        assert client.is_transient_error(TimeoutError())
 
 
 class TestOpenAIBaseStreamingClient:
