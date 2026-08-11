@@ -108,7 +108,9 @@ def test_dataset_shape_normalizes_without_ids():
 
 
 def test_all_shapes_render_identically_in_full_mode():
-    outputs = {format_messages(shape) for shape in (_OPENAI, _NESTED, _DOTTED)} # set comprehension to deduplicate. If the outputs are identical, the length of the set will be 1.
+    outputs = {
+        format_messages(shape) for shape in (_OPENAI, _NESTED, _DOTTED)
+    }  # set comprehension to deduplicate. If the outputs are identical, the length of the set will be 1.
     assert len(outputs) == 1
 
 
@@ -235,6 +237,7 @@ def test_include_roles():
     # canonical has just one user message
     assert out == "User: What's our refund window?"
 
+
 def test_exclude_roles():
     out = format_messages(_CANONICAL, exclude_roles=["system", "tool"])
     assert "System:" not in out
@@ -244,9 +247,7 @@ def test_exclude_roles():
 def test_role_in_both_include_and_exclude_is_excluded():
     """When a role appears in both filters, exclude_roles wins (applied last)."""
     msgs = [{"role": "user", "content": "a"}, {"role": "assistant", "content": "b"}]
-    out = format_messages(
-        msgs, include_roles=["user", "assistant"], exclude_roles=["user"]
-    )
+    out = format_messages(msgs, include_roles=["user", "assistant"], exclude_roles=["user"])
     assert out == "Assistant: b"
 
 
@@ -417,39 +418,15 @@ _ANTHROPIC = [
     {
         "role": "assistant",
         "content": [
-            {
-                "type": "text",
-                "text": "Let me check."
-            },
-            {
-                "type": "tool_use",
-                "id": "toolu_1",
-                "name": "get_weather",
-                "input": {
-                    "city": "SF"
-                }
-            },
+            {"type": "text", "text": "Let me check."},
+            {"type": "tool_use", "id": "toolu_1", "name": "get_weather", "input": {"city": "SF"}},
         ],
     },
     {
         "role": "user",
-        "content": [
-            {
-                "type": "tool_result",
-                "tool_use_id": "toolu_1",
-                "content": "72F sunny"
-            }
-        ],
+        "content": [{"type": "tool_result", "tool_use_id": "toolu_1", "content": "72F sunny"}],
     },
-    {
-        "role": "assistant",
-        "content": [
-            {
-                "type": "text",
-                "text": "It's 72F and sunny."
-            }
-        ]
-    },
+    {"role": "assistant", "content": [{"type": "text", "text": "It's 72F and sunny."}]},
 ]
 
 
@@ -496,48 +473,13 @@ def test_native_anthropic_string_content():
 
 
 _GEMINI = [
+    {"role": "user", "parts": [{"text": "weather in SF?"}]},
+    {"role": "model", "parts": [{"functionCall": {"name": "get_weather", "args": {"city": "SF"}}}]},
     {
         "role": "user",
-        "parts": [
-            {
-                "text": "weather in SF?"
-            }
-        ]
+        "parts": [{"functionResponse": {"name": "get_weather", "response": {"tempF": 72}}}],
     },
-    {
-        "role": "model",
-        "parts": [
-            {
-                "functionCall": {
-                    "name": "get_weather",
-                    "args": {
-                        "city": "SF"
-                    }
-                }
-            }
-        ]
-    },
-    {
-        "role": "user",
-        "parts": [
-            {
-                "functionResponse": {
-                    "name": "get_weather",
-                    "response": {
-                        "tempF": 72
-                    }
-                }
-            }
-        ]
-    },
-    {
-        "role": "model",
-        "parts": [
-            {
-                "text": "It's 72F."
-            }
-        ]
-    }
+    {"role": "model", "parts": [{"text": "It's 72F."}]},
 ]
 
 
