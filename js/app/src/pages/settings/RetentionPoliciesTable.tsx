@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { graphql, readInlineData, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 
 import { Flex, Text } from "@phoenix/components";
 import { ProjectToken } from "@phoenix/components/project";
@@ -150,12 +150,16 @@ export const RetentionPoliciesTable = ({
             <Flex direction="row" gap="size-50" wrap alignItems="center">
               {visibleProjects.map((project) => (
                 <StopPropagation key={project.id}>
-                  <ProjectToken
-                    projectId={project.id}
-                    name={project.name}
-                    gradientStartColor={project.gradientStartColor}
-                    gradientEndColor={project.gradientEndColor}
-                  />
+                  <Link
+                    to={`/projects/${project.id}/config`}
+                    style={{ textDecoration: "none" }}
+                  >
+                    <ProjectToken
+                      name={project.name}
+                      gradientStartColor={project.gradientStartColor}
+                      gradientEndColor={project.gradientEndColor}
+                    />
+                  </Link>
                 </StopPropagation>
               ))}
               {hiddenProjectsCount > 0 && (
