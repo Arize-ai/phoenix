@@ -37,6 +37,7 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
+    OPENAI_CHAT_COMPLETIONS_MODELS,
     OPENAI_REASONING_MODELS,
     AnthropicStreamingClient,
     AzureOpenAIReasoningNonStreamingClient,
@@ -50,6 +51,10 @@ from phoenix.server.api.helpers.playground_clients import (
     _get_builtin_provider_client,
     _resolve_provider_api_key,
     get_openai_client_class,
+)
+from phoenix.server.api.helpers.playground_registry import (
+    PLAYGROUND_CLIENT_REGISTRY,
+    PROVIDER_DEFAULT,
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
@@ -876,6 +881,71 @@ class TestReasoningModelClientRouting:
         assert params["tool_choice"] == {"type": "function", "name": "record_evaluation"}
         assert params["reasoning"] == {"effort": "high"}
         assert "reasoning_effort" not in params
+
+
+class TestDefaultApiTypeRouting:
+    """Routing with no configured API type is decided by ``get_openai_client_class``.
+
+    The playground registry carries the model catalog, not routing. Keeping the two
+    separate is what prevents a stale catalog entry from shadowing a newer provider
+    default -- the shape of https://github.com/Arize-ai/phoenix/issues/15299.
+    """
+
+    def test_openai_defaults_to_responses_except_legacy_models(self) -> None:
+        for model_name in OPENAI_CHAT_COMPLETIONS_MODELS:
+            assert (
+                get_openai_client_class(GenerativeProviderKey.OPENAI, model_name, None)
+                is OpenAIStreamingClient
+            ), f"Failed for {model_name}"
+        for model_name in [*OPENAI_REASONING_MODELS, "gpt-6-does-not-exist-yet"]:
+            assert (
+                get_openai_client_class(GenerativeProviderKey.OPENAI, model_name, None)
+                is OpenAIResponsesAPIStreamingClient
+            ), f"Failed for {model_name}"
+
+    def test_azure_defaults_to_chat_completions_except_reasoning_models(self) -> None:
+        for model_name in OPENAI_REASONING_MODELS:
+            assert (
+                get_openai_client_class(GenerativeProviderKey.AZURE_OPENAI, model_name, None)
+                is AzureOpenAIResponsesAPIStreamingClient
+            ), f"Failed for {model_name}"
+        for model_name in ["gpt-4o", "my-custom-deployment"]:
+            assert (
+                get_openai_client_class(GenerativeProviderKey.AZURE_OPENAI, model_name, None)
+                is AzureOpenAIStreamingClient
+            ), f"Failed for {model_name}"
+
+    @pytest.mark.parametrize(
+        "provider_key,model_name,expected_class",
+        [
+            (GenerativeProviderKey.OPENAI, "gpt-5.6-luna", OpenAIResponsesAPIStreamingClient),
+            (GenerativeProviderKey.OPENAI, "gpt-4o", OpenAIStreamingClient),
+            (
+                GenerativeProviderKey.AZURE_OPENAI,
+                "gpt-5.6-luna",
+                AzureOpenAIResponsesAPIStreamingClient,
+            ),
+            (GenerativeProviderKey.AZURE_OPENAI, "gpt-4o", AzureOpenAIStreamingClient),
+        ],
+    )
+    def test_registry_entries_do_not_affect_routing(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        provider_key: GenerativeProviderKey,
+        model_name: str,
+        expected_class: type[OpenAIBaseStreamingClient],
+    ) -> None:
+        """A wrong catalog entry must not be able to redirect a request."""
+
+        class WrongClient(OpenAIStreamingClient):
+            pass
+
+        provider_registry = dict(PLAYGROUND_CLIENT_REGISTRY._registry[provider_key])
+        provider_registry[model_name] = WrongClient
+        provider_registry[PROVIDER_DEFAULT] = WrongClient
+        monkeypatch.setitem(PLAYGROUND_CLIENT_REGISTRY._registry, provider_key, provider_registry)
+
+        assert get_openai_client_class(provider_key, model_name, None) is expected_class
 
 
 def _identity_decrypt(value: bytes) -> bytes:

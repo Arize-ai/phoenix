@@ -1887,20 +1887,30 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         return converse_messages
 
 
+OPENAI_CHAT_COMPLETIONS_MODELS = [
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "gpt-4.1-nano",
+    "gpt-4o",
+    "chatgpt-4o-latest",
+    "gpt-4o-mini",
+    "gpt-4-turbo",
+    "gpt-4-turbo-preview",
+    "gpt-4",
+    "gpt-3.5-turbo",
+]
+"""Models that default to /v1/chat/completions when no API type is configured.
+
+Everything else — including model names Phoenix has never heard of — defaults to
+the Responses API. See ``get_openai_client_class``.
+"""
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
-        "gpt-4.1",
-        "gpt-4.1-mini",
-        "gpt-4.1-nano",
-        "gpt-4o",
-        "chatgpt-4o-latest",
-        "gpt-4o-mini",
-        "gpt-4-turbo",
-        "gpt-4-turbo-preview",
-        "gpt-4",
-        "gpt-3.5-turbo",
+        *OPENAI_CHAT_COMPLETIONS_MODELS,
     ],
 )
 class OpenAIStreamingClient(OpenAIBaseStreamingClient):
@@ -3272,18 +3282,21 @@ def get_openai_client_class(
     OpenAI and Azure OpenAI providers, ensuring consistency between parameter fetching
     and client instantiation.
 
+    This is the source of truth for OpenAI/Azure client selection, including the
+    default when no API type is configured. The playground registry is not consulted:
+    it carries the model catalog, not routing.
+
     For non-OpenAI providers, returns None (callers should fall back to the registry).
 
     Args:
         provider_key: The generative provider (OPENAI, AZURE_OPENAI, etc.)
         model_name: The name of the model
         openai_api_type: The API type (CHAT_COMPLETIONS or RESPONSES). If None,
-            falls back to registry behavior.
+            the provider's default for that model applies.
 
     Returns:
         The appropriate client class, or None if the provider is not OpenAI/Azure.
     """
-    from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
     from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
     if provider_key == GenerativeProviderKey.OPENAI:
@@ -3293,8 +3306,14 @@ def get_openai_client_class(
             return OpenAIStreamingClient
         elif openai_api_type == OpenAIApiType.RESPONSES:
             return OpenAIResponsesAPIStreamingClient
-        # If openai_api_type is None, fall back to registry
-        return PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, model_name)
+        # No API type configured. The Responses API is the default for everything
+        # except the legacy models that predate it: OpenAI rejects function tools
+        # combined with reasoning_effort on /v1/chat/completions, and LLM evaluators
+        # always emit their structured output via a function tool.
+        # See https://github.com/Arize-ai/phoenix/issues/15299.
+        if model_name in OPENAI_CHAT_COMPLETIONS_MODELS:
+            return OpenAIStreamingClient
+        return OpenAIResponsesAPIStreamingClient
 
     elif provider_key == GenerativeProviderKey.AZURE_OPENAI:
         if openai_api_type == OpenAIApiType.CHAT_COMPLETIONS:
@@ -3303,8 +3322,12 @@ def get_openai_client_class(
             return AzureOpenAIStreamingClient
         elif openai_api_type == OpenAIApiType.RESPONSES:
             return AzureOpenAIResponsesAPIStreamingClient
-        # If openai_api_type is None, fall back to registry
-        return PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, model_name)
+        # No API type configured. Azure deployments are not guaranteed to expose
+        # /v1/responses, so only the reasoning models — which cannot work on
+        # /v1/chat/completions with tools — are routed there by default.
+        if model_name in OPENAI_REASONING_MODELS:
+            return AzureOpenAIResponsesAPIStreamingClient
+        return AzureOpenAIStreamingClient
 
     # For non-OpenAI providers, return None to signal caller should use registry
     return None
