@@ -1,15 +1,15 @@
 # Changelog
 
-## [19.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.21.0...arize-phoenix-v19.22.0) (2026-08-11)
+## [20.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.21.0...arize-phoenix-v19.22.0) (2026-08-11)
 
 
 ### ⚠ BREAKING CHANGES
 
-* agent session persistence ([#14143](https://github.com/Arize-ai/phoenix/issues/14143))
 * **client:** replace google-generativeai formatter with google-genai ([#15085](https://github.com/Arize-ai/phoenix/issues/15085))
 
 ### Features
 
+* agent session persistence ([#14143](https://github.com/Arize-ai/phoenix/issues/14143))
 * add semantic coloring to project metric tooltips ([#14936](https://github.com/Arize-ai/phoenix/issues/14936)) ([840f6cb](https://github.com/Arize-ai/phoenix/commit/840f6cbaf76bfee3dcbe8e41d34655be3c6254db))
 * agent session persistence ([#14143](https://github.com/Arize-ai/phoenix/issues/14143)) ([986f6a6](https://github.com/Arize-ai/phoenix/commit/986f6a6fdaeda70d83e2d91f150f9b01d9b8406f))
 * **client:** replace google-generativeai formatter with google-genai ([#15085](https://github.com/Arize-ai/phoenix/issues/15085)) ([5cf9829](https://github.com/Arize-ai/phoenix/commit/5cf9829c4398d784c004c9c976cd7b6739f2aa99))
