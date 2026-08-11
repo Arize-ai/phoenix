@@ -13,7 +13,6 @@ import {
 } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { DeleteProjectEvaluatorDialog } from "@phoenix/pages/project/evaluators/DeleteProjectEvaluatorDialog";
-import { EditProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/EditProjectEvaluatorSlideover";
 
 enum ProjectEvaluatorAction {
   EDIT = "edit",
@@ -25,13 +24,16 @@ export function ProjectEvaluatorActionMenu({
   projectId,
   evaluatorKind,
   evaluatorName,
+  onEdit,
 }: {
   projectEvaluatorId: string;
   projectId: string;
   evaluatorKind: "LLM" | "CODE" | "BUILTIN";
   evaluatorName: string;
+  /** Passed in by the table, so the edit path is derived once per render and
+   * not once per row. */
+  onEdit: (projectEvaluatorId: string) => void;
 }) {
-  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const canEdit = evaluatorKind === "LLM" || evaluatorKind === "CODE";
   return (
@@ -48,7 +50,7 @@ export function ProjectEvaluatorActionMenu({
             onAction={(action) => {
               switch (action) {
                 case ProjectEvaluatorAction.EDIT:
-                  setIsEditOpen(true);
+                  onEdit(projectEvaluatorId);
                   break;
                 case ProjectEvaluatorAction.DELETE:
                   setIsDeleteOpen(true);
@@ -83,14 +85,6 @@ export function ProjectEvaluatorActionMenu({
           </Menu>
         </Popover>
       </MenuTrigger>
-      {canEdit ? (
-        <EditProjectEvaluatorSlideover
-          projectEvaluatorId={projectEvaluatorId}
-          evaluatorKind={evaluatorKind}
-          isOpen={isEditOpen}
-          onOpenChange={setIsEditOpen}
-        />
-      ) : null}
       <DeleteProjectEvaluatorDialog
         projectEvaluatorId={projectEvaluatorId}
         projectId={projectId}
