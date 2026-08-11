@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from strawberry.relay import GlobalID
 
@@ -10,11 +12,29 @@ from phoenix.server.agents.model_selection import (
 )
 from phoenix.server.api.helpers.agent_sessions import (
     get_agent_session_model,
+    get_otel_session_id,
     resolve_model_routing,
     set_session_model,
 )
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.types import DbSessionFactory
+
+
+def test_get_otel_session_id_fingerprints_session_creation_time() -> None:
+    created_at = datetime(2026, 8, 11, 19, 45, 0, 123456, tzinfo=timezone.utc)
+
+    session_id = get_otel_session_id(
+        project_name="pxi_dev",
+        agent_session_rowid=1,
+        agent_session_created_at=created_at,
+    )
+
+    assert session_id == f"pxi_dev:{GlobalID('AgentSession', '1')}:69163ce23e52267d"
+    assert session_id != get_otel_session_id(
+        project_name="pxi_dev",
+        agent_session_rowid=1,
+        agent_session_created_at=created_at + timedelta(microseconds=1),
+    )
 
 
 async def _add_custom_provider(
