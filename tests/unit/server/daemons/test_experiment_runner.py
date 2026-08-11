@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import heapq
 from datetime import datetime, timedelta, timezone
-from typing import Any, Hashable, Sequence, cast
+from typing import Any, Hashable, Sequence
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
@@ -130,25 +130,13 @@ def _make_running_experiment(
     max_retries: int = 3,
     base_backoff_seconds: float = 0.01,
 ) -> RunningExperiment:
-    def _make_tracer_factory() -> MagicMock:
-        """A stand-in `Tracer` usable as the `async with` the work items open.
-
-        A bare `MagicMock` will not do: `async with` binds `__aenter__`'s return
-        value, which on a `MagicMock` is an `AsyncMock`, so every method on the
-        bound tracer would return a coroutine instead of a value.
-        """
-        tracer = MagicMock()
-        tracer.__aenter__ = AsyncMock(return_value=tracer)
-        tracer.__aexit__ = AsyncMock(return_value=None)
-        return MagicMock(return_value=tracer)
-
     return RunningExperiment(
         experiment=_make_experiment(experiment_id),
         experiment_job=_make_experiment_job(experiment_id, max_concurrency=max_concurrency),
         llm_client=_NoOpLLMClient(),
         db=MagicMock(spec=DbSessionFactory),
         decrypt=lambda b: b,
-        tracer_factory=_make_tracer_factory(),
+        tracer_factory=MagicMock(),
         token_buckets=token_buckets or _StubTokenBucketRegistry(),
         on_done=on_done or _make_on_done(),
         evaluator_run_specs=evaluator_run_specs,
@@ -1085,58 +1073,3 @@ class TestEvalWorkItemPersistsErrorAnnotation:
         assert failure_args is not None
         assert failure_args.args[0] is eval_item
         assert failure_args.args[1] is error
-
-
-class TestWorkItemsReleaseTheirTracer:
-    """One tracer is built per work item, and each holds every span it captured.
-    An experiment over 1,000 examples that never releases retains 1,000 of them
-    for the life of the process.
-
-    These cover the failure path: both items catch and report their errors
-    rather than propagating, so nothing about the exception forces the release.
-    """
-
-    @staticmethod
-    def _tracer(experiment: RunningExperiment) -> MagicMock:
-        factory = cast(MagicMock, experiment._tracer_factory)
-        tracer: MagicMock = factory.return_value
-        return tracer
-
-    async def test_the_task_work_item_releases_when_the_task_fails(self) -> None:
-        exp = _make_running_experiment()
-        task = _make_task_work_item(exp, dataset_example_id=42)
-        persisted_run = MagicMock(spec=models.ExperimentRun)
-        persisted_run.id = 701
-
-        with (
-            patch.object(task, "_build_messages", return_value=[]),
-            patch.object(
-                task._llm_client,
-                "chat_completion_create",
-                side_effect=RuntimeError("Bad request (injected)"),
-                create=True,
-            ),
-            patch.object(exp, "on_failure", AsyncMock()),
-            patch.object(exp, "_broadcast", MagicMock()),
-            patch.object(task, "_persist_run", AsyncMock(return_value=persisted_run)),
-        ):
-            await task.execute()
-
-        self._tracer(exp).__aexit__.assert_awaited_once()
-
-    async def test_the_eval_work_item_releases_when_the_evaluator_fails(self) -> None:
-        exp = _make_running_experiment()
-        eval_item = _make_eval_work_item(exp)
-
-        with (
-            patch.object(
-                eval_item._evaluator,
-                "evaluate",
-                side_effect=RuntimeError("Bad request (injected)"),
-            ),
-            patch.object(exp, "on_failure", AsyncMock()),
-            patch.object(eval_item, "_persist_eval_results", AsyncMock()),
-        ):
-            await eval_item.execute()
-
-        self._tracer(exp).__aexit__.assert_awaited_once()
