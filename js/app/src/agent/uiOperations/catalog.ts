@@ -178,6 +178,24 @@ type JsonSchemaNode = {
   anyOf?: JsonSchemaNode[];
 };
 
+/**
+ * Convert a descriptor schema to a JSON-schema node for signature rendering.
+ * Renders the *input* side of transforms (what the model sends), maps
+ * unrepresentable pieces (custom types, effects) to `{}` instead of
+ * throwing, and falls back to `undefined` (rendered `unknown`) if the
+ * conversion still fails — `search_ui` must never crash on a schema.
+ */
+function toJsonSchemaNode(schema: z.ZodType): JsonSchemaNode | undefined {
+  try {
+    return z.toJSONSchema(schema, {
+      io: "input",
+      unrepresentable: "any",
+    }) as JsonSchemaNode;
+  } catch {
+    return undefined;
+  }
+}
+
 function renderInlineType(node: JsonSchemaNode | undefined): string {
   if (node == null) {
     return "unknown";
@@ -228,9 +246,7 @@ export function renderUiOperationSignature({
     descriptor.kind === "approval"
       ? " Stages a change the user must accept; the returned promise resolves with the decision."
       : "";
-  const inputType = renderInlineType(
-    z.toJSONSchema(descriptor.inputSchema) as JsonSchemaNode
-  );
+  const inputType = renderInlineType(toJsonSchemaNode(descriptor.inputSchema));
   return [
     "/**",
     ` * ${descriptor.description}`,
