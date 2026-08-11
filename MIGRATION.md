@@ -11,10 +11,6 @@ restored, and continued later — from the browser or from the `pxi` terminal cl
 client gains session management commands (`/new`, `/temporary`, `/sessions`, `/model`, and `/compact` for summarizing
 older context into a checkpoint on long-running sessions).
 
-To support this, the release adds two database tables (`agent_sessions` and `agent_session_messages`) via a schema
-migration that is applied automatically on startup, and the agent now speaks the `/agent_sessions` endpoints in place
-of the previous `/agents/server` endpoint. No configuration changes are needed.
-
 ## v18.x to v19.0.0
 
 ### Built-in OAuth2 authorization server
