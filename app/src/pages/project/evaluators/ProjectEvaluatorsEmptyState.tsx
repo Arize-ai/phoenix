@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 import { Suspense } from "react";
 import { useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
@@ -19,9 +20,9 @@ import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/proj
 const MAX_COPY_CARDS = 4;
 const MAX_ATTACH_CARDS = 3;
 
-// Two rows of cards, so the header above the gallery stays put while the
-// evaluator list resolves.
-const SKELETON_ROWS = 2;
+// Cards are a fixed height so a description that runs long cannot make one card
+// taller than its neighbour, and so the skeleton can match them.
+const CARD_HEIGHT = 90;
 
 /**
  * The zero state for a project with no evaluators: what an evaluator does,
@@ -29,21 +30,19 @@ const SKELETON_ROWS = 2;
  *
  * The layout is the dataset evaluators empty state's -- an {@link EmptyState}
  * over two columns of item cards, LLM on the left and code on the right -- so
- * the two surfaces read as the same thing. What changed from the gallery this
- * replaces is where it sits: it is no longer a `<tbody>` under a table's column
- * headers, and the copy leads rather than trailing the cards.
+ * the two surfaces read as the same thing.
  */
 export function ProjectEvaluatorsEmptyState() {
   return (
     <EmptyStateArea>
+      {/* EmptyStateArea already centers and offsets this block; the width cap
+          is what keeps the two columns from stretching on a wide viewport. */}
       <Flex
         direction="column"
-        alignItems="center"
-        justifyContent="center"
         gap="size-300"
         width="100%"
         maxWidth="700px"
-        margin="var(--global-dimension-size-300) auto"
+        marginTop="var(--global-dimension-size-300)"
       >
         <EmptyState
           graphic={<EmptyStateGraphic variant="evaluator" />}
@@ -84,87 +83,80 @@ function Gallery() {
   return (
     <Flex direction="row" gap="size-125" width="100%">
       <div css={evaluatorColumnCSS}>
-        <button
-          css={evaluatorItemButtonCSS}
-          onClick={() => navigate(paths.newLlm)}
-        >
-          <Flex direction="row" alignItems="center" gap="size-50">
-            <Icon svg={<Icons.Plus />} />
-            <Text size="S" weight="heavy">
-              Create new LLM evaluator
-            </Text>
-          </Flex>
-          <LineClamp lines={2}>
-            <Text size="XS" color="text-700">
-              Author an LLM-as-a-judge evaluator from scratch.
-            </Text>
-          </LineClamp>
-        </button>
+        <EvaluatorCard
+          icon={<Icon svg={<Icons.Plus />} />}
+          title="Create new LLM evaluator"
+          description="Author an LLM-as-a-judge evaluator from scratch."
+          onPress={() => navigate(paths.newLlm)}
+        />
         {copyEvaluators.map((evaluator) => (
-          <button
+          <EvaluatorCard
             key={evaluator.id}
-            css={evaluatorItemButtonCSS}
-            onClick={() => navigate(paths.copyLlm(evaluator.id))}
-          >
-            <Text size="S" weight="heavy">
-              Copy {evaluator.name}
-            </Text>
-            <LineClamp lines={2}>
-              <Text size="XS" color="text-700">
-                {evaluator.description}
-              </Text>
-            </LineClamp>
-          </button>
+            title={`Copy ${evaluator.name}`}
+            description={evaluator.description}
+            onPress={() => navigate(paths.copyLlm(evaluator.id))}
+          />
         ))}
       </div>
       <div css={evaluatorColumnCSS}>
-        <button
-          css={evaluatorItemButtonCSS}
-          onClick={() => navigate(paths.newCode)}
-        >
-          <Flex direction="row" alignItems="center" gap="size-50">
-            <Icon svg={<Icons.Code />} />
-            <Text size="S" weight="heavy">
-              Create new code evaluator
-            </Text>
-          </Flex>
-          <LineClamp lines={2}>
-            <Text size="XS" color="text-700">
-              Author a Python or TypeScript evaluator from scratch.
-            </Text>
-          </LineClamp>
-        </button>
+        <EvaluatorCard
+          icon={<Icon svg={<Icons.Code />} />}
+          title="Create new code evaluator"
+          description="Author a Python or TypeScript evaluator from scratch."
+          onPress={() => navigate(paths.newCode)}
+        />
         {attachEvaluators.map((evaluator) => (
-          <button
+          <EvaluatorCard
             key={evaluator.id}
-            css={evaluatorItemButtonCSS}
-            onClick={() => navigate(paths.attachCode(evaluator.id))}
-          >
-            <Text size="S" weight="heavy">
-              Attach {evaluator.name}
-            </Text>
-            <LineClamp lines={2}>
-              <Text size="XS" color="text-700">
-                {evaluator.description}
-              </Text>
-            </LineClamp>
-          </button>
+            title={`Attach ${evaluator.name}`}
+            description={evaluator.description}
+            onPress={() => navigate(paths.attachCode(evaluator.id))}
+          />
         ))}
       </div>
     </Flex>
   );
 }
 
+function EvaluatorCard({
+  icon,
+  title,
+  description,
+  onPress,
+}: {
+  icon?: ReactNode;
+  title: string;
+  description: ReactNode;
+  onPress: () => void;
+}) {
+  return (
+    <button css={evaluatorItemButtonCSS} onClick={onPress}>
+      <Flex direction="row" alignItems="center" gap="size-50">
+        {icon}
+        <Text size="S" weight="heavy">
+          {title}
+        </Text>
+      </Flex>
+      <LineClamp lines={2}>
+        <Text size="XS" color="text-700">
+          {description}
+        </Text>
+      </LineClamp>
+    </button>
+  );
+}
+
 function GallerySkeleton() {
+  const column = (
+    <div css={evaluatorColumnCSS}>
+      <Skeleton height={CARD_HEIGHT} />
+      <Skeleton height={CARD_HEIGHT} />
+    </div>
+  );
   return (
     <Flex direction="row" gap="size-125" width="100%" aria-hidden="true">
-      {Array.from({ length: 2 }, (_, column) => (
-        <div key={column} css={evaluatorColumnCSS}>
-          {Array.from({ length: SKELETON_ROWS }, (_, row) => (
-            <Skeleton key={row} width="100%" height={90} borderRadius="S" />
-          ))}
-        </div>
-      ))}
+      {column}
+      {column}
     </Flex>
   );
 }
@@ -181,7 +173,7 @@ const evaluatorItemButtonCSS = css`
   display: flex;
   flex-direction: column;
   gap: var(--global-dimension-size-50);
-  height: 90px;
+  height: ${CARD_HEIGHT}px;
   padding: var(--global-dimension-size-200);
   border-radius: var(--global-rounding-small);
   border: 1px solid var(--global-border-color-default);

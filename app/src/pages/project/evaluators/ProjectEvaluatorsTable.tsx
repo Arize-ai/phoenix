@@ -186,9 +186,7 @@ export function ProjectEvaluatorsTable({
   const rows = table.getRowModel().rows;
   // A project with no evaluators at all is a first-run experience, not an empty
   // list: the column headers would be chrome for a table that has nothing to
-  // describe, so the empty state replaces the table outright. A search that
-  // matches nothing keeps the table, since the columns still describe what is
-  // being searched.
+  // describe, so the empty state replaces the table outright.
   if (rows.length === 0 && !trimmedFilter) {
     return (
       <div css={scrollableAreaCSS}>
@@ -197,62 +195,59 @@ export function ProjectEvaluatorsTable({
     );
   }
   return (
-    <>
-      <div css={scrollableAreaCSS}>
-        <table css={tableCSS} aria-label="Project evaluators">
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th key={header.id} colSpan={header.colSpan}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </th>
+    <div css={scrollableAreaCSS}>
+      <table css={tableCSS} aria-label="Project evaluators">
+        <thead>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <th key={header.id} colSpan={header.colSpan}>
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        {/* Only reachable with a search active -- the unfiltered empty case
+            returned above -- so this always reads as "No results". */}
+        {rows.length === 0 ? (
+          <TableEmptyWrap>
+            <CompactEmptyState
+              icon={<Icon svg={<Icons.Scale />} />}
+              description="No evaluators"
+              isFiltered={!!trimmedFilter}
+            />
+          </TableEmptyWrap>
+        ) : (
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
                 ))}
               </tr>
             ))}
-          </thead>
-          {rows.length === 0 ? (
-            <TableEmptyWrap>
-              <CompactEmptyState
-                icon={<Icon svg={<Icons.Scale />} />}
-                description="No evaluators match your search"
-                isFiltered
-              />
-            </TableEmptyWrap>
-          ) : (
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          )}
-        </table>
-        {hasNext ? (
-          <View padding="size-100">
-            <Flex justifyContent="center">
-              <LoadMoreButton
-                isLoadingNext={isLoadingNext}
-                onLoadMore={loadNext}
-              />
-            </Flex>
-          </View>
-        ) : null}
-      </div>
-    </>
+          </tbody>
+        )}
+      </table>
+      {hasNext ? (
+        <View padding="size-100">
+          <Flex justifyContent="center">
+            <LoadMoreButton
+              isLoadingNext={isLoadingNext}
+              onLoadMore={loadNext}
+            />
+          </Flex>
+        </View>
+      ) : null}
+    </div>
   );
 }
 
