@@ -2924,6 +2924,99 @@
       }
     },
     "/v1/datasets/{dataset_identifier}/splits": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "List dataset splits",
+        "operationId": "listDatasetSplits",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either dataset ID or dataset name."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "The max number of dataset splits to return at a time.",
+              "default": 10,
+              "title": "Limit"
+            },
+            "description": "The max number of dataset splits to return at a time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDatasetSplitsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid request"
+          }
+        }
+      },
       "post": {
         "tags": [
           "datasets"
@@ -14407,6 +14500,34 @@
           "data"
         ],
         "title": "ListDatasetLabelsForDatasetResponseBody"
+      },
+      "ListDatasetSplitsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetSplit"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "ListDatasetSplitsResponseBody"
       },
       "ListDatasetVersionsResponseBody": {
         "properties": {

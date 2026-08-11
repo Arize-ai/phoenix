@@ -4,7 +4,7 @@ import io
 import json
 from datetime import datetime, timezone
 from io import BytesIO, StringIO
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 import pandas as pd
@@ -4898,4 +4898,130 @@ async def test_delete_dataset_split_invalid_id(
 ) -> None:
     dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_delete_422", 1)
     response = await httpx_client.delete(f"/v1/datasets/{dataset_id}/splits/not-a-global-id")
+    assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Dataset split list endpoint
+# ---------------------------------------------------------------------------
+
+
+async def test_list_dataset_splits_returns_splits_with_scoped_counts(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, example_ids = await _create_dataset_with_examples(httpx_client, "ds_list", 3)
+    for name, members in (("train", example_ids[:2]), ("test", example_ids[2:])):
+        created = await httpx_client.post(
+            url=f"/v1/datasets/{dataset_id}/splits",
+            json={"name": name, "example_ids": members},
+        )
+        assert created.status_code == 201
+
+    response = await httpx_client.get(f"/v1/datasets/{dataset_id}/splits")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["next_cursor"] is None
+    counts = {split["name"]: split["example_count"] for split in body["data"]}
+    assert counts == {"train": 2, "test": 1}
+    for split in body["data"]:
+        assert split["color"]
+        assert "created_at" in split and "updated_at" in split
+
+
+async def test_list_dataset_splits_accepts_dataset_name(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    _, example_ids = await _create_dataset_with_examples(httpx_client, "ds_list_by_name", 1)
+    created = await httpx_client.post(
+        url="/v1/datasets/ds_list_by_name/splits",
+        json={"name": "by_name", "example_ids": example_ids},
+    )
+    assert created.status_code == 201
+
+    response = await httpx_client.get("/v1/datasets/ds_list_by_name/splits")
+    assert response.status_code == 200
+    assert [s["name"] for s in response.json()["data"]] == ["by_name"]
+
+
+async def test_list_dataset_splits_excludes_splits_without_examples_in_dataset(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """A split is scoped to a dataset only through its examples."""
+    dataset_a, _ = await _create_dataset_with_examples(httpx_client, "ds_scope_a", 1)
+    dataset_b, examples_b = await _create_dataset_with_examples(httpx_client, "ds_scope_b", 1)
+    # Belongs to dataset B only.
+    assert (
+        await httpx_client.post(
+            url=f"/v1/datasets/{dataset_b}/splits",
+            json={"name": "b_only", "example_ids": examples_b},
+        )
+    ).status_code == 201
+    # Has no examples at all, so it belongs to no dataset.
+    assert (
+        await httpx_client.post(
+            url=f"/v1/datasets/{dataset_a}/splits",
+            json={"name": "empty_split"},
+        )
+    ).status_code == 201
+
+    response = await httpx_client.get(f"/v1/datasets/{dataset_a}/splits")
+    assert response.status_code == 200
+    assert response.json()["data"] == []
+
+    response_b = await httpx_client.get(f"/v1/datasets/{dataset_b}/splits")
+    assert [s["name"] for s in response_b.json()["data"]] == ["b_only"]
+
+
+async def test_list_dataset_splits_paginates(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, example_ids = await _create_dataset_with_examples(httpx_client, "ds_page", 1)
+    for i in range(3):
+        assert (
+            await httpx_client.post(
+                url=f"/v1/datasets/{dataset_id}/splits",
+                json={"name": f"split_{i}", "example_ids": example_ids},
+            )
+        ).status_code == 201
+
+    seen: list[str] = []
+    cursor: Optional[str] = None
+    for _ in range(3):
+        url = f"/v1/datasets/{dataset_id}/splits?limit=2"
+        if cursor:
+            url += f"&cursor={cursor}"
+        page = await httpx_client.get(url)
+        assert page.status_code == 200
+        body = page.json()
+        seen.extend(s["name"] for s in body["data"])
+        cursor = body["next_cursor"]
+        if cursor is None:
+            break
+    assert cursor is None
+    assert sorted(seen) == ["split_0", "split_1", "split_2"]
+    assert len(seen) == len(set(seen)), "pagination returned duplicates"
+
+
+async def test_list_dataset_splits_empty(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_no_splits", 1)
+    response = await httpx_client.get(f"/v1/datasets/{dataset_id}/splits")
+    assert response.status_code == 200
+    assert response.json() == {"data": [], "next_cursor": None}
+
+
+async def test_list_dataset_splits_dataset_not_found(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    missing = str(GlobalID("Dataset", "99999"))
+    response = await httpx_client.get(f"/v1/datasets/{missing}/splits")
+    assert response.status_code == 404
+
+
+async def test_list_dataset_splits_invalid_cursor(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_bad_cursor", 1)
+    response = await httpx_client.get(f"/v1/datasets/{dataset_id}/splits?cursor=not-a-global-id")
     assert response.status_code == 422

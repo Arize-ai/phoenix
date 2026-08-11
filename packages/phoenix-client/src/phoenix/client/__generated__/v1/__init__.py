@@ -376,6 +376,11 @@ class ListDatasetLabelsForDatasetResponseBody(TypedDict):
     data: Sequence[DatasetLabel]
 
 
+class ListDatasetSplitsResponseBody(TypedDict):
+    data: Sequence[DatasetSplit]
+    next_cursor: Optional[str]
+
+
 class ListDatasetVersionsResponseBody(TypedDict):
     data: Sequence[DatasetVersion]
     next_cursor: Optional[str]
@@ -1261,6 +1266,7 @@ class PhoenixToolCallCallbackProviderMetadata(TypedDict):
     toolInputEmittedAt: NotRequired[str]
     clientStartedAt: NotRequired[str]
     clientEndedAt: NotRequired[str]
+    outcome: NotRequired[str]
 
 
 class PhoenixToolCallProviderMetadata(TypedDict):
