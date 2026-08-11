@@ -38,6 +38,9 @@ Data wrangling and corpus building (LangChain / LlamaIndex / HaluEval / MS MARCO
 ### `ddl/`
 - `generate_ddl_postgresql.py` — extract DDL from a PostgreSQL Phoenix DB into a deterministic `postgresql_schema.sql`, validated with `pglast`. PEP 723 script.
 - `postgresql_schema.sql` — checked-in canonical schema.
+- `generate_ddl_sqlite.py` — extract DDL from a SQLite Phoenix DB into a deterministic `sqlite_schema.sql`, validated by replaying it into a fresh in-memory database and re-rendering it. PEP 723 script.
+- `sqlite_schema.sql` — checked-in canonical schema.
+- `compare_schemas.py` — assert both dialects describe the same tables, columns, explicitly created indexes, and CHECK/UNIQUE/FOREIGN KEY constraint names; each generator only validates against its own database, so nothing else catches the two files drifting apart. Names are normalized for PostgreSQL's 63-byte identifier cap, which SQLite does not share. Constraint-backed indexes and PRIMARY KEY names are excluded because the dialects legitimately differ there. PEP 723 script.
 
 ### `docker/devops/`
 Local docker-compose stack for development: Phoenix, OIDC, LDAP, SMTP, Grafana, Prometheus, Toxiproxy, Vite dev server, k8s manifests. See `docker/devops/README.md`.
@@ -105,6 +108,7 @@ uv run python scripts/<path>/<script>.py
 
 # PEP 723 scripts (declare their own deps inline) work standalone
 uv run scripts/ddl/generate_ddl_postgresql.py
+uv run scripts/ddl/generate_ddl_sqlite.py
 uv run scripts/generate_spans/generate_spans_for_time_series.py
 uv run scripts/perf/postgres/postgres_explain_analyze.py
 ```

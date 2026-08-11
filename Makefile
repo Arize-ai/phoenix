@@ -101,7 +101,7 @@ help: ## Show this help message
 	@echo -e "$(GREEN)Utilities:$(NC)"
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
-	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL (use ARGS= for arguments)"
+	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL and SQLite (use ARGS=/SQLITE_ARGS= for arguments)"
 	@echo -e "  gen-otel-models        - Generate OTel GenAI semconv Pydantic models"
 	@echo -e "  gen-session-filter-ai-query-vocabulary   - Generate the session AI query vocabulary"
 	@echo -e "  check-session-filter-ai-query-vocabulary - Check the session AI query vocabulary for drift"
@@ -407,11 +407,34 @@ sync-models: ## Sync model cost manifest from remote sources
 	@$(UV) run python .github/.scripts/sync_models.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-schema-ddl: ## Compile DDL schema from PostgreSQL database (use ARGS= to pass arguments)
+# ARGS=--external points the PostgreSQL extractor at a foreign database, which
+# says nothing about SQLite; regenerating sqlite_schema.sql from ephemeral
+# migrations would overwrite a checked-in file as a side effect. SQLITE_ARGS
+# requests the SQLite step outright, so it always runs.
+ifeq (,$(strip $(SQLITE_ARGS)))
+SKIP_SQLITE := $(findstring --external,$(ARGS))
+endif
+
+# The cross-dialect comparison reads the two canonical files, so it is only
+# meaningful when this run rewrote both. Either variable may have redirected a
+# generator elsewhere, leaving a fresh file compared against a stale one.
+COMPARE_DIALECTS_ARGS := $(strip $(ARGS))$(strip $(SQLITE_ARGS))
+
+schema-ddl: ## Compile DDL schema from PostgreSQL and SQLite databases (ARGS=/SQLITE_ARGS= pass per-database arguments)
 	@echo -e "$(CYAN)Compiling DDL schema...$(NC)"
 	@$(UV) pip install --strict psycopg[binary] testing.postgresql pglast ty
 	@$(UV) pip install --no-sources --strict --reinstall-package arize-phoenix .
 	@cd scripts/ddl && $(UV) run ty check generate_ddl_postgresql.py && $(UV) run python generate_ddl_postgresql.py $(ARGS)
+ifeq (,$(SKIP_SQLITE))
+	@cd scripts/ddl && $(UV) run ty check generate_ddl_sqlite.py && $(UV) run python generate_ddl_sqlite.py $(SQLITE_ARGS)
+else
+	@echo -e "$(YELLOW)Skipping SQLite: ARGS targets an external PostgreSQL database (pass SQLITE_ARGS= to run it too)$(NC)"
+endif
+ifeq (,$(COMPARE_DIALECTS_ARGS))
+	@cd scripts/ddl && $(UV) run ty check compare_schemas.py && $(UV) run python compare_schemas.py
+else
+	@echo -e "$(YELLOW)Skipping cross-dialect comparison: ARGS/SQLITE_ARGS may not have written the canonical files$(NC)"
+endif
 
 check-graphql-permissions: ## Ensure GraphQL mutations and subscriptions have permission classes
 	@echo -e "$(CYAN)Checking GraphQL permissions...$(NC)"
