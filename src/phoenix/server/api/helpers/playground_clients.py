@@ -2699,25 +2699,17 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
 
     @override
     def is_rate_limit_error(self, e: Exception) -> bool:
-        # The Interactions API raises RateLimitError for HTTP 429 responses.
-        from google.genai._interactions._exceptions import RateLimitError
+        from google.genai.errors import APIError
 
-        return isinstance(e, RateLimitError)
+        return isinstance(e, APIError) and e.code == 429
 
     @override
     def is_transient_error(self, e: Exception) -> bool:
-        from google.genai._interactions._exceptions import (
-            APIConnectionError,
-            APITimeoutError,
-            InternalServerError,
-        )
+        from google.genai.errors import APIError
 
-        if isinstance(e, (APIConnectionError, APITimeoutError, InternalServerError)):
-            return True
-        status_code = getattr(e, "status_code", None)
-        if status_code and 500 <= status_code < 600:
-            return True
-        return False
+        if isinstance(e, APIError):
+            return 500 <= e.code < 600
+        return super().is_transient_error(e)
 
     @override
     def get_rate_limit_key(self) -> Hashable:
