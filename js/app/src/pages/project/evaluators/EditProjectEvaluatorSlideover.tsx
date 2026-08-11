@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
+import { useRevalidator } from "react-router";
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
@@ -311,6 +312,10 @@ function EditLlmProjectEvaluatorContent({
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
   const notifySuccess = useNotifySuccess();
+  // The mutation payload carries only the scope scalars; the details page
+  // beneath this slideover also renders the prompt and output configs, so
+  // re-run its loader once the save lands.
+  const { revalidate } = useRevalidator();
   const playgroundStore = usePlaygroundStore();
   const instanceId = usePlaygroundContext((state) => state.instances[0].id);
   invariant(instanceId != null, "instanceId is required");
@@ -406,6 +411,7 @@ function EditLlmProjectEvaluatorContent({
         },
         onCompleted: () => {
           notifySuccess({ title: "Evaluator updated" });
+          void revalidate();
           onClose();
           resolve({
             ok: true,
@@ -484,6 +490,8 @@ function EditCodeProjectEvaluator({
   const initialInputMappingJson = JSON.stringify(evaluator.inputMapping);
   const [scope, setScope] = useState(() => getScope(evaluator));
   const [error, setError] = useState<string>();
+  // See the LLM edit path: the details page loader must re-run after a save.
+  const { revalidate } = useRevalidator();
   const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
     registerDirtyCheck,
     scope,
@@ -635,6 +643,7 @@ function EditCodeProjectEvaluator({
                 },
                 onCompleted: () => {
                   notifySuccess({ title: "Evaluator updated" });
+                  void revalidate();
                   onClose();
                 },
                 onError: (mutationError) =>
