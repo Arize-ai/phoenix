@@ -28,4 +28,18 @@ describe("createClientToolTimingRecorder", () => {
     recorder.clear();
     expect(recorder.get("call-1")).toBeNull();
   });
+
+  it("reports a call as in flight from start until end or clear", () => {
+    const recorder = createClientToolTimingRecorder();
+
+    expect(recorder.isInFlight("call-1")).toBe(false);
+    recorder.recordStart("call-1");
+    expect(recorder.isInFlight("call-1")).toBe(true);
+    recorder.recordEnd("call-1");
+    expect(recorder.isInFlight("call-1")).toBe(false);
+
+    recorder.recordStart("call-2");
+    recorder.clear();
+    expect(recorder.isInFlight("call-2")).toBe(false);
+  });
 });

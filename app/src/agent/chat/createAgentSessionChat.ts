@@ -333,6 +333,7 @@ export function createAgentSessionChat({
       partitionPendingClientToolCalls({
         messages: chat.messages,
         isRehydratableTool: isRehydratableAgentTool,
+        isToolCallInFlight: toolTimings.isInFlight,
       });
     for (const toolCall of rehydratableToolCalls) {
       runAgentToolCall(toolCall);
