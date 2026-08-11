@@ -87,6 +87,7 @@ query($id: ID!) {{
   node(id: $id) {{
     ... on Project {{
       name
+      evaluatorCount
       evaluators {{ edges {{ node {{ {_PROJECT_EVALUATOR_FIELDS} }} }} }}
     }}
   }}
@@ -248,6 +249,7 @@ async def test_project_code_evaluator_crud_and_connection(
     assert project_result.data and not project_result.errors
     nodes = [edge["node"] for edge in project_result.data["node"]["evaluators"]["edges"]]
     assert [node["id"] for node in nodes] == [created["id"]]
+    assert project_result.data["node"]["evaluatorCount"] == 1
 
     update_result = await gql_client.execute(
         _UPDATE_CODE,
@@ -356,6 +358,13 @@ async def test_project_code_evaluator_crud_and_connection(
     assert delete_result.data["deleteProjectEvaluators"]["projectEvaluatorIds"] == [created["id"]]
     async with db() as session:
         assert await session.get(models.Project, project.id) is not None
+
+    emptied_result = await gql_client.execute(
+        _PROJECT_EVALUATORS,
+        {"id": str(GlobalID("Project", str(project.id)))},
+    )
+    assert emptied_result.data and not emptied_result.errors
+    assert emptied_result.data["node"]["evaluatorCount"] == 0
 
 
 async def test_add_project_code_evaluator_binds_existing_core(
