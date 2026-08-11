@@ -331,6 +331,17 @@ class Project(Node):
             )
         return description
 
+    @strawberry.field(description="Number of evaluators attached to this project.")  # type: ignore
+    async def evaluator_count(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        stmt = select(func.count(models.ProjectEvaluatorCriteria.id)).where(
+            models.ProjectEvaluatorCriteria.project_id == self.id
+        )
+        async with info.context.db.read() as session:
+            return (await session.scalar(stmt)) or 0
+
     @strawberry.field
     async def evaluators(
         self,
