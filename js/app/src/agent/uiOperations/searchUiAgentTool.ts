@@ -45,6 +45,9 @@ export const searchUiAgentTool = defineTool<SearchUiInput>({
   parseInput: parseSearchUiInput,
   invalidInputErrorText:
     "Invalid search_ui input. Expected { query?: string, mountedOnly?: boolean }.",
+  // Pure catalog read with no side effects: always safe to re-dispatch when
+  // an unresolved call is found on session load or after a session sync.
+  rehydratable: true,
   execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
     const results = searchUiOperations({
       agentStore,
