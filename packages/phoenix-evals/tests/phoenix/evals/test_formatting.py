@@ -36,6 +36,7 @@ _OPENAI = [
     {"role": "tool", "tool_call_id": "c1", "content": "72F sunny"},
 ]
 
+# in the dataset shape, tool-call ids are not present, and arguments are decoded
 _DATASET = [
     {"role": "user", "content": "hi"},
     {
@@ -45,6 +46,7 @@ _DATASET = [
     {"role": "tool", "content": "72F sunny"},
 ]
 
+# everything is nested under a "message" key, and tool-call ids are present
 _NESTED = [
     {"message": {"role": "user", "content": "hi"}},
     {
@@ -63,6 +65,7 @@ _NESTED = [
     {"message": {"role": "tool", "tool_call_id": "c1", "content": "72F sunny"}},
 ]
 
+# everything is flattened into dotted keys, and tool-call ids are present
 _DOTTED = [
     {"message.role": "user", "message.content": "hi"},
     {
@@ -105,7 +108,7 @@ def test_dataset_shape_normalizes_without_ids():
 
 
 def test_all_shapes_render_identically_in_full_mode():
-    outputs = {format_messages(shape) for shape in (_OPENAI, _NESTED, _DOTTED)}
+    outputs = {format_messages(shape) for shape in (_OPENAI, _NESTED, _DOTTED)} # set comprehension to deduplicate. If the outputs are identical, the length of the set will be 1.
     assert len(outputs) == 1
 
 
@@ -229,8 +232,8 @@ def test_skeleton_marks_errors():
 # --------------------------------------------------------------------------- #
 def test_include_roles():
     out = format_messages(_CANONICAL, include_roles=["user"])
+    # canonical has just one user message
     assert out == "User: What's our refund window?"
-
 
 def test_exclude_roles():
     out = format_messages(_CANONICAL, exclude_roles=["system", "tool"])
@@ -238,14 +241,26 @@ def test_exclude_roles():
     assert "Tool (" not in out
 
 
+def test_role_in_both_include_and_exclude_is_excluded():
+    """When a role appears in both filters, exclude_roles wins (applied last)."""
+    msgs = [{"role": "user", "content": "a"}, {"role": "assistant", "content": "b"}]
+    out = format_messages(
+        msgs, include_roles=["user", "assistant"], exclude_roles=["user"]
+    )
+    assert out == "Assistant: b"
+
+
 def test_max_messages_keeps_last_and_marks_omission():
     msgs = [{"role": "user", "content": f"m{i}"} for i in range(5)]
     out = format_messages(msgs, max_messages=2)
+    # out will just have the last two messages, and a marker for the omitted three
+    # by default truncation is "last", so the last two messages are kept
     assert out == f"{OMITTED_MESSAGES_MARKER.format(n=3)}\nUser: m3\nUser: m4"
 
 
 def test_max_messages_first_keeps_earliest():
     msgs = [{"role": "user", "content": f"m{i}"} for i in range(5)]
+    # truncation is set to "first" to keep the earliest messages
     out = format_messages(msgs, max_messages=2, truncation="first")
     assert out == f"User: m0\nUser: m1\n{OMITTED_LATER_MESSAGES_MARKER.format(n=3)}"
 
@@ -267,6 +282,7 @@ def test_max_chars_per_tool_result_truncates():
 
 def test_max_chars_total_truncates():
     msgs = [{"role": "user", "content": "x" * 100}]
+    # max_chars is the total character budget for the entire formatted string.
     out = format_messages(msgs, max_chars=10)
     assert out == "User: xxxx" + TRUNCATION_MARKER
     assert len(out) - len(TRUNCATION_MARKER) == 10
@@ -274,6 +290,7 @@ def test_max_chars_total_truncates():
 
 def test_custom_separator():
     msgs = [{"role": "user", "content": "a"}, {"role": "user", "content": "b"}]
+    # By default the separator is a newline \n
     assert format_messages(msgs, separator=" | ") == "User: a | User: b"
 
 
@@ -400,15 +417,39 @@ _ANTHROPIC = [
     {
         "role": "assistant",
         "content": [
-            {"type": "text", "text": "Let me check."},
-            {"type": "tool_use", "id": "toolu_1", "name": "get_weather", "input": {"city": "SF"}},
+            {
+                "type": "text",
+                "text": "Let me check."
+            },
+            {
+                "type": "tool_use",
+                "id": "toolu_1",
+                "name": "get_weather",
+                "input": {
+                    "city": "SF"
+                }
+            },
         ],
     },
     {
         "role": "user",
-        "content": [{"type": "tool_result", "tool_use_id": "toolu_1", "content": "72F sunny"}],
+        "content": [
+            {
+                "type": "tool_result",
+                "tool_use_id": "toolu_1",
+                "content": "72F sunny"
+            }
+        ],
     },
-    {"role": "assistant", "content": [{"type": "text", "text": "It's 72F and sunny."}]},
+    {
+        "role": "assistant",
+        "content": [
+            {
+                "type": "text",
+                "text": "It's 72F and sunny."
+            }
+        ]
+    },
 ]
 
 
@@ -436,6 +477,7 @@ def test_native_anthropic_format_resolves_tool_name():
 
 
 def test_native_anthropic_is_error_respected_in_skeleton():
+    # https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls the docs that show how is_error works.
     msgs = [
         {
             "role": "user",
@@ -454,13 +496,48 @@ def test_native_anthropic_string_content():
 
 
 _GEMINI = [
-    {"role": "user", "parts": [{"text": "weather in SF?"}]},
-    {"role": "model", "parts": [{"functionCall": {"name": "get_weather", "args": {"city": "SF"}}}]},
     {
         "role": "user",
-        "parts": [{"functionResponse": {"name": "get_weather", "response": {"tempF": 72}}}],
+        "parts": [
+            {
+                "text": "weather in SF?"
+            }
+        ]
     },
-    {"role": "model", "parts": [{"text": "It's 72F."}]},
+    {
+        "role": "model",
+        "parts": [
+            {
+                "functionCall": {
+                    "name": "get_weather",
+                    "args": {
+                        "city": "SF"
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "role": "user",
+        "parts": [
+            {
+                "functionResponse": {
+                    "name": "get_weather",
+                    "response": {
+                        "tempF": 72
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "role": "model",
+        "parts": [
+            {
+                "text": "It's 72F."
+            }
+        ]
+    }
 ]
 
 
