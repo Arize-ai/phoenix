@@ -23,10 +23,13 @@ export const runPlaygroundOperation = defineUiOperation({
     "the same run the user would start with the playground Run button, so it uses " +
     "the current prompt instances, model settings, inputs, dataset selection, tools, " +
     "and streaming preferences visible in the UI. It runs all current comparison " +
-    "instances together.",
+    "instances together, and resolves only when the whole run ends (every instance " +
+    "finished, or the user stopped it) — await it, then read the results with " +
+    "`playground.run.readOutput` in the same script.",
   inputSchema: runPlaygroundInputSchema,
   kind: "write",
-  defaultSuccessOutput: "Playground run started.",
+  longRunning: true,
+  defaultSuccessOutput: "Playground run finished.",
   availability: {
     routeHint: PLAYGROUND_ROUTE_HINT,
   },

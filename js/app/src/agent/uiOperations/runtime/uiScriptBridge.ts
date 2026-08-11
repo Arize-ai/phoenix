@@ -170,11 +170,13 @@ export function runUiScript({
         });
         return;
       }
-      // Approval operations block on the user's accept/reject decision;
-      // their wait must not burn the script's execution budget.
-      const isApprovalCall =
-        getUiOperationDescriptor(message.operationName)?.kind === "approval";
-      if (isApprovalCall) {
+      // Approval operations block on the user's accept/reject decision, and
+      // long-running operations await external completion (e.g. a playground
+      // run); neither wait must burn the script's execution budget.
+      const descriptor = getUiOperationDescriptor(message.operationName);
+      const pausesTimerWhileInFlight =
+        descriptor?.kind === "approval" || descriptor?.longRunning === true;
+      if (pausesTimerWhileInFlight) {
         pauseTimer();
       }
       const result = await dispatchCall({
@@ -182,7 +184,7 @@ export function runUiScript({
         input: message.input,
         callSequence: message.callId,
       });
-      if (isApprovalCall && !isSettled) {
+      if (pausesTimerWhileInFlight && !isSettled) {
         armTimer();
       }
       if (!isSettled) {
