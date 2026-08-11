@@ -6,11 +6,10 @@ import { Button as AriaButton } from "react-aria-components";
 
 import {
   Dialog,
-  DialogTrigger,
   Flex,
   Popover,
   PopoverArrow,
-  RichTooltip,
+  PreviewTrigger,
   Text,
   Tooltip,
   TooltipArrow,
@@ -71,85 +70,48 @@ export function AnnotationSummaryPopover({
 }) {
   const filteredAnnotations = annotations.filter(hasAnnotationValue);
   const prototypicalAnnotation = filteredAnnotations[0];
-  const [isTooltipOpen, setIsTooltipOpen] = useState(false);
-  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const openTooltipAfterDelay = () => {
-    if (hoverTimeoutRef.current != null) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
-    hoverTimeoutRef.current = setTimeout(() => {
-      hoverTimeoutRef.current = null;
-      setIsTooltipOpen(true);
-    }, 500);
-  };
-  const closeTooltip = () => {
-    if (hoverTimeoutRef.current != null) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
-    setIsTooltipOpen(false);
-  };
-  const closeTooltipAfterDelay = () => {
-    if (hoverTimeoutRef.current != null) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
-    hoverTimeoutRef.current = setTimeout(() => {
-      hoverTimeoutRef.current = null;
-      setIsTooltipOpen(false);
-    }, 100);
-  };
-  const keepTooltipOpen = () => {
-    if (hoverTimeoutRef.current != null) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
-    setIsTooltipOpen(true);
-  };
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   if (!prototypicalAnnotation) {
     return null;
   }
   return (
-    <DialogTrigger>
-      <TooltipTrigger isOpen={isTooltipOpen} onOpenChange={setIsTooltipOpen}>
+    <>
+      <PreviewTrigger isOpen={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <AriaButton
+          ref={triggerRef}
           css={annotationSummaryTriggerCSS}
           data-clickable="true"
           aria-label={`View ${prototypicalAnnotation.name} annotation details`}
-          onHoverStart={openTooltipAfterDelay}
-          onHoverEnd={closeTooltipAfterDelay}
-          onFocus={() => setIsTooltipOpen(true)}
-          onBlur={closeTooltip}
-          onPress={closeTooltip}
+          aria-expanded={isPreviewOpen || isPopoverOpen}
+          onPress={() => {
+            setIsPreviewOpen(false);
+            setIsPopoverOpen(true);
+          }}
         >
           {children}
         </AriaButton>
-        <RichTooltip
-          offset={3}
-          width="400px"
-          onMouseEnter={keepTooltipOpen}
-          onMouseLeave={closeTooltip}
-          css={css`
-            box-sizing: border-box;
-            padding: 0;
-            overflow-x: hidden;
-            overflow-y: auto;
-            scrollbar-gutter: stable;
-          `}
-        >
+        <Popover offset={3} placement="top" style={{ width: "400px" }}>
+          <PopoverArrow />
           <AnnotationDetailsList
             annotations={annotations}
             annotationConfig={annotationConfig}
           />
-        </RichTooltip>
-      </TooltipTrigger>
+        </Popover>
+      </PreviewTrigger>
       <StopPropagation>
         <Popover
+          triggerRef={triggerRef}
+          isOpen={isPopoverOpen}
+          onOpenChange={setIsPopoverOpen}
           shouldCloseOnInteractOutside={() => true}
           isKeyboardDismissDisabled={false}
           style={{ minWidth: width }}
         >
           <PopoverArrow />
           <Dialog
+            aria-label={`${prototypicalAnnotation.name} annotation details`}
             css={css`
               border-radius: var(--global-radius-200);
             `}
@@ -277,6 +239,6 @@ export function AnnotationSummaryPopover({
           </Dialog>
         </Popover>
       </StopPropagation>
-    </DialogTrigger>
+    </>
   );
 }

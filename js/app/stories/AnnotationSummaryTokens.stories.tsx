@@ -96,33 +96,39 @@ export const HoverDetailsAndClickPopover: Story = {
     }
 
     await expect(trigger).toHaveTextContent("Favorable score: 0.6");
-    await userEvent.hover(trigger);
+    await userEvent.tab();
+    await expect(trigger).toHaveFocus();
 
-    const tooltip = await body.findByRole("tooltip");
-    await expect(within(tooltip).getByText("quality")).toBeInTheDocument();
+    const preview = await body.findByRole("dialog", undefined, {
+      timeout: 2000,
+    });
+    await expect(within(preview).getByText("quality")).toBeInTheDocument();
     await expect(
-      within(tooltip).getByText("Grounded in the supplied context.")
+      within(preview).getByText("Grounded in the supplied context.")
     ).toBeInTheDocument();
     await expect(
-      within(tooltip).getByText("Misses a required citation.")
+      within(preview).getByText("Misses a required citation.")
     ).toBeInTheDocument();
     await expect(
-      within(tooltip).getByText(
+      within(preview).getByText(
         "Explains the result without assigning a value."
       )
     ).toBeInTheDocument();
-    await expect(within(tooltip).getAllByRole("listitem")).toHaveLength(3);
-    await expect(tooltip).toHaveTextContent("Favorable score: 0.9");
-    await expect(tooltip).toHaveTextContent("Unfavorable score: 0.1");
+    await expect(within(preview).getAllByRole("listitem")).toHaveLength(3);
+    await expect(preview).toHaveTextContent("Favorable score: 0.9");
+    await expect(preview).toHaveTextContent("Unfavorable score: 0.1");
 
-    await userEvent.unhover(trigger);
     await userEvent.click(trigger);
-    const dialog = await body.findByRole("dialog");
+    const filterPassButton = await body.findByRole("button", {
+      name: "Filter pass",
+    });
+    const dialog = filterPassButton.closest<HTMLElement>('[role="dialog"]');
+    if (dialog == null) {
+      throw new Error("Annotation filter actions dialog was not rendered");
+    }
     await expect(within(dialog).getByText("alice")).toBeInTheDocument();
     await expect(within(dialog).getByText("system")).toBeInTheDocument();
-    await expect(
-      within(dialog).getByRole("button", { name: "Filter pass" })
-    ).toBeInTheDocument();
+    await expect(filterPassButton).toBeInTheDocument();
     await expect(
       within(dialog).getByRole("button", { name: "Filter fail" })
     ).toBeInTheDocument();

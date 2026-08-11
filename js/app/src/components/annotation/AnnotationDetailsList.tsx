@@ -13,17 +13,16 @@ import {
 import type { Annotation } from "./types";
 
 const annotationDetailsHeaderCSS = css`
-  position: sticky;
-  top: 0;
-  z-index: 1;
   padding: var(--global-dimension-size-200) var(--global-dimension-size-200)
     var(--global-dimension-size-100);
-  background: var(--global-tooltip-background-color);
 `;
 
 const annotationListCSS = css`
   list-style: none;
   margin: 0;
+  max-height: 400px;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 0 var(--global-dimension-size-200) var(--global-dimension-size-200);
 
   > li {

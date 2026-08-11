@@ -7,6 +7,7 @@ export {
   Form,
   I18nProvider,
   Autocomplete,
+  PreviewTrigger,
   useFilter,
 } from "react-aria-components";
 export type {
@@ -14,6 +15,7 @@ export type {
   LabelProps,
   FieldErrorProps,
   DialogTriggerProps,
+  PreviewTriggerProps,
   DateValue,
   TimeValue,
   Selection,
