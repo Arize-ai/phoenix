@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useLazyLoadQuery } from "react-relay";
 import { useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
@@ -19,16 +20,10 @@ import {
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorSlideoverError } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideoverError";
 
-// Route elements for the project evaluator slideovers. Every creation flow and
-// the edit flow is its own route, so each is deep-linkable and the browser's
-// back button closes whichever one is open.
-
 /**
- * Returns the slideover's `onOpenChange`, which closes it by returning to the
- * evaluators list.
- *
- * Closing replaces rather than pushes, so a slideover the user has dismissed
- * does not sit one step back in history waiting to be reopened.
+ * Closes the slideover by returning to the evaluators list. Replaces rather
+ * than pushes, so a slideover the user has dismissed does not sit one step back
+ * in history waiting to be reopened.
  */
 function useCloseSlideover() {
   const navigate = useNavigate();
@@ -92,8 +87,18 @@ export function CopyLlmProjectEvaluatorPage() {
   const projectId = useRouteProjectId();
   const onOpenChange = useCloseSlideover();
   const evaluator = useSourceEvaluator();
+  // Memoized: this walks every prompt message and mints fresh message ids, and
+  // the page re-renders under the open slideover (e.g. as the toolbar filter
+  // changes). A new object each time would rebuild the evaluator store too.
+  const built = useMemo(
+    () =>
+      evaluator && isLlmProjectEvaluatorDetails(evaluator)
+        ? buildCopyLlmCreationMode(evaluator)
+        : null,
+    [evaluator]
+  );
   const title = "Cannot copy evaluator";
-  if (!evaluator || !isLlmProjectEvaluatorDetails(evaluator)) {
+  if (!built) {
     return (
       <ProjectEvaluatorSlideoverError
         title={title}
@@ -102,7 +107,6 @@ export function CopyLlmProjectEvaluatorPage() {
       />
     );
   }
-  const built = buildCopyLlmCreationMode(evaluator);
   if (!built.ok) {
     return (
       <ProjectEvaluatorSlideoverError
@@ -126,7 +130,16 @@ export function AttachCodeProjectEvaluatorPage() {
   const projectId = useRouteProjectId();
   const onOpenChange = useCloseSlideover();
   const evaluator = useSourceEvaluator();
-  if (!evaluator || !isCodeProjectEvaluatorDetails(evaluator)) {
+  // Memoized for the same reason as the copy route: it parses the evaluator's
+  // source twice to extract its variables.
+  const creationMode = useMemo(
+    () =>
+      evaluator && isCodeProjectEvaluatorDetails(evaluator)
+        ? buildAttachCodeCreationMode(evaluator)
+        : null,
+    [evaluator]
+  );
+  if (!creationMode) {
     return (
       <ProjectEvaluatorSlideoverError
         title="Cannot attach evaluator"
@@ -140,7 +153,7 @@ export function AttachCodeProjectEvaluatorPage() {
       isOpen
       onOpenChange={onOpenChange}
       projectId={projectId}
-      creationMode={buildAttachCodeCreationMode(evaluator)}
+      creationMode={creationMode}
     />
   );
 }
@@ -150,8 +163,6 @@ export function EditProjectEvaluatorPage() {
   invariant(projectEvaluatorId, "projectEvaluatorId is required");
   const onOpenChange = useCloseSlideover();
   const { evaluator, sandboxConfigs } = useProjectEvaluator(projectEvaluatorId);
-  // Only a hand-written URL reaches this: the table offers Edit for authored
-  // evaluators alone.
   if (
     evaluator.evaluator.kind !== "LLM" &&
     evaluator.evaluator.kind !== "CODE"

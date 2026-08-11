@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useLocation } from "react-router";
 
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 
@@ -26,18 +27,30 @@ export const newCodeProjectEvaluatorPath = (projectRootPath: string) =>
  */
 export function useProjectEvaluatorPaths() {
   const { rootPath } = useProjectRootPath();
+  // A slideover is a sub-view of the list, not a new destination, so opening
+  // and closing one carries the page's URL state -- above all a custom time
+  // range, which would otherwise be dropped on the way in and again on the way
+  // out.
+  const { search } = useLocation();
   return useMemo(() => {
     const list = projectEvaluatorsPath(rootPath);
+    const withCurrentSearch = (path: string) => `${path}${search}`;
     return {
-      list,
-      newLlm: newLlmProjectEvaluatorPath(rootPath),
-      newCode: newCodeProjectEvaluatorPath(rootPath),
+      list: withCurrentSearch(list),
+      newLlm: withCurrentSearch(newLlmProjectEvaluatorPath(rootPath)),
+      newCode: withCurrentSearch(newCodeProjectEvaluatorPath(rootPath)),
       copyLlm: (evaluatorId: string) =>
-        `${list}/new/copy/${encodeURIComponent(evaluatorId)}`,
+        withCurrentSearch(
+          `${list}/new/copy/${encodeURIComponent(evaluatorId)}`
+        ),
       attachCode: (evaluatorId: string) =>
-        `${list}/new/attach/${encodeURIComponent(evaluatorId)}`,
+        withCurrentSearch(
+          `${list}/new/attach/${encodeURIComponent(evaluatorId)}`
+        ),
       edit: (projectEvaluatorId: string) =>
-        `${list}/${encodeURIComponent(projectEvaluatorId)}/edit`,
+        withCurrentSearch(
+          `${list}/${encodeURIComponent(projectEvaluatorId)}/edit`
+        ),
     };
-  }, [rootPath]);
+  }, [rootPath, search]);
 }

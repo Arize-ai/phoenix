@@ -131,7 +131,7 @@ export const projectEvaluatorDetailsQueryNode = graphql`
 export type ProjectEvaluatorOption =
   projectEvaluatorOptionsQuery$data["evaluators"]["edges"][number]["evaluator"];
 
-export type ProjectEvaluatorDetails = NonNullable<
+type ProjectEvaluatorDetails = NonNullable<
   projectEvaluatorDetailsQuery["response"]["evaluator"]
 >;
 type LlmProjectEvaluatorDetails = ProjectEvaluatorDetails & {

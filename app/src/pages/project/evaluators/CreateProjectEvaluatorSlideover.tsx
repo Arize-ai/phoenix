@@ -1,12 +1,9 @@
-import { Suspense, useRef, useState } from "react";
+import { useState } from "react";
 import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useMutation, useRelayEnvironment } from "react-relay";
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import { Dialog } from "@phoenix/components/core/dialog";
-import { Loading } from "@phoenix/components/core/loading";
-import { Modal, ModalOverlay } from "@phoenix/components/core/overlay/Modal";
 import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { getSpanEvaluatorDefaultMessages } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
@@ -28,13 +25,10 @@ import {
 import type { CreateProjectEvaluatorSlideoverAddCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/CreateProjectEvaluatorSlideoverAddCodeMutation.graphql";
 import { CreateProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
-import {
-  DiscardEvaluatorChangesDialog,
-  isModalUnderlay,
-} from "@phoenix/pages/project/evaluators/DiscardEvaluatorChangesDialog";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
+import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import { useProjectEvaluatorSubmitHint } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
 import {
   toProjectEvaluatorGraphQLTarget,
@@ -99,57 +93,21 @@ export const CreateProjectEvaluatorSlideover = ({
 }: {
   projectId: string;
   creationMode: ProjectEvaluatorCreationMode;
-} & ModalOverlayProps) => {
-  const dirtyCheckRef = useRef<EvaluatorFormDirtyCheck>(() => false);
-  const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
-  // Known here, above the dialog, so it can both name the dialog and be the
-  // heading the dialog's body renders.
-  const title = getProjectEvaluatorCreationTitle(creationMode);
-  return (
-    <>
-      <ModalOverlay
-        {...props}
-        isDismissable
-        shouldCloseOnInteractOutside={(element) => {
-          if (!isModalUnderlay(element)) {
-            return false;
-          }
-          if (dirtyCheckRef.current()) {
-            setIsDiscardConfirmOpen(true);
-            return false;
-          }
-          return true;
-        }}
-      >
-        <Modal variant="slideover" size="fullscreen">
-          <Dialog aria-label={title}>
-            {({ close }) => (
-              <Suspense fallback={<Loading />}>
-                <CreateProjectEvaluatorDialogForMode
-                  onClose={close}
-                  projectId={projectId}
-                  creationMode={creationMode}
-                  title={title}
-                  registerDirtyCheck={(check) => {
-                    dirtyCheckRef.current = check;
-                  }}
-                />
-              </Suspense>
-            )}
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-      <DiscardEvaluatorChangesDialog
-        isOpen={isDiscardConfirmOpen}
-        onKeepEditing={() => setIsDiscardConfirmOpen(false)}
-        onDiscard={() => {
-          setIsDiscardConfirmOpen(false);
-          props.onOpenChange?.(false);
-        }}
+} & Omit<ModalOverlayProps, "children">) => (
+  <ProjectEvaluatorSlideover
+    {...props}
+    title={getProjectEvaluatorCreationTitle(creationMode)}
+  >
+    {(close, registerDirtyCheck) => (
+      <CreateProjectEvaluatorDialogForMode
+        onClose={close}
+        projectId={projectId}
+        creationMode={creationMode}
+        registerDirtyCheck={registerDirtyCheck}
       />
-    </>
-  );
-};
+    )}
+  </ProjectEvaluatorSlideover>
+);
 
 function CreateProjectEvaluatorDialogForMode(
   props: Parameters<typeof CreateProjectEvaluatorDialog>[0]
@@ -180,13 +138,11 @@ const CreateProjectEvaluatorDialog = ({
   onClose,
   projectId,
   creationMode,
-  title,
   registerDirtyCheck,
 }: {
   onClose: () => void;
   projectId: string;
   creationMode: ProjectEvaluatorCreationMode;
-  title: string;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) => {
   const notifySuccess = useNotifySuccess();
@@ -266,6 +222,10 @@ const CreateProjectEvaluatorDialog = ({
     onClose();
     notifySuccess({ title: "Evaluator created" });
   };
+
+  // The same pure derivation the slideover used to name the dialog, so the
+  // heading below and the accessible name are always the same string.
+  const title = getProjectEvaluatorCreationTitle(creationMode);
 
   return (
     <EvaluatorStoreProvider initialState={initialState}>
