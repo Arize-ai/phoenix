@@ -458,6 +458,7 @@ type BuiltInEvaluator implements Evaluator & Node {
   updatedAt: DateTime!
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
+  projects(first: Int = 50, after: String): ProjectConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   inputSchema: JSON
   user: User
@@ -608,6 +609,7 @@ type CodeEvaluator implements Evaluator & Node {
   updatedAt: DateTime!
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
+  projects(first: Int = 50, after: String): ProjectConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   sandboxConfig: SandboxConfig
   inputMapping: EvaluatorInputMapping!
@@ -1685,6 +1687,7 @@ interface Evaluator implements Node {
   updatedAt: DateTime!
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
+  projects(first: Int = 50, after: String): ProjectConnection!
   datasetEvaluators: [DatasetEvaluator!]!
 }
 
@@ -2447,6 +2450,7 @@ type LLMEvaluator implements Evaluator & Node {
   updatedAt: DateTime!
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
+  projects(first: Int = 50, after: String): ProjectConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   prompt: Prompt!

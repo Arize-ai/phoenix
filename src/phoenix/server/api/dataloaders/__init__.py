@@ -66,6 +66,7 @@ from .project_by_name import ProjectByNameDataLoader
 from .project_evaluator_criteria_by_id import ProjectEvaluatorCriteriaByIdDataLoader
 from .project_has_traces import ProjectHasTracesDataLoader
 from .project_ids_by_trace_retention_policy_id import ProjectIdsByTraceRetentionPolicyIdDataLoader
+from .projects_by_evaluator import ProjectsByEvaluatorDataLoader
 from .prompt_label_usage_counts import PromptLabelUsageCountsDataLoader
 from .prompt_labels_by_prompt import PromptLabelsByPromptDataLoader
 from .prompt_version_counts import PromptVersionCountDataLoader
@@ -222,6 +223,7 @@ class DataLoaders:
     project_fields: TableFieldsDataLoader
     project_evaluator_criteria_by_id: ProjectEvaluatorCriteriaByIdDataLoader
     project_trace_retention_policy_fields: TableFieldsDataLoader
+    projects_by_evaluator: ProjectsByEvaluatorDataLoader
     projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
     prompt_fields: TableFieldsDataLoader
     prompt_label_fields: TableFieldsDataLoader
@@ -396,6 +398,7 @@ def build_data_loaders(
         num_spans_per_trace=NumSpansPerTraceDataLoader(db),
         project_fields=TableFieldsDataLoader(db, models.Project),
         project_evaluator_criteria_by_id=ProjectEvaluatorCriteriaByIdDataLoader(db),
+        projects_by_evaluator=ProjectsByEvaluatorDataLoader(db),
         projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(db),
         prompt_fields=TableFieldsDataLoader(db, models.Prompt),
         prompt_label_fields=TableFieldsDataLoader(db, models.PromptLabel),

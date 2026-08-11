@@ -13,6 +13,11 @@ export interface ProjectTokenProps extends Pick<
   name: string;
   gradientStartColor: string;
   gradientEndColor: string;
+  /**
+   * Destination to navigate to when the token is pressed.
+   * Defaults to the project's configuration page.
+   */
+  to?: string;
 }
 
 /**
@@ -30,6 +35,7 @@ export function ProjectToken({
   maxWidth,
   onRemove,
   isDisabled,
+  to,
 }: ProjectTokenProps) {
   const navigate = useNavigate();
   return (
@@ -45,7 +51,7 @@ export function ProjectToken({
         />
       }
       title={name}
-      onPress={() => navigate(`/projects/${projectId}/config`)}
+      onPress={() => navigate(to ?? `/projects/${projectId}/config`)}
       onRemove={onRemove}
       isDisabled={isDisabled}
     >
