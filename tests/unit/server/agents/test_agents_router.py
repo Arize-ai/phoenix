@@ -2523,6 +2523,58 @@ def test_merge_ignores_identical_tool_outputs_for_already_resolved_tool_calls() 
     assert parts["tool-call-done"].output == {"stdout": "/"}
 
 
+def test_merge_ignores_client_timing_metadata_when_comparing_already_resolved_tool_calls() -> None:
+    # The persisted copy carries the browser-recorded execution timings the
+    # client enriched into its original submission; a later resend built from
+    # the client's local transcript lacks them and must not read as a fork.
+    persisted_part = _tool_output(
+        toolCallId="tool-call-done",
+        input={"command": "pwd"},
+        output={"stdout": "/"},
+        callProviderMetadata={
+            "phoenix": {
+                "toolExecutionEnvironment": "client",
+                "toolInputEmittedAt": "2026-08-11T16:08:57.138726+00:00",
+                "clientStartedAt": "2026-08-11T16:08:57.143Z",
+                "clientEndedAt": "2026-08-11T16:08:57.150Z",
+            }
+        },
+    )
+    assistant_message = _assistant_message_with_tool_states()
+    assistant_message["parts"] = [
+        part if part.get("toolCallId") != "tool-call-done" else persisted_part
+        for part in assistant_message["parts"]
+    ]
+    persisted = _validated_messages([_user_message("run a command"), assistant_message])
+    resent_part = _tool_output(
+        toolCallId="tool-call-done",
+        input={"command": "pwd"},
+        output={"stdout": "/"},
+        callProviderMetadata={
+            "phoenix": {
+                "toolExecutionEnvironment": "client",
+                "toolInputEmittedAt": "2026-08-11T16:08:57.138726+00:00",
+            }
+        },
+    )
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=None,
+        tool_outputs=[
+            ToolOutputAvailablePart.model_validate(_tool_output()),
+            ToolOutputAvailablePart.model_validate(resent_part),
+        ],
+    )
+
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    parts = _parts_by_tool_call_id(continued)
+    # The persisted result, timings included, stays authoritative.
+    metadata = parts["tool-call-done"].call_provider_metadata
+    assert metadata["phoenix"]["clientStartedAt"] == "2026-08-11T16:08:57.143Z"
+
+
 def test_merge_rejects_divergent_tool_outputs_for_already_resolved_tool_calls() -> None:
     persisted = _validated_messages(
         [_user_message("run a command"), _assistant_message_with_tool_states()]

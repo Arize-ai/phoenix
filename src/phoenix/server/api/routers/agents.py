@@ -1706,6 +1706,37 @@ _MessageId = str
 _PartIndex = int
 """A tool part's position within its message's ``parts`` list."""
 
+_CLIENT_TIMING_METADATA_KEYS = ("clientStartedAt", "clientEndedAt")
+
+
+def _without_client_timing_metadata(
+    part: ToolUIPart | DynamicToolUIPart | ToolOutputUIPart,
+) -> ToolUIPart | DynamicToolUIPart | ToolOutputUIPart:
+    """The part with browser-recorded execution timings dropped for comparison.
+
+    Clients enrich submitted outputs with ``phoenix.clientStartedAt`` /
+    ``clientEndedAt`` at request-build time without writing them back to their
+    local transcript, so a resend after the per-turn timing recorder resets
+    cannot reproduce them and must not read as a divergent result.
+    """
+    metadata = part.call_provider_metadata
+    if not isinstance(metadata, dict):
+        return part
+    phoenix_metadata = metadata.get(_PHOENIX_PROVIDER_METADATA_KEY)
+    if not isinstance(phoenix_metadata, dict) or not any(
+        key in phoenix_metadata for key in _CLIENT_TIMING_METADATA_KEYS
+    ):
+        return part
+    cleaned_metadata = {
+        **metadata,
+        _PHOENIX_PROVIDER_METADATA_KEY: {
+            key: value
+            for key, value in phoenix_metadata.items()
+            if key not in _CLIENT_TIMING_METADATA_KEYS
+        },
+    }
+    return part.model_copy(update={"call_provider_metadata": cleaned_metadata})
+
 
 def _apply_tool_outputs(
     message: PhoenixUIMessage,
@@ -1739,7 +1770,9 @@ def _apply_tool_outputs(
                 ),
             )
         if not isinstance(call_part, _UNRESOLVED_TOOL_PART_TYPES):
-            if call_part != tool_output:
+            if _without_client_timing_metadata(call_part) != _without_client_timing_metadata(
+                tool_output
+            ):
                 raise AgentSessionConflict(
                     "agent_session_tool_outputs_conflict",
                     (
