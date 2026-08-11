@@ -6715,6 +6715,11 @@ export interface components {
              * @default null
              */
             clientEndedAt?: string | null;
+            /**
+             * Outcome
+             * @default null
+             */
+            outcome?: "interrupted" | null;
         };
         /**
          * PhoenixToolCallProviderMetadata
