@@ -86,6 +86,11 @@ class TestContentConversion:
             part.function_response.name if part.function_response is not None else None
             for part in messages[1].parts
         ] == ["get_weather", "get_population"]
+        response_ids: list[str | None] = []
+        for part in messages[1].parts:
+            assert part.function_response is not None
+            response_ids.append(part.function_response.id)
+        assert response_ids == [None, None]
 
     def test_function_response_requires_an_id_or_name(self) -> None:
         content = genai_types.Content(
@@ -255,7 +260,7 @@ class TestFunctionDeclarationConversion:
                     "properties": {
                         "value": {
                             "any_of": [{"type": "STRING"}, {"type": "NULL"}],
-                            "default": "fallback",
+                            "default": None,
                             "title": "Value",
                         }
                     },
@@ -272,7 +277,7 @@ class TestFunctionDeclarationConversion:
             "properties": {
                 "value": {
                     "anyOf": [{"type": "string"}, {"type": "null"}],
-                    "default": "fallback",
+                    "default": None,
                     "title": "Value",
                 }
             },

@@ -625,7 +625,11 @@ class _SchemaConversion:
             ans["properties"] = {
                 k: _SchemaConversion.from_google(v) for k, v in obj.properties.items()
             }
-        return {key: convert(value) for key, value in ans.items() if value is not None}
+        return {
+            key: convert(value)
+            for key, value in ans.items()
+            if value is not None or (key == "default" and "default" in obj.model_fields_set)
+        }
 
 
 class _ContentConversion:
@@ -683,8 +687,8 @@ class _ContentConversion:
                 assert function_response is not None
                 if not function_response.id and not function_response.name:
                     raise NotImplementedError(
-                        "Google GenAI function responses require an id, name, or preceding "
-                        "matching function call"
+                        "Google GenAI function responses require an id, name, "
+                        "or preceding matching function call"
                     )
                 if not function_response.name and (
                     tool_call_names is None
@@ -722,7 +726,9 @@ class _ToolCallContentPartConversion:
                     args = cast("dict[str, Any]", loaded)
         return genai_types.Part(
             function_call=genai_types.FunctionCall(
-                id=obj["tool_call_id"] or None,
+                id=(
+                    None if obj["tool_call_id"] == function["name"] else obj["tool_call_id"] or None
+                ),
                 name=function["name"],
                 args=args,
             )
@@ -764,10 +770,14 @@ class _ToolResultContentPartConversion:
         )
         return genai_types.Part(
             function_response=genai_types.FunctionResponse(
-                id=tool_call_id or None,
                 # Google identifies responses by function name; fall back to the call id
                 # when the originating tool call is not part of the same prompt.
                 name=tool_call_names.get(tool_call_id, tool_call_id),
+                id=(
+                    None
+                    if tool_call_id == tool_call_names.get(tool_call_id, tool_call_id)
+                    else tool_call_id or None
+                ),
                 response=response,
             )
         )
