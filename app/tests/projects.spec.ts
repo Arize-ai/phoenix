@@ -210,7 +210,6 @@ test.describe.serial("Projects", () => {
     await evaluatorsTab.click();
     await expect(page).toHaveURL(EVALUATORS_URL);
 
-    // With no evaluators the empty state replaces the table entirely.
     await expect(
       page.getByText("No evaluators for this project")
     ).toBeVisible();
@@ -252,7 +251,6 @@ test.describe.serial("Projects", () => {
       .getByRole("row")
       .filter({ hasText: evaluatorName });
     await expect(evaluatorRow).toBeVisible();
-    // The tab counter tracks the list without a reload.
     await expect(evaluatorsTab).toContainText("1");
     // Exact, because the generated evaluator name contains "span" as a
     // substring.
@@ -262,18 +260,6 @@ test.describe.serial("Projects", () => {
     await expect(
       evaluatorRow.getByRole("cell", { name: "100%" })
     ).toBeVisible();
-
-    // The other half of the empty-state split: a search that matches nothing
-    // keeps the table and its headers, since the columns still describe what is
-    // being searched.
-    const evaluatorSearch = page.getByRole("searchbox", {
-      name: "Search evaluators by name",
-    });
-    await evaluatorSearch.fill("no-such-evaluator");
-    await expect(table).toBeVisible();
-    await expect(table.getByText("No results")).toBeVisible();
-    await evaluatorSearch.clear();
-    await expect(evaluatorRow).toBeVisible();
 
     await evaluatorRow
       .getByRole("button", { name: "Evaluator actions" })

@@ -184,10 +184,9 @@ export function ProjectEvaluatorsTable({
     getRowId: (row) => row.id,
   });
   const rows = table.getRowModel().rows;
-  // A project with no evaluators at all is a first-run experience, not an empty
-  // list: the column headers would be chrome for a table that has nothing to
-  // describe, so the empty state replaces the table outright.
-  if (rows.length === 0 && !trimmedFilter) {
+  const isEmpty = rows.length === 0;
+  const isFiltered = trimmedFilter.length > 0;
+  if (isEmpty && !isFiltered) {
     return (
       <div css={scrollableAreaCSS}>
         <ProjectEvaluatorsEmptyState />
@@ -213,14 +212,12 @@ export function ProjectEvaluatorsTable({
             </tr>
           ))}
         </thead>
-        {/* Only reachable with a search active -- the unfiltered empty case
-            returned above -- so this always reads as "No results". */}
-        {rows.length === 0 ? (
+        {isEmpty ? (
           <TableEmptyWrap>
             <CompactEmptyState
               icon={<Icon svg={<Icons.Scale />} />}
               description="No evaluators"
-              isFiltered={!!trimmedFilter}
+              isFiltered={isFiltered}
             />
           </TableEmptyWrap>
         ) : (

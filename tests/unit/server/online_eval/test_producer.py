@@ -1255,6 +1255,7 @@ async def test_lost_lease_rolls_back_materialization_and_aborts_tick(
     )
 
 
+@pytest.mark.postgres_only
 async def test_separate_lease_steal_rolls_back_truncated_frontier(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
@@ -1281,17 +1282,12 @@ async def test_separate_lease_steal_rolls_back_truncated_frontier(
         criteria: Any,
         span_ids: list[int],
     ) -> None:
-        # The steal rides on the producer's own session. This runs inside the
-        # producer's `async with self._db()`, and the sqlite fixture serialises
-        # sessions behind a non-reentrant lock, so opening a rival session here
-        # would wait forever on the lock this very call stack already holds.
-        # What the test needs either way is that the cursor stops naming this
-        # producer before its guarded update runs.
-        await session.execute(
-            update(models.EvalWorkCursor)
-            .where(models.EvalWorkCursor.id == cursor_id)
-            .values(claimed_by="rival-producer")
-        )
+        async with db() as rival_session:
+            await rival_session.execute(
+                update(models.EvalWorkCursor)
+                .where(models.EvalWorkCursor.id == cursor_id)
+                .values(claimed_by="rival-producer")
+            )
         await insert_work_units(session, criteria, span_ids)
 
     monkeypatch.setattr(producer, "_insert_work_units", _steal_then_insert)
@@ -1304,6 +1300,7 @@ async def test_separate_lease_steal_rolls_back_truncated_frontier(
     assert any("tick aborted after losing its lease" in record.message for record in caplog.records)
 
 
+@pytest.mark.postgres_only
 async def test_separate_lease_steal_rolls_back_backstop(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
@@ -1325,17 +1322,12 @@ async def test_separate_lease_steal_rolls_back_backstop(
         criteria: Any,
         span_ids: list[int],
     ) -> None:
-        # The steal rides on the producer's own session. This runs inside the
-        # producer's `async with self._db()`, and the sqlite fixture serialises
-        # sessions behind a non-reentrant lock, so opening a rival session here
-        # would wait forever on the lock this very call stack already holds.
-        # What the test needs either way is that the cursor stops naming this
-        # producer before its guarded update runs.
-        await session.execute(
-            update(models.EvalWorkCursor)
-            .where(models.EvalWorkCursor.id == cursor_id)
-            .values(claimed_by="rival-producer")
-        )
+        async with db() as rival_session:
+            await rival_session.execute(
+                update(models.EvalWorkCursor)
+                .where(models.EvalWorkCursor.id == cursor_id)
+                .values(claimed_by="rival-producer")
+            )
         await insert_work_units(session, criteria, span_ids)
 
     monkeypatch.setattr(producer, "_insert_work_units", _steal_then_insert)

@@ -16,27 +16,13 @@ import type { projectEvaluatorOptionsQuery } from "@phoenix/pages/project/evalua
 import { projectEvaluatorOptionsQuery as projectEvaluatorOptionsQueryNode } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 
-// The Add evaluator menu is the overflow path for the full list.
 const MAX_COPY_CARDS = 4;
 const MAX_ATTACH_CARDS = 3;
+const EVALUATOR_CARD_HEIGHT = 90;
 
-// Cards are a fixed height so a description that runs long cannot make one card
-// taller than its neighbour, and so the skeleton can match them.
-const CARD_HEIGHT = 90;
-
-/**
- * The zero state for a project with no evaluators: what an evaluator does,
- * then the ways to add one.
- *
- * The layout is the dataset evaluators empty state's -- an {@link EmptyState}
- * over two columns of item cards, LLM on the left and code on the right -- so
- * the two surfaces read as the same thing.
- */
 export function ProjectEvaluatorsEmptyState() {
   return (
     <EmptyStateArea>
-      {/* EmptyStateArea already centers and offsets this block; the width cap
-          is what keeps the two columns from stretching on a wide viewport. */}
       <Flex
         direction="column"
         gap="size-300"
@@ -49,9 +35,9 @@ export function ProjectEvaluatorsEmptyState() {
           title="No evaluators for this project"
           description="Add an evaluator to score spans, traces, or sessions automatically as they arrive."
         />
-        <ErrorBoundary fallback={GalleryError}>
-          <Suspense fallback={<GallerySkeleton />}>
-            <Gallery />
+        <ErrorBoundary fallback={EvaluatorGalleryError}>
+          <Suspense fallback={<EvaluatorGallerySkeleton />}>
+            <EvaluatorGallery />
           </Suspense>
         </ErrorBoundary>
       </Flex>
@@ -59,13 +45,7 @@ export function ProjectEvaluatorsEmptyState() {
   );
 }
 
-/**
- * One column per evaluator kind: authoring from scratch at the top, then the
- * evaluators that already exist in this instance as one click each -- LLM
- * evaluators are copied so the project gets its own editable version, code
- * evaluators are attached by reference.
- */
-function Gallery() {
+function EvaluatorGallery() {
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
   const data = useLazyLoadQuery<projectEvaluatorOptionsQuery>(
@@ -146,11 +126,11 @@ function EvaluatorCard({
   );
 }
 
-function GallerySkeleton() {
+function EvaluatorGallerySkeleton() {
   const column = (
     <div css={evaluatorColumnCSS}>
-      <Skeleton height={CARD_HEIGHT} />
-      <Skeleton height={CARD_HEIGHT} />
+      <Skeleton height={EVALUATOR_CARD_HEIGHT} />
+      <Skeleton height={EVALUATOR_CARD_HEIGHT} />
     </div>
   );
   return (
@@ -161,7 +141,7 @@ function GallerySkeleton() {
   );
 }
 
-function GalleryError() {
+function EvaluatorGalleryError() {
   return (
     <Text size="S" color="text-500">
       Existing evaluators could not be loaded.
@@ -173,7 +153,7 @@ const evaluatorItemButtonCSS = css`
   display: flex;
   flex-direction: column;
   gap: var(--global-dimension-size-50);
-  height: ${CARD_HEIGHT}px;
+  height: ${EVALUATOR_CARD_HEIGHT}px;
   padding: var(--global-dimension-size-200);
   border-radius: var(--global-rounding-small);
   border: 1px solid var(--global-border-color-default);
