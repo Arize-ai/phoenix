@@ -72,9 +72,7 @@ describe("applyClientToolTimingMetadata", () => {
     // The transcript copy now matches the enriched wire payload, so building
     // a resend after toolTimings.clear() reproduces the persisted part.
     toolTimings.clear();
-    const part = updated[0]?.parts.find((candidate) =>
-      isToolUIPart(candidate)
-    );
+    const part = updated[0]?.parts.find((candidate) => isToolUIPart(candidate));
     expect(part).toMatchObject({
       callProviderMetadata: {
         phoenix: {
