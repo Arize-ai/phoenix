@@ -92,7 +92,7 @@ export function createEvaluatorSubmitClientAction<
         requiresUserAction: true,
         message: AWAITING_USER_MESSAGE,
       };
-      return { ok: true, output: JSON.stringify(output) };
+      return { ok: true, output };
     }
     const result = await host.submit({ approvalSource: "auto" });
     if (!result.ok) {
@@ -105,6 +105,6 @@ export function createEvaluatorSubmitClientAction<
       evaluator: result.evaluator,
       ...approvalOutcome({ decision: "accepted", source: "auto" }),
     };
-    return { ok: true, output: JSON.stringify(output) };
+    return { ok: true, output };
   };
 }

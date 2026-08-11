@@ -24,15 +24,11 @@ export function createSetVariableValuesClientAction({
 
     return {
       ok: true,
-      output: JSON.stringify(
-        {
-          status: "updated",
-          variables: variableKeys,
-          message: `Set ${variableKeys.length} playground variable value${variableKeys.length === 1 ? "" : "s"}.`,
-        },
-        null,
-        2
-      ),
+      output: {
+        status: "updated",
+        variables: variableKeys,
+        message: `Set ${variableKeys.length} playground variable value${variableKeys.length === 1 ? "" : "s"}.`,
+      },
     };
   };
 }

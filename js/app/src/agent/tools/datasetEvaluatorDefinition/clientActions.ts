@@ -70,14 +70,10 @@ export function createReadDatasetEvaluatorDefinitionClientAction({
 
     return {
       ok: true,
-      output: JSON.stringify(
-        {
-          datasetEvaluatorDefinitions: definitions,
-          ...(errors.length > 0 ? { errors } : {}),
-        },
-        null,
-        2
-      ),
+      output: {
+        datasetEvaluatorDefinitions: definitions,
+        ...(errors.length > 0 ? { errors } : {}),
+      },
     };
   };
 }

@@ -46,17 +46,13 @@ export function createSetTemplateVariablesPathClientAction({
 
     return {
       ok: true,
-      output: JSON.stringify(
-        {
-          status: "updated",
-          templateVariablesPath,
-          message: templateVariablesPath
-            ? `Set template variables path to "${templateVariablesPath}".`
-            : "Set template variables path to the example root.",
-        },
-        null,
-        2
-      ),
+      output: {
+        status: "updated",
+        templateVariablesPath,
+        message: templateVariablesPath
+          ? `Set template variables path to "${templateVariablesPath}".`
+          : "Set template variables path to the example root.",
+      },
     };
   };
 }

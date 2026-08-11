@@ -33,6 +33,12 @@ export function abortActiveUiScriptRun({
 }
 
 type ExecuteUiInput = {
+  /**
+   * User-facing sentence describing what the script accomplishes, rendered as
+   * the tool part's preview. Required by the advertised schema but parsed
+   * leniently — the preview falls back to the script when it is missing.
+   */
+  summary?: string;
   script: string;
 };
 
@@ -40,11 +46,17 @@ function parseExecuteUiInput(input: unknown): ExecuteUiInput | null {
   if (typeof input !== "object" || input === null) {
     return null;
   }
-  const candidate = input as { script?: unknown };
+  const candidate = input as { summary?: unknown; script?: unknown };
   if (typeof candidate.script !== "string" || candidate.script.trim() === "") {
     return null;
   }
-  return { script: candidate.script };
+  return {
+    summary:
+      typeof candidate.summary === "string" && candidate.summary.trim() !== ""
+        ? candidate.summary
+        : undefined,
+    script: candidate.script,
+  };
 }
 
 /** Render a completed run as the model-facing tool output. */

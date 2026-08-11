@@ -152,18 +152,14 @@ export function createSetPlaygroundModelClientAction({
     );
     return {
       ok: true,
-      output: JSON.stringify(
-        {
-          instanceId: instance.id,
-          label: getInstanceLabel(instanceIndex),
-          provider,
-          modelName: selectedModelName,
-          ...(customProvider ? { customProvider } : {}),
-          message: "Playground model updated.",
-        },
-        null,
-        2
-      ),
+      output: {
+        instanceId: instance.id,
+        label: getInstanceLabel(instanceIndex),
+        provider,
+        modelName: selectedModelName,
+        ...(customProvider ? { customProvider } : {}),
+        message: "Playground model updated.",
+      },
     };
   };
 }
@@ -201,16 +197,12 @@ export function createListPlaygroundModelTargetsClientAction({
 
     return {
       ok: true,
-      output: JSON.stringify(
-        {
-          builtinModels,
-          customProviderModels,
-          message:
-            "Use the returned target payloads when calling set_playground_model.",
-        },
-        null,
-        2
-      ),
+      output: {
+        builtinModels,
+        customProviderModels,
+        message:
+          "Use the returned target payloads when calling set_playground_model.",
+      },
     };
   };
 }

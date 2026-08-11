@@ -66,20 +66,16 @@ export function createSetPlaygroundExperimentRecordingClientAction({
 
     return {
       ok: true,
-      output: JSON.stringify(
-        {
-          status: "updated",
-          previousRecordExperiments,
-          recordExperiments: parsed.recordExperiments,
-          mode,
-          nextExperimentScaffold: scaffold,
-          message: parsed.recordExperiments
-            ? "Future dataset-backed playground runs will be recorded as experiments."
-            : "Future dataset-backed playground runs will be temporary and unrecorded.",
-        },
-        null,
-        2
-      ),
+      output: {
+        status: "updated",
+        previousRecordExperiments,
+        recordExperiments: parsed.recordExperiments,
+        mode,
+        nextExperimentScaffold: scaffold,
+        message: parsed.recordExperiments
+          ? "Future dataset-backed playground runs will be recorded as experiments."
+          : "Future dataset-backed playground runs will be temporary and unrecorded.",
+      },
     };
   };
 }

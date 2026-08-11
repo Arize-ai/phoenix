@@ -64,8 +64,11 @@ describe("set_dataset_evaluator_selection client action", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.output).not.toContain(longName);
-      expect(result.output).toContain("…");
+      const output = result.output as {
+        applied: Array<{ datasetEvaluatorId: string; name: string }>;
+      };
+      expect(output.applied[0]?.name).not.toContain(longName);
+      expect(output.applied[0]?.name).toContain("…");
     }
   });
 

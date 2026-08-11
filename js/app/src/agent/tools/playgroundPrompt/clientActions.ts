@@ -22,7 +22,7 @@ import type { PendingPromptEdit, PendingPromptInstanceRemoval } from "./types";
 
 /**
  * Creates the client action handler for the read_prompt_instance tool.
- * Returns the current prompt snapshot as JSON.
+ * Returns the current prompt snapshot as a structured object.
  */
 export function createReadPromptClientAction({
   playgroundStore,
@@ -41,7 +41,7 @@ export function createReadPromptClientAction({
     if (!snapshot.ok) {
       return snapshot;
     }
-    return { ok: true, output: JSON.stringify(snapshot.output, null, 2) };
+    return snapshot;
   };
 }
 
@@ -59,15 +59,10 @@ export function createClonePromptInstanceClientAction({
     if (!parsed) {
       return { ok: false, error: "Invalid clone_prompt_instance input." };
     }
-    const result = clonePromptInstance({
+    return clonePromptInstance({
       playgroundStore,
       instanceId: parsed.instanceId,
     });
-    if (!result.ok) return result;
-    return {
-      ok: true,
-      output: JSON.stringify(result.output, null, 2),
-    };
   };
 }
 
@@ -86,12 +81,7 @@ export function createAddPromptInstanceClientAction({
     if (!parsed) {
       return { ok: false, error: "Invalid add_prompt_instance input." };
     }
-    const result = addPromptInstance({ playgroundStore });
-    if (!result.ok) return result;
-    return {
-      ok: true,
-      output: JSON.stringify(result.output, null, 2),
-    };
+    return addPromptInstance({ playgroundStore });
   };
 }
 

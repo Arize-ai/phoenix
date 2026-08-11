@@ -160,9 +160,6 @@ export function createReadPlaygroundOutputClientAction({
           : "Playground output read.",
     };
 
-    return {
-      ok: true,
-      output: JSON.stringify(output, null, 2),
-    };
+    return { ok: true, output };
   };
 }

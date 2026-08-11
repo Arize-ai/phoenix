@@ -99,15 +99,11 @@ export function createRunPlaygroundClientAction({
 
     return {
       ok: true,
-      output: JSON.stringify(
-        {
-          status: "started",
-          instances,
-          message: "Playground run started.",
-        },
-        null,
-        2
-      ),
+      output: {
+        status: "started",
+        instances,
+        message: "Playground run started.",
+      },
     };
   };
 }
@@ -151,16 +147,12 @@ export function createCancelPlaygroundRunClientAction({
 
     return {
       ok: true,
-      output: JSON.stringify(
-        {
-          status: "cancelled",
-          instances: result.instances,
-          experimentIds: result.experimentIds,
-          message: "Playground run cancelled.",
-        },
-        null,
-        2
-      ),
+      output: {
+        status: "cancelled",
+        instances: result.instances,
+        experimentIds: result.experimentIds,
+        message: "Playground run cancelled.",
+      },
     };
   };
 }
