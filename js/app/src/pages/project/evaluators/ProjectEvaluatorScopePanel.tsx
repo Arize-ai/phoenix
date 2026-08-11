@@ -69,7 +69,10 @@ import {
   toProjectEvaluatorSamplingFraction,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
-import { SpanFilterConditionFieldCore } from "@phoenix/pages/project/SpanFilterConditionField";
+import {
+  SpanFilterConditionFieldCore,
+  type SpanFilterValidConditionArgs,
+} from "@phoenix/pages/project/SpanFilterConditionField";
 import type {
   CodeEvaluatorLanguage,
   EvaluatorMappingSource,
@@ -288,7 +291,9 @@ function ScopeEditorCard({
   const [filterConditionDraft, setFilterConditionDraft] = useState(
     scope.filterCondition
   );
-  const handleValidCondition = (filterCondition: string) => {
+  const handleValidCondition = ({
+    condition: filterCondition,
+  }: SpanFilterValidConditionArgs) => {
     if (filterCondition === scope.filterCondition) {
       return;
     }

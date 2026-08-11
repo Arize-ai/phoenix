@@ -20,7 +20,7 @@ from . import (
     _verify_clean_state,
 )
 
-_DOWN = "c9d0e1f2a3b4"
+_DOWN = "4aad9107d196"
 _UP = "a7f1c3e9d2b4"
 _SQLITE_PROJECT_SESSION_DESC_INDEX_SQL = {
     "ix_project_sessions_project_id_end_time": (
