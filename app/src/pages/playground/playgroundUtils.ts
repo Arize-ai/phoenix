@@ -182,6 +182,7 @@ export function processAttributeToolCalls({
         case "FIREWORKS":
         case "GROQ":
         case "MOONSHOT":
+        case "MINIMAX":
         case "PERPLEXITY":
         case "TOGETHER":
           return {
@@ -1379,6 +1380,7 @@ export const createToolCallForProvider = (
     case "FIREWORKS":
     case "GROQ":
     case "MOONSHOT":
+    case "MINIMAX":
     case "PERPLEXITY":
     case "TOGETHER":
       return createOpenAIToolCall();
@@ -1852,7 +1854,7 @@ export function getToolDefinitionDisplay(
     };
   }
   // OpenAI-compatible: OPENAI, AZURE_OPENAI, DEEPSEEK, XAI, OLLAMA, CEREBRAS,
-  // FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER
+  // FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER
   return {
     type: "function",
     function: {

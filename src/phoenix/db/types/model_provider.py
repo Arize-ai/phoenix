@@ -135,6 +135,7 @@ class ModelProvider(Enum):
     FIREWORKS = "FIREWORKS"
     GROQ = "GROQ"
     MOONSHOT = "MOONSHOT"
+    MINIMAX = "MINIMAX"
     PERPLEXITY = "PERPLEXITY"
     TOGETHER = "TOGETHER"
 
@@ -161,6 +162,7 @@ def is_sdk_compatible_with_model_provider(
             ModelProvider.FIREWORKS,
             ModelProvider.GROQ,
             ModelProvider.MOONSHOT,
+            ModelProvider.MINIMAX,
             ModelProvider.PERPLEXITY,
             ModelProvider.TOGETHER,
         )

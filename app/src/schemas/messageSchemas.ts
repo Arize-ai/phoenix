@@ -416,6 +416,7 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
     case "FIREWORKS":
     case "GROQ":
     case "MOONSHOT":
+    case "MINIMAX":
     case "PERPLEXITY":
     case "TOGETHER":
       return message as ProviderToMessageMap[T];
@@ -453,6 +454,7 @@ type ProviderToMessageMap = {
   FIREWORKS: OpenAIMessage;
   GROQ: OpenAIMessage;
   MOONSHOT: OpenAIMessage;
+  MINIMAX: OpenAIMessage;
   PERPLEXITY: OpenAIMessage;
   TOGETHER: OpenAIMessage;
   AWS: AwsMessage;

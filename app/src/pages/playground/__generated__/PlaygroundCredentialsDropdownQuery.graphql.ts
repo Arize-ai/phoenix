@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fc9997751b59d6144a190fab4331d960>>
+ * @generated SignedSource<<0ec5f31d133d9701f848bb66b2656443>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type PlaygroundCredentialsDropdownQuery$variables = Record<PropertyKey, never>;
 export type PlaygroundCredentialsDropdownQuery$data = {
   readonly modelProviders: ReadonlyArray<{

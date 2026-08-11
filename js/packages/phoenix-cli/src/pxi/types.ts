@@ -47,6 +47,7 @@ export type BuiltInProvider =
   | "FIREWORKS"
   | "GOOGLE"
   | "GROQ"
+  | "MINIMAX"
   | "MOONSHOT"
   | "OLLAMA"
   | "OPENAI"

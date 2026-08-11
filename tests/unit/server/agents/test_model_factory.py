@@ -7,6 +7,7 @@ import pytest
 from phoenix.db.types.model_provider import (
     AnthropicCustomProviderConfig,
     AzureOpenAICustomProviderConfig,
+    ModelProvider,
     OpenAICustomProviderConfig,
 )
 from phoenix.server.agents.exceptions import (
@@ -65,6 +66,24 @@ class TestBuildModel:
 
         assert exc_info.value.status_code == 400
         assert "OPENAI_API_KEY" in str(exc_info.value)
+
+    async def test_builtin_minimax_uses_configured_endpoint(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("MINIMAX_API_KEY", "test-key")
+        monkeypatch.setenv("MINIMAX_BASE_URL", "https://api.minimaxi.com/v1")
+        params = BuiltInProviderModelSelection(
+            provider_type="builtin",
+            provider=ModelProvider.MINIMAX,
+            model_name="MiniMax-M3",
+        )
+
+        async with db() as session:
+            model = await build_model(params, session=session, decrypt=lambda value: value)
+
+        assert str(cast(Any, model)._provider.client.base_url) == "https://api.minimaxi.com/v1/"
 
 
 class TestCustomProviderModels:

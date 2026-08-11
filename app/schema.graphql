@@ -2283,6 +2283,7 @@ enum GenerativeProviderKey {
   FIREWORKS
   GROQ
   MOONSHOT
+  MINIMAX
   PERPLEXITY
   TOGETHER
 }
@@ -2431,6 +2432,7 @@ enum ModelProvider {
   FIREWORKS
   GROQ
   MOONSHOT
+  MINIMAX
   PERPLEXITY
   TOGETHER
 }

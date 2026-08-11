@@ -40,6 +40,7 @@ export const TOOL_CHOICE_CONFIG_BY_PROVIDER = {
   FIREWORKS: { oneOrMoreToken: "required" },
   GROQ: { oneOrMoreToken: "required" },
   MOONSHOT: { oneOrMoreToken: "required" },
+  MINIMAX: { oneOrMoreToken: "required" },
   PERPLEXITY: { oneOrMoreToken: "required" },
   TOGETHER: { oneOrMoreToken: "required" },
   ANTHROPIC: { oneOrMoreToken: "any" },

@@ -12,6 +12,8 @@ from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.context import Context
 from phoenix.trace.attributes import get_attribute_value
 
+MINIMAX_MODEL_NAMES = ("MiniMax-M3", "MiniMax-M2.7")
+
 
 @strawberry.enum
 class GenerativeProviderKey(Enum):
@@ -27,6 +29,7 @@ class GenerativeProviderKey(Enum):
     FIREWORKS = "Fireworks"
     GROQ = "Groq"
     MOONSHOT = "Moonshot"
+    MINIMAX = "MiniMax"
     PERPLEXITY = "Perplexity"
     TOGETHER = "Together"
 
@@ -58,6 +61,8 @@ class GenerativeProviderKey(Enum):
             return cls.GROQ
         elif model_provider is ModelProvider.MOONSHOT:
             return cls.MOONSHOT
+        elif model_provider is ModelProvider.MINIMAX:
+            return cls.MINIMAX
         elif model_provider is ModelProvider.PERPLEXITY:
             return cls.PERPLEXITY
         elif model_provider is ModelProvider.TOGETHER:
@@ -89,6 +94,8 @@ class GenerativeProviderKey(Enum):
             return ModelProvider.GROQ
         if self is GenerativeProviderKey.MOONSHOT:
             return ModelProvider.MOONSHOT
+        if self is GenerativeProviderKey.MINIMAX:
+            return ModelProvider.MINIMAX
         if self is GenerativeProviderKey.PERPLEXITY:
             return ModelProvider.PERPLEXITY
         if self is GenerativeProviderKey.TOGETHER:
@@ -110,6 +117,7 @@ GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING: Mapping[GenerativeProviderKey, str] 
         GenerativeProviderKey.FIREWORKS: "fireworks",
         GenerativeProviderKey.GROQ: "groq",
         GenerativeProviderKey.MOONSHOT: "moonshot",
+        GenerativeProviderKey.MINIMAX: "minimax",
         GenerativeProviderKey.PERPLEXITY: "perplexity",
         GenerativeProviderKey.TOGETHER: "together",
     }
@@ -152,6 +160,7 @@ class GenerativeProvider:
         GenerativeProviderKey.FIREWORKS: ["accounts/fireworks"],
         GenerativeProviderKey.GROQ: [],
         GenerativeProviderKey.MOONSHOT: ["moonshot", "kimi"],
+        GenerativeProviderKey.MINIMAX: ["minimax"],
         GenerativeProviderKey.PERPLEXITY: ["sonar"],
         GenerativeProviderKey.TOGETHER: [],
     }
@@ -209,6 +218,9 @@ class GenerativeProvider:
         ],
         GenerativeProviderKey.MOONSHOT: [
             GenerativeProviderCredentialConfig(env_var_name="MOONSHOT_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.MINIMAX: [
+            GenerativeProviderCredentialConfig(env_var_name="MINIMAX_API_KEY", is_required=True)
         ],
         GenerativeProviderKey.PERPLEXITY: [
             GenerativeProviderCredentialConfig(env_var_name="PERPLEXITY_API_KEY", is_required=True)

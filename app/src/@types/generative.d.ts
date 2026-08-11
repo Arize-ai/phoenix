@@ -12,6 +12,7 @@ declare type ModelProvider =
   | "FIREWORKS"
   | "GROQ"
   | "MOONSHOT"
+  | "MINIMAX"
   | "PERPLEXITY"
   | "TOGETHER";
 

@@ -16,5 +16,6 @@ export const PromptModelProviders: Record<PromptModelProvider, string> = {
   FIREWORKS: "Fireworks",
   GROQ: "Groq",
   MOONSHOT: "Moonshot",
+  MINIMAX: "MiniMax",
   PERPLEXITY: "Perplexity",
 };

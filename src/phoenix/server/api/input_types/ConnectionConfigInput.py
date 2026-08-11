@@ -54,6 +54,7 @@ OPENAI_SDK_STYLE_PROVIDER_KEYS: frozenset[GenerativeProviderKey] = frozenset(
         GenerativeProviderKey.FIREWORKS,
         GenerativeProviderKey.GROQ,
         GenerativeProviderKey.MOONSHOT,
+        GenerativeProviderKey.MINIMAX,
         GenerativeProviderKey.PERPLEXITY,
         GenerativeProviderKey.TOGETHER,
     }

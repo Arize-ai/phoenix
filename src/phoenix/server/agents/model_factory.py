@@ -488,6 +488,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
         ModelProvider.FIREWORKS,
         ModelProvider.GROQ,
         ModelProvider.MOONSHOT,
+        ModelProvider.MINIMAX,
         ModelProvider.PERPLEXITY,
         ModelProvider.TOGETHER,
     }:
@@ -542,6 +543,13 @@ async def _get_pydantic_ai_model_from_builtin_provider(
                 "https://api.moonshot.ai/v1",
                 "An API key is required for Moonshot models. "
                 "Set MOONSHOT_API_KEY in the environment or Phoenix secrets.",
+            ),
+            ModelProvider.MINIMAX: (
+                "MINIMAX_API_KEY",
+                getenv("MINIMAX_BASE_URL") or "https://api.minimax.io/v1",
+                "https://api.minimax.io/v1",
+                "An API key is required for MiniMax models. "
+                "Set MINIMAX_API_KEY in the environment or Phoenix secrets.",
             ),
             ModelProvider.PERPLEXITY: (
                 "PERPLEXITY_API_KEY",
