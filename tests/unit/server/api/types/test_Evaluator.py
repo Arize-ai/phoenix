@@ -107,6 +107,31 @@ class TestEvaluatorFields:
             session.add_all([de_1, de_2])
             await session.flush()
 
+            # Project evaluator associations for the untagged evaluator
+            project_a = models.Project(name=f"project-a-{token_hex(4)}")
+            project_b = models.Project(name=f"project-b-{token_hex(4)}")
+            session.add_all([project_a, project_b])
+            await session.flush()
+
+            criteria_1 = models.ProjectEvaluatorCriteria(
+                project_id=project_a.id,
+                evaluator_id=untagged.id,
+                name=Identifier("criteria_one"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="SPAN",
+            )
+            criteria_2 = models.ProjectEvaluatorCriteria(
+                project_id=project_b.id,
+                evaluator_id=untagged.id,
+                name=Identifier("criteria_two"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="SPAN",
+            )
+            session.add_all([criteria_1, criteria_2])
+            await session.flush()
+
         ids = {
             "prompt": prompt.id,
             "v1": v1.id,
@@ -116,6 +141,8 @@ class TestEvaluatorFields:
             "tagged": tagged.id,
             "de_1": de_1.id,
             "de_2": de_2.id,
+            "project_a": project_a.id,
+            "project_b": project_b.id,
         }
         yield ids
 
@@ -201,6 +228,48 @@ class TestEvaluatorFields:
         )
         assert not resp.errors and resp.data
         assert resp.data["node"]["datasetEvaluators"] == []
+
+    async def test_projects_field(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """Test Evaluator.projects returns projects associated via project evaluator criteria."""
+        # Untagged evaluator is attached to two projects as a project evaluator
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on Evaluator {
+                        projects(first: 10) {
+                            edges { node { id name } }
+                        }
+                    }
+                }
+            }""",
+            variables={"id": str(GlobalID(LLMEvaluator.__name__, str(_test_data["untagged"])))},
+        )
+        assert not resp.errors and resp.data
+        projects = [edge["node"] for edge in resp.data["node"]["projects"]["edges"]]
+        returned_ids = [project["id"] for project in projects]
+        # Sorted by project name ascending: project-a before project-b
+        assert returned_ids == [
+            str(GlobalID("Project", str(_test_data["project_a"]))),
+            str(GlobalID("Project", str(_test_data["project_b"]))),
+        ]
+
+        # Tagged evaluator is not attached to any project
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on Evaluator {
+                        projects(first: 10) {
+                            edges { node { id } }
+                        }
+                    }
+                }
+            }""",
+            variables={"id": str(GlobalID(LLMEvaluator.__name__, str(_test_data["tagged"])))},
+        )
+        assert not resp.errors and resp.data
+        assert resp.data["node"]["projects"]["edges"] == []
 
 
 class TestDatasetEvaluatorDescriptionFallback:
