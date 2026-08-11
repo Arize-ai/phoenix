@@ -40,6 +40,11 @@ export type UiScriptWorkerLike = {
     type: "message",
     listener: (event: MessageEvent) => void
   ): void;
+  addEventListener(
+    type: "error",
+    listener: (event: { message?: string }) => void
+  ): void;
+  addEventListener(type: "messageerror", listener: () => void): void;
   terminate(): void;
 };
 
@@ -217,6 +222,27 @@ export function runUiScript({
           void handleOperationCall(message);
           break;
       }
+    });
+
+    // Backstop for failures the message protocol never gets to report:
+    // worker boot errors (module load, CSP blocking `new Function`) and
+    // uncaught worker-realm errors. Without this the run silently burns the
+    // whole execution budget and reports a misleading timeout.
+    worker.addEventListener("error", (event) => {
+      settle({
+        ok: false,
+        error: `The script worker crashed: ${event.message ?? "unknown error"}`,
+        callCount,
+        logs,
+      });
+    });
+    worker.addEventListener("messageerror", () => {
+      settle({
+        ok: false,
+        error: "The script worker sent a message that could not be read.",
+        callCount,
+        logs,
+      });
     });
 
     registerAbort?.((reason) => {

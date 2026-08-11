@@ -108,6 +108,12 @@ function serializeReturnValue(value: unknown): string {
   }
 }
 
+function describeError(error: unknown): string {
+  return error instanceof Error
+    ? `${error.name}: ${error.message}`
+    : String(error);
+}
+
 async function evaluateUiScript(script: string) {
   removeBlockedGlobals();
   const ui = createUiProxy();
@@ -117,12 +123,25 @@ async function evaluateUiScript(script: string) {
   // The script body may `await` ui calls and `return` a final value. Dynamic
   // evaluation is the point of this worker: the agent-authored script is data
   // arriving at runtime, and this realm holds nothing but the `ui` bridge.
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval
-  const runner = new Function(
-    "ui",
-    "log",
-    `"use strict"; return (async () => {\n${script}\n})();`
-  );
+  // Compilation gets its own failure message: a script that does not parse
+  // must fail loudly and immediately (not escape as an unhandled rejection
+  // and burn the whole execution budget in silence), and "failed to parse"
+  // tells the model to fix its syntax rather than re-issue the script.
+  let runner: (ui: unknown, log: (message: unknown) => void) => unknown;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    runner = new Function(
+      "ui",
+      "log",
+      `"use strict"; return (async () => {\n${script}\n})();`
+    ) as typeof runner;
+  } catch (error) {
+    workerScope.postMessage({
+      type: "failed",
+      error: `The script failed to parse — fix the syntax and retry. ${describeError(error)}`,
+    });
+    return;
+  }
   try {
     const returnValue: unknown = await runner(ui, log);
     workerScope.postMessage({
@@ -132,7 +151,7 @@ async function evaluateUiScript(script: string) {
   } catch (error) {
     workerScope.postMessage({
       type: "failed",
-      error: error instanceof Error ? error.message : String(error),
+      error: describeError(error),
     });
   }
 }
