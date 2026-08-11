@@ -52,8 +52,10 @@ import type {
   SpanPlaygroundPageLoaderData,
 } from "./pages";
 import {
+  AttachCodeProjectEvaluatorPage,
   AuthenticatedRoot,
   authenticatedRootLoader,
+  CopyLlmProjectEvaluatorPage,
   dashboardsLoader,
   DashboardsEmptyPage,
   DashboardsRoot,
@@ -63,6 +65,7 @@ import {
   DatasetsPage,
   datasetVersionsLoader,
   DatasetVersionsPage,
+  EditProjectEvaluatorPage,
   ErrorElement,
   ExamplePage,
   examplesLoader,
@@ -74,6 +77,8 @@ import {
   homeLoader,
   LoggedOutPage,
   LoginPage,
+  NewCodeProjectEvaluatorPage,
+  NewLlmProjectEvaluatorPage,
   OAuth2ConsentPage,
   PlaygroundPage,
   playgroundPageLoader,
@@ -84,6 +89,7 @@ import {
   ProfilePage,
   ProfilePreferencesPage,
   ProjectEvaluatorsPage,
+  projectEvaluatorsLoader,
   ProjectIndexPage,
   projectLoader,
   ProjectMetricsPage,
@@ -452,6 +458,7 @@ export const appRouteObjects = createRoutesFromElements(
               <Route
                 path="evaluators"
                 element={<ProjectEvaluatorsPage />}
+                loader={projectEvaluatorsLoader}
                 handle={{
                   agentRoute: {
                     label: "Project Evaluators",
@@ -459,7 +466,63 @@ export const appRouteObjects = createRoutesFromElements(
                       "Create and manage project evaluators — online evals that automatically run against live spans.",
                   },
                 }}
-              />
+              >
+                <Route
+                  path="new/llm"
+                  element={<NewLlmProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "New Project LLM Evaluator",
+                      description:
+                        "Author a new LLM-as-a-judge evaluator for a project from scratch.",
+                    },
+                  }}
+                />
+                <Route
+                  path="new/code"
+                  element={<NewCodeProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "New Project Code Evaluator",
+                      description:
+                        "Author a new Python or TypeScript code evaluator for a project from scratch.",
+                    },
+                  }}
+                />
+                <Route
+                  path="new/copy/:evaluatorId"
+                  element={<CopyLlmProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Copy LLM Evaluator Into Project",
+                      description:
+                        "Create a project evaluator seeded from an existing LLM evaluator. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being copied.",
+                    },
+                  }}
+                />
+                <Route
+                  path="new/attach/:evaluatorId"
+                  element={<AttachCodeProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Attach Code Evaluator To Project",
+                      description:
+                        "Attach an existing code evaluator to a project. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being attached.",
+                    },
+                  }}
+                />
+                <Route
+                  path=":projectEvaluatorId/edit"
+                  element={<EditProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Edit Project Evaluator",
+                      description:
+                        "Edit a project evaluator's definition and scope. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                    },
+                  }}
+                />
+              </Route>
             </Route>
           </Route>
         </Route>
