@@ -25,9 +25,15 @@ import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/eval
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
-import { ProjectEvaluatorsEmptyGallery } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyGallery";
+import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
 
 const PAGE_SIZE = 30;
+
+const scrollableAreaCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+`;
 
 const readRow = (row: ProjectEvaluatorsTable_row$key) => {
   return readInlineData(
@@ -178,15 +184,21 @@ export function ProjectEvaluatorsTable({
     getRowId: (row) => row.id,
   });
   const rows = table.getRowModel().rows;
+  // A project with no evaluators at all is a first-run experience, not an empty
+  // list: the column headers would be chrome for a table that has nothing to
+  // describe, so the empty state replaces the table outright. A search that
+  // matches nothing keeps the table, since the columns still describe what is
+  // being searched.
+  if (rows.length === 0 && !trimmedFilter) {
+    return (
+      <div css={scrollableAreaCSS}>
+        <ProjectEvaluatorsEmptyState />
+      </div>
+    );
+  }
   return (
     <>
-      <div
-        css={css`
-          flex: 1 1 auto;
-          min-height: 0;
-          overflow: auto;
-        `}
-      >
+      <div css={scrollableAreaCSS}>
         <table css={tableCSS} aria-label="Project evaluators">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -205,17 +217,13 @@ export function ProjectEvaluatorsTable({
             ))}
           </thead>
           {rows.length === 0 ? (
-            trimmedFilter ? (
-              <TableEmptyWrap>
-                <CompactEmptyState
-                  icon={<Icon svg={<Icons.Scale />} />}
-                  description="No evaluators match your search"
-                  isFiltered
-                />
-              </TableEmptyWrap>
-            ) : (
-              <ProjectEvaluatorsEmptyGallery />
-            )
+            <TableEmptyWrap>
+              <CompactEmptyState
+                icon={<Icon svg={<Icons.Scale />} />}
+                description="No evaluators match your search"
+                isFiltered
+              />
+            </TableEmptyWrap>
           ) : (
             <tbody>
               {rows.map((row) => (

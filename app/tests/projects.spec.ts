@@ -208,6 +208,16 @@ test.describe.serial("Projects", () => {
 
     await page.getByRole("tab", { name: "Evaluators" }).click();
     await expect(page).toHaveURL(EVALUATORS_URL);
+
+    // A project with no evaluators is a first-run experience: the empty state
+    // replaces the table rather than sitting under empty column headers.
+    await expect(
+      page.getByText("No evaluators for this project")
+    ).toBeVisible();
+    await expect(
+      page.getByRole("table", { name: "Project evaluators" })
+    ).toHaveCount(0);
+
     await page.getByRole("button", { name: "Add evaluator" }).click();
     await page
       .getByRole("menuitem", { name: "Create new LLM evaluator" })
