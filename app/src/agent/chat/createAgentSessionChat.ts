@@ -111,7 +111,8 @@ export function createAgentSessionChat({
     getShouldSendAutomatically: (messages) =>
       shouldSendAutomaticallyAfterToolOutput({
         messages,
-        interruptedToolCallIds: store.getState().interruptedToolCallIds,
+        locallyInterruptedToolCallIds:
+          store.getState().locallyInterruptedToolCallIds,
       }),
     endTurn: async () => {
       store.getState().setSessionResponsePending(sessionId, false);
@@ -158,8 +159,6 @@ export function createAgentSessionChat({
       sessionId,
       addToolOutput: async ({ outcome, ...toolOutput }) => {
         toolTimings.recordEnd(toolCall.toolCallId);
-        // Mark before adding the output: the output fires
-        // `sendAutomaticallyWhen`, which reads the mark.
         if (outcome === "interrupted") {
           store.getState().markToolCallInterrupted(toolCall.toolCallId);
         }
@@ -204,7 +203,8 @@ export function createAgentSessionChat({
             contexts: selectActiveContexts(store.getState()),
             modelSelection,
             toolTimings,
-            interruptedToolCallIds: store.getState().interruptedToolCallIds,
+            locallyInterruptedToolCallIds:
+              store.getState().locallyInterruptedToolCallIds,
           }),
         };
       },
@@ -234,7 +234,8 @@ export function createAgentSessionChat({
             flushUrl: toolOutputsApiUrl,
             fetch: authFetch,
             toolTimings,
-            interruptedToolCallIds: store.getState().interruptedToolCallIds,
+            locallyInterruptedToolCallIds:
+              store.getState().locallyInterruptedToolCallIds,
           });
         }
         return false;

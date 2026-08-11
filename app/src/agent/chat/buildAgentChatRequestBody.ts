@@ -14,7 +14,7 @@ import {
 import { isResolvedClientToolOutputPart } from "./chatUtils";
 import type { ClientToolTimingRecorder } from "./clientToolTimings";
 import { toServerSafeUIMessages } from "./serverSafeMessages";
-import type { InterruptedToolCallIds } from "./shouldSendAutomatically";
+import type { LocallyInterruptedToolCallIds } from "./shouldSendAutomatically";
 import type { AgentUIMessage } from "./types";
 
 export type AgentModelSelection =
@@ -45,8 +45,8 @@ type BuildAgentChatRequestBodyOptions = {
   modelSelection: AgentModelSelection;
   /** Browser execution timings added to completed client-tool parts. */
   toolTimings?: ClientToolTimingRecorder | null;
-  /** Tool calls this client resolved as interrupted; stamped as `phoenix.outcome` on outgoing parts. */
-  interruptedToolCallIds?: InterruptedToolCallIds;
+  /** Tool calls this client resolved as interrupted. */
+  locallyInterruptedToolCallIds?: LocallyInterruptedToolCallIds;
 };
 
 type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequestBody"];
@@ -136,7 +136,7 @@ export function buildAgentChatRequestBody({
   contexts,
   modelSelection,
   toolTimings = null,
-  interruptedToolCallIds = {},
+  locallyInterruptedToolCallIds = {},
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   const traceRecording = getEffectiveTraceRecordingSettings({
     agentsConfig,
@@ -169,7 +169,7 @@ export function buildAgentChatRequestBody({
     const enrichedAssistant = enrichMessageWithClientToolMetadata({
       message: trailingMessage,
       toolTimings,
-      interruptedToolCallIds,
+      locallyInterruptedToolCallIds,
     });
     const toolOutputs = getClientToolOutputs(enrichedAssistant);
     if (toolOutputs.length === 0) {
@@ -188,7 +188,7 @@ export function buildAgentChatRequestBody({
     enrichMessageWithClientToolMetadata({
       message: trailingMessage,
       toolTimings,
-      interruptedToolCallIds,
+      locallyInterruptedToolCallIds,
     }),
   ]);
   if (!message) {
@@ -206,7 +206,7 @@ export function buildAgentChatRequestBody({
           enrichMessageWithClientToolMetadata({
             message: precedingMessage,
             toolTimings,
-            interruptedToolCallIds,
+            locallyInterruptedToolCallIds,
           })
         )
       : [];
@@ -246,11 +246,11 @@ function getLastPersistedMessageId(
 export function enrichMessageWithClientToolMetadata({
   message,
   toolTimings,
-  interruptedToolCallIds = {},
+  locallyInterruptedToolCallIds = {},
 }: {
   message: AgentUIMessage;
   toolTimings: ClientToolTimingRecorder | null;
-  interruptedToolCallIds?: InterruptedToolCallIds;
+  locallyInterruptedToolCallIds?: LocallyInterruptedToolCallIds;
 }): AgentUIMessage {
   let hasChangedPart = false;
   const parts = message.parts.map((part) => {
@@ -261,7 +261,8 @@ export function enrichMessageWithClientToolMetadata({
       return part;
     }
     const timing = toolTimings?.get(part.toolCallId) ?? null;
-    const isInterrupted = interruptedToolCallIds[part.toolCallId] === true;
+    const isInterrupted =
+      locallyInterruptedToolCallIds[part.toolCallId] === true;
     if (timing == null && !isInterrupted) {
       return part;
     }

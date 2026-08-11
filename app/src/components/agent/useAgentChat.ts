@@ -229,8 +229,6 @@ export function useAgentChat({
     const unresolvedToolCalls = getUnresolvedToolCalls(messages);
 
     unresolvedToolCalls.forEach((toolCall) => {
-      // Mark before adding the output: the output fires
-      // `sendAutomaticallyWhen`, which reads the mark.
       store.getState().markToolCallInterrupted(toolCall.toolCallId);
       cleanupPendingToolState(
         store.getState(),

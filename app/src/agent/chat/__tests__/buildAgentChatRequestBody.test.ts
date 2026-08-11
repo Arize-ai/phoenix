@@ -567,7 +567,7 @@ describe("enrichMessageWithClientToolMetadata", () => {
     const enriched = enrichMessageWithClientToolMetadata({
       message,
       toolTimings: null,
-      interruptedToolCallIds: { "call-1": true },
+      locallyInterruptedToolCallIds: { "call-1": true },
     });
 
     expect(enriched.parts[0]).toMatchObject({

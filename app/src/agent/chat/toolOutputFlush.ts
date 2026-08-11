@@ -4,7 +4,7 @@ import { enrichMessageWithClientToolMetadata } from "./buildAgentChatRequestBody
 import type { ClientToolTimingRecorder } from "./clientToolTimings";
 import {
   getFlushableClientToolOutputs,
-  type InterruptedToolCallIds,
+  type LocallyInterruptedToolCallIds,
 } from "./shouldSendAutomatically";
 import type { AgentUIMessage } from "./types";
 
@@ -20,7 +20,7 @@ export function flushToolOutputs({
   flushUrl,
   fetch: fetchFn,
   toolTimings = null,
-  interruptedToolCallIds = {},
+  locallyInterruptedToolCallIds = {},
 }: {
   /** The transcript's trailing assistant message. */
   message: AgentUIMessage;
@@ -31,16 +31,16 @@ export function flushToolOutputs({
   /** Browser execution timings added to the flushed tool parts. */
   toolTimings?: ClientToolTimingRecorder | null;
   /** Tool calls this client resolved as interrupted; suppresses the flush. */
-  interruptedToolCallIds?: InterruptedToolCallIds;
+  locallyInterruptedToolCallIds?: LocallyInterruptedToolCallIds;
 }): void {
   const enrichedMessage = enrichMessageWithClientToolMetadata({
     message,
     toolTimings,
-    interruptedToolCallIds,
+    locallyInterruptedToolCallIds,
   });
   const toolOutputs = getFlushableClientToolOutputs({
     message: enrichedMessage,
-    interruptedToolCallIds,
+    locallyInterruptedToolCallIds,
   });
   if (toolOutputs.length === 0) {
     return;

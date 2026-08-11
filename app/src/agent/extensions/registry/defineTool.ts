@@ -9,12 +9,6 @@ import type { AgentStore } from "@phoenix/store/agentStore";
 
 import type { AgentCapabilities, AgentCapabilityKey } from "../capabilities";
 
-/**
- * `Chat.addToolOutput` arguments plus an optional `outcome`: `"interrupted"`
- * marks a resolution written by a lifecycle cleanup rather than by execution
- * producing a real result. The AI SDK's `addToolOutput` has no metadata
- * channel, so the field is stripped before the output is forwarded to it.
- */
 export type AgentToolOutput = Parameters<
   Chat<AgentUIMessage>["addToolOutput"]
 >[0] & {

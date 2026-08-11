@@ -541,12 +541,10 @@ export interface AgentState extends AgentProps {
     toolCallId: string,
     pendingLoad: PendingLoadDataset | null
   ) => void;
-
-  // -- Tool calls a lifecycle cleanup (user stop, surface teardown) resolved
-  // as interrupted rather than executed. Entries are never pruned: ids are
-  // globally unique, the map is tiny, and a mark must outlive its turn so a
-  // later send can still stamp outputs riding along with a new user message.
-  interruptedToolCallIds: Partial<Record<string, true>>;
+  // This client's interrupted marks, buffered here because the AI SDK's
+  // `addToolOutput` has no metadata channel; sends stamp them onto parts as
+  // `phoenix.outcome`, the durable form.
+  locallyInterruptedToolCallIds: Partial<Record<string, true>>;
   markToolCallInterrupted: (toolCallId: string) => void;
 }
 
@@ -707,7 +705,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingCodeEvaluatorEditsByToolCallId: {},
     pendingLlmEvaluatorEditsByToolCallId: {},
     pendingLoadDatasetsByToolCallId: {},
-    interruptedToolCallIds: {},
+    locallyInterruptedToolCallIds: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -1078,11 +1076,11 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     markToolCallInterrupted: (toolCallId) => {
       set(
         (state) =>
-          state.interruptedToolCallIds[toolCallId]
+          state.locallyInterruptedToolCallIds[toolCallId]
             ? state
             : {
-                interruptedToolCallIds: {
-                  ...state.interruptedToolCallIds,
+                locallyInterruptedToolCallIds: {
+                  ...state.locallyInterruptedToolCallIds,
                   [toolCallId]: true,
                 },
               },

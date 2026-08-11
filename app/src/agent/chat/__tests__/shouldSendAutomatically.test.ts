@@ -35,7 +35,7 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
     expect(
       shouldSendAutomaticallyAfterToolOutput({
         messages,
-        interruptedToolCallIds: {},
+        locallyInterruptedToolCallIds: {},
       })
     ).toBe(true);
   });
@@ -60,7 +60,7 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
     expect(
       shouldSendAutomaticallyAfterToolOutput({
         messages,
-        interruptedToolCallIds: {},
+        locallyInterruptedToolCallIds: {},
       })
     ).toBe(true);
   });
@@ -85,7 +85,7 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
     expect(
       shouldSendAutomaticallyAfterToolOutput({
         messages,
-        interruptedToolCallIds: { "tool-call-1": true },
+        locallyInterruptedToolCallIds: { "tool-call-1": true },
       })
     ).toBe(false);
   });
@@ -117,7 +117,7 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
     expect(
       shouldSendAutomaticallyAfterToolOutput({
         messages,
-        interruptedToolCallIds: {},
+        locallyInterruptedToolCallIds: {},
       })
     ).toBe(false);
   });
@@ -142,7 +142,7 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
     expect(
       shouldSendAutomaticallyAfterToolOutput({
         messages,
-        interruptedToolCallIds: { "tool-call-from-older-turn": true },
+        locallyInterruptedToolCallIds: { "tool-call-from-older-turn": true },
       })
     ).toBe(true);
   });
@@ -183,7 +183,7 @@ describe("getFlushableClientToolOutputs", () => {
   it("returns resolved client outputs while sibling calls stay pending", () => {
     const outputs = getFlushableClientToolOutputs({
       message: partiallyResolvedAssistantMessage(),
-      interruptedToolCallIds: {},
+      locallyInterruptedToolCallIds: {},
     });
 
     expect(outputs.map((output) => output.toolCallId)).toEqual([
@@ -209,7 +209,10 @@ describe("getFlushableClientToolOutputs", () => {
 
     // The normal chat continuation carries the outputs instead.
     expect(
-      getFlushableClientToolOutputs({ message, interruptedToolCallIds: {} })
+      getFlushableClientToolOutputs({
+        message,
+        locallyInterruptedToolCallIds: {},
+      })
     ).toEqual([]);
   });
 
@@ -226,7 +229,7 @@ describe("getFlushableClientToolOutputs", () => {
     expect(
       getFlushableClientToolOutputs({
         message,
-        interruptedToolCallIds: { "tool-call-interrupted": true },
+        locallyInterruptedToolCallIds: { "tool-call-interrupted": true },
       })
     ).toEqual([]);
   });
@@ -254,7 +257,10 @@ describe("getFlushableClientToolOutputs", () => {
     });
 
     expect(
-      getFlushableClientToolOutputs({ message, interruptedToolCallIds: {} })
+      getFlushableClientToolOutputs({
+        message,
+        locallyInterruptedToolCallIds: {},
+      })
     ).toEqual([]);
   });
 
@@ -266,7 +272,10 @@ describe("getFlushableClientToolOutputs", () => {
     });
 
     expect(
-      getFlushableClientToolOutputs({ message, interruptedToolCallIds: {} })
+      getFlushableClientToolOutputs({
+        message,
+        locallyInterruptedToolCallIds: {},
+      })
     ).toEqual([]);
   });
 });

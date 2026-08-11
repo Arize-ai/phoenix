@@ -37,8 +37,7 @@ class PhoenixToolCallCallbackProviderMetadata(PhoenixToolCallProviderMetadata):
 
     outcome: Literal["interrupted"] | None = None
     """The call was closed out by a lifecycle cleanup (user stop, surface
-    teardown, server-side repair) rather than a real result. Client-facing
-    mirror of the private ``pydantic_ai`` ``outcome`` channel."""
+    teardown, server-side repair) rather than a real result."""
 
 
 PydanticAIToolPartKind = Literal["tool-search", "capability-load"]
