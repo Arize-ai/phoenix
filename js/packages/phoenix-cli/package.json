@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-cli",
-  "version": "1.15.2",
+  "version": "1.16.0",
   "description": "A command-line interface for Phoenix",
   "keywords": [
     "arize",
