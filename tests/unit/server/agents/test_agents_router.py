@@ -954,6 +954,7 @@ async def test_chat_turn_persists_session_transcript(
         persisted_session_id = get_otel_session_id(
             project_name=agent_session.project_name,
             agent_session_rowid=agent_session.id,
+            agent_session_created_at=agent_session.created_at,
         )
         # No bash command this turn, so no shell-state snapshot row.
         assert await session.scalar(select(models.AgentSessionSnapshot)) is None
@@ -3756,6 +3757,7 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
                 == get_otel_session_id(
                     project_name=agent_session.project_name,
                     agent_session_rowid=agent_session.id,
+                    agent_session_created_at=agent_session.created_at,
                 )
             )
         )

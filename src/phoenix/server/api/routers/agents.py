@@ -2802,6 +2802,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 otel_session_id = get_otel_session_id(
                     project_name=project_name,
                     agent_session_rowid=agent_session_rowid,
+                    agent_session_created_at=agent_session.created_at,
                 )
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
