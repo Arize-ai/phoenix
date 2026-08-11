@@ -17,7 +17,7 @@ import {
   cleanupPendingToolState,
   cleanupResolvedPendingToolState,
 } from "../pendingToolStateCleanup";
-import type { AgentUIMessage } from "../types";
+import type { AgentUIMessage, AgentUIMessagePart } from "../types";
 
 function createStateStub() {
   return {
@@ -86,7 +86,7 @@ describe("cleanupResolvedPendingToolState", () => {
               "The tool call was interrupted before a result was produced.",
           }
         : {}),
-    }) as AgentUIMessage["parts"][number];
+    }) as AgentUIMessagePart;
 
   it("clears pending state for tool calls the transcript shows as resolved", () => {
     const state = createStateStub();

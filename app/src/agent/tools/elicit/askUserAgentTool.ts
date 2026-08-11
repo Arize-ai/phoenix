@@ -11,6 +11,7 @@ export const askUserAgentTool = defineTool<ElicitToolInput>({
   parseInput: parseElicitToolInput,
   invalidInputErrorText:
     "Invalid ask_user tool input. Expected { questions: ElicitationQuestion[] }.",
+  rehydratable: true,
   execute: async ({
     toolCall,
     input,

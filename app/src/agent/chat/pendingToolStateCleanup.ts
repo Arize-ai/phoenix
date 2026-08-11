@@ -1,4 +1,4 @@
-import { getToolOrDynamicToolName, isToolUIPart, type UIMessage } from "ai";
+import { getToolName, isToolUIPart, type UIMessage } from "ai";
 
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
@@ -95,11 +95,7 @@ export function cleanupResolvedPendingToolState(
       if (!isToolUIPart(part) || !RESOLVED_TOOL_STATES.has(part.state)) {
         continue;
       }
-      cleanupPendingToolState(
-        state,
-        getToolOrDynamicToolName(part),
-        part.toolCallId
-      );
+      cleanupPendingToolState(state, getToolName(part), part.toolCallId);
     }
   }
 }

@@ -34,6 +34,9 @@ type AgentUIDataTypes = {
  */
 export type AgentUIMessage = UIMessage<AgentMessageMetadata, AgentUIDataTypes>;
 
+/** A single part of an {@link AgentUIMessage}. */
+export type AgentUIMessagePart = AgentUIMessage["parts"][number];
+
 /** Narrow a message's metadata to the assistant shape. */
 export function getAssistantMessageMetadata(
   message: AgentUIMessage

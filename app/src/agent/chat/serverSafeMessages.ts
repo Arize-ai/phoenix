@@ -1,10 +1,10 @@
 import type { CustomContentUIPart, ReasoningFileUIPart } from "ai";
 import { isCustomContentUIPart, isReasoningFileUIPart } from "ai";
 
-import type { AgentUIMessage } from "./types";
+import type { AgentUIMessage, AgentUIMessagePart } from "./types";
 
 type ServerSafeUIPart = Exclude<
-  AgentUIMessage["parts"][number],
+  AgentUIMessagePart,
   CustomContentUIPart | ReasoningFileUIPart
 >;
 

@@ -8,11 +8,22 @@ import {
 } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
+import {
+  partitionPendingClientToolCalls,
+  resolveStalePendingToolCallParts,
+} from "@phoenix/agent/chat/rehydratePendingToolCalls";
 import { flushToolOutputs } from "@phoenix/agent/chat/toolOutputFlush";
 import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import type {
+  AgentUIMessage,
+  AgentUIMessagePart,
+} from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
+import {
+  isRehydratableAgentTool,
+  type AgentToolCall,
+} from "@phoenix/agent/extensions/toolRegistry";
 import { authFetch } from "@phoenix/authFetch";
 import {
   readAgentSessionModelSelection,
@@ -26,7 +37,6 @@ import {
   type RelayEnvironment,
 } from "@phoenix/components/agent/agentSessionRelay";
 import type { AgentStore } from "@phoenix/store/agentStore";
-import { isRecord } from "@phoenix/utils/typeUtils";
 
 import {
   SESSION_BUSY_ERROR_CODE,
@@ -40,6 +50,7 @@ import { getRemovedUserMessageText } from "./removedUserMessageText";
 
 export type TurnClientState = {
   toolTimings: ReturnType<typeof createClientToolTimingRecorder>;
+  recoverPendingToolCalls: () => void;
 };
 
 const turnClientStateByChat = new WeakMap<
@@ -129,6 +140,30 @@ export function createAgentSessionChat({
         });
     },
   });
+  /** Execute a tool call in the browser and add its output to the chat. */
+  const runAgentToolCall = (toolCall: AgentToolCall) => {
+    const isServerExecuted =
+      toolCall.providerMetadata?.phoenix?.toolExecutionEnvironment === "server";
+    if (!isServerExecuted) {
+      toolTimings.recordStart(toolCall.toolCallId);
+    }
+    void handleAgentToolCall({
+      toolCall,
+      sessionId,
+      addToolOutput: async (toolOutput) => {
+        toolTimings.recordEnd(toolCall.toolCallId);
+        await chat.addToolOutput(toolOutput);
+      },
+      appendMessagePart: (part) => {
+        chat.messages = appendPartToToolMessage({
+          messages: chat.messages,
+          toolCallId: toolCall.toolCallId,
+          part,
+        });
+      },
+      agentStore: store,
+    });
+  };
   const chat = new Chat<AgentUIMessage>({
     id: sessionId,
     messages: seedMessages,
@@ -162,37 +197,8 @@ export function createAgentSessionChat({
         };
       },
     }),
-    // Tool execution must target the runtime-owned chat instance so
-    // tool outputs continue to attach to the correct conversation
-    // even if the visible React surface remounts during the request.
     onToolCall: ({ toolCall }) => {
-      const providerMetadata =
-        "providerMetadata" in toolCall ? toolCall.providerMetadata : null;
-      const phoenixMetadata = isRecord(providerMetadata)
-        ? providerMetadata.phoenix
-        : null;
-      const isServerExecuted =
-        isRecord(phoenixMetadata) &&
-        phoenixMetadata.toolExecutionEnvironment === "server";
-      if (!isServerExecuted) {
-        toolTimings.recordStart(toolCall.toolCallId);
-      }
-      void handleAgentToolCall({
-        toolCall,
-        sessionId,
-        addToolOutput: async (toolOutput) => {
-          toolTimings.recordEnd(toolCall.toolCallId);
-          await chat.addToolOutput(toolOutput);
-        },
-        appendMessagePart: (part) => {
-          chat.messages = appendPartToToolMessage({
-            messages: chat.messages,
-            toolCallId: toolCall.toolCallId,
-            part,
-          });
-        },
-        agentStore: store,
-      });
+      runAgentToolCall(toolCall);
     },
     onData: (dataPart) => {
       if (dataPart.type === "data-session-summary") {
@@ -303,7 +309,29 @@ export function createAgentSessionChat({
       turnCompletionGate.handleFinish({ finalMessages, message });
     },
   });
-  turnClientStateByChat.set(chat, { toolTimings });
+  const lastSeedMessage = seedMessages[seedMessages.length - 1];
+  if (lastSeedMessage?.role === "assistant") {
+    // don't trigger a continuation of the conversation on load
+    transcriptPersistence.acknowledge({ messageId: lastSeedMessage.id });
+  }
+  const recoverPendingToolCalls = () => {
+    const { rehydratableToolCalls, staleToolCalls } =
+      partitionPendingClientToolCalls({
+        messages: chat.messages,
+        isRehydratableTool: isRehydratableAgentTool,
+      });
+    for (const toolCall of rehydratableToolCalls) {
+      runAgentToolCall(toolCall);
+    }
+    chat.messages = resolveStalePendingToolCallParts({
+      messages: chat.messages,
+      staleToolCallIds: new Set(
+        staleToolCalls.map((toolCall) => toolCall.toolCallId)
+      ),
+    });
+  };
+  recoverPendingToolCalls();
+  turnClientStateByChat.set(chat, { toolTimings, recoverPendingToolCalls });
   return chat;
 }
 
@@ -314,7 +342,7 @@ function appendPartToToolMessage({
 }: {
   messages: AgentUIMessage[];
   toolCallId: string;
-  part: AgentUIMessage["parts"][number];
+  part: AgentUIMessagePart;
 }): AgentUIMessage[] {
   const messageIndex = messages.findIndex((message) =>
     message.parts.some(

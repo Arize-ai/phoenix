@@ -215,3 +215,9 @@ export const handleRegisteredAgentToolCall =
 
 /** Returns the UI surfacing hints declared by a tool, if any. */
 export const getAgentToolUIBehavior = dispatcher.getAgentToolUIBehavior;
+
+/**
+ * Whether a tool declared `rehydratable`, so an unresolved call can be
+ * re-dispatched on session load. False for unregistered tools.
+ */
+export const isRehydratableAgentTool = dispatcher.isRehydratableAgentTool;
