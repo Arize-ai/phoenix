@@ -47,6 +47,8 @@ export function useProjectEvaluatorPaths() {
         withCurrentSearch(
           `${list}/new/attach/${encodeURIComponent(evaluatorId)}`
         ),
+      details: (projectEvaluatorId: string) =>
+        withCurrentSearch(`${list}/${encodeURIComponent(projectEvaluatorId)}`),
       edit: (projectEvaluatorId: string) =>
         withCurrentSearch(
           `${list}/${encodeURIComponent(projectEvaluatorId)}/edit`
