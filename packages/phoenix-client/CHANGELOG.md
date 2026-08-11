@@ -3,10 +3,6 @@
 ## [3.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.0.0...arize-phoenix-client-v3.1.0) (2026-08-11)
 
 
-### ⚠ BREAKING CHANGES
-
-* agent session persistence ([#14143](https://github.com/Arize-ai/phoenix/issues/14143))
-
 ### Features
 
 * agent session persistence ([#14143](https://github.com/Arize-ai/phoenix/issues/14143)) ([986f6a6](https://github.com/Arize-ai/phoenix/commit/986f6a6fdaeda70d83e2d91f150f9b01d9b8406f))
