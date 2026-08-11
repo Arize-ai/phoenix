@@ -418,15 +418,18 @@ export const EvaluatorsTable = ({
                   />
                 ))}
                 {projects.map(({ node }) => (
-                  <ProjectToken
+                  <Link
                     key={node.id}
-                    projectId={node.id}
-                    name={node.name}
-                    gradientStartColor={node.gradientStartColor}
-                    gradientEndColor={node.gradientEndColor}
                     to={`/projects/${node.id}/evaluators`}
-                    maxWidth="10rem"
-                  />
+                    style={{ textDecoration: "none" }}
+                  >
+                    <ProjectToken
+                      name={node.name}
+                      gradientStartColor={node.gradientStartColor}
+                      gradientEndColor={node.gradientEndColor}
+                      maxWidth="10rem"
+                    />
+                  </Link>
                 ))}
               </Flex>
             );

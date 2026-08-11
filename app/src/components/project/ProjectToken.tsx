@@ -1,5 +1,3 @@
-import { useNavigate } from "react-router";
-
 import type { TokenProps } from "@phoenix/components";
 import { Token } from "@phoenix/components";
 
@@ -7,37 +5,31 @@ import { GradientCircle } from "./GradientCircle";
 
 export interface ProjectTokenProps extends Pick<
   TokenProps,
-  "size" | "maxWidth" | "onRemove" | "isDisabled"
+  "size" | "maxWidth" | "onPress" | "onRemove" | "isDisabled"
 > {
-  projectId: string;
   name: string;
   gradientStartColor: string;
   gradientEndColor: string;
-  /**
-   * Destination to navigate to when the token is pressed.
-   * Defaults to the project's configuration page.
-   */
-  to?: string;
 }
 
 /**
  * A token representing a project, with the project's color gradient as a
- * leading visual so projects can be identified at a glance. Pressing the
- * token navigates to the project's configuration page. When `onRemove` is
- * provided, a remove button is displayed on the token.
+ * leading visual so projects can be identified at a glance. Purely
+ * presentational: to navigate on click, compose it inside a react-router
+ * `Link`, or pass `onPress` when the token also has an `onRemove` button
+ * (a button cannot nest inside an anchor). When `onRemove` is provided, a
+ * remove button is displayed on the token.
  */
 export function ProjectToken({
-  projectId,
   name,
   gradientStartColor,
   gradientEndColor,
   size = "M",
   maxWidth,
+  onPress,
   onRemove,
   isDisabled,
-  to,
 }: ProjectTokenProps) {
-  const navigate = useNavigate();
   return (
     <Token
       size={size}
@@ -51,7 +43,7 @@ export function ProjectToken({
         />
       }
       title={name}
-      onPress={() => navigate(to ?? `/projects/${projectId}/config`)}
+      onPress={onPress}
       onRemove={onRemove}
       isDisabled={isDisabled}
     >
