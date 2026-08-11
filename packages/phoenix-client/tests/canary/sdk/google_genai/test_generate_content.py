@@ -1,7 +1,7 @@
 # pyright: reportUnknownMemberType=false
 import json
 from secrets import token_hex
-from typing import Any, Mapping, cast
+from typing import Any, Mapping, Optional, cast
 
 import pytest
 from deepdiff.diff import DeepDiff
@@ -86,7 +86,9 @@ class TestContentConversion:
             part.function_response.name if part.function_response is not None else None
             for part in messages[1].parts
         ] == ["get_weather", "get_population"]
-        response_ids: list[str | None] = []
+        # `Optional` rather than `str | None`: the canary pyright config pins
+        # pythonVersion to 3.9, which predates PEP 604 unions.
+        response_ids: list[Optional[str]] = []
         for part in messages[1].parts:
             assert part.function_response is not None
             response_ids.append(part.function_response.id)
