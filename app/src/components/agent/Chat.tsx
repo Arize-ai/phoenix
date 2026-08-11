@@ -529,8 +529,6 @@ export function ChatView({
     selectSessionNotice(state, sessionId)
   );
   const isBusyElsewhere = sessionNotice === "busyElsewhere";
-  // Hide the question while another client drives the turn: it may already be
-  // answered there, and this client can't submit an answer meanwhile.
   const pendingElicitation = isBusyElsewhere ? null : pendingElicitationProp;
   // A turn is in motion here or on another client. Shared with the tool
   // approval affordances (ToolPartApprovalActions), which pause themselves on

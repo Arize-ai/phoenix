@@ -40,8 +40,6 @@ const PENDING_TOOL_STATE_CLEANUP: Readonly<
     state.setPendingLlmEvaluatorEdit(toolCallId, null),
   [LOAD_DATASET_TOOL_NAME]: (state, toolCallId) =>
     state.setPendingLoadDataset(toolCallId, null),
-  // Elicitation state is keyed by session rather than tool call, so clear
-  // whichever session's pending question this call owns.
   [ASK_USER_TOOL_NAME]: (state, toolCallId) => {
     for (const [sessionId, pending] of Object.entries(
       state.pendingElicitationBySessionId
