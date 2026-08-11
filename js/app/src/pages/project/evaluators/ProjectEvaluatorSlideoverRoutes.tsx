@@ -21,16 +21,18 @@ import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/proj
 import { ProjectEvaluatorSlideoverError } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideoverError";
 
 /**
- * Closes the slideover by returning to the evaluators list. Replaces rather
- * than pushes, so a slideover the user has dismissed does not sit one step back
- * in history waiting to be reopened.
+ * Closes the slideover by leaving its route — to the evaluators list unless
+ * the caller names another destination. Replaces rather than pushes, so a
+ * slideover the user has dismissed does not sit one step back in history
+ * waiting to be reopened.
  */
-function useCloseSlideover() {
+function useCloseSlideover(to?: string) {
   const navigate = useNavigate();
   const { list } = useProjectEvaluatorPaths();
+  const destination = to ?? list;
   return (isOpen: boolean) => {
     if (!isOpen) {
-      navigate(list, { replace: true });
+      navigate(destination, { replace: true });
     }
   };
 }
@@ -161,7 +163,10 @@ export function AttachCodeProjectEvaluatorPage() {
 export function EditProjectEvaluatorPage() {
   const { projectEvaluatorId } = useParams();
   invariant(projectEvaluatorId, "projectEvaluatorId is required");
-  const onOpenChange = useCloseSlideover();
+  // The edit route nests under the evaluator's details page, so closing lands
+  // on the details view it was opened over rather than the list.
+  const { details } = useProjectEvaluatorPaths();
+  const onOpenChange = useCloseSlideover(details(projectEvaluatorId));
   const { evaluator, sandboxConfigs } = useProjectEvaluator(projectEvaluatorId);
   if (
     evaluator.evaluator.kind !== "LLM" &&
