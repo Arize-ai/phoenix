@@ -91,8 +91,23 @@ def get_skills(
     )
 
 
+def get_all_built_in_skills() -> list[Skill]:
+    """Return every skill bundled with Phoenix, ignoring context gating.
+
+    Used to reserve names so an external skill can never shadow a built-in one, even a
+    context-gated skill that is not mounted in the current request.
+    """
+    return build_skills(
+        include_playground=True,
+        include_datasets=True,
+        include_experiments=True,
+        include_evaluators=True,
+    )
+
+
 __all__ = [
     "build_skills",
+    "get_all_built_in_skills",
     "get_skills",
     "get_skills_for_contexts",
 ]

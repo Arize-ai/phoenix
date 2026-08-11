@@ -172,9 +172,11 @@ export function SlashCommandMenu({
                 <span css={slashCommandMenuNameCSS}>/{item.name}</span>
                 <SlashMenuItemPill item={item} />
               </Flex>
-              <Text size="XS" color="text-700">
-                {item.summary}
-              </Text>
+              {item.summary ? (
+                <Text size="XS" color="text-700">
+                  {item.summary}
+                </Text>
+              ) : null}
             </Flex>
           </button>
         );
