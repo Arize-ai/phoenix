@@ -116,11 +116,6 @@ GeminiNextGenAPIClientError (base)
     └── APIResponseValidationError
 ```
 
-**Legacy google.generativeai SDK**:
-The older `google.generativeai` SDK uses a different hierarchy via `google.api_core.exceptions`:
-- `ResourceExhausted` - Rate limit (maps to gRPC RESOURCE_EXHAUSTED)
-- `ServiceUnavailable` - Transient
-
 ---
 
 ### AWS Bedrock via botocore

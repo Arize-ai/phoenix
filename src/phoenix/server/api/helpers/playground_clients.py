@@ -108,7 +108,11 @@ if TYPE_CHECKING:
     from anthropic.types.message_create_params import MessageCreateParamsBase
     from anthropic.types.usage import Usage
     from google.genai.client import AsyncClient as GoogleAsyncClient
-    from google.genai.types import ContentDict, GenerateContentConfig, GenerateContentResponse
+    from google.genai.types import (
+        ContentUnionDict,
+        GenerateContentConfig,
+        GenerateContentResponse,
+    )
     from openai import AsyncOpenAI
     from openai._streaming import AsyncStream
     from openai.lib.streaming.responses import AsyncResponseStreamManager
@@ -2728,7 +2732,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         response_format: PromptResponseFormat | None,
         invocation_parameters: PromptGoogleInvocationParameters | None = None,
         span: OTelSpan,
-    ) -> tuple[list[ContentDict], GenerateContentConfig]:
+    ) -> tuple[list[ContentUnionDict], GenerateContentConfig]:
         from google.genai import types
 
         contents, system_prompt = self._build_google_messages(messages)
@@ -3011,9 +3015,9 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
     def _build_google_messages(
         self,
         messages: Sequence[PlaygroundMessage],
-    ) -> tuple[list["ContentDict"], str]:
+    ) -> tuple[list["ContentUnionDict"], str]:
         """Build Google messages following the standard pattern - process ALL messages."""
-        google_messages: list["ContentDict"] = []
+        google_messages: list["ContentUnionDict"] = []
         system_prompts = []
         for msg in messages:
             role = msg["role"]

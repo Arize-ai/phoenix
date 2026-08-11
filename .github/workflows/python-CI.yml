@@ -671,7 +671,7 @@ jobs:
       fail-fast: false
       matrix:
         py: ["3.10"]
-        pkg: [openai, anthropic]
+        pkg: [openai, anthropic, google_genai]
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
