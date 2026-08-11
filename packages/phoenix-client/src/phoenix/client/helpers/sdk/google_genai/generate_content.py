@@ -35,7 +35,8 @@ if TYPE_CHECKING:
 
         messages, kwargs = to_chat_messages_and_kwargs(obj)
         contents: list[genai_types.ContentUnionDict] = list(messages)
-        genai.Client().models.generate_content(contents=contents, **kwargs)
+        with genai.Client() as client:
+            client.models.generate_content(contents=contents, **kwargs)
 
 
 class _ToolKwargs(TypedDict, total=False):
