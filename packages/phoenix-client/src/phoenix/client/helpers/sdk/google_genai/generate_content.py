@@ -683,8 +683,8 @@ class _ContentConversion:
                 assert function_response is not None
                 if not function_response.id and not function_response.name:
                     raise NotImplementedError(
-                        "Google GenAI function responses require an id, name, or preceding matching "
-                        "function call"
+                        "Google GenAI function responses require an id, name, or preceding "
+                        "matching function call"
                     )
                 if not function_response.name and (
                     tool_call_names is None
