@@ -110,7 +110,7 @@
 
 ### Pre-Built Metrics
 
-- [Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/pre-built-metrics): All pre-built LLM and code evaluators — faithfulness, toxicity, document relevance, tool calling
+- [Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/pre-built-metrics): All pre-built LLM as a judge templates and code evaluators — faithfulness, toxicity, document relevance, tool calling etc. 
 
 ### Server-Side Evaluations
 
