@@ -1,10 +1,10 @@
-import { Suspense, useRef, useState } from "react";
+import { useState } from "react";
 import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import { Dialog, Loading, Modal, ModalOverlay } from "@phoenix/components";
+import type { SandboxConfigOption } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import {
   extractCodeEvaluatorVariables,
@@ -28,14 +28,11 @@ import type { EditProjectEvaluatorSlideoverQuery } from "@phoenix/pages/project/
 import type { EditProjectEvaluatorSlideoverUpdateCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateCodeMutation.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateLlmMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateLlmMutation.graphql";
 import { CodeAuthoringFields } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
-import {
-  DiscardEvaluatorChangesDialog,
-  isModalUnderlay,
-} from "@phoenix/pages/project/evaluators/DiscardEvaluatorChangesDialog";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
+import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
   fromProjectEvaluatorGraphQLTarget,
   toProjectEvaluatorGraphQLTarget,
@@ -63,70 +60,51 @@ type ProjectEvaluatorNode = Extract<
   { readonly __typename: "ProjectEvaluator" }
 >;
 
+/** The slideover heading: the flow, and the evaluator it edits. */
+function getEditProjectEvaluatorTitle(evaluator: ProjectEvaluatorNode): string {
+  const kind = evaluator.evaluator.kind === "LLM" ? "LLM" : "code";
+  return `Edit ${kind} evaluator “${evaluator.name}”`;
+}
+
+/**
+ * Takes the evaluator already loaded by the route rather than loading it here,
+ * so the title is known before the dialog mounts and can name it.
+ */
 export function EditProjectEvaluatorSlideover({
-  projectEvaluatorId,
-  evaluatorKind,
+  evaluator,
+  sandboxConfigs,
   ...props
 }: {
-  projectEvaluatorId: string;
-  evaluatorKind: "LLM" | "CODE";
-} & ModalOverlayProps) {
-  const dirtyCheckRef = useRef<EvaluatorFormDirtyCheck>(() => false);
-  const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
-  const registerDirtyCheck = (check: EvaluatorFormDirtyCheck) => {
-    dirtyCheckRef.current = check;
-  };
+  evaluator: ProjectEvaluatorNode;
+  sandboxConfigs: SandboxConfigOption[];
+} & Omit<ModalOverlayProps, "children">) {
   return (
-    <>
-      <ModalOverlay
-        {...props}
-        isDismissable
-        shouldCloseOnInteractOutside={(element) => {
-          if (!isModalUnderlay(element)) {
-            return false;
-          }
-          if (dirtyCheckRef.current()) {
-            setIsDiscardConfirmOpen(true);
-            return false;
-          }
-          return true;
-        }}
-      >
-        <Modal variant="slideover" size="fullscreen">
-          <Dialog aria-label="Edit project evaluator">
-            {({ close }) => (
-              <Suspense fallback={<Loading />}>
-                {evaluatorKind === "LLM" ? (
-                  <EditLlmProjectEvaluator
-                    projectEvaluatorId={projectEvaluatorId}
-                    onClose={close}
-                    registerDirtyCheck={registerDirtyCheck}
-                  />
-                ) : evaluatorKind === "CODE" ? (
-                  <EditCodeProjectEvaluator
-                    projectEvaluatorId={projectEvaluatorId}
-                    onClose={close}
-                    registerDirtyCheck={registerDirtyCheck}
-                  />
-                ) : null}
-              </Suspense>
-            )}
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-      <DiscardEvaluatorChangesDialog
-        isOpen={isDiscardConfirmOpen}
-        onKeepEditing={() => setIsDiscardConfirmOpen(false)}
-        onDiscard={() => {
-          setIsDiscardConfirmOpen(false);
-          props.onOpenChange?.(false);
-        }}
-      />
-    </>
+    <ProjectEvaluatorSlideover
+      {...props}
+      title={getEditProjectEvaluatorTitle(evaluator)}
+    >
+      {(close, registerDirtyCheck) =>
+        evaluator.evaluator.kind === "LLM" ? (
+          <EditLlmProjectEvaluator
+            evaluator={evaluator}
+            onClose={close}
+            registerDirtyCheck={registerDirtyCheck}
+          />
+        ) : (
+          <EditCodeProjectEvaluator
+            evaluator={evaluator}
+            sandboxConfigs={sandboxConfigs}
+            onClose={close}
+            registerDirtyCheck={registerDirtyCheck}
+          />
+        )
+      }
+    </ProjectEvaluatorSlideover>
   );
 }
 
-function useProjectEvaluator(projectEvaluatorId: string) {
+/** Loaded by the edit route, above the slideover. */
+export function useProjectEvaluator(projectEvaluatorId: string) {
   const data = useLazyLoadQuery<EditProjectEvaluatorSlideoverQuery>(
     graphql`
       query EditProjectEvaluatorSlideoverQuery($projectEvaluatorId: ID!) {
@@ -298,16 +276,14 @@ function getScope(evaluator: ProjectEvaluatorNode): ProjectEvaluatorScope {
 }
 
 function EditLlmProjectEvaluator({
-  projectEvaluatorId,
+  evaluator,
   onClose,
   registerDirtyCheck,
 }: {
-  projectEvaluatorId: string;
+  evaluator: ProjectEvaluatorNode;
   onClose: () => void;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
-  const { evaluator } = useProjectEvaluator(projectEvaluatorId);
-  invariant(evaluator.evaluator.kind === "LLM", "expected LLM evaluator");
   return (
     <EvaluatorPlaygroundProvider
       promptId={evaluator.evaluator.prompt?.id}
@@ -453,7 +429,7 @@ function EditLlmProjectEvaluatorContent({
         trackStoreForDirtyCheck(store);
         return (
           <EditLLMEvaluatorDialogContent
-            title="Edit project evaluator"
+            title={getEditProjectEvaluatorTitle(evaluator)}
             onClose={onClose}
             onSubmit={() => submit(store)}
             isSubmitting={isUpdating}
@@ -481,16 +457,16 @@ function EditLlmProjectEvaluatorContent({
 }
 
 function EditCodeProjectEvaluator({
-  projectEvaluatorId,
+  evaluator,
+  sandboxConfigs,
   onClose,
   registerDirtyCheck,
 }: {
-  projectEvaluatorId: string;
+  evaluator: ProjectEvaluatorNode;
+  sandboxConfigs: SandboxConfigOption[];
   onClose: () => void;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
-  const { evaluator, sandboxConfigs } = useProjectEvaluator(projectEvaluatorId);
-  invariant(evaluator.evaluator.kind === "CODE", "expected code evaluator");
   const language = evaluator.evaluator.language as CodeEvaluatorLanguage;
   const initialSourceCode = evaluator.evaluator.sourceCode ?? "";
   const initialSandboxConfigId = evaluator.evaluator.sandboxConfig?.id ?? null;
@@ -565,6 +541,7 @@ function EditCodeProjectEvaluator({
         return (
           <ProjectCodeEvaluatorDialogContent
             mode="update"
+            title={getEditProjectEvaluatorTitle(evaluator)}
             projectId={evaluator.project.id}
             evaluatorId={evaluator.evaluator.id}
             evaluatorName={evaluator.name}
