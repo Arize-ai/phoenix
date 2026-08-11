@@ -1,7 +1,7 @@
 # pyright: reportUnknownMemberType=false
 import json
 from secrets import token_hex
-from typing import Any, Mapping, Optional, cast
+from typing import Any, Mapping, cast
 
 import pytest
 from deepdiff.diff import DeepDiff
@@ -35,6 +35,7 @@ class TestContentConversion:
         "obj",
         [
             genai_types.Content(role="user", parts=[_text(), _text()]),
+            genai_types.Content(role="user", parts=[genai_types.Part(text="")]),
         ],
     )
     def test_round_trip(self, obj: genai_types.Content) -> None:
@@ -86,13 +87,17 @@ class TestContentConversion:
             part.function_response.name if part.function_response is not None else None
             for part in messages[1].parts
         ] == ["get_weather", "get_population"]
-        # `Optional` rather than `str | None`: the canary pyright config pins
-        # pythonVersion to 3.9, which predates PEP 604 unions.
-        response_ids: list[Optional[str]] = []
+        response_ids: list[str | None] = []
         for part in messages[1].parts:
             assert part.function_response is not None
             response_ids.append(part.function_response.id)
         assert response_ids == [None, None]
+
+    def test_empty_content_is_rejected(self) -> None:
+        message = v1.PromptMessage(role="user", content=[])
+
+        with pytest.raises(ValueError, match="at least one content part"):
+            list(_ContentConversion.to_google(message, {}, NO_OP_FORMATTER))
 
     def test_function_response_requires_an_id_or_name(self) -> None:
         content = genai_types.Content(

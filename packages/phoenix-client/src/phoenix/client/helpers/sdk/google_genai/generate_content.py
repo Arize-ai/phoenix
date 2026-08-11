@@ -661,8 +661,7 @@ class _ContentConversion:
             elif TYPE_CHECKING:
                 assert_never(part["type"])
         if not parts:
-            # Google rejects `Content` with an empty `parts` list.
-            return
+            raise ValueError("Google GenAI messages require at least one content part")
         yield genai_types.Content(role=role, parts=parts)
 
     @staticmethod
@@ -860,7 +859,7 @@ class _RoleConversion:
 
 
 def _has_text(obj: genai_types.Part) -> bool:
-    return bool(obj.text)
+    return obj.text is not None
 
 
 def _has_function_call(obj: genai_types.Part) -> bool:
