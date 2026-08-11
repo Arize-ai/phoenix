@@ -438,6 +438,21 @@ class TestPromptVersionConversion:
 
         assert kwargs["config"].system_instruction == expected
 
+    @pytest.mark.parametrize(
+        "system_instruction",
+        [
+            genai_types.File(name="files/system"),
+            [genai_types.File(name="files/system")],
+        ],
+    )
+    def test_non_text_system_instruction_is_rejected(self, system_instruction: Any) -> None:
+        with pytest.raises(NotImplementedError, match="system instruction"):
+            create_prompt_version_from_google_genai(
+                "gemini-2.0-flash",
+                [genai_types.Content(role="user", parts=[genai_types.Part(text="Hello")])],
+                config=genai_types.GenerateContentConfig(system_instruction=system_instruction),
+            )
+
     def test_unsupported_config_is_rejected(self) -> None:
         with pytest.raises(NotImplementedError, match="candidate_count"):
             create_prompt_version_from_google_genai(

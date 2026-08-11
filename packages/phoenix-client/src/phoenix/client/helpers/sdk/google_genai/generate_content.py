@@ -154,7 +154,16 @@ def _system_messages_from_google(
     elif isinstance(obj, genai_types.Part):
         parts = (obj,)
     elif isinstance(obj, Sequence):
-        parts = [genai_types.Part(text=item) if isinstance(item, str) else item for item in obj]
+        parts = []
+        for item in obj:
+            if isinstance(item, str):
+                parts.append(genai_types.Part(text=item))
+            elif isinstance(item, genai_types.Part):
+                parts.append(item)
+            else:
+                raise NotImplementedError(
+                    "Only text Google GenAI system instruction lists are supported"
+                )
     else:
         raise NotImplementedError("Unsupported Google GenAI system instruction")
     text_parts = [_TextContentPartConversion.from_google(part) for part in parts if _has_text(part)]
