@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 import posixpath
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Optional
 
 import strawberry
-from bashkit import Bash, BuiltinContext, BuiltinResult
+from bashkit import Bash, BuiltinContext, BuiltinResult, FileSystem
 from graphql import GraphQLSyntaxError
 from graphql import OperationType as GraphQLOperationType
 from graphql import parse as parse_graphql
@@ -18,10 +19,12 @@ from strawberry.types.graphql import OperationType
 from typing_extensions import TypedDict
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
+from phoenix.server.agents.capabilities.skills.skill import Skill
 from phoenix.server.api.context import Context
 
 WORKSPACE_ROOT = "/home/user/workspace"
 TMP_ROOT = "/tmp"
+SKILLS_ROOT = "/skills"
 
 _BASH_TOOL_DESCRIPTION_TEMPLATE = Template(
     """\
@@ -336,6 +339,7 @@ class BashToolset(FunctionToolset[None]):
         schema: strawberry.Schema,
         build_graphql_context: Callable[[], Context],
         allow_mutations: bool,
+        skills: Sequence[Skill] = (),
     ) -> None:
         shell = Bash(
             python=False,
@@ -348,7 +352,13 @@ class BashToolset(FunctionToolset[None]):
                 ),
             },
         )
-        shell.execute_sync_or_throw(f"mkdir -p {WORKSPACE_ROOT} {TMP_ROOT} && cd {WORKSPACE_ROOT}")
+        roots = f"{WORKSPACE_ROOT} {TMP_ROOT}" + (f" {SKILLS_ROOT}" if skills else "")
+        shell.execute_sync_or_throw(f"mkdir -p {roots} && cd {WORKSPACE_ROOT}")
+        for skill in skills:
+            shell.mount(
+                f"{SKILLS_ROOT}/{skill.name}",
+                FileSystem.real(str(skill.path), writable=False),
+            )
 
         async def bash(summary: str, command: str) -> BashToolResult:
             result = await shell.execute(command)
@@ -378,15 +388,19 @@ class BashCapability(AbstractStaticCapability[None]):
 
     schema: strawberry.Schema
     build_graphql_context: Callable[[], Context]
-    instructions: str
+    instructions: Template
     allow_mutations: bool = False
+    internal_skills: Sequence[Skill] = field(default_factory=tuple)
 
     def get_toolset(self) -> AgentToolset[None] | None:
         return BashToolset(
             schema=self.schema,
             build_graphql_context=self.build_graphql_context,
             allow_mutations=self.allow_mutations,
+            skills=self.internal_skills,
         )
 
     def get_static_instructions(self) -> str:
-        return self.instructions
+        return self.instructions.render(
+            internal_skills=self.internal_skills, skills_root=SKILLS_ROOT
+        )
