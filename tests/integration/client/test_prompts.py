@@ -43,12 +43,11 @@ from openai.types.chat import (
 )
 from openai.types.chat.completion_create_params import CompletionCreateParamsBase
 from openai.types.shared_params import ResponseFormatJSONSchema
-from pydantic import BaseModel, ConfigDict, Field, create_model
-from typing_extensions import assert_never
-
 from phoenix.client import Client as _PhoenixClient
 from phoenix.client.types import PromptVersion
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
+from pydantic import BaseModel, ConfigDict, Field, create_model
+from typing_extensions import assert_never
 
 from .._helpers import (
     _MEMBER,
