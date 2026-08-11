@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional, cast
+from collections.abc import Mapping
+from typing import Any, Optional, Union, cast
 
 import httpx
 from httpx import HTTPStatusError
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.constants.server_requirements import PATCH_PROMPT
 from phoenix.client.types.prompts import PromptVersion
+from phoenix.client.types.sentinels import NOT_GIVEN, NotGiven
 from phoenix.client.utils.encode_path_param import encode_path_param
 from phoenix.client.utils.server_requirements import (
     AsyncServerVersionGuard,
@@ -17,10 +20,25 @@ from phoenix.client.utils.server_requirements import (
 logger = logging.getLogger(__name__)
 
 
+def _build_patch_prompt_body(
+    *,
+    prompt_description: Union[str, None, NotGiven],
+    prompt_metadata: Union[Mapping[str, Any], NotGiven],
+) -> dict[str, Any]:
+    if isinstance(prompt_description, NotGiven) and isinstance(prompt_metadata, NotGiven):
+        raise ValueError("At least one of prompt_description or prompt_metadata must be provided.")
+    body: dict[str, Any] = {}
+    if not isinstance(prompt_description, NotGiven):
+        body["description"] = prompt_description
+    if not isinstance(prompt_metadata, NotGiven):
+        body["metadata"] = dict(prompt_metadata)
+    return body
+
+
 class Prompts:
     """Provides methods for interacting with prompt resources.
 
-    This class allows you to retrieve and create prompt versions.
+    This class allows you to retrieve, create, and update prompts and prompt versions.
 
     Examples:
         Basic prompt operations::
@@ -52,7 +70,7 @@ class Prompts:
                     model_provider="OPENAI"
                 ),
                 prompt_description="Sentiment classification prompt",
-                metadata={"category": "classification", "version": "1.0"}
+                prompt_metadata={"category": "classification", "version": "1.0"}
             )
 
         Working with tags::
@@ -168,6 +186,67 @@ class Prompts:
         response = self._client.post(url=url, json=json_)
         response.raise_for_status()
         return PromptVersion._loads(cast(v1.CreatePromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+
+    def update(
+        self,
+        *,
+        prompt_identifier: str,
+        prompt_description: Union[str, None, NotGiven] = NOT_GIVEN,
+        prompt_metadata: Union[Mapping[str, Any], NotGiven] = NOT_GIVEN,
+    ) -> v1.Prompt:
+        """
+        Update a prompt's description and/or metadata.
+
+        Omit a field to leave it unchanged. Pass ``prompt_description=None`` to
+        clear the description. ``prompt_metadata`` replaces the existing metadata
+        object as a whole; it cannot be cleared to null.
+
+        Args:
+            prompt_identifier (str): The prompt name or ID.
+            prompt_description (Optional[str]): New description, or ``None`` to clear it.
+            prompt_metadata (Mapping[str, Any]): New metadata object (full replace).
+
+        Returns:
+            v1.Prompt: The updated prompt.
+
+        Raises:
+            ValueError: If neither prompt_description nor prompt_metadata is
+                provided, or the prompt is not found.
+            httpx.HTTPStatusError: If the HTTP request returned an unsuccessful
+                status code.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            prompt = client.prompts.update(
+                prompt_identifier="my-prompt",
+                prompt_description="Production classifier",
+                prompt_metadata={"team": "ml", "env": "prod"},
+            )
+            print(prompt.get("metadata"))
+
+            # Clear the description only
+            client.prompts.update(
+                prompt_identifier="my-prompt",
+                prompt_description=None,
+            )
+        """
+        body = _build_patch_prompt_body(
+            prompt_description=prompt_description,
+            prompt_metadata=prompt_metadata,
+        )
+        self._guard.require(PATCH_PROMPT)
+        url = f"v1/prompts/{encode_path_param(prompt_identifier)}"
+        try:
+            response = self._client.patch(url, json=body)
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Prompt not found: {prompt_identifier}") from e
+            raise
+        return cast(v1.PatchPromptResponseBody, response.json())["data"]
 
 
 class PromptVersionTags:
@@ -309,7 +388,8 @@ class AsyncPrompts:
     """
     Provides asynchronous methods for interacting with prompt resources.
 
-    This class allows you to retrieve and create prompt versions asynchronously.
+    This class allows you to retrieve, create, and update prompts and prompt
+    versions asynchronously.
 
     Examples:
         Basic prompt operations::
@@ -457,6 +537,67 @@ class AsyncPrompts:
         response = await self._client.post(url=url, json=json_)
         response.raise_for_status()
         return PromptVersion._loads(cast(v1.CreatePromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+
+    async def update(
+        self,
+        *,
+        prompt_identifier: str,
+        prompt_description: Union[str, None, NotGiven] = NOT_GIVEN,
+        prompt_metadata: Union[Mapping[str, Any], NotGiven] = NOT_GIVEN,
+    ) -> v1.Prompt:
+        """
+        Asynchronously update a prompt's description and/or metadata.
+
+        Omit a field to leave it unchanged. Pass ``prompt_description=None`` to
+        clear the description. ``prompt_metadata`` replaces the existing metadata
+        object as a whole; it cannot be cleared to null.
+
+        Args:
+            prompt_identifier (str): The prompt name or ID.
+            prompt_description (Optional[str]): New description, or ``None`` to clear it.
+            prompt_metadata (Mapping[str, Any]): New metadata object (full replace).
+
+        Returns:
+            v1.Prompt: The updated prompt.
+
+        Raises:
+            ValueError: If neither prompt_description nor prompt_metadata is
+                provided, or the prompt is not found.
+            httpx.HTTPStatusError: If the HTTP request returned an unsuccessful
+                status code.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            prompt = await async_client.prompts.update(
+                prompt_identifier="my-prompt",
+                prompt_description="Production classifier",
+                prompt_metadata={"team": "ml", "env": "prod"},
+            )
+            print(prompt.get("metadata"))
+
+            # Clear the description only
+            await async_client.prompts.update(
+                prompt_identifier="my-prompt",
+                prompt_description=None,
+            )
+        """
+        body = _build_patch_prompt_body(
+            prompt_description=prompt_description,
+            prompt_metadata=prompt_metadata,
+        )
+        await self._guard.require(PATCH_PROMPT)
+        url = f"v1/prompts/{encode_path_param(prompt_identifier)}"
+        try:
+            response = await self._client.patch(url, json=body)
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Prompt not found: {prompt_identifier}") from e
+            raise
+        return cast(v1.PatchPromptResponseBody, response.json())["data"]
 
 
 class AsyncPromptVersionTags:
