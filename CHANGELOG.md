@@ -1,5 +1,33 @@
 # Changelog
 
+## [20.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.21.0...arize-phoenix-v20.0.0) (2026-08-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* agent session persistence ([#14143](https://github.com/Arize-ai/phoenix/issues/14143))
+* **client:** replace google-generativeai formatter with google-genai ([#15085](https://github.com/Arize-ai/phoenix/issues/15085))
+
+### Features
+
+* add semantic coloring to project metric tooltips ([#14936](https://github.com/Arize-ai/phoenix/issues/14936)) ([840f6cb](https://github.com/Arize-ai/phoenix/commit/840f6cbaf76bfee3dcbe8e41d34655be3c6254db))
+* agent session persistence ([#14143](https://github.com/Arize-ai/phoenix/issues/14143)) ([986f6a6](https://github.com/Arize-ai/phoenix/commit/986f6a6fdaeda70d83e2d91f150f9b01d9b8406f))
+* **client:** replace google-generativeai formatter with google-genai ([#15085](https://github.com/Arize-ai/phoenix/issues/15085)) ([5cf9829](https://github.com/Arize-ai/phoenix/commit/5cf9829c4398d784c004c9c976cd7b6739f2aa99))
+* **server:** support trace_annotations in the span filter DSL ([#14192](https://github.com/Arize-ai/phoenix/issues/14192)) ([e70415d](https://github.com/Arize-ai/phoenix/commit/e70415d7c3faa87c04f7fcc1259112a3a2f6738b))
+
+
+### Bug Fixes
+
+* add empty state for column selector ([#15166](https://github.com/Arize-ai/phoenix/issues/15166)) ([759bfd2](https://github.com/Arize-ai/phoenix/commit/759bfd2d18084879df213f2594e6b5414de77f87))
+* **deps:** update arize-phoenix-client to 3.0.0 ([#15311](https://github.com/Arize-ai/phoenix/issues/15311)) ([92c33ef](https://github.com/Arize-ai/phoenix/commit/92c33ef585b86b4fd6c4ba3d0c14aebb6cdae9e8))
+* open session trace on turn double click ([#14637](https://github.com/Arize-ai/phoenix/issues/14637)) ([41b92fd](https://github.com/Arize-ai/phoenix/commit/41b92fd0af211f42c8588383a371e3a13e8fb5c1))
+* **server:** classify Google errors and correct release version ([#15310](https://github.com/Arize-ai/phoenix/issues/15310)) ([c091306](https://github.com/Arize-ai/phoenix/commit/c091306348d8727fa0240abd84be7674a6a18a46))
+
+
+### Miscellaneous Chores
+
+* release 20.0.0 ([#15342](https://github.com/Arize-ai/phoenix/issues/15342)) ([65c4462](https://github.com/Arize-ai/phoenix/commit/65c44623e12999f19fefd50bc15fccf67c888afe))
+
 ## [19.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.20.0...arize-phoenix-v19.21.0) (2026-08-10)
 
 
