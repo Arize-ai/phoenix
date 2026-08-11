@@ -1,3 +1,13 @@
+import {
+  editCodeEvaluatorDraftOperation,
+  readCodeEvaluatorDraftOperation,
+  testCodeEvaluatorDraftOperation,
+} from "@phoenix/agent/uiOperations/operations/codeEvaluatorDraft";
+import {
+  editLlmEvaluatorDraftOperation,
+  readLlmEvaluatorDraftOperation,
+  testLlmEvaluatorDraftOperation,
+} from "@phoenix/agent/uiOperations/operations/llmEvaluatorDraft";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import type {
   AgentClientActionResult,
@@ -6,30 +16,20 @@ import type {
 import { waitForRegisteredClientActions } from "@phoenix/store/agentStore";
 import type { EvaluatorKind } from "@phoenix/types";
 
-import {
-  EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-  READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-} from "../codeEvaluatorDraft";
-import {
-  EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-  READ_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-  TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-} from "../llmEvaluatorDraft";
 import { parseOpenDatasetEvaluatorForEditInput } from "./parsers";
 
 type EditableKind = "CODE" | "LLM";
 
 const DRAFT_TOOL_NAMES_BY_KIND: Record<EditableKind, readonly string[]> = {
   CODE: [
-    READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-    EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-    TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+    readCodeEvaluatorDraftOperation.name,
+    editCodeEvaluatorDraftOperation.name,
+    testCodeEvaluatorDraftOperation.name,
   ],
   LLM: [
-    READ_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-    EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-    TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+    readLlmEvaluatorDraftOperation.name,
+    editLlmEvaluatorDraftOperation.name,
+    testLlmEvaluatorDraftOperation.name,
   ],
 };
 

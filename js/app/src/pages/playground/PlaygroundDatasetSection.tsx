@@ -5,18 +5,18 @@ import type { PanelImperativeHandle } from "react-resizable-panels";
 
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
+import { createReadDatasetEvaluatorDefinitionClientAction } from "@phoenix/agent/tools/datasetEvaluatorDefinition";
+import { createOpenDatasetEvaluatorForEditClientAction } from "@phoenix/agent/tools/datasetEvaluatorForEdit";
+import { createSetDatasetEvaluatorSelectionClientAction } from "@phoenix/agent/tools/datasetEvaluatorSelection";
 import {
-  createReadDatasetEvaluatorDefinitionClientAction,
-  READ_DATASET_EVALUATOR_DEFINITION_TOOL_NAME,
-} from "@phoenix/agent/tools/datasetEvaluatorDefinition";
+  registerUiOperation,
+  unregisterUiOperation,
+} from "@phoenix/agent/uiOperations/catalog";
 import {
-  createOpenDatasetEvaluatorForEditClientAction,
-  OPEN_DATASET_EVALUATOR_FOR_EDIT_TOOL_NAME,
-} from "@phoenix/agent/tools/datasetEvaluatorForEdit";
-import {
-  createSetDatasetEvaluatorSelectionClientAction,
-  SET_DATASET_EVALUATOR_SELECTION_TOOL_NAME,
-} from "@phoenix/agent/tools/datasetEvaluatorSelection";
+  openDatasetEvaluatorForEditOperation,
+  readDatasetEvaluatorDefinitionOperation,
+  selectDatasetEvaluatorsOperation,
+} from "@phoenix/agent/uiOperations/operations/datasetEvaluators";
 import { Flex } from "@phoenix/components";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
@@ -178,35 +178,45 @@ export function PlaygroundDatasetSection({
   }, [datasetEvaluators, editingEvaluator]);
 
   useEffect(() => {
-    const { registerClientAction, unregisterClientAction } =
-      agentStore.getState();
-    registerClientAction(
-      SET_DATASET_EVALUATOR_SELECTION_TOOL_NAME,
-      createSetDatasetEvaluatorSelectionClientAction({
+    registerUiOperation({
+      agentStore,
+      descriptor: selectDatasetEvaluatorsOperation,
+      handler: createSetDatasetEvaluatorSelectionClientAction({
         getEvaluators: () => evaluatorsRef.current,
         setSelectedDatasetEvaluatorIds,
-      })
-    );
-    registerClientAction(
-      OPEN_DATASET_EVALUATOR_FOR_EDIT_TOOL_NAME,
-      createOpenDatasetEvaluatorForEditClientAction({
+      }),
+    });
+    registerUiOperation({
+      agentStore,
+      descriptor: openDatasetEvaluatorForEditOperation,
+      handler: createOpenDatasetEvaluatorForEditClientAction({
         agentStore,
         getEvaluators: () => evaluatorsRef.current,
         getEditingEvaluator: () => editingEvaluatorRef.current,
         openEvaluatorForEdit: setEditingEvaluator,
-      })
-    );
-    registerClientAction(
-      READ_DATASET_EVALUATOR_DEFINITION_TOOL_NAME,
-      createReadDatasetEvaluatorDefinitionClientAction({
+      }),
+    });
+    registerUiOperation({
+      agentStore,
+      descriptor: readDatasetEvaluatorDefinitionOperation,
+      handler: createReadDatasetEvaluatorDefinitionClientAction({
         datasetId,
         getEvaluators: () => evaluatorsRef.current,
-      })
-    );
+      }),
+    });
     return () => {
-      unregisterClientAction(SET_DATASET_EVALUATOR_SELECTION_TOOL_NAME);
-      unregisterClientAction(OPEN_DATASET_EVALUATOR_FOR_EDIT_TOOL_NAME);
-      unregisterClientAction(READ_DATASET_EVALUATOR_DEFINITION_TOOL_NAME);
+      unregisterUiOperation({
+        agentStore,
+        name: selectDatasetEvaluatorsOperation.name,
+      });
+      unregisterUiOperation({
+        agentStore,
+        name: openDatasetEvaluatorForEditOperation.name,
+      });
+      unregisterUiOperation({
+        agentStore,
+        name: readDatasetEvaluatorDefinitionOperation.name,
+      });
     };
   }, [agentStore, datasetId]);
 

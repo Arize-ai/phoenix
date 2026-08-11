@@ -20,16 +20,14 @@ export type {
   EvaluatorSubmitToolOutput,
 };
 
+import type { UiOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
+
 import type {
-  CodeEvaluatorEditToolOutputSender,
-  editCodeEvaluatorDraftActionContextSchema,
   editCodeEvaluatorDraftInputSchema,
   editCodeEvaluatorDraftOperationSchema,
   readCodeEvaluatorDraftInputSchema,
   testCodeEvaluatorDraftInputSchema,
 } from "./schemas";
-
-export type { CodeEvaluatorEditToolOutputSender } from "./schemas";
 
 export type ReadCodeEvaluatorDraftInput = z.output<
   typeof readCodeEvaluatorDraftInputSchema
@@ -45,10 +43,6 @@ export type EditCodeEvaluatorDraftInput = z.output<
 
 export type TestCodeEvaluatorDraftInput = z.output<
   typeof testCodeEvaluatorDraftInputSchema
->;
-
-export type EditCodeEvaluatorDraftActionContext = z.output<
-  typeof editCodeEvaluatorDraftActionContextSchema
 >;
 
 export type CodeEvaluatorFormMode = "create" | "edit";
@@ -111,7 +105,13 @@ export type CodeEvaluatorDraftHost = {
 };
 
 export type PendingCodeEvaluatorEdit = {
+  /**
+   * Key of this pending entry. Under `execute_ui` this is the inner
+   * operation call id (`<toolCallId>:<sequence>`), not an AI SDK toolCallId;
+   * the field keeps its historical name to limit churn across consumers.
+   */
   toolCallId: string;
+  /** Agent session that owns the unresolved evaluators.code.edit call. */
   sessionId: string;
   before: CodeEvaluatorDraftSnapshot;
   after: CodeEvaluatorDraftSnapshot;
@@ -124,7 +124,8 @@ export type PendingCodeEvaluatorEdit = {
 export type BindPendingCodeEvaluatorEditOptions = {
   pendingEdit: PendingCodeEvaluatorEdit;
   draftHost: CodeEvaluatorDraftHost;
-  addToolOutput: CodeEvaluatorEditToolOutputSender;
+  /** Resolves the awaiting `execute_ui` script call with the user's decision. */
+  emitResult: UiOperationResultEmitter;
   setPendingCodeEvaluatorEdit: (
     toolCallId: string,
     edit: PendingCodeEvaluatorEdit | null

@@ -11,10 +11,12 @@ import {
 } from "react";
 import { useSearchParams } from "react-router";
 
+import type { SetSpansFilterInput } from "@phoenix/agent/tools/spansFilter";
 import {
-  SET_SPANS_FILTER_TOOL_NAME,
-  type SetSpansFilterInput,
-} from "@phoenix/agent/tools/spansFilter";
+  registerUiOperation,
+  unregisterUiOperation,
+} from "@phoenix/agent/uiOperations/catalog";
+import { setSpansFilterOperation } from "@phoenix/agent/uiOperations/operations/spansFilter";
 import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
@@ -248,13 +250,13 @@ function useRegisterSetSpansFilterClientAction({
   );
 
   useEffect(() => {
-    const { registerClientAction, unregisterClientAction } =
-      agentStore.getState();
-    registerClientAction(SET_SPANS_FILTER_TOOL_NAME, (input) =>
-      handleSetSpansFilter(input as SetSpansFilterInput)
-    );
+    registerUiOperation({
+      agentStore,
+      descriptor: setSpansFilterOperation,
+      handler: handleSetSpansFilter,
+    });
     return () => {
-      unregisterClientAction(SET_SPANS_FILTER_TOOL_NAME);
+      unregisterUiOperation({ agentStore, name: setSpansFilterOperation.name });
     };
   }, [agentStore]);
 }

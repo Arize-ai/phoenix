@@ -620,8 +620,9 @@ function mergeAgentPersistedState(
  * surfaces back to the model as either tool output or a tool error.
  */
 export type AgentClientActionResult =
-  | { ok: true; output?: string }
-  | { ok: false; error: string };
+  // `output` is JSON-serializable: UI-operation results cross a worker
+  // postMessage boundary and are embedded in `execute_ui` tool output.
+  { ok: true; output?: unknown } | { ok: false; error: string };
 
 export type AgentClientAction = (
   input: unknown,

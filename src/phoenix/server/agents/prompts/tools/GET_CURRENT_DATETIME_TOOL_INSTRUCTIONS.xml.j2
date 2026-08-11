@@ -2,7 +2,7 @@
   <description>Read the current date and time as reported by the user's browser (falling back to the server's UTC clock when no browser clock is available).</description>
   <when_to_use>
     - Before resolving any relative date or time phrase ("today", "yesterday", "last hour", "since 9am") into concrete timestamps.
-    - Before calling `set_time_range` with a `custom` window derived from relative language.
+    - Before setting a `custom` time-range window (via an `execute_ui` script) derived from relative language.
     - Whenever an answer depends on knowing what time it is now.
   </when_to_use>
   <guidelines>

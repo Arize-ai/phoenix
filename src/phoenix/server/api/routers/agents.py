@@ -1305,8 +1305,8 @@ def _load_model_provider_availability() -> ModelProviderAvailability:
 
 
 def _contexts_need_model_provider_availability(contexts: ResolvedContexts) -> bool:
-    # ``open_llm_evaluator_form`` gates on model-provider availability with no
-    # ``llm_evaluator`` context, so a dataset-backed playground must also trigger the load.
+    # The ``ui.evaluators.llm.openForm`` operation gates on model-provider availability with
+    # no ``llm_evaluator`` context, so a dataset-backed playground must also trigger the load.
     return contexts.dataset is not None or contexts.llm_evaluator is not None
 
 

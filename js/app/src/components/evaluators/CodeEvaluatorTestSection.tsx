@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
+import { createTestCodeEvaluatorDraftClientAction } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
-  createTestCodeEvaluatorDraftClientAction,
-  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-} from "@phoenix/agent/tools/codeEvaluatorDraft";
+  registerUiOperation,
+  unregisterUiOperation,
+} from "@phoenix/agent/uiOperations/catalog";
+import { testCodeEvaluatorDraftOperation } from "@phoenix/agent/uiOperations/operations/codeEvaluatorDraft";
 import {
   Alert,
   Button,
@@ -286,17 +288,19 @@ export const CodeEvaluatorTestSection = ({
 
   const agentStore = useAgentStore();
   useEffect(() => {
-    const { registerClientAction, unregisterClientAction } =
-      agentStore.getState();
-    registerClientAction(
-      TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-      createTestCodeEvaluatorDraftClientAction({
+    registerUiOperation({
+      agentStore,
+      descriptor: testCodeEvaluatorDraftOperation,
+      handler: createTestCodeEvaluatorDraftClientAction({
         isDraftMounted,
         runEvaluatorPreview,
-      })
-    );
+      }),
+    });
     return () => {
-      unregisterClientAction(TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME);
+      unregisterUiOperation({
+        agentStore,
+        name: testCodeEvaluatorDraftOperation.name,
+      });
     };
   }, [agentStore, isDraftMounted, runEvaluatorPreview]);
 

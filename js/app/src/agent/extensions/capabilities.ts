@@ -2,8 +2,8 @@
  * Runtime capabilities are feature flags that shape what the agent can do and
  * how the UI should expose those controls.
  *
- * For tool-extension workflow guidance, see the `defineTool` /
- * `defineClientActionTool` helpers in `./registry` and the registry aggregator
+ * For tool-extension workflow guidance, see the `defineTool` helper in
+ * `./registry` and the registry aggregator
  * in `./toolRegistry`.
  */
 export type AgentCapabilityKey =

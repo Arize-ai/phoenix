@@ -1,17 +1,9 @@
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
-import {
-  EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-  READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-} from "@phoenix/agent/tools/codeEvaluatorDraft";
-import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
-import {
-  createOpenDatasetEvaluatorForEditClientAction,
-  type OpenEvaluatorForEditTarget,
-} from "../clientActions";
+import { createOpenDatasetEvaluatorForEditClientAction } from "../clientActions";
 
 installTestStorage();
 
@@ -28,31 +20,6 @@ function evaluator(overrides: Partial<EvaluatorItem> = {}): EvaluatorItem {
 }
 
 describe("open_dataset_evaluator_for_edit client action", () => {
-  it("opens the matching edit slideover and resolves once draft tools mount", async () => {
-    const agentStore = createAgentStore();
-    const opened: OpenEvaluatorForEditTarget[] = [];
-    const action = createOpenDatasetEvaluatorForEditClientAction({
-      agentStore,
-      getEvaluators: () => [evaluator({ id: "a", kind: "CODE" })],
-      getEditingEvaluator: () => null,
-      openEvaluatorForEdit: (target) => {
-        opened.push(target);
-        // The mounted slideover registers the kind's draft tools.
-        const { registerClientAction } = agentStore.getState();
-        registerClientAction(READ_CODE_EVALUATOR_DRAFT_TOOL_NAME, noop);
-        registerClientAction(EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME, noop);
-        registerClientAction(TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME, noop);
-      },
-    });
-
-    const result = await action({ datasetEvaluatorId: "a" });
-
-    expect(result.ok).toBe(true);
-    expect(opened).toEqual([
-      { datasetEvaluatorId: "a", kind: "CODE", isBuiltIn: false },
-    ]);
-  });
-
   it("rejects a built-in target with a typed not-editable error", async () => {
     const agentStore = createAgentStore();
     let openCalled = false;
@@ -107,61 +74,6 @@ describe("open_dataset_evaluator_for_edit client action", () => {
     if (!result.ok) {
       expect(result.error).toContain("deleted");
     }
-  });
-
-  it("rejects when a same-kind draft host is already mounted, without opening", async () => {
-    const agentStore = createAgentStore();
-    // A code-evaluator form is already mounted (its draft tools are registered).
-    agentStore
-      .getState()
-      .registerClientAction(EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME, noop);
-    let openCalled = false;
-    const action = createOpenDatasetEvaluatorForEditClientAction({
-      agentStore,
-      getEvaluators: () => [evaluator({ id: "a", kind: "CODE" })],
-      getEditingEvaluator: () => null,
-      openEvaluatorForEdit: () => {
-        openCalled = true;
-      },
-    });
-
-    const result = await action({ datasetEvaluatorId: "a" });
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain("already open");
-    }
-    expect(openCalled).toBe(false);
-    // The mounted draft action is untouched.
-    expect(
-      EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME in
-        agentStore.getState().registeredClientActions
-    ).toBe(true);
-  });
-
-  it("rejects opening a code evaluator while a different-kind create form is mounted", async () => {
-    const agentStore = createAgentStore();
-    // An LLM create form is mounted (its draft tools are registered) but does not occupy the slot.
-    agentStore
-      .getState()
-      .registerClientAction(EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME, noop);
-    let openCalled = false;
-    const action = createOpenDatasetEvaluatorForEditClientAction({
-      agentStore,
-      getEvaluators: () => [evaluator({ id: "a", kind: "CODE" })],
-      getEditingEvaluator: () => null,
-      openEvaluatorForEdit: () => {
-        openCalled = true;
-      },
-    });
-
-    const result = await action({ datasetEvaluatorId: "a" });
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain("already open");
-    }
-    expect(openCalled).toBe(false);
   });
 
   it("rejects opening a different-kind evaluator while the shared edit slot is occupied", async () => {

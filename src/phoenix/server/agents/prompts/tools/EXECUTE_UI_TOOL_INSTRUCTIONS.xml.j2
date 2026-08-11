@@ -1,0 +1,23 @@
+<tool name="execute_ui">
+  <description>Run a JavaScript script in a sandboxed worker in the user's browser to read and change Phoenix UI state through the `ui` operation catalog. This is the single entry point for UI-state work: playground prompts, models, filters, time-scoped views, dataset loading, playground runs, and evaluator drafts.</description>
+  <when_to_use>
+    - The user asks to change or read something on the page: edit a prompt, set a model, apply a filter, load a dataset, run the playground, or work on an evaluator draft.
+    - You need to chain several UI operations, branch on an intermediate result, or loop over items.
+    - You have already discovered the operations you need via `search_ui` (or used them earlier in this conversation).
+  </when_to_use>
+  <guidelines>
+    - Follow the search-then-execute loop: discover operations with `search_ui` first, then call them via the `ui` object using the exact names and input shapes the catalog documented. Never invent an operation name.
+    - Every operation call is async and resolves to a `UiResult`: `{ok: true, output?}` on success or `{ok: false, error}` on failure. Check `ok` before using `output`, and stop or adapt when a call fails instead of blindly continuing.
+    - Call `log(message)` to emit progress the user can see while a longer script runs.
+    - The script's return value becomes the tool output — `return` the data you need for your next step (for example, a read operation's `output`).
+    - Operations of kind `approval` stage a change the user must accept or reject in the UI; the awaited promise resolves with the user's decision. Treat a rejection as an answer, not an error — do not retry the same change.
+    - Prefer several small scripts over one large script so approvals and errors stay legible; keep at most one approval-staging operation per script when practical.
+    - Error recovery: an unknown-operation error includes suggested near-miss names — call `search_ui` to confirm before retrying. An operation that is unavailable on the user's current page fails with a route hint describing where it becomes available; navigate or ask the user rather than retrying in place.
+  </guidelines>
+  <example>
+    Set a model, run the playground, and read the output across small scripts:
+    1. `return await ui.playground.model.set({target: {type: 'builtin', provider: 'OPENAI', modelName: 'gpt-5'}});` — check `ok` on the result.
+    2. `const run = await ui.playground.run({}); if (!run.ok) return run; log('run finished'); return await ui.playground.run.readOutput({});`
+    Operation names here are illustrative — always take the real names and input shapes from `search_ui` results.
+  </example>
+</tool>

@@ -13,9 +13,9 @@
   </available_model_providers>
   <guidance>
     Before authoring or revising this judge, `load_skill` the `evaluators` skill for the evaluator authoring methodology.
-    Call `read_llm_evaluator_draft` before proposing edits to capture the latest draft snapshot and `testPayload`.
+    Call `ui.evaluators.llm.read({})` in an `execute_ui` script before proposing edits to capture the latest draft snapshot and `testPayload` — e.g. `const draft = await ui.evaluators.llm.read({}); return draft;`.
 {% if can_edit_draft %}
-    Call `edit_llm_evaluator_draft` to show the user an accept/reject diff before changing the form, including `set_test_payload` when the preview payload should change.
+    Call `ui.evaluators.llm.edit` to show the user an accept/reject diff before changing the form, including `set_test_payload` when the preview payload should change.
 {% elif is_viewer %}
     The user has view-only access. Do not propose form edits; answer from the readable draft and explain that persistence requires edit access.
 {% else %}
@@ -23,15 +23,15 @@
 {% endif %}
 {% if can_test_draft %}
 {% if edit_permission == "bypass" %}
-    Auto-accept is on: once the draft is populated and valid, call `test_llm_evaluator_draft` to preview it (revise the judge prompt or `testPayload` and re-test if the preview surfaces a problem) — do this without pausing to ask the user for confirmation.
+    Auto-accept is on: once the draft is populated and valid, call `ui.evaluators.llm.test({})` to preview it (revise the judge prompt or `testPayload` and re-test if the preview surfaces a problem) — do this without pausing to ask the user for confirmation.
 {% else %}
-    After the user accepts a populated draft, offer to run `test_llm_evaluator_draft` before they click {% if llm_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %}; if the user agrees, call it and use the preview result to iterate.
+    After the user accepts a populated draft, offer to run `ui.evaluators.llm.test` before they click {% if llm_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %}; if the user agrees, call it and use the preview result to iterate.
 {% endif %}
 {% else %}
-    Do not offer a draft test unless `test_llm_evaluator_draft` is available.
+    Do not offer a draft test unless the `ui.evaluators.llm.test` operation is available.
 {% endif %}
 {% if edit_permission == "bypass" and can_edit_draft %}
-    Then persist by calling `submit_llm_evaluator_draft` — it runs the same validated save the {% if llm_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %} button does and returns the committed evaluator. Drive the flow through to this save without stopping to ask; report the evaluator as saved only from that tool's success result, and do not tell the user to click {% if llm_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %} themselves.
+    Then persist by calling `ui.evaluators.llm.submit({})` — it runs the same validated save the {% if llm_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %} button does and returns the committed evaluator. Drive the flow through to this save without stopping to ask; report the evaluator as saved only from that operation's success result, and do not tell the user to click {% if llm_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %} themselves.
 {% else %}
     Do not claim the evaluator is persisted; persistence remains the user's {% if llm_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %} action in the form.
 {% endif %}

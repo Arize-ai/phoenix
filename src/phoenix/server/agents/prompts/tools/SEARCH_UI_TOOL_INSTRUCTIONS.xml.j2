@@ -1,0 +1,15 @@
+<tool name="search_ui">
+  <description>Search the catalog of browser UI operations that `execute_ui` scripts can call. Returns TypeScript-style signatures with doc comments for each matching operation, whether it is available on the user's current page, and how to reach it when it is not.</description>
+  <when_to_use>
+    - Before calling any UI operation you have not already used in this conversation — never guess operation names or input shapes.
+    - The user asks to change or read UI state (time ranges, filters, playground prompts, models, datasets, evaluator drafts) and you do not yet know which operation covers it.
+    - An `execute_ui` call failed with an unknown-operation error or reported that an operation is unavailable on the current page.
+  </when_to_use>
+  <guidelines>
+    - Call with a free-text `query` to match operation names and descriptions; call with an empty or omitted `query` to list the full catalog grouped by namespace.
+    - Set `mountedOnly: true` to narrow results to operations usable on the user's current page; leave it off when planning work that may require navigation.
+    - Each result is the contract for that operation: use the documented input shape exactly as written when calling it from an `execute_ui` script.
+    - Results for operations that are not available on the current page include a route hint describing where they become available — surface that to the user or navigate before executing.
+    - Search once, then reuse what you learned: do not re-search for operations whose signatures are already in this conversation.
+  </guidelines>
+</tool>

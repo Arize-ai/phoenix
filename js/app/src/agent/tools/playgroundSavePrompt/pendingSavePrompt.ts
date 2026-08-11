@@ -1,7 +1,6 @@
 import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval";
 import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
-import { SAVE_PROMPT_TOOL_NAME } from "./constants";
 import type { BindPendingSavePromptOptions, PendingSavePrompt } from "./types";
 
 export const SAVE_PROMPT_NAVIGATION_CANCEL_ERROR =
@@ -47,12 +46,14 @@ function buildAcceptedOutput({
 }
 
 /**
- * Attaches accept/reject callbacks to a pending save_prompt proposal.
+ * Attaches accept/reject callbacks to a pending prompt save proposal. Each
+ * callback resolves the awaiting `execute_ui` script call via `emitResult`;
+ * see `bindPendingPromptEditActions` for the result contract.
  */
 export function bindPendingSavePromptActions({
   pendingSave,
   savePrompt,
-  addToolOutput,
+  emitResult,
   setPendingSavePrompt,
 }: BindPendingSavePromptOptions): PendingSavePrompt {
   return {
@@ -61,18 +62,11 @@ export function bindPendingSavePromptActions({
       setPendingSavePrompt(pendingSave.toolCallId, null);
       const result = await savePrompt(pendingSave.input);
       if (!result.ok) {
-        await addToolOutput({
-          state: "output-error",
-          tool: SAVE_PROMPT_TOOL_NAME,
-          toolCallId: pendingSave.toolCallId,
-          errorText: result.error,
-        });
+        emitResult({ ok: false, error: result.error });
         return;
       }
-      await addToolOutput({
-        state: "output-available",
-        tool: SAVE_PROMPT_TOOL_NAME,
-        toolCallId: pendingSave.toolCallId,
+      emitResult({
+        ok: true,
         output: buildAcceptedOutput({
           output: result.output,
           approvalSource,
@@ -81,10 +75,8 @@ export function bindPendingSavePromptActions({
     },
     reject: async () => {
       setPendingSavePrompt(pendingSave.toolCallId, null);
-      await addToolOutput({
-        state: "output-available",
-        tool: SAVE_PROMPT_TOOL_NAME,
-        toolCallId: pendingSave.toolCallId,
+      emitResult({
+        ok: true,
         output: {
           status: "rejected",
           message: "User rejected the proposed prompt save.",
@@ -94,13 +86,7 @@ export function bindPendingSavePromptActions({
     },
     cancel: async () => {
       setPendingSavePrompt(pendingSave.toolCallId, null);
-      await addToolOutput({
-        state: "output-error",
-        tool: SAVE_PROMPT_TOOL_NAME,
-        toolCallId: pendingSave.toolCallId,
-        errorText: SAVE_PROMPT_NAVIGATION_CANCEL_ERROR,
-        outcome: "interrupted",
-      });
+      emitResult({ ok: false, error: SAVE_PROMPT_NAVIGATION_CANCEL_ERROR });
     },
   };
 }
