@@ -68,6 +68,25 @@ export function toProjectEvaluatorSamplingFraction(percent: number): number {
   return Math.min(100, Math.max(0, percent)) / 100;
 }
 
+/** "SPAN" -> "Span", for display in the evaluators table and details page. */
+export function formatEvaluationTarget(
+  target: ProjectEvaluatorGraphQLTarget
+): string {
+  return `${target.charAt(0)}${target.slice(1).toLowerCase()}`;
+}
+
+// Hoisted: Intl.NumberFormat construction does locale resolution, and the
+// evaluators table calls this per row per render.
+const samplingRateFormatter = new Intl.NumberFormat(undefined, {
+  style: "percent",
+  maximumFractionDigits: 2,
+});
+
+/** Formats a sampling fraction (0-1) as a percentage for display. */
+export function formatSamplingRate(samplingRate: number): string {
+  return samplingRateFormatter.format(samplingRate);
+}
+
 export type ProjectEvaluatorMappingDiagnostic = {
   variable: string;
   path: string;
