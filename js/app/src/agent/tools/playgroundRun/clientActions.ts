@@ -56,9 +56,39 @@ export function cancelPlaygroundRun({
   };
 }
 
+function hasActiveRun(instances: PlaygroundNormalizedInstance[]): boolean {
+  return instances.some((instance) => instance.activeRunId != null);
+}
+
 /**
- * Creates the client action handler for run_playground.
- * Starts the same run the playground Run button would start.
+ * Resolves once no instance has an active run: every instance finished
+ * (`markPlaygroundInstanceComplete`) or the run was cancelled
+ * (`cancelPlaygroundInstances`).
+ */
+function waitForPlaygroundRunEnd(
+  playgroundStore: PlaygroundStore
+): Promise<void> {
+  return new Promise((resolve) => {
+    if (!hasActiveRun(playgroundStore.getState().instances)) {
+      resolve();
+      return;
+    }
+    const unsubscribe = playgroundStore.subscribe((state) => {
+      if (!hasActiveRun(state.instances)) {
+        unsubscribe();
+        resolve();
+      }
+    });
+  });
+}
+
+/**
+ * Creates the client action handler for `playground.run`.
+ * Starts the same run the playground Run button would start, then resolves
+ * only when the run ends (every instance finished, or the run was
+ * cancelled) — so a script can read output right after awaiting it. The
+ * operation is marked `longRunning`, which pauses the script's wall-clock
+ * budget while this promise is in flight.
  */
 export function createRunPlaygroundClientAction({
   playgroundStore,
@@ -96,13 +126,21 @@ export function createRunPlaygroundClientAction({
       label: getInstanceLabel(index),
     }));
     state.runPlaygroundInstances();
+    await waitForPlaygroundRunEnd(playgroundStore);
+
+    const experimentIds = playgroundStore
+      .getState()
+      .instances.map((instance) => instance.experiment?.id)
+      .filter((experimentId): experimentId is string => Boolean(experimentId));
 
     return {
       ok: true,
       output: {
-        status: "started",
+        status: "completed",
         instances,
-        message: "Playground run started.",
+        ...(experimentIds.length > 0 ? { experimentIds } : {}),
+        message:
+          "Playground run finished. Read the results with playground.run.readOutput.",
       },
     };
   };

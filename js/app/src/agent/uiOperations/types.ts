@@ -65,6 +65,13 @@ export type UiOperationDescriptor<TSchema extends z.ZodType = z.ZodType> = {
   /** Zod schema for the operation input; the only schema definition anywhere. */
   inputSchema: TSchema;
   kind: UiOperationKind;
+  /**
+   * Marks an operation whose handler legitimately awaits completion of work
+   * that can outlast the script's wall-clock budget (e.g. a playground run).
+   * Like `approval`-kind calls, the budget pauses while the call is in
+   * flight.
+   */
+  longRunning?: boolean;
   /** Capability keys that must be enabled for this operation to dispatch. */
   requiredCapabilities?: AgentCapabilityKey[];
   /** Whether an active agent session is required to dispatch. */
