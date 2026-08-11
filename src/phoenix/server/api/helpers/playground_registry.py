@@ -60,20 +60,19 @@ PLAYGROUND_CLIENT_REGISTRY: PlaygroundClientRegistry = PlaygroundClientRegistry(
 def register_llm_client(
     provider_key: GenerativeProviderKey,
     model_names: Sequence[ModelName],
-    override: bool = False,
 ) -> Callable[[type["PlaygroundStreamingClient[Any]"]], type["PlaygroundStreamingClient[Any]"]]:
+    """Add a provider's models to the playground catalog.
+
+    This declares which model names the UI offers for a provider, and which client
+    supplies the provider's dependency metadata. It does not decide which client
+    serves a request -- see ``get_openai_client_class`` in ``playground_clients``.
+    """
+
     def decorator(
         cls: type["PlaygroundStreamingClient[Any]"],
     ) -> type["PlaygroundStreamingClient[Any]"]:
         provider_registry = PLAYGROUND_CLIENT_REGISTRY._registry.setdefault(provider_key, {})
         for model_name in model_names:
-            existing = provider_registry.get(model_name)
-            if existing is not None and existing is not cls and not override:
-                raise ValueError(
-                    f"LLM client for ({provider_key.name}, {model_name!r}) is already "
-                    f"registered to {existing.__name__}; refusing to silently overwrite "
-                    f"with {cls.__name__}. Pass override=True if this is intentional."
-                )
             provider_registry[model_name] = cls
         return cls
 

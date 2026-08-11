@@ -1956,7 +1956,6 @@ OPENAI_REASONING_MODELS = [
         PROVIDER_DEFAULT,
         *OPENAI_REASONING_MODELS,
     ],
-    override=True,  # intentionally replaces OpenAIStreamingClient as the provider default
 )
 class OpenAIResponsesAPIStreamingClient(OpenAIStreamingClient):
     """OpenAI Responses API (responses.create) client.
@@ -3040,7 +3039,6 @@ GEMINI_2_5_MODELS = [
 @register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=GEMINI_2_5_MODELS,
-    override=True,  # intentionally replaces GoogleStreamingClient as the provider default
 )
 class Gemini25GoogleStreamingClient(GoogleStreamingClient):
     pass
