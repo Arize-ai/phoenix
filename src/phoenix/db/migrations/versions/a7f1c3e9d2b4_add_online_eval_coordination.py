@@ -1,7 +1,7 @@
 """add online eval coordination
 
 Revision ID: a7f1c3e9d2b4
-Revises: c9d0e1f2a3b4
+Revises: 4aad9107d196
 Create Date: 2026-06-17 00:00:00.000000
 
 """
@@ -33,7 +33,7 @@ JSON_ = JSON().with_variant(postgresql.JSONB(), "postgresql").with_variant(JSONB
 
 # revision identifiers, used by Alembic.
 revision: str = "a7f1c3e9d2b4"
-down_revision: Union[str, None] = "c9d0e1f2a3b4"
+down_revision: Union[str, None] = "4aad9107d196"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
