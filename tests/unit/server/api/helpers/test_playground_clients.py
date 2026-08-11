@@ -948,6 +948,25 @@ class TestDefaultApiTypeRouting:
         assert get_openai_client_class(provider_key, model_name, None) is expected_class
 
 
+class TestReasoningChatCompletionsMessages:
+    @pytest.mark.parametrize(
+        "client_class",
+        [OpenAIReasoningNonStreamingClient, AzureOpenAIReasoningNonStreamingClient],
+    )
+    def test_system_messages_become_developer_messages(
+        self, client_class: type[OpenAIBaseStreamingClient]
+    ) -> None:
+        """Reasoning models take instructions on the `developer` role, not `system`."""
+        message = create_playground_message(ChatCompletionMessageRole.SYSTEM, "be terse")
+        param = client_class._to_openai_chat_completion_message_param(None, message)  # type: ignore[arg-type]
+        assert param == {"content": "be terse", "role": "developer"}
+
+    def test_non_reasoning_clients_keep_the_system_role(self) -> None:
+        message = create_playground_message(ChatCompletionMessageRole.SYSTEM, "be terse")
+        param = OpenAIStreamingClient._to_openai_chat_completion_message_param(None, message)  # type: ignore[arg-type]
+        assert param == {"content": "be terse", "role": "system"}
+
+
 def _identity_decrypt(value: bytes) -> bytes:
     return value
 

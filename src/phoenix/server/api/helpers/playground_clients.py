@@ -1995,10 +1995,10 @@ class OpenAIResponsesAPIStreamingClient(OpenAIStreamingClient):
             yield chunk
 
 
-# Not registered; reachable only via an explicit CHAT_COMPLETIONS api type
-# (see get_openai_client_class).
+# Not in the catalog; reachable only via an explicit CHAT_COMPLETIONS api type.
 class OpenAIReasoningNonStreamingClient(OpenAIStreamingClient):
-    def _to_openai_chat_completion_param(
+    @override
+    def _to_openai_chat_completion_message_param(
         self,
         message: PlaygroundMessage,
     ) -> Optional["ChatCompletionMessageParam"]:
