@@ -36,7 +36,7 @@ export function createReadLlmEvaluatorDraftClientAction({
         error: "The LLM-evaluator form is not mounted; cannot read the draft.",
       };
     }
-    return { ok: true, output: JSON.stringify(host.getSnapshot(), null, 2) };
+    return { ok: true, output: host.getSnapshot() };
   };
 }
 
@@ -146,10 +146,6 @@ export function createTestLlmEvaluatorDraftClientAction({
         error: "The LLM-evaluator form is not mounted; cannot test the draft.",
       };
     }
-    const result = await runEvaluatorPreview();
-    if (!result.ok) {
-      return result;
-    }
-    return { ok: true, output: JSON.stringify(result.output, null, 2) };
+    return runEvaluatorPreview();
   };
 }

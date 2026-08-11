@@ -42,19 +42,15 @@ export function createSetAppendedMessagesPathClientAction({
 
     return {
       ok: true,
-      output: JSON.stringify(
-        {
-          status: "updated",
-          datasetId,
-          appendedMessagesPath: path,
-          message:
-            path === null
-              ? "Disabled appending dataset messages."
-              : `Set appended dataset messages path to "${path}".`,
-        },
-        null,
-        2
-      ),
+      output: {
+        status: "updated",
+        datasetId,
+        appendedMessagesPath: path,
+        message:
+          path === null
+            ? "Disabled appending dataset messages."
+            : `Set appended dataset messages path to "${path}".`,
+      },
     };
   };
 }

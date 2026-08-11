@@ -1,5 +1,6 @@
 export * from "./clientActions";
 export * from "./constants";
+export * from "./diffText";
 export * from "./draftOperations";
 export * from "./parsers";
 export * from "./pendingLlmEvaluatorEdit";

@@ -67,8 +67,9 @@ export type SavePlaygroundPromptPreviewParams = {
 };
 
 export type SavePromptActionResult =
-  | { ok: true; output?: string }
-  | { ok: false; error: string };
+  // `output` is JSON-serializable structured data, not pre-stringified JSON:
+  // it is embedded in the `execute_ui` script result and serialized once there.
+  { ok: true; output?: unknown } | { ok: false; error: string };
 
 export type SavePromptAction = (
   input: SavePromptInput

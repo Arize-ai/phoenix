@@ -50,15 +50,11 @@ export function createSetDatasetEvaluatorSelectionClientAction({
     });
     return {
       ok: true,
-      output: JSON.stringify(
-        {
-          status: "updated",
-          applied,
-          message: `Applied ${applied.length} evaluator${applied.length === 1 ? "" : "s"} to the dataset playground.`,
-        },
-        null,
-        2
-      ),
+      output: {
+        status: "updated",
+        applied,
+        message: `Applied ${applied.length} evaluator${applied.length === 1 ? "" : "s"} to the dataset playground.`,
+      },
     };
   };
 }

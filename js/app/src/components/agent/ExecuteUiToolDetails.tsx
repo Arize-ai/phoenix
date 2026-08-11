@@ -1,32 +1,64 @@
 import { useMemo } from "react";
 
-import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluatorDraft";
-import type { PendingLlmEvaluatorEdit } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import {
+  codeEvaluatorDraftFileName,
+  codeEvaluatorDraftSnapshotToText,
+  type PendingCodeEvaluatorEdit,
+} from "@phoenix/agent/tools/codeEvaluatorDraft";
+import {
+  llmEvaluatorDraftFileName,
+  llmEvaluatorDraftSnapshotToText,
+  type PendingLlmEvaluatorEdit,
+} from "@phoenix/agent/tools/llmEvaluatorDraft";
 import type { PendingLoadDataset } from "@phoenix/agent/tools/playgroundLoadDataset";
 import type {
   PendingPromptEdit,
   PendingPromptInstanceRemoval,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { promptSnapshotToText } from "@phoenix/agent/tools/playgroundPrompt";
-import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
+import {
+  type PendingPromptToolWrite,
+  promptToolsSnapshotToText,
+} from "@phoenix/agent/tools/playgroundPromptTools";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { Flex } from "@phoenix/components";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
+import {
+  LazyToolPartDiffView,
+  LazyToolPartFileView,
+} from "./LazyToolPartPierreViews";
 import { ToolPartApprovalActions } from "./ToolPartPrimitives";
-import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
+import {
+  ToolPartCodeBlock,
+  ToolPartExpandableSection,
+  ToolPartLabel,
+} from "./ToolPartPrimitives";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
 
 /**
+ * Before/after text operands for rendering a pending approval as a unified
+ * diff, for operation kinds whose pending state carries both sides.
+ */
+type ScriptChildApprovalDiff = {
+  fileName: string;
+  before: string;
+  after: string;
+};
+
+/**
  * One pending approval staged by an inner `ui.*` call of a running script,
- * normalized for generic rendering: what to call it, what to show, and the
- * accept/reject callbacks that resolve the script's awaited promise.
+ * normalized for generic rendering: what to call it, what to show (a diff
+ * when the operation stages a before/after change, a text summary
+ * otherwise), and the accept/reject callbacks that resolve the script's
+ * awaited promise.
  */
 type ScriptChildApproval = {
   key: string;
   title: string;
   summary: string;
+  diff?: ScriptChildApprovalDiff;
   accept?: () => Promise<void>;
   reject?: () => Promise<void>;
 };
@@ -39,8 +71,28 @@ function parseExecuteUiScript(input: unknown): string | null {
   return typeof candidate.script === "string" ? candidate.script : null;
 }
 
-/** Preview: the script's first non-empty line, truncated by the card layout. */
+function parseExecuteUiSummary(input: unknown): string | null {
+  if (typeof input !== "object" || input === null) {
+    return null;
+  }
+  const candidate = input as { summary?: unknown };
+  return typeof candidate.summary === "string" &&
+    candidate.summary.trim() !== ""
+    ? candidate.summary.trim()
+    : null;
+}
+
+/**
+ * Preview: the agent-authored summary of what the script accomplishes.
+ * `summary` streams before `script`, so it appears while the call is still
+ * streaming in; falls back to the script's first non-empty line when the
+ * summary is missing.
+ */
 export function getExecuteUiToolPreview(part: ToolInvocationPart): string {
+  const summary = parseExecuteUiSummary(part.input);
+  if (summary) {
+    return summary;
+  }
   const script = parseExecuteUiScript(part.input);
   if (!script) {
     return "";
@@ -111,6 +163,11 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
           key,
           title: `Allow prompt edit for ${pending.before.label} (instance ${pending.instanceId})?`,
           summary: promptSnapshotToText(pending.after),
+          diff: {
+            fileName: `playground-instance-${pending.instanceId}.txt`,
+            before: promptSnapshotToText(pending.before),
+            after: promptSnapshotToText(pending.after),
+          },
           accept: pending.accept,
           reject: pending.reject,
         }),
@@ -133,6 +190,11 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
           key,
           title: `Allow prompt tool changes (instance ${pending.instanceId})?`,
           summary: stringifyToolValue(pending.input),
+          diff: {
+            fileName: `playground-instance-${pending.instanceId}-tools.json`,
+            before: promptToolsSnapshotToText(pending.before),
+            after: promptToolsSnapshotToText(pending.after),
+          },
           accept: pending.accept,
           reject: pending.reject,
         }),
@@ -155,6 +217,11 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
           key,
           title: "Allow code evaluator draft edit?",
           summary: stringifyToolValue(pending.operations),
+          diff: {
+            fileName: codeEvaluatorDraftFileName(pending.before),
+            before: codeEvaluatorDraftSnapshotToText(pending.before),
+            after: codeEvaluatorDraftSnapshotToText(pending.after),
+          },
           accept: pending.accept,
           reject: pending.reject,
         }),
@@ -166,6 +233,11 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
           key,
           title: "Allow LLM evaluator draft edit?",
           summary: stringifyToolValue(pending.operations),
+          diff: {
+            fileName: llmEvaluatorDraftFileName(pending.before),
+            before: llmEvaluatorDraftSnapshotToText(pending.before),
+            after: llmEvaluatorDraftSnapshotToText(pending.after),
+          },
           accept: pending.accept,
           reject: pending.reject,
         }),
@@ -196,14 +268,13 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
 }
 
 /**
- * Details card for one `execute_ui` tool call: the script being run, generic
- * Accept/Reject cards for any approvals its inner operations staged (each
- * decision resolves the promise the script is awaiting), and the final
- * result or error.
- *
- * The generic approval summaries here are a first pass — the bespoke diff
- * renderings the dedicated approval tools had (side-by-side prompt diffs,
- * evaluator draft diffs) can be layered back per operation kind.
+ * Details card for one `execute_ui` tool call: the script being run
+ * (syntax-highlighted once its input has finished streaming), Accept/Reject
+ * cards for any approvals its inner operations staged (each decision resolves
+ * the promise the script is awaiting), and the final result or error.
+ * Approval operations that carry before/after state (prompt edits, prompt
+ * tool writes, evaluator draft edits) render as unified diffs; the rest fall
+ * back to a text summary.
  */
 export function ExecuteUiToolDetails({ part }: { part: ToolInvocationPart }) {
   const script = parseExecuteUiScript(part.input);
@@ -214,7 +285,15 @@ export function ExecuteUiToolDetails({ part }: { part: ToolInvocationPart }) {
       {script ? (
         <>
           <ToolPartLabel>Script</ToolPartLabel>
-          <ToolPartCodeBlock>{script}</ToolPartCodeBlock>
+          <ToolPartExpandableSection>
+            {part.state === "input-streaming" ? (
+              // The still-streaming script changes on every chunk; hold off
+              // on the highlighter until the input settles.
+              <ToolPartCodeBlock>{script}</ToolPartCodeBlock>
+            ) : (
+              <LazyToolPartFileView fileName="script.js" contents={script} />
+            )}
+          </ToolPartExpandableSection>
         </>
       ) : null}
       {childApprovals.map((approval) => (
@@ -225,7 +304,15 @@ export function ExecuteUiToolDetails({ part }: { part: ToolInvocationPart }) {
           minHeight="0"
         >
           <ToolPartLabel>{approval.title}</ToolPartLabel>
-          <ToolPartCodeBlock>{approval.summary}</ToolPartCodeBlock>
+          {approval.diff ? (
+            <LazyToolPartDiffView
+              fileName={approval.diff.fileName}
+              before={approval.diff.before}
+              after={approval.diff.after}
+            />
+          ) : (
+            <ToolPartCodeBlock>{approval.summary}</ToolPartCodeBlock>
+          )}
           <ToolPartApprovalActions
             onAccept={() => void approval.accept?.()}
             onReject={() => void approval.reject?.()}

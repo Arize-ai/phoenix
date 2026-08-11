@@ -6,28 +6,16 @@ import type { BindPendingSavePromptOptions, PendingSavePrompt } from "./types";
 export const SAVE_PROMPT_NAVIGATION_CANCEL_ERROR =
   "The save prompt proposal was cancelled because the prompt editor was unmounted.";
 
-function parseActionOutput(output: string | undefined): unknown {
-  if (output === undefined) {
-    return "Prompt saved.";
-  }
-  try {
-    return JSON.parse(output);
-  } catch {
-    return output;
-  }
-}
-
 function buildAcceptedOutput({
-  output,
+  output = "Prompt saved.",
   approvalSource,
 }: {
-  output: string | undefined;
+  output: unknown;
   approvalSource: "user" | "auto";
 }) {
-  const parsedOutput = parseActionOutput(output);
-  if (isPlainObject(parsedOutput)) {
+  if (isPlainObject(output)) {
     return {
-      ...parsedOutput,
+      ...output,
       approvalStatus: "accepted",
       acceptedBy: approvalSource,
       ...approvalOutcome({ decision: "accepted", source: approvalSource }),
@@ -40,7 +28,7 @@ function buildAcceptedOutput({
       approvalSource === "auto"
         ? "Prompt save auto-approved."
         : "Prompt save approved.",
-    output: parsedOutput,
+    output,
     ...approvalOutcome({ decision: "accepted", source: approvalSource }),
   };
 }

@@ -61,17 +61,8 @@ export function createSavePromptClientAction({
           input: parsed,
           preview: preview.output,
         },
-        savePrompt: async (saveInput) => {
-          const result = await savePrompt({
-            playgroundStore,
-            input: saveInput,
-          });
-          if (!result.ok) return result;
-          return {
-            ok: true,
-            output: JSON.stringify(result.output, null, 2),
-          };
-        },
+        savePrompt: (saveInput) =>
+          savePrompt({ playgroundStore, input: saveInput }),
         emitResult: resolve,
         setPendingSavePrompt,
       });

@@ -1,5 +1,7 @@
 import {
   EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+  llmEvaluatorDraftFileName,
+  llmEvaluatorDraftSnapshotToText,
   type LLMEvaluatorDraftSnapshot,
   parseEditLlmEvaluatorDraftInput,
   type PendingLlmEvaluatorEdit,
@@ -50,9 +52,11 @@ export function EditLLMEvaluatorDraftToolDetails({
     >
       part={part}
       pending={pending}
-      snapshotToText={draftSnapshotToText}
+      snapshotToText={llmEvaluatorDraftSnapshotToText}
       fileName={
-        pending ? draftFileName(pending.before) : "llm-evaluator-draft.txt"
+        pending
+          ? llmEvaluatorDraftFileName(pending.before)
+          : "llm-evaluator-draft.txt"
       }
       renderHeader={renderLlmEvaluatorDiffHeader}
       preparingLabel={EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME}
@@ -69,24 +73,6 @@ function renderLlmEvaluatorDiffHeader(pending: PendingLlmEvaluatorEdit) {
       Proposed diff for LLM-evaluator draft ({pending.before.mode} mode)
     </span>
   );
-}
-
-function draftFileName(snapshot: LLMEvaluatorDraftSnapshot): string {
-  return snapshot.mode === "edit"
-    ? `llm-evaluator-${snapshot.evaluatorNodeId ?? "draft"}.txt`
-    : "llm-evaluator-draft.txt";
-}
-
-function draftSnapshotToText(snapshot: LLMEvaluatorDraftSnapshot): string {
-  return [
-    `name: ${snapshot.name}`,
-    `description: ${snapshot.description}`,
-    `includeExplanation: ${snapshot.includeExplanation}`,
-    `inputMapping: ${JSON.stringify(snapshot.inputMapping, null, 2)}`,
-    `testPayload: ${JSON.stringify(snapshot.testPayload, null, 2)}`,
-    `outputConfigs: ${JSON.stringify(snapshot.outputConfigs, null, 2)}`,
-    `judge: ${JSON.stringify(snapshot.judge, null, 2)}`,
-  ].join("\n\n");
 }
 
 function getOutputStatus(output: unknown): string | null {

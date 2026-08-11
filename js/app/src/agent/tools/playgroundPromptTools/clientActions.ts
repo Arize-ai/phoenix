@@ -17,7 +17,7 @@ import {
 } from "./promptToolsStore";
 import type { PendingPromptToolWrite } from "./types";
 
-/** Returns the current prompt tool list snapshot as JSON. */
+/** Returns the current prompt tool list snapshot as a structured object. */
 export function createReadPromptToolsClientAction({
   playgroundStore,
 }: {
@@ -32,8 +32,7 @@ export function createReadPromptToolsClientAction({
       playgroundStore,
       instanceId: parsed.instanceId,
     });
-    if (!snapshot.ok) return snapshot;
-    return { ok: true, output: JSON.stringify(snapshot.output, null, 2) };
+    return snapshot;
   };
 }
 

@@ -6,10 +6,12 @@ import {
   DOCS_FILESYSTEM_QUERY_TOOL_NAME,
   DOCS_SEARCH_TOOL_NAME,
 } from "@phoenix/agent/tools/docs";
+import type { PendingPromptEdit } from "@phoenix/agent/tools/playgroundPrompt";
 import {
   SAVE_PROMPT_TOOL_NAME,
   type PendingSavePrompt,
 } from "@phoenix/agent/tools/playgroundSavePrompt";
+import { EXECUTE_UI_TOOL_NAME } from "@phoenix/agent/uiOperations/executeUiAgentTool";
 import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
@@ -54,9 +56,12 @@ function withElicitationDraft(draft: PendingElicitationDraft) {
 function AgentStoreStoryProvider({
   children,
   pendingSave,
+  setupStore,
 }: {
   children: React.ReactNode;
   pendingSave?: PendingSavePrompt;
+  /** Escape hatch for staging arbitrary pending state on the story's store. */
+  setupStore?: (store: ReturnType<typeof createAgentStore>) => void;
 }) {
   const [store] = useState(() => {
     const store = createAgentStore();
@@ -65,6 +70,7 @@ function AgentStoreStoryProvider({
         .getState()
         .setPendingSavePrompt(pendingSave.toolCallId, pendingSave);
     }
+    setupStore?.(store);
     return store;
   });
 
@@ -76,6 +82,16 @@ function AgentStoreStoryProvider({
 function withAgentStore(pendingSave?: PendingSavePrompt) {
   return (Story: () => React.ReactNode) => (
     <AgentStoreStoryProvider pendingSave={pendingSave}>
+      <Story />
+    </AgentStoreStoryProvider>
+  );
+}
+
+function withAgentStoreSetup(
+  setupStore: (store: ReturnType<typeof createAgentStore>) => void
+) {
+  return (Story: () => React.ReactNode) => (
+    <AgentStoreStoryProvider setupStore={setupStore}>
       <Story />
     </AgentStoreStoryProvider>
   );
@@ -919,4 +935,120 @@ export const CallSubagentCompleted: Story = {
 /** A call_subagent tool that failed because the subagent was not found. */
 export const CallSubagentError: Story = {
   args: { part: callSubagentErrorPart },
+};
+
+// ---------------------------------------------------------------------------
+// execute_ui tool mocks
+// ---------------------------------------------------------------------------
+
+const executeUiScript = [
+  "const before = await ui.playground.prompt.read({ instanceId: 0 });",
+  "if (!before.ok) return before;",
+  "log(`editing revision ${before.output.revision}`);",
+  "return await ui.playground.prompt.edit({",
+  "  instanceId: 0,",
+  "  expectedRevision: before.output.revision,",
+  "  operations: [",
+  "    {",
+  '      type: "update_message",',
+  "      messageId: 7,",
+  '      content: "You are a terse expert coding assistant.",',
+  "    },",
+  "  ],",
+  "});",
+].join("\n");
+
+const executeUiInput = {
+  summary: "Tighten the system prompt on playground instance A.",
+  script: executeUiScript,
+};
+
+function promptSnapshotFixture(content: string) {
+  return {
+    instanceId: 0,
+    index: 0,
+    label: "A",
+    revision: "prompt-d2f07c04",
+    dirty: false,
+    prompt: null,
+    messages: [
+      { id: 7, role: "system" as const, content },
+      { id: 8, role: "user" as const, content: "{{question}}" },
+    ],
+  };
+}
+
+const executeUiAwaitingApprovalPart = makePart({
+  toolName: EXECUTE_UI_TOOL_NAME,
+  toolCallId: "execute-ui-prompt-edit",
+  state: "input-available",
+  input: executeUiInput,
+});
+
+const executeUiPendingPromptEdit: PendingPromptEdit = {
+  // Inner operation call id: `<toolCallId>:<sequence>`.
+  toolCallId: "execute-ui-prompt-edit:1",
+  sessionId: "session-playground-demo",
+  instanceId: 0,
+  expectedRevision: "prompt-d2f07c04",
+  before: promptSnapshotFixture(
+    "You are an expert coding assistant. Help users design, write, debug, explain, and improve software with accurate, practical guidance."
+  ),
+  after: promptSnapshotFixture("You are a terse expert coding assistant."),
+  operations: [],
+  accept: async () => undefined,
+  reject: async () => undefined,
+};
+
+const executeUiCompletedPart = makePart({
+  toolName: EXECUTE_UI_TOOL_NAME,
+  toolCallId: "execute-ui-completed",
+  state: "output-available",
+  input: executeUiInput,
+  output: [
+    "Script completed after 2 ui calls.",
+    "Logs:\nediting revision prompt-d2f07c04",
+    'Return value:\n{\n  "ok": true,\n  "output": {\n    "status": "accepted",\n    "acceptedBy": "user",\n    "instanceId": 0,\n    "revision": "prompt-a81f22c9",\n    "message": "Prompt edit applied."\n  }\n}',
+  ].join("\n\n"),
+});
+
+const executeUiStreamingPart = makePart({
+  toolName: EXECUTE_UI_TOOL_NAME,
+  toolCallId: "execute-ui-streaming",
+  state: "input-streaming",
+  input: {
+    summary: "Tighten the system prompt on playground instance A.",
+    script: "const before = await ui.playground.prompt.read({ inst",
+  },
+});
+
+/**
+ * An execute_ui script paused on an inner prompt-edit approval: the
+ * syntax-highlighted script above, the proposed change as a unified diff, and
+ * the Accept/Reject actions that resolve the awaiting script.
+ */
+export const ExecuteUiAwaitingPromptEditApproval: Story = {
+  args: { part: executeUiAwaitingApprovalPart },
+  decorators: [
+    withAgentStoreSetup((store) => {
+      store
+        .getState()
+        .setPendingPromptEdit(
+          executeUiPendingPromptEdit.toolCallId,
+          executeUiPendingPromptEdit
+        );
+    }),
+  ],
+};
+
+/** An execute_ui script that completed, showing logs and the return value. */
+export const ExecuteUiCompleted: Story = {
+  args: { part: executeUiCompletedPart },
+  decorators: [withAgentStore()],
+};
+
+/** An execute_ui call whose summary and script are still streaming in. */
+export const ExecuteUiStreaming: Story = {
+  args: { part: executeUiStreamingPart },
+  decorators: [withAgentStore()],
 };

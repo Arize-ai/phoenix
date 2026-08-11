@@ -16,6 +16,17 @@ NAME = "execute_ui"
 PARAMETERS: dict[str, Any] = {
     "type": "object",
     "properties": {
+        # `summary` is deliberately listed before `script`: arguments stream in
+        # schema order, so the user-facing preview renders before the script body.
+        "summary": {
+            "type": "string",
+            "description": (
+                "One short sentence, written for the user, describing what this "
+                "script accomplishes (e.g. 'Set the playground model to gpt-5 and "
+                "run it'). Shown as the tool call's preview while the script "
+                "streams and runs. Provide it before `script`."
+            ),
+        },
         "script": {
             "type": "string",
             "description": (
@@ -23,12 +34,14 @@ PARAMETERS: dict[str, Any] = {
                 "UI operations via the `ui` object using names discovered through "
                 "search_ui, e.g. `return await ui.timeRange.set({timeRangeKey: '7d'});`. "
                 "Every call returns a promise of {ok: true, output?} or "
-                "{ok: false, error}. `log(message)` emits progress. The script's return "
-                "value becomes the tool output."
+                "{ok: false, error}, where `output` is structured data usable directly "
+                "(e.g. `result.output.instanceId`) — never JSON text to parse. "
+                "`log(message)` emits progress. The script's return value is "
+                "JSON-serialized into the tool output."
             ),
         },
     },
-    "required": ["script"],
+    "required": ["summary", "script"],
     "additionalProperties": False,
 }
 
