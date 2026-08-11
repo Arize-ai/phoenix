@@ -10,6 +10,7 @@ import {
   getRerankerAttributes,
   getRetrieverAttributes,
   getToolAttributes,
+  getToolSchemaDisplayParts,
   groupDocumentEvaluationsByPosition,
   parseSpanAttributes,
 } from "../utils";
@@ -378,6 +379,85 @@ describe("getToolAttributes", () => {
       description: "Search the docs",
       parameters:
         '{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}',
+    });
+  });
+});
+
+describe("getToolSchemaDisplayParts", () => {
+  it("extracts name and description from a flat definition (pydantic-ai, Anthropic, Gemini, OpenAI Responses)", () => {
+    expect(
+      getToolSchemaDisplayParts(
+        JSON.stringify({
+          name: "get_weather",
+          description: "Look up the current weather for a city.",
+          parameters_json_schema: { type: "object" },
+        })
+      )
+    ).toEqual({
+      name: "get_weather",
+      description: "Look up the current weather for a city.",
+    });
+  });
+
+  it("extracts name and description from an OpenAI Chat Completions definition", () => {
+    expect(
+      getToolSchemaDisplayParts(
+        JSON.stringify({
+          type: "function",
+          function: {
+            name: "search",
+            description: "Searches the web",
+            parameters: { type: "object" },
+          },
+        })
+      )
+    ).toEqual({ name: "search", description: "Searches the web" });
+  });
+
+  it("extracts name and description from an AWS Bedrock toolSpec definition", () => {
+    expect(
+      getToolSchemaDisplayParts(
+        JSON.stringify({
+          toolSpec: {
+            name: "lookup",
+            description: "Looks things up",
+            inputSchema: { json: { type: "object" } },
+          },
+        })
+      )
+    ).toEqual({ name: "lookup", description: "Looks things up" });
+  });
+
+  it("falls back to the JSON-schema title and description of a bare parameters schema", () => {
+    expect(
+      getToolSchemaDisplayParts(
+        JSON.stringify({
+          type: "object",
+          title: "get_weather",
+          description: "Look up the current weather for a city.",
+          properties: { city: { type: "string" } },
+        })
+      )
+    ).toEqual({
+      name: "get_weather",
+      description: "Look up the current weather for a city.",
+    });
+  });
+
+  it("returns nulls for a schema with no recoverable identity", () => {
+    expect(
+      getToolSchemaDisplayParts(JSON.stringify({ type: "object" }))
+    ).toEqual({ name: null, description: null });
+  });
+
+  it("returns nulls for a payload that is not a JSON object", () => {
+    expect(getToolSchemaDisplayParts("not json")).toEqual({
+      name: null,
+      description: null,
+    });
+    expect(getToolSchemaDisplayParts('["a"]')).toEqual({
+      name: null,
+      description: null,
     });
   });
 });
