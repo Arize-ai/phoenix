@@ -472,11 +472,6 @@ const PXI_SERVER_CAPABILITIES: readonly CapabilityRequirement[] = [
   AGENT_SESSION_CHAT,
 ];
 
-/**
- * Fail fast at startup when the Phoenix server predates the agent-session
- * contract, surfacing an upgrade message instead of a 404 on the first send.
- * The client caches the server version, so the whole check costs one request.
- */
 export async function runPxiServerVersionPreflight({
   options,
   fetchImpl,

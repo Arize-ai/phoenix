@@ -27,7 +27,6 @@ export async function main({
   argv?: string[];
 } = {}): Promise<void> {
   const options = await parsePxiRuntimeOptions({ argv });
-  // Model preflight first: its failures carry the more actionable messages.
   await runPxiModelPreflight({ options });
   await runPxiServerVersionPreflight({ options });
   // Ink's kitty-keyboard "auto" detection writes a `CSI ? u` capability query to
