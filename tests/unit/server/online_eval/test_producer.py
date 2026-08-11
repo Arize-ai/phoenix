@@ -1255,6 +1255,7 @@ async def test_lost_lease_rolls_back_materialization_and_aborts_tick(
     )
 
 
+@pytest.mark.postgres_only
 async def test_separate_lease_steal_rolls_back_truncated_frontier(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
@@ -1299,6 +1300,7 @@ async def test_separate_lease_steal_rolls_back_truncated_frontier(
     assert any("tick aborted after losing its lease" in record.message for record in caplog.records)
 
 
+@pytest.mark.postgres_only
 async def test_separate_lease_steal_rolls_back_backstop(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
