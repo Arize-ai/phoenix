@@ -206,8 +206,18 @@ test.describe.serial("Projects", () => {
       "Project evaluator lifecycle test"
     );
 
-    await page.getByRole("tab", { name: "Evaluators" }).click();
+    const evaluatorsTab = page.getByRole("tab", { name: "Evaluators" });
+    await evaluatorsTab.click();
     await expect(page).toHaveURL(EVALUATORS_URL);
+
+    await expect(
+      page.getByText("No evaluators for this project")
+    ).toBeVisible();
+    await expect(
+      page.getByRole("table", { name: "Project evaluators" })
+    ).toHaveCount(0);
+    await expect(evaluatorsTab).toContainText("0");
+
     await page.getByRole("button", { name: "Add evaluator" }).click();
     await page
       .getByRole("menuitem", { name: "Create new LLM evaluator" })
@@ -241,6 +251,7 @@ test.describe.serial("Projects", () => {
       .getByRole("row")
       .filter({ hasText: evaluatorName });
     await expect(evaluatorRow).toBeVisible();
+    await expect(evaluatorsTab).toContainText("1");
     // Exact, because the generated evaluator name contains "span" as a
     // substring.
     await expect(
@@ -278,6 +289,7 @@ test.describe.serial("Projects", () => {
       .click();
     await expect(deleteDialog).not.toBeVisible();
     await expect(updatedRow).not.toBeVisible();
+    await expect(evaluatorsTab).toContainText("0");
   });
 
   test("project table remains usable after mutation workflows", async ({
