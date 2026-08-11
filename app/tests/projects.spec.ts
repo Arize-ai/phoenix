@@ -206,7 +206,8 @@ test.describe.serial("Projects", () => {
       "Project evaluator lifecycle test"
     );
 
-    await page.getByRole("tab", { name: "Evaluators" }).click();
+    const evaluatorsTab = page.getByRole("tab", { name: "Evaluators" });
+    await evaluatorsTab.click();
     await expect(page).toHaveURL(EVALUATORS_URL);
 
     // With no evaluators the empty state replaces the table entirely.
@@ -216,6 +217,7 @@ test.describe.serial("Projects", () => {
     await expect(
       page.getByRole("table", { name: "Project evaluators" })
     ).toHaveCount(0);
+    await expect(evaluatorsTab).toContainText("0");
 
     await page.getByRole("button", { name: "Add evaluator" }).click();
     await page
@@ -250,6 +252,8 @@ test.describe.serial("Projects", () => {
       .getByRole("row")
       .filter({ hasText: evaluatorName });
     await expect(evaluatorRow).toBeVisible();
+    // The tab counter tracks the list without a reload.
+    await expect(evaluatorsTab).toContainText("1");
     // Exact, because the generated evaluator name contains "span" as a
     // substring.
     await expect(
@@ -299,6 +303,7 @@ test.describe.serial("Projects", () => {
       .click();
     await expect(deleteDialog).not.toBeVisible();
     await expect(updatedRow).not.toBeVisible();
+    await expect(evaluatorsTab).toContainText("0");
   });
 
   test("project table remains usable after mutation workflows", async ({

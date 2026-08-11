@@ -16,7 +16,7 @@ from sqlalchemy import cast as sqlalchemy_cast
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import tuple_
-from sqlalchemy.sql.functions import percentile_cont
+from sqlalchemy.sql.functions import count, percentile_cont
 from sqlalchemy.sql.sqltypes import String
 from strawberry import ID, UNSET, lazy
 from strawberry.relay import Connection, Edge, GlobalID, Node, NodeID, PageInfo
@@ -330,6 +330,17 @@ class Project(Node):
                 ),
             )
         return description
+
+    @strawberry.field(description="Number of evaluators attached to this project.")  # type: ignore
+    async def evaluator_count(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        stmt = select(count(models.ProjectEvaluatorCriteria.id)).where(
+            models.ProjectEvaluatorCriteria.project_id == self.id
+        )
+        async with info.context.db.read() as session:
+            return (await session.scalar(stmt)) or 0
 
     @strawberry.field
     async def evaluators(

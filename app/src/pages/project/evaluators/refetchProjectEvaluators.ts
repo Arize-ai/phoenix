@@ -9,6 +9,9 @@ const query = graphql`
   query refetchProjectEvaluatorsQuery($projectId: ID!, $first: Int!) {
     project: node(id: $projectId) {
       ... on Project {
+        # Keeps the Evaluators tab counter in step with the list, since every
+        # create and delete already funnels through this refetch.
+        evaluatorCount
         evaluators(first: $first)
           @connection(key: "ProjectEvaluatorsTable_evaluators") {
           edges {

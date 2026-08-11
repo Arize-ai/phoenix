@@ -2900,6 +2900,9 @@ type Project implements Node {
   id: ID!
   name: String!
   description: String
+
+  """Number of evaluators attached to this project."""
+  evaluatorCount: Int!
   evaluators(first: Int = 30, last: Int = null, after: String = null, before: String = null, filter: ProjectEvaluatorFilter): ProjectEvaluatorConnection!
   gradientStartColor: String!
   gradientEndColor: String!
