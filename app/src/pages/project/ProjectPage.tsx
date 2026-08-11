@@ -221,7 +221,6 @@ function ProjectPageContentBody({
     );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
   // React Router recreates this setter on every location change. The resolvers
   // below are handed to the filter field, whose validation effect keys on their
   // identity -- depending on the setter directly would revalidate on every URL
