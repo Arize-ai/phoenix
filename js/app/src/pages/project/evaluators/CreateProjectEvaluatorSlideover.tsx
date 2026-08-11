@@ -1,12 +1,9 @@
-import { Suspense, useRef, useState } from "react";
+import { useState } from "react";
 import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useMutation, useRelayEnvironment } from "react-relay";
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import { Dialog } from "@phoenix/components/core/dialog";
-import { Loading } from "@phoenix/components/core/loading";
-import { Modal, ModalOverlay } from "@phoenix/components/core/overlay/Modal";
 import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { getSpanEvaluatorDefaultMessages } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
@@ -28,13 +25,10 @@ import {
 import type { CreateProjectEvaluatorSlideoverAddCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/CreateProjectEvaluatorSlideoverAddCodeMutation.graphql";
 import { CreateProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
-import {
-  DiscardEvaluatorChangesDialog,
-  isModalUnderlay,
-} from "@phoenix/pages/project/evaluators/DiscardEvaluatorChangesDialog";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
+import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import { useProjectEvaluatorSubmitHint } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
 import {
   toProjectEvaluatorGraphQLTarget,
@@ -76,6 +70,22 @@ export type ProjectEvaluatorCreationMode =
       requiredVariables: string[];
     };
 
+/** The slideover heading: the flow, and the kind of evaluator it creates. */
+function getProjectEvaluatorCreationTitle(
+  creationMode: ProjectEvaluatorCreationMode
+): string {
+  if (creationMode.kind === "scratch") {
+    return "Create new LLM evaluator";
+  }
+  if (creationMode.kind === "newCode") {
+    return "Create new code evaluator";
+  }
+  if (creationMode.kind === "copy") {
+    return `Copy LLM evaluator “${creationMode.initialState.name}”`;
+  }
+  return `Attach code evaluator “${creationMode.name}”`;
+}
+
 export const CreateProjectEvaluatorSlideover = ({
   projectId,
   creationMode,
@@ -83,53 +93,21 @@ export const CreateProjectEvaluatorSlideover = ({
 }: {
   projectId: string;
   creationMode: ProjectEvaluatorCreationMode;
-} & ModalOverlayProps) => {
-  const dirtyCheckRef = useRef<EvaluatorFormDirtyCheck>(() => false);
-  const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
-  return (
-    <>
-      <ModalOverlay
-        {...props}
-        isDismissable
-        shouldCloseOnInteractOutside={(element) => {
-          if (!isModalUnderlay(element)) {
-            return false;
-          }
-          if (dirtyCheckRef.current()) {
-            setIsDiscardConfirmOpen(true);
-            return false;
-          }
-          return true;
-        }}
-      >
-        <Modal variant="slideover" size="fullscreen">
-          <Dialog aria-label="Create project evaluator">
-            {({ close }) => (
-              <Suspense fallback={<Loading />}>
-                <CreateProjectEvaluatorDialogForMode
-                  onClose={close}
-                  projectId={projectId}
-                  creationMode={creationMode}
-                  registerDirtyCheck={(check) => {
-                    dirtyCheckRef.current = check;
-                  }}
-                />
-              </Suspense>
-            )}
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-      <DiscardEvaluatorChangesDialog
-        isOpen={isDiscardConfirmOpen}
-        onKeepEditing={() => setIsDiscardConfirmOpen(false)}
-        onDiscard={() => {
-          setIsDiscardConfirmOpen(false);
-          props.onOpenChange?.(false);
-        }}
+} & Omit<ModalOverlayProps, "children">) => (
+  <ProjectEvaluatorSlideover
+    {...props}
+    title={getProjectEvaluatorCreationTitle(creationMode)}
+  >
+    {(close, registerDirtyCheck) => (
+      <CreateProjectEvaluatorDialogForMode
+        onClose={close}
+        projectId={projectId}
+        creationMode={creationMode}
+        registerDirtyCheck={registerDirtyCheck}
       />
-    </>
-  );
-};
+    )}
+  </ProjectEvaluatorSlideover>
+);
 
 function CreateProjectEvaluatorDialogForMode(
   props: Parameters<typeof CreateProjectEvaluatorDialog>[0]
@@ -245,10 +223,15 @@ const CreateProjectEvaluatorDialog = ({
     notifySuccess({ title: "Evaluator created" });
   };
 
+  // The same pure derivation the slideover used to name the dialog, so the
+  // heading below and the accessible name are always the same string.
+  const title = getProjectEvaluatorCreationTitle(creationMode);
+
   return (
     <EvaluatorStoreProvider initialState={initialState}>
       {creationMode.kind === "newCode" ? (
         <CreateNewCodeProjectEvaluatorDialog
+          title={title}
           projectId={projectId}
           scope={scope}
           onScopeChange={setScope}
@@ -257,6 +240,7 @@ const CreateProjectEvaluatorDialog = ({
         />
       ) : creationMode.kind === "code" ? (
         <AttachCodeProjectEvaluatorDialog
+          title={title}
           projectId={projectId}
           creationMode={creationMode}
           scope={scope}
@@ -266,6 +250,7 @@ const CreateProjectEvaluatorDialog = ({
         />
       ) : (
         <CreateLlmProjectEvaluatorDialog
+          title={title}
           projectId={projectId}
           scope={scope}
           onScopeChange={setScope}
@@ -279,12 +264,14 @@ const CreateProjectEvaluatorDialog = ({
 };
 
 function CreateNewCodeProjectEvaluatorDialog({
+  title,
   projectId,
   scope,
   onScopeChange,
   onSuccess,
   registerDirtyCheck,
 }: {
+  title: string;
   projectId: string;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
@@ -300,6 +287,7 @@ function CreateNewCodeProjectEvaluatorDialog({
   trackStoreForDirtyCheck(store);
   return (
     <CreateProjectCodeEvaluatorDialogContent
+      title={title}
       projectId={projectId}
       scope={scope}
       onScopeChange={onScopeChange}
@@ -309,6 +297,7 @@ function CreateNewCodeProjectEvaluatorDialog({
 }
 
 function AttachCodeProjectEvaluatorDialog({
+  title,
   projectId,
   creationMode,
   scope,
@@ -316,6 +305,7 @@ function AttachCodeProjectEvaluatorDialog({
   onSuccess,
   registerDirtyCheck,
 }: {
+  title: string;
   projectId: string;
   creationMode: Extract<ProjectEvaluatorCreationMode, { kind: "code" }>;
   scope: ProjectEvaluatorScope;
@@ -353,6 +343,7 @@ function AttachCodeProjectEvaluatorDialog({
     `);
   return (
     <ProjectCodeEvaluatorDialogContent
+      title={title}
       projectId={projectId}
       evaluatorId={creationMode.evaluatorId}
       evaluatorName={creationMode.name}
@@ -402,6 +393,7 @@ function AttachCodeProjectEvaluatorDialog({
 }
 
 function CreateLlmProjectEvaluatorDialog({
+  title,
   projectId,
   scope,
   onScopeChange,
@@ -409,6 +401,7 @@ function CreateLlmProjectEvaluatorDialog({
   onSuccess,
   registerDirtyCheck,
 }: {
+  title: string;
   projectId: string;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
@@ -484,6 +477,7 @@ function CreateLlmProjectEvaluatorDialog({
 
   return (
     <ScratchLlmDialogContent
+      title={title}
       projectId={projectId}
       scope={scope}
       onScopeChange={onScopeChange}
@@ -498,6 +492,7 @@ function CreateLlmProjectEvaluatorDialog({
 }
 
 const ScratchLlmDialogContent = ({
+  title,
   projectId,
   scope,
   onScopeChange,
@@ -508,6 +503,7 @@ const ScratchLlmDialogContent = ({
   isSubmitting,
   error,
 }: {
+  title: string;
   projectId: string;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
@@ -521,7 +517,7 @@ const ScratchLlmDialogContent = ({
   const submitHint = useProjectEvaluatorSubmitHint({ isFilterValid });
   return (
     <EditLLMEvaluatorDialogContent
-      title="Create project evaluator"
+      title={title}
       onClose={onClose}
       onSubmit={onSubmit}
       isSubmitting={isSubmitting}
