@@ -11,6 +11,7 @@ import {
 import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 export const ProjectCodeEvaluatorDialogContent = ({
+  title,
   projectId,
   evaluatorId,
   evaluatorName,
@@ -25,6 +26,7 @@ export const ProjectCodeEvaluatorDialogContent = ({
   error,
   mode = "create",
 }: {
+  title: string;
   projectId: string;
   evaluatorId: string;
   evaluatorName: string;
@@ -44,11 +46,7 @@ export const ProjectCodeEvaluatorDialogContent = ({
   const [isFilterValid, setIsFilterValid] = useState(true);
   return (
     <EvaluatorFormDialogContent
-      title={
-        mode === "create"
-          ? "Create project evaluator"
-          : "Edit project evaluator"
-      }
+      title={title}
       submitLabel={mode === "create" ? "Attach evaluator" : "Save changes"}
       onSubmit={onSubmit}
       isSubmitting={isSubmitting}
