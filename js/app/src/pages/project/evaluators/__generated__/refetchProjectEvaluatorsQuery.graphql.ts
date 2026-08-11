@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ab78718931c5d2b126070287a3c9c9f7>>
+ * @generated SignedSource<<ef6d6b684fecfeda42747ded6aa6f331>>
  * @lightSyntaxTransform
  */
 
@@ -15,6 +15,7 @@ export type refetchProjectEvaluatorsQuery$variables = {
 };
 export type refetchProjectEvaluatorsQuery$data = {
   readonly project: {
+    readonly evaluatorCount?: number;
     readonly evaluators?: {
       readonly edges: ReadonlyArray<{
         readonly node: {
@@ -55,66 +56,73 @@ v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "evaluatorCount",
   "storageKey": null
 },
 v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "id",
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "evaluationTarget",
+  "name": "name",
   "storageKey": null
 },
 v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "filterCondition",
+  "name": "evaluationTarget",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "samplingRate",
+  "name": "filterCondition",
   "storageKey": null
 },
 v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "enabled",
+  "name": "samplingRate",
   "storageKey": null
 },
 v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "kind",
+  "name": "enabled",
   "storageKey": null
 },
 v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "__typename",
+  "name": "kind",
   "storageKey": null
 },
 v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "cursor",
+  "name": "__typename",
   "storageKey": null
 },
 v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "cursor",
+  "storageKey": null
+},
+v13 = {
   "alias": null,
   "args": null,
   "concreteType": "PageInfo",
@@ -139,7 +147,7 @@ v12 = {
   ],
   "storageKey": null
 },
-v13 = [
+v14 = [
   {
     "kind": "Variable",
     "name": "first",
@@ -167,6 +175,7 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
+              (v3/*:: as any*/),
               {
                 "alias": "evaluators",
                 "args": null,
@@ -195,12 +204,12 @@ return {
                             "kind": "InlineDataFragmentSpread",
                             "name": "ProjectEvaluatorsTable_row",
                             "selections": [
-                              (v3/*:: as any*/),
                               (v4/*:: as any*/),
                               (v5/*:: as any*/),
                               (v6/*:: as any*/),
                               (v7/*:: as any*/),
                               (v8/*:: as any*/),
+                              (v9/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -209,7 +218,7 @@ return {
                                 "name": "evaluator",
                                 "plural": false,
                                 "selections": [
-                                  (v9/*:: as any*/)
+                                  (v10/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -217,15 +226,15 @@ return {
                             "args": null,
                             "argumentDefinitions": []
                           },
-                          (v10/*:: as any*/)
+                          (v11/*:: as any*/)
                         ],
                         "storageKey": null
                       },
-                      (v11/*:: as any*/)
+                      (v12/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v12/*:: as any*/)
+                  (v13/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -257,13 +266,14 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v10/*:: as any*/),
+          (v11/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
+              (v3/*:: as any*/),
               {
                 "alias": null,
-                "args": (v13/*:: as any*/),
+                "args": (v14/*:: as any*/),
                 "concreteType": "ProjectEvaluatorConnection",
                 "kind": "LinkedField",
                 "name": "evaluators",
@@ -285,12 +295,12 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*:: as any*/),
                           (v4/*:: as any*/),
                           (v5/*:: as any*/),
                           (v6/*:: as any*/),
                           (v7/*:: as any*/),
                           (v8/*:: as any*/),
+                          (v9/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -299,27 +309,27 @@ return {
                             "name": "evaluator",
                             "plural": false,
                             "selections": [
+                              (v11/*:: as any*/),
                               (v10/*:: as any*/),
-                              (v9/*:: as any*/),
-                              (v3/*:: as any*/)
+                              (v4/*:: as any*/)
                             ],
                             "storageKey": null
                           },
-                          (v10/*:: as any*/)
+                          (v11/*:: as any*/)
                         ],
                         "storageKey": null
                       },
-                      (v11/*:: as any*/)
+                      (v12/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v12/*:: as any*/)
+                  (v13/*:: as any*/)
                 ],
                 "storageKey": null
               },
               {
                 "alias": null,
-                "args": (v13/*:: as any*/),
+                "args": (v14/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "ProjectEvaluatorsTable_evaluators",
@@ -330,14 +340,14 @@ return {
             "type": "Project",
             "abstractKey": null
           },
-          (v3/*:: as any*/)
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "2950b46fd20afda08b9dac77a10bd211",
+    "cacheID": "82ed3e8b8cbae8b6f7e7e38d9740a2c2",
     "id": null,
     "metadata": {
       "connection": [
@@ -354,11 +364,11 @@ return {
     },
     "name": "refetchProjectEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query refetchProjectEvaluatorsQuery(\n  $projectId: ID!\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluators(first: $first) {\n        edges {\n          node {\n            ...ProjectEvaluatorsTable_row\n            id\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  evaluator {\n    __typename\n    kind\n    id\n  }\n}\n"
+    "text": "query refetchProjectEvaluatorsQuery(\n  $projectId: ID!\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      evaluators(first: $first) {\n        edges {\n          node {\n            ...ProjectEvaluatorsTable_row\n            id\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  evaluator {\n    __typename\n    kind\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "34d3e0a98ee7e32588c21b2475ef1c69";
+(node as any).hash = "3cfbb6eadd9834371d52e94199ecd5a8";
 
 export default node;

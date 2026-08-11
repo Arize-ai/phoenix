@@ -25,9 +25,15 @@ import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/eval
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
-import { ProjectEvaluatorsEmptyGallery } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyGallery";
+import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
 
 const PAGE_SIZE = 30;
+
+const scrollableAreaCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+`;
 
 const readRow = (row: ProjectEvaluatorsTable_row$key) => {
   return readInlineData(
@@ -178,73 +184,67 @@ export function ProjectEvaluatorsTable({
     getRowId: (row) => row.id,
   });
   const rows = table.getRowModel().rows;
+  const isEmpty = rows.length === 0;
+  const isFiltered = trimmedFilter.length > 0;
+  if (isEmpty && !isFiltered) {
+    return (
+      <div css={scrollableAreaCSS}>
+        <ProjectEvaluatorsEmptyState />
+      </div>
+    );
+  }
   return (
-    <>
-      <div
-        css={css`
-          flex: 1 1 auto;
-          min-height: 0;
-          overflow: auto;
-        `}
-      >
-        <table css={tableCSS} aria-label="Project evaluators">
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th key={header.id} colSpan={header.colSpan}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </th>
+    <div css={scrollableAreaCSS}>
+      <table css={tableCSS} aria-label="Project evaluators">
+        <thead>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <th key={header.id} colSpan={header.colSpan}>
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        {isEmpty ? (
+          <TableEmptyWrap>
+            <CompactEmptyState
+              icon={<Icon svg={<Icons.Scale />} />}
+              description="No evaluators"
+              isFiltered={isFiltered}
+            />
+          </TableEmptyWrap>
+        ) : (
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
                 ))}
               </tr>
             ))}
-          </thead>
-          {rows.length === 0 ? (
-            trimmedFilter ? (
-              <TableEmptyWrap>
-                <CompactEmptyState
-                  icon={<Icon svg={<Icons.Scale />} />}
-                  description="No evaluators match your search"
-                  isFiltered
-                />
-              </TableEmptyWrap>
-            ) : (
-              <ProjectEvaluatorsEmptyGallery />
-            )
-          ) : (
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          )}
-        </table>
-        {hasNext ? (
-          <View padding="size-100">
-            <Flex justifyContent="center">
-              <LoadMoreButton
-                isLoadingNext={isLoadingNext}
-                onLoadMore={loadNext}
-              />
-            </Flex>
-          </View>
-        ) : null}
-      </div>
-    </>
+          </tbody>
+        )}
+      </table>
+      {hasNext ? (
+        <View padding="size-100">
+          <Flex justifyContent="center">
+            <LoadMoreButton
+              isLoadingNext={isLoadingNext}
+              onLoadMore={loadNext}
+            />
+          </Flex>
+        </View>
+      ) : null}
+    </div>
   );
 }
 
