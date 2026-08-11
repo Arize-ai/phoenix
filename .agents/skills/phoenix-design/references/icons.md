@@ -20,6 +20,8 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 | Video | `Icons.PlayCircle` | Video-typed file attachments (no dedicated `Video*` icon). |
 | Code-evaluator form | `Icons.Edit` | Task-role context pill for the code-evaluator create/edit form the user is working in. The edit glyph reads as an action, distinct from entity icons used by surface pills. |
 | Context (generic) | `Icons.Info` | Default for an `AttachmentContextData` whose category has no canonical icon yet. |
+| Chat (temporary) | `Icons.ChatEphemeralityOn` | A temporary conversation that is excluded from durable session history. The check communicates that ephemeral mode is enabled. |
+| Chat (saved) | `Icons.ChatEphemeralityOff` | A conversation retained in durable session history because ephemeral mode is disabled. |
 | Update / release notice | `Icons.Gift` | New-version notices and release prompts. |
 | Bypass / unguarded approvals | `Icons.Shield` | Warning shield for bypass/auto-approval modes where approvals are skipped. |
 | Undo / rewind | `Icons.RotateCcw` | Counterclockwise arrow for reverting/undoing an action (e.g. rewinding a chat). Distinct from `History` (clock = history/session list). |

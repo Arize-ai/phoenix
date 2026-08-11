@@ -56,6 +56,11 @@ export type AgentToolDispatcher = {
   }) => Promise<void>;
   /** Returns the UI surfacing hints declared by a tool, if any. */
   getAgentToolUIBehavior: (toolName: string) => AgentToolUIBehavior | undefined;
+  /**
+   * Whether a tool declared `rehydratable`, so an unresolved call can be
+   * re-dispatched on session load. False for unregistered tools.
+   */
+  isRehydratableAgentTool: (toolName: string) => boolean;
 };
 
 /**
@@ -87,6 +92,9 @@ export function createAgentToolDispatcher(
     getAgentToolUIBehavior: (toolName) =>
       definitionsByName.get(toolName)?.uiBehavior,
 
+    isRehydratableAgentTool: (toolName) =>
+      definitionsByName.get(toolName)?.rehydratable === true,
+
     handleRegisteredAgentToolCall: async ({
       toolCall,
       sessionId,
@@ -98,7 +106,7 @@ export function createAgentToolDispatcher(
       // the result streams back as `tool-output-available` and must not be
       // intercepted by the frontend registry.
       if (
-        toolCall.providerMetadata?.phoenix?.tool_execution_environment ===
+        toolCall.providerMetadata?.phoenix?.toolExecutionEnvironment ===
         "server"
       ) {
         return;

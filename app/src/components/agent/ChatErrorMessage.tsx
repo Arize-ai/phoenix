@@ -8,9 +8,9 @@ import type { MessageRewindRequest } from "./ChatMessage";
 /**
  * Matches error messages that stem from a model-provider API-key or
  * authentication failure (missing key, invalid key, or auth rejected by the
- * provider). Kept in sync with the server-side guidance emitted by
- * ``build_stream_error_chunk`` and the credential errors raised by
- * ``build_model``.
+ * provider). The server sends raw error text: provider errors surfaced
+ * in-band by the pydantic-ai adapter mid-stream, or the credential errors
+ * raised by ``build_model`` before the stream starts.
  */
 const API_KEY_ERROR_PATTERN =
   /api[\s_-]?key|unauthoriz|authenticat|invalid_api_key|permission[\s_-]?denied|credential/i;
@@ -18,6 +18,16 @@ const API_KEY_ERROR_PATTERN =
 /** Return whether an error message looks like an API-key / auth failure. */
 export function isApiKeyError(message: string | null | undefined): boolean {
   return message != null && API_KEY_ERROR_PATTERN.test(message);
+}
+
+/** Matches the message the server reports when writes are locked for storage. */
+const INSUFFICIENT_STORAGE_ERROR_PATTERN = /insufficient storage/i;
+
+/** Return whether an error message reports that the database is out of storage. */
+export function isInsufficientStorageError(
+  message: string | null | undefined
+): boolean {
+  return message != null && INSUFFICIENT_STORAGE_ERROR_PATTERN.test(message);
 }
 
 const chatErrorMessageCSS = css`
@@ -67,34 +77,37 @@ const chatErrorMessageCSS = css`
 /** Inline request error banner for the active chat turn. */
 export function ChatErrorMessage({
   error,
-  latestAssistantMessageId,
   latestUserMessageId,
   canFork,
   onRetry,
   onRewind,
 }: {
   error: Error;
-  latestAssistantMessageId?: string;
   latestUserMessageId?: string;
   canFork: boolean;
-  onRetry?: (messageId?: string) => void;
+  onRetry?: () => void;
   onRewind?: MessageRewindRequest;
 }) {
-  const canRetry = onRetry != null;
+  const isStorageError = isInsufficientStorageError(error.message);
+  const canRetry = onRetry != null && !isStorageError;
   const canUndoOrFork = latestUserMessageId != null && onRewind != null;
-  const isCredentialError = isApiKeyError(error.message);
+  const isCredentialError = !isStorageError && isApiKeyError(error.message);
 
   return (
     <div css={chatErrorMessageCSS} role="alert">
       <div className="chat-error-message__title">
-        {isCredentialError
-          ? "The model provider rejected your API key."
-          : "The assistant response failed."}
+        {isStorageError
+          ? "Phoenix has run out of database storage."
+          : isCredentialError
+            ? "The model provider rejected your API key."
+            : "The assistant response failed."}
       </div>
       <p className="chat-error-message__copy">
-        {isCredentialError
-          ? "The API key for the selected model is missing, invalid, or misconfigured. Add a valid key in AI provider settings, then retry."
-          : "You can retry the response, undo this turn, or branch before the error."}
+        {isStorageError
+          ? "Writes are locked until space is freed, so this turn was not saved. Delete old data or increase storage, then send the message again."
+          : isCredentialError
+            ? "The API key for the selected model is missing, invalid, or misconfigured. Add a valid key in AI provider settings, then retry."
+            : "You can retry the response, undo this turn, or branch before the error."}
       </p>
       {canRetry || canUndoOrFork || isCredentialError ? (
         <div className="chat-error-message__actions">
@@ -107,7 +120,7 @@ export function ChatErrorMessage({
             <Button
               size="S"
               variant={isCredentialError ? "default" : "primary"}
-              onPress={() => onRetry(latestAssistantMessageId)}
+              onPress={onRetry}
             >
               Retry
             </Button>

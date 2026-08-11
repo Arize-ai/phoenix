@@ -1,9 +1,12 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { RelayEnvironmentProvider } from "react-relay";
 import { MemoryRouter } from "react-router";
+import { Environment, Network, RecordSource, Store } from "relay-runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+import { AgentChatRuntimeProvider } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
@@ -56,6 +59,26 @@ function dispatchPointerEvent(
   element.dispatchEvent(event);
 }
 
+/**
+ * Relay environment whose network resolves every operation with an empty
+ * session list, so the panel renders its header without a live server.
+ */
+function createEmptySessionsEnvironment() {
+  return new Environment({
+    network: Network.create(() =>
+      Promise.resolve({
+        data: {
+          agentSessions: {
+            edges: [],
+            pageInfo: { endCursor: null, hasNextPage: false },
+          },
+        },
+      })
+    ),
+    store: new Store(new RecordSource()),
+  });
+}
+
 describe("FloatingAgentChatPanel", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -104,15 +127,21 @@ describe("FloatingAgentChatPanel", () => {
     vi.restoreAllMocks();
   });
 
-  it("keeps its dragged position when a new chat is created", () => {
-    act(() => {
+  it("keeps its dragged position when a new chat is created", async () => {
+    await act(async () => {
       root.render(
         <MemoryRouter>
-          <ThemeProvider themeMode="light" disableBodyTheme>
-            <AgentProvider isOpen position="detached">
-              <FloatingAgentChatPanel />
-            </AgentProvider>
-          </ThemeProvider>
+          <RelayEnvironmentProvider
+            environment={createEmptySessionsEnvironment()}
+          >
+            <ThemeProvider themeMode="light" disableBodyTheme>
+              <AgentProvider isOpen position="detached">
+                <AgentChatRuntimeProvider>
+                  <FloatingAgentChatPanel />
+                </AgentChatRuntimeProvider>
+              </AgentProvider>
+            </ThemeProvider>
+          </RelayEnvironmentProvider>
         </MemoryRouter>
       );
     });

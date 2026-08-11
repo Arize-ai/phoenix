@@ -15,6 +15,8 @@ export const authenticatedRootLoaderQueryNode = graphql`
       assistantEnabled
       allowLocalTraces
       allowRemoteExport
+      sessionRetentionMaxIdleDays
+      sessionRetentionMaxCountPerUser
     }
     viewer {
       id

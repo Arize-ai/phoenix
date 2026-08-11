@@ -34,6 +34,7 @@ export function PromptInput({
   onSubmit,
   status = "ready",
   isDisabled = false,
+  isSubmitDisabled = false,
   mode = "prompt",
   value: controlledValue,
   onValueChange,
@@ -60,7 +61,7 @@ export function PromptInput({
   valueRef.current = value;
 
   const handleSubmit = () => {
-    if (status === "submitted" || status === "streaming") {
+    if (isSubmitDisabled || status === "submitted" || status === "streaming") {
       return;
     }
 

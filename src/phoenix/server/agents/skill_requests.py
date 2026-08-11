@@ -25,7 +25,6 @@ from collections.abc import Iterable, Iterator, Sequence
 from typing import Any, TypeVar
 
 from jinja2 import Template
-from pydantic_ai.ui.vercel_ai.request_types import ToolOutputAvailablePart, UIMessage
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
     FinishStepChunk,
@@ -34,6 +33,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolOutputAvailableChunk,
 )
 
+from phoenix.db.types.data_stream_protocol import ToolOutputAvailablePart, UIMessage
 from phoenix.server.agents.capabilities.skills import Skill
 
 logger = logging.getLogger(__name__)

@@ -66,6 +66,7 @@ export function bindPendingPromptInstanceRemovalActions({
         tool: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
         toolCallId: pendingRemoval.toolCallId,
         errorText: REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR,
+        outcome: "interrupted",
       });
     },
   };

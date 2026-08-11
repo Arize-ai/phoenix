@@ -16,10 +16,10 @@ import {
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import type { AgentSession } from "@phoenix/store/agentStore";
 import { formatRelativeShort } from "@phoenix/utils/timeFormatUtils";
 
-import { getSessionDisplayName } from "./sessionSummaryUtils";
+import { EMPTY_SESSION_DISPLAY_NAME } from "./sessionTitleUtils";
+import { TemporarySessionIcon } from "./TemporarySessionIcon";
 
 /**
  * Props for the session list menu.
@@ -28,12 +28,26 @@ import { getSessionDisplayName } from "./sessionSummaryUtils";
  * @param activeSessionId - ID of the currently active session (for highlight)
  * @param onSelectSession - called when the user clicks a session to switch to
  * @param onDeleteSession - called after the user confirms session deletion
+ * @param onOpenChange - called when the menu opens or closes
  */
 export type SessionListMenuProps = {
-  sessions: AgentSession[];
+  sessions: AgentSessionListItem[];
   activeSessionId: string | null;
   onSelectSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
+  hasNextPage?: boolean;
+  isLoadingNextPage?: boolean;
+  onLoadNextPage?: () => void;
+  onOpenChange?: (isOpen: boolean) => void;
+};
+
+export type AgentSessionListItem = {
+  /** The session's Relay node ID, or the draft sentinel for a new chat. */
+  id: string;
+  title: string;
+  createdAt: number;
+  isTemporary?: boolean;
+  isDeleteDisabled?: boolean;
 };
 
 export function SessionListMenu({
@@ -41,11 +55,23 @@ export function SessionListMenu({
   activeSessionId,
   onSelectSession,
   onDeleteSession,
+  hasNextPage = false,
+  isLoadingNextPage = false,
+  onLoadNextPage,
+  onOpenChange,
 }: SessionListMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const handleOpenChange = useCallback(
+    (isOpen: boolean) => {
+      setMenuOpen(isOpen);
+      onOpenChange?.(isOpen);
+    },
+    [onOpenChange]
+  );
+
   // Track which session is currently focused in the menu for keyboard shortcuts
-  const focusedSessionRef = useRef<AgentSession | null>(null);
+  const focusedSessionRef = useRef<AgentSessionListItem | null>(null);
 
   const handleAction = useCallback(
     (key: React.Key) => {
@@ -57,16 +83,17 @@ export function SessionListMenu({
   const handleDeleteSession = useCallback(
     (sessionId: string) => {
       onDeleteSession(sessionId);
-      setMenuOpen(false);
+      handleOpenChange(false);
     },
-    [onDeleteSession]
+    [onDeleteSession, handleOpenChange]
   );
 
   const handleMenuKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (
         (e.key === "Delete" || e.key === "Backspace") &&
-        focusedSessionRef.current
+        focusedSessionRef.current &&
+        !focusedSessionRef.current.isDeleteDisabled
       ) {
         e.preventDefault();
         e.stopPropagation();
@@ -79,7 +106,7 @@ export function SessionListMenu({
   const selectedKeys = activeSessionId ? [activeSessionId] : [];
 
   return (
-    <MenuTrigger onOpenChange={setMenuOpen} isOpen={menuOpen}>
+    <MenuTrigger onOpenChange={handleOpenChange} isOpen={menuOpen}>
       <Button
         variant="quiet"
         size="S"
@@ -92,6 +119,17 @@ export function SessionListMenu({
           selectedKeys={selectedKeys}
           onAction={handleAction}
           onKeyDown={handleMenuKeyDown}
+          onScroll={(event) => {
+            const { scrollHeight, scrollTop, clientHeight } =
+              event.currentTarget;
+            if (
+              scrollHeight - scrollTop - clientHeight < 300 &&
+              hasNextPage &&
+              !isLoadingNextPage
+            ) {
+              onLoadNextPage?.();
+            }
+          }}
         >
           {sessions.map((session) => (
             <SessionMenuItem
@@ -118,11 +156,11 @@ function SessionMenuItem({
   focusedSessionRef,
   onRequestDelete,
 }: {
-  session: AgentSession;
-  focusedSessionRef: React.RefObject<AgentSession | null>;
+  session: AgentSessionListItem;
+  focusedSessionRef: React.RefObject<AgentSessionListItem | null>;
   onRequestDelete: (sessionId: string) => void;
 }) {
-  const displayName = getSessionDisplayName(session);
+  const displayName = session.title || EMPTY_SESSION_DISPLAY_NAME;
   const dateLabel = formatRelativeShort(session.createdAt);
 
   const handleFocusChange = useCallback(
@@ -149,6 +187,7 @@ function SessionMenuItem({
               variant="quiet"
               size="S"
               aria-label={`Delete session: ${displayName}`}
+              isDisabled={session.isDeleteDisabled}
               onPress={() => onRequestDelete(session.id)}
               leadingVisual={<Icon svg={<Icons.Trash />} />}
             />
@@ -160,7 +199,10 @@ function SessionMenuItem({
       }
     >
       <Flex direction="column" gap="size-50">
-        <Text>{displayName}</Text>
+        <Flex direction="row" alignItems="center" gap="size-100">
+          <Text>{displayName}</Text>
+          {session.isTemporary ? <TemporarySessionIcon /> : null}
+        </Flex>
         {dateLabel && (
           <Text size="XS" color="text-300">
             {dateLabel}

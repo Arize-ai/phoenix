@@ -21,6 +21,7 @@ export const patchExperimentAgentTool = defineTool<PatchExperimentInput>({
     autoOpen: true,
     scrollIntoViewOnMount: true,
   },
+  rehydratable: true,
   execute: async ({
     toolCall,
     input,

@@ -8,6 +8,26 @@ from typing import Any, Literal, Mapping, Optional, Sequence, TypedDict, Union
 from typing_extensions import NotRequired
 
 
+class AgentSessionConflictError(TypedDict):
+    code: Literal[
+        "agent_session_busy",
+        "agent_session_model_stale",
+        "agent_session_messages_stale",
+        "agent_session_tool_outputs_conflict",
+        "agent_session_already_compact",
+        "agent_session_compaction_conflict",
+    ]
+    message: NotRequired[str]
+
+
+class AgentSessionSummary(TypedDict):
+    id: str
+    title: str
+    created_at: str
+    updated_at: str
+    is_ephemeral: bool
+
+
 class AgentSpanContext(TypedDict):
     type: Literal["span"]
     projectNodeId: NotRequired[str]
@@ -51,12 +71,7 @@ class AppContext(TypedDict):
     timeZone: str
 
 
-class AssistantMessageMetadataTraceIds(TypedDict):
-    traceId: str
-    rootSpanId: str
-
-
-class AssistantMessageMetadataUsageTokenDetails(TypedDict):
+class AssistantMessageMetadataUsageCacheTokenDetails(TypedDict):
     cacheRead: int
     cacheWrite: int
 
@@ -157,6 +172,10 @@ class CreateProjectRequestBody(TypedDict):
 class CreateSpansResponseBody(TypedDict):
     total_received: int
     total_queued: int
+
+
+class CreatedAgentSession(TypedDict):
+    id: str
 
 
 class CreatedApiKey(TypedDict):
@@ -348,6 +367,11 @@ class LDAPUserData(TypedDict):
     auth_method: Literal["LDAP"]
 
 
+class ListAgentSessionsResponseBody(TypedDict):
+    data: Sequence[AgentSessionSummary]
+    next_cursor: Optional[str]
+
+
 class ListDatasetLabelsForDatasetResponseBody(TypedDict):
     data: Sequence[DatasetLabel]
 
@@ -420,6 +444,13 @@ class OtlpStatus(TypedDict):
 class PatchPromptRequestBody(TypedDict):
     description: NotRequired[str]
     metadata: NotRequired[Mapping[str, Any]]
+
+
+class PhoenixUserMessageMetadata(TypedDict):
+    type: Literal["user"]
+    currentDateTime: str
+    timeZone: str
+    isCompactionMessage: NotRequired[bool]
 
 
 class PlaygroundBuiltinModelContext(TypedDict):
@@ -717,6 +748,10 @@ class PromptXAIInvocationParametersContent(TypedDict):
     extra_body: NotRequired[Mapping[str, Any]]
 
 
+class PydanticAIMessageMetadata(TypedDict):
+    timestamp: NotRequired[str]
+
+
 class ReasoningUIPart(TypedDict):
     type: Literal["reasoning"]
     text: str
@@ -933,38 +968,12 @@ class ToolInputStreamingPart(TypedDict):
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
 
-class ToolOutputAvailablePart(TypedDict):
-    type: str
-    toolCallId: str
-    title: NotRequired[str]
-    state: NotRequired[str]
-    input: NotRequired[Any]
-    output: NotRequired[Any]
-    providerExecuted: NotRequired[bool]
-    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
-    preliminary: NotRequired[bool]
-    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
-
-
 class ToolOutputDeniedPart(TypedDict):
     type: str
     toolCallId: str
     title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
-    providerExecuted: NotRequired[bool]
-    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
-    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
-
-
-class ToolOutputErrorPart(TypedDict):
-    type: str
-    toolCallId: str
-    errorText: str
-    title: NotRequired[str]
-    state: NotRequired[str]
-    input: NotRequired[Any]
-    rawInput: NotRequired[Any]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
@@ -1120,12 +1129,6 @@ class UserApiKey(TypedDict):
     expires_at: NotRequired[str]
 
 
-class UserMessageMetadata(TypedDict):
-    type: Literal["user"]
-    currentDateTime: str
-    timeZone: str
-
-
 class ValidationError(TypedDict):
     loc: Sequence[Union[str, int]]
     msg: str
@@ -1139,20 +1142,141 @@ class WebAccessContext(TypedDict):
     enabled: bool
 
 
-class FieldSummarizeResponse(TypedDict):
-    summary: str
+class PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    input: Any
+    output: Any
+    title: NotRequired[str]
+    state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    resultProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    preliminary: NotRequired[bool]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
 
-class ToolCallCallbackProviderMetadata(TypedDict):
-    tool_execution_environment: Literal["client", "server"]
-    tool_input_emitted_at: NotRequired[str]
-    client_started_at: NotRequired[str]
-    client_ended_at: NotRequired[str]
+class PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    input: Any
+    errorText: str
+    title: NotRequired[str]
+    state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    resultProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
 
-class ToolCallProviderMetadata(TypedDict):
-    tool_execution_environment: Literal["client", "server"]
-    tool_input_emitted_at: NotRequired[str]
+class PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart(TypedDict):
+    type: str
+    toolCallId: str
+    title: NotRequired[str]
+    state: NotRequired[str]
+    input: NotRequired[Any]
+    output: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    resultProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    preliminary: NotRequired[bool]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart(TypedDict):
+    type: str
+    toolCallId: str
+    errorText: str
+    title: NotRequired[str]
+    state: NotRequired[str]
+    input: NotRequired[Any]
+    rawInput: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    resultProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class PydanticAiUiVercelAiRequestTypesDynamicToolOutputAvailablePart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    input: Any
+    output: Any
+    title: NotRequired[str]
+    state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    preliminary: NotRequired[bool]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class PydanticAiUiVercelAiRequestTypesDynamicToolOutputErrorPart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    input: Any
+    errorText: str
+    title: NotRequired[str]
+    state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class PydanticAiUiVercelAiRequestTypesToolOutputAvailablePart(TypedDict):
+    type: str
+    toolCallId: str
+    title: NotRequired[str]
+    state: NotRequired[str]
+    input: NotRequired[Any]
+    output: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    preliminary: NotRequired[bool]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class PydanticAiUiVercelAiRequestTypesToolOutputErrorPart(TypedDict):
+    type: str
+    toolCallId: str
+    errorText: str
+    title: NotRequired[str]
+    state: NotRequired[str]
+    input: NotRequired[Any]
+    rawInput: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class AgentErrorData(TypedDict):
+    errorText: str
+
+
+class PhoenixToolCallCallbackProviderMetadata(TypedDict):
+    toolExecutionEnvironment: Literal["client", "server"]
+    toolInputEmittedAt: NotRequired[str]
+    clientStartedAt: NotRequired[str]
+    clientEndedAt: NotRequired[str]
+
+
+class PhoenixToolCallProviderMetadata(TypedDict):
+    toolExecutionEnvironment: Literal["client", "server"]
+    toolInputEmittedAt: NotRequired[str]
+
+
+class SessionSummaryChunk(TypedDict):
+    type: Literal["data-session-summary"]
+    data: str
+    id: NotRequired[str]
+    transient: NotRequired[bool]
+
+
+class TranscriptPersistedData(TypedDict):
+    messageId: str
 
 
 class AddDatasetLabelToDatasetResponseBody(TypedDict):
@@ -1193,7 +1317,7 @@ class AnnotateTracesResponseBody(TypedDict):
 
 class AssistantMessageMetadataUsage(TypedDict):
     tokens: AssistantMessageMetadataUsageTokens
-    promptDetails: NotRequired[AssistantMessageMetadataUsageTokenDetails]
+    promptDetails: NotRequired[AssistantMessageMetadataUsageCacheTokenDetails]
 
 
 class BuiltInProviderModelSelection(TypedDict):
@@ -1215,7 +1339,6 @@ class BuiltInProviderModelSelection(TypedDict):
     ]
     modelName: str
     providerType: Literal["builtin"]
-    openaiApiType: NotRequired[Literal["chat_completions", "responses"]]
 
 
 class CategoricalAnnotationConfig(TypedDict):
@@ -1263,6 +1386,10 @@ class ContinuousAnnotationConfigData(TypedDict):
     description: NotRequired[str]
     lower_bound: NotRequired[float]
     upper_bound: NotRequired[float]
+
+
+class CreateAgentSessionResponseBody(TypedDict):
+    data: CreatedAgentSession
 
 
 class CreateApiKeyResponseBody(TypedDict):
@@ -1399,38 +1526,11 @@ class DynamicToolInputStreamingPart(TypedDict):
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
 
-class DynamicToolOutputAvailablePart(TypedDict):
-    type: Literal["dynamic-tool"]
-    toolName: str
-    toolCallId: str
-    input: Any
-    output: Any
-    title: NotRequired[str]
-    state: NotRequired[str]
-    providerExecuted: NotRequired[bool]
-    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
-    preliminary: NotRequired[bool]
-    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
-
-
 class DynamicToolOutputDeniedPart(TypedDict):
     type: Literal["dynamic-tool"]
     toolName: str
     toolCallId: str
     input: Any
-    title: NotRequired[str]
-    state: NotRequired[str]
-    providerExecuted: NotRequired[bool]
-    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
-    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
-
-
-class DynamicToolOutputErrorPart(TypedDict):
-    type: Literal["dynamic-tool"]
-    toolName: str
-    toolCallId: str
-    input: Any
-    errorText: str
     title: NotRequired[str]
     state: NotRequired[str]
     providerExecuted: NotRequired[bool]
@@ -1525,6 +1625,14 @@ class IncompleteExperimentRun(TypedDict):
     repetition_numbers: Sequence[int]
 
 
+class LegacyAssistantMessageMetadata(TypedDict):
+    type: Literal["assistant"]
+    sessionId: str
+    turnTraceContext: NotRequired[TurnTraceContext]
+    usage: NotRequired[AssistantMessageMetadataUsage]
+    interrupted: NotRequired[bool]
+
+
 class ListDatasetExamplesData(TypedDict):
     dataset_id: str
     version_id: str
@@ -1538,6 +1646,14 @@ class ListDatasetExamplesResponseBody(TypedDict):
 
 class PatchPromptResponseBody(TypedDict):
     data: Prompt
+
+
+class PhoenixAssistantMessageMetadata(TypedDict):
+    type: Literal["assistant"]
+    sessionId: str
+    turnTraceContext: NotRequired[TurnTraceContext]
+    usage: NotRequired[AssistantMessageMetadataUsage]
+    interrupted: NotRequired[bool]
 
 
 class PlaygroundContext(TypedDict):
@@ -1702,6 +1818,18 @@ class SpansResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class SubmitAgentSessionToolOutputsRequestBody(TypedDict):
+    toolOutputs: Sequence[
+        Union[
+            PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart,
+        ]
+    ]
+    lastMessageId: str
+
+
 class ToolApprovalRequestedPart(TypedDict):
     type: str
     toolCallId: str
@@ -1731,37 +1859,6 @@ class TraceData(TypedDict):
     spans: NotRequired[Sequence[TraceSpanData]]
 
 
-class UIMessage(TypedDict):
-    id: str
-    role: Literal["system", "user", "assistant"]
-    parts: Sequence[
-        Union[
-            TextUIPart,
-            ReasoningUIPart,
-            ToolInputStreamingPart,
-            ToolInputAvailablePart,
-            ToolOutputAvailablePart,
-            ToolOutputErrorPart,
-            ToolApprovalRequestedPart,
-            ToolApprovalRespondedPart,
-            ToolOutputDeniedPart,
-            DynamicToolInputStreamingPart,
-            DynamicToolInputAvailablePart,
-            DynamicToolOutputAvailablePart,
-            DynamicToolOutputErrorPart,
-            DynamicToolApprovalRequestedPart,
-            DynamicToolApprovalRespondedPart,
-            DynamicToolOutputDeniedPart,
-            SourceUrlUIPart,
-            SourceDocumentUIPart,
-            FileUIPart,
-            DataUIPart,
-            StepStartUIPart,
-        ]
-    ]
-    metadata: NotRequired[Any]
-
-
 class UpdateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
@@ -1770,24 +1867,33 @@ class UpsertExperimentEvaluationResponseBody(TypedDict):
     data: UpsertExperimentEvaluationResponseBodyData
 
 
-class FieldSummarizeRequest(TypedDict):
-    messages: Sequence[UIMessage]
+class AgentErrorChunk(TypedDict):
+    type: Literal["data-error"]
+    data: AgentErrorData
+    id: NotRequired[str]
+    transient: NotRequired[bool]
+
+
+class TranscriptPersistedChunk(TypedDict):
+    type: Literal["data-transcript-persisted"]
+    data: TranscriptPersistedData
+    id: NotRequired[str]
+    transient: NotRequired[bool]
+
+
+class AgentSessionData(TypedDict):
+    id: str
+    title: str
+    created_at: str
+    updated_at: str
+    is_ephemeral: bool
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-    ingestTraces: NotRequired[bool]
-    exportRemoteTraces: NotRequired[bool]
-    attachUserId: NotRequired[bool]
+    is_active: bool
+    last_message_id: NotRequired[str]
 
 
 class AssignAnnotationConfigToProjectResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
-
-
-class AssistantMessageMetadata(TypedDict):
-    type: Literal["assistant"]
-    sessionId: str
-    trace: NotRequired[AssistantMessageMetadataTraceIds]
-    turnTraceContext: NotRequired[TurnTraceContext]
-    usage: NotRequired[AssistantMessageMetadataUsage]
 
 
 class ChatCompletion(TypedDict):
@@ -1797,6 +1903,16 @@ class ChatCompletion(TypedDict):
     choices: Sequence[ChatCompletionChoice]
     usage: ChatCompletionUsage
     object: NotRequired[str]
+
+
+class CompactAgentSessionRequestBody(TypedDict):
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+
+
+class CreateAgentSessionRequestBody(TypedDict):
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    title: NotRequired[str]
+    is_ephemeral: NotRequired[bool]
 
 
 class CreateAnnotationConfigResponseBody(TypedDict):
@@ -1809,6 +1925,10 @@ class CreateSpansRequestBody(TypedDict):
 
 class DeleteAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+
+
+class GetAgentSessionResponseBody(TypedDict):
+    data: AgentSessionData
 
 
 class GetIncompleteEvaluationsResponseBody(TypedDict):
@@ -1835,7 +1955,7 @@ class GetTracesResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
-class PhoenixUIMessage(TypedDict):
+class LegacyAssistantMetadataUIMessage(TypedDict):
     id: str
     role: Literal["system", "user", "assistant"]
     parts: Sequence[
@@ -1844,15 +1964,15 @@ class PhoenixUIMessage(TypedDict):
             ReasoningUIPart,
             ToolInputStreamingPart,
             ToolInputAvailablePart,
-            ToolOutputAvailablePart,
-            ToolOutputErrorPart,
+            PydanticAiUiVercelAiRequestTypesToolOutputAvailablePart,
+            PydanticAiUiVercelAiRequestTypesToolOutputErrorPart,
             ToolApprovalRequestedPart,
             ToolApprovalRespondedPart,
             ToolOutputDeniedPart,
             DynamicToolInputStreamingPart,
             DynamicToolInputAvailablePart,
-            DynamicToolOutputAvailablePart,
-            DynamicToolOutputErrorPart,
+            PydanticAiUiVercelAiRequestTypesDynamicToolOutputAvailablePart,
+            PydanticAiUiVercelAiRequestTypesDynamicToolOutputErrorPart,
             DynamicToolApprovalRequestedPart,
             DynamicToolApprovalRespondedPart,
             DynamicToolOutputDeniedPart,
@@ -1863,29 +1983,12 @@ class PhoenixUIMessage(TypedDict):
             StepStartUIPart,
         ]
     ]
-    metadata: NotRequired[Union[AssistantMessageMetadata, UserMessageMetadata]]
+    metadata: NotRequired[LegacyAssistantMessageMetadata]
 
 
-class PromptAnthropicInvocationParameters(TypedDict):
-    type: Literal["anthropic"]
-    anthropic: PromptAnthropicInvocationParametersContent
-
-
-class PromptGoogleInvocationParameters(TypedDict):
-    type: Literal["google"]
-    google: PromptGoogleInvocationParametersContent
-
-
-class PromptMessage(TypedDict):
-    role: Literal["user", "assistant", "model", "ai", "tool", "system", "developer"]
-    content: Union[
-        str, Sequence[Union[TextContentPart, ToolCallContentPart, ToolResultContentPart]]
-    ]
-
-
-class ChatRegenerateMessage(TypedDict):
+class LegacyChatRegenerateMessage(TypedDict):
     id: str
-    messages: Sequence[PhoenixUIMessage]
+    messages: Sequence[LegacyAssistantMetadataUIMessage]
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     trigger: Literal["regenerate-message"]
     messageId: NotRequired[str]
@@ -1914,12 +2017,11 @@ class ChatRegenerateMessage(TypedDict):
     ]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
-    turnTraceContext: NotRequired[TurnTraceContext]
 
 
-class ChatSubmitMessage(TypedDict):
+class LegacyChatSubmitMessage(TypedDict):
     id: str
-    messages: Sequence[PhoenixUIMessage]
+    messages: Sequence[LegacyAssistantMetadataUIMessage]
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     trigger: Literal["submit-message"]
     ingestTraces: NotRequired[bool]
@@ -1947,7 +2049,125 @@ class ChatSubmitMessage(TypedDict):
     ]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
-    turnTraceContext: NotRequired[TurnTraceContext]
+
+
+class MessageMetadata(TypedDict):
+    phoenix: NotRequired[Union[PhoenixAssistantMessageMetadata, PhoenixUserMessageMetadata]]
+    pydantic_ai: NotRequired[PydanticAIMessageMetadata]
+
+
+class PatchAgentSessionRequestBody(TypedDict):
+    title: NotRequired[str]
+    model: NotRequired[Union[CustomProviderModelSelection, BuiltInProviderModelSelection]]
+
+
+class PatchAgentSessionResponseBody(TypedDict):
+    data: AgentSessionData
+
+
+class PhoenixUIMessage(TypedDict):
+    id: str
+    role: Literal["system", "user", "assistant"]
+    parts: Sequence[
+        Union[
+            TextUIPart,
+            ReasoningUIPart,
+            ToolInputStreamingPart,
+            ToolInputAvailablePart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart,
+            ToolApprovalRequestedPart,
+            ToolApprovalRespondedPart,
+            ToolOutputDeniedPart,
+            DynamicToolInputStreamingPart,
+            DynamicToolInputAvailablePart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart,
+            DynamicToolApprovalRequestedPart,
+            DynamicToolApprovalRespondedPart,
+            DynamicToolOutputDeniedPart,
+            SourceUrlUIPart,
+            SourceDocumentUIPart,
+            FileUIPart,
+            DataUIPart,
+            StepStartUIPart,
+        ]
+    ]
+    metadata: NotRequired[MessageMetadata]
+
+
+class PromptAnthropicInvocationParameters(TypedDict):
+    type: Literal["anthropic"]
+    anthropic: PromptAnthropicInvocationParametersContent
+
+
+class PromptGoogleInvocationParameters(TypedDict):
+    type: Literal["google"]
+    google: PromptGoogleInvocationParametersContent
+
+
+class PromptMessage(TypedDict):
+    role: Literal["user", "assistant", "model", "ai", "tool", "system", "developer"]
+    content: Union[
+        str, Sequence[Union[TextContentPart, ToolCallContentPart, ToolResultContentPart]]
+    ]
+
+
+class SubmitAgentSessionToolOutputsResponseBody(TypedDict):
+    data: PhoenixUIMessage
+
+
+class ChatRequestBody(TypedDict):
+    headless: bool
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    id: str
+    contexts: NotRequired[
+        Sequence[
+            Union[
+                AppContext,
+                ProjectContext,
+                TraceContext,
+                SessionContext,
+                PromptContext,
+                PromptVersionContext,
+                AgentSpanContext,
+                PlaygroundContext,
+                CodeEvaluatorContext,
+                LlmEvaluatorContext,
+                DatasetContext,
+                GraphQLContext,
+                WebAccessContext,
+                SubagentsContext,
+            ]
+        ]
+    ]
+    editPermission: NotRequired[Literal["manual", "bypass"]]
+    requestedSkills: NotRequired[Sequence[str]]
+    trigger: NotRequired[str]
+    message: NotRequired[PhoenixUIMessage]
+    toolOutputs: NotRequired[
+        Sequence[
+            Union[
+                PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart,
+                PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart,
+                PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart,
+                PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart,
+            ]
+        ]
+    ]
+    lastMessageId: NotRequired[str]
+    recordLocalTraces: NotRequired[bool]
+    exportRemoteTraces: NotRequired[bool]
+    instrumentUserId: NotRequired[bool]
+
+
+class CompactAgentSessionResponseBody(TypedDict):
+    data: PhoenixUIMessage
+
+
+class ListAgentSessionMessagesResponseBody(TypedDict):
+    data: Sequence[PhoenixUIMessage]
+    next_cursor: Optional[str]
 
 
 class PromptChatTemplate(TypedDict):

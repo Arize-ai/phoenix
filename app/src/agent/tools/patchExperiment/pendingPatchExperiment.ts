@@ -112,6 +112,7 @@ export function bindPendingPatchExperimentActions({
         tool: PATCH_EXPERIMENT_TOOL_NAME,
         toolCallId: pendingPatch.toolCallId,
         errorText: PATCH_EXPERIMENT_NAVIGATION_CANCEL_ERROR,
+        outcome: "interrupted",
       });
     },
   };

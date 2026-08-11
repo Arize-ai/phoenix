@@ -81,6 +81,92 @@ type AgentAssistantEnabled {
   enabled: Boolean!
 }
 
+type AgentBuiltinProviderModelSelection {
+  provider: ModelProvider!
+  modelName: String!
+}
+
+input AgentBuiltinProviderModelSelectionInput {
+  provider: ModelProvider!
+  modelName: String!
+}
+
+type AgentCustomProviderModelSelection {
+  providerId: ID!
+  modelName: String!
+}
+
+input AgentCustomProviderModelSelectionInput {
+  providerId: ID!
+  modelName: String!
+}
+
+union AgentModelSelection = AgentCustomProviderModelSelection | AgentBuiltinProviderModelSelection
+
+input AgentModelSelectionInput @oneOf {
+  custom: AgentCustomProviderModelSelectionInput
+  builtin: AgentBuiltinProviderModelSelectionInput
+}
+
+type AgentSession implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
+  """The title of the session."""
+  title: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  """The user that owns the session."""
+  user: User
+
+  """The text of the first user message in the session."""
+  firstInput: String
+
+  """The text of the latest assistant message in the session."""
+  latestOutput: String
+
+  """Whether the session expires after a period of inactivity."""
+  isEphemeral: Boolean!
+
+  """
+  Whether a response is currently streaming on this session, i.e. its lock has a live (non-stale) heartbeat.
+  """
+  isActive: Boolean!
+  model: AgentModelSelection!
+
+  """
+  The message ID of the most recently persisted transcript message, or null for an empty transcript.
+  """
+  lastMessageId: String
+
+  """The persisted transcript as Vercel AI UIMessage JSON objects."""
+  messages: JSON!
+}
+
+"""A connection to a list of items."""
+type AgentSessionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [AgentSessionEdge!]!
+}
+
+"""An edge in a connection."""
+type AgentSessionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: AgentSession!
+}
+
+type AgentSessionRetention {
+  maxIdleDays: Int
+  maxCountPerUser: Int
+}
+
 type AgentSkill {
   """
   The unique skill identifier used to load the skill (e.g. 'debug-trace').
@@ -134,6 +220,16 @@ type AgentsConfig {
   Admin ceiling for exporting PXI traces to the remote collector. Sourced from the `agent.assistant.trace_recording` system setting. When False, users cannot turn on remote trace export for themselves.
   """
   allowRemoteExport: Boolean!
+
+  """
+  Number of idle days after which agent sessions are deleted. Null means idle sessions are never deleted.
+  """
+  sessionRetentionMaxIdleDays: Int
+
+  """
+  Maximum number of agent sessions kept per user; the most recently active sessions are retained. Null means no cap.
+  """
+  sessionRetentionMaxCountPerUser: Int
 }
 
 interface Annotation {
@@ -432,6 +528,21 @@ input AzureOpenAICustomProviderConfigInput {
   openaiApiType: OpenAIApiType = RESPONSES
 }
 
+input BranchAgentSessionInput {
+  id: ID!
+
+  """
+  The transcript message (UIMessage id) to branch at. A user message is excluded from the branch along with everything after it; an assistant message is included and everything after it is excluded.
+  """
+  messageId: String!
+}
+
+type BranchAgentSessionMutationPayload {
+  """The newly created branch session."""
+  agentSession: AgentSession!
+  query: Query!
+}
+
 type BuiltInEvaluator implements Evaluator & Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -687,6 +798,21 @@ type CostBreakdown {
   """
   tokens: Float
   cost: Float
+}
+
+input CreateAgentSessionInput {
+  model: AgentModelSelectionInput!
+
+  """Optional initial title."""
+  title: String! = ""
+
+  """Whether the session should expire after a period of inactivity."""
+  isEphemeral: Boolean! = false
+}
+
+type CreateAgentSessionMutationPayload {
+  agentSession: AgentSession!
+  query: Query!
 }
 
 input CreateAnnotationConfigInput {
@@ -1304,6 +1430,15 @@ type DbTableStats {
 
 type DecryptedSecret {
   value: RedactedString!
+}
+
+input DeleteAgentSessionInput {
+  id: ID!
+}
+
+type DeleteAgentSessionMutationPayload {
+  deletedAgentSessionId: ID!
+  query: Query!
 }
 
 input DeleteAnnotationConfigsInput {
@@ -2446,6 +2581,11 @@ input MontyConfigInput {
 }
 
 type Mutation {
+  createAgentSession(input: CreateAgentSessionInput!): CreateAgentSessionMutationPayload!
+  truncateAgentSession(input: TruncateAgentSessionInput!): TruncateAgentSessionMutationPayload!
+  branchAgentSession(input: BranchAgentSessionInput!): BranchAgentSessionMutationPayload!
+  patchAgentSession(input: PatchAgentSessionInput!): PatchAgentSessionMutationPayload!
+  deleteAgentSession(input: DeleteAgentSessionInput!): DeleteAgentSessionMutationPayload!
   createAnnotationConfig(input: CreateAnnotationConfigInput!): CreateAnnotationConfigPayload!
   updateAnnotationConfig(input: UpdateAnnotationConfigInput!): UpdateAnnotationConfigPayload!
   deleteAnnotationConfigs(input: DeleteAnnotationConfigsInput!): DeleteAnnotationConfigsPayload!
@@ -2553,6 +2693,7 @@ type Mutation {
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
   setAgentAssistantEnabled(input: SetAgentAssistantEnabledInput!): AgentAssistantEnabled!
   setAgentTraceRecording(input: SetAgentTraceRecordingInput!): AgentTraceRecording!
+  setAgentSessionRetention(input: SetAgentSessionRetentionInput!): AgentSessionRetention!
   createProjectSessionAnnotations(input: CreateProjectSessionAnnotationInput!): ProjectSessionAnnotationMutationPayload!
   updateProjectSessionAnnotations(input: UpdateAnnotationInput!): ProjectSessionAnnotationMutationPayload!
   deleteProjectSessionAnnotation(id: ID!): ProjectSessionAnnotationMutationPayload!
@@ -2667,6 +2808,21 @@ type PageInfo {
 
   """When paginating forwards, the cursor to continue."""
   endCursor: String
+}
+
+input PatchAgentSessionInput {
+  id: ID!
+
+  """New title. Omitted leaves the title unchanged."""
+  title: String
+
+  """New model selection. Omitted leaves the model unchanged."""
+  model: AgentModelSelectionInput
+}
+
+type PatchAgentSessionMutationPayload {
+  agentSession: AgentSession!
+  query: Query!
 }
 
 input PatchAnnotationInput {
@@ -3717,6 +3873,11 @@ type Query {
   dbStorageCapacityBytes: Float
   dbTableStats: [DbTableStats!]!
   serverStatus: ServerStatus!
+
+  """
+  Persisted assistant chat sessions, most recently active first. By default, users see their own sessions. Admins can pass viewerOnly: false to see all sessions. When authentication is disabled, all sessions are returned.
+  """
+  agentSessions(first: Int = 20, after: String, viewerOnly: Boolean! = true): AgentSessionConnection!
   agentsConfig: AgentsConfig!
 
   """The assistant skills available given the supplied UI context."""
@@ -3955,6 +4116,18 @@ type ServerStatus {
 
 input SetAgentAssistantEnabledInput {
   enabled: Boolean!
+}
+
+input SetAgentSessionRetentionInput {
+  """
+  Delete persisted sessions idle longer than this many days. Omit to leave unchanged; set null to disable idle-based deletion.
+  """
+  maxIdleDays: Int
+
+  """
+  Keep only the newest N persisted sessions per user. Omit to leave unchanged; set null to disable the per-user count limit.
+  """
+  maxCountPerUser: Int
 }
 
 input SetAgentTraceRecordingInput {
@@ -4704,6 +4877,20 @@ type TraceTokenCountTimeSeriesDataPoint {
   totalTokenCount: Float
   promptTokenCountDetails: [TraceTokenCountDetailsTimeSeriesEntry!]!
   completionTokenCountDetails: [TraceTokenCountDetailsTimeSeriesEntry!]!
+}
+
+input TruncateAgentSessionInput {
+  id: ID!
+
+  """
+  The transcript message (UIMessage id) to rewind at. A user message is removed along with everything after it; an assistant message is kept and everything after it is removed.
+  """
+  messageId: String!
+}
+
+type TruncateAgentSessionMutationPayload {
+  agentSession: AgentSession!
+  query: Query!
 }
 
 type UnparsableConfig {

@@ -1,10 +1,9 @@
-import type { Chat } from "@ai-sdk/react";
-import type { UIMessage } from "ai";
 import { z } from "zod";
 
+import type { AddToolOutput } from "@phoenix/agent/extensions/registry/defineTool";
 import { normalizeAliases } from "@phoenix/agent/tools/playgroundPrompt";
 
-export type PromptToolsWriteToolOutputSender = Chat<UIMessage>["addToolOutput"];
+export type PromptToolsWriteToolOutputSender = AddToolOutput;
 
 export const readPromptToolsInputSchema = z
   .preprocess(

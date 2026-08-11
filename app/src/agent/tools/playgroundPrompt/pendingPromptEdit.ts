@@ -95,6 +95,7 @@ export function bindPendingPromptEditActions({
         tool: EDIT_PROMPT_TOOL_NAME,
         toolCallId: pendingEdit.toolCallId,
         errorText: EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
+        outcome: "interrupted",
       });
     },
   };
