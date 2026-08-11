@@ -9,6 +9,7 @@ const query = graphql`
   query refetchProjectEvaluatorsQuery($projectId: ID!, $first: Int!) {
     project: node(id: $projectId) {
       ... on Project {
+        evaluatorCount
         evaluators(first: $first)
           @connection(key: "ProjectEvaluatorsTable_evaluators") {
           edges {
