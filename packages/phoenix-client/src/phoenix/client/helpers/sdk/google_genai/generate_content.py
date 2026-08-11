@@ -74,7 +74,14 @@ def create_prompt_version_from_google_genai(
     _validate_supported_config(config)
     messages = _system_messages_from_google(
         cast(
-            "Optional[Union[str, genai_types.Content, Sequence[genai_types.Content]]]",
+            Optional[
+                Union[
+                    str,
+                    genai_types.Content,
+                    genai_types.Part,
+                    Sequence[Union[str, genai_types.Part]],
+                ]
+            ],
             config.system_instruction,
         )
     )
@@ -125,34 +132,35 @@ def _validate_supported_config(config: genai_types.GenerateContentConfig) -> Non
 
 
 def _system_messages_from_google(
-    obj: Optional[Union[str, genai_types.Content, Sequence[genai_types.Content]]],
+    obj: Optional[
+        Union[
+            str,
+            genai_types.Content,
+            genai_types.Part,
+            Sequence[Union[str, genai_types.Part]],
+        ]
+    ],
     /,
 ) -> list[v1.PromptMessage]:
+    from google.genai import types as genai_types
+
     if obj is None:
         return []
     if isinstance(obj, str):
         return [v1.PromptMessage(role="system", content=obj)]
-    contents: Sequence[genai_types.Content]
+    parts: Sequence[genai_types.Part]
     if isinstance(obj, genai_types.Content):
-        contents = [obj]
-    elif isinstance(obj, Sequence) and all(
-        isinstance(content, genai_types.Content) for content in obj
-    ):
-        contents = cast("Sequence[genai_types.Content]", obj)  # pyright: ignore[reportUnnecessaryCast]
+        parts = obj.parts or ()
+    elif isinstance(obj, genai_types.Part):
+        parts = (obj,)
+    elif isinstance(obj, Sequence):
+        parts = [genai_types.Part(text=item) if isinstance(item, str) else item for item in obj]
     else:
-        raise NotImplementedError("Only text and Content system instructions are supported")
-    messages: list[v1.PromptMessage] = []
-    for content in contents:
-        parts = [
-            _TextContentPartConversion.from_google(part)
-            for part in content.parts or ()
-            if _has_text(part)
-        ]
-        if len(parts) != len(content.parts or ()):
-            raise NotImplementedError("Only text system instructions are supported")
-        if parts:
-            messages.append(v1.PromptMessage(role="system", content=parts))
-    return messages
+        raise NotImplementedError("Unsupported Google GenAI system instruction")
+    text_parts = [_TextContentPartConversion.from_google(part) for part in parts if _has_text(part)]
+    if len(text_parts) != len(parts):
+        raise NotImplementedError("Only text Google GenAI system instructions are supported")
+    return [v1.PromptMessage(role="system", content=text_parts)] if text_parts else []
 
 
 def to_chat_messages_and_kwargs(
@@ -607,6 +615,8 @@ class _ContentConversion:
                 parts.append(_ToolCallContentPartConversion.from_google(part))
             elif _has_function_response(part):
                 parts.append(_ToolResultContentPartConversion.from_google(part))
+            else:
+                raise NotImplementedError("Unsupported Google GenAI content part")
         return v1.PromptMessage(role=role, content=parts)
 
 

@@ -43,11 +43,12 @@ from openai.types.chat import (
 )
 from openai.types.chat.completion_create_params import CompletionCreateParamsBase
 from openai.types.shared_params import ResponseFormatJSONSchema
+from pydantic import BaseModel, ConfigDict, Field, create_model
+from typing_extensions import assert_never
+
 from phoenix.client import Client as _PhoenixClient
 from phoenix.client.types import PromptVersion
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
-from pydantic import BaseModel, ConfigDict, Field, create_model
-from typing_extensions import assert_never
 
 from .._helpers import (
     _MEMBER,
@@ -1187,6 +1188,145 @@ class TestClient:
                     ),
                 },
                 id="google-genai-system-instruction",
+            ),
+            pytest.param(
+                "GOOGLE",
+                _from_google_genai,
+                {
+                    "model": "gemini-2.0-flash",
+                    "messages": [
+                        genai_types.Content(
+                            role="user",
+                            parts=[
+                                genai_types.Part(text="What is the weather in {city}?"),
+                                genai_types.Part(text="Use the weather tool."),
+                            ],
+                        ),
+                        genai_types.Content(
+                            role="model",
+                            parts=[
+                                genai_types.Part(
+                                    function_call=genai_types.FunctionCall(
+                                        id="weather-call",
+                                        name="get_weather",
+                                        args={"city": "Paris"},
+                                    )
+                                )
+                            ],
+                        ),
+                        genai_types.Content(
+                            role="user",
+                            parts=[
+                                genai_types.Part(
+                                    function_response=genai_types.FunctionResponse(
+                                        id="weather-call",
+                                        name="get_weather",
+                                        response={"temperature": 20},
+                                    )
+                                )
+                            ],
+                        ),
+                    ],
+                    "config": genai_types.GenerateContentConfig(
+                        system_instruction="You are a helpful {role}.",
+                        temperature=0.0,
+                        max_output_tokens=128,
+                        stop_sequences=["END"],
+                        top_p=0.9,
+                        top_k=20,
+                        presence_penalty=0.1,
+                        frequency_penalty=0.2,
+                        thinking_config=genai_types.ThinkingConfig(
+                            thinking_budget=1024,
+                            include_thoughts=True,
+                        ),
+                        tools=cast(
+                            Any,
+                            [
+                                genai_types.Tool(
+                                    function_declarations=[
+                                        genai_types.FunctionDeclaration(
+                                            name="get_weather",
+                                            description="Get the weather",
+                                            parameters_json_schema={
+                                                "type": "object",
+                                                "properties": {
+                                                    "city": {"type": "string"},
+                                                },
+                                                "required": ["city"],
+                                            },
+                                        )
+                                    ]
+                                )
+                            ],
+                        ),
+                        tool_config=genai_types.ToolConfig(
+                            function_calling_config=genai_types.FunctionCallingConfig(
+                                mode=genai_types.FunctionCallingConfigMode.ANY,
+                            )
+                        ),
+                        response_mime_type="application/json",
+                        response_json_schema={
+                            "type": "object",
+                            "properties": {"answer": {"type": "string"}},
+                        },
+                    ),
+                },
+                id="google-genai-tools-and-config",
+            ),
+            pytest.param(
+                "GOOGLE",
+                _from_google_genai,
+                {
+                    "model": "gemini-2.0-flash",
+                    "messages": [
+                        genai_types.Content(
+                            role="user",
+                            parts=[genai_types.Part(text="Do not call any tools.")],
+                        )
+                    ],
+                    "config": genai_types.GenerateContentConfig(
+                        tools=cast(
+                            Any,
+                            [
+                                genai_types.Tool(
+                                    function_declarations=[
+                                        genai_types.FunctionDeclaration(
+                                            name="get_weather",
+                                            description="Get the weather",
+                                        )
+                                    ]
+                                )
+                            ],
+                        ),
+                        tool_config=genai_types.ToolConfig(
+                            function_calling_config=genai_types.FunctionCallingConfig(
+                                mode=genai_types.FunctionCallingConfigMode.NONE,
+                            )
+                        ),
+                    ),
+                },
+                id="google-genai-tool-choice-none",
+            ),
+            pytest.param(
+                "GOOGLE",
+                _from_google_genai,
+                {
+                    "model": "gemini-2.0-flash",
+                    "messages": [
+                        genai_types.Content(
+                            role="user",
+                            parts=[genai_types.Part(text="Search for {topic}.")],
+                        )
+                    ],
+                    "config": genai_types.GenerateContentConfig(
+                        tools=cast(
+                            Any,
+                            [genai_types.Tool(google_search=genai_types.GoogleSearch())],
+                        ),
+                    ),
+                },
+                id="google-genai-built-in-tool",
             ),
         ],
     )

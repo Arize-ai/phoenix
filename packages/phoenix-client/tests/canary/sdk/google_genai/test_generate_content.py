@@ -410,6 +410,34 @@ class TestPromptVersionConversion:
         assert kwargs["config"].response_mime_type == "application/json"
         assert kwargs["config"].response_json_schema == schema
 
+    @pytest.mark.parametrize(
+        ("system_instruction", "expected"),
+        [
+            (
+                genai_types.Content(parts=[genai_types.Part(text="Be concise.")]),
+                "Be concise.",
+            ),
+            (genai_types.Part(text="Be concise."), "Be concise."),
+            (["Be concise.", "Prefer JSON."], "Be concise.\n\nPrefer JSON."),
+            (
+                [genai_types.Part(text="Be concise."), genai_types.Part(text="Prefer JSON.")],
+                "Be concise.\n\nPrefer JSON.",
+            ),
+        ],
+    )
+    def test_text_system_instruction_shapes_are_supported(
+        self, system_instruction: Any, expected: str
+    ) -> None:
+        prompt = create_prompt_version_from_google_genai(
+            "gemini-2.0-flash",
+            [genai_types.Content(role="user", parts=[genai_types.Part(text="Hello")])],
+            config=genai_types.GenerateContentConfig(system_instruction=system_instruction),
+        )
+
+        _, kwargs = to_chat_messages_and_kwargs(prompt)
+
+        assert kwargs["config"].system_instruction == expected
+
     def test_unsupported_config_is_rejected(self) -> None:
         with pytest.raises(NotImplementedError, match="candidate_count"):
             create_prompt_version_from_google_genai(
@@ -417,6 +445,17 @@ class TestPromptVersionConversion:
                 [genai_types.Content(role="user", parts=[genai_types.Part(text="Hello")])],
                 config=genai_types.GenerateContentConfig(candidate_count=2),
             )
+
+    def test_unsupported_content_part_is_rejected(self) -> None:
+        content = genai_types.Content(
+            role="user",
+            parts=[
+                genai_types.Part(inline_data=genai_types.Blob(mime_type="image/png", data=b"image"))
+            ],
+        )
+
+        with pytest.raises(NotImplementedError, match="Unsupported Google GenAI content part"):
+            create_prompt_version_from_google_genai("gemini-2.0-flash", [content])
 
 
 class TestToolKwargsGuards:
