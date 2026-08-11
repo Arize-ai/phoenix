@@ -32,7 +32,6 @@ what is possible -- and the gap between those two is the remaining work.
 from __future__ import annotations
 
 import inspect
-from pathlib import Path
 
 import pytest
 from sqlglot import exp, parse_one
@@ -44,8 +43,52 @@ from tests.unit.server.mcp_analytics_sql.admission_corpus import CASES
 # identifiers, operators and the set-operation forms. Reviewed as a set rather
 # than one at a time, because their meaning comes from the statement shape that
 # admission already validates rather than from the class itself.
+#
+# One name per line, so admitting a class stays a one-line diff to review.
 REVIEWED_STRUCTURAL: frozenset[str] = frozenset(
-    Path(__file__).with_name("structural_nodes.txt").read_text().split()
+    {
+        "Add",
+        "Alias",
+        "Block",
+        "CTE",
+        "Column",
+        "Copy",
+        "Credentials",
+        "DataType",
+        "Drop",
+        "EQ",
+        "From",
+        "GT",
+        "Group",
+        "Identifier",
+        "In",
+        "Into",
+        "Is",
+        "Join",
+        "LT",
+        "Lateral",
+        "Literal",
+        "Lock",
+        "Mul",
+        "Not",
+        "Null",
+        "Order",
+        "Ordered",
+        "Paren",
+        "Select",
+        "Star",
+        "Sub",
+        "Subquery",
+        "Table",
+        "TableAlias",
+        "Tuple",
+        "Union",
+        "Var",
+        "Where",
+        "Window",
+        "With",
+        "WithinGroup",
+    }
 )
 
 
@@ -113,7 +156,7 @@ def test_every_reachable_node_class_is_classified() -> None:
         "node classes reachable from the corpus that nothing classifies:\n"
         + "\n".join(f"  {name}  first seen in: {sql}" for name, sql in sorted(unclassified.items()))
         + "\n\nClassify each into one of the three buckets: structural "
-        "(structural_nodes.txt), refused outright (_REFUSED_NODE_CLASSES, with a "
+        "(REVIEWED_STRUCTURAL), refused outright (_REFUSED_NODE_CLASSES, with a "
         "message), or governed by a dedicated check (GOVERNED_BY_CHECK, naming it)."
     )
 
