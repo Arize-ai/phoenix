@@ -1,4 +1,6 @@
-import type { ModelMessage, ToolChoice, ToolSet } from "ai";
+import type { ModelMessage, ToolChoice, ToolSet } from "ai" with {
+  "resolution-mode": "import",
+};
 import invariant from "tiny-invariant";
 
 import {

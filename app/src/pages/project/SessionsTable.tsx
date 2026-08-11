@@ -14,22 +14,23 @@ import {
 } from "@tanstack/react-table";
 import React, {
   startTransition,
+  Suspense,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
+import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
   ContextualHelp,
-  CopyToClipboardButton,
   Flex,
   Heading,
   Icon,
   Icons,
+  OverflowRow,
   Text,
   View,
 } from "@phoenix/components";
@@ -37,7 +38,10 @@ import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import {
+  expandableSelectableTableCSS,
+  TABLE_DATA_CELL_CLASS,
+} from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
@@ -49,22 +53,24 @@ import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationCont
 import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
 
 import {
-  CellWithControlsWrap,
   ColumnHeaderCell,
   ColumnOrderingProvider,
+  CopyableTextCell,
   IntCell,
+  RowExpandToggleButton,
+  useTableRowsExpanded,
   useColumnOrder,
 } from "../../components/table";
 import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import type { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
+import type { SessionsTableSessionFilterVocabularyQuery } from "./__generated__/SessionsTableSessionFilterVocabularyQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import {
   SessionInputValueTooltipCell,
   SessionOutputValueTooltipCell,
 } from "./IOValueTooltipCell";
 import { SessionColumnSelector } from "./SessionColumnSelector";
-import { useSessionSearchContext } from "./SessionSearchContext";
-import { SessionSearchField } from "./SessionSearchField";
+import { SessionFilterConditionField } from "./SessionFilterConditionField";
 import { SessionsTableAside } from "./SessionsTableAside";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
 import { spansTableCSS } from "./styles";
@@ -72,6 +78,7 @@ import { TableAsidePanel, TableAsideToggleButton } from "./TableAside";
 import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
 import { TableMetricsChartSelector } from "./TableMetricsChartSelector";
 import {
+  ANNOTATION_COLUMN_SIZING,
   DEFAULT_SESSION_SORT,
   getGqlSessionSort,
   makeAnnotationColumnId,
@@ -85,6 +92,53 @@ const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
+
+const toolbarFilterFieldCSS = css`
+  flex: 2 1 420px;
+  min-width: min(100%, 320px);
+`;
+
+const EMPTY_SESSION_FILTER_VOCABULARY = [] as const;
+
+/**
+ * The filter field, once its per-project autocomplete vocabulary has loaded.
+ * The vocabulary resolver scans annotation names and root-span attributes, so
+ * it is suspended separately from the table it sits above.
+ */
+function SessionFilterConditionFieldWithVocabulary({
+  projectId,
+  onValidCondition,
+}: {
+  projectId: string;
+  onValidCondition: (condition: string) => void;
+}) {
+  const data = useLazyLoadQuery<SessionsTableSessionFilterVocabularyQuery>(
+    graphql`
+      query SessionsTableSessionFilterVocabularyQuery($id: ID!) {
+        project: node(id: $id) {
+          ... on Project {
+            sessionFilterVocabulary {
+              name
+              type
+              description
+              category
+              iterableName
+            }
+          }
+        }
+      }
+    `,
+    { id: projectId }
+  );
+  return (
+    <SessionFilterConditionField
+      vocabulary={
+        data.project?.sessionFilterVocabulary ?? EMPTY_SESSION_FILTER_VOCABULARY
+      }
+      onValidCondition={onValidCondition}
+    />
+  );
+}
 
 const TableBody = <T extends { id: string }>({
   table,
@@ -116,14 +170,10 @@ const TableBody = <T extends { id: string }>({
               return (
                 <td
                   key={cell.id}
+                  className={TABLE_DATA_CELL_CLASS}
                   style={{
                     width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
                     maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
-                    // prevent all wrapping, just show an ellipsis and let users expand if necessary
-                    textWrap: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
                   }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -147,13 +197,19 @@ export function SessionsTable(props: SessionsTableProps) {
   // we need a reference to the scrolling element for pagination logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const { filterIoSubstringOrSessionId } = useSessionSearchContext();
+  const [validSessionFilterCondition, setValidSessionFilterCondition] =
+    useState<string>("");
   const { fetchKey } = useStreamState();
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the current
   // search/filter still applied. The parent query is intentionally not reloaded
   // on window slides — see the load effect in `ProjectPage` and issue #14216.
   const { timeRangeISOStrings } = useTimeRange();
+  const {
+    isExpanded: areRowsExpanded,
+    setIsExpanded: setAreRowsExpanded,
+    tableProps: rowsExpandedTableProps,
+  } = useTableRowsExpanded();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SessionsTableQuery, SessionsTable_sessions$key>(
       graphql`
@@ -166,23 +222,23 @@ export function SessionsTable(props: SessionsTableProps) {
             type: "ProjectSessionSort"
             defaultValue: { col: startTime, dir: desc }
           }
-          filterIoSubstring: { type: "String", defaultValue: null }
-          sessionId: { type: "String", defaultValue: null }
+          sessionFilterCondition: { type: "String", defaultValue: null }
         ) {
+          id
           name
           ...SessionColumnSelector_annotations
           sessions(
             first: $first
             after: $after
             sort: $sort
-            filterIoSubstring: $filterIoSubstring
+            sessionFilterCondition: $sessionFilterCondition
             timeRange: $timeRange
-            sessionId: $sessionId
           ) @connection(key: "SessionsTable_sessions") {
             edges {
               session: node {
                 id
                 sessionId
+                userId
                 numTraces
                 startTime
                 endTime
@@ -262,7 +318,7 @@ export function SessionsTable(props: SessionsTableProps) {
   const setSessionSequence = useSessionPagination()?.setSessionSequence;
   useEffect(() => {
     if (!setSessionSequence) {
-      return;
+      return undefined;
     }
     setSessionSequence(
       data.sessions.edges.map(({ session }) => ({
@@ -342,8 +398,16 @@ export function SessionsTable(props: SessionsTableProps) {
       id: "annotations",
       accessorKey: "sessionAnnotations",
       enableSorting: false,
+      ...ANNOTATION_COLUMN_SIZING,
       cell: ({ row }) => {
-        return <SessionAnnotationSummaryGroupTokens session={row.original} />;
+        return (
+          <OverflowRow isExpanded={areRowsExpanded}>
+            <SessionAnnotationSummaryGroupTokens
+              session={row.original}
+              showFilterActions
+            />
+          </OverflowRow>
+        );
       },
     },
     ...dynamicAnnotationColumns,
@@ -354,19 +418,9 @@ export function SessionsTable(props: SessionsTableProps) {
       header: "session id",
       accessorKey: "sessionId",
       enableSorting: false,
-      cell: ({ getValue }) => {
-        const value = getValue() as string | null;
-        if (!value) return <>{"--"}</>;
-        return (
-          <CellWithControlsWrap
-            controls={<CopyToClipboardButton text={value} />}
-          >
-            <Truncate>
-              <Text>{value}</Text>
-            </Truncate>
-          </CellWithControlsWrap>
-        );
-      },
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
     },
     {
       header: "first input",
@@ -390,6 +444,14 @@ export function SessionsTable(props: SessionsTableProps) {
         />
       ),
     },
+    {
+      header: "user",
+      accessorKey: "userId",
+      enableSorting: false,
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
+    },
     ...annotationColumns,
     {
       header: "start time",
@@ -407,24 +469,26 @@ export function SessionsTable(props: SessionsTableProps) {
       header: "p50 latency",
       accessorKey: "traceLatencyMsP50",
       enableSorting: false,
+      meta: { textAlign: "right" },
       cell: ({ getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
           return null;
         }
-        return <LatencyText latencyMs={value} />;
+        return <LatencyText latencyMs={value} size="S" />;
       },
     },
     {
       header: "p99 latency",
       accessorKey: "traceLatencyMsP99",
       enableSorting: false,
+      meta: { textAlign: "right" },
       cell: ({ getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
           return null;
         }
-        return <LatencyText latencyMs={value} />;
+        return <LatencyText latencyMs={value} size="S" />;
       },
     },
     {
@@ -432,6 +496,7 @@ export function SessionsTable(props: SessionsTableProps) {
       accessorKey: "tokenCountTotal",
       enableSorting: true,
       minSize: 80,
+      meta: { textAlign: "right" },
       cell: ({ getValue, row }) => {
         const value = getValue();
         if (value == null || typeof value !== "number") {
@@ -453,13 +518,16 @@ export function SessionsTable(props: SessionsTableProps) {
       id: "costTotal",
       enableSorting: true,
       minSize: 80,
+      meta: { textAlign: "right" },
       cell: ({ row, getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
           return "--";
         }
         const session = row.original;
-        return <SessionTokenCosts totalCost={value} nodeId={session.id} />;
+        return (
+          <SessionTokenCosts totalCost={value} nodeId={session.id} size="S" />
+        );
       },
     },
     {
@@ -477,8 +545,7 @@ export function SessionsTable(props: SessionsTableProps) {
           sort: sort ? getGqlSessionSort(sort) : DEFAULT_SESSION_SORT,
           after: null,
           first: PAGE_SIZE,
-          filterIoSubstring: filterIoSubstringOrSessionId,
-          sessionId: filterIoSubstringOrSessionId,
+          sessionFilterCondition: validSessionFilterCondition || null,
           timeRange: timeRangeISOStrings,
         },
         { fetchPolicy: "store-and-network" }
@@ -487,7 +554,7 @@ export function SessionsTable(props: SessionsTableProps) {
   }, [
     sorting,
     refetch,
-    filterIoSubstringOrSessionId,
+    validSessionFilterCondition,
     fetchKey,
     timeRangeISOStrings,
   ]);
@@ -585,14 +652,38 @@ export function SessionsTable(props: SessionsTableProps) {
           borderBottomWidth="thin"
           flex="none"
         >
-          <Flex direction="row" gap="size-100" width="100%" alignItems="center">
-            <View flex="1 1 auto">
-              <SessionSearchField />
-            </View>
+          <Flex
+            direction="row"
+            gap="size-100"
+            width="100%"
+            alignItems="center"
+            wrap="wrap"
+          >
+            <div css={toolbarFilterFieldCSS}>
+              {/* Autocomplete data must not gate the table's first paint, so
+                  the field renders — and filters — before it arrives. */}
+              <Suspense
+                fallback={
+                  <SessionFilterConditionField
+                    vocabulary={EMPTY_SESSION_FILTER_VOCABULARY}
+                    onValidCondition={setValidSessionFilterCondition}
+                  />
+                }
+              >
+                <SessionFilterConditionFieldWithVocabulary
+                  projectId={data.id}
+                  onValidCondition={setValidSessionFilterCondition}
+                />
+              </Suspense>
+            </div>
             <TableMetricsChartSelector view="sessions" />
             <SessionColumnSelector
               columns={table.getAllColumns()}
               query={data}
+            />
+            <RowExpandToggleButton
+              isExpanded={areRowsExpanded}
+              onChange={setAreRowsExpanded}
             />
             <TableAsideToggleButton />
           </Flex>
@@ -621,7 +712,8 @@ export function SessionsTable(props: SessionsTableProps) {
                 onColumnOrderChange={onVisibleColumnOrderChange}
               >
                 <table
-                  css={selectableTableCSS}
+                  css={expandableSelectableTableCSS}
+                  {...rowsExpandedTableProps}
                   style={{
                     ...columnSizeVars,
                     width: table.getTotalSize(),
@@ -722,7 +814,7 @@ export function SessionsTable(props: SessionsTableProps) {
           </Panel>
           <TableAsidePanel>
             <SessionsTableAside
-              filterIoSubstringOrSessionId={filterIoSubstringOrSessionId}
+              sessionFilterCondition={validSessionFilterCondition || null}
             />
           </TableAsidePanel>
         </Group>

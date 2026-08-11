@@ -32,9 +32,10 @@ import {
   Truncate,
   View,
 } from "@phoenix/components";
+import { MessageActions } from "@phoenix/components/ai/message/MessageActions";
+import { MessageCopyAction } from "@phoenix/components/ai/message/MessageCopyAction";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
-import { CopyToClipboardButton } from "@phoenix/components/core/copy";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
@@ -60,7 +61,7 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { TraceFeedbackActionToolbar } from "./TraceFeedbackActionToolbar";
+import { TraceActionToolbar } from "./TraceActionToolbar";
 
 export const sessionDetailsTraceListQuery = graphql`
   query SessionDetailsTraceListQuery($id: ID!, $first: Int!) {
@@ -108,7 +109,7 @@ const getSessionTraceUrl = ({
 
 const messageWrapCSS = css`
   width: fit-content;
-  max-width: 70%;
+  max-width: 80%;
 `;
 
 const outputMetadataMutedCSS = css`
@@ -126,6 +127,12 @@ const outputMetadataMutedCSS = css`
 `;
 
 const SESSION_TURN_MESSAGE_MAX_HEIGHT = 280;
+
+/**
+ * Max width of the turn content column. Wide enough to read long messages
+ * comfortably while keeping the conversation centered in wide panels.
+ */
+const SESSION_TURN_MAX_WIDTH = "1000px";
 
 type RootSpanMessageRole = "INPUT" | "OUTPUT";
 
@@ -248,8 +255,9 @@ function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
               <LatencyText latencyMs={rootSpan.latencyMs} />
             ) : null}
           </Flex>
-          <TraceFeedbackActionToolbar
+          <TraceActionToolbar
             trace={rootSpan.trace}
+            copyText={rootSpan.output?.value}
             onAnnotate={() => {
               setIsAnnotationDialogOpen(true);
             }}
@@ -332,14 +340,7 @@ function SessionTurnDivider({
       >
         Trace
       </LinkButton>
-      <IDBadge id={traceId} />
-      <CopyToClipboardButton
-        text={traceId}
-        size="S"
-        variant="quiet"
-        tooltipText="Copy trace ID"
-        aria-label="Copy trace ID"
-      />
+      <IDBadge id={traceId} tooltipText="Copy Trace ID" />
     </Flex>
   );
 }
@@ -351,6 +352,8 @@ function SessionTurnDetail({
 }: RootSpanProps & { traceId: string; index: number }) {
   const user = getUserFromRootSpanAttributes(rootSpan.attributes);
   const inputLabel = user != null ? `USER: ${user}` : "INPUT";
+  const inputText = rootSpan.input?.value ?? "";
+  const hasInputText = Boolean(inputText.trim());
 
   return (
     <Flex direction="column" gap="size-200">
@@ -367,7 +370,20 @@ function SessionTurnDetail({
           role="INPUT"
           value={rootSpan.input?.value}
         />
-        <RootSpanStartTime rootSpan={rootSpan} />
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          width="100%"
+          gap="size-100"
+        >
+          <RootSpanStartTime rootSpan={rootSpan} />
+          {hasInputText ? (
+            <MessageActions aria-label="Input message actions">
+              <MessageCopyAction text={inputText} />
+            </MessageActions>
+          ) : null}
+        </Flex>
       </Flex>
       <Flex
         direction="column"
@@ -428,8 +444,7 @@ const turnListCSS = css`
 
   .react-aria-ListBoxItem {
     margin: 0;
-    padding: var(--global-dimension-static-size-150)
-      var(--global-dimension-static-size-200);
+    padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
     border-radius: 0;
     border-left: 4px solid transparent;
     border-bottom: 1px solid var(--global-border-color-default);
@@ -600,7 +615,7 @@ export function SessionDetailsTraceList({
                 trace {
                   id
                   ...TraceAnnotationSummaryGroup
-                  ...TraceFeedbackActionToolbar_trace
+                  ...TraceActionToolbar_trace
                   costSummary {
                     total {
                       cost
@@ -780,7 +795,11 @@ export function SessionDetailsTraceList({
                   paddingBottom="size-200"
                   paddingX="size-200"
                 >
-                  <View width="100%" maxWidth="size-8500" marginX="auto">
+                  <View
+                    width="100%"
+                    maxWidth={SESSION_TURN_MAX_WIDTH}
+                    marginX="auto"
+                  >
                     <SessionTurnDetail
                       index={index}
                       traceId={traceId}
@@ -797,7 +816,11 @@ export function SessionDetailsTraceList({
               borderBottomWidth={"thin"}
               padding="size-200"
             >
-              <View width="100%" maxWidth="size-8500" marginX="auto">
+              <View
+                width="100%"
+                maxWidth={SESSION_TURN_MAX_WIDTH}
+                marginX="auto"
+              >
                 <Loading />
               </View>
             </View>

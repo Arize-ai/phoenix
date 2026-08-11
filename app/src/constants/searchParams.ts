@@ -5,6 +5,12 @@
 export const SELECTED_SPAN_NODE_ID_PARAM = "selectedSpanNodeId";
 
 /**
+ * The applied span filter DSL condition. Absent means no condition was applied
+ * here, which lets the view seed its own default.
+ */
+export const SPAN_FILTER_CONDITION_PARAM = "spanFilterCondition";
+
+/**
  * The search param that contains the selected session details sub-view.
  * This is used to preserve the active session tab across reloads and links.
  */

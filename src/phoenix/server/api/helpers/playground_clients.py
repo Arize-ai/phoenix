@@ -109,7 +109,11 @@ if TYPE_CHECKING:
     from anthropic.types.message_create_params import MessageCreateParamsBase
     from anthropic.types.usage import Usage
     from google.genai.client import AsyncClient as GoogleAsyncClient
-    from google.genai.types import ContentDict, GenerateContentConfig, GenerateContentResponse
+    from google.genai.types import (
+        ContentUnionDict,
+        GenerateContentConfig,
+        GenerateContentResponse,
+    )
     from openai import AsyncOpenAI
     from openai._streaming import AsyncStream
     from openai.lib.streaming.responses import AsyncResponseStreamManager
@@ -1402,6 +1406,7 @@ class TogetherStreamingClient(OpenAIBaseStreamingClient):
     model_names=[
         PROVIDER_DEFAULT,
         "anthropic.claude-fable-5",
+        "anthropic.claude-opus-5",
         "anthropic.claude-opus-4-8",
         "anthropic.claude-opus-4-7",
         "anthropic.claude-sonnet-5",
@@ -2214,14 +2219,41 @@ def _anthropic_beta_headers_for_tools(
     return {"anthropic-beta": ",".join(betas)}
 
 
+# Anthropic models that use adaptive thinking (`thinking: {"type": "adaptive"}`).
+# These models removed `temperature`, `top_p`, `top_k`, and extended thinking
+# (`thinking: {"type": "enabled", "budget_tokens": N}`) from their request
+# surface; sending any of them returns a 400.
+ANTHROPIC_ADAPTIVE_THINKING_MODELS = [
+    "claude-fable-5",
+    "claude-opus-5",
+    "claude-opus-4-8",
+    "claude-opus-4-7",
+    "claude-sonnet-5",
+]
+
+# Older Anthropic models that still accept extended thinking
+# (`thinking: {"type": "enabled", "budget_tokens": N}`) alongside the sampling
+# parameters. Kept as a distinct group because the request surface differs, not
+# because they use a different client.
+ANTHROPIC_EXTENDED_THINKING_MODELS = [
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "claude-opus-4-5",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+    "claude-opus-4-1",
+    "claude-sonnet-4-0",
+    "claude-opus-4-0",
+    "claude-3-7-sonnet-latest",
+]
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
-        "claude-fable-5",
-        "claude-opus-4-8",
-        "claude-opus-4-7",
-        "claude-sonnet-5",
+        *ANTHROPIC_ADAPTIVE_THINKING_MODELS,
+        *ANTHROPIC_EXTENDED_THINKING_MODELS,
     ],
 )
 class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
@@ -2652,27 +2684,6 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         return content
 
 
-ANTHROPIC_REASONING_MODELS = [
-    "claude-opus-4-6",
-    "claude-sonnet-4-6",
-    "claude-opus-4-5",
-    "claude-sonnet-4-5",
-    "claude-haiku-4-5",
-    "claude-opus-4-1",
-    "claude-sonnet-4-0",
-    "claude-opus-4-0",
-    "claude-3-7-sonnet-latest",
-]
-
-
-@register_llm_client(
-    provider_key=GenerativeProviderKey.ANTHROPIC,
-    model_names=ANTHROPIC_REASONING_MODELS,
-)
-class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
-    pass
-
-
 @register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=[
@@ -2700,25 +2711,17 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
 
     @override
     def is_rate_limit_error(self, e: Exception) -> bool:
-        # Google GenAI uses Stainless SDK with RateLimitError (429)
-        from google.genai._interactions._exceptions import RateLimitError
+        from google.genai.errors import APIError
 
-        return isinstance(e, RateLimitError)
+        return isinstance(e, APIError) and e.code == 429
 
     @override
     def is_transient_error(self, e: Exception) -> bool:
-        from google.genai._interactions._exceptions import (
-            APIConnectionError,
-            APITimeoutError,
-            InternalServerError,
-        )
+        from google.genai.errors import APIError
 
-        if isinstance(e, (APIConnectionError, APITimeoutError, InternalServerError)):
-            return True
-        status_code = getattr(e, "status_code", None)
-        if status_code and 500 <= status_code < 600:
-            return True
-        return False
+        if isinstance(e, APIError):
+            return 500 <= e.code < 600
+        return super().is_transient_error(e)
 
     @override
     def get_rate_limit_key(self) -> Hashable:
@@ -2733,7 +2736,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         response_format: PromptResponseFormat | None,
         invocation_parameters: PromptGoogleInvocationParameters | None = None,
         span: OTelSpan,
-    ) -> tuple[list[ContentDict], GenerateContentConfig]:
+    ) -> tuple[list[ContentUnionDict], GenerateContentConfig]:
         from google.genai import types
 
         contents, system_prompt = self._build_google_messages(messages)
@@ -3016,9 +3019,9 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
     def _build_google_messages(
         self,
         messages: Sequence[PlaygroundMessage],
-    ) -> tuple[list["ContentDict"], str]:
+    ) -> tuple[list["ContentUnionDict"], str]:
         """Build Google messages following the standard pattern - process ALL messages."""
-        google_messages: list["ContentDict"] = []
+        google_messages: list["ContentUnionDict"] = []
         system_prompts = []
         for msg in messages:
             role = msg["role"]
@@ -3054,7 +3057,9 @@ class Gemini25GoogleStreamingClient(GoogleStreamingClient):
 
 
 GEMINI_3_MODELS = [
+    "gemini-3.6-flash",
     "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
     "gemini-3.1-pro-preview",
     "gemini-3-pro-preview",
     "gemini-3-flash-preview",
@@ -3532,12 +3537,6 @@ async def _get_builtin_provider_client(
         anthropic_client_factory: ClientFactory["AsyncAnthropic"] = LLMClientFactory(
             create_anthropic_client, anthropic_rate_limit_key(api_key, None)
         )
-        if model_name in ANTHROPIC_REASONING_MODELS:
-            return AnthropicReasoningStreamingClient(
-                client_factory=anthropic_client_factory,
-                model_name=model_name,
-                provider=provider,
-            )
         return AnthropicStreamingClient(
             client_factory=anthropic_client_factory,
             model_name=model_name,
@@ -4116,12 +4115,6 @@ async def _get_custom_provider_client(
             anthropic_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        if model_name in ANTHROPIC_REASONING_MODELS:
-            return AnthropicReasoningStreamingClient(
-                client_factory=anthropic_client_factory,
-                model_name=model_name,
-                provider=provider,
-            )
         return AnthropicStreamingClient(
             client_factory=anthropic_client_factory,
             model_name=model_name,

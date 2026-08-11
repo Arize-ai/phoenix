@@ -192,8 +192,8 @@ def auth_method(self) -> AuthMethod:
     """Return semantic auth method (translated from database)."""
     if self._user.auth_method == "OAUTH2":
         if is_ldap_user(self._user):  # Check for \ue000LDAP(stopgap) prefix
-            return AuthMethod.LDAP    # ✅ Frontend sees "LDAP"
-        return AuthMethod.OAUTH2       # Real OAuth2
+            return AuthMethod.LDAP  # ✅ Frontend sees "LDAP"
+        return AuthMethod.OAUTH2  # Real OAuth2
     return AuthMethod(self._user.auth_method)  # LOCAL
 ```
 
@@ -279,11 +279,14 @@ ALTER TABLE users ADD CONSTRAINT CHECK (auth_method IN ('LOCAL', 'OAUTH2', 'LDAP
 ```python
 class LDAPUser(User):
     """Type-safe class with native ORM support."""
+
     __mapper_args__ = {"polymorphic_identity": "LDAP"}
-    
+
+
 # Native queries
 ldap_users = session.query(LDAPUser).all()
-if isinstance(user, LDAPUser): ...
+if isinstance(user, LDAPUser):
+    ...
 ```
 
 **✅ Strengths**:
@@ -310,7 +313,7 @@ if isinstance(user, LDAPUser): ...
 Approach 1 cannot use SQLAlchemy polymorphism (shared `auth_method='OAUTH2'` discriminator):
 ```python
 # Approach 1: Convention-based
-users = session.query(User).filter(User.oauth2_client_id == '\ue000LDAP(stopgap)')
+users = session.query(User).filter(User.oauth2_client_id == "\ue000LDAP(stopgap)")
 
 # Approach 2: Native ORM
 ldap_users = session.query(LDAPUser).all()  # Type-safe

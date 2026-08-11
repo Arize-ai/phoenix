@@ -18,10 +18,6 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import (
     get_env_database_allocated_storage_capacity_gibibytes,
-    get_env_phoenix_agents_assistant_project_name,
-    get_env_phoenix_agents_collector_endpoint,
-    get_env_phoenix_agents_force_tracing,
-    get_env_phoenix_agents_web_access_enabled,
 )
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
@@ -34,6 +30,7 @@ from phoenix.db.helpers import (
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.db.types.prompts import PromptMessageRole
+from phoenix.server.agents.config import AgentsEnvConfig
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -93,6 +90,7 @@ from phoenix.server.api.types.ExperimentRepeatedRunGroup import (
     parse_experiment_repeated_run_group_node_id,
 )
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
+from phoenix.server.api.types.ExperimentTag import ExperimentTag
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.GenerativeModelCustomProvider import (
     GenerativeModelCustomProvider,
@@ -102,6 +100,7 @@ from phoenix.server.api.types.node import (
     from_global_id_with_expected_type,
     is_composite_global_id,
 )
+from phoenix.server.api.types.OAuth2Grant import OAuth2Grant
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
@@ -423,6 +422,17 @@ class Query:
         async with info.context.db.read() as session:
             api_keys = await session.scalars(stmt)
         return [UserApiKey(id=api_key.id, db_record=api_key) for api_key in api_keys]
+
+    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
+    async def oauth2_grants(self, info: Info[Context, None]) -> list[OAuth2Grant]:
+        async with info.context.db.read() as session:
+            grants = await session.scalars(
+                select(models.OAuth2Grant)
+                .where(models.OAuth2Grant.revoked_at.is_(None))
+                .options(joinedload(models.OAuth2Grant.client))
+                .order_by(models.OAuth2Grant.last_used_at.desc().nullslast())
+            )
+        return [OAuth2Grant(id=grant.id, db_record=grant) for grant in grants]
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def system_api_keys(self, info: Info[Context, None]) -> list[SystemApiKey]:
@@ -1056,12 +1066,16 @@ class Query:
             return ExperimentRun(id=node_id)
         elif type_name == ExperimentJob.__name__:
             return ExperimentJob(id=node_id)
+        elif type_name == ExperimentTag.__name__:
+            return ExperimentTag(id=node_id)
         elif type_name == User.__name__:
             if int((user := info.context.user).identity) != node_id and not user.is_admin:
                 raise Unauthorized(MSG_ADMIN_ONLY)
             return User(id=node_id)
         elif type_name == ProjectSession.__name__:
             return ProjectSession(id=node_id)
+        elif type_name == OAuth2Grant.__name__:
+            return OAuth2Grant(id=node_id)
         elif type_name == Prompt.__name__:
             return Prompt(id=node_id)
         elif type_name == PromptVersion.__name__:
@@ -1622,15 +1636,15 @@ class Query:
     def agents_config(self, info: Info[Context, None]) -> AgentsConfig:
         agent_assistant_enabled = info.context.settings.agent_assistant_enabled
         trace_recording = info.context.settings.agent_trace_recording
-        force_tracing = get_env_phoenix_agents_force_tracing()
+        env = AgentsEnvConfig.from_env()
         return AgentsConfig(
-            collector_endpoint=get_env_phoenix_agents_collector_endpoint(),
-            assistant_project_name=get_env_phoenix_agents_assistant_project_name(),
-            force_tracing=force_tracing,
-            web_access_enabled=get_env_phoenix_agents_web_access_enabled(),
+            collector_endpoint=env.collector_endpoint,
+            assistant_project_name=env.assistant_project_name,
+            force_tracing=env.force_tracing,
+            web_access_enabled=env.web_access_enabled,
             assistant_enabled=agent_assistant_enabled.enabled,
-            allow_local_traces=force_tracing or trace_recording.allow_local_traces,
-            allow_remote_export=force_tracing or trace_recording.allow_remote_export,
+            allow_local_traces=env.allows_local_traces(trace_recording),
+            allow_remote_export=env.allows_remote_export(trace_recording),
         )
 
     @strawberry.field(description="The assistant skills available given the supplied UI context.")  # type: ignore
@@ -1880,6 +1894,7 @@ class Query:
         async with info.context.db.read() as session:
             return await get_sandbox_backend_info(
                 secrets=SecretsContext(session=session, decrypt=info.context.decrypt),
+                runtime=info.context.sandbox_runtime,
             )
 
     @strawberry.field

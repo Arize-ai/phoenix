@@ -1,112 +1,226 @@
-import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
+import { Command } from "commander";
 
-import { chunkArray } from "./chunkArray";
+import { createPhoenixClient, resolveProjectId } from "../client";
+import {
+  getConfigErrorMessage,
+  resolveConfig,
+  validateConfig,
+} from "../config";
+import { assertDeletesEnabled, confirmOrExit } from "../confirm";
+import { ExitCode, getExitCodeForError } from "../exitCodes";
+import { writeError, writeOutput, writeProgress } from "../io";
+import { writeStructuredError } from "../structuredError";
+import {
+  formatAnnotationDeleteOutput,
+  type AnnotationDeleteFilter,
+} from "./formatAnnotationDelete";
+import type { AnnotationsDeleteOptions } from "./options";
 
-export type SpanAnnotation = componentsV1["schemas"]["SpanAnnotation"];
+async function spanAnnotationsDeleteHandler(
+  options: AnnotationsDeleteOptions
+): Promise<void> {
+  // Pre-flight checks live OUTSIDE the try/catch so explicit
+  // process.exit(INVALID_ARGUMENT) is not re-mapped to FAILURE by the
+  // catch's getExitCodeForError fallback.
+  try {
+    assertDeletesEnabled();
+  } catch (error) {
+    writeError({
+      message: error instanceof Error ? error.message : String(error),
+    });
+    process.exit(getExitCodeForError(error));
+  }
 
-const DEFAULT_PAGE_LIMIT = 1000;
-const DEFAULT_SPAN_IDS_CHUNK_SIZE = 100;
-const DEFAULT_MAX_CONCURRENT = 5;
+  const config = resolveConfig({
+    cliOptions: {
+      endpoint: options.endpoint,
+      project: options.project,
+      apiKey: options.apiKey,
+    },
+  });
 
-interface FetchSpanAnnotationsOptions {
-  client: PhoenixClient;
-  projectIdentifier: string;
-  spanIds: string[];
-  includeAnnotationNames?: string[];
-  excludeAnnotationNames?: string[];
-  pageLimit?: number;
-  maxConcurrent?: number;
-}
+  const validation = validateConfig({ config });
+  if (!validation.valid) {
+    writeError({
+      message: getConfigErrorMessage({ errors: validation.errors }),
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
 
-async function fetchSpanAnnotationsForChunk({
-  client,
-  projectIdentifier,
-  spanIds,
-  includeAnnotationNames,
-  excludeAnnotationNames,
-  pageLimit,
-}: {
-  client: PhoenixClient;
-  projectIdentifier: string;
-  spanIds: string[];
-  includeAnnotationNames?: string[];
-  excludeAnnotationNames?: string[];
-  pageLimit: number;
-}): Promise<SpanAnnotation[]> {
-  const annotations: SpanAnnotation[] = [];
-  let cursor: string | undefined;
+  const projectIdentifier = config.project;
+  if (!projectIdentifier) {
+    writeError({ message: "Project not configured" });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
 
-  do {
-    const response = await client.GET(
+  const hasWindow =
+    options.startTime !== undefined && options.endTime !== undefined;
+  if (!options.all && !hasWindow) {
+    writeStructuredError({
+      format: options.format,
+      message:
+        "Missing required authorization: pass --all to delete every matching row, or pass both --start-time and --end-time to bound the delete to a [start, end) window.",
+      code: "INVALID_ARGUMENT",
+      hint: 'px span-annotations delete --identifier "$PHOENIX_CODING_IDENTIFIER" --all',
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  let annotatorKind: "HUMAN" | "LLM" | "CODE" | undefined;
+  try {
+    annotatorKind = normalizeAnnotatorKind(options.annotatorKind);
+  } catch (error) {
+    writeError({
+      message: error instanceof Error ? error.message : String(error),
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  try {
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Resolving project: ${projectIdentifier}`,
+      noProgress: !options.progress,
+    });
+    const projectId = await resolveProjectId({ client, projectIdentifier });
+
+    const promptMessage = options.all
+      ? `Delete all matching span annotations across all time?${describeNarrowers(options)}`
+      : `Delete span annotations between ${options.startTime} and ${options.endTime}?${describeNarrowers(options)}`;
+    await confirmOrExit({ message: promptMessage, yes: options.yes });
+
+    writeProgress({
+      message: "Deleting span annotations...",
+      noProgress: !options.progress,
+    });
+
+    const response = await client.DELETE(
       "/v1/projects/{project_identifier}/span_annotations",
       {
         params: {
-          path: {
-            project_identifier: projectIdentifier,
-          },
+          path: { project_identifier: projectId },
           query: {
-            span_ids: spanIds,
-            cursor,
-            limit: pageLimit,
-            include_annotation_names: includeAnnotationNames,
-            exclude_annotation_names: excludeAnnotationNames,
+            name: options.name,
+            identifier: options.identifier,
+            annotator_kind: annotatorKind,
+            start_time: options.startTime,
+            end_time: options.endTime,
+            delete_all: options.all === true ? true : undefined,
           },
         },
       }
     );
 
-    if (response.error || !response.data) {
-      throw new Error(
-        `Failed to fetch span annotations: ${String(response.error)}`
-      );
+    if (response.error) {
+      throw new Error(`Failed to delete span annotations: ${response.error}`);
     }
 
-    annotations.push(...response.data.data);
-    cursor = response.data.next_cursor || undefined;
-  } while (cursor);
+    const filter: AnnotationDeleteFilter = {
+      ...(options.identifier !== undefined && {
+        identifier: options.identifier,
+      }),
+      ...(options.name !== undefined && { name: options.name }),
+      ...(annotatorKind !== undefined && { annotator_kind: annotatorKind }),
+      ...(options.startTime !== undefined && { start_time: options.startTime }),
+      ...(options.endTime !== undefined && { end_time: options.endTime }),
+      ...(options.all === true && { all: true }),
+    };
 
-  return annotations;
+    writeOutput({
+      message: formatAnnotationDeleteOutput({
+        result: { deleted: true, target: "span", filter },
+        format: options.format,
+      }),
+    });
+  } catch (error) {
+    writeError({
+      message: `Error deleting span annotations: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
 }
 
-export async function fetchSpanAnnotations({
-  client,
-  projectIdentifier,
-  spanIds,
-  includeAnnotationNames,
-  excludeAnnotationNames,
-  pageLimit = DEFAULT_PAGE_LIMIT,
-  maxConcurrent = DEFAULT_MAX_CONCURRENT,
-}: FetchSpanAnnotationsOptions): Promise<SpanAnnotation[]> {
-  if (spanIds.length === 0) {
-    return [];
+function normalizeAnnotatorKind(
+  raw: string | undefined
+): "HUMAN" | "LLM" | "CODE" | undefined {
+  if (raw === undefined) return undefined;
+  const value = raw.toUpperCase();
+  if (value === "HUMAN" || value === "LLM" || value === "CODE") {
+    return value;
   }
+  throw new Error(
+    `Invalid --annotator-kind: ${raw}. Expected one of HUMAN, LLM, CODE.`
+  );
+}
 
-  const uniqueSpanIds = Array.from(new Set(spanIds));
-  const chunks = chunkArray({
-    items: uniqueSpanIds,
-    size: DEFAULT_SPAN_IDS_CHUNK_SIZE,
-  });
-  const allAnnotations: SpanAnnotation[] = [];
+function describeNarrowers(options: {
+  identifier?: string;
+  name?: string;
+  annotatorKind?: string;
+}): string {
+  const parts: string[] = [];
+  if (options.identifier) parts.push(`identifier=${options.identifier}`);
+  if (options.name) parts.push(`name=${options.name}`);
+  if (options.annotatorKind)
+    parts.push(`annotator_kind=${options.annotatorKind}`);
+  return parts.length > 0 ? ` (${parts.join(", ")})` : "";
+}
 
-  for (let index = 0; index < chunks.length; index += maxConcurrent) {
-    const batch = chunks.slice(index, index + maxConcurrent);
-    const batchResults = await Promise.all(
-      batch.map((spanIdsChunk) =>
-        fetchSpanAnnotationsForChunk({
-          client,
-          projectIdentifier,
-          spanIds: spanIdsChunk,
-          includeAnnotationNames,
-          excludeAnnotationNames,
-          pageLimit,
-        })
-      )
-    );
+export function createSpanAnnotationsDeleteCommand(): Command {
+  return new Command("delete")
+    .description(
+      "Delete span annotations for the configured project. Requires --all or both --start-time and --end-time."
+    )
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--project <name>", "Project name or ID")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option(
+      "--identifier <id>",
+      "Narrowing filter — only delete annotations with this identifier"
+    )
+    .option(
+      "--name <name>",
+      "Narrowing filter — only delete annotations with this name"
+    )
+    .option(
+      "--annotator-kind <kind>",
+      "Narrowing filter — annotator kind (HUMAN, LLM, or CODE)"
+    )
+    .option(
+      "--start-time <iso>",
+      "Inclusive lower bound on created_at (ISO-8601). Required together with --end-time unless --all is set."
+    )
+    .option(
+      "--end-time <iso>",
+      "Exclusive upper bound on created_at (ISO-8601). Required together with --start-time unless --all is set."
+    )
+    .option(
+      "--all",
+      "Authorize the delete without a time window (delete_all=true). Required if --start-time/--end-time are not set."
+    )
+    .option("-y, --yes", "Skip confirmation prompt")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .addHelpText(
+      "after",
+      "\nExamples:\n" +
+        '  px span-annotations delete --identifier "$PHOENIX_CODING_IDENTIFIER" --all -y\n' +
+        "  px span-annotations delete --start-time 2026-01-01T00:00:00Z --end-time 2026-01-02T00:00:00Z\n"
+    )
+    .action(spanAnnotationsDeleteHandler);
+}
 
-    for (const result of batchResults) {
-      allAnnotations.push(...result);
-    }
-  }
-
-  return allAnnotations;
+/**
+ * Create the `span-annotations` command group.
+ */
+export function createSpanAnnotationsCommand(): Command {
+  const command = new Command("span-annotations");
+  command.description("Manage Phoenix span annotations");
+  command.addCommand(createSpanAnnotationsDeleteCommand());
+  return command;
 }

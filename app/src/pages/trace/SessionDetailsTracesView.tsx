@@ -59,6 +59,7 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { SpanDetails } from "./SpanDetails";
+import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
 
 const INITIAL_SELECTED_TRACE_MAX_PAGES = 3;
 
@@ -290,7 +291,11 @@ export function SessionDetailsTracesView({
       </Panel>
       <Separator css={compactResizeHandleCSS} />
       <Panel id="session-traces-span-details">
-        <SpanDetailsPanel selectedSpanNodeId={selectedSpanNodeId} />
+        {/* above the panel, which remounts per span, so a collapse the reader
+            asked for survives moving between spans in the session */}
+        <SpanInfoCardsProvider>
+          <SpanDetailsPanel selectedSpanNodeId={selectedSpanNodeId} />
+        </SpanInfoCardsProvider>
       </Panel>
     </Group>
   );
@@ -680,7 +685,7 @@ const traceRowHeaderCSS = css`
   flex-direction: row;
   align-items: flex-start;
   gap: var(--global-dimension-size-100);
-  padding: var(--global-dimension-static-size-200);
+  padding: var(--global-dimension-size-200);
   background: transparent;
   border: none;
   /* Reserve space for the selected-state indicator so rows do not shift when selected. */

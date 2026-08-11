@@ -11,7 +11,11 @@ const codeEditorFormWrapperCSS = css`
     border: 1px solid var(--global-input-field-border-color-active);
   }
   &.is-focused {
-    border: 1px solid var(--global-input-field-border-color-active);
+    border-color: var(--global-input-field-border-color-active);
+  }
+  &:has(.cm-content:focus-visible) {
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
   &.is-invalid {
     border: 1px solid var(--global-color-danger);

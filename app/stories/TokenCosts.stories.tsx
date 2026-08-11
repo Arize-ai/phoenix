@@ -123,15 +123,15 @@ export const WithDetailedTooltip: Story = {
           completion={0.061}
           promptDetails={{
             input: 0.045,
-            "cache read": 0.012,
-            "cache write": 0.008,
+            cache_read: 0.012,
+            cache_write: 0.008,
             tool: 0.021,
             audio: 0.01,
           }}
           completionDetails={{
             output: 0.035,
             reasoning: 0.016,
-            "function calls": 0.01,
+            function_calls: 0.01,
           }}
         />
       </RichTooltip>
@@ -180,7 +180,7 @@ export const WithLoadingTooltip: Story = {
             completion={0.037}
             promptDetails={{
               input: 0.025,
-              "cache read": 0.015,
+              cache_read: 0.015,
               tool: 0.012,
             }}
             completionDetails={{
@@ -266,15 +266,15 @@ export const HighCostDetailed: Story = {
           completion={1.22}
           promptDetails={{
             input: 0.45,
-            "cache read": 0.23,
-            "cache write": 0.15,
+            cache_read: 0.23,
+            cache_write: 0.15,
             tool: 0.28,
             audio: 0.12,
           }}
           completionDetails={{
             output: 0.67,
             reasoning: 0.35,
-            "function calls": 0.2,
+            function_calls: 0.2,
           }}
         />
       </RichTooltip>
@@ -403,14 +403,14 @@ export const CostComparison: Story = {
               completion={0.089}
               promptDetails={{
                 input: 0.067,
-                "cache read": 0.023,
+                cache_read: 0.023,
                 tool: 0.034,
                 audio: 0.021,
               }}
               completionDetails={{
                 output: 0.045,
                 reasoning: 0.034,
-                "function calls": 0.01,
+                function_calls: 0.01,
               }}
             />
           </RichTooltip>

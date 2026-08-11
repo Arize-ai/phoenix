@@ -96,8 +96,8 @@ const searchFieldCSS = css`
     font-size: var(--searchfield-icon-size);
 
     &[data-focus-visible] {
-      outline: 1px solid var(--global-input-field-border-color-active);
-      outline-offset: 1px;
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
     }
 
     &:hover {
@@ -110,17 +110,30 @@ const searchFieldCSS = css`
     }
   }
 
-  /* Left padding when icon present: inset + icon + gap (gap = inset) */
+  /*
+   * The input's side padding clears the icon on the left and the clear button
+   * on the right: inset + icon + gap (gap = inset). It carries !important to
+   * beat the size-specific padding the shared text field rules set, so a
+   * consumer needing a different inset — a search collapsed to an icon square,
+   * a toolbar with its own icon metrics — sets these variables rather than
+   * out-shouting the cascade in turn. Left undeclared here so that a value set
+   * anywhere above the field wins.
+   */
   .search-field__icon ~ .react-aria-Input {
-    padding-left: calc(
-      var(--textfield-horizontal-padding) * 2 + var(--searchfield-icon-size)
+    padding-left: var(
+      --searchfield-input-padding-start,
+      calc(
+        var(--textfield-horizontal-padding) * 2 + var(--searchfield-icon-size)
+      )
     ) !important;
   }
 
-  /* Right padding for clear button: inset + icon + gap */
   .react-aria-Input {
-    padding-right: calc(
-      var(--textfield-horizontal-padding) * 2 + var(--searchfield-icon-size)
+    padding-right: var(
+      --searchfield-input-padding-end,
+      calc(
+        var(--textfield-horizontal-padding) * 2 + var(--searchfield-icon-size)
+      )
     ) !important;
   }
 

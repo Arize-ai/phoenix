@@ -1,15 +1,22 @@
 import type { Completion } from "@codemirror/autocomplete";
 import type { Meta, StoryFn } from "@storybook/react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { fn } from "storybook/test";
 
 import { Flex, Text, View } from "@phoenix/components";
 import type { DSLFilterSnippet } from "@phoenix/components/filter";
 import {
+  AIQueryDSLFilterField,
+  createAIQueryDSL,
   createAnnotationMemberCompletions,
   DSLFilterConditionField,
   type DSLFilterConditionFieldProps,
 } from "@phoenix/components/filter";
+import { PreferencesProvider } from "@phoenix/contexts";
+import { CredentialsProvider } from "@phoenix/contexts/CredentialsContext";
+
+import { AIQueryRelayEnvironment } from "./utils/aiQueryRelayEnvironment";
 
 /**
  * An example DSL vocabulary: the fields an expression can reference
@@ -98,6 +105,15 @@ async function validateCondition(condition: string) {
 const meta: Meta<typeof DSLFilterConditionField> = {
   title: "Filter/DSLFilterConditionField",
   component: DSLFilterConditionField,
+  decorators: [
+    // The AI query settings popover's model picker loads providers over
+    // Relay; the stories answer it with a canned catalog
+    (Story) => (
+      <AIQueryRelayEnvironment>
+        <Story />
+      </AIQueryRelayEnvironment>
+    ),
+  ],
   parameters: {
     controls: { expanded: true },
   },
@@ -109,25 +125,29 @@ const meta: Meta<typeof DSLFilterConditionField> = {
 
 export default meta;
 
-const Template: StoryFn<DSLFilterConditionFieldProps> = (args) => {
+/**
+ * The shared story shell: local value state, the rendered field, and an
+ * "Applied condition" readout below it. Each template supplies the field.
+ */
+function FilterFieldHarness({
+  renderField,
+}: {
+  renderField: (fieldProps: {
+    value: string;
+    onChange: (value: string) => void;
+    onApplied: (condition: string) => void;
+  }) => ReactNode;
+}) {
   const [value, setValue] = useState<string>("");
   const [validCondition, setValidCondition] = useState<string>("");
   return (
-    <View width="600px">
+    <View width="600px" padding="size-400">
       <Flex direction="column" gap="size-100">
-        <DSLFilterConditionField
-          {...args}
-          value={value}
-          onChange={setValue}
-          completions={completions}
-          snippets={snippets}
-          loadCompletions={loadCompletions}
-          validateCondition={validateCondition}
-          onValidCondition={(condition) => {
-            setValidCondition(condition);
-            args.onValidCondition(condition);
-          }}
-        />
+        {renderField({
+          value,
+          onChange: setValue,
+          onApplied: setValidCondition,
+        })}
         <Text color="text-700" size="XS">
           {validCondition
             ? `Applied condition: ${validCondition}`
@@ -136,7 +156,27 @@ const Template: StoryFn<DSLFilterConditionFieldProps> = (args) => {
       </Flex>
     </View>
   );
-};
+}
+
+const Template: StoryFn<DSLFilterConditionFieldProps> = (args) => (
+  <FilterFieldHarness
+    renderField={({ value, onChange, onApplied }) => (
+      <DSLFilterConditionField
+        {...args}
+        value={value}
+        onChange={onChange}
+        completions={completions}
+        snippets={snippets}
+        loadCompletions={loadCompletions}
+        validateCondition={validateCondition}
+        onValidCondition={(validCondition) => {
+          onApplied(validCondition.condition);
+          args.onValidCondition(validCondition);
+        }}
+      />
+    )}
+  />
+);
 
 /**
  * Focus the empty field to see suggested conditions and fields; type to
@@ -148,6 +188,62 @@ export const Default = {
   render: Template,
 };
 
+function AIQueryTemplate(args: DSLFilterConditionFieldProps) {
+  return (
+    <CredentialsProvider>
+      <FilterFieldHarness
+        renderField={({ value, onChange, onApplied }) => (
+          <AIQueryDSLFilterField
+            {...args}
+            value={value}
+            onChange={onChange}
+            completions={completions}
+            snippets={snippets}
+            validateCondition={validateCondition}
+            onValidCondition={(args) => onApplied(args.condition)}
+            aiQuery={{
+              dsl: createAIQueryDSL({
+                noun: "records",
+                completions,
+                snippets,
+              }),
+              placeholder:
+                "describe a record filter — Enter converts it to DSL",
+            }}
+          />
+        )}
+      />
+    </CredentialsProvider>
+  );
+}
+
+/**
+ * The field with AI query available but not yet enabled: only the gear
+ * shows, whose settings dropdown reports the feature is off and links to
+ * the Generative AI page where it can be enabled. The next story seeds the
+ * feature on to demonstrate the sparkle mode toggle.
+ */
+export const WithAIQuery: StoryFn<DSLFilterConditionFieldProps> =
+  AIQueryTemplate;
+
+/**
+ * The field with AI query enabled, showing the sparkle mode toggle beside
+ * the gear. The sparkle switches the field into plain-English mode: prose
+ * input with no DSL affordances (no typeahead, syntax highlighting, or
+ * validation), the PXI treatment on the border, and a sparkle leading icon
+ * so the mode is unmistakable. Enter converts the draft with the configured
+ * model — real conversions run in Chrome/Edge via the on-device model — and
+ * lands the field back in DSL mode showing the generated expression; undo
+ * (or Escape) restores your words and returns to plain-English mode.
+ */
+export const WithAIQueryEnabled: StoryFn<DSLFilterConditionFieldProps> = (
+  args
+) => (
+  <PreferencesProvider isAIQueryEnabled>
+    <AIQueryTemplate {...args} />
+  </PreferencesProvider>
+);
+
 /**
  * Without `snippets` or `loadCompletions`, the typeahead surfaces only the
  * static field vocabulary.
@@ -155,7 +251,7 @@ export const Default = {
 export const FieldsOnly: StoryFn<DSLFilterConditionFieldProps> = (args) => {
   const [value, setValue] = useState<string>("");
   return (
-    <View width="600px">
+    <View width="600px" padding="size-400">
       <DSLFilterConditionField
         {...args}
         value={value}

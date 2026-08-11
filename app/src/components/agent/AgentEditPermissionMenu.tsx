@@ -67,7 +67,7 @@ export function getNextEditPermissionMode(
 
 const triggerCSS = css`
   /* Quiet, borderless rest state. */
-  gap: var(--global-dimension-static-size-50);
+  gap: var(--global-dimension-size-50);
   color: var(--global-text-color-300);
   font-size: var(--global-font-size-xs);
   line-height: var(--global-line-height-xs);

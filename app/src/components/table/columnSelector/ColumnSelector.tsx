@@ -7,19 +7,18 @@ import { useMemo, useState } from "react";
 import {
   Button,
   Checkbox,
+  CompactEmptyState,
   DebouncedSearch,
   DialogTrigger,
   Icon,
   Icons,
   MenuHeader,
   Popover,
+  VisuallyHidden,
 } from "@phoenix/components";
-import {
-  dndDragFeedbackCSS,
-  dndHandleAppearanceCSS,
-} from "@phoenix/components/dnd";
+import { dndDragFeedbackCSS, dndRowHandleCSS } from "@phoenix/components/dnd";
 
-import { ColumnOrderingProvider } from "../columnOrdering";
+import { ColumnOrderingProvider, orderColumns } from "../columnOrdering";
 
 export interface ColumnSelectorColumn {
   id: string;
@@ -43,7 +42,7 @@ export interface ColumnSelectorMenuProps {
 }
 
 /** Shared horizontal inset so the whole menu reads as one aligned column. */
-const MENU_INSET = "var(--global-dimension-static-size-50)";
+const MENU_INSET = "var(--global-dimension-size-50)";
 
 const columnSelectorMenuCSS = css`
   display: flex;
@@ -78,26 +77,19 @@ export const columnRowCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--global-dimension-static-size-100);
-  min-height: var(--global-dimension-static-size-400);
-  padding: 0 var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
+  min-height: var(--global-dimension-size-400);
+  padding: 0 var(--global-dimension-size-100);
   border-radius: var(--global-rounding-small);
   label {
     flex: 1 1 auto;
     display: flex;
     align-items: center;
-    gap: var(--global-dimension-static-size-100);
+    gap: var(--global-dimension-size-100);
     min-width: 0;
   }
   .column-selector-row__handle {
-    ${dndHandleAppearanceCSS}
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: none;
-    width: var(--global-dimension-static-size-225);
-    height: var(--global-dimension-static-size-225);
-    font-size: var(--global-font-size-m);
+    ${dndRowHandleCSS}
   }
   &:hover {
     background-color: var(--global-color-gray-200);
@@ -175,15 +167,30 @@ export function ColumnSelectorMenu({
   children,
 }: ColumnSelectorMenuProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  // Order previewed while a drag is in flight. Reorders are applied to this
+  // local draft on every drag-over step so only the popover list re-renders;
+  // the (expensive) table column order is committed once when the drag ends.
+  const [draftColumnOrder, setDraftColumnOrder] = useState<string[] | null>(
+    null
+  );
+  const orderedColumns = useMemo(
+    () =>
+      draftColumnOrder == null
+        ? columns
+        : orderColumns({ columns, columnOrder: draftColumnOrder }),
+    [columns, draftColumnOrder]
+  );
+  const trimmedQuery = searchQuery.trim();
+  const isFiltering = trimmedQuery.length > 0;
   const filteredColumns = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) {
-      return columns;
+    if (!trimmedQuery) {
+      return orderedColumns;
     }
-    return columns.filter((column) =>
+    const query = trimmedQuery.toLowerCase();
+    return orderedColumns.filter((column) =>
       column.label.toLowerCase().includes(query)
     );
-  }, [columns, searchQuery]);
+  }, [orderedColumns, trimmedQuery]);
 
   // Reordering a filtered list is ambiguous, so it is only enabled when the
   // full list is shown
@@ -202,32 +209,59 @@ export function ColumnSelectorMenu({
         />
       </MenuHeader>
       <div css={columnSelectorBodyCSS}>
-        <ColumnOrderingProvider
-          columnOrder={columns.map((column) => column.id)}
-          onColumnOrderChange={(columnOrder) =>
-            onColumnOrderChange?.(columnOrder)
-          }
-        >
-          <ul css={columnListCSS}>
-            {filteredColumns.map((column, index) => (
-              <SortableColumnRow
-                key={column.id}
-                column={column}
-                // When filtered, reordering is disabled and the index within
-                // the full order is not needed
-                index={index}
-                isVisible={isColumnVisible(columnVisibility, column.id)}
-                isReorderingDisabled={!isReorderingEnabled}
-                onVisibilityChange={(isSelected) =>
-                  onColumnVisibilityChange({
-                    ...columnVisibility,
-                    [column.id]: isSelected,
-                  })
-                }
-              />
-            ))}
-          </ul>
-        </ColumnOrderingProvider>
+        {/* Live region for search result count announcements. */}
+        <VisuallyHidden role="status">
+          {isFiltering
+            ? `${filteredColumns.length} ${
+                filteredColumns.length === 1 ? "column" : "columns"
+              } found`
+            : ""}
+        </VisuallyHidden>
+        {filteredColumns.length === 0 ? (
+          // Empty state when there are no columns or the search matched none.
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.Column />} />}
+            description="No columns"
+            isFiltered={isFiltering}
+          />
+        ) : (
+          <ColumnOrderingProvider
+            columnOrder={orderedColumns.map((column) => column.id)}
+            onColumnOrderChange={setDraftColumnOrder}
+            onColumnOrderCommit={(columnOrder) => {
+              setDraftColumnOrder(null);
+              // A canceled or round-trip drag commits the order it started
+              // with; skip the parent update so consumers don't persist and
+              // re-render for an unchanged order.
+              const hasOrderChanged = columnOrder.some(
+                (columnId, index) => columns[index]?.id !== columnId
+              );
+              if (hasOrderChanged) {
+                onColumnOrderChange?.(columnOrder);
+              }
+            }}
+          >
+            <ul css={columnListCSS}>
+              {filteredColumns.map((column, index) => (
+                <SortableColumnRow
+                  key={column.id}
+                  column={column}
+                  // When filtered, reordering is disabled and the index within
+                  // the full order is not needed
+                  index={index}
+                  isVisible={isColumnVisible(columnVisibility, column.id)}
+                  isReorderingDisabled={!isReorderingEnabled}
+                  onVisibilityChange={(isSelected) =>
+                    onColumnVisibilityChange({
+                      ...columnVisibility,
+                      [column.id]: isSelected,
+                    })
+                  }
+                />
+              ))}
+            </ul>
+          </ColumnOrderingProvider>
+        )}
         {children}
       </div>
     </div>

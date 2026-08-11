@@ -1,6 +1,7 @@
 import type { PropsWithChildren, ReactNode } from "react";
 
 import {
+  useIsAuthenticatedAdmin,
   useViewer,
   useViewerCanManageRetentionPolicy,
   useViewerCanManageSandboxes,
@@ -29,9 +30,9 @@ export function IsAuthenticated(props: PropsWithChildren<AuthGuardProps>) {
  */
 export function IsAdmin(props: PropsWithChildren<AuthGuardProps>) {
   const { fallback = null, children } = props;
-  const { viewer } = useViewer();
+  const isAuthenticatedAdmin = useIsAuthenticatedAdmin();
   // If the viewer is not an admin, show the fallback
-  if (!viewer || viewer.role.name !== "ADMIN") {
+  if (!isAuthenticatedAdmin) {
     return <>{fallback}</>;
   }
   return children;

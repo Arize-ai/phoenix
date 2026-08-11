@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e79843b8d67649c1f494db018b0808ae>>
+ * @generated SignedSource<<7625b26f4eb16f58a3fbede111b0d758>>
  * @lightSyntaxTransform
  */
 
@@ -23,6 +23,7 @@ export type SandboxConfigVariantInput = {
   deno?: never;
   e2b: E2BConfigInput;
   modal?: never;
+  monty?: never;
   vercel?: never;
   wasm?: never;
 } | {
@@ -30,6 +31,7 @@ export type SandboxConfigVariantInput = {
   deno?: never;
   e2b?: never;
   modal?: never;
+  monty?: never;
   vercel?: never;
   wasm?: never;
 } | {
@@ -37,6 +39,7 @@ export type SandboxConfigVariantInput = {
   deno: DenoConfigInput;
   e2b?: never;
   modal?: never;
+  monty?: never;
   vercel?: never;
   wasm?: never;
 } | {
@@ -44,6 +47,7 @@ export type SandboxConfigVariantInput = {
   deno?: never;
   e2b?: never;
   modal?: never;
+  monty?: never;
   vercel: VercelConfigInput;
   wasm?: never;
 } | {
@@ -51,6 +55,7 @@ export type SandboxConfigVariantInput = {
   deno?: never;
   e2b?: never;
   modal?: never;
+  monty?: never;
   vercel?: never;
   wasm: WASMConfigInput;
 } | {
@@ -58,6 +63,15 @@ export type SandboxConfigVariantInput = {
   deno?: never;
   e2b?: never;
   modal: ModalConfigInput;
+  monty?: never;
+  vercel?: never;
+  wasm?: never;
+} | {
+  daytona?: never;
+  deno?: never;
+  e2b?: never;
+  modal?: never;
+  monty: MontyConfigInput;
   vercel?: never;
   wasm?: never;
 };
@@ -99,6 +113,9 @@ export type ModalConfigInput = {
   dependencies?: DependenciesInput | null;
   envVars?: ReadonlyArray<EnvVarInput>;
   internetAccess?: InternetAccessInput | null;
+  language?: Language;
+};
+export type MontyConfigInput = {
   language?: Language;
 };
 export type SandboxConfigsCardConfigEnabledSwitchMutation$variables = {
@@ -303,6 +320,20 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "languageDialect",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "runtimeNotes",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "SandboxProviderCredentialSpec",
                     "kind": "LinkedField",
                     "name": "credentialSpecs",
@@ -456,12 +487,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c0c320417918349fa4d7557bcff0e217",
+    "cacheID": "e68ac3f43f76f689997714e420509e11",
     "id": null,
     "metadata": {},
     "name": "SandboxConfigsCardConfigEnabledSwitchMutation",
     "operationKind": "mutation",
-    "text": "mutation SandboxConfigsCardConfigEnabledSwitchMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation SandboxConfigsCardConfigEnabledSwitchMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    languageDialect\n    runtimeNotes\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();

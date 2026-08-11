@@ -1,19 +1,30 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHttp } from "@arizeai/phoenix-testing";
+import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import type { components } from "../../src/__generated__/api/v1";
 import { getSessionTurns } from "../../src/sessions/getSessionTurns";
+import { createTestClient } from "../testUtils";
 
-const mockGet = vi.fn();
-
-vi.mock("openapi-fetch", () => ({
-  default: () => ({
-    GET: mockGet,
-    use: () => {},
-  }),
-}));
+const http = createHttp();
 
 type SessionData = components["schemas"]["SessionData"];
 type Span = components["schemas"]["Span"];
+
+let server: Server;
+
+beforeAll(async () => {
+  server = await createMockServer();
+  server.listen({ onUnhandledRequest: "error" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
 
 function makeSpan(overrides: {
   traceId: string;
@@ -46,30 +57,52 @@ function makeSessionData(traces: SessionData["traces"]): SessionData {
   };
 }
 
-/** Helper to set up mockGet responses: first call returns session, subsequent calls return spans */
-function mockSessionAndSpans(
-  sessionData: SessionData,
-  spanResponses: Array<{ spans: Span[]; nextCursor?: string | null }>
-) {
-  // First call: getSession
-  mockGet.mockResolvedValueOnce({ data: { data: sessionData } });
-  // Subsequent calls: getSpans
-  for (const resp of spanResponses) {
-    mockGet.mockResolvedValueOnce({
-      data: {
-        data: resp.spans,
-        next_cursor: resp.nextCursor ?? null,
-      },
-    });
-  }
+interface ReceivedSpansQuery {
+  cursor: string | null;
+  traceIds: string[];
+  parentId: string | null;
+}
+
+/**
+ * Register handlers so the session lookup returns `sessionData` and each
+ * subsequent spans request answers with the next page from `spanPages`.
+ * Returns captures of every spans request for behavior-level assertions.
+ */
+function useSessionAndSpansHandlers({
+  sessionData,
+  spanPages,
+}: {
+  sessionData: SessionData;
+  spanPages: Array<{ spans: Span[]; nextCursor?: string | null }>;
+}): { receivedSpansQueries: ReceivedSpansQuery[] } {
+  const receivedSpansQueries: ReceivedSpansQuery[] = [];
+
+  server.use(
+    http.get("/v1/sessions/{session_identifier}", ({ response }) =>
+      response(200).json({ data: sessionData })
+    ),
+    http.get(
+      "/v1/projects/{project_identifier}/spans",
+      ({ query, request, response }) => {
+        const searchParams = new URL(request.url).searchParams;
+        const page = spanPages[receivedSpansQueries.length] ?? { spans: [] };
+        receivedSpansQueries.push({
+          cursor: searchParams.get("cursor"),
+          traceIds: query.getAll("trace_id"),
+          parentId: searchParams.get("parent_id"),
+        });
+        return response(200).json({
+          data: page.spans,
+          next_cursor: page.nextCursor ?? null,
+        });
+      }
+    )
+  );
+
+  return { receivedSpansQueries };
 }
 
 describe("getSessionTurns", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockGet.mockReset();
-  });
-
   it("should return session turns with input/output", async () => {
     const sessionData = makeSessionData([
       {
@@ -88,9 +121,12 @@ describe("getSessionTurns", () => {
       },
     });
 
-    mockSessionAndSpans(sessionData, [{ spans: [span] }]);
+    useSessionAndSpansHandlers({ sessionData, spanPages: [{ spans: [span] }] });
 
-    const turns = await getSessionTurns({ sessionId: "my-session" });
+    const turns = await getSessionTurns({
+      client: createTestClient(),
+      sessionId: "my-session",
+    });
 
     expect(turns).toHaveLength(1);
     expect(turns[0]).toEqual({
@@ -105,12 +141,19 @@ describe("getSessionTurns", () => {
 
   it("should return empty array for session with no traces", async () => {
     const sessionData = makeSessionData([]);
-    mockGet.mockResolvedValueOnce({ data: { data: sessionData } });
+    const { receivedSpansQueries } = useSessionAndSpansHandlers({
+      sessionData,
+      spanPages: [],
+    });
 
-    const turns = await getSessionTurns({ sessionId: "my-session" });
+    const turns = await getSessionTurns({
+      client: createTestClient(),
+      sessionId: "my-session",
+    });
+
     expect(turns).toEqual([]);
     // Should only call getSession, not getSpans
-    expect(mockGet).toHaveBeenCalledTimes(1);
+    expect(receivedSpansQueries).toHaveLength(0);
   });
 
   it("should return turn without input/output when root span is missing", async () => {
@@ -124,9 +167,12 @@ describe("getSessionTurns", () => {
     ]);
 
     // Return no spans
-    mockSessionAndSpans(sessionData, [{ spans: [] }]);
+    useSessionAndSpansHandlers({ sessionData, spanPages: [{ spans: [] }] });
 
-    const turns = await getSessionTurns({ sessionId: "my-session" });
+    const turns = await getSessionTurns({
+      client: createTestClient(),
+      sessionId: "my-session",
+    });
 
     expect(turns).toHaveLength(1);
     expect(turns[0]).toEqual({
@@ -134,9 +180,9 @@ describe("getSessionTurns", () => {
       startTime: "2025-01-01T00:00:00.000Z",
       endTime: "2025-01-01T00:01:00.000Z",
     });
-    expect(turns[0].input).toBeUndefined();
-    expect(turns[0].output).toBeUndefined();
-    expect(turns[0].rootSpan).toBeUndefined();
+    expect(turns[0]?.input).toBeUndefined();
+    expect(turns[0]?.output).toBeUndefined();
+    expect(turns[0]?.rootSpan).toBeUndefined();
   });
 
   it("should sort turns by startTime ascending", async () => {
@@ -176,14 +222,17 @@ describe("getSessionTurns", () => {
       }),
     ];
 
-    mockSessionAndSpans(sessionData, [{ spans }]);
+    useSessionAndSpansHandlers({ sessionData, spanPages: [{ spans }] });
 
-    const turns = await getSessionTurns({ sessionId: "my-session" });
+    const turns = await getSessionTurns({
+      client: createTestClient(),
+      sessionId: "my-session",
+    });
 
     expect(turns).toHaveLength(3);
-    expect(turns[0].traceId).toBe("trace-1");
-    expect(turns[1].traceId).toBe("trace-2");
-    expect(turns[2].traceId).toBe("trace-3");
+    expect(turns[0]?.traceId).toBe("trace-1");
+    expect(turns[1]?.traceId).toBe("trace-2");
+    expect(turns[2]?.traceId).toBe("trace-3");
   });
 
   it("should handle mime_type in input and output", async () => {
@@ -206,15 +255,18 @@ describe("getSessionTurns", () => {
       },
     });
 
-    mockSessionAndSpans(sessionData, [{ spans: [span] }]);
+    useSessionAndSpansHandlers({ sessionData, spanPages: [{ spans: [span] }] });
 
-    const turns = await getSessionTurns({ sessionId: "my-session" });
+    const turns = await getSessionTurns({
+      client: createTestClient(),
+      sessionId: "my-session",
+    });
 
-    expect(turns[0].input).toEqual({
+    expect(turns[0]?.input).toEqual({
       value: '{"query": "test"}',
       mimeType: "application/json",
     });
-    expect(turns[0].output).toEqual({
+    expect(turns[0]?.output).toEqual({
       value: "Response text",
       mimeType: "text/plain",
     });
@@ -246,59 +298,65 @@ describe("getSessionTurns", () => {
     });
 
     // First page returns span1 with a cursor, second page returns span2
-    mockSessionAndSpans(sessionData, [
-      { spans: [span1], nextCursor: "cursor-1" },
-      { spans: [span2], nextCursor: null },
-    ]);
+    const { receivedSpansQueries } = useSessionAndSpansHandlers({
+      sessionData,
+      spanPages: [
+        { spans: [span1], nextCursor: "cursor-1" },
+        { spans: [span2], nextCursor: null },
+      ],
+    });
 
-    const turns = await getSessionTurns({ sessionId: "my-session" });
+    const turns = await getSessionTurns({
+      client: createTestClient(),
+      sessionId: "my-session",
+    });
 
     expect(turns).toHaveLength(2);
-    // 3 calls total: 1 getSession + 2 getSpans (pagination)
-    expect(mockGet).toHaveBeenCalledTimes(3);
+    // 2 spans requests for the single batch (pagination)
+    expect(receivedSpansQueries).toHaveLength(2);
+    expect(receivedSpansQueries[0]?.cursor).toBeNull();
+    expect(receivedSpansQueries[1]?.cursor).toBe("cursor-1");
   });
 
   it("should batch trace IDs when there are more than 50 traces", async () => {
     // Create 60 traces
-    const traces = Array.from({ length: 60 }, (_, i) => ({
-      id: `t${i}-global`,
-      trace_id: `trace-${i}`,
-      start_time: `2025-01-01T00:${String(i).padStart(2, "0")}:00.000Z`,
-      end_time: `2025-01-01T00:${String(i).padStart(2, "0")}:30.000Z`,
+    const traces = Array.from({ length: 60 }, (_unused, index) => ({
+      id: `t${index}-global`,
+      trace_id: `trace-${index}`,
+      start_time: `2025-01-01T00:${String(index).padStart(2, "0")}:00.000Z`,
+      end_time: `2025-01-01T00:${String(index).padStart(2, "0")}:30.000Z`,
     }));
 
     const sessionData = makeSessionData(traces);
 
     // First batch: 50 traces
-    const batch1Spans = Array.from({ length: 50 }, (_, i) =>
-      makeSpan({ traceId: `trace-${i}` })
+    const batch1Spans = Array.from({ length: 50 }, (_unused, index) =>
+      makeSpan({ traceId: `trace-${index}` })
     );
     // Second batch: 10 traces
-    const batch2Spans = Array.from({ length: 10 }, (_, i) =>
-      makeSpan({ traceId: `trace-${50 + i}` })
+    const batch2Spans = Array.from({ length: 10 }, (_unused, index) =>
+      makeSpan({ traceId: `trace-${50 + index}` })
     );
 
-    mockSessionAndSpans(sessionData, [
-      { spans: batch1Spans },
-      { spans: batch2Spans },
-    ]);
+    const { receivedSpansQueries } = useSessionAndSpansHandlers({
+      sessionData,
+      spanPages: [{ spans: batch1Spans }, { spans: batch2Spans }],
+    });
 
-    const turns = await getSessionTurns({ sessionId: "my-session" });
+    const turns = await getSessionTurns({
+      client: createTestClient(),
+      sessionId: "my-session",
+    });
 
     expect(turns).toHaveLength(60);
-    // 3 calls: 1 getSession + 2 getSpans (2 batches)
-    expect(mockGet).toHaveBeenCalledTimes(3);
+    // 2 spans requests: one per batch of 50 trace IDs
+    expect(receivedSpansQueries).toHaveLength(2);
 
     // Verify first batch request includes first 50 trace IDs
-    const firstSpansCall = mockGet.mock.calls[1];
-    expect(firstSpansCall[0]).toBe("/v1/projects/{project_identifier}/spans");
-    const firstQueryTraceIds = firstSpansCall[1].params.query.trace_id;
-    expect(firstQueryTraceIds).toHaveLength(50);
+    expect(receivedSpansQueries[0]?.traceIds).toHaveLength(50);
 
     // Verify second batch request includes remaining 10 trace IDs
-    const secondSpansCall = mockGet.mock.calls[2];
-    const secondQueryTraceIds = secondSpansCall[1].params.query.trace_id;
-    expect(secondQueryTraceIds).toHaveLength(10);
+    expect(receivedSpansQueries[1]?.traceIds).toHaveLength(10);
   });
 
   it("should pass parentId as null string to get root spans only", async () => {
@@ -311,12 +369,17 @@ describe("getSessionTurns", () => {
       },
     ]);
 
-    mockSessionAndSpans(sessionData, [{ spans: [] }]);
+    const { receivedSpansQueries } = useSessionAndSpansHandlers({
+      sessionData,
+      spanPages: [{ spans: [] }],
+    });
 
-    await getSessionTurns({ sessionId: "my-session" });
+    await getSessionTurns({
+      client: createTestClient(),
+      sessionId: "my-session",
+    });
 
-    // The spans call should include parent_id: "null"
-    const spansCall = mockGet.mock.calls[1];
-    expect(spansCall[1].params.query.parent_id).toBe("null");
+    // The spans request should include parent_id: "null"
+    expect(receivedSpansQueries[0]?.parentId).toBe("null");
   });
 });

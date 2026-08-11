@@ -153,7 +153,7 @@ const panelHeaderCSS = css`
     border-bottom: 1px solid var(--global-border-color-default);
   }
   &[data-collapsed="true"] {
-    border-bottom: none;
+    border-bottom-color: transparent;
   }
   transition: background-color 0.2s ease-in-out;
   /* highlight the whole strip when the collapse trigger is hovered so the
@@ -168,8 +168,8 @@ const panelTitleCSS = css`
   flex: 1 1 auto;
   min-width: 0;
   &:focus-visible {
-    outline: 1px solid var(--global-color-primary);
-    outline-offset: -1px;
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
   &:hover {
     cursor: pointer;
@@ -199,8 +199,8 @@ const panelTitleExtraCSS = css`
   gap: var(--global-dimension-size-100);
   /* right padding matches the page header's size-200 inset so the extra
      clusters align vertically across the page */
-  padding: var(--global-dimension-size-50) var(--global-dimension-size-200)
-    var(--global-dimension-size-50) 0;
+  padding-right: var(--global-dimension-size-200);
+  padding-left: var(--global-dimension-size-50);
 `;
 
 const panelTitleHeadingCSS = css`

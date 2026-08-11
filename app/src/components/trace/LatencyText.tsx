@@ -26,6 +26,7 @@ export function LatencyText({
   size = "M",
   showIcon = true,
   latencyThresholds,
+  color: colorProp = "text-900",
 }: {
   latencyMs: number | null;
   size?: TextProps["size"];
@@ -39,6 +40,11 @@ export function LatencyText({
    * @default true
    */
   showIcon?: boolean;
+  /**
+   * The color of the text when no latency thresholds apply.
+   * @default "text-900"
+   */
+  color?: TextColorValue;
 }) {
   const color: TextColorValue = useMemo(() => {
     if (latencyThresholds && latencyMs !== null) {
@@ -50,16 +56,17 @@ export function LatencyText({
         return "danger";
       }
     }
-    return "text-900";
-  }, [latencyMs, latencyThresholds]);
+    return colorProp;
+  }, [latencyMs, latencyThresholds, colorProp]);
 
   const latencyText = useMemo(() => latencyMsFormatter(latencyMs), [latencyMs]);
 
   return (
+    // No justify-content: it would override the right-alignment a numeric
+    // table cell applies to its flex children.
     <Flex
       direction="row"
       alignItems="center"
-      justifyContent="start"
       gap="size-50"
       className="latency-text"
     >

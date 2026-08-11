@@ -106,9 +106,9 @@ function TraceTreeSearchEmpty({ searchQuery }: { searchQuery: string }) {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: var(--global-dimension-static-size-50);
-        padding: var(--global-dimension-static-size-300)
-          var(--global-dimension-static-size-200);
+        gap: var(--global-dimension-size-50);
+        padding: var(--global-dimension-size-300)
+          var(--global-dimension-size-200);
         color: var(--global-text-color-700);
         text-align: center;
 
@@ -249,7 +249,12 @@ function SpanTreeItem<TSpan extends ISpanItem>(
           {showMetricsInTraceTree ? (
             <div css={spanTimingCSS} className="span-tree-timing">
               {latencyMs != null ? (
-                <LatencyText latencyMs={latencyMs} showIcon={false} size="XS" />
+                <LatencyText
+                  latencyMs={latencyMs}
+                  showIcon={false}
+                  size="XS"
+                  color="text-500"
+                />
               ) : null}
               <SpanTimelineBar
                 spanKind={node.span.spanKind}
@@ -334,17 +339,18 @@ function SpanNodeWrap(
         display: flex;
         flex-direction: row;
         justify-content: space-between;
-        gap: var(--global-dimension-static-size-100);
-        padding-right: var(--global-dimension-static-size-100);
-        padding-top: var(--global-dimension-static-size-100);
-        padding-bottom: var(--global-dimension-static-size-100);
+        gap: var(--global-dimension-size-100);
+        padding-right: var(--global-dimension-size-100);
+        padding-top: var(--global-dimension-size-100);
+        padding-bottom: var(--global-dimension-size-100);
         border-left: 4px solid transparent;
         box-sizing: border-box;
         &:hover {
           background-color: var(--global-color-gray-75);
         }
         &.is-selected {
-          background-color: var(--global-color-gray-200);
+          // Keep the fill translucent so the latency bar remains visible
+          background-color: rgba(var(--global-color-gray-200-rgb), 0.5);
           border-color: var(--global-color-gray-300);
         }
         & > *:first-of-type {
@@ -430,7 +436,7 @@ const spanControlsCSS = css`
 `;
 
 const spanTimingCSS = css`
-  gap: var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
   width: 150px;
   flex: none;
   display: flex;
@@ -440,6 +446,7 @@ const spanTimingCSS = css`
     justify-content: end !important;
     min-width: 2.5rem;
     float: right;
+    white-space: nowrap;
   }
 `;
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cbc0bcdad68a9c4834173bfd4ada57b5>>
+ * @generated SignedSource<<8df5de8b06b5431ef292a078eb5627b3>>
  * @lightSyntaxTransform
  */
 
@@ -57,7 +57,7 @@ export type TracesTable_spans$data = {
                 readonly id: string;
                 readonly traceId: string;
               };
-              readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup" | "TraceHeaderRootSpanAnnotationsFragment">;
+              readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
             };
           }>;
         };
@@ -117,6 +117,7 @@ export type TracesTable_spans$data = {
             readonly name: string;
           }>;
           readonly traceId: string;
+          readonly userId: string | null;
           readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup">;
         };
         readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
@@ -519,6 +520,13 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
+                      "name": "userId",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
                       "name": "numSpans",
                       "storageKey": null
                     },
@@ -652,12 +660,7 @@ return {
                             },
                             (v16/*:: as any*/),
                             (v17/*:: as any*/),
-                            (v18/*:: as any*/),
-                            {
-                              "args": null,
-                              "kind": "FragmentSpread",
-                              "name": "TraceHeaderRootSpanAnnotationsFragment"
-                            }
+                            (v18/*:: as any*/)
                           ],
                           "storageKey": null
                         }
@@ -733,6 +736,6 @@ return {
 };
 })();
 
-(node as any).hash = "8c0afd6979eb32c22bc13b4db769bedc";
+(node as any).hash = "16a471d01a937ac52c8a5ddd2ccec751";
 
 export default node;

@@ -51,10 +51,11 @@ import {
   ConnectedTimeRangeSelector,
   type TimeRangeISOStrings,
   useTimeRange,
+  useTimeRangeSearch,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
 import { GradientCircle } from "@phoenix/components/project/GradientCircle";
-import { tableCSS } from "@phoenix/components/table/styles";
+import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -437,6 +438,7 @@ function ProjectsGrid({
   loadNext,
   isLoadingNext,
 }: ProjectViewComponentProps) {
+  const timeRangeSearch = useTimeRangeSearch();
   return (
     <View padding="size-200" width="100%">
       <ul
@@ -463,7 +465,7 @@ function ProjectsGrid({
           >
             <Link
               title={project.name}
-              to={`/projects/${project.id}`}
+              to={`/projects/${project.id}${timeRangeSearch}`}
               css={css`
                 text-decoration: none;
                 display: flex;
@@ -744,6 +746,7 @@ function ProjectsTable({
 }: ProjectViewComponentProps) {
   const navigate = useNavigate();
   const canModify = useViewerCanModify();
+  const timeRangeSearch = useTimeRangeSearch();
   const columns: ColumnDef<
     ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"]
   >[] = useMemo(() => {
@@ -761,7 +764,7 @@ function ProjectsTable({
                 gradientStartColor={row.original.gradientStartColor}
                 gradientEndColor={row.original.gradientEndColor}
               />
-              <Link to={`/projects/${row.original.id}`}>
+              <Link to={`/projects/${row.original.id}${timeRangeSearch}`}>
                 <Truncate maxWidth="300px">{row.original.name}</Truncate>
               </Link>
             </Flex>
@@ -821,7 +824,14 @@ function ProjectsTable({
       });
     }
     return cols;
-  }, [timeRangeISOStrings, onClear, onDelete, onRemove, canModify]);
+  }, [
+    timeRangeISOStrings,
+    timeRangeSearch,
+    onClear,
+    onDelete,
+    onRemove,
+    canModify,
+  ]);
   const sortQueryParams = useProjectSortQueryParams();
   const { setProjectSortOrder } = usePreferencesContext((state) => ({
     setProjectSortOrder: state.setProjectSortOrder,
@@ -880,7 +890,7 @@ function ProjectsTable({
           width: 100%;
         `}
       >
-        <table css={tableCSS} data-testid="projects-table">
+        <table css={selectableTableCSS} data-testid="projects-table">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
@@ -952,7 +962,7 @@ function ProjectsTable({
                 <tr
                   key={row.id}
                   onClick={() => {
-                    navigate(`/projects/${row.original.id}`);
+                    navigate(`/projects/${row.original.id}${timeRangeSearch}`);
                   }}
                 >
                   {row.getVisibleCells().map((cell) => (

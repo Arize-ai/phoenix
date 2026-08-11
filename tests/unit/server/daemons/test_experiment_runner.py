@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import heapq
 from datetime import datetime, timedelta, timezone
-from typing import Any, Hashable, Sequence
+from typing import Any, Hashable, Sequence, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
@@ -22,6 +22,7 @@ from phoenix.server.daemons.experiment_runner import (
     TaskWorkItem,
     _NoOpLLMClient,
 )
+from phoenix.server.monty_runtime import MontyBusy
 from phoenix.server.rate_limiters import UnavailableTokensError
 from phoenix.server.types import DbSessionFactory
 
@@ -129,13 +130,25 @@ def _make_running_experiment(
     max_retries: int = 3,
     base_backoff_seconds: float = 0.01,
 ) -> RunningExperiment:
+    def _make_tracer_factory() -> MagicMock:
+        """A stand-in `Tracer` usable as the `async with` the work items open.
+
+        A bare `MagicMock` will not do: `async with` binds `__aenter__`'s return
+        value, which on a `MagicMock` is an `AsyncMock`, so every method on the
+        bound tracer would return a coroutine instead of a value.
+        """
+        tracer = MagicMock()
+        tracer.__aenter__ = AsyncMock(return_value=tracer)
+        tracer.__aexit__ = AsyncMock(return_value=None)
+        return MagicMock(return_value=tracer)
+
     return RunningExperiment(
         experiment=_make_experiment(experiment_id),
         experiment_job=_make_experiment_job(experiment_id, max_concurrency=max_concurrency),
         llm_client=_NoOpLLMClient(),
         db=MagicMock(spec=DbSessionFactory),
         decrypt=lambda b: b,
-        tracer_factory=MagicMock(),
+        tracer_factory=_make_tracer_factory(),
         token_buckets=token_buckets or _StubTokenBucketRegistry(),
         on_done=on_done or _make_on_done(),
         evaluator_run_specs=evaluator_run_specs,
@@ -791,6 +804,41 @@ class TestRunningExperimentQueueLogic:
         assert exp._task_circuit_breaker.is_tripped
 
     @pytest.mark.anyio
+    async def test_on_capacity_error_retries_without_tripping_circuit_breaker(self) -> None:
+        exp = _make_running_experiment()
+        exp._task_db_exhausted = True
+        exp._eval_db_exhausted = True
+        task = _make_task_work_item(exp, dataset_example_id=1)
+
+        await exp.on_capacity_error(task, RuntimeError("sandbox capacity is busy"))
+
+        assert len(exp._retry_heap) == 1
+        assert task.retry_count == 1
+        assert not exp._task_circuit_breaker.is_tripped
+
+    @pytest.mark.anyio
+    async def test_exhausted_capacity_retries_do_not_trip_evaluator_circuit_breaker(
+        self,
+    ) -> None:
+        exp = _make_running_experiment(max_retries=0)
+        work_item = _make_eval_work_item(exp, dataset_evaluator_id=10)
+        breaker = CircuitBreaker(threshold=1)
+        exp._eval_circuit_breakers[work_item.dataset_evaluator_id] = breaker
+
+        with (
+            patch.object(exp, "_persist_log", new_callable=AsyncMock),
+            patch.object(exp, "_persist_exhausted_retry", new_callable=AsyncMock) as persist,
+            patch.object(exp, "_handle_circuit_trip", new_callable=AsyncMock) as trip,
+        ):
+            await exp.on_capacity_error(work_item, RuntimeError("sandbox capacity is busy"))
+
+        persist.assert_awaited_once()
+        trip.assert_not_awaited()
+        assert exp._evals_failed == 1
+        assert breaker._consecutive_failures == 0
+        assert not breaker.is_tripped
+
+    @pytest.mark.anyio
     async def test_check_completion_fires_on_done(self) -> None:
         """When has_work() returns False, _on_done callback invoked."""
         on_done = _make_on_done()
@@ -885,6 +933,29 @@ class TestEvalWorkItemCancellation:
         with patch.object(eval_work_item._evaluator, "evaluate", side_effect=raise_cancelled):
             with pytest.raises(anyio.get_cancelled_exc_class()):
                 await eval_work_item.execute()
+
+
+class TestEvalWorkItemCapacity:
+    @pytest.mark.anyio
+    async def test_monty_busy_uses_capacity_retry_path(self) -> None:
+        running_experiment = _make_running_experiment()
+        work_item = _make_eval_work_item(running_experiment)
+
+        with (
+            patch.object(
+                work_item._evaluator,
+                "evaluate",
+                new=AsyncMock(side_effect=MontyBusy("sandbox is busy")),
+            ),
+            patch.object(
+                running_experiment, "on_capacity_error", new_callable=AsyncMock
+            ) as on_capacity_error,
+            patch.object(running_experiment, "on_failure", new_callable=AsyncMock) as on_failure,
+        ):
+            await work_item.execute()
+
+        on_capacity_error.assert_awaited_once()
+        on_failure.assert_not_awaited()
 
 
 # ===========================================================================
@@ -1014,3 +1085,58 @@ class TestEvalWorkItemPersistsErrorAnnotation:
         assert failure_args is not None
         assert failure_args.args[0] is eval_item
         assert failure_args.args[1] is error
+
+
+class TestWorkItemsReleaseTheirTracer:
+    """One tracer is built per work item, and each holds every span it captured.
+    An experiment over 1,000 examples that never releases retains 1,000 of them
+    for the life of the process.
+
+    These cover the failure path: both items catch and report their errors
+    rather than propagating, so nothing about the exception forces the release.
+    """
+
+    @staticmethod
+    def _tracer(experiment: RunningExperiment) -> MagicMock:
+        factory = cast(MagicMock, experiment._tracer_factory)
+        tracer: MagicMock = factory.return_value
+        return tracer
+
+    async def test_the_task_work_item_releases_when_the_task_fails(self) -> None:
+        exp = _make_running_experiment()
+        task = _make_task_work_item(exp, dataset_example_id=42)
+        persisted_run = MagicMock(spec=models.ExperimentRun)
+        persisted_run.id = 701
+
+        with (
+            patch.object(task, "_build_messages", return_value=[]),
+            patch.object(
+                task._llm_client,
+                "chat_completion_create",
+                side_effect=RuntimeError("Bad request (injected)"),
+                create=True,
+            ),
+            patch.object(exp, "on_failure", AsyncMock()),
+            patch.object(exp, "_broadcast", MagicMock()),
+            patch.object(task, "_persist_run", AsyncMock(return_value=persisted_run)),
+        ):
+            await task.execute()
+
+        self._tracer(exp).__aexit__.assert_awaited_once()
+
+    async def test_the_eval_work_item_releases_when_the_evaluator_fails(self) -> None:
+        exp = _make_running_experiment()
+        eval_item = _make_eval_work_item(exp)
+
+        with (
+            patch.object(
+                eval_item._evaluator,
+                "evaluate",
+                side_effect=RuntimeError("Bad request (injected)"),
+            ),
+            patch.object(exp, "on_failure", AsyncMock()),
+            patch.object(eval_item, "_persist_eval_results", AsyncMock()),
+        ):
+            await eval_item.execute()
+
+        self._tracer(exp).__aexit__.assert_awaited_once()

@@ -1,0 +1,11 @@
+Point your code at the Phoenix instance you started. The endpoint below is the default for a local `phoenix serve`; for a deployment running elsewhere, use its hostname instead.
+
+```bash
+# .env.phoenix, or your shell environment
+PHOENIX_ENDPOINT="http://localhost:6006"
+
+# Only if the deployment has authentication enabled
+# PHOENIX_API_KEY="your-api-key"
+```
+
+`PHOENIX_ENDPOINT` is the canonical setting for the clients and the `px` CLI. If your app also exports traces, set `PHOENIX_COLLECTOR_ENDPOINT` for the OTel SDK — usually to the same value. See [Environments](/docs/phoenix/environments).

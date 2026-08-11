@@ -309,13 +309,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       data.compareExperiments.edges.map((edge) => {
         const comparison = edge.comparison;
         const repeatedRunGroupsByExperimentId =
-          comparison.repeatedRunGroups.reduce(
-            (acc, group) => {
-              acc[group.experimentId] = group;
-              return acc;
-            },
-            {} as Record<string, ExperimentRepeatedRunGroup>
-          );
+          comparison.repeatedRunGroups.reduce<
+            Record<string, ExperimentRepeatedRunGroup>
+          >((acc, group) => {
+            acc[group.experimentId] = group;
+            return acc;
+          }, {});
         return {
           ...comparison,
           id: comparison.example.id,
@@ -587,7 +586,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           flex="none"
         >
           <ExperimentRunFilterConditionField
-            onValidCondition={setFilterCondition}
+            onValidCondition={({ condition }) => setFilterCondition(condition)}
           />
         </View>
         <div
@@ -922,13 +921,12 @@ function ExperimentRunOutputCell({
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
 
   const runsByRepetitionNumber = useMemo(() => {
-    const runsByRepetitionNumber = repeatedRunGroup.runs.reduce(
-      (acc, run) => {
-        acc[run.repetitionNumber] = run;
-        return acc;
-      },
-      {} as Record<number, ExperimentRun>
-    );
+    const runsByRepetitionNumber = repeatedRunGroup.runs.reduce<
+      Record<number, ExperimentRun>
+    >((acc, run) => {
+      acc[run.repetitionNumber] = run;
+      return acc;
+    }, {});
     return runsByRepetitionNumber;
   }, [repeatedRunGroup.runs]);
 

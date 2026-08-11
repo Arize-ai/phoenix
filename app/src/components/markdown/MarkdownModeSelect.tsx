@@ -1,14 +1,4 @@
-import { css } from "@emotion/react";
-
-import {
-  Button,
-  ListBox,
-  Popover,
-  Select,
-  SelectChevronUpDownIcon,
-  SelectItem,
-  SelectValue,
-} from "@phoenix/components";
+import { SegmentedControl, SegmentedControlItem } from "@phoenix/components";
 
 import { useMarkdownMode } from "./MarkdownDisplayContext";
 import type { MarkdownDisplayMode } from "./types";
@@ -33,17 +23,11 @@ export function MarkdownModeSelect({
   onModeChange: (newMode: MarkdownDisplayMode) => void;
 }) {
   return (
-    <Select
+    <SegmentedControl
       aria-label="Markdown Mode"
-      value={mode}
-      css={css`
-        button {
-          width: 140px;
-          min-width: 140px;
-        }
-      `}
       size="S"
-      onChange={(key) => {
+      selectedKey={mode}
+      onSelectionChange={(key) => {
         if (isMarkdownDisplayMode(key)) {
           onModeChange(key);
         } else {
@@ -51,21 +35,9 @@ export function MarkdownModeSelect({
         }
       }}
     >
-      <Button>
-        <SelectValue />
-        <SelectChevronUpDownIcon />
-      </Button>
-      <Popover>
-        <ListBox>
-          <SelectItem key="text" id="text">
-            Text
-          </SelectItem>
-          <SelectItem key="markdown" id="markdown">
-            Markdown
-          </SelectItem>
-        </ListBox>
-      </Popover>
-    </Select>
+      <SegmentedControlItem id="text">Text</SegmentedControlItem>
+      <SegmentedControlItem id="markdown">Markdown</SegmentedControlItem>
+    </SegmentedControl>
   );
 }
 

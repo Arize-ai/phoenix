@@ -21,6 +21,7 @@ import {
   getMillisecondsUntilNextLastNTimeRangeRefresh,
   getTimeRangeFromSearchParams,
   getTimeRangeFromLastNTimeRangeKey,
+  getTimeRangeSearch,
   isLastNTimeRangeKey,
   setTimeRangeSearchParams,
 } from "./utils";
@@ -63,6 +64,17 @@ export function useTimeRange() {
     );
   }
   return context;
+}
+
+/**
+ * The active time range serialized as a URL search string (including the
+ * leading "?"), for building links to other time-scoped views so the range
+ * carries across the navigation. A live range serializes as just its last-N
+ * key so it stays live at the destination; a custom range as its bounds.
+ */
+export function useTimeRangeSearch(): string {
+  const { timeRange } = useTimeRange();
+  return getTimeRangeSearch(timeRange);
 }
 
 /**
@@ -193,7 +205,7 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
   // minute or hour) so the displayed window keeps tracking "now".
   useEffect(() => {
     if (!isLastNTimeRangeKey(timeRange.timeRangeKey)) {
-      return;
+      return undefined;
     }
     const timeRangeKey = timeRange.timeRangeKey;
     const timeoutId = window.setTimeout(() => {

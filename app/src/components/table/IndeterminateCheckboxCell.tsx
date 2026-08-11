@@ -43,8 +43,22 @@ export function IndeterminateCheckboxCell({
       onMouseLeave={() => setIsHovered(false)}
       css={css`
         cursor: pointer;
-        padding: var(--global-dimension-size-25);
         user-select: none;
+        // Fill the entire table cell so selecting a row does not require
+        // pixel-precise aiming at the small checkbox. The negative margins
+        // cancel the <td>'s own padding and the box then stretches to the full
+        // cell via width/height 100%, making the whole cell a click target that
+        // stops the click from bubbling to the row's navigation handler.
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        width: calc(100% + 2 * var(--global-table-cell-padding-x));
+        height: calc(100% + 2 * var(--global-table-cell-padding-y));
+        margin: calc(-1 * var(--global-table-cell-padding-y))
+          calc(-1 * var(--global-table-cell-padding-x));
+        padding: var(--global-table-cell-padding-y)
+          var(--global-table-cell-padding-x);
       `}
     >
       <Checkbox

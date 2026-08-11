@@ -94,65 +94,6 @@ const staticCSS = css`
 const dimensionsCSS = css`
   :root,
   .theme {
-    --global-dimension-static-size-0: 0px;
-    --global-dimension-static-size-10: 1px;
-    --global-dimension-static-size-25: 2px;
-    --global-dimension-static-size-50: 4px;
-    --global-dimension-static-size-40: 3px;
-    --global-dimension-static-size-65: 5px;
-    --global-dimension-static-size-100: 8px;
-    --global-dimension-static-size-115: 9px;
-    --global-dimension-static-size-125: 10px;
-    --global-dimension-static-size-130: 11px;
-    --global-dimension-static-size-150: 12px;
-    --global-dimension-static-size-160: 13px;
-    --global-dimension-static-size-175: 14px;
-    --global-dimension-static-size-200: 16px;
-    --global-dimension-static-size-225: 18px;
-    --global-dimension-static-size-250: 20px;
-    --global-dimension-static-size-300: 24px;
-    --global-dimension-static-size-400: 32px;
-    --global-dimension-static-size-450: 36px;
-    --global-dimension-static-size-500: 40px;
-    --global-dimension-static-size-550: 44px;
-    --global-dimension-static-size-600: 48px;
-    --global-dimension-static-size-700: 56px;
-    --global-dimension-static-size-800: 64px;
-    --global-dimension-static-size-900: 72px;
-    --global-dimension-static-size-1000: 80px;
-    --global-dimension-static-size-1200: 96px;
-    --global-dimension-static-size-1700: 136px;
-    --global-dimension-static-size-2400: 192px;
-    --global-dimension-static-size-2600: 208px;
-    --global-dimension-static-size-3400: 272px;
-    --global-dimension-static-size-3600: 288px;
-    --global-dimension-static-size-4600: 368px;
-    --global-dimension-static-size-5000: 400px;
-    --global-dimension-static-size-6000: 480px;
-    --global-dimension-static-font-size-50: 11px;
-    --global-dimension-static-font-size-75: 12px;
-    --global-dimension-static-font-size-100: 14px;
-    --global-dimension-static-font-size-150: 15px;
-    --global-dimension-static-font-size-200: 16px;
-    --global-dimension-static-font-size-300: 18px;
-    --global-dimension-static-font-size-400: 20px;
-    --global-dimension-static-font-size-500: 22px;
-    --global-dimension-static-font-size-600: 25px;
-    --global-dimension-static-font-size-700: 28px;
-    --global-dimension-static-font-size-800: 32px;
-    --global-dimension-static-font-size-900: 36px;
-    --global-dimension-static-font-size-1000: 40px;
-    --global-dimension-static-percent-50: 50%;
-    --global-dimension-static-percent-100: 100%;
-    --global-dimension-static-breakpoint-xsmall: 304px;
-    --global-dimension-static-breakpoint-small: 768px;
-    --global-dimension-static-breakpoint-medium: 1280px;
-    --global-dimension-static-breakpoint-large: 1768px;
-    --global-dimension-static-breakpoint-xlarge: 2160px;
-    --global-dimension-static-grid-columns: 12;
-    --global-dimension-static-grid-fluid-width: 100%;
-    --global-dimension-static-grid-fixed-max-width: 1280px;
-
     /* Font sizing */
     --global-dimension-font-size-25: 10px;
     --global-dimension-font-size-50: 11px;
@@ -939,8 +880,9 @@ const baseTokensCSS = (theme: Theme) => css`
       ? "var(--global-color-blue-500)"
       : "var(--global-color-blue-900)"};
     --hover-background: var(--global-color-gray-100);
-    --focus-ring-color: var(--global-color-primary-500);
-    --focus-ring-offset: var(--global-dimension-static-size-25);
+    --focus-ring-color: var(--global-color-primary);
+    --focus-ring-thickness: var(--global-border-size-thick);
+    --focus-ring-offset: var(--global-dimension-size-25);
 
     --text-color-placeholder: var(--global-color-gray-400);
 
@@ -990,6 +932,11 @@ const inputFieldCSS = (theme: Theme) => css`
     --field-readonly-text-color: var(--global-text-color-700);
     --field-readonly-border-color-focus: var(--global-color-gray-400);
 
+    /* Embedded copy button (CopyInput and the copyable code blocks) */
+    --field-copy-button-background-color: var(--global-color-gray-200);
+    --field-copy-button-background-color-hover: var(--global-color-gray-300);
+    --field-copy-button-text-color: var(--global-text-color-700);
+
     /* Popover overlay (combobox / select) */
     --field-popover-background-color: var(--global-menu-background-color);
     --field-popover-border-color: var(--global-menu-border-color);
@@ -1009,11 +956,9 @@ const menuCSS = (theme: Theme) => css`
     --global-menu-border-color: var(--global-border-color-default);
     --global-menu-background-color: var(--global-color-gray-50);
     --global-menu-item-background-color-hover: var(--hover-background);
-    --global-menu-split-item-content-gap: var(
-      --global-dimension-static-size-300
-    );
-    --global-menu-item-gap: var(--global-dimension-static-size-50);
-    --global-menu-item-content-gap: var(--global-dimension-static-size-100);
+    --global-menu-split-item-content-gap: var(--global-dimension-size-300);
+    --global-menu-item-gap: var(--global-dimension-size-50);
+    --global-menu-item-content-gap: var(--global-dimension-size-100);
   }
 `;
 
@@ -1041,6 +986,96 @@ const buttonCSS = (theme: Theme) => css`
   }
 `;
 
+/**
+ * Tokens for the shared "AI is working" glow consumed by
+ * `components/ai/glow`. Surface-specific knobs stay on their components.
+ */
+const aiTokensCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --ai-conic-spin-duration: 3s;
+    --ai-glow-bleed: 28px;
+    --ai-glow-opacity: 0.95;
+    --ai-glow-wipe-duration: 3000ms;
+    --ai-glow-wipe-easing: cubic-bezier(0.4, 0.4, 0.65, 1);
+    --ai-glow-wipe-continuous-duration: 3600ms;
+    /* Negative delay so the continuous wipe starts mid-travel instead of
+       off-surface. */
+    --ai-glow-wipe-continuous-delay: -0.5s;
+    --ai-gradient-color-start: #9a66ff;
+    --ai-gradient-color-middle: #3480ff;
+    --ai-gradient-color-end: #2cd8ff;
+    --ai-glow-box-shadow-large-rest: ${theme === "dark"
+      ? `
+        0 0 2px 1px rgba(248, 242, 255, 0.78),
+        0 0 4px 2px rgba(154, 102, 255, 0.68),
+        0 0 8px 4px rgba(52, 128, 255, 0.52),
+        0 0 13px 5px rgba(198, 72, 255, 0.4),
+        0 0 17px 6px rgba(44, 216, 255, 0.26)
+      `
+      : `
+        0 0 3px 1px rgba(245, 249, 255, 0.88),
+        0 0 5px 2px rgba(199, 190, 242, 0.56),
+        0 0 9px 4px rgba(88, 152, 255, 0.54),
+        0 0 14px 5px rgba(200, 150, 236, 0.23),
+        0 0 20px 7px rgba(116, 212, 255, 0.17)
+      `};
+    --ai-glow-box-shadow-large-strong: ${theme === "dark"
+      ? `
+        0 0 3px 2px rgba(250, 244, 255, 0.88),
+        0 0 7px 3px rgba(160, 108, 255, 0.82),
+        0 0 12px 6px rgba(58, 134, 255, 0.66),
+        0 0 19px 8px rgba(205, 78, 255, 0.52),
+        0 0 26px 10px rgba(50, 220, 255, 0.34)
+      `
+      : `
+        0 0 4px 1px rgba(248, 251, 255, 0.94),
+        0 0 8px 3px rgba(203, 194, 244, 0.68),
+        0 0 13px 5px rgba(96, 159, 255, 0.64),
+        0 0 20px 7px rgba(205, 154, 238, 0.31),
+        0 0 26px 9px rgba(119, 214, 255, 0.22)
+      `};
+    --ai-glow-box-shadow-rest: ${theme === "dark"
+      ? `
+        0 0 1px 1px rgba(248, 242, 255, 0.78),
+        0 0 3px 1px rgba(154, 102, 255, 0.68),
+        0 0 5px 2px rgba(52, 128, 255, 0.52),
+        0 0 8px 3px rgba(198, 72, 255, 0.4),
+        0 0 11px 4px rgba(44, 216, 255, 0.26)
+      `
+      : `
+        0 0 2px 1px rgba(245, 249, 255, 0.88),
+        0 0 3px 1px rgba(199, 190, 242, 0.56),
+        0 0 6px 2px rgba(88, 152, 255, 0.54),
+        0 0 9px 3px rgba(200, 150, 236, 0.23),
+        0 0 13px 4px rgba(116, 212, 255, 0.17)
+      `};
+    --ai-glow-box-shadow-strong: ${theme === "dark"
+      ? `
+        0 0 2px 1px rgba(250, 244, 255, 0.88),
+        0 0 4px 2px rgba(160, 108, 255, 0.82),
+        0 0 7px 3px rgba(58, 134, 255, 0.66),
+        0 0 11px 4px rgba(205, 78, 255, 0.52),
+        0 0 16px 6px rgba(50, 220, 255, 0.34)
+      `
+      : `
+        0 0 3px 1px rgba(248, 251, 255, 0.94),
+        0 0 5px 2px rgba(203, 194, 244, 0.68),
+        0 0 8px 3px rgba(96, 159, 255, 0.64),
+        0 0 13px 4px rgba(205, 154, 238, 0.31),
+        0 0 17px 6px rgba(119, 214, 255, 0.22)
+      `};
+    --ai-glow-box-shadow-contained-rest:
+      inset 0 0 2px rgba(154, 102, 255, 0.36),
+      inset 0 0 5px rgba(52, 128, 255, 0.28),
+      inset 0 0 9px rgba(44, 216, 255, 0.16);
+    --ai-glow-box-shadow-contained-strong:
+      inset 0 0 3px rgba(154, 102, 255, 0.62),
+      inset 0 0 8px rgba(52, 128, 255, 0.48),
+      inset 0 0 14px rgba(44, 216, 255, 0.28);
+  }
+`;
+
 const checkboxCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
@@ -1050,6 +1085,43 @@ const checkboxCSS = (theme: Theme) => css`
     --global-checkbox-border-color: var(--global-color-gray-300);
     --global-checkbox-border-color-pressed: var(--global-color-gray-400);
     --global-checkbox-border-color-hover: var(--global-color-gray-400);
+  }
+`;
+
+const segmentedControlCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    /* The track has to sit one clear step below the thumb, since that gap is
+       the only thing marking which segment is selected. Dark's field surface
+       already sits that far below; light's is within ~3%, so it drops a step. */
+    --global-segmented-control-background-color: ${theme === "dark"
+      ? "var(--global-input-field-background-color)"
+      : "var(--global-color-gray-200)"};
+    --global-segmented-control-border-color: var(
+      --global-input-field-border-color
+    );
+    --global-segmented-control-divider-color: var(
+      --global-segmented-control-border-color
+    );
+    --global-segmented-control-thumb-background-color: ${theme === "dark"
+      ? "var(--global-color-gray-300)"
+      : "var(--global-color-gray-50)"};
+    --global-segmented-control-thumb-border-color: ${theme === "dark"
+      ? "var(--global-color-gray-400)"
+      : "var(--global-color-gray-300)"};
+    --global-segmented-control-item-text-color: var(--global-text-color-700);
+    --global-segmented-control-item-text-color-hover: var(
+      --global-text-color-900
+    );
+    --global-segmented-control-item-text-color-selected: var(
+      --global-text-color-900
+    );
+    --global-segmented-control-item-text-color-disabled: var(
+      --global-text-color-300
+    );
+    --global-segmented-control-item-background-color-hover: var(
+      --global-color-primary-50
+    );
   }
 `;
 
@@ -1138,10 +1210,10 @@ const popoverCSS = (theme: Theme) => css`
 const roundingCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
-    --global-rounding-xsmall: var(--global-dimension-static-size-25);
-    --global-rounding-small: var(--global-dimension-static-size-50);
-    --global-rounding-medium: var(--global-dimension-static-size-100);
-    --global-rounding-large: var(--global-dimension-static-size-200);
+    --global-rounding-xsmall: var(--global-dimension-size-25);
+    --global-rounding-small: var(--global-dimension-size-50);
+    --global-rounding-medium: var(--global-dimension-size-100);
+    --global-rounding-large: var(--global-dimension-size-200);
     /* Fully rounded ends for pill/capsule shapes (e.g. switch tracks, slider tracks) */
     --global-rounding-full: 9999px;
   }
@@ -1180,10 +1252,8 @@ const tableCSS = (theme: Theme) => css`
     --global-table-pagination-padding: var(--global-dimension-size-100);
     --global-table-pagination-gap: var(--global-dimension-size-50);
 
-    --global-table-cell-controls-offset: var(
-      --global-dimension-static-size-100
-    );
-    --global-table-cell-controls-gap: var(--global-dimension-static-size-50);
+    --global-table-cell-controls-offset: var(--global-dimension-size-100);
+    --global-table-cell-controls-gap: var(--global-dimension-size-50);
   }
 `;
 
@@ -1250,19 +1320,19 @@ const markdownCSS = (theme: Theme) => css`
 const borderAndGridCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
-    --global-border-size-thin: var(--global-dimension-static-size-10);
-    --global-border-size-thick: var(--global-dimension-static-size-25);
-    --global-grid-baseline: var(--global-dimension-static-size-100);
-    --global-grid-gutter-xsmall: var(--global-dimension-static-size-200);
-    --global-grid-gutter-small: var(--global-dimension-static-size-300);
-    --global-grid-gutter-medium: var(--global-dimension-static-size-400);
-    --global-grid-gutter-large: var(--global-dimension-static-size-500);
-    --global-grid-gutter-xlarge: var(--global-dimension-static-size-600);
-    --global-grid-margin-xsmall: var(--global-dimension-static-size-200);
-    --global-grid-margin-small: var(--global-dimension-static-size-300);
-    --global-grid-margin-medium: var(--global-dimension-static-size-400);
-    --global-grid-margin-large: var(--global-dimension-static-size-500);
-    --global-grid-margin-xlarge: var(--global-dimension-static-size-600);
+    --global-border-size-thin: var(--global-dimension-size-10);
+    --global-border-size-thick: var(--global-dimension-size-25);
+    --global-grid-baseline: var(--global-dimension-size-100);
+    --global-grid-gutter-xsmall: var(--global-dimension-size-200);
+    --global-grid-gutter-small: var(--global-dimension-size-300);
+    --global-grid-gutter-medium: var(--global-dimension-size-400);
+    --global-grid-gutter-large: var(--global-dimension-size-500);
+    --global-grid-gutter-xlarge: var(--global-dimension-size-600);
+    --global-grid-margin-xsmall: var(--global-dimension-size-200);
+    --global-grid-margin-small: var(--global-dimension-size-300);
+    --global-grid-margin-medium: var(--global-dimension-size-400);
+    --global-grid-margin-large: var(--global-dimension-size-500);
+    --global-grid-margin-xlarge: var(--global-dimension-size-600);
 
     --alias-single-line-height: var(--global-dimension-size-400);
     --alias-single-line-width: var(--global-dimension-size-2400);
@@ -1308,7 +1378,9 @@ export const derivedCSS = (theme: Theme) =>
     inputFieldCSS(theme),
     menuCSS(theme),
     buttonCSS(theme),
+    aiTokensCSS(theme),
     checkboxCSS(theme),
+    segmentedControlCSS(theme),
     disclosureCSS(theme),
     tooltipCSS(theme),
     dndCSS(theme),
@@ -1327,6 +1399,22 @@ export const derivedCSS = (theme: Theme) =>
   );
 
 const appGlobalStylesCSS = css`
+  @property --ai-conic-angle {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 45deg;
+  }
+
+  /* The base layer (see styles/cascade-layers.css) puts the global focus ring
+     above the reset but below unlayered component styles, so components can
+     move or suppress their own focus indicators without out-specifying it. */
+  @layer base {
+    .theme :where(:focus-visible) {
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
+    }
+  }
+
   body,
   input,
   button,
@@ -1435,7 +1523,7 @@ const appGlobalStylesCSS = css`
     --global-modal-width-L: 1000px;
     --global-modal-width-XL: 1200px;
     --global-modal-width-FULLSCREEN: calc(
-      100vw - var(--global-dimension-static-size-1700)
+      100vw - var(--global-dimension-size-1700)
     );
   }
 `;
@@ -1497,7 +1585,7 @@ const chartCSS = css`
     outline: none;
   }
   .recharts-surface:focus-visible {
-    outline: 2px solid var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
   }
 `;

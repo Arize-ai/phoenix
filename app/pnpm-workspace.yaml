@@ -3,13 +3,17 @@ packages:
 
 managePackageManagerVersions: true
 
-minimumReleaseAge: 4320
+minimumReleaseAge: 2880
 minimumReleaseAgeExclude:
   - "@arizeai/*"
-  # typescript@7.0.2 and its @typescript/typescript-* platform binaries were
-  # published same-day as the TS 7 migration; remove once 3 days have passed.
-  - typescript
-  - "@typescript/*"
+
+# @browser-ai/core imports @ai-sdk/provider at runtime without declaring it,
+# so it only resolves when some other package happens to hoist it — declare
+# the dependency it forgot so dependency-graph shifts can't break it.
+packageExtensions:
+  "@browser-ai/core":
+    dependencies:
+      "@ai-sdk/provider": "*"
 
 allowBuilds:
   "@mongodb-js/zstd": false

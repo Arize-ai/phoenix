@@ -16,7 +16,7 @@ export function useInterval(callback: Callback, delay: number | null) {
   }, [callback]);
 
   useEffect(() => {
-    if (typeof delay !== "number") return;
+    if (typeof delay !== "number") return undefined;
 
     const intervalMs = delay;
 

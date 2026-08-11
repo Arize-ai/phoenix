@@ -25,13 +25,10 @@ export async function getExperiment({
     getExperimentRuns({ client, experimentId }),
   ]);
   const experimentRunsMap: ExperimentRunsMap = {
-    runs: experimentRuns.runs.reduce(
-      (acc, run) => {
-        acc[run.id] = run;
-        return acc;
-      },
-      {} as ExperimentRunsMap["runs"]
-    ),
+    runs: experimentRuns.runs.reduce<ExperimentRunsMap["runs"]>((acc, run) => {
+      acc[run.id] = run;
+      return acc;
+    }, {}),
   };
   return {
     ...experiment,

@@ -18,18 +18,14 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
-import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
-import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
-  CopyToClipboardButton,
   Flex,
   Heading,
   Icon,
   Icons,
   Link,
+  OverflowRow,
   Text,
-  ToggleButton,
-  ToggleButtonGroup,
   View,
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
@@ -39,11 +35,13 @@ import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp"
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
 import {
-  CellWithControlsWrap,
   ColumnHeaderCell,
   ColumnOrderingProvider,
+  CopyableTextCell,
   createRowSelectionColumn,
   LoadMoreRow,
+  RowExpandToggleButton,
+  useTableRowsExpanded,
   useColumnOrder,
 } from "@phoenix/components/table";
 import {
@@ -51,8 +49,9 @@ import {
   CHECKBOX_COLUMN_PINNING,
 } from "@phoenix/components/table/constants";
 import {
+  expandableSelectableTableCSS,
+  TABLE_DATA_CELL_CLASS,
   getCommonPinningStyles,
-  selectableTableCSS,
 } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
@@ -63,7 +62,10 @@ import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
-import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import {
+  SELECTED_SPAN_NODE_ID_PARAM,
+  SPAN_FILTER_CONDITION_PARAM,
+} from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
@@ -81,13 +83,15 @@ import {
   SpanInputValueTooltipCell,
   SpanOutputValueTooltipCell,
 } from "./IOValueTooltipCell";
-import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { getVisibleSpanAnnotationColumnNames } from "./spanAnnotationUtils";
 import { SpanColumnSelector } from "./SpanColumnSelector";
-import { SpanFilterConditionField } from "./SpanFilterConditionField";
-import { useSpanFilters } from "./SpanFiltersContext";
+import {
+  SpanFilterConditionField,
+  type SpanFilterValidConditionArgs,
+} from "./SpanFilterConditionField";
+import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 import { SpanNotesTableCell } from "./SpanNotesTableCell";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { SpansTableAside } from "./SpansTableAside";
@@ -96,6 +100,7 @@ import { TableAsidePanel, TableAsideToggleButton } from "./TableAside";
 import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
 import { TableMetricsChartSelector } from "./TableMetricsChartSelector";
 import {
+  ANNOTATION_COLUMN_SIZING,
   DEFAULT_SORT,
   getGqlSort,
   makeAnnotationColumnId,
@@ -105,19 +110,18 @@ import { TraceNotesTableCell } from "./TraceNotesTableCell";
 
 type SpansTableProps = {
   project: SpansTable_spans$key;
+  /**
+   * The condition the preload carried; always settled, so the rows on hand
+   * match both its text and its root scope from the first render.
+   */
+  seed: SettledSpanFilterSeed;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
-type RootSpanFilterValue = "root" | "all";
-
 const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
-
-function isRootSpanFilterValue(val: unknown): val is RootSpanFilterValue {
-  return val === "root" || val === "all";
-}
 
 const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   table,
@@ -160,15 +164,12 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
               return (
                 <td
                   key={cell.id}
+                  className={TABLE_DATA_CELL_CLASS}
+                  align={cell.column.columnDef.meta?.textAlign}
                   style={{
                     ...getCommonPinningStyles(cell.column),
                     width: `calc(var(${colSizeVar}) * 1px)`,
                     maxWidth: `calc(var(${colSizeVar}) * 1px)`,
-                    // prevent all wrapping, just show an ellipsis and let users expand if necessary
-                    textWrap: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
                     userSelect:
                       cell.column.id === CHECKBOX_COLUMN_ID
                         ? "none"
@@ -200,37 +201,97 @@ export const MemoizedTableBody = React.memo(
 ) as typeof TableBody;
 
 export function SpansTable(props: SpansTableProps) {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef<boolean>(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [filterCondition, setFilterCondition] = useState<string>("");
-  const { rootSpansOnly, setRootSpansOnly } = useSpanFilters();
-  const projectId = useTracingContext((state) => state.projectId);
+  // The seed arrives settled: the owner that preloads `props.project` either
+  // classified the condition itself or had it validated first, so the rows on
+  // hand always match it. The table only tracks what the user applies after.
+  const [appliedQuery, setAppliedQuery] = useState<{
+    condition: string;
+    rootSpansOnly: boolean;
+  }>(() => ({
+    condition: props.seed.condition,
+    rootSpansOnly: props.seed.rootSpansOnly,
+  }));
+  const { condition: filterCondition, rootSpansOnly } = appliedQuery;
+
+  // Persist the applied filter to the URL. Written only from the change
+  // handler, so in-progress edits and render churn never touch the URL; other
+  // params (e.g. the selected span) are preserved.
+  // React Router 8.2 recreates this setter whenever location.search changes.
+  // Keep the latest one behind a stable callback so unrelated param changes
+  // do not flow into the field's validation effect and revalidate its value.
+  const setSearchParamsRef = useRef(setSearchParams);
+  useEffect(() => {
+    setSearchParamsRef.current = setSearchParams;
+  }, [setSearchParams]);
+  const writeFilterConditionParam = useCallback((condition: string) => {
+    setSearchParamsRef.current(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        // Written even when empty. An absent param means "no filter was
+        // applied here", which seeds the default; an empty one means the
+        // filter was deliberately cleared. Deleting it instead would make
+        // those two indistinguishable, so clearing the filter would not
+        // survive a reload -- the default would come back.
+        next.set(SPAN_FILTER_CONDITION_PARAM, condition);
+        return next;
+      },
+      { replace: true }
+    );
+  }, []);
+  const handleValidFilterCondition = useCallback(
+    ({
+      condition,
+      selectsRootSpansOnly,
+      isInitialSettlement,
+    }: SpanFilterValidConditionArgs) => {
+      setAppliedQuery((previous) => {
+        const next = {
+          condition,
+          // `null` means the server did not answer the root-scope question;
+          // keep the previous presentation scope rather than guessing.
+          rootSpansOnly: selectsRootSpansOnly ?? previous.rootSpansOnly,
+        };
+        return next.condition === previous.condition &&
+          next.rootSpansOnly === previous.rootSpansOnly
+          ? previous
+          : next;
+      });
+      // The mount settlement is the seed (or the URL's condition) coming back
+      // around, not something the user applied. Writing it would persist a
+      // tab's own default into the param the tabs share, imposing it on the
+      // other tab -- the leak the `persistToUrl` flag on the seed resolvers
+      // exists to prevent.
+      if (!isInitialSettlement) {
+        writeFilterConditionParam(condition);
+      }
+    },
+    [writeFilterConditionParam]
+  );
+
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the filter
   // still applied. The parent query is intentionally not reloaded on window
   // slides — see the load effect in `ProjectPage` and issue #14216.
   const { timeRangeISOStrings } = useTimeRange();
 
-  // Advertise the current rootSpansOnly state so the agent's context message
-  // reflects whether the toggle is mounted on this tab.
-  const advertisedRootSpansOnlyContext = useMemo<AgentContext | null>(() => {
-    if (!projectId) {
-      return null;
-    }
-    return {
-      type: "project",
-      projectNodeId: projectId,
-      rootSpansOnly,
-    };
-  }, [projectId, rootSpansOnly]);
-  useAdvertiseAgentContext(advertisedRootSpansOnlyContext);
-
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
+  const {
+    isExpanded: areRowsExpanded,
+    setIsExpanded: setAreRowsExpanded,
+    tableProps: rowsExpandedTableProps,
+  } = useTableRowsExpanded();
+  // Root-span scoping is expressed inside `filterCondition`, so the query below
+  // deliberately passes neither `rootSpansOnly` nor `orphanSpanAsRootSpan`:
+  // sending both would AND two independent root filters together, and the
+  // stricter one would silently win. `rootSpansOnly` survives only as a
+  // presentation flag selecting cumulative versus per-span metric fields.
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
       graphql`
@@ -254,9 +315,7 @@ export function SpansTable(props: SpansTableProps) {
             first: $first
             after: $after
             sort: $sort
-            rootSpansOnly: $rootSpansOnly
             filterCondition: $filterCondition
-            orphanSpanAsRootSpan: $orphanSpanAsRootSpan
             timeRange: $timeRange
           ) @connection(key: "SpansTable_spans") {
             edges {
@@ -265,6 +324,7 @@ export function SpansTable(props: SpansTableProps) {
                 spanKind
                 name
                 metadata
+                userId
                 statusCode
                 statusMessage
                 startTime
@@ -337,7 +397,7 @@ export function SpansTable(props: SpansTableProps) {
   const setTraceSequence = pagination?.setTraceSequence;
   useEffect(() => {
     if (!setTraceSequence) {
-      return;
+      return undefined;
     }
     setTraceSequence(
       data.spans.edges.map(({ span }) => ({
@@ -481,10 +541,10 @@ export function SpansTable(props: SpansTableProps) {
       id: "annotations",
       accessorKey: "spanAnnotations",
       enableSorting: false,
-
+      ...ANNOTATION_COLUMN_SIZING,
       cell: ({ row }) => {
         return (
-          <Flex direction="row" gap="size-50" wrap="wrap">
+          <OverflowRow isExpanded={areRowsExpanded}>
             <AnnotationSummaryGroupTokens
               span={row.original}
               showFilterActions
@@ -513,7 +573,7 @@ export function SpansTable(props: SpansTableProps) {
                 </>
               );
             })}
-          </Flex>
+          </OverflowRow>
         );
       },
     },
@@ -531,11 +591,12 @@ export function SpansTable(props: SpansTableProps) {
       ),
       id: TRACE_ANNOTATIONS_COLUMN_ID,
       enableSorting: false,
+      ...ANNOTATION_COLUMN_SIZING,
       cell: ({ row }) => {
         return (
-          <Flex direction="row" gap="size-50" wrap="wrap">
+          <OverflowRow isExpanded={areRowsExpanded}>
             <TraceAnnotationSummaryGroupTokens trace={row.original.trace} />
-          </Flex>
+          </OverflowRow>
         );
       },
     },
@@ -584,7 +645,7 @@ export function SpansTable(props: SpansTableProps) {
               searchParams,
             })}
           >
-            {getValue() as string}
+            <Truncate maxWidth="100%">{getValue() as string}</Truncate>
           </Link>
         );
       },
@@ -593,38 +654,18 @@ export function SpansTable(props: SpansTableProps) {
       header: "span id",
       accessorKey: "spanId",
       enableSorting: false,
-      cell: ({ getValue }) => {
-        const value = getValue() as string | null;
-        if (!value) return <>{"--"}</>;
-        return (
-          <CellWithControlsWrap
-            controls={<CopyToClipboardButton text={value} />}
-          >
-            <Truncate>
-              <Text>{value}</Text>
-            </Truncate>
-          </CellWithControlsWrap>
-        );
-      },
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
     },
     {
       header: "trace id",
       accessorKey: "trace.traceId",
       id: "traceId",
       enableSorting: false,
-      cell: ({ getValue }) => {
-        const value = getValue() as string | null;
-        if (!value) return <>{"--"}</>;
-        return (
-          <CellWithControlsWrap
-            controls={<CopyToClipboardButton text={value} />}
-          >
-            <Truncate>
-              <Text>{value}</Text>
-            </Truncate>
-          </CellWithControlsWrap>
-        );
-      },
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
     },
     {
       header: "input",
@@ -715,6 +756,14 @@ export function SpansTable(props: SpansTableProps) {
       cell: ({ row }) => <MetadataTableCell metadata={row.original.metadata} />,
       enableSorting: false,
     },
+    {
+      header: "user",
+      accessorKey: "userId",
+      enableSorting: false,
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
+    },
     ...annotationColumns, // TODO: consider hiding this column if there are no evals. For now we want people to know that there are evals
     {
       header: "start time",
@@ -724,13 +773,13 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "latency",
       accessorKey: "latencyMs",
-
+      meta: { textAlign: "right" },
       cell: ({ getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
           return null;
         }
-        return <LatencyText latencyMs={value} />;
+        return <LatencyText latencyMs={value} size="S" />;
       },
     },
     {
@@ -738,6 +787,7 @@ export function SpansTable(props: SpansTableProps) {
       accessorKey: rootSpansOnly
         ? "cumulativeTokenCountTotal"
         : "tokenCountTotal",
+      meta: { textAlign: "right" },
       cell: ({ row, getValue }) => {
         const value = getValue();
         if (value === null) {
@@ -753,6 +803,7 @@ export function SpansTable(props: SpansTableProps) {
             <SpanCumulativeTokenCount
               tokenCountTotal={tokenCountTotal || 0}
               nodeId={span.id}
+              size="S"
             />
           );
         }
@@ -761,6 +812,7 @@ export function SpansTable(props: SpansTableProps) {
           <SpanTokenCount
             tokenCountTotal={tokenCountTotal || 0}
             nodeId={span.id}
+            size="S"
           />
         );
       },
@@ -771,6 +823,7 @@ export function SpansTable(props: SpansTableProps) {
         ? "trace.costSummary.total.cost"
         : "costSummary.total.cost",
       id: rootSpansOnly ? "cumulativeTokenCostTotal" : "tokenCostTotal",
+      meta: { textAlign: "right" },
       cell: ({ row, getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
@@ -787,7 +840,9 @@ export function SpansTable(props: SpansTableProps) {
   ];
 
   useEffect(() => {
-    // Skip the first render. It's been loaded by the parent
+    // Skip the first render. The parent's query already carries what this
+    // table starts from: a settled seed and its scope, so the rows on hand
+    // answer the applied condition.
     if (isFirstRender.current === true) {
       isFirstRender.current = false;
       return;
@@ -874,7 +929,11 @@ export function SpansTable(props: SpansTableProps) {
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedSpans = selectedRows.map((row) => ({
     id: row.original.id,
-    traceId: row.original.trace.id,
+    spanId: row.original.spanId,
+    trace: {
+      id: row.original.trace.id,
+      traceId: row.original.trace.traceId,
+    },
   }));
   const clearSelection = useCallback(() => {
     setRowSelection({});
@@ -923,36 +982,16 @@ export function SpansTable(props: SpansTableProps) {
           flex="none"
         >
           <Flex direction="row" gap="size-100" width="100%" alignItems="center">
-            <SpanFilterConditionField onValidCondition={setFilterCondition} />
+            <SpanFilterConditionField
+              onValidCondition={handleValidFilterCondition}
+            />
 
-            <ToggleButtonGroup
-              aria-label="Toggle between root and all spans"
-              selectionMode="single"
-              selectedKeys={[rootSpansOnly ? "root" : "all"]}
-              onSelectionChange={(selection) => {
-                if (selection.size === 0) {
-                  return;
-                }
-                const selectedKey = selection.keys().next().value;
-                if (isRootSpanFilterValue(selectedKey)) {
-                  setRootSpansOnly(selectedKey === "root");
-                } else {
-                  throw new Error(
-                    `Unknown root span filter selection: ${selectedKey}`
-                  );
-                }
-              }}
-            >
-              <ToggleButton aria-label="root spans" id="root">
-                Root Spans
-              </ToggleButton>
-              <ToggleButton aria-label="all spans" id="all">
-                All
-              </ToggleButton>
-            </ToggleButtonGroup>
             <TableMetricsChartSelector view="spans" />
             <SpanColumnSelector columns={table.getAllColumns()} query={data} />
-            <ProjectFilterConfigButton />
+            <RowExpandToggleButton
+              isExpanded={areRowsExpanded}
+              onChange={setAreRowsExpanded}
+            />
             <TableAsideToggleButton />
           </Flex>
         </View>
@@ -980,7 +1019,8 @@ export function SpansTable(props: SpansTableProps) {
                 onColumnOrderChange={onVisibleColumnOrderChange}
               >
                 <table
-                  css={selectableTableCSS}
+                  css={expandableSelectableTableCSS}
+                  {...rowsExpandedTableProps}
                   style={{
                     ...columnSizeVars,
                     width: table.getTotalSize(),
@@ -1049,6 +1089,7 @@ export function SpansTable(props: SpansTableProps) {
                             return (
                               <ColumnHeaderCell
                                 key={header.id}
+                                align={header.column.columnDef.meta?.textAlign}
                                 columnId={header.column.id}
                                 // Only the top header group is reorderable;
                                 // sub-headers of a group column move with it
@@ -1104,6 +1145,7 @@ export function SpansTable(props: SpansTableProps) {
         </Group>
         {selectedRows.length ? (
           <SpanSelectionToolbar
+            projectName={data.name}
             selectedSpans={selectedSpans}
             onClearSelection={clearSelection}
           />

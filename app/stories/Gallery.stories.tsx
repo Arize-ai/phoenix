@@ -20,6 +20,8 @@ import {
   ListBox,
   ListBoxItem,
   Popover,
+  SegmentedControl,
+  SegmentedControlItem,
   Select,
   SelectChevronUpDownIcon,
   SelectValue,
@@ -90,11 +92,16 @@ const Template: StoryFn = () => {
           >
             {`Toggle Direction: ${direction}`}
           </Button>
-          <ToggleButtonGroup size="S">
+          <ToggleButtonGroup size="S" selectionMode="multiple">
             <ToggleButton>Option 1</ToggleButton>
             <ToggleButton>Option 2</ToggleButton>
             <ToggleButton>Option 3</ToggleButton>
           </ToggleButtonGroup>
+          <SegmentedControl size="S" aria-label="Time granularity">
+            <SegmentedControlItem id="day">Day</SegmentedControlItem>
+            <SegmentedControlItem id="week">Week</SegmentedControlItem>
+            <SegmentedControlItem id="month">Month</SegmentedControlItem>
+          </SegmentedControl>
         </Flex>
       </View>
       <View
@@ -195,6 +202,16 @@ const Template: StoryFn = () => {
           <Select size="L">
             <SelectContent />
           </Select>
+          <SegmentedControl aria-label="View">
+            <SegmentedControlItem id="list">List</SegmentedControlItem>
+            <SegmentedControlItem id="grid">Grid</SegmentedControlItem>
+            <SegmentedControlItem id="chart">Chart</SegmentedControlItem>
+          </SegmentedControl>
+          <SegmentedControl size="L" aria-label="Time granularity">
+            <SegmentedControlItem id="day">Day</SegmentedControlItem>
+            <SegmentedControlItem id="week">Week</SegmentedControlItem>
+            <SegmentedControlItem id="month">Month</SegmentedControlItem>
+          </SegmentedControl>
           <Button size="M">Button</Button>
         </Flex>
       </View>

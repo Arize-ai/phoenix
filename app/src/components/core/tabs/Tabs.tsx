@@ -33,9 +33,15 @@ function useHorizontalOverflow() {
 
   const update = () => {
     const el = elementRef.current;
-    // The fade affordance only applies to horizontal tab lists; skip
-    // measuring vertical ones so they never report horizontal overflow.
-    if (!el || el.getAttribute("data-orientation") !== "horizontal") {
+    if (!el) {
+      return;
+    }
+    // The fade affordance only applies to horizontal tab lists; clear any
+    // overflow state left over from before an orientation flip so vertical
+    // lists never report horizontal overflow.
+    if (el.getAttribute("data-orientation") !== "horizontal") {
+      setHasOverflowAtStart(false);
+      setHasOverflowAtEnd(false);
       return;
     }
     const { scrollLeft, scrollWidth, clientWidth } = el;
@@ -71,14 +77,14 @@ const tabsCSS = css`
     overflow: hidden;
     box-sizing: border-box;
     .react-aria-TabPanel[data-padded="true"] {
-      padding-top: var(--global-dimension-static-size-200);
+      padding-top: var(--global-dimension-size-200);
     }
   }
 
   &[data-orientation="vertical"] {
     flex-direction: row;
     .react-aria-TabPanel[data-padded="true"] {
-      padding-left: var(--global-dimension-static-size-200);
+      padding-left: var(--global-dimension-size-200);
     }
   }
 `;
@@ -107,11 +113,9 @@ const tabListCSS = css`
 
   // The sliding selection indicator. react-aria positions it over the
   // selected tab via translate and animates between tabs; only the
-  // orientation-specific edge placement is styled here.
+  // orientation-specific appearance is styled here.
   .react-aria-SelectionIndicator {
     position: absolute;
-    z-index: 1;
-    background: var(--tab-indicator-color, var(--global-color-primary));
     border-radius: var(--global-rounding-small);
     transition-property: translate, width, height;
     transition-duration: 250ms;
@@ -124,13 +128,30 @@ const tabListCSS = css`
 
   &[data-orientation="vertical"] {
     flex-direction: column;
-    border-inline-end: 1px solid var(--tab-border-color);
 
+    // Tighter vertical rhythm than the horizontal bar: shorter tabs and a
+    // slimmer pill inset so the rail reads as a compact list, not a stack of
+    // spaced-out buttons.
+    --tab-pill-inset: var(--global-dimension-size-25)
+      var(--global-dimension-size-50);
+    .react-aria-Tab {
+      padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+      // Lay the label out as a flex line rather than an inline one: a rail
+      // label pairs an icon with text, and inline layout leaves the taller
+      // icon's descender space below the label, which sits it above the
+      // center of its pill.
+      display: flex;
+      align-items: center;
+    }
+
+    // The selected tab is marked with a filled pill behind its label (the
+    // same treatment as the side nav's active item) rather than an edge bar,
+    // which would float detached from the left-aligned labels. The pill is
+    // inset to match the hover pill so the two states share a shape.
     .react-aria-SelectionIndicator {
-      top: 0;
-      right: 0;
-      height: 100%;
-      width: 3px;
+      inset: var(--tab-pill-inset);
+      background: var(--global-color-primary-100);
+      z-index: -1;
     }
   }
 
@@ -165,7 +186,7 @@ const tabListCSS = css`
     // that the list can be scrolled. Each side's fade width collapses to 0
     // when that side has no hidden tabs, and the mask is dropped entirely
     // when everything fits.
-    --tab-fade-size: var(--global-dimension-static-size-400);
+    --tab-fade-size: var(--global-dimension-size-400);
     --tab-fade-start: 0px;
     --tab-fade-end: 0px;
     &[data-overflow-start="true"] {
@@ -189,6 +210,8 @@ const tabListCSS = css`
       bottom: 0;
       width: 100%;
       height: 3px;
+      background: var(--tab-indicator-color, var(--global-color-primary));
+      z-index: 1;
     }
 
     .react-aria-Tab {
@@ -201,14 +224,56 @@ const tabListCSS = css`
   }
 `;
 
+const tabListRowCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+
+  .react-aria-TabList {
+    // the tabs take the row and the extra content keeps its own width, so the
+    // tab list is what scrolls once there are more tabs than space
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .tab-list-row__extra {
+    // the margin, not the tab list's growth, is what holds this at the end —
+    // page level styles are free to pin the tab list's flex, and several do
+    margin-inline-start: auto;
+    flex: none;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
+    // the end inset matches the page gutter, so these controls line up with the
+    // actions in the header above rather than hugging the edge
+    padding-inline-start: var(--global-dimension-size-100);
+    padding-inline-end: var(--global-dimension-size-200);
+  }
+
+  // the tab list draws its bottom border only under the tabs themselves, so the
+  // row carries the rest of the edge across to the end
+  &:has(> [data-orientation="horizontal"]) {
+    box-shadow: inset 0 -1px 0 0 var(--tab-border-color);
+  }
+`;
+
 export function TabList<T extends object>({
   children,
+  extra,
   css: _css,
   className,
   ...props
-}: AriaTabListProps<T> & StylableProps) {
+}: AriaTabListProps<T> &
+  StylableProps & {
+    /**
+     * Content aligned to the end of the tab bar, level with the tabs. For
+     * horizontal tab lists — controls that act on the selected tab's panel.
+     */
+    extra?: React.ReactNode;
+  }) {
   const { ref, hasOverflowAtStart, hasOverflowAtEnd } = useHorizontalOverflow();
-  return (
+  const tabList = (
     <AriaTabList
       ref={ref}
       css={css(tabListCSS, _css)}
@@ -219,6 +284,15 @@ export function TabList<T extends object>({
     >
       {children}
     </AriaTabList>
+  );
+  if (extra == null) {
+    return tabList;
+  }
+  return (
+    <div className="tab-list-row" css={tabListRowCSS}>
+      {tabList}
+      <div className="tab-list-row__extra">{extra}</div>
+    </div>
   );
 }
 
@@ -269,16 +343,19 @@ export function LazyTabPanel({
 }
 
 const tabCSS = css`
-  padding: var(--global-dimension-static-size-100)
-    var(--global-dimension-static-size-200);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
   cursor: default;
   outline: none;
   position: relative;
+  // The hover pill and selection indicator sit at z-index -1; isolate the
+  // tab so they paint just behind its label instead of escaping to an outer
+  // stacking context and disappearing behind opaque page backgrounds.
+  isolation: isolate;
   color: var(--global-text-color-700);
   transition: color 150ms ease-out;
   forced-color-adjust: none;
   -webkit-tap-highlight-color: transparent;
-  font-weight: 600;
+  font-weight: 400;
   line-height: var(--global-line-height-s);
   font-size: var(--global-font-size-s);
 
@@ -288,7 +365,7 @@ const tabCSS = css`
   &:before {
     content: "";
     position: absolute;
-    inset: var(--global-dimension-size-50);
+    inset: var(--tab-pill-inset, var(--global-dimension-size-50));
     border-radius: var(--global-rounding-small);
     transition: background 150ms ease-out;
     z-index: -1;
@@ -308,7 +385,7 @@ const tabCSS = css`
   }
 
   &[data-hovered]:not([data-selected]):before {
-    background: var(--global-color-primary-100);
+    background: var(--global-color-primary-50);
   }
 
   &[data-disabled] {
@@ -319,9 +396,9 @@ const tabCSS = css`
   &[data-focus-visible]:after {
     content: "";
     position: absolute;
-    inset: var(--global-dimension-size-50);
+    inset: var(--tab-pill-inset, var(--global-dimension-size-50));
     border-radius: var(--global-rounding-small);
-    border: 2px solid var(--focus-ring-color);
+    border: var(--focus-ring-thickness) solid var(--focus-ring-color);
   }
 `;
 

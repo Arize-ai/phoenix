@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<175afb2ca224ac3338cbf573d924f7b0>>
+ * @generated SignedSource<<f49ad99a4d41d61ba90a467654dd77ee>>
  * @lightSyntaxTransform
  */
 
@@ -193,7 +193,21 @@ return {
                 "plural": false,
                 "selections": [
                   (v5/*:: as any*/),
-                  (v6/*:: as any*/)
+                  (v6/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "gradientStartColor",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "gradientEndColor",
+                    "storageKey": null
+                  }
                 ],
                 "storageKey": null
               },
@@ -262,16 +276,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c3bd212dfa7e5e98a56780f157dfb8bf",
+    "cacheID": "08e2f2fe1f9ce2b75562419084fe3ceb",
     "id": null,
     "metadata": {},
     "name": "ProjectMenuProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectMenuProjectsQuery(\n  $after: String = null\n  $filter: ProjectFilter = null\n  $first: Int = 50\n  $hasSelectedProject: Boolean!\n  $selectedProjectId: ID!\n) {\n  ...ProjectMenu_projects_27hoVN\n}\n\nfragment ProjectMenu_projects_27hoVN on Query {\n  selectedProject: node(id: $selectedProjectId) @include(if: $hasSelectedProject) {\n    __typename\n    id\n    ... on Project {\n      name\n    }\n  }\n  projects(first: $first, after: $after, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectMenuProjectsQuery(\n  $after: String = null\n  $filter: ProjectFilter = null\n  $first: Int = 50\n  $hasSelectedProject: Boolean!\n  $selectedProjectId: ID!\n) {\n  ...ProjectMenu_projects_27hoVN\n}\n\nfragment ProjectMenu_projects_27hoVN on Query {\n  selectedProject: node(id: $selectedProjectId) @include(if: $hasSelectedProject) {\n    __typename\n    id\n    ... on Project {\n      name\n    }\n  }\n  projects(first: $first, after: $after, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "866a8551e0e16d25b8216cdddac490ff";
+(node as any).hash = "acf5af224c355e76f53d918b469f477c";
 
 export default node;

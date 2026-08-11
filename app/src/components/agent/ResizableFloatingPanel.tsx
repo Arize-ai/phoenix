@@ -15,6 +15,7 @@ import {
 } from "@phoenix/components/core/zIndex";
 import type { AgentFabPlacement } from "@phoenix/store/agentStore";
 import type { Bounds, Point, Size } from "@phoenix/types/geometry";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { FAB_INSET } from "./agentFabPositioning";
 import { useModalFloatingLayerInteractivity } from "./useModalFloatingLayerInteractivity";
@@ -148,6 +149,8 @@ function getResizeHandleAriaLabel(edge: ResizeEdge) {
       return "Resize assistant from bottom left";
     case "bottom-right":
       return "Resize assistant from bottom right";
+    default:
+      return assertUnreachable(edge);
   }
 }
 
@@ -547,8 +550,8 @@ const resizeHandleCSS = css`
   touch-action: none;
 
   &:focus-visible {
-    outline: 2px solid var(--global-color-primary);
-    outline-offset: -2px;
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
 
   &[data-layer="modal"] {
@@ -972,7 +975,7 @@ export function ResizableFloatingPanel({
   useLayoutEffect(() => {
     if (layer !== "content") {
       setResolvedBoundary(null);
-      return;
+      return undefined;
     }
 
     let animationFrameId: number | null = null;

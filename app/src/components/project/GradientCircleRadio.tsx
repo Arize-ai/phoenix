@@ -40,8 +40,8 @@ const gradientCircleRadioCSS = css`
 
   /* Focus visible state */
   &[data-focus-visible] {
-    outline: 2px solid var(--global-color-primary);
-    outline-offset: 2px;
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 
   /* Disabled state */
@@ -52,7 +52,7 @@ const gradientCircleRadioCSS = css`
 
   /* Label text styling */
   .gradient-circle-radio__label {
-    font-size: var(--global-dimension-static-font-size-75);
+    font-size: var(--global-dimension-font-size-75);
     color: var(--global-text-color-700);
     text-align: center;
     font-weight: 500;

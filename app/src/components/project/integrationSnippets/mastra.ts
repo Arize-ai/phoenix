@@ -9,6 +9,11 @@ import { Mastra } from "@mastra/core/mastra";
 import { Observability } from "@mastra/observability";
 import { openai } from "@ai-sdk/openai";
 
+// ArizeExporter POSTs to this URL as given, so it must include the OTLP path.
+// Set PHOENIX_COLLECTOR_ENDPOINT to e.g. http://localhost:6006/v1/traces
+const tracesEndpoint =
+  process.env.PHOENIX_COLLECTOR_ENDPOINT || "http://localhost:6006/v1/traces";
+
 const agent = new Agent({
   name: "Assistant",
   instructions: "You are a helpful assistant.",
@@ -23,7 +28,7 @@ const mastra = new Mastra({
         serviceName: "${projectName}",
         exporters: [
           new ArizeExporter({
-            endpoint: \`\${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces\`,
+            endpoint: tracesEndpoint,
             projectName: "${projectName}",
           }),
         ],

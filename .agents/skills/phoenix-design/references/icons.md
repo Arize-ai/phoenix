@@ -6,6 +6,9 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 
 | Noun | Icon | Notes |
 |------|------|-------|
+| Account / user profile | `Icons.Person` | A user's identity, account details, or profile settings. |
+| API key | `Icons.Key` | Personal or system credentials used for programmatic access. |
+| Authorized application / OAuth grant | `Icons.Link2` | An application connected to a user's Phoenix account through OAuth. |
 | Project | `Icons.Grid` | Phoenix projects (the namespace concept). |
 | Trace | `Icons.Trace` | A single trace. |
 | Span | `Icons.Workflow` | A single span. The Lucide-style workflow glyph (two connected nodes) reads as a step in a workflow, which matches how spans relate. |
@@ -26,6 +29,29 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 | Chart type: vertical bars | `Icons.ChartNoAxesColumn` | Lucide-style glyph (three ascending columns, no axis). Preview for a vertical bar / column chart in the metric chart picker. Distinct from `BarChart` (eva glyph used as the generic "charts" action icon). |
 | Chart type: horizontal / ranked bars | `Icons.ChartBarDecreasing` | Lucide-style chart glyph with axis and descending horizontal bars. Preview for a ranked "top N" horizontal bar chart. |
 | Chart type: line | `Icons.ChartLine` | Lucide-style chart glyph with axis. Preview for a line / time-series chart. |
+| MCP (Model Context Protocol) | `McpSVG` (from `@phoenix/components/project/IntegrationIcons`) | The official MCP mark (filled, evenodd). Used for the MCP settings tab and anything referencing the built-in `/mcp` endpoint. |
+| Model | `Icons.Cube` | Lucide box glyph (cube). Used for the Models settings tab and anything representing a model as an entity. Prefer this over `LLMOutput` for the model noun. |
+| Note | `Icons.MessageCircle` | Notes left on a span or session (annotations named `note`). Use `Icons.MessageCirclePlus` for the affordance that adds one. |
+| User preferences | `Icons.Options` | User-selectable theme, timezone, and code presentation preferences. |
+| Custom AI provider | `Icons.Sparkle` | Used for custom provider configuration and its empty state. |
+| PXI ask tool | `Icons.MessagesSquare` | Tool calls that pause for an answer from the user. |
+| PXI command tool | `Icons.Console` | Shell or command execution. |
+| PXI configuration tool | `Icons.Options` | Tools that configure an existing playground or evaluator workflow. |
+| PXI dataset tool | `Icons.Database` | Dataset discovery and mutation tools. |
+| PXI delegation tool | `Icons.Subagent` | Work delegated to a subagent; the split-branch shape points down toward the delegated work. |
+| PXI documentation tool | `Icons.Search` | Direct documentation-file queries. |
+| PXI edit tool | `Icons.Edit2` | Tools that author, edit, submit, or persist user artifacts. |
+| PXI filter tool | `Icons.ListFilter` | Tools that change the visible span filter. |
+| PXI navigation tool | `Icons.ArrowUpRightCorner` | Route lookup and tools that open an editing surface. |
+| PXI read tool | `Icons.ScanText` | Read-only inspection of an existing user artifact. |
+| PXI run tool | `Icons.Play` | Playground and evaluator run actions, including cancellation. |
+| PXI search tool | `Icons.Search` | Searching Phoenix documentation. |
+| PXI skill tool | `Icons.GraduationCap` | Loading a skill or reading one of its resources. |
+| PXI built-in skill | Semantic noun icon | Built-in skills use a noun icon such as `Database` for datasets or `Scale` for evaluators; unknown skills fall back to `GraduationCap`. |
+| PXI time tool | `Icons.Clock` | Reading or changing time context. |
+| PXI visualization tool | `Icons.BarChart` | Rendering generative charts or other data UI. |
+| PXI web tool | `Icons.Globe` | Searching the web or fetching a known web page. |
+| PXI tool (generic) | `Icons.Wrench` | Fallback for unknown tools or tools without a strong semantic category. |
 
 ## When you need an icon
 

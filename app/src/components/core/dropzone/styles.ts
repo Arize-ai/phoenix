@@ -41,6 +41,8 @@ export const fileDropZoneCSS = css`
 
   &[data-focus-visible] {
     border-color: var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
 
   &[data-drop-target] {
@@ -222,10 +224,10 @@ export const fileInputCSS = css`
 
   [slot="description"] {
     font-size: var(--global-font-size-xs);
-    padding-top: var(--global-dimension-static-size-50);
+    padding-top: var(--global-dimension-size-50);
     color: var(--global-text-color-500);
-    line-height: var(--global-dimension-static-font-size-200);
-    min-height: var(--global-dimension-static-font-size-200);
+    line-height: var(--global-dimension-font-size-200);
+    min-height: var(--global-dimension-font-size-200);
     display: inline-block;
   }
 `;

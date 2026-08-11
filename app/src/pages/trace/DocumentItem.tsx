@@ -3,6 +3,7 @@ import { DocumentAttributePostfixes } from "@arizeai/openinference-semantic-conv
 import type { TokenProps, ViewProps } from "@phoenix/components";
 import {
   Card,
+  CopyToClipboardButton,
   ErrorBoundary,
   Flex,
   Heading,
@@ -23,16 +24,16 @@ export function DocumentItem({
   document,
   documentAnnotations,
   backgroundColor,
-  borderColor,
+  borderColor = "default",
   tokenColor,
   spanNodeId,
   documentPosition,
 }: {
   document: AttributeDocument;
   documentAnnotations?: DocumentAnnotation[] | null;
-  backgroundColor: ViewProps["backgroundColor"];
-  borderColor: ViewProps["borderColor"];
-  tokenColor: TokenProps["color"];
+  backgroundColor?: ViewProps["backgroundColor"];
+  borderColor?: ViewProps["borderColor"];
+  tokenColor?: TokenProps["color"];
   spanNodeId?: string;
   documentPosition?: number;
 }) {
@@ -62,6 +63,15 @@ export function DocumentItem({
               )}`}
             </Token>
           )}
+          {/* the content is what a reader reaches for; the whole document is
+              the fallback for a document that recorded none */}
+          <CopyToClipboardButton
+            text={
+              documentContent != null
+                ? documentContent
+                : JSON.stringify(document, null, 2)
+            }
+          />
         </Flex>
       }
     >

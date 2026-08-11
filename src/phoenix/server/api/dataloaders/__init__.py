@@ -37,6 +37,7 @@ from .document_evaluation_summaries import (
 from .document_evaluations import DocumentEvaluationsDataLoader
 from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
 from .evaluator_by_id import EvaluatorByIdDataLoader
+from .experiment_annotation_label_fractions import ExperimentAnnotationLabelFractionsDataLoader
 from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoader
 from .experiment_baseline_tags import ExperimentBaselineTagsDataLoader
 from .experiment_dataset_splits import ExperimentDatasetSplitsDataLoader
@@ -83,8 +84,8 @@ from .session_trace_latency_ms_quantile import SessionTraceLatencyMsQuantileData
 from .span_annotations import SpanAnnotationsDataLoader
 from .span_by_id import SpanByIdDataLoader
 from .span_cost_by_span import SpanCostBySpanDataLoader
-from .span_cost_detail_summary_entries_by_generative_model import (
-    SpanCostDetailSummaryEntriesByGenerativeModelDataLoader,
+from .span_cost_detail_summary_entries_by_model_and_scope import (
+    SpanCostDetailSummaryEntriesByModelAndScopeDataLoader,
 )
 from .span_cost_detail_summary_entries_by_span import SpanCostDetailSummaryEntriesBySpanDataLoader
 from .span_cost_detail_summary_entries_by_trace import SpanCostDetailSummaryEntriesByTraceDataLoader
@@ -111,6 +112,8 @@ from .trace_errors_by_type import TraceErrorsByTypeDataLoader
 from .trace_retention_policy_id_by_project_id import TraceRetentionPolicyIdByProjectIdDataLoader
 from .trace_root_spans import TraceRootSpansDataLoader
 from .trace_span_counts_by_kind import TraceSpanCountsByKindDataLoader
+from .user_credential_counts import UserCredentialCountsDataLoader
+from .user_ids import UserIdsDataLoader
 from .user_roles import UserRolesDataLoader
 from .users import UsersDataLoader
 from .version_authors import VersionAuthorsDataLoader
@@ -184,6 +187,7 @@ class DataLoaders:
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
     evaluator_by_id: EvaluatorByIdDataLoader
+    experiment_annotation_label_fractions: ExperimentAnnotationLabelFractionsDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
     experiment_baseline_tags: ExperimentBaselineTagsDataLoader
     experiment_dataset_splits: ExperimentDatasetSplitsDataLoader
@@ -193,6 +197,7 @@ class DataLoaders:
     experiment_expected_run_counts: ExperimentExpectedRunCountsDataLoader
     last_experiment_errors: LastExperimentErrorsDataLoader
     experiment_fields: TableFieldsDataLoader
+    experiment_tag_fields: TableFieldsDataLoader
     experiment_repeated_run_group_annotation_summaries: (
         ExperimentRepeatedRunGroupAnnotationSummariesDataLoader
     )
@@ -242,13 +247,14 @@ class DataLoaders:
     session_num_traces_with_error: SessionNumTracesWithErrorDataLoader
     session_token_usages: SessionTokenUsagesDataLoader
     session_trace_latency_ms_quantile: SessionTraceLatencyMsQuantileDataLoader
+    session_user_ids: UserIdsDataLoader
     span_annotation_fields: TableFieldsDataLoader
     span_annotations: SpanAnnotationsDataLoader
     span_by_id: SpanByIdDataLoader
     span_cost_by_span: SpanCostBySpanDataLoader
     span_cost_detail_fields: TableFieldsDataLoader
-    span_cost_detail_summary_entries_by_generative_model: (
-        SpanCostDetailSummaryEntriesByGenerativeModelDataLoader
+    span_cost_detail_summary_entries_by_model_and_scope: (
+        SpanCostDetailSummaryEntriesByModelAndScopeDataLoader
     )
     span_cost_detail_summary_entries_by_project_session: (
         SpanCostDetailSummaryEntriesByProjectSessionDataLoader
@@ -281,6 +287,8 @@ class DataLoaders:
     trace_retention_policy_id_by_project_id: TraceRetentionPolicyIdByProjectIdDataLoader
     trace_root_spans: TraceRootSpansDataLoader
     trace_span_counts_by_kind: TraceSpanCountsByKindDataLoader
+    trace_user_ids: UserIdsDataLoader
+    user_credential_counts: UserCredentialCountsDataLoader
     user_roles: UserRolesDataLoader
     user_api_key_fields: TableFieldsDataLoader
     user_fields: TableFieldsDataLoader
@@ -337,6 +345,7 @@ def build_data_loaders(
         document_evaluations=DocumentEvaluationsDataLoader(db),
         document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
         evaluator_by_id=EvaluatorByIdDataLoader(db),
+        experiment_annotation_label_fractions=ExperimentAnnotationLabelFractionsDataLoader(db),
         annotation_summaries=AnnotationSummaryDataLoader(
             db,
             cache_map=(cache_for_dataloaders.annotation_summary if cache_for_dataloaders else None),
@@ -350,6 +359,7 @@ def build_data_loaders(
         experiment_expected_run_counts=ExperimentExpectedRunCountsDataLoader(db),
         last_experiment_errors=LastExperimentErrorsDataLoader(db),
         experiment_fields=TableFieldsDataLoader(db, models.Experiment),
+        experiment_tag_fields=TableFieldsDataLoader(db, models.ExperimentTag),
         experiment_repeated_run_group_annotation_summaries=ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(
             db
         ),
@@ -417,12 +427,13 @@ def build_data_loaders(
         session_num_traces_with_error=SessionNumTracesWithErrorDataLoader(db),
         session_token_usages=SessionTokenUsagesDataLoader(db),
         session_trace_latency_ms_quantile=SessionTraceLatencyMsQuantileDataLoader(db),
+        session_user_ids=UserIdsDataLoader(db, "session"),
         span_annotation_fields=TableFieldsDataLoader(db, models.SpanAnnotation),
         span_annotations=SpanAnnotationsDataLoader(db),
         span_fields=TableFieldsDataLoader(db, models.Span),
         span_by_id=SpanByIdDataLoader(db),
         span_cost_by_span=SpanCostBySpanDataLoader(db),
-        span_cost_detail_summary_entries_by_generative_model=SpanCostDetailSummaryEntriesByGenerativeModelDataLoader(
+        span_cost_detail_summary_entries_by_model_and_scope=SpanCostDetailSummaryEntriesByModelAndScopeDataLoader(
             db
         ),
         span_cost_detail_summary_entries_by_project_session=SpanCostDetailSummaryEntriesByProjectSessionDataLoader(
@@ -465,8 +476,10 @@ def build_data_loaders(
             db, models.ProjectTraceRetentionPolicy
         ),
         trace_root_spans=TraceRootSpansDataLoader(db),
+        trace_user_ids=UserIdsDataLoader(db, "trace"),
         project_by_name=ProjectByNameDataLoader(db),
         project_has_traces=ProjectHasTracesDataLoader(db),
+        user_credential_counts=UserCredentialCountsDataLoader(db),
         users=UsersDataLoader(db),
         user_api_key_fields=TableFieldsDataLoader(db, models.ApiKey),
         user_fields=TableFieldsDataLoader(db, models.User),

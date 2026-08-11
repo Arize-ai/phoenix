@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<01c328027789e7813b8e88e2934e1872>>
+ * @generated SignedSource<<e855df899bc076c32d77250e7ab7ca96>>
  * @lightSyntaxTransform
  */
 
@@ -82,6 +82,7 @@ export type SpansTable_spans$data = {
           readonly traceId: string;
           readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup">;
         };
+        readonly userId: string | null;
         readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
       };
     }>;
@@ -203,10 +204,6 @@ return {
       "name": "first"
     },
     {
-      "kind": "RootArgument",
-      "name": "orphanSpanAsRootSpan"
-    },
-    {
       "defaultValue": true,
       "kind": "LocalArgument",
       "name": "rootSpansOnly"
@@ -283,16 +280,6 @@ return {
         },
         {
           "kind": "Variable",
-          "name": "orphanSpanAsRootSpan",
-          "variableName": "orphanSpanAsRootSpan"
-        },
-        {
-          "kind": "Variable",
-          "name": "rootSpansOnly",
-          "variableName": "rootSpansOnly"
-        },
-        {
-          "kind": "Variable",
           "name": "sort",
           "variableName": "sort"
         },
@@ -337,6 +324,13 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "metadata",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "userId",
                   "storageKey": null
                 },
                 {
@@ -635,6 +629,6 @@ return {
 };
 })();
 
-(node as any).hash = "7a6b7fc962a099a5847db8f15ab8c73d";
+(node as any).hash = "21f75435b9fbc436a63612580f7ceec5";
 
 export default node;

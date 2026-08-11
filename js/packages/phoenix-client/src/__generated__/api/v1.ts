@@ -15,10 +15,10 @@ export interface paths {
          * List annotation configurations
          * @description Retrieve a paginated list of all annotation configurations in the system.
          */
-        get: operations["list_annotation_configs_v1_annotation_configs_get"];
+        get: operations["listAnnotationConfigs"];
         put?: never;
         /** Create an annotation configuration */
-        post: operations["create_annotation_config_v1_annotation_configs_post"];
+        post: operations["createAnnotationConfig"];
         delete?: never;
         options?: never;
         head?: never;
@@ -33,7 +33,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get an annotation configuration by ID or name */
-        get: operations["get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get"];
+        get: operations["getAnnotationConfig"];
         put?: never;
         post?: never;
         delete?: never;
@@ -51,10 +51,10 @@ export interface paths {
         };
         get?: never;
         /** Update an annotation configuration */
-        put: operations["update_annotation_config_v1_annotation_configs__config_id__put"];
+        put: operations["updateAnnotationConfig"];
         post?: never;
         /** Delete an annotation configuration */
-        delete: operations["delete_annotation_config_v1_annotation_configs__config_id__delete"];
+        delete: operations["deleteAnnotationConfig"];
         options?: never;
         head?: never;
         patch?: never;
@@ -423,6 +423,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/datasets/{dataset_identifier}/splits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a dataset split */
+        post: operations["createDatasetSplit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/datasets/{dataset_identifier}/splits/{split_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a dataset split */
+        delete: operations["deleteDatasetSplit"];
+        options?: never;
+        head?: never;
+        /** Update a dataset split */
+        patch: operations["updateDatasetSplit"];
+        trace?: never;
+    };
     "/v1/datasets/{id}/csv": {
         parameters: {
             query?: never;
@@ -595,6 +630,50 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/experiments/{experiment_id}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the tags applied to an experiment
+         * @description List the tags currently pointing at this experiment. Tags are scoped to the experiment's dataset, so a tag appears here only while this experiment owns it.
+         */
+        get: operations["listExperimentTags"];
+        put?: never;
+        /**
+         * Assign a tag to an experiment
+         * @description Assign a tag to an experiment. Tags are scoped to the experiment's dataset and each tag name points at a single experiment, so assigning a tag that another experiment on the same dataset owns atomically moves the tag to this experiment. Re-assigning a tag the experiment already owns is idempotent and replaces the description. Assigning the reserved 'baseline' tag makes this experiment the dataset's baseline; ephemeral experiments cannot become the baseline.
+         */
+        post: operations["setExperimentTag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/experiments/{experiment_id}/tags/{tag_identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a tag from an experiment
+         * @description Remove a tag, identified by its node ID or name, from the experiment that owns it. This operation is idempotent and never steals a tag from another experiment: if the experiment does not currently own the tag, the request is a no-op.
+         */
+        delete: operations["deleteExperimentTag"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1027,7 +1106,11 @@ export interface paths {
         delete: operations["deletePrompt"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update prompt metadata
+         * @description Update a prompt's description and metadata by identifier.
+         */
+        patch: operations["patchPrompt"];
         trace?: never;
     };
     "/v1/projects": {
@@ -1190,7 +1273,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Annotate Span Documents */
+        /** Create span document annotations */
         post: operations["annotateSpanDocuments"];
         delete?: never;
         options?: never;
@@ -1276,6 +1359,136 @@ export interface paths {
          */
         put: operations["upsertOrDeleteSecrets"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/user/api_keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the authenticated user's API keys
+         * @description Retrieve the API keys belonging to the currently authenticated user. The keys themselves are not recoverable and are never included in the response.
+         */
+        get: operations["getUserApiKeys"];
+        put?: never;
+        /**
+         * Create an API key for the authenticated user
+         * @description Create a personal API key for the currently authenticated user. The key inherits the user's role, so it grants no more access than the user already has. Creation requires an access-token session; API keys cannot mint replacement keys. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.
+         */
+        post: operations["createUserApiKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/users/api_keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all user API keys
+         * @description Retrieve API keys belonging to human users across the organization. System API keys are excluded. Restricted to admins.
+         */
+        get: operations["getAllUserApiKeys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/user/api_keys/{api_key_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a user API key
+         * @description Permanently revoke a user API key. Users can revoke their own keys, and admins can revoke keys belonging to other users. The key stops working immediately.
+         */
+        delete: operations["deleteUserApiKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/system/api_keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List system API keys
+         * @description Retrieve all system API keys. System keys belong to the system user rather than to any human, so this endpoint is restricted to admins. The keys themselves are not recoverable and are never included in the response.
+         */
+        get: operations["getSystemApiKeys"];
+        put?: never;
+        /**
+         * Create a system API key
+         * @description Create a system API key. System keys belong to the system user rather than to any human, so this endpoint is restricted to admins. Creation requires an admin access-token session or the configured admin secret; API keys cannot mint keys. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.
+         */
+        post: operations["createSystemApiKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/system/api_keys/{api_key_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a system API key
+         * @description Permanently revoke a system API key. The key stops working immediately. Restricted to admins.
+         */
+        delete: operations["deleteSystemApiKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/chat/completions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * OpenAI-compatible chat completions
+         * @description Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) — callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, minimax, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.
+         *
+         *     **Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.
+         */
+        post: operations["createChatCompletion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1654,6 +1867,49 @@ export interface components {
              */
             auth_method: "ANONYMOUS";
         };
+        /** ApiKey */
+        ApiKey: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Expires At */
+            expires_at?: string | null;
+        };
+        /** ApiKeyData */
+        ApiKeyData: {
+            /**
+             * Name
+             * @description A human-readable name for the API key.
+             */
+            name: string;
+            /**
+             * Description
+             * @description An optional description of what the API key is for.
+             */
+            description?: string | null;
+            /**
+             * Expires At
+             * @description When the API key expires. The key never expires when omitted.
+             */
+            expires_at?: string | null;
+        };
+        /** ApiKeyUser */
+        ApiKeyUser: {
+            /** Id */
+            id: string;
+            /** Username */
+            username: string;
+            /** Email */
+            email: string | null;
+        };
         /**
          * AppContext
          * @description Per-turn browser clock context for resolving relative time requests.
@@ -1781,6 +2037,98 @@ export interface components {
             label: string;
             /** Score */
             score?: number | null;
+        };
+        /** ChatCompletion */
+        ChatCompletion: {
+            /** Id */
+            id: string;
+            /**
+             * Object
+             * @default chat.completion
+             * @constant
+             */
+            object?: "chat.completion";
+            /** Created */
+            created: number;
+            /** Model */
+            model: string;
+            /** Choices */
+            choices: components["schemas"]["ChatCompletionChoice"][];
+            usage: components["schemas"]["ChatCompletionUsage"];
+        };
+        /** ChatCompletionChoice */
+        ChatCompletionChoice: {
+            /**
+             * Index
+             * @default 0
+             */
+            index?: number;
+            message: components["schemas"]["ChatCompletionMessage"];
+            /** Finish Reason */
+            finish_reason: string;
+        };
+        /** ChatCompletionErrorDetail */
+        ChatCompletionErrorDetail: {
+            /** Message */
+            message: string;
+            /** Type */
+            type: string;
+            /** Param */
+            param?: string | null;
+            /** Code */
+            code?: string | null;
+        };
+        /** ChatCompletionErrorResponse */
+        ChatCompletionErrorResponse: {
+            error: components["schemas"]["ChatCompletionErrorDetail"];
+        };
+        /** ChatCompletionMessage */
+        ChatCompletionMessage: {
+            /**
+             * Role
+             * @default assistant
+             * @constant
+             */
+            role?: "assistant";
+            /** Content */
+            content: string;
+        };
+        /** ChatCompletionRequestMessage */
+        ChatCompletionRequestMessage: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "system" | "developer" | "user" | "assistant";
+            /** Content */
+            content: string | components["schemas"]["ChatCompletionTextPart"][];
+        };
+        /** ChatCompletionStreamOptions */
+        ChatCompletionStreamOptions: {
+            /**
+             * Include Usage
+             * @default false
+             */
+            include_usage?: boolean;
+        };
+        /** ChatCompletionTextPart */
+        ChatCompletionTextPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "text";
+            /** Text */
+            text: string;
+        };
+        /** ChatCompletionUsage */
+        ChatCompletionUsage: {
+            /** Prompt Tokens */
+            prompt_tokens: number;
+            /** Completion Tokens */
+            completion_tokens: number;
+            /** Total Tokens */
+            total_tokens: number;
         };
         /**
          * ChatContext
@@ -1948,6 +2296,71 @@ export interface components {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
         };
+        /** CreateApiKeyRequestBody */
+        CreateApiKeyRequestBody: {
+            data: components["schemas"]["ApiKeyData"];
+        };
+        /** CreateApiKeyResponseBody */
+        CreateApiKeyResponseBody: {
+            data: components["schemas"]["CreatedApiKey"];
+        };
+        /**
+         * CreateChatCompletionRequestBody
+         * @example {
+         *       "messages": [
+         *         {
+         *           "content": "You are a helpful assistant.",
+         *           "role": "system"
+         *         },
+         *         {
+         *           "content": "Say hello.",
+         *           "role": "user"
+         *         }
+         *       ],
+         *       "model": "openai:gpt-4o"
+         *     }
+         */
+        CreateChatCompletionRequestBody: {
+            /**
+             * Model
+             * @description Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, minimax, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'.
+             */
+            model: string;
+            /** Messages */
+            messages: components["schemas"]["ChatCompletionRequestMessage"][];
+            /**
+             * Stream
+             * @default false
+             */
+            stream?: boolean;
+            /** Temperature */
+            temperature?: number | null;
+            /** Top P */
+            top_p?: number | null;
+            /** Max Tokens */
+            max_tokens?: number | null;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number | null;
+            /** Stop */
+            stop?: string | string[] | null;
+            /** Frequency Penalty */
+            frequency_penalty?: number | null;
+            /** Presence Penalty */
+            presence_penalty?: number | null;
+            /** Seed */
+            seed?: number | null;
+            /** N */
+            n?: number | null;
+            stream_options?: components["schemas"]["ChatCompletionStreamOptions"] | null;
+            /** Tools */
+            tools?: unknown[] | null;
+            /** Tool Choice */
+            tool_choice?: unknown | null;
+            /** Response Format */
+            response_format?: {
+                [key: string]: unknown;
+            } | null;
+        };
         /** CreateDatasetLabelRequestBody */
         CreateDatasetLabelRequestBody: {
             /**
@@ -1969,6 +2382,40 @@ export interface components {
         /** CreateDatasetLabelResponseBody */
         CreateDatasetLabelResponseBody: {
             data: components["schemas"]["DatasetLabel"];
+        };
+        /** CreateDatasetSplitRequestBody */
+        CreateDatasetSplitRequestBody: {
+            /**
+             * Name
+             * @description A unique name for the split.
+             */
+            name: string;
+            /**
+             * Description
+             * @description An optional description of the split.
+             */
+            description?: string | null;
+            /**
+             * Color
+             * @description An optional hex color for the split (e.g. #33c5e8). Omit for a default.
+             */
+            color?: string | null;
+            /**
+             * Metadata
+             * @description Arbitrary JSON metadata for the split.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Example Ids
+             * @description Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split.
+             */
+            example_ids?: string[];
+        };
+        /** CreateDatasetSplitResponseBody */
+        CreateDatasetSplitResponseBody: {
+            data: components["schemas"]["DatasetSplit"];
         };
         /**
          * CreateExperimentRequestBody
@@ -2142,6 +2589,27 @@ export interface components {
             /** Data */
             data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"] | components["schemas"]["LDAPUser"];
         };
+        /** CreatedApiKey */
+        CreatedApiKey: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Expires At */
+            expires_at?: string | null;
+            /**
+             * Key
+             * @description The API key. This is the only time it is returned; it cannot be recovered from the listing endpoints.
+             */
+            key: string;
+        };
         /**
          * CustomProviderModelSelection
          * @description Chat against a stored custom provider record.
@@ -2237,6 +2705,14 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            source?: components["schemas"]["DatasetExampleSource"] | null;
+        };
+        /** DatasetExampleSource */
+        DatasetExampleSource: {
+            /** Span Id */
+            span_id: string;
+            /** Span Node Id */
+            span_node_id: string;
         };
         /** DatasetLabel */
         DatasetLabel: {
@@ -2248,6 +2724,33 @@ export interface components {
             description: string | null;
             /** Color */
             color: string;
+        };
+        /** DatasetSplit */
+        DatasetSplit: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            /** Color */
+            color: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Example Count */
+            example_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** DatasetVersion */
         DatasetVersion: {
@@ -2706,6 +3209,24 @@ export interface components {
              */
             experiment_id: string;
         };
+        /** ExperimentTag */
+        ExperimentTag: {
+            /**
+             * Id
+             * @description The node ID of the tag
+             */
+            id: string;
+            /**
+             * Name
+             * @description The name of the tag
+             */
+            name: string;
+            /**
+             * Description
+             * @description The description of the tag
+             */
+            description: string | null;
+        };
         /**
          * FileUIPart
          * @description A file part of a message.
@@ -2770,6 +3291,13 @@ export interface components {
             /** Upper Bound */
             upper_bound?: number | null;
         };
+        /** GetAllUserApiKeysResponseBody */
+        GetAllUserApiKeysResponseBody: {
+            /** Data */
+            data: components["schemas"]["UserApiKey"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** GetAnnotationConfigResponseBody */
         GetAnnotationConfigResponseBody: {
             /** Data */
@@ -2781,6 +3309,11 @@ export interface components {
             data: (components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"])[];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** GetApiKeysResponseBody */
+        GetApiKeysResponseBody: {
+            /** Data */
+            data: components["schemas"]["ApiKey"][];
         };
         /** GetDatasetLabelResponseBody */
         GetDatasetLabelResponseBody: {
@@ -3054,6 +3587,11 @@ export interface components {
             data: components["schemas"]["ExperimentRun"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** ListExperimentTagsResponseBody */
+        ListExperimentTagsResponseBody: {
+            /** Data */
+            data: components["schemas"]["ExperimentTag"][];
         };
         /** ListExperimentsResponseBody */
         ListExperimentsResponseBody: {
@@ -3397,6 +3935,28 @@ export interface components {
             message?: string | null;
         };
         /**
+         * PatchPromptRequestBody
+         * @description Fields to update on a prompt. Omit a field to leave it unchanged.
+         */
+        PatchPromptRequestBody: {
+            /**
+             * Description
+             * @description New description for the prompt (null clears the description)
+             */
+            description?: string | null;
+            /**
+             * Metadata
+             * @description New metadata object for the prompt (replaces the existing metadata as a whole)
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        /** PatchPromptResponseBody */
+        PatchPromptResponseBody: {
+            data: components["schemas"]["Prompt"];
+        };
+        /**
          * PhoenixUIMessage
          * @description `UIMessage` with `metadata` narrowed to the Phoenix wire shapes.
          */
@@ -3556,12 +4116,9 @@ export interface components {
          *
          *     ``span_filter`` carries the project-scoped span filter expression when the
          *     span filter field is mounted — empty string when the field is mounted with
-         *     no condition applied, ``None`` when the field is not present at all.
-         *
-         *     ``root_spans_only`` carries the current state of the spans-table root vs.
-         *     all toggle when that toggle is mounted — ``True`` when the table is
-         *     restricted to root spans, ``False`` when it shows every span, ``None``
-         *     when the toggle is not present (e.g. on the traces tab).
+         *     no condition applied, ``None`` when the field is not present at all. It
+         *     describes the view in full, root-span scoping included (which is expressed
+         *     within the filter DSL as ``parent_id is None``).
          */
         ProjectContext: {
             /**
@@ -3573,8 +4130,6 @@ export interface components {
             projectNodeId: string;
             /** Spanfilter */
             spanFilter?: string | null;
-            /** Rootspansonly */
-            rootSpansOnly?: boolean | null;
         };
         /** Prompt */
         Prompt: {
@@ -4597,6 +5152,20 @@ export interface components {
              */
             dataset_label_ids?: string[];
         };
+        /** SetExperimentTagRequestBody */
+        SetExperimentTagRequestBody: {
+            /** @description The name of the tag to assign, e.g. 'baseline'. If another experiment on the same dataset already owns this tag, the tag is moved to this experiment. */
+            name: components["schemas"]["Identifier"];
+            /**
+             * Description
+             * @description An optional description of the tag (replaces any existing description)
+             */
+            description?: string | null;
+        };
+        /** SetExperimentTagResponseBody */
+        SetExperimentTagResponseBody: {
+            data: components["schemas"]["ExperimentTag"];
+        };
         /** SetProjectAnnotationConfigsRequestBody */
         SetProjectAnnotationConfigsRequestBody: {
             /**
@@ -5532,6 +6101,45 @@ export interface components {
         UpdateDatasetLabelResponseBody: {
             data: components["schemas"]["DatasetLabel"];
         };
+        /** UpdateDatasetSplitRequestBody */
+        UpdateDatasetSplitRequestBody: {
+            /**
+             * Name
+             * @description A new unique name for the split.
+             */
+            name?: string | null;
+            /**
+             * Description
+             * @description A new description, or null to clear it.
+             */
+            description?: string | null;
+            /**
+             * Color
+             * @description A new hex color for the split.
+             */
+            color?: string | null;
+            /**
+             * Metadata
+             * @description New JSON metadata that replaces the existing metadata.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Add Example Ids
+             * @description Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op.
+             */
+            add_example_ids?: string[];
+            /**
+             * Remove Example Ids
+             * @description Dataset example IDs (GlobalIDs) to remove from the split.
+             */
+            remove_example_ids?: string[];
+        };
+        /** UpdateDatasetSplitResponseBody */
+        UpdateDatasetSplitResponseBody: {
+            data: components["schemas"]["DatasetSplit"];
+        };
         /**
          * UpdateExperimentRequestBody
          * @description Fields to update on an experiment. Omit a field to leave it unchanged.
@@ -5665,6 +6273,23 @@ export interface components {
             /** Deleted Keys */
             deleted_keys: string[];
         };
+        /** UserApiKey */
+        UserApiKey: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Expires At */
+            expires_at?: string | null;
+            user: components["schemas"]["ApiKeyUser"];
+        };
         /**
          * UserMessageMetadata
          * @description Wire schema for metadata the browser attaches to outgoing user messages.
@@ -5795,7 +6420,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list_annotation_configs_v1_annotation_configs_get: {
+    listAnnotationConfigs: {
         parameters: {
             query?: {
                 /** @description Cursor for pagination (base64-encoded annotation config ID) */
@@ -5838,7 +6463,7 @@ export interface operations {
             };
         };
     };
-    create_annotation_config_v1_annotation_configs_post: {
+    createAnnotationConfig: {
         parameters: {
             query?: never;
             header?: never;
@@ -5880,7 +6505,7 @@ export interface operations {
             };
         };
     };
-    get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get: {
+    getAnnotationConfig: {
         parameters: {
             query?: never;
             header?: never;
@@ -5921,7 +6546,7 @@ export interface operations {
             };
         };
     };
-    update_annotation_config_v1_annotation_configs__config_id__put: {
+    updateAnnotationConfig: {
         parameters: {
             query?: never;
             header?: never;
@@ -5966,7 +6591,7 @@ export interface operations {
             };
         };
     };
-    delete_annotation_config_v1_annotation_configs__config_id__delete: {
+    deleteAnnotationConfig: {
         parameters: {
             query?: never;
             header?: never;
@@ -7384,6 +8009,184 @@ export interface operations {
             };
         };
     };
+    createDatasetSplit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either dataset ID or dataset name. */
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDatasetSplitRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateDatasetSplitResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset or example not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description A dataset split with the given name already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteDatasetSplit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either dataset ID or dataset name. */
+                dataset_identifier: string;
+                /** @description The ID (GlobalID) of the dataset split. */
+                split_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset or split not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset split ID */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    updateDatasetSplit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either dataset ID or dataset name. */
+                dataset_identifier: string;
+                /** @description The ID (GlobalID) of the dataset split. */
+                split_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDatasetSplitRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateDatasetSplitResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset, split, or example not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description A dataset split with the given name already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     getDatasetCsv: {
         parameters: {
             query?: {
@@ -7954,6 +8757,160 @@ export interface operations {
             };
         };
     };
+    listExperimentTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the experiment */
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tags currently applied to the experiment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListExperimentTagsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid experiment ID */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    setExperimentTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the experiment */
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetExperimentTagRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The tag as it now applies to the experiment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetExperimentTagResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid experiment ID or request body, or the experiment is ephemeral and cannot be tagged as the baseline */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteExperimentTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the experiment */
+                experiment_id: string;
+                /** @description The node ID or name of the tag to remove */
+                tag_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned on successful tag removal */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid experiment ID or tag identifier */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     listExperimentRuns: {
         parameters: {
             query?: {
@@ -8419,6 +9376,8 @@ export interface operations {
                 end_time?: string | null;
                 /** @description Filter by one or more trace IDs */
                 trace_id?: string[] | null;
+                /** @description Filter by one or more span IDs */
+                span_id?: string[] | null;
                 /** @description Filter by parent span ID. Use "null" to get root spans only. */
                 parent_id?: string | null;
                 /** @description Filter by span name(s) */
@@ -8488,6 +9447,8 @@ export interface operations {
                 end_time?: string | null;
                 /** @description Filter by one or more trace IDs */
                 trace_id?: string[] | null;
+                /** @description Filter by one or more span IDs */
+                span_id?: string[] | null;
                 /** @description Filter by parent span ID. Use "null" to get root spans only. */
                 parent_id?: string | null;
                 /** @description Filter by span name(s) */
@@ -9229,6 +10190,60 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    patchPrompt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the prompt, i.e. name or ID. */
+                prompt_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchPromptRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The updated prompt */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatchPromptResponseBody"];
+                };
             };
             /** @description Forbidden */
             403: {
@@ -10092,6 +11107,428 @@ export interface operations {
                 };
                 content: {
                     "text/plain": string;
+                };
+            };
+        };
+    };
+    getUserApiKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The authenticated user's API keys. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetApiKeysResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createUserApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateApiKeyRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The newly created API key, including the key itself. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateApiKeyResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getAllUserApiKeys: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (a UserApiKey GlobalID). */
+                cursor?: string | null;
+                /** @description The maximum number of API keys to return (at most 1000). */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A paginated list of user API keys and their owners. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetAllUserApiKeysResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteUserApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the API key. */
+                api_key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned on successful deletion. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description API key not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getSystemApiKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The system API keys. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetApiKeysResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createSystemApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateApiKeyRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The newly created system API key, including the key itself. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateApiKeyResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteSystemApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the system API key. */
+                api_key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned on successful deletion. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description System API key not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createChatCompletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateChatCompletionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatCompletion"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatCompletionErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatCompletionErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatCompletionErrorResponse"];
                 };
             };
         };

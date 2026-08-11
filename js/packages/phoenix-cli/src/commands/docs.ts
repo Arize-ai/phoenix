@@ -4,12 +4,12 @@ import { Command } from "commander";
 
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
-import { collectString } from "../optionParsers";
+import { collectString, parsePositiveIntOption } from "../optionParsers";
 
 const LLMS_TXT_URL = "https://arize.com/docs/phoenix/llms.txt";
 const PHOENIX_DOCS_PREFIX = "https://arize.com/docs/phoenix/";
-const DEFAULT_OUTPUT_DIR = ".px/docs";
-const DEFAULT_WORKERS = 10;
+export const DEFAULT_OUTPUT_DIR = ".px/docs";
+export const DEFAULT_WORKERS = 10;
 const ALL_WORKFLOWS = "all";
 
 export interface DocEntry {
@@ -19,12 +19,59 @@ export interface DocEntry {
   section: string;
 }
 
+/**
+ * Options for `px docs fetch` (and its `px docs` parent-command alias, which
+ * shares the same options and handler). This talks to the public Phoenix
+ * docs site, not a Phoenix server, so it does not extend the shared
+ * connection/format option bases.
+ */
 interface DocsFetchOptions {
+  /**
+   * `--workflow <name>`: Filter by workflow category, repeatable. Valid
+   * values are the keys of `WORKFLOW_SECTION_MAP` (`tracing`, `evaluation`,
+   * `datasets`, `prompts`, `integrations`, `sdk`, `self-hosting`) plus `all`.
+   * Commander's own default is `[]`; when empty, the handler falls back to
+   * `DEFAULT_WORKFLOWS` (`tracing`, `evaluation`, `datasets`, `prompts`,
+   * `integrations`).
+   *
+   * @example ["tracing", "evaluation"]
+   */
   workflow?: string[];
+  /**
+   * `--output-dir <dir>`: Directory downloaded docs are written into.
+   * Defaults to `.px/docs`.
+   *
+   * @example "./docs/phoenix"
+   */
   outputDir: string;
+  /**
+   * `--dry-run`: Discover and print matching pages without downloading or
+   * writing anything to disk. Defaults to `false`.
+   *
+   * @example true // px docs fetch --dry-run
+   */
   dryRun?: boolean;
+  /**
+   * `--refresh`: Delete `outputDir` before downloading, so pages removed
+   * from a previous fetch don't linger. Defaults to `false`.
+   *
+   * @example true // px docs fetch --refresh
+   */
   refresh?: boolean;
+  /**
+   * `--strict`: Exit with `ExitCode.FAILURE` if any page fails to download.
+   * Without it, failed downloads are printed to stderr but the command still
+   * exits successfully. Defaults to `false`.
+   *
+   * @example true // px docs fetch --strict
+   */
   strict?: boolean;
+  /**
+   * `--workers <n>`: Number of pages downloaded concurrently, in batches of
+   * this size. Defaults to 10.
+   *
+   * @example 20
+   */
   workers: number;
 }
 
@@ -44,6 +91,18 @@ const WORKFLOW_SECTION_MAP: Record<string, string[]> = {
 };
 
 const VALID_WORKFLOWS = Object.keys(WORKFLOW_SECTION_MAP);
+
+/** Shared by every command that takes `--workers`, so the rejection reads alike. */
+export const WORKERS_REQUIREMENT = "--workers must be a positive integer.";
+
+/**
+ * Worded once, for every entry point that can be handed a bad `--workflow` —
+ * `px docs fetch` and the setup prefetch both warn with this, so the same typo
+ * does not read two different ways.
+ */
+export function unknownWorkflowWarning(name: string): string {
+  return `Warning: unknown workflow "${name}". Valid values: ${VALID_WORKFLOWS.join(", ")}, all`;
+}
 
 /** The default set fetched when no --workflow is specified. */
 const DEFAULT_WORKFLOWS = [
@@ -306,43 +365,114 @@ function formatEntryLine(entry: DocEntry, target: string): string {
   return `  - ${entry.title} [${section}] -> ${target}`;
 }
 
+/**
+ * Resolve the requested workflows, falling back to {@link DEFAULT_WORKFLOWS}
+ * when none were given, and report any names that aren't recognized so the
+ * caller can warn without failing.
+ */
+export function resolveWorkflows(workflows?: string[]): {
+  workflows: string[];
+  unknown: string[];
+} {
+  const resolved =
+    workflows && workflows.length > 0 ? workflows : DEFAULT_WORKFLOWS;
+  const unknown = resolved.filter((workflow) => {
+    const key = workflow.toLowerCase();
+    return key !== ALL_WORKFLOWS && !VALID_WORKFLOWS.includes(key);
+  });
+  return { workflows: [...resolved], unknown };
+}
+
+/**
+ * A non-2xx response from the docs index. Distinct from the `TypeError` fetch
+ * throws for a refused connection, but both mean the same thing to a caller —
+ * the docs site could not be read — so both exit `NETWORK_ERROR`.
+ */
+export class DocsIndexError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DocsIndexError";
+  }
+}
+
+/**
+ * Fetch and parse the docs index. Throws on a network failure or non-2xx
+ * response — callers decide whether that is fatal (`px docs fetch`) or a
+ * non-fatal warning (setup's prefetch).
+ */
+export async function fetchDocsIndex(): Promise<DocEntry[]> {
+  const response = await fetch(LLMS_TXT_URL);
+  if (!response.ok) {
+    throw new DocsIndexError(
+      `Failed to fetch llms.txt: HTTP ${response.status}`
+    );
+  }
+  return parseLlmsTxt(await response.text());
+}
+
+export interface DownloadDocsOptions {
+  outputDir: string;
+  workers: number;
+  /** Clear `outputDir` first, so pages dropped upstream don't linger. */
+  refresh?: boolean;
+}
+
+/**
+ * Download `entries` into `outputDir` and write the index files. Returns the
+ * per-entry outcome rather than exiting, so both `px docs fetch` and setup's
+ * prefetch can report failures in their own voice.
+ */
+export async function downloadDocs(
+  entries: DocEntry[],
+  { outputDir, workers, refresh }: DownloadDocsOptions
+): Promise<{
+  succeeded: DocEntry[];
+  failed: Array<{ entry: DocEntry; error: string }>;
+}> {
+  if (refresh) {
+    await fsPromises.rm(outputDir, { recursive: true, force: true });
+  }
+  await fsPromises.mkdir(outputDir, { recursive: true });
+
+  const { succeeded, failed } = await fetchWithConcurrency(
+    entries,
+    outputDir,
+    workers
+  );
+  if (succeeded.length > 0) {
+    await writeIndexFiles(succeeded, outputDir);
+  }
+  return { succeeded, failed };
+}
+
 async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
+  // `parsePositiveIntOption` yields NaN for a value a worker pool can't run on.
+  if (Number.isNaN(options.workers)) {
+    writeError({ message: WORKERS_REQUIREMENT });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
   // Fetch llms.txt index
-  let response: Response;
+  let indexEntries: DocEntry[];
   try {
-    response = await fetch(LLMS_TXT_URL);
+    indexEntries = await fetchDocsIndex();
   } catch (error) {
+    if (error instanceof DocsIndexError) {
+      writeError({ message: error.message });
+      process.exit(ExitCode.NETWORK_ERROR);
+    }
     const message =
       error instanceof Error ? error.message : "Unknown error occurred";
     writeError({ message: `Error fetching llms.txt: ${message}` });
     process.exit(getExitCodeForError(error));
   }
-  if (!response.ok) {
-    writeError({
-      message: `Failed to fetch llms.txt: HTTP ${response.status}`,
-    });
-    process.exit(ExitCode.NETWORK_ERROR);
-  }
   writeOutput({ message: `Fetched docs index: ${LLMS_TXT_URL}` });
-  const indexContent = await response.text();
 
-  // Parse and filter
-  let entries = parseLlmsTxt(indexContent);
-
-  const workflows =
-    options.workflow && options.workflow.length > 0
-      ? options.workflow
-      : DEFAULT_WORKFLOWS;
-
-  for (const workflow of workflows) {
-    const key = workflow.toLowerCase();
-    if (key !== ALL_WORKFLOWS && !VALID_WORKFLOWS.includes(key)) {
-      writeError({
-        message: `Warning: unknown workflow "${workflow}". Valid values: ${VALID_WORKFLOWS.join(", ")}, all`,
-      });
-    }
+  const { workflows, unknown } = resolveWorkflows(options.workflow);
+  for (const workflow of unknown) {
+    writeError({ message: unknownWorkflowWarning(workflow) });
   }
-  entries = filterByWorkflows(entries, workflows);
+  const entries = filterByWorkflows(indexEntries, workflows);
   writeOutput({ message: `Workflows: ${workflows.join(", ")}` });
 
   if (entries.length === 0) {
@@ -363,24 +493,11 @@ async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
     return;
   }
 
-  // Refresh — clear output dir
-  if (options.refresh) {
-    await fsPromises.rm(options.outputDir, { recursive: true, force: true });
-  }
-
-  await fsPromises.mkdir(options.outputDir, { recursive: true });
-
-  // Fetch and save
-  const { succeeded, failed } = await fetchWithConcurrency(
-    entries,
-    options.outputDir,
-    options.workers
-  );
-
-  // Write index files for successfully fetched entries
-  if (succeeded.length > 0) {
-    await writeIndexFiles(succeeded, options.outputDir);
-  }
+  const { succeeded, failed } = await downloadDocs(entries, {
+    outputDir: options.outputDir,
+    workers: options.workers,
+    refresh: options.refresh,
+  });
 
   writeOutput({
     message: `Discovered ${entries.length} page(s), wrote ${succeeded.length} page(s)`,
@@ -434,7 +551,7 @@ function addDocsOptions(command: Command): Command {
     .option(
       "--workers <n>",
       "Number of concurrent workers for docs downloads",
-      (v: string) => parseInt(v, 10),
+      parsePositiveIntOption,
       DEFAULT_WORKERS
     );
 }

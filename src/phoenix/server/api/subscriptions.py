@@ -84,53 +84,53 @@ async def _stream_single_chat_completion(
     span_cost_calculator: SpanCostCalculator,
     otel_context: OtelContext,
 ) -> ChatStream:
-    tracer = Tracer(span_cost_calculator=span_cost_calculator)
-    try:
-        messages = prompt_chat_template_to_playground_messages(
-            input.prompt_version.template.to_orm()
-        )
-        if template_options := input.template:
-            messages = formatted_messages(
-                messages=messages,
-                template_format=template_options.format,
-                template_variables=cast(Mapping[str, Any], template_options.variables),
+    async with Tracer(span_cost_calculator=span_cost_calculator) as tracer:
+        try:
+            messages = prompt_chat_template_to_playground_messages(
+                input.prompt_version.template.to_orm()
             )
-        invocation_parameters = input.prompt_version.invocation_parameters.to_orm()
-        tools = input.prompt_version.tools.to_orm() if input.prompt_version.tools else None
-        response_format = (
-            input.prompt_version.response_format.to_orm()
-            if input.prompt_version.response_format
-            else None
-        )
+            if template_options := input.template:
+                messages = formatted_messages(
+                    messages=messages,
+                    template_format=template_options.format,
+                    template_variables=cast(Mapping[str, Any], template_options.variables),
+                )
+            invocation_parameters = input.prompt_version.invocation_parameters.to_orm()
+            tools = input.prompt_version.tools.to_orm() if input.prompt_version.tools else None
+            response_format = (
+                input.prompt_version.response_format.to_orm()
+                if input.prompt_version.response_format
+                else None
+            )
 
-        async for chunk in llm_client.chat_completion_create(
-            messages=messages,
-            tools=tools,
-            response_format=response_format,
-            invocation_parameters=invocation_parameters,
-            tracer=tracer,
-            otel_context=otel_context,
-            stream_model_output=input.stream_model_output,
-        ):
-            chunk.repetition_number = repetition_number
-            yield chunk
-    except Exception as error:
-        yield ChatCompletionSubscriptionError(
-            message=str(error),
-            repetition_number=repetition_number,
-        )
+            async for chunk in llm_client.chat_completion_create(
+                messages=messages,
+                tools=tools,
+                response_format=response_format,
+                invocation_parameters=invocation_parameters,
+                tracer=tracer,
+                otel_context=otel_context,
+                stream_model_output=input.stream_model_output,
+            ):
+                chunk.repetition_number = repetition_number
+                yield chunk
+        except Exception as error:
+            yield ChatCompletionSubscriptionError(
+                message=str(error),
+                repetition_number=repetition_number,
+            )
 
-    db_traces = tracer.get_db_traces(project_id=project_id)
-    async with db() as session:
-        session.add_all(db_traces)
-        await session.flush()
-    if db_traces and db_traces[0].spans:
-        db_span = db_traces[0].spans[0]
-        yield ChatCompletionSubscriptionResult(
-            span=Span(id=db_span.id, db_record=db_span),
-            repetition_number=repetition_number,
-        )
-        on_span_insertion()
+        db_traces = tracer.get_db_traces(project_id=project_id)
+        async with db() as session:
+            session.add_all(db_traces)
+            await session.flush()
+        if db_traces and db_traces[0].spans:
+            db_span = db_traces[0].spans[0]
+            yield ChatCompletionSubscriptionResult(
+                span=Span(id=db_span.id, db_record=db_span),
+                repetition_number=repetition_number,
+            )
+            on_span_insertion()
 
 
 async def _cleanup_chat_completion_resources(

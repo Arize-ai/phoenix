@@ -1,0 +1,160 @@
+---
+title: "Kiro"
+description: "Trace Kiro CLI agent turns, tool calls, and credit usage in Phoenix."
+keywords: ["kiro", "kiro tracing", "kiro cli", "phoenix", "agent tracing"]
+---
+
+> Trace Kiro CLI agent turns, tool calls, and credit usage in Phoenix for full observability.
+
+Trace your [Kiro](https://kiro.dev) CLI sessions in Phoenix with the [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit — every turn shows up as a trace with the model call, each tool it runs, credit cost, and turn duration, grouped into its session. No application code changes required: the toolkit registers hooks on a Kiro agent and streams [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix.
+
+## Launch Phoenix
+
+The fastest way to get started with Phoenix is by signing up for a [free Phoenix Cloud account](https://app.arize.com/auth/phoenix/signup). If you prefer, you can also run Phoenix in a [notebook](/docs/phoenix/environments#notebooks), [self-host it](/docs/phoenix/environments#container), or use it directly from your [terminal](/docs/phoenix/environments#terminal).
+
+Go to the settings page in your Phoenix instance to find your **endpoint** and **API key**. A self-hosted Phoenix defaults to `http://localhost:6006`; the API key is only required when auth is enabled.
+
+## Install
+
+The **curl installer** is the simplest — it runs a short wizard that saves your Phoenix credentials for you. Use a **local clone** if you'd rather run the installer from a checkout of the source.
+
+### Curl installer (recommended)
+
+**macOS / Linux:**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- kiro
+```
+
+**Windows (PowerShell):**
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.bat -OutFile $env:TEMP\install.bat
+& $env:TEMP\install.bat kiro
+```
+
+### Local clone
+
+```bash
+git clone https://github.com/Arize-ai/coding-harness-tracing.git
+cd coding-harness-tracing
+./install.sh kiro          # macOS / Linux
+install.bat kiro           # Windows
+```
+
+The installer prompts you through:
+
+1. **Agent name** — the Kiro agent to install hooks into (default: `arize-traced`)
+1. **Set as default** — whether to run `kiro-cli agent set-default <name>` so the agent is used by default
+1. **Backend** — select **Phoenix** and enter your endpoint and optional API key
+1. **Project name** — project name in your backend (default: `kiro`)
+1. **User ID** — optional user identifier added to all spans
+1. **Logging** — whether to include prompt text, tool content, and tool details in spans
+
+Once installed, run Kiro as usual. If you set the traced agent as the default during install:
+
+```bash
+kiro-cli chat
+```
+
+Otherwise, point Kiro at the traced agent explicitly:
+
+```bash
+kiro-cli chat --agent arize-traced
+```
+
+## Configuration
+
+Credentials live under `harnesses.kiro` in `~/.arize/harness/config.json` (written by the installer). Environment variables override values in `config.json` and can be set in your shell profile so they apply to every Kiro session.
+
+```bash
+export PHOENIX_ENDPOINT="http://localhost:6006"
+export PHOENIX_API_KEY="<your-api-key>"   # optional, only if auth is enabled
+export PHOENIX_PROJECT="kiro"
+export ARIZE_TRACE_ENABLED="true"
+```
+
+On the Phoenix backend, set the project name with `PHOENIX_PROJECT` (or `PHOENIX_PROJECT_NAME`); `ARIZE_PROJECT_NAME` is Arize-only and ignored here. `ARIZE_TRACE_ENABLED` is a backend-agnostic harness setting and keeps the `ARIZE_` prefix regardless of destination.
+
+### Redaction controls
+
+Each `ARIZE_LOG_*` flag accepts `"true"` or `"false"` and defaults to `"true"`. Set to `"false"` to opt out per category:
+
+```bash
+export ARIZE_LOG_PROMPTS="false"
+export ARIZE_LOG_TOOL_DETAILS="false"
+export ARIZE_LOG_TOOL_CONTENT="false"
+```
+
+| Flag | Redacts |
+| :--- | :------ |
+| `ARIZE_LOG_PROMPTS` | User prompt and assistant response text |
+| `ARIZE_LOG_TOOL_DETAILS` | Tool names and arguments |
+| `ARIZE_LOG_TOOL_CONTENT` | Tool call output content |
+
+The same flags can be set in `config.json` under `harnesses.kiro.logging` as `log_prompts`, `log_tool_details`, and `log_tool_content` — env vars take precedence.
+
+## Observe
+
+Once tracing is enabled, Kiro activity is streamed to Phoenix. You'll see:
+
+- **Turn traces** — each agent turn (user prompt to assistant response) as a parent LLM span
+- **Tool call spans** — one per pre/post tool event pair, parented to the LLM turn
+- **Session grouping** — all turns from the same Kiro session grouped by `session.id`
+- **Credit cost** — Kiro meters in credits rather than tokens; cost is captured as `kiro.cost.credits`
+- **Model and duration** — `llm.model_name`, `kiro.turn_duration_ms`, and `kiro.context_usage_percentage` from the session sidecar
+
+### Span attributes
+
+LLM spans are enriched from the session sidecar at `~/.kiro/sessions/cli/<session_id>.json` with model name, cost in credits, metering usage, and turn duration. Enrichment is fail-soft — if the sidecar is unavailable, the span is emitted with basic attributes only.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| `session.id` | Kiro session UUID |
+| `llm.model_name` | Model ID from the session sidecar |
+| `kiro.cost.credits` | Cost in credits from metering data |
+| `kiro.metering_usage` | Full metering usage JSON |
+| `kiro.turn_duration_ms` | Turn duration in milliseconds |
+| `kiro.agent_name` | Name of the Kiro agent |
+| `kiro.context_usage_percentage` | Context window usage percentage |
+
+## Known limitations
+
+- **Token counts are 0.** Kiro CLI does not report prompt or completion token counts in current versions and meters in credits instead. Token count attributes are omitted when 0; see `kiro.cost.credits`.
+- **FIFO tool matching.** Kiro does not expose a tool-call ID, so pre/post tool events are matched using a FIFO stack. This assumes serial tool execution within a session.
+- **Per-workspace agents not supported.** Only global agents under `~/.kiro/agents/` are instrumented.
+
+## Reference
+
+For the full list of environment variables, default file paths, and troubleshooting steps, see the [Kiro tracing README](https://github.com/Arize-ai/coding-harness-tracing/blob/main/tracing/kiro/README.md).
+
+## Uninstall
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- uninstall kiro
+```
+
+Uninstall removes hook entries from every Kiro agent file. If the `arize-traced` agent was created by the installer, that agent file is deleted; pre-existing agents are preserved.
+
+## Resources
+
+<CardGroup>
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/coding-harness-tracing"
+    title="Arize Coding Harness Tracing"
+    horizontal
+  />
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/openinference"
+    title="OpenInference"
+    horizontal
+  />
+  <Card
+    icon="book-open"
+    href="https://kiro.dev"
+    title="Kiro Documentation"
+    horizontal
+  />
+</CardGroup>

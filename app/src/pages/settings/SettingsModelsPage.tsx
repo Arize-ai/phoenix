@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   DebouncedSearch,
+  DocumentationHelp,
   Flex,
   ListBox,
   Popover,
@@ -43,7 +44,7 @@ export function SettingsModelsPage() {
   );
 
   return (
-    <Flex direction="column" gap="size-200">
+    <Flex direction="column" gap="size-200" flex="1 1 auto" minHeight={0}>
       <Flex gap="size-200" alignItems="center" justifyContent="space-between">
         <DebouncedSearch
           aria-label="Search models"
@@ -80,6 +81,15 @@ export function SettingsModelsPage() {
       </Flex>
       <Card
         title="Models"
+        titleExtra={
+          <DocumentationHelp topic="modelPricing">
+            Manage the model matching rules and token prices Phoenix uses to
+            calculate costs.
+          </DocumentationHelp>
+        }
+        flex="1 1 auto"
+        minHeight={0}
+        scrollBody
         extra={
           <Flex direction="row" gap="size-200" alignItems="center">
             <Text color="text-500" size="S">

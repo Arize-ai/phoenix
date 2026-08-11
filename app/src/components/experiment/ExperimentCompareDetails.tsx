@@ -163,7 +163,7 @@ export function ExperimentCompareDetails({
                 }
               }
             }
-            experimentAnnotationSummaries {
+            experimentAnnotationSummaries(includeEphemeral: true) {
               annotationName
               minScore
               maxScore
@@ -423,8 +423,8 @@ export function ExperimentRunOutputs() {
               flex: 1;
               overflow: auto;
               display: flex;
-              gap: var(--global-dimension-static-size-200);
-              padding: var(--global-dimension-static-size-200);
+              gap: var(--global-dimension-size-200);
+              padding: var(--global-dimension-size-200);
               > li {
                 flex: 1 1 0;
                 min-width: 500px;
@@ -540,9 +540,9 @@ function ExperimentRunOutputsSidebar() {
     <div
       css={css`
         flex: none;
-        font-size: var(--global-dimension-static-font-size-100);
+        font-size: var(--global-dimension-font-size-100);
         color: var(--global-color-gray-700);
-        padding: var(--global-dimension-static-size-200);
+        padding: var(--global-dimension-size-200);
         overflow: auto;
         height: 100%;
         box-sizing: border-box;
@@ -1144,12 +1144,12 @@ export function ExperimentRunAnnotations({
     useExperimentCompareDetailsContext();
 
   const annotationConfigsByName = useMemo(() => {
-    return annotationConfigs.reduce(
+    return annotationConfigs.reduce<Record<string, AnnotationConfig>>(
       (acc, config) => {
         acc[config.name] = config;
         return acc;
       },
-      {} as Record<string, AnnotationConfig>
+      {}
     );
   }, [annotationConfigs]);
 

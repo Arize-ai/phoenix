@@ -22,6 +22,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models import Model as PydanticAIModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.config import (
     get_env_allow_external_resources,
@@ -49,7 +50,7 @@ from phoenix.server.types import CanPutItem, DbSessionFactory
 
 
 @asynccontextmanager
-async def _unavailable_db_session(_: Any) -> AsyncIterator[Any]:
+async def _unavailable_db_session() -> AsyncIterator[AsyncSession]:
     raise RuntimeError("PXI eval harness does not provide a Phoenix database.")
     yield
 
@@ -61,6 +62,7 @@ class _NoOpEventQueue:
 
 DEFAULT_ASSISTANT_PROVIDER = "OPENAI"
 DEFAULT_ASSISTANT_MODEL = "gpt-5.4"
+DEFAULT_ASSISTANT_OPENAI_API_TYPE = "responses"
 DEFAULT_PROJECT_NODE_ID = "UHJvamVjdDox"
 ENV_ASSISTANT_PROVIDER = "PHOENIX_AGENTS_ASSISTANT_PROVIDER"
 ENV_ASSISTANT_MODEL = "PHOENIX_AGENTS_ASSISTANT_MODEL"
@@ -129,7 +131,7 @@ def _warn_placeholder_api_key(provider: str, base_url: str) -> None:
 async def _build_model() -> PydanticAIModel:
     provider = os.getenv(ENV_ASSISTANT_PROVIDER, DEFAULT_ASSISTANT_PROVIDER).upper()
     model_name = os.getenv(ENV_ASSISTANT_MODEL, DEFAULT_ASSISTANT_MODEL)
-    openai_api_type = os.getenv(ENV_ASSISTANT_OPENAI_API_TYPE, "responses")
+    openai_api_type = os.getenv(ENV_ASSISTANT_OPENAI_API_TYPE, DEFAULT_ASSISTANT_OPENAI_API_TYPE)
     if openai_api_type not in ("chat_completions", "responses"):
         raise RuntimeError(f"Unsupported {ENV_ASSISTANT_OPENAI_API_TYPE}: {openai_api_type}")
     typed_openai_api_type = cast(Literal["chat_completions", "responses"], openai_api_type)
@@ -229,7 +231,6 @@ def _default_contexts() -> ResolvedContexts:
             type="project",
             project_node_id=DEFAULT_PROJECT_NODE_ID,
             span_filter="",
-            root_spans_only=False,
         )
     )
     return contexts

@@ -20,16 +20,10 @@ import {
   buildAnnotationMutationResult,
   getAnnotationMutationHelpText,
   normalizeAnnotationInput,
-} from "./annotationMutationUtils";
+} from "./annotationMutations";
 import { chunkArray } from "./chunkArray";
-import {
-  formatAnnotationMutationOutput,
-  type OutputFormat as AnnotationMutationOutputFormat,
-} from "./formatAnnotationMutation";
-import {
-  formatNoteMutationOutput,
-  type OutputFormat as NoteMutationOutputFormat,
-} from "./formatNoteMutation";
+import { formatAnnotationMutationOutput } from "./formatAnnotationMutation";
+import { formatNoteMutationOutput } from "./formatNoteMutation";
 import {
   formatSessionOutput,
   formatSessionsOutput,
@@ -41,7 +35,14 @@ import {
   buildNoteMutationResult,
   NOTE_ANNOTATION_NAME,
   normalizeNoteText,
-} from "./noteMutationUtils";
+} from "./noteMutations";
+import type {
+  AddNoteOptions,
+  AnnotationInclusionOptions,
+  AnnotateOptions,
+  DeleteOptions,
+  ProjectScopedOptions,
+} from "./options";
 
 type SessionData = componentsV1["schemas"]["SessionData"];
 type SessionAnnotation = componentsV1["schemas"]["SessionAnnotation"];
@@ -50,49 +51,44 @@ const DEFAULT_PAGE_LIMIT = 1000;
 const DEFAULT_SESSION_IDS_CHUNK_SIZE = 100;
 const DEFAULT_MAX_CONCURRENT = 5;
 
-interface SessionGetOptions {
-  endpoint?: string;
-  project?: string;
-  apiKey?: string;
-  format?: SessionOutputFormat;
-  progress?: boolean;
+/**
+ * Options for `px session get`.
+ */
+interface SessionGetOptions
+  extends
+    ProjectScopedOptions<SessionOutputFormat>,
+    AnnotationInclusionOptions {
+  /**
+   * `--file <path>`: Write the session to this file as JSON instead of
+   * stdout. When set, `--format` is ignored (a warning is printed if the
+   * user also passed a non-`json` `--format`).
+   *
+   * @example "./session.json"
+   */
   file?: string;
-  includeAnnotations?: boolean;
-  includeNotes?: boolean;
 }
 
-interface SessionListOptions {
-  endpoint?: string;
-  project?: string;
-  apiKey?: string;
-  format?: SessionOutputFormat;
-  progress?: boolean;
+/**
+ * Options for `px session list`.
+ */
+interface SessionListOptions
+  extends
+    ProjectScopedOptions<SessionOutputFormat>,
+    AnnotationInclusionOptions {
+  /**
+   * `-n, --limit <number>`: Maximum number of sessions to return. Defaults
+   * to 10.
+   *
+   * @example 50
+   */
   limit?: number;
+  /**
+   * `--order <order>`: Sort order for sessions — `asc` or `desc`. Defaults
+   * to `desc` (newest first).
+   *
+   * @example "asc"
+   */
   order?: "asc" | "desc";
-  includeAnnotations?: boolean;
-  includeNotes?: boolean;
-}
-
-interface SessionAnnotateOptions {
-  endpoint?: string;
-  apiKey?: string;
-  format?: AnnotationMutationOutputFormat;
-  progress?: boolean;
-  name?: string;
-  label?: string;
-  score?: string;
-  explanation?: string;
-  annotatorKind?: string;
-  identifier?: string;
-}
-
-interface SessionAddNoteOptions {
-  endpoint?: string;
-  apiKey?: string;
-  format?: NoteMutationOutputFormat;
-  progress?: boolean;
-  text?: string;
-  identifier?: string;
 }
 
 /**
@@ -618,7 +614,7 @@ export function createSessionListCommand(): Command {
 
 async function sessionAnnotateHandler(
   sessionId: string,
-  options: SessionAnnotateOptions
+  options: AnnotateOptions
 ): Promise<void> {
   try {
     const config = resolveConfig({
@@ -736,7 +732,7 @@ export function createSessionAnnotateCommand(): Command {
 
 async function sessionAddNoteHandler(
   sessionId: string,
-  options: SessionAddNoteOptions
+  options: AddNoteOptions
 ): Promise<void> {
   try {
     const config = resolveConfig({
@@ -828,19 +824,12 @@ export function createSessionAddNoteCommand(): Command {
     .action(sessionAddNoteHandler);
 }
 
-interface SessionDeleteOptions {
-  endpoint?: string;
-  apiKey?: string;
-  yes?: boolean;
-  progress?: boolean;
-}
-
 /**
  * Handler for `session delete`
  */
 async function sessionDeleteHandler(
   sessionId: string,
-  options: SessionDeleteOptions
+  options: DeleteOptions
 ): Promise<void> {
   try {
     assertDeletesEnabled();

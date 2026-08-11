@@ -145,6 +145,16 @@ class ProjectSession(Node):
             truncated_value=truncate_value(record.truncated_value),
         )
 
+    @strawberry.field(
+        description='The first non-null "user.id" span attribute in the session, '
+        "identifying the end user of the traced application.",
+    )  # type: ignore
+    async def user_id(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[str]:
+        return await info.context.data_loaders.session_user_ids.load(self.id)
+
     @strawberry.field
     async def token_usage(
         self,
@@ -160,14 +170,13 @@ class ProjectSession(Node):
     async def traces(
         self,
         info: Info[Context, None],
-        first: Optional[int] = UNSET,
+        first: int,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
     ) -> Connection[Annotated["Trace", lazy(".Trace")]]:
         from phoenix.server.api.types.Trace import Trace
 
-        assert isinstance(first, int)
         stmt = select(models.Trace).filter_by(project_session_rowid=self.id)
         if after:
             cursor = Cursor.from_string(after)

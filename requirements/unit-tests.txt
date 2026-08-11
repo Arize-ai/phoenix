@@ -7,7 +7,7 @@ asyncpg
 google-genai>=1.0.0
 grpc-interceptor[testing]
 httpx
-litellm>=1.83.14
+litellm>=1.83.14; python_version < '3.14'
 nest-asyncio # for executor testing
 numpy
 pandas-stubs==2.0.3.230814

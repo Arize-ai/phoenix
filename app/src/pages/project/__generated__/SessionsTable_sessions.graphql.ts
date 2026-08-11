@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bc48b202531ba63176881034c936edd0>>
+ * @generated SignedSource<<6195b5b0e20fdafe627ae154cbb0eb10>>
  * @lightSyntaxTransform
  */
 
@@ -75,6 +75,7 @@ export type SessionsTable_sessions$data = {
         };
         readonly traceLatencyMsP50: number | null;
         readonly traceLatencyMsP99: number | null;
+        readonly userId: string | null;
         readonly " $fragmentSpreads": FragmentRefs<"SessionAnnotationSummaryGroup">;
       };
     }>;
@@ -97,14 +98,14 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "id",
   "storageKey": null
 },
 v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "name",
   "storageKey": null
 },
 v3 = [
@@ -138,11 +139,6 @@ return {
       "name": "after"
     },
     {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "filterIoSubstring"
-    },
-    {
       "defaultValue": 30,
       "kind": "LocalArgument",
       "name": "first"
@@ -150,7 +146,7 @@ return {
     {
       "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "sessionId"
+      "name": "sessionFilterCondition"
     },
     {
       "defaultValue": {
@@ -197,6 +193,7 @@ return {
   "name": "SessionsTable_sessions",
   "selections": [
     (v1/*:: as any*/),
+    (v2/*:: as any*/),
     {
       "args": null,
       "kind": "FragmentSpread",
@@ -207,13 +204,8 @@ return {
       "args": [
         {
           "kind": "Variable",
-          "name": "filterIoSubstring",
-          "variableName": "filterIoSubstring"
-        },
-        {
-          "kind": "Variable",
-          "name": "sessionId",
-          "variableName": "sessionId"
+          "name": "sessionFilterCondition",
+          "variableName": "sessionFilterCondition"
         },
         {
           "kind": "Variable",
@@ -247,12 +239,19 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*:: as any*/),
+                (v1/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
                   "name": "sessionId",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "userId",
                   "storageKey": null
                 },
                 {
@@ -377,8 +376,8 @@ return {
                   "name": "sessionAnnotations",
                   "plural": true,
                   "selections": [
-                    (v2/*:: as any*/),
                     (v1/*:: as any*/),
+                    (v2/*:: as any*/),
                     (v4/*:: as any*/),
                     (v5/*:: as any*/),
                     {
@@ -450,7 +449,7 @@ return {
                       "name": "meanScore",
                       "storageKey": null
                     },
-                    (v1/*:: as any*/)
+                    (v2/*:: as any*/)
                   ],
                   "storageKey": null
                 },
@@ -462,7 +461,7 @@ return {
                   "name": "project",
                   "plural": false,
                   "selections": [
-                    (v2/*:: as any*/),
+                    (v1/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -504,8 +503,8 @@ return {
                                 {
                                   "kind": "InlineFragment",
                                   "selections": [
-                                    (v2/*:: as any*/),
                                     (v1/*:: as any*/),
+                                    (v2/*:: as any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -605,14 +604,13 @@ return {
         }
       ],
       "storageKey": null
-    },
-    (v2/*:: as any*/)
+    }
   ],
   "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "69a156077f90546ab0cc28a2b1e7a901";
+(node as any).hash = "bd21d26acb6b02042bc7743aac5560c6";
 
 export default node;

@@ -33,8 +33,32 @@ pip install arize-phoenix-otel
 ```bash
 export PHOENIX_API_KEY="your-api-key"  # Required for Phoenix Cloud
 export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"  # Or Cloud URL
-export PHOENIX_PROJECT_NAME="my-app"  # Optional
+export PHOENIX_PROJECT="my-app"  # Optional; PHOENIX_PROJECT_NAME is a supported alias
 ```
+
+`PHOENIX_PROJECT` is the canonical project-name variable and takes precedence;
+`PHOENIX_PROJECT_NAME` is a supported alias. If both are set to different
+values, `PHOENIX_PROJECT` wins and a one-time warning naming both is logged.
+
+### Credential File Discovery (`.env.phoenix`)
+
+When a setting is not passed as an argument or set in the process environment,
+`register()` looks for a `.env.phoenix` file in the current working directory —
+walking up toward the filesystem root and stopping at the first match — and
+reads `PHOENIX_`-prefixed keys from it (dotenv format):
+
+```bash
+# .env.phoenix
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_API_KEY=your-api-key
+```
+
+Explicit arguments and environment variables always win — the file never
+overrides anything already set. Set `PHOENIX_DISCOVER_CONFIG=false` to disable
+discovery. Discovery is cached per working directory for the process lifetime;
+long-running processes (e.g. notebooks) can call
+`phoenix.otel.settings.clear_env_file_cache()` after creating or changing the
+file.
 
 ### Python Code
 
@@ -51,7 +75,7 @@ tracer_provider = register(
 
 **Parameters:**
 
-- `project_name`: Project name (overrides `PHOENIX_PROJECT_NAME`)
+- `project_name`: Project name (overrides `PHOENIX_PROJECT` / `PHOENIX_PROJECT_NAME`)
 - `endpoint`: Phoenix URL (overrides `PHOENIX_COLLECTOR_ENDPOINT`)
 - `auto_instrument`: Enable auto-instrumentation (default: False)
 - `batch`: Use BatchSpanProcessor (default: True, production-recommended)

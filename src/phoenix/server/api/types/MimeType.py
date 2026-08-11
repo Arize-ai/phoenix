@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import strawberry
 
@@ -12,5 +12,6 @@ class MimeType(Enum):
     json = trace_schemas.MimeType.JSON.value
 
     @classmethod
-    def _missing_(cls, v: Any) -> Optional["MimeType"]:
-        return None if v else cls.text
+    def _missing_(cls, v: Any) -> "MimeType":
+        # Unrecognized or empty mime types fall back to text instead of raising.
+        return cls.text

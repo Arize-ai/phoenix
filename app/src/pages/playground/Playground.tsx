@@ -586,7 +586,7 @@ function PlaygroundContent() {
     const { registerClientAction, unregisterClientAction } =
       agentStore.getState();
     if (!datasetId) {
-      return;
+      return undefined;
     }
     registerClientAction(
       OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
@@ -732,6 +732,7 @@ function PlaygroundContent() {
         window.removeEventListener("beforeunload", handleBeforeUnload);
       };
     }
+    return undefined;
   }, [isRunning]);
 
   // The mounted panel set varies by mode; passing panelIds keys each mode's

@@ -25,7 +25,7 @@ Network payloads recorded via VCR into ``cassettes/openai-<span-name>.yaml``.
 Auth headers and ``OpenAI-*-Id`` response headers are scrubbed. See
 ``send_anthropic_traces.py`` for cassette mode notes.
 
-Override the endpoint with ``PHOENIX_ENDPOINT`` if your Phoenix isn't on :6006.
+Override the endpoint with ``PHOENIX_COLLECTOR_ENDPOINT`` if your Phoenix isn't on :6006.
 Override the model with ``OPENAI_MODEL`` (default ``gpt-5.5``) and the
 reasoning model with ``OPENAI_REASONING_MODEL`` (default ``o4-mini``).
 """
@@ -63,12 +63,27 @@ from opentelemetry.sdk.trace.export import (
 )
 from vcr.record_mode import RecordMode
 
-PHOENIX_ENDPOINT = os.environ.get("PHOENIX_ENDPOINT", "http://localhost:6006/v1/traces")
+
+def _traces_endpoint() -> str:
+    """OTLP traces URL for the exporter below.
+
+    ``PHOENIX_COLLECTOR_ENDPOINT`` may be a base URL or already carry the OTLP path;
+    the exporter POSTs to exactly the URL it is given, so append the path when missing.
+    """
+    endpoint = (
+        os.environ.get("PHOENIX_COLLECTOR_ENDPOINT") or "http://localhost:6006/v1/traces"
+    ).rstrip("/")
+    if urlparse(endpoint).path.endswith("/v1/traces"):
+        return endpoint
+    return f"{endpoint}/v1/traces"
+
+
+TRACES_ENDPOINT = _traces_endpoint()
 MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.5")
 CASSETTE_DIR = Path(__file__).resolve().parent / "cassettes"
 
 # Don't record OTLP traffic to Phoenix — only OpenAI API calls.
-_phoenix_host = urlparse(PHOENIX_ENDPOINT).hostname or "localhost"
+_phoenix_host = urlparse(TRACES_ENDPOINT).hostname or "localhost"
 recorder = vcr.VCR(
     cassette_library_dir=str(CASSETTE_DIR),
     record_mode=RecordMode.ALL,
@@ -97,7 +112,7 @@ def main() -> int:
         return 1
 
     provider = TracerProvider(resource=Resource.create({"service.name": "openai-otel-demo"}))
-    provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=PHOENIX_ENDPOINT)))
+    provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=TRACES_ENDPOINT)))
     # Diagnostic: print every finished span to stderr so we can confirm the
     # instrumentor is producing them even if the OTLP push to Phoenix fails.
     provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))

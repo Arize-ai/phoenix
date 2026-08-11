@@ -1,5 +1,43 @@
 # @arizeai/phoenix-otel
 
+## 2.2.0
+
+### Minor Changes
+
+- 5420522: `register()` now resolves where traces are exported from a ranked chain instead of `PHOENIX_COLLECTOR_ENDPOINT` alone: an explicit `url`, then `PHOENIX_COLLECTOR_ENDPOINT`, then the OpenTelemetry-standard `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` (used verbatim, per the specification) and `OTEL_EXPORTER_OTLP_ENDPOINT` (a base URL the OTLP traces path is appended to), then `PHOENIX_ENDPOINT`, then `http://localhost:6006`.
+
+  Configurations that set `PHOENIX_COLLECTOR_ENDPOINT` are unchanged. What changes is the case that previously lost every span: setting only `PHOENIX_ENDPOINT` or only the OpenTelemetry variables exported to localhost, where nothing was listening. Those spans now reach the server that was named. When trace export resolves below `PHOENIX_COLLECTOR_ENDPOINT`, an informational line states which variable supplied the destination, so the resolution is visible rather than assumed.
+
+  `PHOENIX_COLLECTOR_ENDPOINT` accepts either a base URL or a full OTLP traces URL: the `/v1/traces` path is appended when missing and left alone when present, and a doubled separator or trailing slash on that path is canonicalized so exporters reach the route directly. Empty and whitespace-only values count as unset and fall through to the next variable.
+
+### Patch Changes
+
+- Updated dependencies [d04f0fc]
+  - @arizeai/phoenix-config@0.5.0
+
+## 2.1.0
+
+### Minor Changes
+
+- dc451a6: Re-export `OTLPTraceExporter` from the package root and add the ESM-only `@arizeai/phoenix-otel/vercel` subpath re-exporting `@arizeai/openinference-vercel` (span processors, `isOpenInferenceSpan`, and types). Custom span-processor setups — e.g. filtering Vercel AI SDK / Eve traces via `register()`'s `spanProcessors` option — can now import everything from `@arizeai/phoenix-otel` without installing the underlying packages.
+
+## 2.0.0
+
+### Major Changes
+
+- 30f0827: Upgrade `@arizeai/openinference-vercel` to v3, which translates AI SDK v7 (`@ai-sdk/otel`) spans to OpenInference. AI SDK telemetry remains explicitly application-configured because its registry is process-global. The package retains its Node.js 18 minimum and ESM/CommonJS entry points: because `@arizeai/openinference-vercel` v3 is ESM-only, the OpenInference span processors are loaded lazily via dynamic import (spans recorded before the load completes are buffered and replayed), and `LazyOpenInferenceSpanProcessor` is exported for custom provider setups. AI SDK v6 spans are no longer translated; stay on 1.x for AI SDK v6.
+
+## 1.2.0
+
+### Minor Changes
+
+- f94067b: Add px setup script for agent onboarding
+
+### Patch Changes
+
+- Updated dependencies [f94067b]
+  - @arizeai/phoenix-config@0.4.0
+
 ## 1.1.1
 
 ### Patch Changes

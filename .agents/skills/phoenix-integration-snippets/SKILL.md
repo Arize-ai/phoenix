@@ -56,7 +56,16 @@ Do not assume the framework package bundles its model provider SDK. In a clean e
 
 **Directory:** `app/src/components/project/integrationSnippets/` — read existing files to match conventions.
 
-Do NOT pass `endpoint`/`url` in snippet code — the onboarding UI displays env vars (including `PHOENIX_COLLECTOR_ENDPOINT`) separately, and both `register` functions read it automatically.
+Whether a snippet passes an endpoint depends on what consumes it. Either way the value comes from `PHOENIX_COLLECTOR_ENDPOINT`, which the onboarding UI displays alongside the snippet.
+
+- **`register()`-based snippets** — do NOT pass `endpoint`/`url`. Both `register` functions read `PHOENIX_COLLECTOR_ENDPOINT` and derive the OTLP target from it.
+- **Verbatim exporters** — anything that POSTs to exactly the URL it is handed, such as `@mastra/arize`'s `ArizeExporter` or a bare `OTLPTraceExporter`, MUST receive the full OTLP URL explicitly, built from the same variable:
+
+  ```typescript
+  endpoint: `${process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006"}/v1/traces`,
+  ```
+
+  These exporters do not read the environment and do not append the OTLP path. Omitting the endpoint or passing a bare base URL loses every span, with no error.
 
 **Python:** Use `auto_instrument=True` — no manual instrumentor calls. SDK imports must come _after_ `register()`.
 

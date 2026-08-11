@@ -1,9 +1,10 @@
-import type { Ref } from "react";
+import type { MouseEvent, Ref } from "react";
 import { useEffect, useEffectEvent, useId, useState } from "react";
 
 import { Heading } from "../content";
 import { DisclosureArrow } from "../icon";
 import { useStyleProps, viewStyleProps } from "../utils";
+import { CardProvider } from "./CardContext";
 import { cardCSS } from "./styles";
 import type { CardProps } from "./types";
 
@@ -13,21 +14,25 @@ function Card({
   titleExtra,
   titleSeparator = true,
   subTitle,
+  headerContent,
   children,
   collapsible = false,
   interactiveTitle = false,
   collapseButtonLabel,
   defaultOpen = true,
+  isOpen,
   scrollBody = false,
   extra,
   onCollapseChange,
+  onOpenChange,
   testId,
   ...otherProps
 }: CardProps & { ref?: Ref<HTMLElement> }) {
   const { styleProps } = useStyleProps(otherProps, viewStyleProps);
-  const [isCollapsed, setIsCollapsed] = useState(
+  const [uncontrolledIsCollapsed, setUncontrolledIsCollapsed] = useState(
     collapsible ? !defaultOpen : false
   );
+  const isCollapsed = isOpen == null ? uncontrolledIsCollapsed : !isOpen;
 
   const headerId = useId();
   const collapseButtonId = useId();
@@ -43,7 +48,7 @@ function Card({
   }, [isCollapsed]);
 
   const headingContents = (
-    <div id={titleId}>
+    <div id={titleId} className="card__heading">
       <Heading level={3} weight="heavy" className="card__title">
         {title}
         {titleExtra}
@@ -53,14 +58,37 @@ function Card({
           {subTitle}
         </Heading>
       )}
+      {headerContent && (
+        <div className="card__header-content">{headerContent}</div>
+      )}
     </div>
   );
 
+  // The local state is kept in step even while `isOpen` controls the card, so a
+  // card that later drops back to uncontrolled resumes where the reader left it.
+  const toggleCollapsed = () => {
+    setUncontrolledIsCollapsed(!isCollapsed);
+    onOpenChange?.(isCollapsed);
+  };
+
+  // With `interactiveTitle` the toggle itself is only the arrow, so the rest of
+  // the header would be dead space. Clicking it toggles too, except where the
+  // click lands on a control of its own (the help popover, the toolbar) or on
+  // the arrow, which handles itself.
+  const handleHeaderClick = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest('button,a,input,select,textarea,[role="button"]')
+    ) {
+      return;
+    }
+    toggleCollapsed();
+  };
+
   const collapseButton = (
     <button
-      onClick={() => {
-        setIsCollapsed(!isCollapsed);
-      }}
+      onClick={toggleCollapsed}
       className="card__collapsible-button button--reset"
       id={collapseButtonId}
       aria-controls={bodyId}
@@ -82,32 +110,35 @@ function Card({
   );
 
   return (
-    <section
-      ref={ref}
-      css={cardCSS(styleProps.style)}
-      className="card"
-      data-collapsible={collapsible}
-      data-collapsed={isCollapsed}
-      data-title-separator={titleSeparator}
-      data-testid={testId}
-      style={styleProps.style}
-    >
-      <header id={headerId}>
-        {collapsible ? (
-          interactiveTitle ? (
-            <div className="card__collapsible-header">
-              {collapseButton}
-              {headingContents}
-            </div>
+    <CardProvider isCollapsed={isCollapsed}>
+      <section
+        ref={ref}
+        css={cardCSS(styleProps.style)}
+        className="card"
+        data-collapsible={collapsible}
+        data-collapsed={isCollapsed}
+        data-title-separator={titleSeparator}
+        data-testid={testId}
+        style={styleProps.style}
+      >
+        <header id={headerId}>
+          {collapsible ? (
+            interactiveTitle ? (
+              <div
+                className="card__collapsible-header"
+                onClick={handleHeaderClick}
+              >
+                {collapseButton}
+                {headingContents}
+              </div>
+            ) : (
+              collapseButton
+            )
           ) : (
-            collapseButton
-          )
-        ) : (
-          headingContents
-        )}
-        {extra}
-      </header>
-      {
+            headingContents
+          )}
+          {extra}
+        </header>
         <div
           className="card__body"
           id={bodyId}
@@ -117,8 +148,8 @@ function Card({
         >
           {children}
         </div>
-      }
-    </section>
+      </section>
+    </CardProvider>
   );
 }
 

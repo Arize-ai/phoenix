@@ -13,7 +13,6 @@ Design tokens are design decisions translated into CSS custom properties. They p
 | Type | Prefix/Pattern | Example | Purpose |
 |------|---------------|---------|---------|
 | Dimension (scale) | `--global-dimension-size-{n}` | `--global-dimension-size-200` → 16px | Responsive sizing on 8px grid |
-| Dimension (static) | `--global-dimension-static-size-{n}` | `--global-dimension-static-size-100` → 8px | Fixed pixel values |
 | Font size (scale) | `--global-dimension-font-size-{n}` | `--global-dimension-font-size-100` → 14px | Numeric scale font sizes |
 | Font size (named) | `--global-font-size-{t-shirt}` | `--global-font-size-s` → 14px | T-shirt sized fonts (xxs–xxl) |
 | Line height | `--global-line-height-{t-shirt}` | `--global-line-height-s` → 20px | T-shirt sized line heights |
@@ -28,6 +27,8 @@ Design tokens are design decisions translated into CSS custom properties. They p
 | Component-specific | `--global-{component}-{property}` | `--global-button-primary-background-color` | Per-component design decisions |
 | Chart | `--chart-{element}-{property}` | `--chart-axis-stroke-color` | Chart visualization tokens |
 | CodeMirror | `--code-mirror-{element}-{property}` | `--code-mirror-editor-background-color` | Editor tokens |
+| AI glow | `--ai-{element}-{property}` | `--ai-glow-box-shadow-rest` | Shared "AI is working" glow (`components/ai/glow`) |
+| AI glow | `--ai-{element}-{property}` | `--ai-glow-box-shadow-rest` | Shared "AI is working" glow (`components/ai/glow`) |
 
 ## Naming structure
 
@@ -58,7 +59,7 @@ Tokens that reference other tokens rather than hard-coded values. This is how Ph
 ```css
 --global-color-primary:         var(--global-color-gray-900);
 --global-border-color-default:  var(--global-color-gray-300);
---global-rounding-small:        var(--global-dimension-static-size-50);
+--global-rounding-small:        var(--global-dimension-size-50);
 --global-button-primary-bg:     var(--global-color-gray-900);
 ```
 

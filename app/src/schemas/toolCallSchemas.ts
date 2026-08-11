@@ -266,7 +266,7 @@ export const toOpenAIToolCall = (
     case "UNKNOWN":
       return null;
     default:
-      assertUnreachable(provider);
+      return assertUnreachable(provider);
   }
 };
 
@@ -306,7 +306,7 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
     case "GOOGLE":
       return toolCall as ProviderToToolCallMap[T];
     default:
-      assertUnreachable(targetProvider);
+      return assertUnreachable(targetProvider);
   }
 };
 

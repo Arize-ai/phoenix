@@ -294,7 +294,7 @@ export const fromOpenAIToolCall = <
         toolCall
       ) as ReturnType;
     default:
-      assertUnreachable(targetProvider);
+      return assertUnreachable(targetProvider);
   }
 };
 
@@ -328,7 +328,7 @@ export const toOpenAIToolChoice = (
         validatedToolChoice
       );
     default:
-      assertUnreachable(provider);
+      return assertUnreachable(provider);
   }
 };
 
@@ -373,7 +373,7 @@ export const fromOpenAIToolChoice = <
         toolChoice
       ) as ReturnType;
     default:
-      assertUnreachable(targetProvider);
+      return assertUnreachable(targetProvider);
   }
 };
 
@@ -406,7 +406,7 @@ export const toOpenAIToolDefinition = (
     case null:
       return null;
     default:
-      assertUnreachable(provider);
+      return assertUnreachable(provider);
   }
 };
 
@@ -447,7 +447,7 @@ export const fromOpenAIToolDefinition = <
         toolDefinition
       ) as ReturnType;
     default:
-      assertUnreachable(targetProvider);
+      return assertUnreachable(targetProvider);
   }
 };
 

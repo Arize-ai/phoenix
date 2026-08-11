@@ -38,21 +38,23 @@ px self update
 ## Configuration
 
 ```bash
-export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_ENDPOINT=http://localhost:6006
 export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 ```
 
-CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables.
+CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables. For interactive local use, `px auth login` stores an OAuth session in your active profile; the session acts with the permissions of the user who logged in. API keys take precedence when both are configured.
 
-| Variable                                 | Description                                   |
-| ---------------------------------------- | --------------------------------------------- |
-| `PHOENIX_HOST`                           | Phoenix API endpoint                          |
-| `PHOENIX_PROJECT`                        | Project name or ID (canonical)                |
-| `PHOENIX_PROJECT_NAME`                   | Project name or ID (alias for above)          |
-| `PHOENIX_API_KEY`                        | API key (if auth is enabled)                  |
-| `PHOENIX_CLIENT_HEADERS`                 | Custom headers as JSON string                 |
-| `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Enable CLI delete commands when set to `true` |
+| Variable                                 | Description                                                                                    |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `PHOENIX_ENDPOINT`                       | Phoenix base URL (canonical)                                                                   |
+| `PHOENIX_COLLECTOR_ENDPOINT`             | Trace-export base URL, usually the same as `PHOENIX_ENDPOINT`; `px` uses it when that is unset |
+| `PHOENIX_HOST`                           | Legacy fallback for the base URL                                                               |
+| `PHOENIX_PROJECT`                        | Project name or ID (canonical)                                                                 |
+| `PHOENIX_PROJECT_NAME`                   | Project name or ID (alias for above)                                                           |
+| `PHOENIX_API_KEY`                        | API key (if auth is enabled)                                                                   |
+| `PHOENIX_CLIENT_HEADERS`                 | Custom headers as JSON string                                                                  |
+| `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Enable CLI delete commands when set to `true`                                                  |
 
 Delete commands are disabled by default and require `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
 
@@ -60,7 +62,7 @@ The CLI also discovers the nearest `.env.phoenix` file at or above the current
 working directory. Configuration precedence is: CLI flags, process environment,
 active profile, `.env.phoenix`, then built-in defaults. Credentials are resolved
 as one group, so a process API key is never combined with file-provided client
-headers. If a higher-priority credential is paired with `PHOENIX_HOST` from the
+headers. If a higher-priority credential is paired with an endpoint from the
 file, the CLI warns once and continues. Set
 `PHOENIX_DISCOVER_CONFIG=false` to disable discovery.
 
@@ -78,7 +80,7 @@ px profile edit prod           # open in $EDITOR, validates on save
 px profile delete prod         # remove a profile (--yes to skip prompt)
 ```
 
-Pass `--profile <name>` to `auth status` to scope a single invocation to a profile other than the active one.
+Pass `--profile <name>` to `auth login`, `auth logout`, or `auth status` to scope a single invocation to a profile other than the active one.
 
 ### Editor autocompletion via `$schema`
 
@@ -122,7 +124,7 @@ that powers the in-browser assistant — investigate failing traces, iterate on
 prompts, and drive Phoenix from your terminal.
 
 ```bash
-pxi                                                          # uses PHOENIX_HOST / PHOENIX_API_KEY
+pxi                                                          # uses PHOENIX_ENDPOINT / PHOENIX_API_KEY
 pxi --endpoint http://localhost:6006 --provider OPENAI --model gpt-5.4
 npx -y @arizeai/phoenix-cli pxi                              # run without installing
 ```
@@ -130,6 +132,105 @@ npx -y @arizeai/phoenix-cli pxi                              # run without insta
 Inside the chat, `/help`, `/clear`, and `/exit` are handled locally. See the
 [PXI documentation](https://arize.com/docs/phoenix/pxi) for the full flag and
 slash-command reference, model setup, and privacy controls.
+
+---
+
+### `px setup`
+
+Wire your app up to Phoenix. Run it from the app root:
+
+```bash
+px setup                                          # interactive
+px setup --endpoint https://phoenix.example.com   # skip the endpoint prompt
+npx -y @arizeai/phoenix-cli setup                 # try without installing
+```
+
+Setup saves the connection to a gitignored `.env.phoenix`, then optionally
+hands a coding agent (Claude Code, Codex, Cursor, OpenCode) an instrumentation
+task and waits until a real trace appears. After that it can point `px` at the
+new project and install Phoenix skills so the agent can query what you captured.
+
+Along the way it offers to connect the Phoenix docs MCP server to the agent
+doing the hand-off — through the agent's own CLI where it has one (`claude mcp
+add`), else its per-project config file (`.cursor/mcp.json`, `opencode.json`).
+Taking the offer skips the `.px/docs` download entirely — the agent searches
+the docs on demand instead, which is faster to set up and cheaper in tokens.
+Any failure falls back to the download. Pass `--docs-mcp` to take the offer
+without being asked, `--no-docs-mcp` to never ask.
+
+For CI or agents, pass flags instead of answering prompts:
+
+```bash
+# Connection only — write .env.phoenix, no source changes
+px setup --no-input --endpoint http://localhost:6006 --project my-app
+
+# Instrument too — requires --agent when there's no TTY to choose one
+px setup --no-input --instrument --agent claude --yolo --language python --format raw
+
+# Same, but connect the docs MCP instead of downloading the docs
+px setup --no-input --instrument --agent claude --yolo --docs-mcp --format raw
+```
+
+A run that instruments is only a success if a trace actually arrived — the
+agent's own claim that it finished doesn't count. Every output says so, and so
+does the exit code:
+
+| Exit | Meaning                                                              |
+| ---- | -------------------------------------------------------------------- |
+| `0`  | Verified, registered only, or you chose "verify later" at the prompt |
+| `1`  | Unexpected error                                                     |
+| `2`  | Cancelled                                                            |
+| `3`  | Missing or invalid flags (the error prints the correct invocation)   |
+| `4`  | Not authenticated, or the credentials lack permission                |
+| `5`  | Could not reach the Phoenix endpoint                                 |
+| `6`  | The wait ran out with no trace — tracing is not confirmed working    |
+
+Only a wait that ran out gives `6`. Registering without `--instrument`, and
+answering "Finish setup — I'll verify later" at the timeout prompt, both exit
+`0` — so `px setup && npm run dev` and `set -e` scripts keep working when you
+deliberately defer.
+
+In `--format json|raw`, `verification` is `verified`, `notVerified`, or
+`deferred`, and is absent when there was nothing to verify; `tracesVerified` is
+the boolean shorthand for `verification == "verified"`. `--format pretty`
+prints a `traces:` line. Don't score a run on the hand-off agent's own exit
+code — it may edit the app correctly and then exit badly, or exit cleanly
+having delivered nothing.
+
+Re-run pieces later with:
+
+```bash
+px setup instrument --agent codex   # instrument and verify again
+px setup skills                     # install coding-agent skills only
+```
+
+#### `px setup mcp`
+
+Register the Phoenix **remote MCP server** (`<endpoint>/mcp`) with a coding
+agent, so the agent can search, query, and operate on your Phoenix data. The
+endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_ENDPOINT` —
+you never re-type it.
+
+```bash
+px setup mcp                        # pick scope (global default) + agent, interactively
+px setup mcp --agent codex          # configure one agent
+px setup mcp --agent claude --local # write this repo's config (.mcp.json)
+```
+
+Supported agents: `claude`, `codex`, `gemini`, `cursor`, `opencode`, `vscode`.
+Where an agent ships an `mcp add` (Claude, Codex, Gemini, VS Code global) the
+CLI drives it; the rest get a merge into their config file (`~/.cursor/mcp.json`,
+`~/.config/opencode/opencode.json`, `.vscode/mcp.json`). Scope is `--global`
+(user-wide, the default) or `--local` (this repo — Codex is global-only).
+
+Auth defaults to **OAuth**: the config is URL-only and the agent opens Phoenix's
+browser login on first use. For headless clients, pass an API-key bearer header
+with `--header` (repeatable):
+
+```bash
+px setup mcp --agent codex --no-input --format raw
+px setup mcp --agent claude --header 'Authorization: Bearer ${PHOENIX_API_KEY}'
+```
 
 ---
 
@@ -156,18 +257,20 @@ px trace list --format raw --no-progress | jq    # pipe-friendly compact JSON
 px trace list ./my-traces --limit 50             # save as JSON files to directory
 px trace list --last-n-minutes 60 --limit 20     # filter by time window
 px trace list --since 2026-01-13T10:00:00Z       # since ISO timestamp
+px trace list --since 2026-01-13T10:00:00Z --until 2026-01-14T10:00:00Z # time range
 ```
 
-| Option                      | Description                            | Default  |
-| --------------------------- | -------------------------------------- | -------- |
-| `[directory]`               | Save traces as JSON files to directory | stdout   |
-| `-n, --limit <number>`      | Number of traces (newest first)        | 10       |
-| `--last-n-minutes <number>` | Only traces from the last N minutes    | —        |
-| `--since <timestamp>`       | Traces since ISO timestamp             | —        |
-| `--format <format>`         | `pretty`, `json`, or `raw`             | `pretty` |
-| `--no-progress`             | Suppress progress output               | —        |
-| `--include-annotations`     | Include trace and span annotations     | —        |
-| `--include-notes`           | Include trace and span notes           | —        |
+| Option                      | Description                                                 | Default  |
+| --------------------------- | ----------------------------------------------------------- | -------- |
+| `[directory]`               | Save traces as JSON files to directory                      | stdout   |
+| `-n, --limit <number>`      | Number of traces (newest first)                             | 10       |
+| `--last-n-minutes <number>` | Only traces from the last N minutes                         | —        |
+| `--since <timestamp>`       | Traces since ISO timestamp                                  | —        |
+| `--until <timestamp>`       | Traces whose spans started before ISO timestamp (exclusive) | —        |
+| `--format <format>`         | `pretty`, `json`, or `raw`                                  | `pretty` |
+| `--no-progress`             | Suppress progress output                                    | —        |
+| `--include-annotations`     | Include trace and span annotations                          | —        |
+| `--include-notes`           | Include trace and span notes                                | —        |
 
 ```bash
 # Find ERROR traces
@@ -243,9 +346,11 @@ px span list --limit 50                                    # stdout (pretty)
 px span list --span-kind LLM --limit 20                    # only LLM spans
 px span list --status-code ERROR --format raw --no-progress # pipe-friendly error spans
 px span list --name chat_completion --trace-id abc123       # filter by name and trace
+px span list --span-id abc123 def456                        # fetch specific spans by ID
 px span list --parent-id null                               # root spans only
 px span list spans.json --limit 100 --include-annotations   # save to file with annotations
 px span list --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kinds
+px span list --since 2026-07-01T00:00:00Z --until 2026-07-02T00:00:00Z # time range
 ```
 
 | Option                      | Description                                                                                                                      | Default  |
@@ -254,10 +359,12 @@ px span list --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kind
 | `-n, --limit <number>`      | Maximum number of spans (newest first)                                                                                           | `100`    |
 | `--last-n-minutes <number>` | Only spans from the last N minutes                                                                                               | —        |
 | `--since <timestamp>`       | Spans since ISO timestamp                                                                                                        | —        |
+| `--until <timestamp>`       | Spans started before ISO timestamp (exclusive)                                                                                   | —        |
 | `--span-kind <kinds...>`    | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `UNKNOWN`) | —        |
 | `--status-code <codes...>`  | Filter by status code (`OK`, `ERROR`, `UNSET`)                                                                                   | —        |
 | `--name <names...>`         | Filter by span name(s)                                                                                                           | —        |
 | `--trace-id <ids...>`       | Filter by trace ID(s)                                                                                                            | —        |
+| `--span-id <ids...>`        | Filter by OpenTelemetry span ID(s). Requires Phoenix server >= 19.6.0.                                                           | —        |
 | `--parent-id <id>`          | Filter by parent span ID (use `"null"` for root spans only)                                                                      | —        |
 | `--include-annotations`     | Include span annotations in the output                                                                                           | —        |
 | `--include-notes`           | Include span notes in the output                                                                                                 | —        |
@@ -669,19 +776,55 @@ px annotation-config get response-quality --format raw --no-progress | jq -r '.i
 
 ---
 
+### `px auth login`
+
+Log in with the browser-based OAuth flow and store tokens on the selected profile. The URL is always printed to stderr, so SSH and headless users can open it manually. OAuth CLI sessions act with the permissions of the user who logged in.
+
+The CLI refreshes expiring access tokens automatically for REST, GraphQL, and
+PXI requests. A request rejected with `401` triggers one refresh and retry;
+rotated tokens are persisted back to the selected profile.
+
+```bash
+px auth login
+px auth login --no-browser
+px auth login --profile staging --format raw
+```
+
+| Option              | Description                            | Default  |
+| ------------------- | -------------------------------------- | -------- |
+| `--endpoint <url>`  | Phoenix API endpoint                   | —        |
+| `--api-key <key>`   | Phoenix API key                        | —        |
+| `--profile <name>`  | Profile to store OAuth tokens in       | active   |
+| `--no-browser`      | Print URL without opening a browser    | —        |
+| `--no-input`        | Do not prompt for pasted redirect URLs | —        |
+| `--format <format>` | `pretty`, `json`, or `raw`             | `pretty` |
+
+### `px auth logout`
+
+Clear OAuth tokens from the selected profile. Logout best-effort revokes the refresh token on the server and leaves any configured API key untouched.
+
+```bash
+px auth logout
+px auth logout --profile staging
+px auth logout --format raw
+```
+
 ### `px auth status`
 
-Show current Phoenix authentication status, including the configured endpoint, whether you are authenticated or anonymous, and an obscured API key.
+Show current Phoenix authentication status, including the configured endpoint, credential source, identity, and OAuth access level/expiry when applicable.
 
 ```bash
 px auth status
 px auth status --endpoint http://localhost:6006
+px auth status --profile staging --format raw
 ```
 
-| Option             | Description          | Default |
-| ------------------ | -------------------- | ------- |
-| `--endpoint <url>` | Phoenix API endpoint | —       |
-| `--api-key <key>`  | Phoenix API key      | —       |
+| Option              | Description                | Default  |
+| ------------------- | -------------------------- | -------- |
+| `--endpoint <url>`  | Phoenix API endpoint       | —        |
+| `--api-key <key>`   | Phoenix API key            | —        |
+| `--profile <name>`  | Profile to use             | active   |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 
 ---
 

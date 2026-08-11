@@ -13,7 +13,7 @@
         ],
         "summary": "List annotation configurations",
         "description": "Retrieve a paginated list of all annotation configurations in the system.",
-        "operationId": "list_annotation_configs_v1_annotation_configs_get",
+        "operationId": "listAnnotationConfigs",
         "parameters": [
           {
             "name": "cursor",
@@ -85,7 +85,7 @@
           "annotation_configs"
         ],
         "summary": "Create an annotation configuration",
-        "operationId": "create_annotation_config_v1_annotation_configs_post",
+        "operationId": "createAnnotationConfig",
         "requestBody": {
           "required": true,
           "content": {
@@ -136,7 +136,7 @@
           "annotation_configs"
         ],
         "summary": "Get an annotation configuration by ID or name",
-        "operationId": "get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get",
+        "operationId": "getAnnotationConfig",
         "parameters": [
           {
             "name": "config_identifier",
@@ -190,7 +190,7 @@
           "annotation_configs"
         ],
         "summary": "Update an annotation configuration",
-        "operationId": "update_annotation_config_v1_annotation_configs__config_id__put",
+        "operationId": "updateAnnotationConfig",
         "parameters": [
           {
             "name": "config_id",
@@ -252,7 +252,7 @@
           "annotation_configs"
         ],
         "summary": "Delete an annotation configuration",
-        "operationId": "delete_annotation_config_v1_annotation_configs__config_id__delete",
+        "operationId": "deleteAnnotationConfig",
         "parameters": [
           {
             "name": "config_id",
@@ -2923,6 +2923,251 @@
         }
       }
     },
+    "/v1/datasets/{dataset_identifier}/splits": {
+      "post": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Create a dataset split",
+        "operationId": "createDatasetSplit",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either dataset ID or dataset name."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDatasetSplitRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateDatasetSplitResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset or example not found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A dataset split with the given name already exists"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid request"
+          }
+        }
+      }
+    },
+    "/v1/datasets/{dataset_identifier}/splits/{split_id}": {
+      "patch": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Update a dataset split",
+        "operationId": "updateDatasetSplit",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either dataset ID or dataset name."
+          },
+          {
+            "name": "split_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID (GlobalID) of the dataset split.",
+              "title": "Split Id"
+            },
+            "description": "The ID (GlobalID) of the dataset split."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDatasetSplitRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateDatasetSplitResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset, split, or example not found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A dataset split with the given name already exists"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid request"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Delete a dataset split",
+        "operationId": "deleteDatasetSplit",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either dataset ID or dataset name."
+          },
+          {
+            "name": "split_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID (GlobalID) of the dataset split.",
+              "title": "Split Id"
+            },
+            "description": "The ID (GlobalID) of the dataset split."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset or split not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset split ID"
+          }
+        }
+      }
+    },
     "/v1/datasets/{id}/csv": {
       "get": {
         "tags": [
@@ -3772,6 +4017,213 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/experiments/{experiment_id}/tags": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "List the tags applied to an experiment",
+        "description": "List the tags currently pointing at this experiment. Tags are scoped to the experiment's dataset, so a tag appears here only while this experiment owns it.",
+        "operationId": "listExperimentTags",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the experiment",
+              "title": "Experiment Id"
+            },
+            "description": "The ID of the experiment"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The tags currently applied to the experiment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListExperimentTagsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid experiment ID"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Assign a tag to an experiment",
+        "description": "Assign a tag to an experiment. Tags are scoped to the experiment's dataset and each tag name points at a single experiment, so assigning a tag that another experiment on the same dataset owns atomically moves the tag to this experiment. Re-assigning a tag the experiment already owns is idempotent and replaces the description. Assigning the reserved 'baseline' tag makes this experiment the dataset's baseline; ephemeral experiments cannot become the baseline.",
+        "operationId": "setExperimentTag",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the experiment",
+              "title": "Experiment Id"
+            },
+            "description": "The ID of the experiment"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetExperimentTagRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The tag as it now applies to the experiment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetExperimentTagResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid experiment ID or request body, or the experiment is ephemeral and cannot be tagged as the baseline"
+          }
+        }
+      }
+    },
+    "/v1/experiments/{experiment_id}/tags/{tag_identifier}": {
+      "delete": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Remove a tag from an experiment",
+        "description": "Remove a tag, identified by its node ID or name, from the experiment that owns it. This operation is idempotent and never steals a tag from another experiment: if the experiment does not currently own the tag, the request is a no-op.",
+        "operationId": "deleteExperimentTag",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the experiment",
+              "title": "Experiment Id"
+            },
+            "description": "The ID of the experiment"
+          },
+          {
+            "name": "tag_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The node ID or name of the tag to remove",
+              "title": "Tag Identifier"
+            },
+            "description": "The node ID or name of the tag to remove"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful tag removal"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid experiment ID or tag identifier"
           }
         }
       }
@@ -4642,6 +5094,27 @@
             "description": "Filter by one or more trace IDs"
           },
           {
+            "name": "span_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by one or more span IDs",
+              "title": "Span Id"
+            },
+            "description": "Filter by one or more span IDs"
+          },
+          {
             "name": "parent_id",
             "in": "query",
             "required": false,
@@ -4877,6 +5350,27 @@
               "title": "Trace Id"
             },
             "description": "Filter by one or more trace IDs"
+          },
+          {
+            "name": "span_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by one or more span IDs",
+              "title": "Span Id"
+            },
+            "description": "Filter by one or more span IDs"
           },
           {
             "name": "parent_id",
@@ -5962,6 +6456,79 @@
       }
     },
     "/v1/prompts/{prompt_identifier}": {
+      "patch": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Update prompt metadata",
+        "description": "Update a prompt's description and metadata by identifier.",
+        "operationId": "patchPrompt",
+        "parameters": [
+          {
+            "name": "prompt_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the prompt, i.e. name or ID.",
+              "title": "Prompt Identifier"
+            },
+            "description": "The identifier of the prompt, i.e. name or ID."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchPromptRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated prompt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchPromptResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
       "delete": {
         "tags": [
           "prompts"
@@ -6798,7 +7365,7 @@
         "tags": [
           "spans"
         ],
-        "summary": "Annotate Span Documents",
+        "summary": "Create span document annotations",
         "operationId": "annotateSpanDocuments",
         "parameters": [
           {
@@ -7161,6 +7728,524 @@
               "text/plain": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/user/api_keys": {
+      "get": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "List the authenticated user's API keys",
+        "description": "Retrieve the API keys belonging to the currently authenticated user. The keys themselves are not recoverable and are never included in the response.",
+        "operationId": "getUserApiKeys",
+        "responses": {
+          "200": {
+            "description": "The authenticated user's API keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetApiKeysResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "Create an API key for the authenticated user",
+        "description": "Create a personal API key for the currently authenticated user. The key inherits the user's role, so it grants no more access than the user already has. Creation requires an access-token session; API keys cannot mint replacement keys. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.",
+        "operationId": "createUserApiKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The newly created API key, including the key itself.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateApiKeyResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/users/api_keys": {
+      "get": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "List all user API keys",
+        "description": "Retrieve API keys belonging to human users across the organization. System API keys are excluded. Restricted to admins.",
+        "operationId": "getAllUserApiKeys",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (a UserApiKey GlobalID).",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (a UserApiKey GlobalID)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "The maximum number of API keys to return (at most 1000).",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The maximum number of API keys to return (at most 1000)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A paginated list of user API keys and their owners.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAllUserApiKeysResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/user/api_keys/{api_key_id}": {
+      "delete": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "Delete a user API key",
+        "description": "Permanently revoke a user API key. Users can revoke their own keys, and admins can revoke keys belonging to other users. The key stops working immediately.",
+        "operationId": "deleteUserApiKey",
+        "parameters": [
+          {
+            "name": "api_key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the API key.",
+              "title": "Api Key Id"
+            },
+            "description": "The GlobalID of the API key."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful deletion."
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "API key not found."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/system/api_keys": {
+      "get": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "List system API keys",
+        "description": "Retrieve all system API keys. System keys belong to the system user rather than to any human, so this endpoint is restricted to admins. The keys themselves are not recoverable and are never included in the response.",
+        "operationId": "getSystemApiKeys",
+        "responses": {
+          "200": {
+            "description": "The system API keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetApiKeysResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "Create a system API key",
+        "description": "Create a system API key. System keys belong to the system user rather than to any human, so this endpoint is restricted to admins. Creation requires an admin access-token session or the configured admin secret; API keys cannot mint keys. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.",
+        "operationId": "createSystemApiKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The newly created system API key, including the key itself.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateApiKeyResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/system/api_keys/{api_key_id}": {
+      "delete": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "Delete a system API key",
+        "description": "Permanently revoke a system API key. The key stops working immediately. Restricted to admins.",
+        "operationId": "deleteSystemApiKey",
+        "parameters": [
+          {
+            "name": "api_key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the system API key.",
+              "title": "Api Key Id"
+            },
+            "description": "The GlobalID of the system API key."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful deletion."
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "System API key not found."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/chat/completions": {
+      "post": {
+        "tags": [
+          "chat_completions"
+        ],
+        "summary": "OpenAI-compatible chat completions",
+        "description": "Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) \u2014 callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, minimax, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.\n\n**Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.",
+        "operationId": "createChatCompletion",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChatCompletionRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletion"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletionErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletionErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletionErrorResponse"
                 }
               }
             }
@@ -7975,6 +9060,122 @@
         ],
         "title": "AnonymousUser"
       },
+      "ApiKey": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at"
+        ],
+        "title": "ApiKey"
+      },
+      "ApiKeyData": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "A human-readable name for the API key."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "An optional description of what the API key is for."
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At",
+            "description": "When the API key expires. The key never expires when omitted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ApiKeyData"
+      },
+      "ApiKeyUser": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "email"
+        ],
+        "title": "ApiKeyUser"
+      },
       "AppContext": {
         "properties": {
           "type": {
@@ -8307,6 +9508,227 @@
           "label"
         ],
         "title": "CategoricalAnnotationValue"
+      },
+      "ChatCompletion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "object": {
+            "type": "string",
+            "const": "chat.completion",
+            "title": "Object",
+            "default": "chat.completion"
+          },
+          "created": {
+            "type": "integer",
+            "title": "Created"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "choices": {
+            "items": {
+              "$ref": "#/components/schemas/ChatCompletionChoice"
+            },
+            "type": "array",
+            "title": "Choices"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/ChatCompletionUsage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created",
+          "model",
+          "choices",
+          "usage"
+        ],
+        "title": "ChatCompletion"
+      },
+      "ChatCompletionChoice": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index",
+            "default": 0
+          },
+          "message": {
+            "$ref": "#/components/schemas/ChatCompletionMessage"
+          },
+          "finish_reason": {
+            "type": "string",
+            "title": "Finish Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "finish_reason"
+        ],
+        "title": "ChatCompletionChoice"
+      },
+      "ChatCompletionErrorDetail": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "param": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Param"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "type"
+        ],
+        "title": "ChatCompletionErrorDetail"
+      },
+      "ChatCompletionErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ChatCompletionErrorDetail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ChatCompletionErrorResponse"
+      },
+      "ChatCompletionMessage": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "const": "assistant",
+            "title": "Role",
+            "default": "assistant"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "ChatCompletionMessage"
+      },
+      "ChatCompletionRequestMessage": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "developer",
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ChatCompletionTextPart"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "ChatCompletionRequestMessage"
+      },
+      "ChatCompletionStreamOptions": {
+        "properties": {
+          "include_usage": {
+            "type": "boolean",
+            "title": "Include Usage",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ChatCompletionStreamOptions"
+      },
+      "ChatCompletionTextPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "text",
+            "title": "Type"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "text"
+        ],
+        "title": "ChatCompletionTextPart"
+      },
+      "ChatCompletionUsage": {
+        "properties": {
+          "prompt_tokens": {
+            "type": "integer",
+            "title": "Prompt Tokens"
+          },
+          "completion_tokens": {
+            "type": "integer",
+            "title": "Completion Tokens"
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt_tokens",
+          "completion_tokens",
+          "total_tokens"
+        ],
+        "title": "ChatCompletionUsage"
       },
       "ChatContext": {
         "oneOf": [
@@ -8797,6 +10219,221 @@
         ],
         "title": "CreateAnnotationConfigResponseBody"
       },
+      "CreateApiKeyRequestBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ApiKeyData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateApiKeyRequestBody"
+      },
+      "CreateApiKeyResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CreatedApiKey"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateApiKeyResponseBody"
+      },
+      "CreateChatCompletionRequestBody": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, minimax, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'."
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ChatCompletionRequestMessage"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Messages"
+          },
+          "stream": {
+            "type": "boolean",
+            "title": "Stream",
+            "default": false
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature"
+          },
+          "top_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top P"
+          },
+          "max_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Completion Tokens"
+          },
+          "stop": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop"
+          },
+          "frequency_penalty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presence Penalty"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "n": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N"
+          },
+          "stream_options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatCompletionStreamOptions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools"
+          },
+          "tool_choice": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Choice"
+          },
+          "response_format": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Format"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "messages"
+        ],
+        "title": "CreateChatCompletionRequestBody",
+        "examples": [
+          {
+            "messages": [
+              {
+                "content": "You are a helpful assistant.",
+                "role": "system"
+              },
+              {
+                "content": "Say hello.",
+                "role": "user"
+              }
+            ],
+            "model": "openai:gpt-4o"
+          }
+        ]
+      },
       "CreateDatasetLabelRequestBody": {
         "properties": {
           "name": {
@@ -8842,6 +10479,70 @@
           "data"
         ],
         "title": "CreateDatasetLabelResponseBody"
+      },
+      "CreateDatasetSplitRequestBody": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "A unique name for the split."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "An optional description of the split."
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color",
+            "description": "An optional hex color for the split (e.g. #33c5e8). Omit for a default."
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "description": "Arbitrary JSON metadata for the split."
+          },
+          "example_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Example Ids",
+            "description": "Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CreateDatasetSplitRequestBody"
+      },
+      "CreateDatasetSplitResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetSplit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateDatasetSplitResponseBody"
       },
       "CreateExperimentRequestBody": {
         "properties": {
@@ -9262,6 +10963,59 @@
         ],
         "title": "CreateUserResponseBody"
       },
+      "CreatedApiKey": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "The API key. This is the only time it is returned; it cannot be recovered from the listing endpoints."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "key"
+        ],
+        "title": "CreatedApiKey"
+      },
       "CustomProviderModelSelection": {
         "properties": {
           "providerType": {
@@ -9431,6 +11185,16 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatasetExampleSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -9443,6 +11207,24 @@
           "updated_at"
         ],
         "title": "DatasetExample"
+      },
+      "DatasetExampleSource": {
+        "properties": {
+          "span_id": {
+            "type": "string",
+            "title": "Span Id"
+          },
+          "span_node_id": {
+            "type": "string",
+            "title": "Span Node Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "span_id",
+          "span_node_id"
+        ],
+        "title": "DatasetExampleSource"
       },
       "DatasetLabel": {
         "properties": {
@@ -9478,6 +11260,64 @@
           "color"
         ],
         "title": "DatasetLabel"
+      },
+      "DatasetSplit": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          },
+          "example_count": {
+            "type": "integer",
+            "title": "Example Count"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "color",
+          "metadata",
+          "example_count",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DatasetSplit"
       },
       "DatasetVersion": {
         "properties": {
@@ -10479,6 +12319,39 @@
         ],
         "title": "ExperimentRun"
       },
+      "ExperimentTag": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The node ID of the tag"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the tag"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The description of the tag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description"
+        ],
+        "title": "ExperimentTag"
+      },
       "FileUIPart": {
         "properties": {
           "type": {
@@ -10682,6 +12555,34 @@
         ],
         "title": "FreeformAnnotationConfigData"
       },
+      "GetAllUserApiKeysResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/UserApiKey"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetAllUserApiKeysResponseBody"
+      },
       "GetAnnotationConfigResponseBody": {
         "properties": {
           "data": {
@@ -10758,6 +12659,22 @@
           "next_cursor"
         ],
         "title": "GetAnnotationConfigsResponseBody"
+      },
+      "GetApiKeysResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ApiKey"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetApiKeysResponseBody"
       },
       "GetDatasetLabelResponseBody": {
         "properties": {
@@ -11587,6 +13504,22 @@
         ],
         "title": "ListExperimentRunsResponseBody"
       },
+      "ListExperimentTagsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ExperimentTag"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ListExperimentTagsResponseBody"
+      },
       "ListExperimentsResponseBody": {
         "properties": {
           "data": {
@@ -12391,6 +14324,43 @@
         "type": "object",
         "title": "OtlpStatus"
       },
+      "PatchPromptRequestBody": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "New description for the prompt (null clears the description)"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "description": "New metadata object for the prompt (replaces the existing metadata as a whole)"
+          }
+        },
+        "type": "object",
+        "title": "PatchPromptRequestBody",
+        "description": "Fields to update on a prompt. Omit a field to leave it unchanged."
+      },
+      "PatchPromptResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Prompt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "PatchPromptResponseBody"
+      },
       "PhoenixUIMessage": {
         "properties": {
           "id": {
@@ -12796,17 +14766,6 @@
               }
             ],
             "title": "Spanfilter"
-          },
-          "rootSpansOnly": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rootspansonly"
           }
         },
         "type": "object",
@@ -12815,7 +14774,7 @@
           "projectNodeId"
         ],
         "title": "ProjectContext",
-        "description": "Project the user is currently viewing.\n\n``span_filter`` carries the project-scoped span filter expression when the\nspan filter field is mounted \u2014 empty string when the field is mounted with\nno condition applied, ``None`` when the field is not present at all.\n\n``root_spans_only`` carries the current state of the spans-table root vs.\nall toggle when that toggle is mounted \u2014 ``True`` when the table is\nrestricted to root spans, ``False`` when it shows every span, ``None``\nwhen the toggle is not present (e.g. on the traces tab)."
+        "description": "Project the user is currently viewing.\n\n``span_filter`` carries the project-scoped span filter expression when the\nspan filter field is mounted \u2014 empty string when the field is mounted with\nno condition applied, ``None`` when the field is not present at all. It\ndescribes the view in full, root-span scoping included (which is expressed\nwithin the filter DSL as ``parent_id is None``)."
       },
       "Prompt": {
         "properties": {
@@ -15287,6 +17246,43 @@
         "type": "object",
         "title": "SetDatasetLabelsRequestBody"
       },
+      "SetExperimentTagRequestBody": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier",
+            "description": "The name of the tag to assign, e.g. 'baseline'. If another experiment on the same dataset already owns this tag, the tag is moved to this experiment."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "An optional description of the tag (replaces any existing description)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SetExperimentTagRequestBody"
+      },
+      "SetExperimentTagResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ExperimentTag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SetExperimentTagResponseBody"
+      },
       "SetProjectAnnotationConfigsRequestBody": {
         "properties": {
           "annotation_config_ids": {
@@ -17423,6 +19419,89 @@
         ],
         "title": "UpdateDatasetLabelResponseBody"
       },
+      "UpdateDatasetSplitRequestBody": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "A new unique name for the split."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "A new description, or null to clear it."
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color",
+            "description": "A new hex color for the split."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "New JSON metadata that replaces the existing metadata."
+          },
+          "add_example_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Add Example Ids",
+            "description": "Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op."
+          },
+          "remove_example_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Remove Example Ids",
+            "description": "Dataset example IDs (GlobalIDs) to remove from the split."
+          }
+        },
+        "type": "object",
+        "title": "UpdateDatasetSplitRequestBody"
+      },
+      "UpdateDatasetSplitResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetSplit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "UpdateDatasetSplitResponseBody"
+      },
       "UpdateExperimentRequestBody": {
         "properties": {
           "name": {
@@ -17713,6 +19792,57 @@
         ],
         "title": "UpsertOrDeleteSecretsResult",
         "description": "Result payload listing which keys were upserted and which were deleted."
+      },
+      "UserApiKey": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "user": {
+            "$ref": "#/components/schemas/ApiKeyUser"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "user"
+        ],
+        "title": "UserApiKey"
       },
       "UserMessageMetadata": {
         "properties": {

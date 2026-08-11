@@ -10,22 +10,12 @@ import type {
 import {
   DEFAULT_METRIC_CHART_KEYS,
   isProjectMetricChartKey,
-  MAX_SELECTED_METRIC_CHARTS,
   METRIC_CHART_TABLE_VIEWS,
 } from "@phoenix/pages/project/constants";
 
 export interface ProjectState {
   defaultTab: ProjectTab;
   setDefaultTab: (tab: ProjectTab) => void;
-  /**
-   * Whether to treat orphan spans as roots.
-   * @default false
-   */
-  treatOrphansAsRoots: boolean;
-  /**
-   * Set whether to treat orphan spans as roots.
-   */
-  setTreatOrphansAsRoots: (treatOrphansAsRoots: boolean) => void;
   /**
    * Whether to show the aside panel on the spans and traces tables.
    * @default true
@@ -69,12 +59,6 @@ export function createProjectStore({
         setDefaultTab: (tab: ProjectTab) => {
           set({ defaultTab: tab }, false, { type: "setDefaultTab" });
         },
-        treatOrphansAsRoots: false,
-        setTreatOrphansAsRoots: (treatOrphansAsRoots: boolean) => {
-          set({ treatOrphansAsRoots }, false, {
-            type: "setTreatOrphansAsRoots",
-          });
-        },
         showTableAside: true,
         setShowTableAside: (showTableAside: boolean) => {
           set({ showTableAside }, false, {
@@ -103,15 +87,13 @@ export function createProjectStore({
             ...(persistedState as Partial<ProjectState>),
           };
           // Persisted chart keys may reference charts that no longer exist in
-          // the chart catalog; drop them so stale keys don't count against the
-          // selection limit
+          // the chart catalog; drop them so stale keys don't render as empty
+          // panels
           const metricChartKeys = { ...DEFAULT_METRIC_CHART_KEYS };
           for (const view of METRIC_CHART_TABLE_VIEWS) {
             const keys = merged.metricChartKeys?.[view];
             if (Array.isArray(keys)) {
-              metricChartKeys[view] = keys
-                .filter(isProjectMetricChartKey)
-                .slice(0, MAX_SELECTED_METRIC_CHARTS);
+              metricChartKeys[view] = keys.filter(isProjectMetricChartKey);
             }
           }
           merged.metricChartKeys = metricChartKeys;

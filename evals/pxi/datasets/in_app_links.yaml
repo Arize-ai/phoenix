@@ -193,7 +193,6 @@ examples:
         - type: project
           projectNodeId: UHJvamVjdDo0Nw==
           spanFilter: ""
-          rootSpansOnly: false
       messages:
         - role: user
           content: Link to my most expensive trace.

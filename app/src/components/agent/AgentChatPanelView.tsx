@@ -26,7 +26,7 @@ import type {
 } from "@phoenix/store/agentStore";
 import type { Size } from "@phoenix/types/geometry";
 
-import { PxiGlyph } from "./PxiGlyph";
+import { PxiAnimatedGlyph } from "./PxiAnimatedGlyph";
 import { ResizableFloatingPanel } from "./ResizableFloatingPanel";
 import { SessionListMenu } from "./SessionListMenu";
 import { EMPTY_SESSION_DISPLAY_NAME } from "./sessionSummaryUtils";
@@ -134,13 +134,7 @@ export function AgentChatHeader({
   return (
     <div className="agent-chat-panel__header" css={panelHeaderCSS}>
       <Flex direction="row" alignItems="center" gap="size-50" minWidth={0}>
-        <PxiGlyph
-          fill="var(--global-text-color-900)"
-          css={css`
-            transform: scale(0.7);
-            flex-shrink: 0;
-          `}
-        />
+        <PxiAnimatedGlyph isIconSized />
         <Text weight="heavy" css={sessionHeadingCSS} title={sessionDisplayName}>
           {sessionDisplayName}
         </Text>

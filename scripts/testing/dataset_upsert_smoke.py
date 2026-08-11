@@ -16,9 +16,8 @@ stable identity matching:
 Run:
     uv run scripts/testing/dataset_upsert_smoke.py
 
-Set PHOENIX_COLLECTOR_ENDPOINT (e.g. http://localhost:6112) and/or
-PHOENIX_API_KEY if your server isn't on the default http://localhost:6006
-with no auth.
+Set PHOENIX_ENDPOINT (e.g. http://localhost:6112) and/or PHOENIX_API_KEY if
+your server isn't on the default http://localhost:6006 with no auth.
 """
 
 import time

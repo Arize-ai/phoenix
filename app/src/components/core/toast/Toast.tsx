@@ -7,7 +7,7 @@ import {
   UNSTABLE_ToastStateContext as ToastStateContext,
 } from "react-aria-components";
 
-import { Button } from "@phoenix/components/core/button";
+import { Button, IconButton } from "@phoenix/components/core/button";
 import { Text } from "@phoenix/components/core/content";
 import { Icon, Icons } from "@phoenix/components/core/icon";
 import { toastCSS } from "@phoenix/components/core/toast/styles";
@@ -84,12 +84,15 @@ export const Toast = <T extends QueuedToast<NotificationParams>>({
             </Text>
             <Text slot="description">{toast.content.message}</Text>
           </AriaToastContent>
-          <Button
+          <IconButton
             slot="close"
             size="S"
+            color="inherit"
             type="button"
-            leadingVisual={<Icon svg={<Icons.Close />} />}
-          />
+            aria-label="Close notification"
+          >
+            <Icon svg={<Icons.Close />} />
+          </IconButton>
         </div>
         {toast.content.action ? (
           <div className="toast-action-container">

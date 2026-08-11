@@ -25,6 +25,7 @@ import {
   formatAnnotationConfigsOutput,
   type OutputFormat,
 } from "./formatAnnotationConfigs";
+import type { CommonOptions, DeleteOptions } from "./options";
 
 type AnnotationConfig =
   | componentsV1["schemas"]["CategoricalAnnotationConfig"]
@@ -50,62 +51,182 @@ const ANNOTATION_CONFIG_TYPES: readonly AnnotationConfigType[] = [
   "FREEFORM",
 ];
 
-interface AnnotationConfigListOptions {
-  endpoint?: string;
-  apiKey?: string;
-  format?: OutputFormat;
-  progress?: boolean;
+/**
+ * Options for `px annotation-config list`.
+ */
+interface AnnotationConfigListOptions extends CommonOptions<OutputFormat> {
+  /**
+   * `--limit <number>`: Maximum number of annotation configs to fetch,
+   * paging through the API's cursor until it is reached. Unset fetches all
+   * of them.
+   *
+   * @example 10
+   */
   limit?: number;
 }
 
-interface AnnotationConfigGetOptions {
-  endpoint?: string;
-  apiKey?: string;
-  format?: OutputFormat;
-  progress?: boolean;
-}
+/**
+ * Options for `px annotation-config get`. No fields beyond the shared base —
+ * the target config is the `<config-identifier>` positional argument.
+ */
+type AnnotationConfigGetOptions = CommonOptions<OutputFormat>;
 
-interface AnnotationConfigDeleteOptions {
-  endpoint?: string;
-  apiKey?: string;
-  yes?: boolean;
-  progress?: boolean;
-}
-
-interface AnnotationConfigCreateOptions {
-  endpoint?: string;
-  apiKey?: string;
-  format?: OutputFormat;
-  progress?: boolean;
+/**
+ * Options for `px annotation-config create`.
+ *
+ * The type-specific flags (`lowerBound`, `upperBound`, `threshold`, `value`,
+ * `values`) are validated against `type` by `assertFlagsValidForConfigType`
+ * — passing one that doesn't apply to the chosen type is an
+ * `INVALID_ARGUMENT` error, not a silent no-op.
+ */
+interface AnnotationConfigCreateOptions extends CommonOptions<OutputFormat> {
+  /**
+   * `--type <type>`: Config type — `CATEGORICAL`, `CONTINUOUS`, or
+   * `FREEFORM`. Required. Case-insensitive; normalized to uppercase before
+   * validation.
+   *
+   * @example "CATEGORICAL"
+   */
   type?: string;
+  /**
+   * `--name <name>`: Annotation config name. Required. Applies to all types.
+   *
+   * @example "response-quality"
+   */
   name?: string;
+  /**
+   * `--description <description>`: Human-readable description. Applies to
+   * all types.
+   *
+   * @example "Pass/fail rating from human review"
+   */
   description?: string;
+  /**
+   * `--optimization-direction <direction>`: `MINIMIZE`, `MAXIMIZE`, or
+   * `NONE`. Applies to CATEGORICAL and CONTINUOUS configs, where it defaults
+   * to `NONE` when omitted; for FREEFORM configs it is left `null` unless
+   * explicitly set.
+   *
+   * @example "MAXIMIZE"
+   */
   optimizationDirection?: string;
+  /**
+   * `--lower-bound <number>`: Lower bound of the score range. Valid for
+   * CONTINUOUS and FREEFORM configs; rejected for CATEGORICAL.
+   *
+   * @example 0
+   */
   lowerBound?: number;
+  /**
+   * `--upper-bound <number>`: Upper bound of the score range. Valid for
+   * CONTINUOUS and FREEFORM configs; rejected for CATEGORICAL.
+   *
+   * @example 1
+   */
   upperBound?: number;
+  /**
+   * `--threshold <number>`: Pass/fail threshold. Valid for FREEFORM configs
+   * only; rejected for CATEGORICAL and CONTINUOUS.
+   *
+   * @example 0.5
+   */
   threshold?: number;
+  /**
+   * `--value <label[=score]>`: Categorical label with optional score,
+   * repeatable. Valid for CATEGORICAL configs only. CATEGORICAL configs
+   * require at least one label via `--value` or `--values`.
+   *
+   * @example ["good=1", "bad=0"]
+   */
   value?: string[];
-  values?: string;
-}
-
-interface AnnotationConfigUpdateOptions {
-  endpoint?: string;
-  apiKey?: string;
-  format?: OutputFormat;
-  progress?: boolean;
-  name?: string;
-  description?: string;
-  optimizationDirection?: string;
-  lowerBound?: number;
-  upperBound?: number;
-  threshold?: number;
-  value?: string[];
+  /**
+   * `--values <json>`: Categorical values as a JSON array — a bulk/agent
+   * alternative to repeating `--value`. Valid for CATEGORICAL configs only.
+   *
+   * @example '[{"label":"good","score":1},{"label":"bad","score":0}]'
+   */
   values?: string;
 }
 
 /**
- * Flags whose validity depends on the annotation config type — shared shape
- * between the create and update option interfaces.
+ * Options for `px annotation-config update`. The config `type` is immutable
+ * (there is no `--type` flag here — delete and recreate to change it), and
+ * every field is optional, but the handler requires at least one before
+ * proceeding.
+ *
+ * The type-specific flags are validated against the *existing* config's
+ * type by `assertFlagsValidForConfigType`, same as in
+ * `AnnotationConfigCreateOptions`.
+ */
+interface AnnotationConfigUpdateOptions extends CommonOptions<OutputFormat> {
+  /**
+   * `--name <name>`: New name for the annotation config. Applies to all
+   * types.
+   *
+   * @example "answer-quality"
+   */
+  name?: string;
+  /**
+   * `--description <description>`: New description. Applies to all types.
+   *
+   * @example "Updated rubric for response quality"
+   */
+  description?: string;
+  /**
+   * `--optimization-direction <direction>`: New `MINIMIZE`, `MAXIMIZE`, or
+   * `NONE` direction. Applies to CATEGORICAL and CONTINUOUS configs; for
+   * FREEFORM it may still be set explicitly.
+   *
+   * @example "MAXIMIZE"
+   */
+  optimizationDirection?: string;
+  /**
+   * `--lower-bound <number>`: New lower bound. Valid for CONTINUOUS and
+   * FREEFORM configs; rejected for CATEGORICAL.
+   *
+   * @example -1
+   */
+  lowerBound?: number;
+  /**
+   * `--upper-bound <number>`: New upper bound. Valid for CONTINUOUS and
+   * FREEFORM configs; rejected for CATEGORICAL.
+   *
+   * @example 1
+   */
+  upperBound?: number;
+  /**
+   * `--threshold <number>`: New pass/fail threshold. Valid for FREEFORM
+   * configs only; rejected for CATEGORICAL and CONTINUOUS.
+   *
+   * @example 0.75
+   */
+  threshold?: number;
+  /**
+   * `--value <label[=score]>`: Replacement categorical label with optional
+   * score, repeatable. Valid for CATEGORICAL configs only. Supplying any
+   * `--value`/`--values` replaces the entire label set, not just the ones
+   * named.
+   *
+   * @example ["good=1", "acceptable=0.5", "bad=0"]
+   */
+  value?: string[];
+  /**
+   * `--values <json>`: Replacement categorical values as a JSON array — a
+   * bulk/agent alternative to repeating `--value`. Valid for CATEGORICAL
+   * configs only.
+   *
+   * @example '[{"label":"good","score":1}]'
+   */
+  values?: string;
+}
+
+/**
+ * Not a mirror of a Commander flag set — an internal validation shape.
+ * Narrows `AnnotationConfigCreateOptions` and `AnnotationConfigUpdateOptions`
+ * down to just the fields whose validity depends on the annotation config
+ * type, so `assertFlagsValidForConfigType` can be shared between create and
+ * update without depending on either's full (and slightly different)
+ * options interface.
  */
 interface TypeScopedFlagOptions {
   lowerBound?: number;
@@ -578,7 +699,7 @@ async function annotationConfigCreateHandler(
  */
 async function annotationConfigDeleteHandler(
   configId: string,
-  options: AnnotationConfigDeleteOptions
+  options: DeleteOptions
 ): Promise<void> {
   try {
     assertDeletesEnabled();

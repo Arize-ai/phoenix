@@ -1,9 +1,10 @@
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 import {
-  OpenInferenceBatchSpanProcessor,
-  OpenInferenceSimpleSpanProcessor,
-} from "@arizeai/openinference-vercel";
-import { warnIfUsingFileEndpointWithCredentials } from "@arizeai/phoenix-config";
+  DEFAULT_PHOENIX_COLLECTOR_ENDPOINT,
+  ENV_PHOENIX_COLLECTOR_ENDPOINT,
+  type ResolvedTraceExportEndpoint,
+  warnIfUsingFileEndpointWithCredentials,
+} from "@arizeai/phoenix-config";
 import type { DiagLogLevel } from "@opentelemetry/api";
 import {
   context,
@@ -29,6 +30,7 @@ import type { SpanProcessor } from "@opentelemetry/sdk-trace-node";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 
 import { getEnvConfig, getEnvProjectName } from "./config";
+import { LazyOpenInferenceSpanProcessor } from "./lazyOpenInferenceSpanProcessor";
 
 /**
  * Type definition for HTTP headers used in OTLP communication
@@ -475,6 +477,7 @@ export function register(params: RegisterParams): NodeTracerProvider {
   if (diagLogLevel) {
     diag.setLogger(new DiagConsoleLogger(), diagLogLevel);
   }
+
   const provider = new NodeTracerProvider({
     resource: resourceFromAttributes({
       [SEMRESATTRS_PROJECT_NAME]: projectName,
@@ -559,6 +562,55 @@ export function register(params: RegisterParams): NodeTracerProvider {
  * });
  * ```
  */
+/** Where spans go when neither an argument nor the environment names a server. */
+const DEFAULT_TRACE_EXPORT_URL = DEFAULT_PHOENIX_COLLECTOR_ENDPOINT;
+
+/**
+ * Builds the OTLP export URL from a resolved trace-export endpoint. A value
+ * from `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is the traces URL already and is
+ * used verbatim, per the OpenTelemetry specification; every other value is a
+ * server URL that gets the `/v1/traces` path when it is missing.
+ */
+function toTraceExportUrl(endpoint: ResolvedTraceExportEndpoint): string {
+  if (endpoint.value === undefined) {
+    return ensureCollectorEndpoint(DEFAULT_TRACE_EXPORT_URL);
+  }
+  return endpoint.shape === "fully-qualified"
+    ? new URL(endpoint.value).toString()
+    : ensureCollectorEndpoint(endpoint.value);
+}
+
+const loggedTraceExportSources = new Set<string>();
+
+/**
+ * Notes once which variable trace export resolved from when it resolved below
+ * `PHOENIX_COLLECTOR_ENDPOINT`. Where spans go is worth stating plainly — the
+ * batching exporter swallows delivery failures — but a fallback that reaches
+ * the user's Phoenix is working as intended, not a misconfiguration.
+ */
+function logTraceExportSource({
+  envKey,
+  url,
+}: {
+  envKey?: string;
+  url: string;
+}): void {
+  if (!envKey || loggedTraceExportSources.has(`${envKey}\0${url}`)) {
+    return;
+  }
+  loggedTraceExportSources.add(`${envKey}\0${url}`);
+  // eslint-disable-next-line no-console
+  console.info(
+    `Exporting traces to ${url}, resolved from ${envKey}. ` +
+      `Set ${ENV_PHOENIX_COLLECTOR_ENDPOINT} to export them somewhere else.`
+  );
+}
+
+/** @internal Resets the one-time trace-export source log latch for tests. */
+export function resetTraceExportSourceLogForTesting(): void {
+  loggedTraceExportSources.clear();
+}
+
 export function getDefaultSpanProcessor({
   url: paramsUrl,
   apiKey: paramsApiKey,
@@ -569,20 +621,25 @@ export function getDefaultSpanProcessor({
   "url" | "apiKey" | "batch" | "headers"
 >): SpanProcessor {
   const envConfig = getEnvConfig();
-  const configuredUrl = paramsUrl || envConfig.endpoint.value;
+  const usesEnvEndpoint = !paramsUrl && envConfig.endpoint.value !== undefined;
   let url: string;
   try {
-    url = ensureCollectorEndpoint(configuredUrl || "http://localhost:6006");
+    url = paramsUrl
+      ? ensureCollectorEndpoint(paramsUrl)
+      : toTraceExportUrl(envConfig.endpoint);
   } catch (error) {
-    if (!paramsUrl && envConfig.endpoint.source?.kind === "env-file") {
+    if (usesEnvEndpoint && envConfig.endpoint.source?.kind === "env-file") {
       // eslint-disable-next-line no-console
       console.warn(
-        `Ignoring invalid PHOENIX_COLLECTOR_ENDPOINT value from ${envConfig.endpoint.source.filePath}: ${error instanceof Error ? error.message : "invalid URL"}.`
+        `Ignoring invalid ${envConfig.endpoint.envKey} value from ${envConfig.endpoint.source.filePath}: ${error instanceof Error ? error.message : "invalid URL"}.`
       );
-      url = ensureCollectorEndpoint("http://localhost:6006");
+      url = ensureCollectorEndpoint(DEFAULT_TRACE_EXPORT_URL);
     } else {
       throw error;
     }
+  }
+  if (usesEnvEndpoint && envConfig.endpoint.rank !== "canonical") {
+    logTraceExportSource({ envKey: envConfig.endpoint.envKey, url });
   }
   const apiKey = paramsApiKey || envConfig.credentials.apiKey;
   const explicitHeaders: Headers = Array.isArray(paramsHeaders)
@@ -615,11 +672,12 @@ export function getDefaultSpanProcessor({
     : envConfig.credentials.source?.kind === "process"
       ? "the process environment"
       : undefined;
-  if (!paramsUrl) {
+  if (usesEnvEndpoint) {
     warnIfUsingFileEndpointWithCredentials({
       credentialSource,
       endpointSource: envConfig.endpoint.source,
-      endpointVariable: "PHOENIX_COLLECTOR_ENDPOINT",
+      endpointVariable:
+        envConfig.endpoint.envKey ?? ENV_PHOENIX_COLLECTOR_ENDPOINT,
     });
   }
   const configureHeaders =
@@ -632,12 +690,13 @@ export function getDefaultSpanProcessor({
     url,
     headers,
   });
-  let spanProcessor: SpanProcessor;
-  if (batch) {
-    spanProcessor = new OpenInferenceBatchSpanProcessor({ exporter });
-  } else {
-    spanProcessor = new OpenInferenceSimpleSpanProcessor({ exporter });
-  }
+  // The OpenInference span processors come from the ESM-only
+  // `@arizeai/openinference-vercel` package; the lazy processor loads them
+  // with a dynamic import so this module stays loadable from CommonJS.
+  const spanProcessor: SpanProcessor = new LazyOpenInferenceSpanProcessor({
+    exporter,
+    batch,
+  });
   return spanProcessor;
 }
 /**
@@ -690,18 +749,33 @@ export function getDefaultSpanProcessor({
  * const normalized = ensureCollectorEndpoint('https://app.phoenix.arize.com/api');
  * // Returns: 'https://app.phoenix.arize.com/api/v1/traces'
  * ```
+ *
+ * @example
+ * A doubled separator or trailing slash on the traces path is canonicalized:
+ * ```typescript
+ * const normalized = ensureCollectorEndpoint('https://app.phoenix.arize.com/v1/traces/');
+ * // Returns: 'https://app.phoenix.arize.com/v1/traces'
+ * ```
  */
 export function ensureCollectorEndpoint(url: string): string {
-  if (!url.includes("/v1/traces")) {
-    // Ensure the base URL has a trailing slash for proper path concatenation
-    // Without this, the URL constructor treats the last segment as a file and replaces it
-    const baseUrl = new URL(url);
-    if (!baseUrl.pathname.endsWith("/")) {
-      baseUrl.pathname += "/";
-    }
-    // Append v1/traces to the pathname (without leading slash to append, not replace)
-    baseUrl.pathname += "v1/traces";
-    return baseUrl.toString();
+  const collectorUrl = new URL(url);
+  const { pathname } = collectorUrl;
+  if (OTLP_TRACES_PATH_SUFFIX.test(pathname)) {
+    // Already the traces path: canonicalize a doubled separator or trailing
+    // slash so exporters hit the route directly instead of a redirect.
+    collectorUrl.pathname = `${pathname.replace(OTLP_TRACES_PATH_SUFFIX, "")}/v1/traces`;
+  } else if (!pathname.includes("/v1/traces")) {
+    // A path that merely contains the traces path — a gateway route such as
+    // `/v1/traces/tenant-a` — is left alone; appending would break it.
+    collectorUrl.pathname = `${pathname.replace(/\/+$/, "")}/v1/traces`;
   }
-  return new URL(url).toString();
+  return collectorUrl.toString();
 }
+
+/**
+ * The OTLP traces path as a suffix of a URL's path component. A repeated
+ * separator (`…//v1/traces`) and a trailing slash both match; the match is
+ * case-sensitive because URL paths are, so `/V1/traces` is treated as an
+ * ordinary path rather than silently rewritten.
+ */
+const OTLP_TRACES_PATH_SUFFIX = /\/+v1\/traces\/?$/;

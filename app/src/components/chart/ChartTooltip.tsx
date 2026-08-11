@@ -20,12 +20,13 @@ export function ChartTooltip(props: ChartTooltipProps) {
       css={css`
         background-color: var(--global-color-gray-200);
         border: 1px solid var(--global-color-gray-300);
-        padding: var(--global-dimension-static-size-100);
+        padding: var(--global-dimension-size-100);
         border-radius: var(--global-rounding-medium);
         display: flex;
         flex-direction: column;
-        gap: var(--global-dimension-static-size-50);
+        gap: var(--global-dimension-size-50);
         min-width: 200px;
+        max-width: 300px;
         box-shadow: 0 8px 8px rgba(0, 0, 0, 0.1);
       `}
     >
@@ -60,22 +61,24 @@ export function ChartTooltipItem(props: ChartTooltipItemProps) {
         display: flex;
         flex-direction: row;
         justify-content: space-between;
+        gap: var(--global-dimension-size-200);
       `}
     >
       <div
         css={css`
           display: flex;
           flex-direction: row;
-          gap: var(--global-dimension-static-size-100);
+          gap: var(--global-dimension-size-100);
           align-items: center;
+          min-width: 0;
         `}
       >
         <PreviewShape
           color={props.color ?? "transparent"}
           shape={props.shape ?? "line"}
         />
-        <Text title={props.name}>
-          <Truncate maxWidth="120px">{props.name}</Truncate>
+        <Text title={props.name} minWidth={0}>
+          <Truncate maxWidth="100%">{props.name}</Truncate>
         </Text>
       </div>
       <Text>{props.value}</Text>
@@ -113,6 +116,7 @@ const colorPreviewCSS = (previewShape: ColorPreviewShape) => {
       height: 8px;
     `;
   }
+  return undefined;
 };
 
 type PreviewShapeProps = {

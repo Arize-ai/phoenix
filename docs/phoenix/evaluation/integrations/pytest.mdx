@@ -99,7 +99,7 @@ def test_answers(question, expected):
 Run it with your Phoenix connection set:
 
 ```bash
-export PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix-host
+export PHOENIX_ENDPOINT=https://your-phoenix-host
 export PHOENIX_API_KEY=your-api-key        # if required
 pytest tests/evals/test_qa.py
 ```
@@ -113,6 +113,12 @@ The marker is what tells the plugin which tests to record. Tests without it run 
 ```python
 @pytest.mark.phoenix(
     dataset="my-eval-suite",
+    dataset_description="Customer support regression cases",
+    experiment_description="GPT-4.1 with a lower temperature",
+    experiment_metadata={
+        "model": "gpt-4.1",
+        "parameters": {"temperature": 0.2},
+    },
     evaluators=[correctness_evaluator],
     repetitions=3,
 )
@@ -122,8 +128,13 @@ def test_my_feature(input, expected): ...
 | Argument | Description |
 |---|---|
 | `dataset` | Name of the Phoenix dataset and experiment. Defaults to the test file's relative path when omitted. |
+| `dataset_description` | Description stored on the Phoenix dataset. |
+| `experiment_description` | Description stored on the Phoenix experiment. |
+| `experiment_metadata` | Metadata stored on the experiment, such as the model and invocation parameters. |
 | `evaluators` | List of evaluators that run automatically against every case. |
 | `repetitions` | Run each case this many times to measure non-determinism. |
+
+Tests that resolve to the same dataset must use matching non-empty descriptions and experiment metadata. The plugin also adds the current Git commit as `git_sha` when it runs inside a Git checkout. Set `git_sha` in `experiment_metadata` to record a different revision, such as the commit supplied by your CI environment.
 
 ### Dataset naming
 
@@ -315,7 +326,7 @@ The plugin is configured entirely through environment variables, so the same sui
 | `PHOENIX_TEST_TRACKING` | `true` | Master switch. Set to `0` or `false` to run offline — tests execute but nothing is sent to Phoenix. |
 | `PHOENIX_TEST_REPETITIONS` | `1` | Default repetitions per marked test. |
 | `PHOENIX_TEST_DATASET` | _(file path)_ | Override the dataset name for all collected tests. |
-| `PHOENIX_COLLECTOR_ENDPOINT` | — | Your Phoenix server URL. |
+| `PHOENIX_ENDPOINT` | — | Your Phoenix server URL. |
 | `PHOENIX_API_KEY` | — | Bearer token for Phoenix. |
 | `PHOENIX_CLIENT_HEADERS` | — | Optional JSON headers forwarded to the Phoenix client. |
 
@@ -405,7 +416,7 @@ jobs:
       - run: pip install "arize-phoenix-client[pytest,evals]" pytest
       - name: Run eval suite
         env:
-          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_ENDPOINT: ${{ secrets.PHOENIX_ENDPOINT }}
           PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
         run: pytest tests/evals/
 ```

@@ -49,21 +49,32 @@ const timeRangeControlsCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--global-dimension-static-size-50);
+  gap: var(--global-dimension-size-50);
   width: fit-content;
   box-sizing: border-box;
   /* Uniform inset so each button's hover pill floats evenly in the shell. */
-  padding: var(--global-dimension-static-size-50);
+  padding: var(--global-dimension-size-50);
   background-color: var(--global-input-field-background-color);
   border: var(--global-border-size-thin) solid
     var(--global-input-field-border-color);
   border-radius: var(--global-rounding-small);
 
+  /* Buttons get an explicit square (shell height minus border and padding):
+     Safari resolves stretch + aspect-ratio inconsistently between Button
+     and ToggleButton. */
   &[data-size="S"] {
     height: var(--global-input-height-s);
+    --time-range-controls-button-size: calc(
+      var(--global-input-height-s) - 2 *
+        (var(--global-dimension-size-50) + var(--global-border-size-thin))
+    );
   }
   &[data-size="M"] {
     height: var(--global-input-height-m);
+    --time-range-controls-button-size: calc(
+      var(--global-input-height-m) - 2 *
+        (var(--global-dimension-size-50) + var(--global-border-size-thin))
+    );
   }
 
   /* Fade the whole shell as one unit, not each button twice over. */
@@ -90,13 +101,20 @@ const controlButtonCSS = css`
     background-color 0.2s ease-in-out,
     color 0.2s ease-in-out;
 
-  &[data-size] {
-    align-self: stretch;
-    height: auto;
-    aspect-ratio: 1 / 1;
-  }
+  /* Double attribute selector outranks the base button's height and
+     childless min-width. */
   &[data-size][data-childless] {
+    flex: none;
+    width: var(--time-range-controls-button-size);
+    min-width: var(--time-range-controls-button-size);
+    height: var(--time-range-controls-button-size);
     padding: 0;
+  }
+
+  /* An outset focus ring would spill past the shell border. */
+  &[data-focus-visible],
+  &:focus-visible {
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
 
   /* One optical size for glyphs from both icon families. */

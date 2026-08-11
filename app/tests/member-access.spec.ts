@@ -4,8 +4,8 @@ import { expect, test } from "@playwright/test";
 test.use({ storageState: "playwright/.auth/member.json" });
 
 test("can create user key", async ({ page }) => {
-  // Navigate to profile page
-  await page.goto("/profile");
+  // Navigate to the API Keys tab of the profile page
+  await page.goto("/profile/api-keys");
 
   // Generate a unique key name for this test run
   const keyName = `key-${randomUUID()}`;
@@ -23,8 +23,8 @@ test("can create user key", async ({ page }) => {
     .getByRole("button", { name: "dismiss" })
     .click();
 
-  // Verify the named key appears in the table - which means key creation succeeded
-  await expect(page.getByRole("cell", { name: keyName })).toBeVisible();
+  // Verify the named key appears in the list - which means key creation succeeded
+  await expect(page.getByText(keyName, { exact: true })).toBeVisible();
 });
 
 test("should be able to create a new project", async ({ page }) => {

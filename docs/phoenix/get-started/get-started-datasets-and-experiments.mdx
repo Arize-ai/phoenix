@@ -24,143 +24,145 @@ To follow along, you should already have:
 </Info>
 ---
 
-## **Step 1: Use Explanations to Identify Improvements**
+<Steps>
+  <Step title={<span className="step-title">Use Explanations to Identify Improvements</span>}>
+    We’ll be using our dataset to group our application failures together – the next step is deciding which issues to fix.
 
-We’ll be using our dataset to group our application failures together – the next step is deciding which issues to fix.
+    Using the explanations apart of the evals we ran previously & trace context, we can understand why these runs failed. Looking at the traces in this dataset, you might notice patterns such as unclear instructions, missing constraints, or outputs that don’t follow the expected structure.
 
-Using the explanations apart of the evals we ran previously & trace context, we can understand why these runs failed. Looking at the traces in this dataset, you might notice patterns such as unclear instructions, missing constraints, or outputs that don’t follow the expected structure.
+    The easiest way to see these is to go back into the trace view for these failed runs & read the explanations for why they were each labeled as "incomplete" answers.
 
-The easiest way to see these is to go back into the trace view for these failed runs & read the explanations for why they were each labeled as "incomplete" answers.
+    In this example, we’ll improve the agent by strengthening the agents' backstory instructions so the model has clearer guidance on what a good response looks like.
 
-In this example, we’ll improve the agent by strengthening the agents' backstory instructions so the model has clearer guidance on what a good response looks like.
+    ### **Update the Agent Instructions**
 
-### **Update the Agent Instructions**
+    Below is an example of tightening the agent backstory to be more explicit about the expected output.
 
-Below is an example of tightening the agent backstory to be more explicit about the expected output.
+    ```python
+    researcher = Agent(
+            role="Financial Research Analyst",
+            goal="""Gather up-to-date financial data, trends, and news for the target companies/markets.
+            Make sure to include more than 1 financial ratios (such as P/E or P/B), news from the last 6 months, and current stock price or performance data.""",
+            backstory="""
+                You are a Senior Financial Research Analyst.
+            """,
+            verbose=True,
+            allow_delegation=False,
+            max_iter=2,
+            tools=[search_tool],
+            )
 
-```python
-researcher = Agent(
-        role="Financial Research Analyst",
-        goal="""Gather up-to-date financial data, trends, and news for the target companies/markets.
-        Make sure to include more than 1 financial ratios (such as P/E or P/B), news from the last 6 months, and current stock price or performance data.""",
+    writer = Agent(
+        role="Financial Report Writer",
+        goal="Compile and summarize financial research into clear, actionable insights. If there are multiple tickers, make sure to include a dedicated comparison section.",
         backstory="""
-            You are a Senior Financial Research Analyst.
+            You are an experienced financial content writer.
         """,
         verbose=True,
-        allow_delegation=False,
-        max_iter=2,
-        tools=[search_tool],
-        )
+        allow_delegation=True,
+        max_iter=1
+    )
+    ```
 
-writer = Agent(
-    role="Financial Report Writer",
-    goal="Compile and summarize financial research into clear, actionable insights. If there are multiple tickers, make sure to include a dedicated comparison section.",
-    backstory="""
-        You are an experienced financial content writer.
-    """,
-    verbose=True,
-    allow_delegation=True,
-    max_iter=1
-)
-```
+    Create an updated crew with these new, updated agents.
 
-Create an updated crew with these new, updated agents.
+    ```python
+    updated_crew = Crew(
+    	agents=[researcher, writer],
+        tasks=[task1, task2],
+        verbose=True,
+        process=Process.sequential,
+    )
+    ```
 
-```python
-updated_crew = Crew(
-	agents=[researcher, writer],
-    tasks=[task1, task2],
-    verbose=True,
-    process=Process.sequential,
-)
-```
+    At this point, we’ve made a targeted change based on the explanations for why traces were classified as real failures.
+  </Step>
 
-At this point, we’ve made a targeted change based on the explanations for why traces were classified as real failures.
+  <Step title={<span className="step-title">Define an Experiment</span>}>
+    Now that we’ve updated the agent, we will run this new Crew to test whether the changes actually improve quality.
 
-## **Step 2: Define an Experiment**
+    Experiments in Phoenix let you rerun the same inputs through different versions of your application and compare the results side by side. This helps ensure that improvements are measured, not assumed.
 
-Now that we’ve updated the agent, we will run this new Crew to test whether the changes actually improve quality.
+    To define an experiment, we need to specify:
 
-Experiments in Phoenix let you rerun the same inputs through different versions of your application and compare the results side by side. This helps ensure that improvements are measured, not assumed.
+    - **The experiment task**
 
-To define an experiment, we need to specify:
+      A task is a function or process that takes each example from a dataset and produces an output, typically by running your application logic or model on the input.
 
-- **The experiment task**
+    - **The experiment evaluation**
 
-  A task is a function or process that takes each example from a dataset and produces an output, typically by running your application logic or model on the input.
+      An experiment evaluation is essentially the same as a regular evaluation, but specifically assesses the quality of a task's output, often by comparing it to an expected result or applying a scoring metric.
 
-- **The experiment evaluation**
+    In this guide, the task for the experiment is simply to rerun the agent using the updated instructions to see improvements. Since we are re-running our agent system on these inputs and getting new outputs, we will rerun the same evaluation to directly compare results.
 
-  An experiment evaluation is essentially the same as a regular evaluation, but specifically assesses the quality of a task's output, often by comparing it to an expected result or applying a scoring metric.
+    ```python
+    def my_task(example):
+        result = updated_crew.kickoff(inputs=example.input)
+        return result
+    ```
 
-In this guide, the task for the experiment is simply to rerun the agent using the updated instructions to see improvements. Since we are re-running our agent system on these inputs and getting new outputs, we will rerun the same evaluation to directly compare results.
+    ```python
+    from phoenix.evals import ClassificationEvaluator
 
-```python
-def my_task(example):
-    result = updated_crew.kickoff(inputs=example.input)
-    return result
-```
+    completeness_evaluator = ClassificationEvaluator(
+        name="completeness",
+        prompt_template=financial_completeness_template,
+        llm=llm,
+        choices={"complete": 1.0, "incomplete": 0.0},
+    )
 
-```python
-from phoenix.evals import ClassificationEvaluator
+    completeness_evaluator.bind(
+        {
+            "attributes.input.value": "input",
+            "attributes.output.value": "output",
+        }
+    )
 
-completeness_evaluator = ClassificationEvaluator(
-    name="completeness",
-    prompt_template=financial_completeness_template,
-    llm=llm,
-    choices={"complete": 1.0, "incomplete": 0.0},
-)
+    evaluators = [completeness_evaluator]
+    ```
+  </Step>
 
-completeness_evaluator.bind(
-    {
-        "attributes.input.value": "input",
-        "attributes.output.value": "output",
-    }
-)
+  <Step title={<span className="step-title">Run the Experiment on the Dataset</span>}>
+    Next, we’ll pull down the dataset we created earlier and run the experiment on it.
 
-evaluators = [completeness_evaluator]
-```
+    This ensures we’re testing the new version of the agent on the exact same inputs that previously failed.
 
-## **Step 3: Run the Experiment on the Dataset**
+    ```python
+    client = Client()
+    dataset = client.datasets.get_dataset(dataset="python quickstart fails")
+    ```
 
-Next, we’ll pull down the dataset we created earlier and run the experiment on it.
+    Now we can run our experiment!
 
-This ensures we’re testing the new version of the agent on the exact same inputs that previously failed.
+    ```python
+    experiment = client.experiments.run_experiment(dataset=dataset, task=my_task, evaluators=evaluators)
+    ```
 
-```python
-client = Client()
-dataset = client.datasets.get_dataset(dataset="python quickstart fails")
-```
+    Once this completes, Phoenix logs the experiment results automatically.
+  </Step>
 
-Now we can run our experiment!
+  <Step title={<span className="step-title">View Experiment Results in Phoenix</span>}>
+    Head back to Phoenix and open the **Experiments** view.
 
-```python
-experiment = client.experiments.run_experiment(dataset=dataset, task=my_task, evaluators=evaluators)
-```
+    Here, you can see:
 
-Once this completes, Phoenix logs the experiment results automatically.
+    - The original runs compared against the new ones under 'reference output'
+    - New application runs as a results of our task
+    - Evaluation results for each version
 
-## **Step 4: View Experiment Results in Phoenix**
+    In this example, we should see more traces receiving a **correct** label, indicating that the changes improved performance.
 
-Head back to Phoenix and open the **Experiments** view.
+    <Frame caption="View Experiment Results">
+      <video
+        controls
+        className="w-full aspect-video rounded-xl"
+        src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first_experiment.mp4"
+      />
+    </Frame>
 
-Here, you can see:
-
-- The original runs compared against the new ones under 'reference output'
-- New application runs as a results of our task
-- Evaluation results for each version
-
-In this example, we should see more traces receiving a **correct** label, indicating that the changes improved performance.
-
-<Frame caption="View Experiment Results">
-  <video
-    controls
-    className="w-full aspect-video rounded-xl"
-    src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first_experiment.mp4"
-  />
-</Frame>
-
-**Congratulations!** You’ve created your first dataset and ran your first experiment in Phoenix.
+    **Congratulations!** You’ve created your first dataset and ran your first experiment in Phoenix.
+  </Step>
+</Steps>
 
 ## **Learn More About Datasets and Experiments**
 

@@ -153,7 +153,7 @@ export function processAttributeToolCalls({
   provider: ModelProvider;
 }): ChatMessage["toolCalls"] {
   if (toolCalls == null) {
-    return;
+    return undefined;
   }
   return toolCalls
     .map(({ tool_call }) => {
@@ -211,7 +211,7 @@ export function processAttributeToolCalls({
             },
           } as JSONLiteral;
         default:
-          assertUnreachable(provider);
+          return assertUnreachable(provider);
       }
     })
     .filter((toolCall): toolCall is NonNullable<typeof toolCall> => {
@@ -1282,13 +1282,12 @@ export const getVariablesMapFromInstances = ({
 
   const variableValueCache = input.variablesValueCache ?? {};
 
-  const variablesMap = variableKeys.reduce(
-    (acc, key) => {
-      acc[key] = variableValueCache[key] || "";
-      return acc;
-    },
-    {} as NonNullable<PlaygroundInput["variablesValueCache"]>
-  );
+  const variablesMap = variableKeys.reduce<
+    NonNullable<PlaygroundInput["variablesValueCache"]>
+  >((acc, key) => {
+    acc[key] = variableValueCache[key] || "";
+    return acc;
+  }, {});
   return { variablesMap, variableKeys };
 };
 
@@ -1391,7 +1390,7 @@ export const createToolCallForProvider = (
     case "GOOGLE":
       return createOpenAIToolCall();
     default:
-      assertUnreachable(provider);
+      return assertUnreachable(provider);
   }
 };
 
@@ -2049,6 +2048,8 @@ export function toCanonicalToolChoice(
       return { oneOrMore: true };
     case "SPECIFIC_FUNCTION":
       return { functionName: toolChoice.functionName ?? "" };
+    default:
+      return assertUnreachable(toolChoice.type);
   }
 }
 

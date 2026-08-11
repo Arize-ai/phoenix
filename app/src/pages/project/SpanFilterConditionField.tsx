@@ -5,9 +5,11 @@ import { fetchQuery, graphql } from "relay-runtime";
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
+  AIQueryDSLFilterField,
   createAnnotationMemberCompletions,
-  DSLFilterConditionField,
-  type DSLFilterSnippet,
+  type DSLFilterAIQueryProps,
+  type DSLFilterValidationFailureReason,
+  type DSLFilterValidConditionArgs,
   useDSLFilterConditionHistory,
 } from "@phoenix/components/filter";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
@@ -15,117 +17,26 @@ import environment from "@phoenix/RelayEnvironment";
 
 import type { SpanFilterConditionFieldCompletionsQuery } from "./__generated__/SpanFilterConditionFieldCompletionsQuery.graphql";
 import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
-import { useSpanFilters } from "./SpanFiltersContext";
+import {
+  coreSpanFilterCompletions,
+  spanFilterAIQueryDSL,
+  spanFilterSnippets,
+} from "./spanFilterDSL";
+import {
+  useSpanFilterActions,
+  useSpanFilterCondition,
+} from "./SpanFiltersContext";
 import {
   openInferenceAttributeCompletions,
   openInferenceAttributeValueCompletionSource,
 } from "./spanFilterSemanticConventionCompletions";
-import { validateSpanFilterCondition } from "./spanFilterValidation";
+import {
+  type SpanFilterConditionValidation,
+  validateSpanFilterCondition,
+} from "./spanFilterValidation";
 
-/**
- * The fields of the span filter DSL that an expression can reference
- */
 const spanFilterCompletions: Completion[] = [
-  {
-    label: "span_kind",
-    type: "variable",
-    info: "The span variant: CHAIN, LLM, RETRIEVER, TOOL, etc.",
-  },
-  {
-    label: "status_code",
-    type: "variable",
-    info: "The span status: OK, UNSET, or ERROR",
-  },
-  {
-    label: "status_message",
-    type: "variable",
-    info: "The status message of a span, e.x. an error message",
-  },
-  {
-    label: "input.value",
-    type: "variable",
-    info: "The input value of a span, typically a query",
-  },
-  {
-    label: "output.value",
-    type: "variable",
-    info: "The output value of a span, typically a response",
-  },
-  {
-    label: "name",
-    type: "variable",
-    info: "The name given to a span - e.x. OpenAI",
-  },
-  {
-    label: "span_id",
-    type: "variable",
-    info: "The ID of a span",
-  },
-  {
-    label: "trace_id",
-    type: "variable",
-    info: "The ID of the trace a span belongs to",
-  },
-  {
-    label: "parent_id",
-    type: "variable",
-    info: "The ID of a span's parent - None for root spans",
-  },
-  {
-    label: "latency_ms",
-    type: "variable",
-    info: "Latency (i.e. duration) in milliseconds",
-  },
-  {
-    label: "metadata",
-    type: "variable",
-    info: "The metadata of a span, accessed by key - e.x. metadata['topic']",
-  },
-  {
-    label: "attributes",
-    type: "variable",
-    info: "Span attributes, accessed by key - e.x. attributes['llm']['provider']",
-  },
-  {
-    label: "annotations",
-    type: "variable",
-    info: "Span annotations, accessed by name - e.x. annotations['quality'].score",
-  },
-  {
-    label: "evals",
-    type: "variable",
-    info: "Span evaluations, accessed by name - e.x. evals['Hallucination'].label",
-  },
-  {
-    label: "llm.token_count.prompt",
-    type: "variable",
-    info: "Token count for the prompt of an LLM span",
-  },
-  {
-    label: "llm.token_count.completion",
-    type: "variable",
-    info: "Token count for the completion of an LLM span",
-  },
-  {
-    label: "llm.token_count.total",
-    type: "variable",
-    info: "Total token count (prompt + completion) of an LLM span",
-  },
-  {
-    label: "cumulative_token_count.prompt",
-    type: "variable",
-    info: "Sum of token count for prompt from self and all child spans",
-  },
-  {
-    label: "cumulative_token_count.completion",
-    type: "variable",
-    info: "Sum of token count for completion from self and all child spans",
-  },
-  {
-    label: "cumulative_token_count.total",
-    type: "variable",
-    info: "Sum of token count total (prompt + completion) from self and all child spans",
-  },
+  ...coreSpanFilterCompletions,
   ...openInferenceAttributeCompletions,
 ];
 
@@ -133,84 +44,13 @@ const spanFilterCompletionSources = [
   openInferenceAttributeValueCompletionSource,
 ];
 
-/**
- * Example conditions shown as suggestions in the typeahead — notably when
- * the empty field is focused. `${placeholder}` segments become tab-through
- * fields on insert. Ordered most-useful-first: only the first few are shown
- * while browsing; the rest surface via fuzzy matching as the user types.
- * Evaluation (`evals`) snippets are deliberately omitted — they're a legacy
- * alias for annotations and only crowd the list.
- */
-const spanFilterSnippets: DSLFilterSnippet[] = [
-  {
-    label: "filter by errors",
-    snippet: "status_code == 'ERROR'",
-  },
-  {
-    label: "filter by span kind",
-    snippet: "span_kind == '${LLM}'",
-  },
-  {
-    label: "filter by LLM provider",
-    snippet: "attributes['llm']['provider'] == '${openai}'",
-  },
-  {
-    label: "filter by latency",
-    snippet: "latency_ms >= ${10_000}",
-  },
-  {
-    label: "search input for substring",
-    snippet: "'${search text}' in input.value",
-  },
-  {
-    label: "filter by annotation score",
-    snippet: "annotations['${name}'].score >= ${0.5}",
-  },
-  {
-    label: "search output for substring",
-    snippet: "'${search text}' in output.value",
-  },
-  {
-    label: "filter by span name",
-    snippet: "name == '${name}'",
-  },
-  {
-    label: "filter for root spans",
-    snippet: "parent_id is None",
-  },
-  {
-    label: "filter by trace id",
-    snippet: "trace_id == '${trace id}'",
-  },
-  {
-    label: "filter by token count",
-    snippet: "cumulative_token_count.total > ${1_000}",
-  },
-  {
-    label: "filter by model name",
-    snippet: "llm.model_name == '${model}'",
-  },
-  {
-    label: "filter by annotation label",
-    snippet: "annotations['${name}'].label == '${label}'",
-  },
-  {
-    label: "search annotation explanation",
-    snippet: "'${search text}' in annotations['${name}'].explanation",
-  },
-  {
-    label: "filter by metadata",
-    snippet: "metadata['${key}'] == '${value}'",
-  },
-  {
-    label: "filter by attribute",
-    snippet: "attributes['${key}'] == '${value}'",
-  },
-];
+const spanFilterAIQuery: DSLFilterAIQueryProps = {
+  dsl: spanFilterAIQueryDSL,
+};
 
 /**
- * Fetches the annotation names that actually exist on the project's spans so
- * the typeahead can suggest real values rather than made-up examples
+ * Fetches the annotation names that exist on the project's spans and traces so
+ * the typeahead can suggest real values rather than made-up examples.
  */
 async function fetchAnnotationCompletions(
   projectId: string
@@ -222,36 +62,76 @@ async function fetchAnnotationCompletions(
         project: node(id: $id) {
           ... on Project {
             spanAnnotationNames
+            traceAnnotationsNames
           }
         }
       }
     `,
     { id: projectId }
   ).toPromise();
-  return createAnnotationMemberCompletions({
-    accessor: "annotations",
-    noun: "annotation",
-    sectionName: "Annotations",
-    // notes are a pseudo-annotation deliberately hidden from
-    // annotation-name surfaces
-    names: getNonNoteAnnotationNames(data?.project?.spanAnnotationNames ?? []),
-  });
+  return [
+    ...createAnnotationMemberCompletions({
+      accessor: "annotations",
+      noun: "annotation",
+      sectionName: "Annotations",
+      // notes are a pseudo-annotation deliberately hidden from
+      // annotation-name surfaces
+      names: getNonNoteAnnotationNames(
+        data?.project?.spanAnnotationNames ?? []
+      ),
+    }),
+    ...createAnnotationMemberCompletions({
+      accessor: "trace_annotations",
+      noun: "trace annotation",
+      sectionName: "Trace Annotations",
+      names: getNonNoteAnnotationNames(
+        data?.project?.traceAnnotationsNames ?? []
+      ),
+    }),
+  ];
 }
+
+/**
+ * The argument handed to `onValidCondition`: the condition that passed
+ * validation, plus whether it restricts the result set to root spans, which
+ * decides between cumulative and per-span metric columns. `null` when the
+ * server did not answer.
+ */
+export type SpanFilterValidConditionArgs = {
+  condition: string;
+  selectsRootSpansOnly: boolean | null;
+  /**
+   * True when this settlement is of the value the field mounted with -- a
+   * seeded default or a condition already in the URL -- rather than one
+   * applied while the field was on screen. Consumers that persist applied
+   * conditions to the URL must skip initial settlements: persisting a tab's
+   * default imposes it on the other tab, which defaults differently.
+   */
+  isInitialSettlement: boolean;
+};
+
+export type SpanFilterValidationFailureReason =
+  DSLFilterValidationFailureReason;
 
 type SpanFilterConditionFieldProps = {
   /**
    * Callback when the condition is valid
    */
-  onValidCondition: (condition: string) => void;
+  onValidCondition: (args: SpanFilterValidConditionArgs) => void;
+  onValidationFailed?: (reason: SpanFilterValidationFailureReason) => void;
+  validationRetryKey?: number;
   placeholder?: string;
 };
 export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const {
     onValidCondition,
+    onValidationFailed,
+    validationRetryKey,
     placeholder = "filter condition (e.x. span_kind == 'LLM')",
   } = props;
   const [isConditionValid, setIsConditionValid] = useState<boolean>(true);
-  const { filterCondition, setFilterCondition } = useSpanFilters();
+  const filterCondition = useSpanFilterCondition();
+  const { setFilterCondition } = useSpanFilterActions();
   const deferredFilterCondition = useDeferredValue(filterCondition);
 
   const projectId = useTracingContext((state) => state.projectId);
@@ -286,9 +166,29 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   );
 
   const handleValidCondition = useCallback(
-    (condition: string) => {
-      recordValidCondition(condition);
-      onValidCondition(condition);
+    ({
+      condition,
+      validationResult,
+      isInitialSettlement,
+    }: DSLFilterValidConditionArgs<SpanFilterConditionValidation>) => {
+      // Only conditions applied while the field was on screen enter the
+      // recent-searches history. The mount value is a seeded default or a
+      // URL's condition -- recording it would stamp text the user never typed
+      // into one of the few history slots on every visit.
+      if (!isInitialSettlement) {
+        recordValidCondition(condition);
+      }
+      // A null validation result means the condition was empty, which the
+      // field resolves without asking the server. An empty condition restricts
+      // nothing, so it is knowably not root-scoped. Otherwise the server's
+      // answer passes through as-is, `null` (unanswered) included.
+      onValidCondition({
+        condition,
+        selectsRootSpansOnly: validationResult
+          ? validationResult.selectsRootSpansOnly
+          : false,
+        isInitialSettlement,
+      });
     },
     [recordValidCondition, onValidCondition]
   );
@@ -317,7 +217,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   useAdvertiseAgentContext(advertisedContext);
 
   return (
-    <DSLFilterConditionField
+    <AIQueryDSLFilterField
       aria-label="Filter spans"
       value={filterCondition}
       onChange={setFilterCondition}
@@ -328,7 +228,10 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       loadCompletions={loadAnnotationCompletions}
       validateCondition={validateCondition}
       onValidCondition={handleValidCondition}
+      onValidationFailed={onValidationFailed}
+      validationRetryKey={validationRetryKey}
       onValidationStateChange={setIsConditionValid}
+      aiQuery={spanFilterAIQuery}
     />
   );
 }

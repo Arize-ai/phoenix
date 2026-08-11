@@ -10,8 +10,69 @@ GitHub
 </Card>
 
 <Info>
-**We want to hear from you!** The DevRel team wants to hear from the Phoenix community. If you're building with Phoenix and want to tell us what's working, what's painful, or what you wish existed, [grab 25 minutes with us](https://cal.com/team/arize-devrel/user-interview).
+**We want to hear from you!** The DevRel team wants to hear from the Phoenix community. If you're building with Phoenix and want to tell us what's working, what's painful, or what you wish existed, [grab 25 minutes with us](https://cal.com/team/arize/user-interview).
 </Info>
+
+<ReleaseUpdate label="08.04.2026" href="/docs/phoenix/release-notes/08-2026/08-04-2026-chat-completions-proxy-ai-query-and-annotation-charts" title="Chat Completions Proxy, AI Query, and Annotation Charts">
+**Available in arize-phoenix 19.11.0–19.17.0, @arizeai/phoenix-evals 2.2.0+ and @arizeai/phoenix-cli 1.14.0+ (TypeScript)**
+
+Call any provider through Phoenix without handling its keys, write filters in plain English, and chart every annotation.
+
+- **OpenAI-compatible `/v1/chat/completions`** — proxy chat completions (streaming included) to built-in or custom providers with credentials resolved on the server
+- **AI Query for filter fields** — describe the spans, traces, or experiment runs you want in plain English and press Enter, using on-device Browser AI or any provider Phoenix knows
+- **Annotation metric charts** — a chart per annotation name on the project Metrics page and in the chart strip, with the three-chart selection cap lifted and charts loaded on scroll
+- **Conversation-grounded Hallucination evaluator** — judges a response against the whole transcript, including tool results; labels change to `grounded` / `hallucinated`
+- **Annotations in span downloads** — export evaluations alongside spans as OpenInference attributes, streamed straight to disk
+- **Pinned note bar in span details** — press `n` to take notes without leaving the trace
+</ReleaseUpdate>
+
+<ReleaseUpdate label="07.28.2026" href="/docs/phoenix/release-notes/07-2026/07-28-2026-experiment-charts-span-downloads-and-root-span-filters" title="Experiment Charts, Span Downloads, and Root-Span Filters">
+**Available in arize-phoenix 19.5.0–19.10.0, arize-phoenix-evals 3.3.0+ (Python), @arizeai/phoenix-client 7.1.0+, @arizeai/phoenix-evals 2.1.0+, @arizeai/phoenix-otel 2.1.0+, @arizeai/phoenix-cli 1.13.0+ (TypeScript)**
+
+Metric charts above the experiments table, downloadable traces, and sharper span filtering.
+
+- **Experiment metric charts** — pin annotation score, latency, cost, token, and error-rate charts above the experiments table, drag to reorder, and read token usage broken down by sub-type
+- **Download spans and traces** — export a selection as OTLP JSON or JSONL, or grab a single span from its detail header
+- **Span-ID and root-span filtering** — a `span_id` filter across the REST API, TypeScript client, and `px span list`, plus a `parent_span is None` predicate in the span filter DSL
+- **Span detail as searchable tables** — attributes, annotations, and notes as tables, with collapse-all and row clip/wrap controls
+- **Toxicity evaluator** in both evals SDKs, the **Monty** local Python sandbox, and **Claude Opus 5** in the Playground
+- **Breaking change** — `@arizeai/phoenix-client` 7.0.0 and `@arizeai/phoenix-evals` 2.0.0 require Vercel AI SDK v7
+</ReleaseUpdate>
+
+<ReleaseUpdate label="07.22.2026" href="/docs/phoenix/release-notes/07-2026/07-22-2026-mcp-setup-provider-filter-and-evals" title="MCP Client Setup, Provider Filtering, and User Friction Evals">
+**Available in arize-phoenix 19.1.0+, arize-phoenix-evals 3.2.0+ (Python), @arizeai/phoenix-evals 1.2.0+ (TypeScript), @arizeai/phoenix-otel 2.0.0+**
+
+MCP client setup, playground picker cleanup, a new evaluator, and AI SDK v7 tracing.
+
+- **One-command MCP setup** — `px setup mcp` registers the Phoenix MCP server with Claude Code, Codex, Cursor, Gemini, OpenCode, or VS Code, plus a new Settings MCP tab with per-client instructions
+- **Provisioned-provider filtering** — the playground model picker shows only providers that are ready to use
+- **User Friction evaluator** — a built-in `friction` / `no_friction` classifier in both the Python and TypeScript evals SDKs
+- **AI SDK v7 tracing** — `@arizeai/phoenix-otel` upgrades to OpenInference Vercel v3 (breaking; stay on 1.x for AI SDK v6)
+</ReleaseUpdate>
+
+<ReleaseUpdate label="07.17.2026" href="/docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server" title="OAuth2 Authorization Server & Remote MCP">
+**Available in arize-phoenix 19.0.0+**
+
+Phoenix becomes its own OAuth2 authorization server, so the Phoenix CLI and MCP clients log in through the browser with short-lived, user-scoped tokens instead of long-lived API keys.
+
+- **OAuth2 authorization server** — authorization-code + PKCE, dynamic client registration, refresh-token rotation with replay detection, a redesigned consent screen, and admin grant management
+- **Browser-based CLI login** — `px auth login`, `status`, and `logout` obtain and silently refresh tokens per profile
+- **Remote MCP server (beta)** — a built-in `/mcp` endpoint that MCP clients (Claude Code, Cursor) connect to over OAuth
+- **API key management** — REST CRUD for user and system keys, dedicated settings tabs, and scope/audience columns
+- **Breaking change** — GraphQL `createUserApiKey`/`createSystemApiKey` no longer accept API-key-authenticated callers
+</ReleaseUpdate>
+
+<ReleaseUpdate label="07.14.2026" href="/docs/phoenix/release-notes/07-2026/07-14-2026-command-palette-sessions-and-tables" title="Command Palette, Session Tools, and Table Customization">
+**Available in arize-phoenix 17.21.0–18.0.0, arize-phoenix-client 2.13.0+ (Python), @arizeai/phoenix-config 0.3.0+ (TypeScript)**
+
+Jump anywhere with the command palette, customize your tables, and script configuration from a credentials file.
+
+- **Global search command palette (⌘K)** — find projects, datasets, experiments, and prompts from anywhere
+- **Customizable data tables** — pick and drag-to-reorder columns on the traces, sessions, experiments, and prompts tables
+- **Session tools** — session stats panel, turn dividers, session-level annotation editing, and project-card session counts
+- **`.env.phoenix` credential discovery** and a unified `PHOENIX_PROJECT` variable across the SDKs
+- **GPT 5.6 family** in the Playground, plus a **breaking change**: session time-range filters now match on interval overlap (arize-phoenix 18.0.0)
+</ReleaseUpdate>
 
 <ReleaseUpdate label="07.07.2026" href="/docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api" title="Metric Charts, Trace Search, and REST API Expansion">
 **Available in arize-phoenix 17.15.0–17.20.0, arize-phoenix-client 2.12.0+ (Python), @arizeai/phoenix-client 6.12.0+ and @arizeai/phoenix-evals 1.1.0+ (TypeScript)**

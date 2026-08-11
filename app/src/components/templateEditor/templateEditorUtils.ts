@@ -53,6 +53,6 @@ export const getTemplateFormatUtils = (
         extractVariables: () => [],
       };
     default:
-      assertUnreachable(templateFormat);
+      return assertUnreachable(templateFormat);
   }
 };

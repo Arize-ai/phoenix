@@ -741,6 +741,28 @@ export const CloudUpload = () => (
   </svg>
 );
 
+// @src: lucide box
+export const Cube = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path
+      fill="none"
+      d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+    />
+    <path fill="none" d="m3.3 7 8.7 5 8.7-5" />
+    <path fill="none" d="M12 22V12" />
+  </svg>
+);
+
 //D
 export const Database = () => (
   <svg
@@ -759,9 +781,15 @@ export const Database = () => (
   </svg>
 );
 
+// @src: lucide grip-vertical
 export const DragHandle = () => (
-  <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-    <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z" />
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M11 5Q11 7 9 7Q7 7 7 5Q7 3 9 3Q11 3 11 5ZM17 5Q17 7 15 7Q13 7 13 5Q13 3 15 3Q17 3 17 5ZM11 12Q11 14 9 14Q7 14 7 12Q7 10 9 10Q11 10 11 12ZM17 12Q17 14 15 14Q13 14 13 12Q13 10 15 10Q17 10 17 12ZM11 19Q11 21 9 21Q7 21 7 19Q7 17 9 17Q11 17 11 19ZM17 19Q17 21 15 21Q13 21 13 19Q13 17 15 17Q17 17 17 19Z"
+      fill="currentColor"
+    />
   </svg>
 );
 
@@ -892,6 +920,25 @@ export const Expand = () => (
         <path d="M10.71 13.29a1 1 0 0 0-1.42 0L6 16.57V14a1 1 0 0 0-1-1 1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h5a1 1 0 0 0 0-2H7.42l3.29-3.29a1 1 0 0 0 0-1.42z" />
       </g>
     </g>
+  </svg>
+);
+
+// @src: lucide link-2
+export const Link2 = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M9 17H7A5 5 0 0 1 7 7h2" />
+    <path fill="none" d="M15 7h2a5 5 0 1 1 0 10h-2" />
+    <line x1="8" x2="16" y1="12" y2="12" />
   </svg>
 );
 
@@ -1385,6 +1432,48 @@ export const LogOut = () => (
 
 //M
 
+// @src: lucide message-circle
+export const MessageCircle = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path
+      fill="none"
+      d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"
+    />
+  </svg>
+);
+
+// @src: lucide message-circle-plus
+export const MessageCirclePlus = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path
+      fill="none"
+      d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"
+    />
+    <path fill="none" d="M8 12h8" />
+    <path fill="none" d="M12 8v8" />
+  </svg>
+);
+
 export const MessageSquare = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
@@ -1783,6 +1872,29 @@ export const Scale = () => (
   </svg>
 );
 
+// @src: lucide scan-text
+export const ScanText = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M3 7V5a2 2 0 0 1 2-2h2" />
+    <path fill="none" d="M17 3h2a2 2 0 0 1 2 2v2" />
+    <path fill="none" d="M21 17v2a2 2 0 0 1-2 2h-2" />
+    <path fill="none" d="M7 21H5a2 2 0 0 1-2-2v-2" />
+    <path fill="none" d="M7 8h8" />
+    <path fill="none" d="M7 12h10" />
+    <path fill="none" d="M7 16h6" />
+  </svg>
+);
+
 export const Search = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
@@ -1922,6 +2034,35 @@ export const SlideIn = () => (
   </svg>
 );
 
+export const Sparkle = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    style={{ fill: "none", stroke: "currentColor" }}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" />
+  </svg>
+);
+
+export const Sparkles = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    style={{ fill: "none", stroke: "currentColor" }}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" />
+    <path d="M20 2v4" />
+    <path d="M22 4h-4" />
+    <circle cx="4" cy="20" r="2" />
+  </svg>
+);
+
 export const Split = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -1935,6 +2076,17 @@ export const Split = () => (
     <path d="M8 3H3v5" />
     <path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3" />
     <path d="m15 9 6-6" />
+  </svg>
+);
+
+export const Subagent = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M6.06671 11L17.9333 11Q18 11.0912 18 11.25L18 14L17 14Q15 14 15 16L15 20Q15 22 17 22L21 22Q23 22 23 20L23 16Q23 14 21 14L20 14L20 11.25Q20 10.3815 19.488 9.74145Q18.8949 9 18 9L13 9L13 3Q13 2.90151 12.9808 2.80491Q12.9616 2.70831 12.9239 2.61732Q12.8862 2.52632 12.8315 2.44443Q12.7767 2.36254 12.7071 2.29289Q12.6375 2.22325 12.5556 2.16853Q12.4737 2.11381 12.3827 2.07612Q12.2917 2.03843 12.1951 2.01921Q12.0985 2 12 2Q11.9015 2 11.8049 2.01921Q11.7083 2.03843 11.6173 2.07612Q11.5263 2.11381 11.4444 2.16853Q11.3625 2.22325 11.2929 2.29289Q11.2232 2.36254 11.1685 2.44443Q11.1138 2.52632 11.0761 2.61732Q11.0384 2.70831 11.0192 2.80491Q11 2.90151 11 3L11 9L6 9Q5.10521 9 4.51204 9.74138Q4 10.3814 4 11.25L4 14L3 14Q1 14 1 16L1 20Q1 22 3 22L7 22Q9 22 9 20L9 16Q9 14 7 14L6 14L6 11.25Q6 11.0911 6.06671 11ZM3 16L7 16L7 20L3 20L3 16ZM17 16L21 16L21 20L17 20L17 16Z"
+      fill="currentColor"
+    />
   </svg>
 );
 
@@ -2113,24 +2265,20 @@ export const ThumbsDown = () => (
 
 export const Tokens = () => (
   <svg
-    width="16"
-    height="16"
-    viewBox="0 0 16 16"
-    fill="none"
     xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
-    <g>
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M7.32264 7.73275L6.26721 6.67733C5.93552 6.34564 5.39776 6.34564 5.06607 6.67733L4.01064 7.73275C3.67895 8.06445 3.67895 8.60221 4.01064 8.9339L5.06607 9.98933C5.39776 10.321 5.93552 10.321 6.26721 9.98933L7.32264 8.9339C7.65433 8.60221 7.65433 8.06445 7.32264 7.73275ZM4.75695 8.33333L5.66664 7.42364L6.57633 8.33333L5.66664 9.24302L4.75695 8.33333Z"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M5.66672 13.3333C6.43362 13.3333 7.16019 13.1607 7.80972 12.8521C8.4596 13.1608 9.18643 13.3333 9.95243 13.3333C12.7139 13.3333 14.9524 11.0948 14.9524 8.33334C14.9524 5.57192 12.7139 3.33334 9.95243 3.33334C9.18643 3.33334 8.4596 3.50591 7.80969 3.81458C7.16019 3.50601 6.43362 3.33334 5.66672 3.33334C2.90529 3.33334 0.666718 5.57192 0.666718 8.33334C0.666718 11.0948 2.90529 13.3333 5.66672 13.3333ZM5.66672 4.28572C3.43129 4.28572 1.6191 6.09791 1.6191 8.33334C1.6191 10.5688 3.43129 12.381 5.66672 12.381C7.72319 12.381 9.42146 10.8473 9.68019 8.86141C9.70272 8.68858 9.71434 8.51232 9.71434 8.33334C9.71434 8.19363 9.70727 8.05556 9.69343 7.91949C9.48617 5.87846 7.76243 4.28572 5.66672 4.28572ZM9.95243 12.381C9.55679 12.381 9.17481 12.3243 8.81393 12.2188C9.81991 11.4029 10.5028 10.2043 10.6409 8.84456C10.658 8.67649 10.6667 8.50594 10.6667 8.33334C10.6667 8.10822 10.6518 7.88658 10.623 7.66934C10.451 6.37275 9.78208 5.23306 8.81393 4.44791C9.17481 4.34237 9.55679 4.28572 9.95243 4.28572C12.1879 4.28572 14.0001 6.09791 14.0001 8.33334C14.0001 10.5688 12.1879 12.381 9.95243 12.381Z"
-      />
-    </g>
+    <path fill="none" d="M13.744 17.736a6 6 0 1 1-7.48-7.48" />
+    <path fill="none" d="M15 6h1v4" />
+    <path fill="none" d="m6.134 14.768.866-.5 2 3.464" />
+    <circle fill="none" cx="16" cy="8" r="6" />
   </svg>
 );
 
@@ -2235,35 +2383,6 @@ export const FlagTriangleRight = () => (
       fillRule="evenodd"
       clipRule="evenodd"
       d="M6.97266 1.00781C7.19657 1.0294 7.41463 1.09365 7.61621 1.19629L7.61719 1.19531L18.9854 6.87988C19.2514 7.00884 19.4818 7.20159 19.6553 7.43945L19.7266 7.54395L19.79 7.65332C19.9285 7.91318 20.0009 8.20428 20.001 8.5C20.0009 8.83797 19.906 9.16966 19.7266 9.45605C19.547 9.74237 19.2904 9.97276 18.9863 10.1201L18.9854 10.1191L7 16.1162V22C6.99985 22.5522 6.55219 23 6 23C5.44781 23 5.00015 22.5522 5 22V2.7998C4.99991 2.4906 5.07989 2.18652 5.23145 1.91699C5.38317 1.64725 5.60163 1.42032 5.86621 1.25977L6.07129 1.15332C6.28222 1.05994 6.51019 1.0075 6.74219 1L6.97266 1.00781ZM7 13.8809L17.7539 8.49902L7 3.12207V13.8809Z"
-      fill="currentColor"
-    />
-  </svg>
-);
-
-export const Template = () => (
-  <svg
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M16 14.9999C16.5523 14.9999 17 15.4477 17 15.9999C17 16.5522 16.5523 16.9999 16 16.9999H11C10.4477 16.9999 10 16.5522 10 15.9999C10 15.4477 10.4477 14.9999 11 14.9999H16Z"
-      fill="currentColor"
-    />
-    <path
-      d="M14 10.9999C14.5523 10.9999 15 11.4477 15 11.9999C15 12.5522 14.5523 12.9999 14 12.9999H8C7.44772 12.9999 7 12.5522 7 11.9999C7 11.4477 7.44772 10.9999 8 10.9999H14Z"
-      fill="currentColor"
-    />
-    <path
-      d="M16 6.99994C16.5523 6.99994 17 7.44765 17 7.99994C17 8.55222 16.5523 8.99994 16 8.99994H9C8.44772 8.99994 8 8.55222 8 7.99994C8 7.44765 8.44772 6.99994 9 6.99994H16Z"
-      fill="currentColor"
-    />
-    <path
-      fillRule="evenodd"
-      clipRule="evenodd"
-      d="M19 1.99994C20.6569 1.99994 22 3.34308 22 4.99994V18.9999C22 20.6568 20.6569 21.9999 19 21.9999H5C3.34315 21.9999 2 20.6568 2 18.9999V4.99994C2 3.34308 3.34315 1.99994 5 1.99994H19ZM5 3.99994C4.44772 3.99994 4 4.44765 4 4.99994V18.9999C4 19.5522 4.44772 19.9999 5 19.9999H19C19.5523 19.9999 20 19.5522 20 18.9999V4.99994C20 4.44765 19.5523 3.99994 19 3.99994H5Z"
       fill="currentColor"
     />
   </svg>

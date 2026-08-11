@@ -6,14 +6,13 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo } from "react";
+import { OverlayTriggerStateContext } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
 
 import {
   Button,
   Card,
-  CredentialField,
-  CredentialInput,
   Dialog,
   DialogCloseButton,
   DialogContent,
@@ -21,20 +20,22 @@ import {
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
+  DocumentationHelp,
   Flex,
-  Form,
   Icon,
   Icons,
-  Label,
+  LazyTabPanel,
   Modal,
   ModalOverlay,
+  Tab,
+  TabList,
+  Tabs,
   Text,
-  ToggleButton,
-  ToggleButtonGroup,
   View,
 } from "@phoenix/components";
 import {
   GenerativeProviderIcon,
+  ProviderBrowserCredentialsPanel,
   ProviderServerCredentialsPanel,
 } from "@phoenix/components/generative";
 import { tableCSS } from "@phoenix/components/table/styles";
@@ -155,7 +156,15 @@ export function GenerativeProvidersCard({
   const rows = table.getRowModel().rows;
 
   return (
-    <Card title="AI Providers">
+    <Card
+      title="AI Providers"
+      titleExtra={
+        <DocumentationHelp topic="aiProviders">
+          Configure credentials for built-in AI providers used by the Playground
+          and evaluations.
+        </DocumentationHelp>
+      }
+    >
       <table css={tableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -230,7 +239,7 @@ function ProviderCredentialsStatus({
     return <Text color="success">no credentials required</Text>;
   }
   if (hasLocalCredentials) {
-    return <Text color="success">local</Text>;
+    return <Text color="success">configured in this browser</Text>;
   }
   if (credentialsSet) {
     return <Text color="success">configured on the server</Text>;
@@ -238,7 +247,18 @@ function ProviderCredentialsStatus({
   return <Text color="text-700">not configured</Text>;
 }
 
-type CredentialViewType = "browser" | "secrets";
+function CredentialsSetIndicator() {
+  return (
+    <Icon
+      color="success"
+      svg={<Icons.Checkmark />}
+      aria-label="credentials set"
+      css={css`
+        font-size: var(--global-font-size-s);
+      `}
+    />
+  );
+}
 
 function ProviderCredentialsDialog({
   provider,
@@ -247,143 +267,86 @@ function ProviderCredentialsDialog({
 }) {
   const { viewer } = useViewer();
   const isAdmin = !viewer || viewer.role?.name === "ADMIN";
-  const [credentialView, setCredentialView] =
-    useState<CredentialViewType>("browser");
+  const providerKey = provider.key;
+  const hasBrowserCredentials = useCredentialsContext((state) => {
+    if (!isModelProvider(providerKey)) {
+      return false;
+    }
+    const providerCredentials = state[providerKey];
+    return provider.credentialRequirements.some(
+      ({ envVarName }) => !!providerCredentials?.[envVarName]
+    );
+  });
+  const overlayState = useContext(OverlayTriggerStateContext);
+  const closeDialog = useCallback(() => {
+    overlayState?.close();
+  }, [overlayState]);
 
   return (
     <Dialog>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            Configure {isAdmin ? "" : "Local "}
-            {provider.name} Credentials
-          </DialogTitle>
+          <DialogTitle>Configure {provider.name} Credentials</DialogTitle>
           <DialogTitleExtra>
             <DialogCloseButton slot="close" />
           </DialogTitleExtra>
         </DialogHeader>
-        <View padding="size-200">
-          {isAdmin ? (
-            <Flex direction="column" gap="size-200">
-              <ToggleButtonGroup
-                selectedKeys={[credentialView]}
-                size="S"
-                aria-label="Credential Source"
-                onSelectionChange={(v) => {
-                  if (v.size === 0) {
-                    return;
-                  }
-                  const view = v.keys().next().value as CredentialViewType;
-                  if (view === "browser" || view === "secrets") {
-                    setCredentialView(view);
-                  }
-                }}
-              >
-                <ToggleButton aria-label="Browser" id="browser">
-                  Browser
-                </ToggleButton>
-                <ToggleButton aria-label="Secrets" id="secrets">
-                  Secrets
-                </ToggleButton>
-              </ToggleButtonGroup>
-              {credentialView === "browser" && (
-                <>
-                  <View paddingBottom="size-100">
-                    <Text size="XS" color="text-700">
-                      Credentials stored in your browser. Only you can see
-                      these, and they are sent with each API request.
-                    </Text>
-                  </View>
-                  <Form>
-                    <BrowserCredentials provider={provider} />
-                  </Form>
-                </>
-              )}
-              {credentialView === "secrets" && (
-                <ProviderServerCredentialsPanel provider={provider} />
-              )}
+        {isAdmin ? (
+          <>
+            <View paddingX="size-200" paddingY="size-100">
+              <Text size="XS" color="text-700">
+                Credentials can be stored in two places: in this browser for
+                your personal use, and on the server to share with all users.
+              </Text>
+            </View>
+            <Tabs defaultSelectedKey="browser">
+              <TabList aria-label="Credential storage location">
+                <Tab id="browser">
+                  <Flex direction="row" alignItems="center" gap="size-50">
+                    <Text>Browser</Text>
+                    {hasBrowserCredentials && <CredentialsSetIndicator />}
+                  </Flex>
+                </Tab>
+                <Tab id="server">
+                  <Flex direction="row" alignItems="center" gap="size-50">
+                    <Text>Server</Text>
+                    {provider.credentialsSet && <CredentialsSetIndicator />}
+                  </Flex>
+                </Tab>
+              </TabList>
+              <LazyTabPanel id="browser">
+                <View padding="size-200">
+                  <ProviderBrowserCredentialsPanel
+                    provider={provider}
+                    onSaved={closeDialog}
+                  />
+                </View>
+              </LazyTabPanel>
+              <LazyTabPanel id="server">
+                <View padding="size-200">
+                  <ProviderServerCredentialsPanel
+                    provider={provider}
+                    onSaved={closeDialog}
+                  />
+                </View>
+              </LazyTabPanel>
+            </Tabs>
+          </>
+        ) : (
+          <View padding="size-200" paddingTop="size-100">
+            <Flex direction="column" gap="size-100">
+              <Text size="XS" color="text-700">
+                To configure shared credentials for all users on the server,
+                contact an administrator.
+              </Text>
+              <ProviderBrowserCredentialsPanel
+                provider={provider}
+                onSaved={closeDialog}
+              />
             </Flex>
-          ) : (
-            <>
-              <View paddingBottom="size-100">
-                <Text size="XS">
-                  Set the credentials for the {provider.name} API. These
-                  credentials will be stored entirely in your browser and will
-                  only be sent to the server during API requests.
-                </Text>
-              </View>
-              <Form>
-                <BrowserCredentials provider={provider} />
-              </Form>
-            </>
-          )}
-        </View>
+          </View>
+        )}
       </DialogContent>
     </Dialog>
-  );
-}
-
-function BrowserCredentials({
-  provider,
-}: {
-  provider: GenerativeProvidersCard_data$data["modelProviders"][number];
-}) {
-  const providerKey = provider.key;
-  const isValidProvider = isModelProvider(providerKey);
-
-  const { setCredential, credentials } = useCredentialsContext((state) => ({
-    setCredential: state.setCredential,
-    credentials: isValidProvider ? state[providerKey] : undefined,
-  }));
-  const credentialRequirements = provider.credentialRequirements;
-
-  const clearLocalCredentials = useCallback(() => {
-    if (!isValidProvider) return;
-    provider.credentialRequirements.forEach(({ envVarName }) => {
-      setCredential({
-        provider: providerKey,
-        envVarName,
-        value: "",
-      });
-    });
-  }, [provider, providerKey, isValidProvider, setCredential]);
-
-  if (!isValidProvider) {
-    return <Text color="warning">Unknown provider type: {providerKey}</Text>;
-  }
-
-  if (provider.credentialRequirements.length === 0) {
-    return <Text color="text-700">Browser credentials are not required.</Text>;
-  }
-
-  return (
-    <Flex direction="column" gap="size-100">
-      {credentialRequirements.map(({ envVarName, isRequired }) => (
-        <CredentialField
-          key={envVarName}
-          isRequired={isRequired}
-          onChange={(value) => {
-            setCredential({
-              provider: providerKey,
-              envVarName,
-              value,
-            });
-          }}
-          value={credentials?.[envVarName] ?? ""}
-        >
-          <Label>{envVarName}</Label>
-          <CredentialInput />
-        </CredentialField>
-      ))}
-      <Button
-        onPress={clearLocalCredentials}
-        css={css`
-          align-self: flex-start;
-          margin-top: var(--global-dimension-size-100);
-        `}
-      >
-        Clear Local Credentials
-      </Button>
-    </Flex>
   );
 }

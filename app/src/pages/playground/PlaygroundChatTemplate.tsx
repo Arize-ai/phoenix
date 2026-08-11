@@ -8,6 +8,7 @@ import {
   Alert,
   Button,
   Card,
+  CardCollapsedPreview,
   CopyToClipboardButton,
   Flex,
   Form,
@@ -42,6 +43,7 @@ import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
 import type { AIMessageMode, MessageMode } from "./MessageContentRadioGroup";
 import { AIMessageContentRadioGroup } from "./MessageContentRadioGroup";
+import { getMessagePreview } from "./messagePreview";
 import { MessageRoleSelect } from "./MessageRoleSelect";
 import { PlaygroundChatTemplateFooter } from "./PlaygroundChatTemplateFooter";
 import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
@@ -344,6 +346,11 @@ function SortableMessageItem({
         collapsible
         interactiveTitle
         collapseButtonLabel={`${message.role} message`}
+        headerContent={
+          <CardCollapsedPreview>
+            {getMessagePreview(message)}
+          </CardCollapsedPreview>
+        }
         {...messageCardStyles}
         title={
           <MessageRoleSelect

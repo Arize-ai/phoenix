@@ -1,8 +1,5 @@
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
-import {
-  DEFAULT_EXPERIMENT_METRIC_CHART_KEYS,
-  MAX_SELECTED_EXPERIMENT_METRIC_CHARTS,
-} from "@phoenix/pages/dataset/constants";
+import { DEFAULT_EXPERIMENT_METRIC_CHART_KEYS } from "@phoenix/pages/dataset/constants";
 
 import { createDatasetStore } from "../datasetStore";
 
@@ -43,11 +40,13 @@ describe("datasetStore", () => {
     });
 
     it("hydrates a persisted selection", () => {
-      seedPersistedState({ experimentsMetricChartKeys: ["cost", "tokens"] });
+      seedPersistedState({
+        experimentsMetricChartKeys: ["cost", "annotation:quality"],
+      });
       const store = createStore();
       expect(store.getState().experimentsMetricChartKeys).toEqual([
         "cost",
-        "tokens",
+        "annotation:quality",
       ]);
     });
 
@@ -59,19 +58,20 @@ describe("datasetStore", () => {
       expect(store.getState().experimentsMetricChartKeys).toEqual(["latency"]);
     });
 
-    it("caps a persisted selection at the selection limit", () => {
+    it("hydrates a persisted selection without a chart limit", () => {
+      const persistedChartKeys = [
+        "annotation_scores",
+        "latency",
+        "cost",
+        "tokens",
+        "error_rate",
+      ] as const;
       seedPersistedState({
-        experimentsMetricChartKeys: [
-          "annotation_scores",
-          "latency",
-          "cost",
-          "tokens",
-          "error_rate",
-        ],
+        experimentsMetricChartKeys: persistedChartKeys,
       });
       const store = createStore();
-      expect(store.getState().experimentsMetricChartKeys).toHaveLength(
-        MAX_SELECTED_EXPERIMENT_METRIC_CHARTS
+      expect(store.getState().experimentsMetricChartKeys).toEqual(
+        persistedChartKeys
       );
     });
 
