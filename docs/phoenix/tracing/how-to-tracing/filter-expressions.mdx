@@ -69,7 +69,6 @@ suite — this page tracks that, it does not define it. Field names come from yo
 A span filter matches individual spans. The examples pull retriever spans, slow spans, error spans,
 and spans with particular attributes or annotations:
 
-{/* filter-example: span */}
 ```python
 span_kind == 'RETRIEVER'
 latency_ms > 100
@@ -81,7 +80,6 @@ span_kind == 'LLM' and 'programming' in input.value
 Reach into span **attributes** by name — any identifier that isn't a built-in field resolves to an
 attribute path, and `metadata[...]` is sugar for the `metadata` attribute:
 
-{/* filter-example: span */}
 ```python
 attributes['llm.model_name'] == 'gpt-4o'
 llm.model_name == 'gpt-4o'
@@ -89,11 +87,10 @@ metadata['topic'] == 'programming'
 'programming' in metadata['topic']
 ```
 
-Filter on **annotations / evals** with `annotations["name"]` (the alias `evals["name"]` also works),
-reading `.score`, `.label`, or `.explanation`. A bare `annotations["name"]` is an existence check,
-and `is None` finds spans an annotation hasn't been written to yet:
+Filter on **annotations** (and their legacy `evals[...]` alias) — the shared idiom is described in
+[Rules that apply to both dialects](#rules-that-apply-to-both-dialects). `is None` finds spans an
+annotation hasn't been written to yet:
 
-{/* filter-example: span */}
 ```python
 annotations['correctness'].label == 'incorrect'
 annotations['hallucination'].score > 0.5
@@ -101,9 +98,10 @@ evals['correctness'].label == 'incorrect'
 annotations['correctness'].label is None
 ```
 
-Use `parent_span is None` to keep only root spans (and `is not None` for the rest):
+Use `parent_span is None` to keep only root spans (and `is not None` for the rest). This is
+orphan-aware — it also matches spans whose parent id points at a span absent from the data; the
+stricter `parent_id is None` differs on exactly those rows:
 
-{/* filter-example: span */}
 ```python
 parent_span is None
 parent_span is not None
@@ -129,9 +127,9 @@ A session groups the traces of one conversation. A session filter can test **agg
 of the whole session and **reach into its components**.
 
 Aggregates roll up the session's traces and spans. Each is `0` when the session has no matching
-data, so they are safe to divide and compare:
+data (never null), so comparisons always work; dividing by one that is `0` matches nothing rather
+than erroring:
 
-{/* filter-example: session */}
 ```python
 num_traces > 5 and total_cost > 0.50
 num_traces_with_error / num_traces > 0.2
@@ -143,7 +141,6 @@ and `last_output` are the session's opening input and final output as strings �
 `is None`. `any_input` and `any_output` are **containment-only**: they take `in` / `not in` across
 *all* of the session's inputs/outputs and never `==`:
 
-{/* filter-example: session */}
 ```python
 annotations['Quality'].score <= 0.5
 annotations['Quality'].score is None
@@ -159,7 +156,6 @@ syntax. `any`/`all` ask a yes/no question; `len`/`sum`/`max`/`min` reduce to a n
 the session's collections — use the [typeahead or `sessionFilterVocabulary`](#finding-field-names)
 to see which collections and element fields your project exposes:
 
-{/* filter-example: session */}
 ```python
 any(span.status_code == 'ERROR' for span in spans)
 all(trace.latency_ms < 30000 for trace in traces)
@@ -171,7 +167,6 @@ any(a.label == 'correct' for a in span_annotations)
 A `traces` element exposes its own `spans`, so you can ask per-turn questions with one level of
 nesting:
 
-{/* filter-example: session */}
 ```python
 any(len([span for span in trace.spans if span.span_kind == 'TOOL']) > 5 for trace in traces)
 ```
@@ -192,6 +187,10 @@ Session-specific notes:
   with `in` / `not in`; check for missing values with `is None` / `is not None`; and do arithmetic
   on numeric fields with `+` `-` `*` `/` `%` (e.g. `num_traces_with_error / num_traces`,
   `total_cost - prompt_cost`). The whole expression must be a condition, not a bare value.
+- **Annotations.** `annotations["name"]` reads the *current grain's* annotations — span annotations
+  in a span filter, session annotations in a session filter — exposing `.score`, `.label`, and
+  `.explanation`. A bare `annotations["name"]` is an existence check (true when that annotation
+  exists at all). `evals["name"]` is a legacy alias for `annotations["name"]`.
 - **`in` / `not in` ignore case.** Containment against text is case-insensitive on both database
   backends: `'refund' in first_input` matches `REFUND please`. Equality (`==` / `!=`) and membership
   in a literal list (`span_kind in ['LLM']`) stay exact.
@@ -208,7 +207,6 @@ Session-specific notes:
 
 A timezone-qualified datetime bound and an explicit cast look like this:
 
-{/* filter-example: span */}
 ```python
 start_time > '2024-01-01T00:00:00Z'
 float(attributes['retry_count']) > 1
