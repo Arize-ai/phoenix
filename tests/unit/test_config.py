@@ -2532,3 +2532,63 @@ class TestGetEnvPostgresAzureScope:
         assert (
             get_env_postgres_azure_scope() == "https://ossrdbms-aad.database.windows.net/.default"
         )
+
+
+class TestAzureWorkloadIdentityFromEnv:
+    """Tests for TOKEN_ENDPOINT_AUTH_METHOD=azure_workload_identity in OAuth2ClientConfig.from_env."""
+
+    _BASE_ENVS = {
+        "PHOENIX_OAUTH2_MICROSOFT_ENTRA_ID_CLIENT_ID": "entra-client-id",
+        "PHOENIX_OAUTH2_MICROSOFT_ENTRA_ID_OIDC_CONFIG_URL": (
+            "https://login.microsoftonline.com/tenant-id/v2.0/.well-known/openid-configuration"
+        ),
+        "PHOENIX_OAUTH2_MICROSOFT_ENTRA_ID_TOKEN_ENDPOINT_AUTH_METHOD": "azure_workload_identity",
+    }
+
+    def _set_base_envs(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        for k, v in self._BASE_ENVS.items():
+            monkeypatch.setenv(k, v)
+
+    def test_no_client_secret_required(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._set_base_envs(monkeypatch)
+        config = OAuth2ClientConfig.from_env("microsoft_entra_id")
+        assert config.client_secret is None
+
+    def test_token_endpoint_auth_method_stored(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._set_base_envs(monkeypatch)
+        config = OAuth2ClientConfig.from_env("microsoft_entra_id")
+        assert config.token_endpoint_auth_method == "azure_workload_identity"
+
+    def test_token_file_none_when_env_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._set_base_envs(monkeypatch)
+        monkeypatch.delenv("AZURE_FEDERATED_TOKEN_FILE", raising=False)
+        config = OAuth2ClientConfig.from_env("microsoft_entra_id")
+        assert config.azure_workload_identity_token_file is None
+
+    def test_token_file_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._set_base_envs(monkeypatch)
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/custom/path/token")
+        config = OAuth2ClientConfig.from_env("microsoft_entra_id")
+        assert config.azure_workload_identity_token_file == "/custom/path/token"
+
+    def test_non_entra_provider_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_ID", "some-id")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL",
+            "https://accounts.google.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_GOOGLE_TOKEN_ENDPOINT_AUTH_METHOD", "azure_workload_identity"
+        )
+        with pytest.raises(ValueError, match="azure_workload_identity.*microsoft_entra_id"):
+            OAuth2ClientConfig.from_env("google")
+
+    def test_token_file_none_for_other_methods(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_ID", "some-id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET", "some-secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL",
+            "https://accounts.google.com/.well-known/openid-configuration",
+        )
+        config = OAuth2ClientConfig.from_env("google")
+        assert config.azure_workload_identity_token_file is None

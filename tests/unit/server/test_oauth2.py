@@ -1383,3 +1383,93 @@ class TestRuntimeJMESPathErrorHandling:
         claims = {"email": "user@example.com"}  # no "groups" claim
         with pytest.raises(PermissionError, match="Access denied"):
             client.validate_access(claims)
+
+
+class TestAzureWorkloadIdentityClientWiring:
+    """Test that add_client() correctly wires azure_workload_identity into OAuth2Client."""
+
+    _ENTRA_CONFIG_DEFAULTS: dict[str, Any] = {
+        "idp_name": "microsoft_entra_id",
+        "idp_display_name": "Microsoft Entra ID",
+        "client_id": "entra-client-id",
+        "client_secret": None,
+        "oidc_config_url": "https://login.microsoftonline.com/tid/v2.0/.well-known/openid-configuration",
+        "allow_sign_up": True,
+        "auto_login": False,
+        "use_pkce": False,
+        "token_endpoint_auth_method": "azure_workload_identity",
+        "scopes": "openid email profile",
+        "groups_attribute_path": None,
+        "allowed_groups": [],
+        "role_attribute_path": None,
+        "role_mapping": {},
+        "role_attribute_strict": False,
+    }
+
+    def test_client_assertion_callable_is_set(self, tmp_path: Any) -> None:
+        token_file = tmp_path / "azure-identity-token"
+        token_file.write_text("header.payload.sig")
+
+        config = OAuth2ClientConfig(
+            **self._ENTRA_CONFIG_DEFAULTS,
+            azure_workload_identity_token_file=str(token_file),
+        )
+        clients = OAuth2Clients()
+        clients.add_client(config)
+
+        client = clients.get_client("microsoft_entra_id")
+        assert client is not None
+        assert client.client_assertion_callable is not None
+
+    def test_client_assertion_callable_reads_token_file(self, tmp_path: Any) -> None:
+        token_file = tmp_path / "azure-identity-token"
+        token_file.write_text("header.payload.sig")
+
+        config = OAuth2ClientConfig(
+            **self._ENTRA_CONFIG_DEFAULTS,
+            azure_workload_identity_token_file=str(token_file),
+        )
+        clients = OAuth2Clients()
+        clients.add_client(config)
+
+        client = clients.get_client("microsoft_entra_id")
+        assert client is not None
+        assert client.client_assertion_callable is not None
+        assert client.client_assertion_callable() == "header.payload.sig"
+
+    def test_client_assertion_callable_reads_fresh_token_on_each_call(self, tmp_path: Any) -> None:
+        token_file = tmp_path / "azure-identity-token"
+        token_file.write_text("first.token.value")
+
+        config = OAuth2ClientConfig(
+            **self._ENTRA_CONFIG_DEFAULTS,
+            azure_workload_identity_token_file=str(token_file),
+        )
+        clients = OAuth2Clients()
+        clients.add_client(config)
+
+        client = clients.get_client("microsoft_entra_id")
+        assert client is not None
+        assert client.client_assertion_callable is not None
+        assert client.client_assertion_callable() == "first.token.value"
+
+        token_file.write_text("rotated.token.value")
+        assert client.client_assertion_callable() == "rotated.token.value"
+
+    def test_normal_client_has_no_assertion_callable(self) -> None:
+        config = OAuth2ClientConfig(
+            **{
+                **_OAUTH2_CONFIG_DEFAULTS,
+                "groups_attribute_path": None,
+                "allowed_groups": [],
+                "role_attribute_path": None,
+                "role_mapping": {},
+                "role_attribute_strict": False,
+            },
+        )
+        clients = OAuth2Clients()
+        clients.add_client(config)
+
+        client = clients.get_client("test")
+        assert client is not None
+        assert client.client_assertion_callable is None

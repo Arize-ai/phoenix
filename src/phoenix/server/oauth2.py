@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from functools import cached_property
 from typing import Any, Iterator, Optional, get_args
 
@@ -75,12 +75,14 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         role_attribute_strict: bool = False,
         role_resync: bool = True,
         email_attribute_path: Optional[str] = None,
+        client_assertion_callable: Optional[Callable[[], str]] = None,
         **kwargs: Any,
     ) -> None:
         self._display_name = display_name
         self._allow_sign_up = allow_sign_up
         self._auto_login = auto_login
         self._use_pkce = use_pkce
+        self._client_assertion_callable = client_assertion_callable
 
         self._groups_attribute_path = (
             groups_attribute_path.strip()
@@ -170,6 +172,10 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
     @cached_property
     def use_pkce(self) -> bool:
         return self._use_pkce
+
+    @cached_property
+    def client_assertion_callable(self) -> Optional[Callable[[], str]]:
+        return self._client_assertion_callable
 
     @cached_property
     def role_resync(self) -> bool:
@@ -440,9 +446,25 @@ class OAuth2Clients:
         # proxies requiring end-to-end HTTP/2, e.g. ZITADEL)
         client_kwargs = {"scope": config.scopes, "http2": True}
 
-        if config.token_endpoint_auth_method:
+        client_assertion_callable: Optional[Callable[[], str]] = None
+
+        if config.token_endpoint_auth_method == "azure_workload_identity":
+            # Azure Workload Identity Federation (RFC 7523 §2 / JWT Bearer assertion):
+            # tell authlib not to inject a client secret; the SA token is injected
+            # directly into fetch_access_token() at callback time via
+            # client_assertion_callable so the token is always read fresh from disk.
+            client_kwargs["token_endpoint_auth_method"] = "none"
+            token_file = config.azure_workload_identity_token_file
+
+            def _read_sa_token() -> str:
+                with open(token_file) as fh:  # noqa: WPS110
+                    return fh.read().strip()
+
+            client_assertion_callable = _read_sa_token
+        elif config.token_endpoint_auth_method:
             # OIDC Core §9: Client authentication method at token endpoint
             client_kwargs["token_endpoint_auth_method"] = config.token_endpoint_auth_method
+
         if config.use_pkce:
             # Always use S256 for PKCE (RFC 7636 §4.2: SHA-256 code challenge method)
             client_kwargs["code_challenge_method"] = "S256"
@@ -464,6 +486,7 @@ class OAuth2Clients:
             role_attribute_strict=config.role_attribute_strict,
             role_resync=config.role_resync,
             email_attribute_path=config.email_attribute_path,
+            client_assertion_callable=client_assertion_callable,
         )
 
         if config.auto_login:
