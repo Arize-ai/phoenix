@@ -574,7 +574,7 @@ class _SchemaConversion:
             if isinstance(value, list):
                 return convert_list(value)  # pyright: ignore[reportUnknownArgumentType]
             if isinstance(value, Mapping):
-                mapping: Mapping[str, Any] = value
+                mapping = cast("Mapping[str, Any]", value)
                 converted: dict[str, Any] = {}
                 for key in mapping:
                     converted[key] = convert(mapping[key])

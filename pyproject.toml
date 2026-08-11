@@ -137,7 +137,7 @@ dev = [
   "mcp>=1.26.0",
   "pyjwt",
   "pypistats",  # this is needed to type-check third-party packages
-  "pyright[nodejs]==1.1.394",
+  "pyright[nodejs]==1.1.411",
   "pytest",
   "pytest-asyncio",
   "pytest-postgresql",

@@ -234,9 +234,9 @@ class TestFunctionDeclarationConversion:
         assert new_obj.parameters_json_schema is not None
         assert obj.parameters is not None
         assert isinstance(new_obj.parameters_json_schema, dict)
-        schema: Mapping[str, Any] = new_obj.parameters_json_schema
+        schema = cast("Mapping[str, Any]", new_obj.parameters_json_schema)
         assert schema["type"] == "object"
-        properties: Mapping[str, Any] = schema["properties"]
+        properties = cast("Mapping[str, Any]", schema["properties"])
         assert set(properties) == set(obj.parameters.properties or {})
 
     def test_optional_parameter_is_not_dropped(self) -> None:
