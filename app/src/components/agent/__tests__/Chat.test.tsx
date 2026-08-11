@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 import { AgentProvider, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
@@ -107,6 +108,7 @@ function renderChatView(
     rewindToMessage,
     forkFromMessage,
     isBusyElsewhere = false,
+    pendingElicitation = null,
   }: {
     sessionId?: string;
     autoFocusInput?: boolean;
@@ -125,6 +127,7 @@ function renderChatView(
     rewindToMessage?: (messageId: string) => Promise<string | null>;
     forkFromMessage?: (messageId: string) => Promise<void>;
     isBusyElsewhere?: boolean;
+    pendingElicitation?: PendingElicitation | null;
   } = {}
 ) {
   act(() => {
@@ -175,7 +178,7 @@ function renderChatView(
               stop={async () => undefined}
               status={status}
               error={error}
-              pendingElicitation={null}
+              pendingElicitation={pendingElicitation}
               handleElicitationSubmit={vi.fn()}
               handleElicitationCancel={vi.fn()}
               compactSession={compactSession}
@@ -706,6 +709,41 @@ describe("ChatView", () => {
     expect(container.textContent).not.toContain("Retry");
     expect(container.textContent).not.toContain("Edit message");
     expect(container.textContent).not.toContain("Branch before message");
+  });
+
+  const pendingQuestion: PendingElicitation = {
+    toolCallId: "call-elicit-1",
+    questions: [
+      {
+        id: "q1",
+        prompt: "Which dataset should I use?",
+        type: "freeform",
+        allow_skip: false,
+        allow_freeform: false,
+      },
+    ],
+  };
+
+  it("renders the pending question carousel", () => {
+    renderChatView(root, {
+      chatMessages: messages,
+      status: "ready",
+      pendingElicitation: pendingQuestion,
+    });
+
+    expect(container.textContent).toContain("Which dataset should I use?");
+  });
+
+  it("hides the pending question while the session is busy elsewhere", () => {
+    renderChatView(root, {
+      chatMessages: messages,
+      status: "ready",
+      pendingElicitation: pendingQuestion,
+      isBusyElsewhere: true,
+    });
+
+    expect(container.textContent).toContain("Session in use elsewhere");
+    expect(container.textContent).not.toContain("Which dataset should I use?");
   });
 
   it("confirms undoing a failed turn from the latest user message", () => {

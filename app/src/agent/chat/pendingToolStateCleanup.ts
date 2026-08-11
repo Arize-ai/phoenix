@@ -2,6 +2,7 @@ import { getToolName, isToolUIPart, type UIMessage } from "ai";
 
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
+import { ASK_USER_TOOL_NAME } from "@phoenix/agent/tools/elicit";
 import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
 import {
@@ -39,6 +40,15 @@ const PENDING_TOOL_STATE_CLEANUP: Readonly<
     state.setPendingLlmEvaluatorEdit(toolCallId, null),
   [LOAD_DATASET_TOOL_NAME]: (state, toolCallId) =>
     state.setPendingLoadDataset(toolCallId, null),
+  [ASK_USER_TOOL_NAME]: (state, toolCallId) => {
+    for (const [sessionId, pending] of Object.entries(
+      state.pendingElicitationBySessionId
+    )) {
+      if (pending.toolCallId === toolCallId) {
+        state.setPendingElicitation(sessionId, null);
+      }
+    }
+  },
 };
 
 /**

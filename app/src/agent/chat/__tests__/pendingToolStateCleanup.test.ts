@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
+import { ASK_USER_TOOL_NAME } from "@phoenix/agent/tools/elicit";
 import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
 import {
@@ -19,7 +20,14 @@ import {
 } from "../pendingToolStateCleanup";
 import type { AgentUIMessage, AgentUIMessagePart } from "../types";
 
-function createStateStub() {
+function createStateStub({
+  pendingElicitationBySessionId = {},
+}: {
+  pendingElicitationBySessionId?: Record<
+    string,
+    { toolCallId: string; questions: never[] }
+  >;
+} = {}) {
   return {
     setPendingPromptEdit: vi.fn(),
     setPendingPromptInstanceRemoval: vi.fn(),
@@ -29,7 +37,15 @@ function createStateStub() {
     setPendingCodeEvaluatorEdit: vi.fn(),
     setPendingLlmEvaluatorEdit: vi.fn(),
     setPendingLoadDataset: vi.fn(),
+    setPendingElicitation: vi.fn(),
+    pendingElicitationBySessionId,
   };
+}
+
+function getSetters(state: ReturnType<typeof createStateStub>) {
+  return Object.entries(state).filter(
+    ([, value]) => typeof value === "function"
+  ) as Array<[string, ReturnType<typeof vi.fn>]>;
 }
 
 describe("cleanupPendingToolState", () => {
@@ -48,7 +64,7 @@ describe("cleanupPendingToolState", () => {
       const state = createStateStub();
       cleanupPendingToolState(state as unknown as AgentState, tool, "call-1");
       expect(state[setterName]).toHaveBeenCalledExactlyOnceWith("call-1", null);
-      const otherSetters = Object.entries(state).filter(
+      const otherSetters = getSetters(state).filter(
         ([name]) => name !== setterName
       );
       for (const [, setter] of otherSetters) {
@@ -57,6 +73,38 @@ describe("cleanupPendingToolState", () => {
     }
   );
 
+  it("clears the pending elicitation owned by an ask_user tool call", () => {
+    const state = createStateStub({
+      pendingElicitationBySessionId: {
+        "session-1": { toolCallId: "call-1", questions: [] },
+        "session-2": { toolCallId: "call-2", questions: [] },
+      },
+    });
+    cleanupPendingToolState(
+      state as unknown as AgentState,
+      ASK_USER_TOOL_NAME,
+      "call-1"
+    );
+    expect(state.setPendingElicitation).toHaveBeenCalledExactlyOnceWith(
+      "session-1",
+      null
+    );
+  });
+
+  it("leaves elicitations owned by other tool calls alone", () => {
+    const state = createStateStub({
+      pendingElicitationBySessionId: {
+        "session-1": { toolCallId: "call-1", questions: [] },
+      },
+    });
+    cleanupPendingToolState(
+      state as unknown as AgentState,
+      ASK_USER_TOOL_NAME,
+      "call-other"
+    );
+    expect(state.setPendingElicitation).not.toHaveBeenCalled();
+  });
+
   it("is a no-op for tools without registered pending state", () => {
     const state = createStateStub();
     cleanupPendingToolState(
@@ -64,7 +112,7 @@ describe("cleanupPendingToolState", () => {
       "unknown_tool",
       "call-1"
     );
-    for (const setter of Object.values(state)) {
+    for (const [, setter] of getSetters(state)) {
       expect(setter).not.toHaveBeenCalled();
     }
   });
@@ -102,6 +150,36 @@ describe("cleanupResolvedPendingToolState", () => {
 
     expect(state.setPendingPromptEdit).toHaveBeenCalledExactlyOnceWith(
       "call-1",
+      null
+    );
+  });
+
+  it("clears the pending elicitation when a synced transcript shows the ask_user call resolved", () => {
+    const state = createStateStub({
+      pendingElicitationBySessionId: {
+        "session-1": { toolCallId: "call-1", questions: [] },
+      },
+    });
+    const messages = [
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: `tool-${ASK_USER_TOOL_NAME}`,
+            toolCallId: "call-1",
+            state: "output-available",
+            input: {},
+            output: {},
+          } as AgentUIMessagePart,
+        ],
+      },
+    ] as AgentUIMessage[];
+
+    cleanupResolvedPendingToolState(state as unknown as AgentState, messages);
+
+    expect(state.setPendingElicitation).toHaveBeenCalledExactlyOnceWith(
+      "session-1",
       null
     );
   });
