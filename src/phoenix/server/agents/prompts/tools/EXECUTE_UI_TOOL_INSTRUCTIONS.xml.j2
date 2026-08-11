@@ -12,13 +12,20 @@
     - Call `log(message)` to emit progress the user can see while a longer script runs.
     - The script's return value becomes the tool output — `return` the data you need for your next step (for example, a read operation's `output`).
     - Operations of kind `approval` stage a change the user must accept or reject in the UI; the awaited promise resolves with the user's decision. Treat a rejection as an answer, not an error — do not retry the same change.
-    - Prefer several small scripts over one large script so approvals and errors stay legible; keep at most one approval-staging operation per script when practical.
+    - Batch every related operation into one script: one script per coherent unit of work, never one script per operation. Each `execute_ui` call costs a full model turn; another `await` inside the script is free. Read state, branch on it, loop over items, and apply all the changes in the same script — if you are about to issue several one-line scripts back to back, combine them.
+    - Approvals batch too: awaiting an `approval` operation parks the script (without burning its time budget) until the user decides, so a script may stage an approval and keep working after the decision resolves. Split into a follow-up script only when what comes next depends on the decision or on an intermediate result in a way you cannot express as a branch in the script.
     - Error recovery: an unknown-operation error includes suggested near-miss names — call `search_ui` to confirm before retrying. An operation that is unavailable on the user's current page fails with a route hint describing where it becomes available; navigate or ask the user rather than retrying in place.
   </guidelines>
   <example>
-    Set a model, run the playground, and read the output across small scripts:
-    1. `return await ui.playground.model.set({target: {type: 'builtin', provider: 'OPENAI', modelName: 'gpt-5'}});` — check `ok` on the result.
-    2. `const run = await ui.playground.run({}); if (!run.ok) return run; log('run finished'); return await ui.playground.run.readOutput({});`
+    Set a model, run the playground, and read the output in one script (one turn, not three):
+    ```
+    const model = await ui.playground.model.set({target: {type: 'builtin', provider: 'OPENAI', modelName: 'gpt-5'}});
+    if (!model.ok) return model;
+    const run = await ui.playground.run({});
+    if (!run.ok) return run;
+    log('run finished');
+    return await ui.playground.run.readOutput({});
+    ```
     Operation names here are illustrative — always take the real names and input shapes from `search_ui` results.
   </example>
 </tool>

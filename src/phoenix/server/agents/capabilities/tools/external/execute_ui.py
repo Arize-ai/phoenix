@@ -49,10 +49,12 @@ DESCRIPTION = (
     "Run a JavaScript script against the browser UI operation catalog. Use this for all "
     "UI-state operations: reading and editing playground prompts, setting models and "
     "filters, loading datasets, running the playground, and editing evaluator drafts. "
-    "Scripts can await multiple operations, branch on results, and loop. Operations of "
-    "kind `approval` stage a change the user must accept — the awaited promise resolves "
-    "with the user's decision. Prefer several small scripts over one large script so "
-    "approvals and errors stay legible."
+    "Scripts can await multiple operations, branch on results, and loop — batch every "
+    "related operation into one script, since each execute_ui call costs a full model "
+    "turn while another await inside the script is free. Operations of kind `approval` "
+    "stage a change the user must accept — the awaited promise resolves with the user's "
+    "decision. Split into a follow-up script only when a later step depends on an "
+    "approval decision or intermediate result you cannot express as a branch."
 )
 
 TOOL_DEFINITION = ToolDefinition(
