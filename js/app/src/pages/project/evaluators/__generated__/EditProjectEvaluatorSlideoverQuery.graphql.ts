@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<db06c3818c91beb0839a660eb2126f71>>
+ * @generated SignedSource<<220a9d4d6ba6d6561c6833553c0a4f64>>
  * @lightSyntaxTransform
  */
 
@@ -17,7 +17,7 @@ export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type SandboxBackendStatus = "AVAILABLE" | "DISABLED" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
-export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 export type EditProjectEvaluatorSlideoverQuery$variables = {
   projectEvaluatorId: string;
 };
