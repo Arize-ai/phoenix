@@ -3,10 +3,10 @@ import { snippetCompletion } from "@codemirror/autocomplete";
 import { useCallback, useMemo } from "react";
 
 import {
+  AIQueryDSLFilterField,
   type DSLFilterCompletionRequest,
   type DSLFilterComprehensionCall,
-  DSLFilterConditionField,
-  type DSLFilterSnippet,
+  type DSLFilterAIQueryProps,
   detectDSLFilterComprehensionCall,
   detectDSLFilterComprehensionScope,
   detectDSLFilterForClauseTarget,
@@ -15,21 +15,14 @@ import {
 } from "@phoenix/components/filter";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
+import {
+  getSessionFilterLoopVariable,
+  sessionFilterAIQueryDSL,
+  sessionFilterSnippets,
+  type SessionFilterVocabularyTerm,
+} from "./sessionFilterDSL";
 import { useSessionFilters } from "./SessionFiltersContext";
 import { validateSessionFilterCondition } from "./sessionFilterValidation";
-
-export type SessionFilterVocabularyTerm = {
-  readonly name: string;
-  readonly type: string;
-  readonly description: string;
-  readonly category: string;
-  /**
-   * The collection whose elements expose this name, or null for a term that
-   * binds at the session grain. An element term is only writable inside a
-   * comprehension over that collection, qualified by the loop variable.
-   */
-  readonly iterableName?: string | null;
-};
 
 /**
  * Ranks continue past the field's own built-in sections — Recent searches (0),
@@ -53,35 +46,14 @@ const vocabularyCategorySections: Record<string, CompletionSection> = {
 const elementFieldsSection: CompletionSection = { name: "Fields", rank: 1 };
 
 /**
- * The loop variable each collection's inserted comprehensions (and served
- * descriptions) use — `any(span… for span in spans)`, `any(trace… for trace
- * in traces)`. Whole words, not letters. A collection the map doesn't know
- * falls back to its singular.
- */
-const canonicalLoopVariables: Record<string, string> = {
-  spans: "span",
-  traces: "trace",
-  session_annotations: "annotation",
-  span_annotations: "annotation",
-  span_cost_details: "cost_detail",
-};
-
-function getLoopVariable(iterableName: string): string {
-  return (
-    canonicalLoopVariables[iterableName] ??
-    (iterableName.endsWith("s") ? iterableName.slice(0, -1) : "item")
-  );
-}
-
-/**
  * The example predicate a collection's inserted comprehension starts with, as
  * a selected tab-through placeholder. It must be *valid* — an inserted
  * condition that errors until a blank is filled reads as broken, not as an
  * invitation to edit — and each references its collection's loop variable
- * from `canonicalLoopVariables`. A collection the map doesn't know falls back
- * to a bare `condition` placeholder.
+ * from `getSessionFilterLoopVariable`. A collection the map doesn't know
+ * falls back to a bare `condition` placeholder.
  */
-const examplePredicates: Record<string, string> = {
+const examplePredicates: Partial<Record<string, string>> = {
   spans: "span.latency_ms > 1_000",
   traces: "trace.latency_ms > 10_000",
   session_annotations: "annotation.score < 0.5",
@@ -92,120 +64,6 @@ const examplePredicates: Record<string, string> = {
 function getExamplePredicate(iterableName: string): string {
   return examplePredicates[iterableName] ?? "condition";
 }
-
-/**
- * Example conditions for the typeahead's "Suggestions" group.
- * `${placeholder}` segments become tab-through fields on insert; subscripted
- * names use double quotes to match the served vocabulary.
- *
- * Every snippet is valid as inserted — placeholders carry working example
- * values, never blanks — and each teaches something no other snippet (or
- * plain aggregate) already covers. The first `MAX_BROWSE_SUGGESTIONS` are
- * what a browsing user sees: one construct each — text search, aggregate,
- * quantifier, reduction, nested comprehension. Text search leads on a
- * `boost`, since it is the query the retired search field used to serve and
- * the one a user arriving at an empty filter most often wants; the rest sort
- * alphabetically among themselves. The remainder of the array runs the
- * one-line field filters before the parameterized comprehension templates.
- */
-export const sessionFilterSnippets: DSLFilterSnippet[] = [
-  {
-    label: "search inputs and outputs for text",
-    snippet: "'${search text}' in any_input or '${search text}' in any_output",
-    boost: 1,
-  },
-  {
-    label: "filter by number of traces",
-    snippet: "num_traces >= ${5}",
-  },
-  {
-    label: "any span errored",
-    snippet: 'any(span.status_code == "ERROR" for span in spans)',
-  },
-  {
-    label: "slowest span in the session",
-    snippet: "max(span.latency_ms for span in spans) > ${5_000}",
-  },
-  {
-    label: "any trace used a tool",
-    snippet:
-      'any(any(span.span_kind == "TOOL" for span in trace.spans) for trace in traces)',
-  },
-  {
-    label: "combine session and span conditions",
-    snippet:
-      'num_traces >= ${5} and any(span.status_code == "ERROR" for span in spans)',
-  },
-  {
-    label: "filter by errors",
-    snippet: "num_traces_with_error > 0",
-  },
-  {
-    label: "filter by duration",
-    snippet: "duration_ms >= ${10_000}",
-  },
-  {
-    label: "filter by session id",
-    snippet: "session_id == '${session id}'",
-  },
-  {
-    label: "filter by total tokens",
-    snippet: "token_count_total > ${1_000}",
-  },
-  {
-    label: "filter by total cost",
-    snippet: "total_cost > ${1}",
-  },
-  {
-    label: "filter by tool usage",
-    snippet: "tool_span_count > 0",
-  },
-  {
-    label: "filter by user",
-    snippet: "user.id == '${user id}'",
-  },
-  {
-    label: "filter by metadata",
-    snippet: "metadata[\"${key}\"] == '${value}'",
-  },
-  {
-    label: "filter by annotation score",
-    snippet: 'annotations["${name}"].score >= ${0.5}',
-  },
-  {
-    label: "filter by annotation label",
-    snippet: "annotations[\"${name}\"].label == '${label}'",
-  },
-  {
-    label: "search inputs for substring",
-    snippet: "'${search text}' in any_input",
-  },
-  {
-    label: "search outputs for substring",
-    snippet: "'${search text}' in any_output",
-  },
-  {
-    label: "any span matches a condition",
-    snippet: "any(${span.latency_ms > 1000} for span in ${spans})",
-  },
-  {
-    // `all` over an empty collection is vacuously true, so the template
-    // carries the non-empty guard rather than teaching a query that matches
-    // every session with no spans at all.
-    label: "all spans match a condition",
-    snippet:
-      "len([span for span in ${spans}]) > 0 and all(${span.latency_ms < 1000} for span in ${spans})",
-  },
-  {
-    label: "count spans matching a condition",
-    snippet:
-      'len([span for span in spans if span.span_kind == "${TOOL}"]) >= ${2}',
-  },
-  {
-    label: "any trace matches a condition",
-    snippet: "any(${trace.latency_ms > 10_000} for trace in ${traces})",
-  },
-];
 
 function getCompletionOption(term: SessionFilterVocabularyTerm): Completion {
   return {
@@ -230,7 +88,7 @@ function getCompletionOption(term: SessionFilterVocabularyTerm): Completion {
 function getIterableScaffoldCompletion(
   term: SessionFilterVocabularyTerm
 ): Completion {
-  const loopVariable = getLoopVariable(term.name);
+  const loopVariable = getSessionFilterLoopVariable(term.name);
   const predicate = getExamplePredicate(term.name);
   return snippetCompletion(
     `any(\${${predicate}} for ${loopVariable} in ${term.name})`,
@@ -254,7 +112,7 @@ function getIterableBodyCompletion(
   term: SessionFilterVocabularyTerm,
   call: DSLFilterComprehensionCall
 ): Completion {
-  const loopVariable = getLoopVariable(term.name);
+  const loopVariable = getSessionFilterLoopVariable(term.name);
   const predicate = getExamplePredicate(term.name);
   const body = `\${${predicate}} for ${loopVariable} in ${term.name}`;
   const needsListBrackets = call.functionName === "len" && !call.isListForm;
@@ -316,6 +174,10 @@ type SessionFilterConditionFieldProps = {
   onValidCondition: (condition: string) => void;
   vocabulary: readonly SessionFilterVocabularyTerm[];
   placeholder?: string;
+};
+
+const sessionFilterAIQuery: DSLFilterAIQueryProps = {
+  dsl: sessionFilterAIQueryDSL,
 };
 
 export function SessionFilterConditionField(
@@ -433,7 +295,7 @@ export function SessionFilterConditionField(
   );
 
   return (
-    <DSLFilterConditionField
+    <AIQueryDSLFilterField
       aria-label="Filter sessions"
       className="session-filter-condition-field"
       value={filterCondition}
@@ -446,6 +308,7 @@ export function SessionFilterConditionField(
       getErrorRange={findDSLFilterComprehensionRange}
       validateCondition={validateCondition}
       onValidCondition={handleValidCondition}
+      aiQuery={sessionFilterAIQuery}
     />
   );
 }

@@ -28,6 +28,7 @@ export const createAnnotationConfigAgentTool =
     parseInput: parseCreateAnnotationConfigInput,
     invalidInputErrorText: `Invalid ${CREATE_ANNOTATION_CONFIG_TOOL_NAME} input. Expected { type: "categorical" | "continuous" | "freeform", name: string, description?: string | null, optimizationDirection?: "MINIMIZE" | "MAXIMIZE" | "NONE", values?: [{ label: string, score?: number | null }], lowerBound?: number | null, upperBound?: number | null, threshold?: number | null, projectId?: string | null }. Categorical configs require a non-empty values array.`,
     uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
+    rehydratable: true,
     execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
       const draft = toAnnotationConfigDraft(input);
       await stageAnnotationConfigWrite({
@@ -59,6 +60,7 @@ export const updateAnnotationConfigAgentTool =
     parseInput: parseUpdateAnnotationConfigInput,
     invalidInputErrorText: `Invalid ${UPDATE_ANNOTATION_CONFIG_TOOL_NAME} input. Expected { id: string, type: "categorical" | "continuous" | "freeform", name: string, description?: string | null, optimizationDirection?: "MINIMIZE" | "MAXIMIZE" | "NONE", values?: [{ label: string, score?: number | null }], lowerBound?: number | null, upperBound?: number | null, threshold?: number | null }. This is a full replace — pass the complete config.`,
     uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
+    rehydratable: true,
     execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
       const draft = toAnnotationConfigDraft(input);
       await stageAnnotationConfigWrite({

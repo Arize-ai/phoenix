@@ -6,10 +6,13 @@ import {
 
 import {
   createAgentStore,
+  DRAFT_SESSION_ID,
   getEffectiveAttachUserId,
   getEffectiveTraceRecordingSettings,
   hasAcknowledgedCurrentTraceConsent,
   resolveAssistantStorageKey,
+  selectIsSessionOccupied,
+  selectSessionNotice,
 } from "../agentStore";
 
 installTestStorage();
@@ -45,80 +48,97 @@ describe("agentStore", () => {
     });
   });
 
-  describe("createSession", () => {
-    it("creates a session, adds it to sessions list, and sets it as active", () => {
+  describe("setActiveSession", () => {
+    it("activates the given session id", () => {
       const store = createAgentStore();
-      const sessionId = store.getState().createSession();
-      const state = store.getState();
-      expect(state.sessions).toEqual([sessionId]);
-      expect(state.activeSessionId).toBe(sessionId);
-      expect(state.sessionMap[sessionId]).toBeDefined();
+      store.getState().setActiveSession("session-node-id");
+      expect(store.getState().activeSessionId).toBe("session-node-id");
+    });
+
+    it("activates the draft surface sentinel", () => {
+      const store = createAgentStore();
+      store.getState().setActiveSession(DRAFT_SESSION_ID);
+      expect(store.getState().activeSessionId).toBe(DRAFT_SESSION_ID);
     });
   });
 
-  describe("deleteSession", () => {
-    it("removes session and clears activeSessionId when no sessions remain", () => {
+  describe("agentsConfig", () => {
+    it("defaults session retention to off", () => {
       const store = createAgentStore();
-      const sessionId = store.getState().createSession();
-      store.getState().deleteSession(sessionId);
-      const state = store.getState();
-      expect(state.sessions).toEqual([]);
-      expect(state.sessionMap[sessionId]).toBeUndefined();
-      expect(state.activeSessionId).toBeNull();
-    });
 
-    it("falls back activeSessionId to last remaining session when active is deleted", () => {
-      const store = createAgentStore();
-      store.getState().setCapability({
-        key: "session.storeSessions",
-        enabled: true,
-      });
-      const sessionId1 = store.getState().createSession();
-      const sessionId2 = store.getState().createSession();
-      // active is sessionId2
-      store.getState().deleteSession(sessionId2);
-      expect(store.getState().activeSessionId).toBe(sessionId1);
+      expect(
+        store.getState().agentsConfig.sessionRetentionMaxIdleDays
+      ).toBeNull();
+      expect(
+        store.getState().agentsConfig.sessionRetentionMaxCountPerUser
+      ).toBeNull();
     });
   });
 
-  describe("setSessionResponsePending", () => {
-    it("removes settled sessions from the sparse pending lookup", () => {
+  describe("setIsDraftSessionTemporary", () => {
+    it("toggles whether the draft becomes temporary", () => {
       const store = createAgentStore();
-      const sessionId = store.getState().createSession();
 
-      store.getState().setSessionResponsePending(sessionId, true);
-      expect(store.getState().isResponsePendingBySessionId[sessionId]).toBe(
-        true
+      expect(store.getState().isDraftSessionTemporary).toBe(false);
+      store.getState().setIsDraftSessionTemporary(true);
+      expect(store.getState().isDraftSessionTemporary).toBe(true);
+    });
+  });
+
+  describe("defaultTemporaryChat", () => {
+    it("defaults to false", () => {
+      const store = createAgentStore();
+
+      expect(store.getState().defaultTemporaryChat).toBe(false);
+      expect(store.getState().isDraftSessionTemporary).toBe(false);
+    });
+
+    it("updates the preference without touching the live draft toggle", () => {
+      const store = createAgentStore();
+
+      store.getState().setDefaultTemporaryChat(true);
+      expect(store.getState().defaultTemporaryChat).toBe(true);
+      // The already-open draft is not retroactively flipped.
+      expect(store.getState().isDraftSessionTemporary).toBe(false);
+    });
+
+    it("seeds the initial draft toggle from the persisted preference", () => {
+      localStorage.setItem(
+        resolveAssistantStorageKey(),
+        JSON.stringify({
+          state: { defaultTemporaryChat: true },
+          version: 0,
+        })
       );
 
-      store.getState().setSessionResponsePending(sessionId, false);
-      expect(
-        store.getState().isResponsePendingBySessionId[sessionId]
-      ).toBeUndefined();
+      const store = createAgentStore();
+
+      expect(store.getState().defaultTemporaryChat).toBe(true);
+      expect(store.getState().isDraftSessionTemporary).toBe(true);
     });
 
-    it("does not recreate response state after its session is deleted", () => {
+    it("falls back to false when no preference was persisted", () => {
+      localStorage.setItem(
+        resolveAssistantStorageKey(),
+        JSON.stringify({
+          state: { position: "detached" },
+          version: 0,
+        })
+      );
+
       const store = createAgentStore();
-      const sessionId = store.getState().createSession();
-      store.getState().setSessionResponsePending(sessionId, true);
-      store.getState().deleteSession(sessionId);
 
-      store.getState().setSessionResponsePending(sessionId, false);
-
-      expect(
-        store.getState().isResponsePendingBySessionId[sessionId]
-      ).toBeUndefined();
+      expect(store.getState().defaultTemporaryChat).toBe(false);
+      expect(store.getState().isDraftSessionTemporary).toBe(false);
     });
   });
 
-  describe("pendingPatchExperiment cleanup", () => {
-    function setPendingPatch(
-      store: ReturnType<typeof createAgentStore>,
-      toolCallId: string,
-      sessionId: string
-    ) {
-      store.getState().setPendingPatchExperiment(toolCallId, {
-        toolCallId,
+  describe("clearSessionEphemeralState", () => {
+    it("drops a session's pending patch, draft input, pending message, and chat status", () => {
+      const store = createAgentStore();
+      const sessionId = "session-node-id";
+      store.getState().setPendingPatchExperiment("tool-call-1", {
+        toolCallId: "tool-call-1",
         sessionId,
         experimentId: "exp-1",
         experimentName: "baseline",
@@ -126,278 +146,79 @@ describe("agentStore", () => {
         payload: { name: "renamed" },
         diff: [{ field: "name", previous: "baseline", next: "renamed" }],
       });
-    }
-
-    it("drops a session's pending patch when that session is deleted", () => {
-      const store = createAgentStore();
-      const sessionId = store.getState().createSession();
-      setPendingPatch(store, "tool-call-1", sessionId);
-
-      store.getState().deleteSession(sessionId);
-
-      expect(
-        store.getState().pendingPatchExperimentsByToolCallId["tool-call-1"]
-      ).toBeUndefined();
-    });
-
-    it("clears all pending patches when all sessions are cleared", () => {
-      const store = createAgentStore();
-      const sessionId = store.getState().createSession();
-      setPendingPatch(store, "tool-call-1", sessionId);
-
-      store.getState().clearAllSessions();
-
-      expect(store.getState().pendingPatchExperimentsByToolCallId).toEqual({});
-    });
-
-    it("prunes pending patches owned by sessions dropped on retention", () => {
-      const store = createAgentStore();
-      const firstSessionId = store.getState().createSession();
-      setPendingPatch(store, "tool-call-1", firstSessionId);
-
-      // Creating a new session without recent-session storage drops the first.
-      store.getState().createSession();
-
-      expect(
-        store.getState().pendingPatchExperimentsByToolCallId["tool-call-1"]
-      ).toBeUndefined();
-    });
-  });
-
-  describe("updateSessionModelConfig", () => {
-    it("partial-merges model config without clobbering other fields", () => {
-      const store = createAgentStore();
-      const sessionId = store.getState().createSession();
-      const originalProvider =
-        store.getState().sessionMap[sessionId].modelConfig.provider;
+      store.getState().setDraftInput(sessionId, "hello");
       store
         .getState()
-        .updateSessionModelConfig(sessionId, { modelName: "gpt-4o" });
-      const config = store.getState().sessionMap[sessionId].modelConfig;
-      expect(config.modelName).toBe("gpt-4o");
-      expect(config.provider).toBe(originalProvider);
-    });
-  });
+        .setPendingMessage(sessionId, { text: "hi", requestedSkills: [] });
+      store.getState().setSessionChatStatus(sessionId, "streaming");
 
-  describe("setSessionMessages", () => {
-    it("no-ops for unknown session", () => {
-      const store = createAgentStore();
-      const before = store.getState();
-      store.getState().setSessionMessages("nonexistent", []);
-      expect(store.getState().sessionMap).toBe(before.sessionMap);
-    });
-  });
+      store.getState().clearSessionEphemeralState(sessionId);
 
-  describe("session retention", () => {
-    it("replaces prior sessions by default when creating a session", () => {
-      const store = createAgentStore();
-      const firstSessionId = store.getState().createSession();
-      store.getState().setPendingElicitation(firstSessionId, {
-        toolCallId: "tool-call-1",
-        questions: [],
-      });
-      store.getState().setSessionChatStatus(firstSessionId, "streaming");
-      store.getState().setSessionResponsePending(firstSessionId, true);
-
-      const secondSessionId = store.getState().createSession();
-
-      expect(store.getState().sessions).toEqual([secondSessionId]);
-      expect(store.getState().activeSessionId).toBe(secondSessionId);
-      expect(store.getState().sessionMap[firstSessionId]).toBeUndefined();
-      expect(
-        store.getState().pendingElicitationBySessionId[firstSessionId]
-      ).toBeUndefined();
-      expect(
-        store.getState().chatStatusBySessionId[firstSessionId]
-      ).toBeUndefined();
-      expect(
-        store.getState().isResponsePendingBySessionId[firstSessionId]
-      ).toBeUndefined();
-    });
-
-    it("keeps the three newest sessions when recent session storage is enabled", () => {
-      const store = createAgentStore();
-      store.getState().setCapability({
-        key: "session.storeSessions",
-        enabled: true,
-      });
-      const firstSessionId = store.getState().createSession();
-      const secondSessionId = store.getState().createSession();
-      const thirdSessionId = store.getState().createSession();
-      const fourthSessionId = store.getState().createSession();
-
-      expect(store.getState().sessions).toEqual([
-        secondSessionId,
-        thirdSessionId,
-        fourthSessionId,
-      ]);
-      expect(store.getState().activeSessionId).toBe(fourthSessionId);
-      expect(store.getState().sessionMap[firstSessionId]).toBeUndefined();
-      expect(store.getState().sessionMap[secondSessionId]).toBeDefined();
-      expect(store.getState().sessionMap[thirdSessionId]).toBeDefined();
-      expect(store.getState().sessionMap[fourthSessionId]).toBeDefined();
-    });
-
-    it("prunes to the active session when recent session storage is disabled", () => {
-      const store = createAgentStore();
-      store.getState().setCapability({
-        key: "session.storeSessions",
-        enabled: true,
-      });
-      const firstSessionId = store.getState().createSession();
-      const secondSessionId = store.getState().createSession();
-      store.getState().setPendingElicitation(firstSessionId, {
-        toolCallId: "tool-call-1",
-        questions: [],
-      });
-      store.getState().setSessionChatStatus(firstSessionId, "streaming");
-
-      store.getState().setCapability({
-        key: "session.storeSessions",
-        enabled: false,
-      });
-
-      expect(store.getState().sessions).toEqual([secondSessionId]);
-      expect(store.getState().activeSessionId).toBe(secondSessionId);
-      expect(store.getState().sessionMap[firstSessionId]).toBeUndefined();
-      expect(
-        store.getState().pendingElicitationBySessionId[firstSessionId]
-      ).toBeUndefined();
-      expect(
-        store.getState().chatStatusBySessionId[firstSessionId]
-      ).toBeUndefined();
-    });
-  });
-
-  describe("forkSession", () => {
-    it("creates a new active session retaining the source session", () => {
-      const store = createAgentStore();
-      store.getState().setCapability({
-        key: "session.storeSessions",
-        enabled: true,
-      });
-      const sourceId = store.getState().createSession();
-      const messages = [{ id: "user-1", role: "user" as const, parts: [] }];
-
-      const forkId = store.getState().forkSession({
-        sourceSessionId: sourceId,
-        messages,
-      });
-
-      expect(forkId).not.toBeNull();
       const state = store.getState();
-      expect(state.activeSessionId).toBe(forkId);
-      // Source session is preserved alongside the fork.
-      expect(state.sessionMap[sourceId]).toBeDefined();
-      expect(state.sessionMap[forkId!].messages).toEqual(messages);
+      expect(
+        state.pendingPatchExperimentsByToolCallId["tool-call-1"]
+      ).toBeUndefined();
+      expect(state.draftInputBySessionId[sessionId]).toBeUndefined();
+      expect(state.pendingMessageBySessionId[sessionId]).toBeUndefined();
+      expect(state.chatStatusBySessionId[sessionId]).toBeUndefined();
     });
 
-    it("copies the source session's model config and context", () => {
+    it("keeps ephemeral state belonging to other sessions", () => {
       const store = createAgentStore();
-      const sourceId = store.getState().createSession();
-      store
-        .getState()
-        .updateSessionModelConfig(sourceId, { modelName: "gpt-4o" });
-      store.getState().addSessionContext(sourceId, "span:123");
+      store.getState().setDraftInput("session-a", "keep me");
+      store.getState().setDraftInput("session-b", "drop me");
 
-      const forkId = store.getState().forkSession({
-        sourceSessionId: sourceId,
-        messages: [],
-      });
+      store.getState().clearSessionEphemeralState("session-b");
 
-      const forked = store.getState().sessionMap[forkId!];
-      expect(forked.modelConfig.modelName).toBe("gpt-4o");
-      expect(forked.context).toEqual(["span:123"]);
-    });
-
-    it("stages restored input as the forked session draft", () => {
-      const store = createAgentStore();
-      const sourceId = store.getState().createSession();
-
-      const forkId = store.getState().forkSession({
-        sourceSessionId: sourceId,
-        messages: [],
-        restoredInput: "edit me",
-      });
-
-      expect(store.getState().draftInputBySessionId[forkId!]).toBe("edit me");
-    });
-
-    it("prefixes the source summary with (branch)", () => {
-      const store = createAgentStore();
-      const sourceId = store.getState().createSession();
-      store.getState().updateSessionSummary(sourceId, "Debugging traces");
-
-      const forkId = store.getState().forkSession({
-        sourceSessionId: sourceId,
-        messages: [],
-      });
-
-      expect(store.getState().sessionMap[forkId!].shortSummary).toBe(
-        "(branch) Debugging traces"
+      expect(store.getState().draftInputBySessionId["session-a"]).toBe(
+        "keep me"
       );
+      expect(
+        store.getState().draftInputBySessionId["session-b"]
+      ).toBeUndefined();
+    });
+  });
+
+  describe("setSessionResponsePending", () => {
+    it("removes settled sessions from the sparse pending lookup", () => {
+      const store = createAgentStore();
+
+      store.getState().setSessionResponsePending("session-node-id", true);
+      expect(
+        store.getState().isResponsePendingBySessionId["session-node-id"]
+      ).toBe(true);
+
+      store.getState().setSessionResponsePending("session-node-id", false);
+      expect(
+        store.getState().isResponsePendingBySessionId["session-node-id"]
+      ).toBeUndefined();
     });
 
-    it("derives the fork summary from the first user message when unsummarized", () => {
+    it("drops a session's pending response flag when its ephemeral state is cleared", () => {
       const store = createAgentStore();
-      const sourceId = store.getState().createSession();
+      store.getState().setSessionResponsePending("session-node-id", true);
 
-      const forkId = store.getState().forkSession({
-        sourceSessionId: sourceId,
-        messages: [
-          {
-            id: "user-1",
-            role: "user" as const,
-            parts: [{ type: "text" as const, text: "How do I trace OpenAI?" }],
-          },
-        ],
-      });
+      store.getState().clearSessionEphemeralState("session-node-id");
 
-      // The source session still has the messages too (fork copies them), but
-      // here we assert the fork derives its own label from its messages.
-      store.getState().setSessionMessages(sourceId, [
-        {
-          id: "user-1",
-          role: "user",
-          parts: [{ type: "text", text: "How do I trace OpenAI?" }],
-        },
-      ]);
-      const refork = store.getState().forkSession({
-        sourceSessionId: sourceId,
-        messages: [],
-      });
-      expect(store.getState().sessionMap[refork!].shortSummary).toBe(
-        "(branch) How do I trace OpenAI?"
-      );
-      expect(forkId).not.toBeNull();
+      expect(
+        store.getState().isResponsePendingBySessionId["session-node-id"]
+      ).toBeUndefined();
     });
+  });
 
-    it("does not stack the (branch) prefix when branching from a branch", () => {
+  describe("setSessionCompactionPending", () => {
+    it("tracks compaction across remounts and clears it with session state", () => {
       const store = createAgentStore();
-      const sourceId = store.getState().createSession();
-      store.getState().updateSessionSummary(sourceId, "(branch) Original");
 
-      const forkId = store.getState().forkSession({
-        sourceSessionId: sourceId,
-        messages: [],
-      });
+      store.getState().setSessionCompactionPending("session-node-id", true);
+      expect(
+        store.getState().isCompactionPendingBySessionId["session-node-id"]
+      ).toBe(true);
 
-      expect(store.getState().sessionMap[forkId!].shortSummary).toBe(
-        "(branch) Original"
-      );
-    });
-
-    it("returns null and no-ops for an unknown source session", () => {
-      const store = createAgentStore();
-      const before = store.getState().sessions;
-
-      const forkId = store.getState().forkSession({
-        sourceSessionId: "missing",
-        messages: [],
-      });
-
-      expect(forkId).toBeNull();
-      expect(store.getState().sessions).toBe(before);
+      store.getState().clearSessionEphemeralState("session-node-id");
+      expect(
+        store.getState().isCompactionPendingBySessionId["session-node-id"]
+      ).toBeUndefined();
     });
   });
 
@@ -422,64 +243,15 @@ describe("agentStore", () => {
       );
     });
 
-    it("drops a session draft when that session is deleted", () => {
+    it("drops a session draft when its ephemeral state is cleared", () => {
       const store = createAgentStore();
-      const sessionId = store.getState().createSession();
-      store.getState().setDraftInput(sessionId, "hello");
+      store.getState().setDraftInput("session-1", "hello");
 
-      store.getState().deleteSession(sessionId);
-
-      expect(store.getState().draftInputBySessionId[sessionId]).toBeUndefined();
-    });
-
-    it("clears all drafts when all sessions are cleared", () => {
-      const store = createAgentStore();
-      const sessionId = store.getState().createSession();
-      store.getState().setDraftInput(sessionId, "hello");
-
-      store.getState().clearAllSessions();
-
-      expect(store.getState().draftInputBySessionId).toEqual({});
-    });
-
-    it("prunes drafts owned by sessions dropped on retention", () => {
-      const store = createAgentStore();
-      const firstSessionId = store.getState().createSession();
-      store.getState().setDraftInput(firstSessionId, "old draft");
-
-      const secondSessionId = store.getState().createSession();
-      store.getState().setDraftInput(secondSessionId, "new draft");
+      store.getState().clearSessionEphemeralState("session-1");
 
       expect(
-        store.getState().draftInputBySessionId[firstSessionId]
+        store.getState().draftInputBySessionId["session-1"]
       ).toBeUndefined();
-      expect(store.getState().draftInputBySessionId[secondSessionId]).toBe(
-        "new draft"
-      );
-    });
-
-    it("prunes inactive drafts when recent session storage is disabled", () => {
-      const store = createAgentStore();
-      store.getState().setCapability({
-        key: "session.storeSessions",
-        enabled: true,
-      });
-      const firstSessionId = store.getState().createSession();
-      store.getState().setDraftInput(firstSessionId, "old draft");
-      const secondSessionId = store.getState().createSession();
-      store.getState().setDraftInput(secondSessionId, "new draft");
-
-      store.getState().setCapability({
-        key: "session.storeSessions",
-        enabled: false,
-      });
-
-      expect(
-        store.getState().draftInputBySessionId[firstSessionId]
-      ).toBeUndefined();
-      expect(store.getState().draftInputBySessionId[secondSessionId]).toBe(
-        "new draft"
-      );
     });
   });
 
@@ -506,14 +278,13 @@ describe("agentStore", () => {
       expect(store.getState().consumePendingMessage("session-1")).toBeNull();
     });
 
-    it("drops a pending message when its session is deleted", () => {
+    it("drops a pending message when its session's ephemeral state is cleared", () => {
       const store = createAgentStore();
-      const sessionId = store.getState().createSession();
       store
         .getState()
-        .setPendingMessage(sessionId, { text: "hi", requestedSkills: [] });
-      store.getState().deleteSession(sessionId);
-      expect(store.getState().consumePendingMessage(sessionId)).toBeNull();
+        .setPendingMessage("session-1", { text: "hi", requestedSkills: [] });
+      store.getState().clearSessionEphemeralState("session-1");
+      expect(store.getState().consumePendingMessage("session-1")).toBeNull();
     });
   });
 
@@ -597,6 +368,8 @@ describe("agentStore", () => {
           assistantEnabled: true,
           allowLocalTraces: true,
           allowRemoteExport: true,
+          sessionRetentionMaxIdleDays: 30,
+          sessionRetentionMaxCountPerUser: null,
         },
       });
 
@@ -648,6 +421,8 @@ describe("agentStore", () => {
           assistantEnabled: true,
           allowLocalTraces: false,
           allowRemoteExport: false,
+          sessionRetentionMaxIdleDays: 30,
+          sessionRetentionMaxCountPerUser: null,
         },
         observability: {
           storeLocalTraces: false,
@@ -726,6 +501,96 @@ describe("agentStore", () => {
         attachUserId: false,
         acknowledgedTraceConsent: null,
       });
+    });
+  });
+
+  describe("session conflict notices", () => {
+    it("stores at most one dismissable notice per session", () => {
+      const store = createAgentStore();
+
+      store.getState().setSessionNotice("s1", "messagesAddedElsewhere");
+      expect(selectSessionNotice(store.getState(), "s1")).toBe(
+        "messagesAddedElsewhere"
+      );
+
+      store.getState().setSessionNotice("s1", "modelChangedElsewhere");
+      expect(selectSessionNotice(store.getState(), "s1")).toBe(
+        "modelChangedElsewhere"
+      );
+
+      store.getState().setSessionNotice("s1", null);
+      expect(selectSessionNotice(store.getState(), "s1")).toBeNull();
+    });
+
+    it("gives busy-elsewhere precedence and restores the notice after the lock clears", () => {
+      const store = createAgentStore();
+      store.getState().setSessionNotice("s1", "messagesAddedElsewhere");
+
+      store.getState().setSessionBusyElsewhere("s1", true);
+      expect(selectSessionNotice(store.getState(), "s1")).toBe("busyElsewhere");
+
+      store.getState().setSessionBusyElsewhere("s1", false);
+      expect(selectSessionNotice(store.getState(), "s1")).toBe(
+        "messagesAddedElsewhere"
+      );
+    });
+
+    it("resolves no notice without a session id", () => {
+      const store = createAgentStore();
+      expect(selectSessionNotice(store.getState(), null)).toBeNull();
+    });
+
+    it("clears the notice with the rest of a session's state", () => {
+      const store = createAgentStore();
+      store.getState().setSessionNotice("s1", "modelChangedElsewhere");
+
+      store.getState().clearSessionEphemeralState("s1");
+
+      expect(selectSessionNotice(store.getState(), "s1")).toBeNull();
+    });
+  });
+
+  describe("selectIsSessionOccupied", () => {
+    it("is unoccupied for unknown or absent sessions", () => {
+      const store = createAgentStore();
+      expect(selectIsSessionOccupied(store.getState(), "s1")).toBe(false);
+      expect(selectIsSessionOccupied(store.getState(), null)).toBe(false);
+      expect(selectIsSessionOccupied(store.getState(), undefined)).toBe(false);
+    });
+
+    it("is occupied while this client's response is in flight", () => {
+      const store = createAgentStore();
+
+      store.getState().setSessionChatStatus("s1", "submitted");
+      expect(selectIsSessionOccupied(store.getState(), "s1")).toBe(true);
+
+      store.getState().setSessionChatStatus("s1", "streaming");
+      expect(selectIsSessionOccupied(store.getState(), "s1")).toBe(true);
+
+      // The settled statuses — including error — release the occupation. A
+      // ready status with a pending client tool call is the window in which
+      // the user must still be able to respond to approvals.
+      store.getState().setSessionChatStatus("s1", "ready");
+      expect(selectIsSessionOccupied(store.getState(), "s1")).toBe(false);
+
+      store.getState().setSessionChatStatus("s1", "error");
+      expect(selectIsSessionOccupied(store.getState(), "s1")).toBe(false);
+    });
+
+    it("is occupied while another client's turn holds the session lock", () => {
+      const store = createAgentStore();
+
+      store.getState().setSessionBusyElsewhere("s1", true);
+      expect(selectIsSessionOccupied(store.getState(), "s1")).toBe(true);
+
+      store.getState().setSessionBusyElsewhere("s1", false);
+      expect(selectIsSessionOccupied(store.getState(), "s1")).toBe(false);
+    });
+
+    it("scopes occupation to the queried session", () => {
+      const store = createAgentStore();
+      store.getState().setSessionChatStatus("s1", "streaming");
+      expect(selectIsSessionOccupied(store.getState(), "s2")).toBe(false);
     });
   });
 

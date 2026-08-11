@@ -14,10 +14,20 @@ import {
 } from "../src/config";
 
 describe("resolveConfig", () => {
+  // Connection env vars are cleared globally in test/setup.ts.
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
     clearEnvFileCache();
+  });
+
+  it("resolves the base URL from PHOENIX_ENDPOINT", () => {
+    vi.stubEnv("PHOENIX_ENDPOINT", "https://api.example.com");
+    vi.stubEnv("PHOENIX_HOST", "https://legacy.example.com");
+
+    const config = resolveConfig({ commandLineOptions: {} });
+
+    expect(config.baseUrl).toBe("https://api.example.com");
   });
 
   it("uses command-line options over environment-derived defaults", () => {

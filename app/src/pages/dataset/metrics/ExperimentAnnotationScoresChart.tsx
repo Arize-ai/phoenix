@@ -3,7 +3,6 @@ import {
   CartesianGrid,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -11,6 +10,7 @@ import {
 
 import {
   ChartEmptyStateOverlay,
+  ChartResponsiveContainer,
   ChartTooltip,
   ChartTooltipItem,
   COMPACT_CHART_ANIMATION_DURATION_MS,
@@ -131,7 +131,7 @@ export function ExperimentAnnotationScoresChart({
       message="No annotation data"
       chartType="line"
     >
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartResponsiveContainer>
         <LineChart
           data={chartData}
           margin={compactChartMargin}
@@ -165,7 +165,7 @@ export function ExperimentAnnotationScoresChart({
           />
           <Tooltip {...defaultTooltipProps} content={TooltipContent} />
         </LineChart>
-      </ResponsiveContainer>
+      </ChartResponsiveContainer>
     </ChartEmptyStateOverlay>
   );
 }

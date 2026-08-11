@@ -86,15 +86,17 @@ services:
 
 ### Environment Variables
 
-#### Phoenix Configuration
+#### Collector Configuration
 
-Set these environment variables to override default Phoenix settings:
+Graphite reads its collector target from its own environment variables — a bare host and a port, used for gRPC export. These default to Phoenix's local gRPC endpoint:
 
 ```bash
 # Optional - defaults to localhost:4317
-export PHOENIX_ENDPOINT="localhost" # if using docker compose and ports are forwarded
-export PHOENIX_PORT="4317" # This will override port settings in setup_tracing()
+export OTEL_COLLECTOR_ENDPOINT="localhost"
+export OTEL_COLLECTOR_PORT="4317"
 ```
+
+Graphite does not read Phoenix's `PHOENIX_*` environment variables; equivalently, pass `collector_endpoint` and `collector_port` directly to `setup_tracing()`.
 
 ### Setup Function Parameters
 

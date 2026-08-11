@@ -10,9 +10,11 @@ import httpx
 from phoenix.client.constants import (
     ENV_OTEL_EXPORTER_OTLP_ENDPOINT,
     ENV_PHOENIX_API_KEY,
+    ENV_PHOENIX_BASE_URL,
     ENV_PHOENIX_CLIENT_HEADERS,
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
     ENV_PHOENIX_DISCOVER_CONFIG,
+    ENV_PHOENIX_ENDPOINT,
     ENV_PHOENIX_HOST,
     ENV_PHOENIX_HOST_ROOT_PATH,
     ENV_PHOENIX_PORT,
@@ -49,12 +51,46 @@ _CREDENTIAL_ENV_KEYS = (
     ENV_PHOENIX_API_KEY,
     ENV_PHOENIX_CLIENT_HEADERS,
 )
-_SERVER_LOCATION_ENV_KEYS = (
+# Base-URL candidates for API access, in precedence order: the canonical
+# PHOENIX_ENDPOINT first, then the trace-export variables as inferred
+# fallbacks, then PHOENIX_BASE_URL, then the legacy PHOENIX_HOST.
+_CANONICAL_API_BASE_URL_ENV_KEYS = (ENV_PHOENIX_ENDPOINT,)
+_COLLECTOR_ENV_KEYS = (
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
     ENV_OTEL_EXPORTER_OTLP_ENDPOINT,
+)
+# Undocumented compatibility fallback. PHOENIX_BASE_URL appeared in the client
+# docs for years but was never read, so values set from those docs silently did
+# nothing. It is honored below the collector variables so those configurations
+# start working without retargeting anyone who set both.
+_LEGACY_API_BASE_URL_ENV_KEYS = (ENV_PHOENIX_BASE_URL,)
+_API_BASE_URL_ENV_KEYS = (
+    *_CANONICAL_API_BASE_URL_ENV_KEYS,
+    *_COLLECTOR_ENV_KEYS,
+    *_LEGACY_API_BASE_URL_ENV_KEYS,
+    # Legacy: on the Phoenix server this variable is the bind host, so it is
+    # read last and a bare host is turned into a URL with PHOENIX_PORT.
     ENV_PHOENIX_HOST,
+)
+_SERVER_LOCATION_ENV_KEYS = (
+    *_API_BASE_URL_ENV_KEYS,
     ENV_PHOENIX_PORT,
 )
+# The subset of the group whose presence claims a tier. PHOENIX_BASE_URL is
+# excluded: it is a compatibility fallback for a variable no code ever read,
+# not a statement about where Phoenix lives, so a stale export of it must not
+# suppress a discovered ``.env.phoenix`` that does name the server. It is still
+# read — from whichever tier the group claims, or from either tier when no
+# claiming variable is set anywhere.
+_TIER_CLAIMING_SERVER_LOCATION_ENV_KEYS = tuple(
+    key for key in _SERVER_LOCATION_ENV_KEYS if key not in _LEGACY_API_BASE_URL_ENV_KEYS
+)
+# A collector value may legitimately carry the OTLP path (full-URL exporters
+# need it); the API base URL inferred from it must not. Anchored to the end of
+# the path so a gateway route *under* /v1/traces is left alone, and applied
+# before a query string or fragment so neither is discarded.
+_OTLP_TRACES_PATH_PATTERN = re.compile(r"/+v1/traces/?(?=$|[?#])")
+_URL_SCHEME_PATTERN = re.compile(r"^https?://", re.IGNORECASE)
 
 
 def _is_env_file_discovery_enabled() -> bool:
@@ -195,11 +231,30 @@ def clear_env_file_cache() -> None:
     _warned_env_file_permissions.clear()
     _warned_skipped_env_files.clear()
     _warned_cross_tier_endpoints.clear()
-    _warned_invalid_env_file_values.clear()
+    _warned_invalid_env_values.clear()
+
+
+def _normalize_env_value(value: Optional[str]) -> Optional[str]:
+    """Trim a value; one that is empty after trimming counts as unset.
+
+    Applied at every read boundary so that ``export PHOENIX_ENDPOINT=`` behaves
+    like a variable that was never exported, instead of pinning resolution to a
+    value nothing can use.
+    """
+    if value is None:
+        return None
+    return value.strip() or None
 
 
 def _load_process_env_values(keys: Iterable[str]) -> dict[str, str]:
-    return {key: value.strip() for key in keys if (value := os.getenv(key)) is not None}
+    return {key: value for key in keys if (value := _normalize_env_value(os.getenv(key)))}
+
+
+def _load_env_file_values_for(keys: Iterable[str]) -> tuple[Optional[Path], dict[str, str]]:
+    file_path, file_values = _load_env_file_entry()
+    return file_path, {
+        key: value for key in keys if (value := _normalize_env_value(file_values.get(key)))
+    }
 
 
 def _resolve_env_tier(keys: Iterable[str]) -> dict[str, str]:
@@ -209,16 +264,54 @@ def _resolve_env_tier(keys: Iterable[str]) -> dict[str, str]:
 
 def _resolve_env_tier_with_source(
     keys: Iterable[str],
+    *,
+    tier_claiming_keys: Optional[Iterable[str]] = None,
 ) -> tuple[dict[str, str], Optional[_EnvSource]]:
-    """Resolve related settings together with the tier that supplied them."""
+    """Resolve related settings together with the tier that supplied them.
+
+    ``tier_claiming_keys`` narrows which of ``keys`` decide the tier. A key
+    outside that subset is read from whichever tier the group claims, and
+    resolves on its own (process first) only when no claiming key is set in
+    either tier.
+    """
     keys = tuple(keys)
-    if process_values := _load_process_env_values(keys):
+    claiming_keys = tuple(tier_claiming_keys) if tier_claiming_keys is not None else keys
+    process_values = _load_process_env_values(keys)
+    if any(key in process_values for key in claiming_keys):
         return process_values, _EnvSource("process")
     if not any(key.startswith("PHOENIX_") for key in keys):
         return {}, None
-    file_path, file_values = _load_env_file_entry()
-    values = {key: file_values[key] for key in keys if key in file_values}
+    file_path, values = _load_env_file_values_for(keys)
+    if not any(key in values for key in claiming_keys) and process_values:
+        return process_values, _EnvSource("process")
     return values, _EnvSource("env-file", file_path) if values and file_path else None
+
+
+def _resolve_server_location_values() -> tuple[dict[str, str], Optional[_EnvSource]]:
+    """Resolve the variables that locate the Phoenix server, as one tier group."""
+    return _resolve_env_tier_with_source(
+        _SERVER_LOCATION_ENV_KEYS,
+        tier_claiming_keys=_TIER_CLAIMING_SERVER_LOCATION_ENV_KEYS,
+    )
+
+
+def _file_canonical_override(
+    source: Optional[_EnvSource], canonical_keys: Iterable[str]
+) -> tuple[Optional[str], Optional[str], Optional[_EnvSource]]:
+    """The cross-tier exception to whole-group tier resolution: a process value
+    merely inferred from a sibling variable must not mask the concept's
+    canonical variable declared in a discovered ``.env.phoenix``. Returns the
+    (key, value, source) of the file-tier canonical value when that exception
+    applies.
+    """
+    if source is None or source.kind != "process":
+        return None, None, None
+    canonical_keys = tuple(canonical_keys)
+    file_path, file_values = _load_env_file_values_for(canonical_keys)
+    for key in canonical_keys:
+        if value := file_values.get(key):
+            return key, value, _EnvSource("env-file", file_path)
+    return None, None, None
 
 
 def _warn_if_using_file_endpoint_with_credentials(
@@ -246,15 +339,15 @@ def _warn_if_using_file_endpoint_with_credentials(
     )
 
 
-_warned_invalid_env_file_values: set[str] = set()
+_warned_invalid_env_values: set[str] = set()
 
 
-def _reject_invalid_env_value(env_key: str, value: str, message: str) -> None:
-    """Raise for an invalid process-env value; warn once and ignore an env-file value."""
-    if os.getenv(env_key) is not None:
-        raise ValueError(f"Invalid value for environment variable {env_key}: {value}. {message}")
-    if env_key not in _warned_invalid_env_file_values:
-        _warned_invalid_env_file_values.add(env_key)
+def _warn_invalid_env_value(env_key: str, value: str, message: str, *, from_env_file: bool) -> None:
+    """Warn once per variable that its value is unusable and is being ignored."""
+    if env_key in _warned_invalid_env_values:
+        return
+    _warned_invalid_env_values.add(env_key)
+    if from_env_file:
         logger.warning(
             "Ignoring invalid %s value from a discovered %s file: %s. %s",
             env_key,
@@ -262,6 +355,20 @@ def _reject_invalid_env_value(env_key: str, value: str, message: str) -> None:
             value,
             message,
         )
+    else:
+        logger.warning(
+            "Ignoring invalid %s value from the process environment: %s. %s",
+            env_key,
+            value,
+            message,
+        )
+
+
+def _reject_invalid_env_value(env_key: str, value: str, message: str) -> None:
+    """Raise for an invalid process-env value; warn once and ignore an env-file value."""
+    if _normalize_env_value(os.getenv(env_key)) is not None:
+        raise ValueError(f"Invalid value for environment variable {env_key}: {value}. {message}")
+    _warn_invalid_env_value(env_key, value, message, from_env_file=True)
 
 
 def _coerce_port(port: Optional[str]) -> int:
@@ -279,11 +386,11 @@ def get_env_phoenix_api_key() -> Optional[str]:
 
 
 def get_env_port() -> int:
-    return _coerce_port(_resolve_env_tier(_SERVER_LOCATION_ENV_KEYS).get(ENV_PHOENIX_PORT))
+    return _coerce_port(_resolve_server_location_values()[0].get(ENV_PHOENIX_PORT))
 
 
 def get_env_host() -> str:
-    return _resolve_env_tier(_SERVER_LOCATION_ENV_KEYS).get(ENV_PHOENIX_HOST) or HOST
+    return _resolve_server_location_values()[0].get(ENV_PHOENIX_HOST) or HOST
 
 
 def get_env_host_root_path() -> str:
@@ -313,30 +420,71 @@ def get_env_client_headers() -> dict[str, str]:
 
 
 def get_env_collector_endpoint() -> Optional[str]:
-    values, endpoint_source = _resolve_env_tier_with_source(_SERVER_LOCATION_ENV_KEYS)
-    endpoint = values.get(ENV_PHOENIX_COLLECTOR_ENDPOINT) or values.get(
-        ENV_OTEL_EXPORTER_OTLP_ENDPOINT
-    )
+    values, endpoint_source = _resolve_server_location_values()
+    endpoint_key = next((key for key in _COLLECTOR_ENV_KEYS if key in values), None)
+    endpoint = values.get(endpoint_key) if endpoint_key else None
+    if not endpoint:
+        file_key, file_endpoint, file_source = _file_canonical_override(
+            endpoint_source, (ENV_PHOENIX_COLLECTOR_ENDPOINT,)
+        )
+        if file_endpoint:
+            endpoint_key, endpoint, endpoint_source = file_key, file_endpoint, file_source
+    # Inference deliberately does not run in this direction: trace export reads
+    # only the collector variables, matching arize-phoenix-otel. API consumers
+    # fall back to PHOENIX_COLLECTOR_ENDPOINT instead, so one value configures
+    # both without the two SDKs disagreeing about where spans go.
     if endpoint and endpoint_source is not None and endpoint_source.kind == "env-file":
         try:
             httpx.URL(endpoint)
         except httpx.InvalidURL:
             _reject_invalid_env_value(
-                ENV_PHOENIX_COLLECTOR_ENDPOINT, endpoint, "Value must be a valid URL."
+                endpoint_key or ENV_PHOENIX_COLLECTOR_ENDPOINT,
+                endpoint,
+                "Value must be a valid URL.",
             )
             return None
     return endpoint
 
 
+def _normalize_base_url_candidate(env_key: str, value: str, port: Optional[str]) -> str:
+    """Turn a variable's raw value into an API base URL, per that variable's shape."""
+    if env_key in _COLLECTOR_ENV_KEYS:
+        return _OTLP_TRACES_PATH_PATTERN.sub("", value) or value
+    if env_key == ENV_PHOENIX_HOST and not _URL_SCHEME_PATTERN.match(value):
+        # PHOENIX_HOST is the server's bind host, so a bare host becomes a URL
+        # on PHOENIX_PORT; a value that already carries a port is taken as-is.
+        host = "127.0.0.1" if value == "0.0.0.0" else value
+        return f"http://{host}" if ":" in host else f"http://{host}:{_coerce_port(port)}"
+    return value
+
+
+def _parse_base_url_candidate(
+    env_key: str, value: str, source: Optional[_EnvSource]
+) -> Optional[httpx.URL]:
+    """Parse a resolved candidate, warning and yielding to the next one if it is unusable."""
+    try:
+        return httpx.URL(value)
+    except httpx.InvalidURL:
+        _warn_invalid_env_value(
+            env_key,
+            value,
+            "Value must be a valid URL. Falling back to the next configured variable.",
+            from_env_file=source is not None and source.kind == "env-file",
+        )
+        return None
+
+
 def get_base_url(*, credential_source: Optional[str] = None) -> httpx.URL:
-    values, endpoint_source = _resolve_env_tier_with_source(_SERVER_LOCATION_ENV_KEYS)
-    endpoint_key: Optional[str] = None
-    if endpoint := values.get(ENV_PHOENIX_COLLECTOR_ENDPOINT):
-        endpoint_key = ENV_PHOENIX_COLLECTOR_ENDPOINT
-    elif endpoint := values.get(ENV_OTEL_EXPORTER_OTLP_ENDPOINT):
-        endpoint_key = ENV_OTEL_EXPORTER_OTLP_ENDPOINT
-    elif values.get(ENV_PHOENIX_HOST):
-        endpoint_key = ENV_PHOENIX_HOST
+    values, endpoint_source = _resolve_server_location_values()
+    candidates = [
+        (key, values[key], endpoint_source) for key in _API_BASE_URL_ENV_KEYS if key in values
+    ]
+    if not candidates or candidates[0][0] not in _CANONICAL_API_BASE_URL_ENV_KEYS:
+        file_key, file_endpoint, file_source = _file_canonical_override(
+            endpoint_source, _CANONICAL_API_BASE_URL_ENV_KEYS
+        )
+        if file_key and file_endpoint:
+            candidates.insert(0, (file_key, file_endpoint, file_source))
     if credential_source is None:
         credential_values, resolved_credential_source = _resolve_env_tier_with_source(
             _CREDENTIAL_ENV_KEYS
@@ -347,29 +495,22 @@ def get_base_url(*, credential_source: Optional[str] = None) -> httpx.URL:
             and resolved_credential_source.kind == "process"
         ):
             credential_source = "the process environment"
-    if endpoint_key is not None:
+    port = values.get(ENV_PHOENIX_PORT)
+    for endpoint_key, endpoint, candidate_source in candidates:
+        candidate = _normalize_base_url_candidate(endpoint_key, endpoint, port)
+        # A variable whose value cannot be a URL must not strand resolution: a
+        # lower-ranked variable may still name a reachable server.
+        if (
+            base_url := _parse_base_url_candidate(endpoint_key, candidate, candidate_source)
+        ) is None:
+            continue
         _warn_if_using_file_endpoint_with_credentials(
             endpoint_key=endpoint_key,
-            endpoint_source=endpoint_source,
+            endpoint_source=candidate_source,
             credential_source=credential_source,
         )
-    if endpoint:
-        if endpoint_source is not None and endpoint_source.kind == "env-file":
-            try:
-                return httpx.URL(endpoint)
-            except httpx.InvalidURL:
-                _reject_invalid_env_value(
-                    endpoint_key or ENV_PHOENIX_COLLECTOR_ENDPOINT,
-                    endpoint,
-                    "Value must be a valid URL.",
-                )
-                endpoint = None
-        if endpoint:
-            return httpx.URL(endpoint)
-    host = values.get(ENV_PHOENIX_HOST) or HOST
-    if host == "0.0.0.0":
-        host = "127.0.0.1"
-    return httpx.URL(f"http://{host}:{_coerce_port(values.get(ENV_PHOENIX_PORT))}")
+        return base_url
+    return httpx.URL(_normalize_base_url_candidate(ENV_PHOENIX_HOST, HOST, port))
 
 
 @overload
@@ -383,8 +524,9 @@ def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
     When the variable is not set in the process environment and the key is
     ``PHOENIX_``-prefixed, the nearest ``.env.phoenix`` file (discovered by walking
     up from the current working directory) is consulted before falling back to
-    `default`. A value present in the process environment (even an empty string)
-    always wins; the file never overrides anything already set.
+    `default`. A value present in the process environment always wins; the file
+    never overrides anything already set. A value that is empty after trimming
+    counts as unset.
 
     Parameters
     ----------
@@ -400,11 +542,11 @@ def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
         Leading and trailing whitespaces are stripped from the value, assuming they were
         inadvertently added.
     """
-    if (value := os.getenv(key)) is not None:
-        return value.strip()
+    if (value := _normalize_env_value(os.getenv(key))) is not None:
+        return value
     if not key.startswith("PHOENIX_"):
         return default
-    return _load_env_file_values().get(key, default)
+    return _normalize_env_value(_load_env_file_values().get(key)) or default
 
 
 _warned_project_conflict = False

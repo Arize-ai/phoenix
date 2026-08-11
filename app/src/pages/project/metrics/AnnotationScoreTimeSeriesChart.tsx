@@ -4,7 +4,6 @@ import {
   CartesianGrid,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -12,7 +11,13 @@ import {
 
 import { Text } from "@phoenix/components";
 import {
+  AnnotationScoreText,
+  type AnnotationOptimizationConfig,
+  getPositiveOptimizationFromConfig,
+} from "@phoenix/components/annotation";
+import {
   ChartEmptyStateOverlay,
+  ChartResponsiveContainer,
   ChartTooltip,
   ChartTooltipItem,
   compactChartMargin,
@@ -39,7 +44,14 @@ export type AnnotationScoreTimeSeriesDatum = {
   }>;
 };
 
-function TooltipContent({ active, payload, label }: TooltipContentProps) {
+function TooltipContent({
+  active,
+  payload,
+  label,
+  annotationConfigsByName,
+}: TooltipContentProps & {
+  annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
+}) {
   const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
     return (
@@ -51,13 +63,24 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
         )}
         {payload.map((entry, index) => {
           if (entry.value == null) return null;
+          const annotationName = String(entry.dataKey || "unknown");
+          const score = Number(entry.value);
           return (
             <ChartTooltipItem
               key={index}
               color={entry.color}
               shape="line"
-              name={String(entry.dataKey || "unknown")}
-              value={Number(entry.value).toFixed(2)}
+              name={annotationName}
+              value={
+                <AnnotationScoreText
+                  positiveOptimization={getPositiveOptimizationFromConfig({
+                    config: annotationConfigsByName.get(annotationName),
+                    score,
+                  })}
+                >
+                  {score.toFixed(2)}
+                </AnnotationScoreText>
+              }
             />
           );
         })}
@@ -96,12 +119,14 @@ export function AnnotationScoreTimeSeriesChart({
   scale,
   timeRange,
   onTimeRangeSelected,
+  annotationConfigsByName,
 }: {
   data: ReadonlyArray<AnnotationScoreTimeSeriesDatum>;
   names: ReadonlyArray<string>;
   scale: TimeBinScale;
   timeRange: TimeRange;
   onTimeRangeSelected?: (timeRange: TimeRange) => void;
+  annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
 }) {
   // Transform the data to have one property per annotation label
   const chartData = useMemo(
@@ -133,7 +158,7 @@ export function AnnotationScoreTimeSeriesChart({
           message="No data in this time range"
           chartType="line"
         >
-          <ResponsiveContainer width="100%" height="100%">
+          <ChartResponsiveContainer>
             <LineChart
               data={chartData}
               margin={compactChartMargin}
@@ -150,7 +175,15 @@ export function AnnotationScoreTimeSeriesChart({
                 tickFormatter={(x) => formatFloat(x)}
               />
               <CartesianGrid {...defaultCartesianGridProps} />
-              <Tooltip content={TooltipContent} {...defaultTooltipProps} />
+              <Tooltip
+                content={(props) => (
+                  <TooltipContent
+                    {...props}
+                    annotationConfigsByName={annotationConfigsByName}
+                  />
+                )}
+                {...defaultTooltipProps}
+              />
 
               {names.map((name) => {
                 return (
@@ -170,7 +203,7 @@ export function AnnotationScoreTimeSeriesChart({
                 onToggleDataKey={toggleDataKey}
               />
             </LineChart>
-          </ResponsiveContainer>
+          </ChartResponsiveContainer>
         </ChartEmptyStateOverlay>
       )}
     </TimeRangeChartBrush>

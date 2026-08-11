@@ -79,6 +79,30 @@ describe("getLLMAttributes", () => {
     });
   });
 
+  it("stringifies a json_schema that ingestion rebuilt as an object", () => {
+    const result = getLLMAttributes({
+      llm: {
+        tools: [
+          {
+            tool: {
+              // An instrumentation that flattens `tool.json_schema.*` makes
+              // ingestion store json_schema as a nested object instead of a
+              // JSON string. json_schema is typed unknown, so this shape is
+              // supplied directly rather than asserted into a string.
+              json_schema: {
+                name: "search",
+                parameters: { type: "object" },
+              },
+            },
+          },
+        ],
+      },
+    });
+    expect(result.toolSchemas).toEqual([
+      '{"name":"search","parameters":{"type":"object"}}',
+    ]);
+  });
+
   it("ignores messages that do not conform to the messages shape", () => {
     const result = getLLMAttributes({
       llm: {
@@ -330,6 +354,30 @@ describe("getToolAttributes", () => {
       name: "search",
       description: "Searches the web",
       parameters: '{"type": "object"}',
+    });
+  });
+
+  it("stringifies parameters that ingestion rebuilt as an object", () => {
+    // An instrumentation that emits flattened `tool.parameters.*` keys makes
+    // ingestion store `parameters` as a nested object instead of a JSON string.
+    expect(
+      getToolAttributes({
+        tool: {
+          name: "search_phoenix",
+          description: "Search the docs",
+          parameters: {
+            type: "object",
+            properties: { query: { type: "string" } },
+            required: ["query"],
+          } as unknown as string,
+        },
+      })
+    ).toEqual({
+      hasToolAttributes: true,
+      name: "search_phoenix",
+      description: "Search the docs",
+      parameters:
+        '{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}',
     });
   });
 });

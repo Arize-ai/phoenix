@@ -7,8 +7,16 @@ import {
   MODAL_OVERLAY_CLASS_NAME,
   MODAL_PORTAL_CONTAINER_ATTR,
 } from "@phoenix/components/core/overlay/constants";
+import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 import { AgentChatHeader, FloatingAgentChatFrame } from "../AgentChatPanelView";
+import { EMPTY_SESSION_DISPLAY_NAME } from "../sessionTitleUtils";
+
+const viewerMocks = vi.hoisted(() => ({ canModify: true }));
+
+vi.mock("@phoenix/contexts/ViewerContext", () => ({
+  useViewerCanModify: () => viewerMocks.canModify,
+}));
 
 type TestBounds = {
   height: number;
@@ -44,7 +52,21 @@ describe("AgentChatHeader", () => {
   let root: Root;
 
   beforeEach(() => {
+    viewerMocks.canModify = true;
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation(() => ({
+        matches: false,
+        media: "",
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -61,6 +83,122 @@ describe("AgentChatHeader", () => {
     vi.restoreAllMocks();
   });
 
+  it("shows the beta badge on a new chat", () => {
+    act(() => {
+      root.render(
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <MemoryRouter>
+            <AgentChatHeader
+              sessionDisplayName={EMPTY_SESSION_DISPLAY_NAME}
+              orderedSessions={[]}
+              activeSessionId="draft-1"
+              onSelectSession={vi.fn()}
+              onDeleteSession={vi.fn()}
+              onCreateSession={vi.fn()}
+              onClose={vi.fn()}
+            />
+          </MemoryRouter>
+        </ThemeProvider>
+      );
+    });
+
+    expect(container.textContent).toContain("Beta");
+  });
+
+  it("marks a temporary session next to the title", () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <AgentChatHeader
+            sessionDisplayName="Ping pong test"
+            orderedSessions={[]}
+            activeSessionId="session-1"
+            isActiveSessionTemporary={true}
+            onSelectSession={vi.fn()}
+            onDeleteSession={vi.fn()}
+            onCreateSession={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    expect(
+      container.querySelector('span[aria-label="Temporary chat"]')
+    ).not.toBeNull();
+  });
+
+  it("shows no temporary marker for a persistent session", () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <AgentChatHeader
+            sessionDisplayName="Ping pong test"
+            orderedSessions={[]}
+            activeSessionId="session-1"
+            isActiveSessionTemporary={false}
+            onSelectSession={vi.fn()}
+            onDeleteSession={vi.fn()}
+            onCreateSession={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    expect(
+      container.querySelector('span[aria-label="Temporary chat"]')
+    ).toBeNull();
+  });
+
+  it("offers title editing for a persisted session", () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <AgentChatHeader
+            sessionDisplayName="Ping pong test"
+            orderedSessions={[]}
+            activeSessionId="session-1"
+            activeSessionTitleFragment={{} as never}
+            onSelectSession={vi.fn()}
+            onDeleteSession={vi.fn()}
+            onCreateSession={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    expect(
+      container.querySelector('button[aria-label="Edit session title"]')
+    ).not.toBeNull();
+  });
+
+  it("hides title editing from viewers", () => {
+    viewerMocks.canModify = false;
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <AgentChatHeader
+            sessionDisplayName="Ping pong test"
+            orderedSessions={[]}
+            activeSessionId="session-1"
+            activeSessionTitleFragment={{} as never}
+            onSelectSession={vi.fn()}
+            onDeleteSession={vi.fn()}
+            onCreateSession={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    expect(
+      container.querySelector('button[aria-label="Edit session title"]')
+    ).toBeNull();
+  });
+
   it("switches from pinned to floating mode", () => {
     const onPositionChange = vi.fn();
 
@@ -71,7 +209,6 @@ describe("AgentChatHeader", () => {
             sessionDisplayName="PXI"
             orderedSessions={[]}
             activeSessionId={null}
-            showSessionHistory={false}
             position="pinned"
             onSelectSession={vi.fn()}
             onDeleteSession={vi.fn()}
@@ -111,7 +248,6 @@ describe("AgentChatHeader", () => {
             sessionDisplayName="PXI"
             orderedSessions={[]}
             activeSessionId={null}
-            showSessionHistory={false}
             position="detached"
             onSelectSession={vi.fn()}
             onDeleteSession={vi.fn()}
@@ -146,7 +282,6 @@ describe("AgentChatHeader", () => {
             sessionDisplayName="PXI"
             orderedSessions={[]}
             activeSessionId={null}
-            showSessionHistory={false}
             position="detached"
             isPositionChangeDisabled
             onSelectSession={vi.fn()}

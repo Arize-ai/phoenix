@@ -1,21 +1,13 @@
 import type { UIMessage } from "ai";
 
 import {
+  getFlushableClientToolOutputs,
   shouldKeepTurnOpenForPendingToolOutput,
   shouldSendAutomaticallyAfterToolOutput,
-  SYSTEM_INTERRUPT_ERROR,
-  USER_INTERRUPT_ERROR,
 } from "@phoenix/agent/chat/shouldSendAutomatically";
 import {
-  EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
-  EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-} from "@phoenix/agent/tools/codeEvaluatorDraft";
-import {
-  EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
   EDIT_PROMPT_TOOL_NAME,
   READ_PROMPT_TOOL_NAME,
-  REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR,
-  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 
 function createMessage(message: UIMessage): UIMessage {
@@ -40,7 +32,12 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
       }),
     ];
 
-    expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(true);
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        locallyInterruptedToolCallIds: {},
+      })
+    ).toBe(true);
   });
 
   it("continues after ordinary tool errors", () => {
@@ -60,10 +57,15 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
       }),
     ];
 
-    expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(true);
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        locallyInterruptedToolCallIds: {},
+      })
+    ).toBe(true);
   });
 
-  it("does not continue after user-interrupted tool errors", () => {
+  it("does not continue after tool calls marked interrupted by this client", () => {
     const messages = [
       createMessage({
         id: "assistant-1",
@@ -74,36 +76,21 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
             toolCallId: "tool-call-1",
             state: "output-error",
             input: {},
-            errorText: USER_INTERRUPT_ERROR,
+            errorText: "The user has interrupted this tool call.",
           },
         ],
       }),
     ];
 
-    expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(false);
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        locallyInterruptedToolCallIds: { "tool-call-1": true },
+      })
+    ).toBe(false);
   });
 
-  it("does not continue after system-interrupted tool errors", () => {
-    const messages = [
-      createMessage({
-        id: "assistant-1",
-        role: "assistant",
-        parts: [
-          {
-            type: `tool-${READ_PROMPT_TOOL_NAME}`,
-            toolCallId: "tool-call-1",
-            state: "output-error",
-            input: {},
-            errorText: SYSTEM_INTERRUPT_ERROR,
-          },
-        ],
-      }),
-    ];
-
-    expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(false);
-  });
-
-  it("does not continue after navigation-cancelled edit_prompt_instance", () => {
+  it("does not continue after tool parts persisted with an interrupted outcome", () => {
     const messages = [
       createMessage({
         id: "assistant-1",
@@ -112,55 +99,184 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
           {
             type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
             toolCallId: "tool-call-1",
-            state: "output-error",
+            state: "output-available",
             input: {},
-            errorText: EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
+            output:
+              "The tool call was interrupted before a result was produced.",
+            callProviderMetadata: {
+              phoenix: {
+                toolExecutionEnvironment: "client",
+                outcome: "interrupted",
+              },
+            },
           },
         ],
       }),
     ];
 
-    expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(false);
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        locallyInterruptedToolCallIds: {},
+      })
+    ).toBe(false);
   });
 
-  it("does not continue after navigation-cancelled remove_prompt_instance", () => {
+  it("ignores marks for tool calls that are not on the trailing message", () => {
     const messages = [
       createMessage({
         id: "assistant-1",
         role: "assistant",
         parts: [
           {
-            type: `tool-${REMOVE_PROMPT_INSTANCE_TOOL_NAME}`,
-            toolCallId: "tool-call-1",
-            state: "output-error",
+            type: `tool-${READ_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-2",
+            state: "output-available",
             input: {},
-            errorText: REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR,
+            output: "done",
           },
         ],
       }),
     ];
 
-    expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(false);
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        locallyInterruptedToolCallIds: { "tool-call-from-older-turn": true },
+      })
+    ).toBe(true);
+  });
+});
+
+describe("getFlushableClientToolOutputs", () => {
+  const CLIENT_CALL_METADATA = {
+    phoenix: {
+      toolExecutionEnvironment: "client",
+      toolInputEmittedAt: "2026-08-05T20:35:35+00:00",
+    },
+  };
+
+  function partiallyResolvedAssistantMessage(): UIMessage {
+    return createMessage({
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        {
+          type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+          toolCallId: "tool-call-resolved",
+          state: "output-available",
+          input: {},
+          output: { applied: true },
+          callProviderMetadata: CLIENT_CALL_METADATA,
+        },
+        {
+          type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+          toolCallId: "tool-call-pending",
+          state: "input-available",
+          input: {},
+          callProviderMetadata: CLIENT_CALL_METADATA,
+        },
+      ],
+    });
+  }
+
+  it("returns resolved client outputs while sibling calls stay pending", () => {
+    const outputs = getFlushableClientToolOutputs({
+      message: partiallyResolvedAssistantMessage(),
+      locallyInterruptedToolCallIds: {},
+    });
+
+    expect(outputs.map((output) => output.toolCallId)).toEqual([
+      "tool-call-resolved",
+    ]);
   });
 
-  it("does not continue after navigation-cancelled edit_code_evaluator_draft", () => {
-    const messages = [
-      createMessage({
-        id: "assistant-1",
-        role: "assistant",
-        parts: [
-          {
-            type: `tool-${EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME}`,
-            toolCallId: "tool-call-1",
-            state: "output-error",
-            input: {},
-            errorText: EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
-          },
-        ],
-      }),
-    ];
+  it("returns nothing once every call has resolved", () => {
+    const message = createMessage({
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        {
+          type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+          toolCallId: "tool-call-resolved",
+          state: "output-available",
+          input: {},
+          output: { applied: true },
+          callProviderMetadata: CLIENT_CALL_METADATA,
+        },
+      ],
+    });
 
-    expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(false);
+    // The normal chat continuation carries the outputs instead.
+    expect(
+      getFlushableClientToolOutputs({
+        message,
+        locallyInterruptedToolCallIds: {},
+      })
+    ).toEqual([]);
+  });
+
+  it("returns nothing when the tail holds an interrupted output", () => {
+    const message = partiallyResolvedAssistantMessage();
+    message.parts.push({
+      type: `tool-${READ_PROMPT_TOOL_NAME}`,
+      toolCallId: "tool-call-interrupted",
+      state: "output-error",
+      input: {},
+      errorText: "The user has interrupted this tool call.",
+    });
+
+    expect(
+      getFlushableClientToolOutputs({
+        message,
+        locallyInterruptedToolCallIds: { "tool-call-interrupted": true },
+      })
+    ).toEqual([]);
+  });
+
+  it("ignores resolved outputs that are not client-executed", () => {
+    const message = createMessage({
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        {
+          type: `tool-${READ_PROMPT_TOOL_NAME}`,
+          toolCallId: "tool-call-server",
+          state: "output-available",
+          input: {},
+          output: "done",
+        },
+        {
+          type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+          toolCallId: "tool-call-pending",
+          state: "input-available",
+          input: {},
+          callProviderMetadata: CLIENT_CALL_METADATA,
+        },
+      ],
+    });
+
+    expect(
+      getFlushableClientToolOutputs({
+        message,
+        locallyInterruptedToolCallIds: {},
+      })
+    ).toEqual([]);
+  });
+
+  it("returns nothing when the message is not an assistant message", () => {
+    const message = createMessage({
+      id: "user-1",
+      role: "user",
+      parts: [{ type: "text", text: "hello" }],
+    });
+
+    expect(
+      getFlushableClientToolOutputs({
+        message,
+        locallyInterruptedToolCallIds: {},
+      })
+    ).toEqual([]);
   });
 });
 

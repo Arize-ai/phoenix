@@ -37,7 +37,7 @@ export const BUILT_IN_PROVIDERS = [
 type RawPxiOptions = {
   /**
    * `--endpoint <url>`: Phoenix endpoint the session connects to. Overrides
-   * the profile and `PHOENIX_HOST`.
+   * the profile and `PHOENIX_ENDPOINT`.
    *
    * @example "https://app.phoenix.arize.com"
    */
@@ -58,7 +58,7 @@ type RawPxiOptions = {
   profile?: string;
   /**
    * `--provider <provider>`: Built-in model provider, one of
-   * {@link BUILT_IN_PROVIDERS}. Case-insensitive; Commander defaults it to
+   * {@link BUILT_IN_PROVIDERS}. Case-insensitive; resolution defaults it to
    * {@link DEFAULT_PXI_PROVIDER}. Ignored when `customProviderId` is set.
    *
    * @example "OPENAI"
@@ -236,6 +236,11 @@ export function resolvePxiRuntimeOptions({
     model: cliOptions.model,
     customProviderId: cliOptions.customProviderId,
   });
+  const hasExplicitModelSelection = Boolean(
+    cliOptions.provider?.trim() ||
+    cliOptions.model?.trim() ||
+    cliOptions.customProviderId?.trim()
+  );
   const editPermission: PxiEditPermission = cliOptions.bypassEdits
     ? "bypass"
     : "manual";
@@ -244,6 +249,7 @@ export function resolvePxiRuntimeOptions({
     sessionId,
     config,
     modelSelection,
+    hasExplicitModelSelection,
     skipModelPreflight: Boolean(cliOptions.skipModelPreflight),
     enableWebAccess: Boolean(cliOptions.enableWebAccess),
     enableSubagents: Boolean(cliOptions.enableSubagents),
@@ -271,8 +277,7 @@ export function createPxiProgram(): Command {
     .option("--profile <name>", "Phoenix CLI profile name")
     .option(
       "--provider <provider>",
-      `Built-in model provider (${BUILT_IN_PROVIDERS.join("|")})`,
-      DEFAULT_PXI_PROVIDER
+      `Built-in model provider (${BUILT_IN_PROVIDERS.join("|")})`
     )
     .option(
       "--model <model>",

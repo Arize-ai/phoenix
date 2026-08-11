@@ -4,7 +4,7 @@
 Usage:
     uv run python packages/phoenix-client/scripts/verify_atif_upload.py
 
-Requires Phoenix running at http://localhost:6006.
+Requires Phoenix running at http://localhost:6006 (override with PHOENIX_URL).
 Uploads multiple ATIF trajectories into projects so you can inspect
 the resulting traces in the Phoenix UI.
 """

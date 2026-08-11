@@ -1,12 +1,11 @@
-import type { Chat } from "@ai-sdk/react";
-import type { UIMessage } from "ai";
 import { z } from "zod";
 
+import type { AddToolOutput } from "@phoenix/agent/extensions/registry/defineTool";
 import { outputConfigDraftSchema } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { emptyToolInputSchema } from "@phoenix/agent/tools/emptyToolInput";
 import { normalizeAliases } from "@phoenix/agent/tools/playgroundPrompt";
 
-export type LlmEvaluatorEditToolOutputSender = Chat<UIMessage>["addToolOutput"];
+export type LlmEvaluatorEditToolOutputSender = AddToolOutput;
 
 export const readLlmEvaluatorDraftInputSchema = emptyToolInputSchema;
 

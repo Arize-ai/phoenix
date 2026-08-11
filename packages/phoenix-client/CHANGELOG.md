@@ -1,5 +1,59 @@
 # Changelog
 
+## [3.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.0.0...arize-phoenix-client-v3.1.0) (2026-08-11)
+
+
+### Features
+
+* agent session persistence ([#14143](https://github.com/Arize-ai/phoenix/issues/14143)) ([986f6a6](https://github.com/Arize-ai/phoenix/commit/986f6a6fdaeda70d83e2d91f150f9b01d9b8406f))
+
+
+### Miscellaneous Chores
+
+* release arize-phoenix-client 3.1.0 ([#15348](https://github.com/Arize-ai/phoenix/issues/15348)) ([85e0855](https://github.com/Arize-ai/phoenix/commit/85e0855c7120d2894653b802b42a74c073dc77cc))
+
+## [3.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.13.0...arize-phoenix-client-v3.0.0) (2026-08-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* **client:** replace google-generativeai formatter with google-genai ([#15085](https://github.com/Arize-ai/phoenix/issues/15085))
+
+### Features
+
+* add REST endpoint for prompt metadata updates ([#13731](https://github.com/Arize-ai/phoenix/issues/13731)) ([244ef9c](https://github.com/Arize-ai/phoenix/commit/244ef9c7e0da3f60c5e800dc25c26c826ebc3c3f))
+* **agents:** move PXI tracing server-side ([#14215](https://github.com/Arize-ai/phoenix/issues/14215)) ([ea40aea](https://github.com/Arize-ai/phoenix/commit/ea40aea40a1ad8f0a5abe1b9c2172973aa339aa3))
+* **api:** add REST endpoints for setting tags on experiments ([#15237](https://github.com/Arize-ai/phoenix/issues/15237)) ([c892873](https://github.com/Arize-ai/phoenix/commit/c8928738d8a9cd70875e01852306de7060febf5d))
+* **api:** expose dataset example source span ([#13814](https://github.com/Arize-ai/phoenix/issues/13814)) ([e0cf022](https://github.com/Arize-ai/phoenix/commit/e0cf0229c95ba43c33f66ed7040cf6e79e894b37))
+* **api:** REST CRUD for user and system API keys ([257a77d](https://github.com/Arize-ai/phoenix/commit/257a77d5812916ff575f9b494dbdbd8534e8b14c))
+* **api:** REST CRUD for user and system API keys with a unified authority model ([50cc3db](https://github.com/Arize-ai/phoenix/commit/50cc3db8e8a1e692f1758d232100a2489837ea89))
+* **client:** add span_ids filter to get_spans in python and typescript clients ([#14697](https://github.com/Arize-ai/phoenix/issues/14697)) ([df7057a](https://github.com/Arize-ai/phoenix/commit/df7057ab12639e7333f755ced1fc3f36af5a054e))
+* **client:** replace google-generativeai formatter with google-genai ([#15085](https://github.com/Arize-ai/phoenix/issues/15085)) ([5cf9829](https://github.com/Arize-ai/phoenix/commit/5cf9829c4398d784c004c9c976cd7b6739f2aa99))
+* **client:** support updating prompt description and metadata ([#15191](https://github.com/Arize-ai/phoenix/issues/15191)) ([90729f3](https://github.com/Arize-ai/phoenix/commit/90729f3f51f25f50fbd920d2117d0eee4c85db8e))
+* **dsl:** analyze root-span scope, stop applying it twice ([#14598](https://github.com/Arize-ai/phoenix/issues/14598)) ([aa9254e](https://github.com/Arize-ai/phoenix/commit/aa9254e4fb34a772e1fd8fc3e9882ba405a8448f))
+* **js:** make PHOENIX_ENDPOINT the canonical API-access variable ([e90ba00](https://github.com/Arize-ai/phoenix/commit/e90ba00110ac4cb9717e7f341aa81c9d418d1420))
+* **pytest:** evaluator trace isolation and experiment metadata for the pytest plugin ([#14613](https://github.com/Arize-ai/phoenix/issues/14613)) ([d81ee21](https://github.com/Arize-ai/phoenix/commit/d81ee219cb57e5035b535691710256d0561cd66c))
+* **server:** add dataset split create/update/delete REST endpoints ([#14046](https://github.com/Arize-ai/phoenix/issues/14046)) ([b4d9b19](https://github.com/Arize-ai/phoenix/commit/b4d9b19e6c681cedcf627fc27dc48f13c7320b73))
+* **server:** OpenAI-compatible v1/chat/completions proxy with server-side credentials ([#14980](https://github.com/Arize-ai/phoenix/issues/14980)) ([6ab57db](https://github.com/Arize-ai/phoenix/commit/6ab57dbfe042fc4cc82e291cbbb7ced9940d4400))
+* **ui:** move root-span scoping into the filter condition ([#14599](https://github.com/Arize-ai/phoenix/issues/14599)) ([a4a2a78](https://github.com/Arize-ai/phoenix/commit/a4a2a787e1e7d937557fa14fd724c87b34f44585))
+
+
+### Bug Fixes
+
+* **agents:** keep browser clock out of the system prompt to preserve prompt caching ([#14362](https://github.com/Arize-ai/phoenix/issues/14362)) ([c5dbb20](https://github.com/Arize-ai/phoenix/commit/c5dbb2034961ab99eefb67eaf8bcc9cf77a6a97f))
+* **client:** resolve the API base URL down the whole variable chain ([7d98162](https://github.com/Arize-ai/phoenix/commit/7d981621c387a7ce7f93de645cd0f66ef5d7f3a4))
+* close remaining endpoint-variable foot guns in Python and onboarding ([ed90e0e](https://github.com/Arize-ai/phoenix/commit/ed90e0edf16fe7dfe3e6d0c5ae0925a3457daf18))
+* **evals:** count AsyncExecutor timeouts against max_retries ([#14361](https://github.com/Arize-ai/phoenix/issues/14361)) ([90eee08](https://github.com/Arize-ai/phoenix/commit/90eee082b9e357a6669df29bc926a68f731fbc43))
+* **phoenix-client:** serve correct logo variant for light/dark README themes ([8fd355a](https://github.com/Arize-ai/phoenix/commit/8fd355a2268030ffa2b8cf013deeb2a6d933bb23))
+
+
+### Documentation
+
+* **client:** stop enumerating the endpoint fallbacks in the Python client README ([95e8282](https://github.com/Arize-ai/phoenix/commit/95e82826b46917a2d92eafc27e1581148f204963))
+* fill small feature-gap docs across evals, tracing, playground, and packages ([e5764b3](https://github.com/Arize-ai/phoenix/commit/e5764b348eeaca2d824638264b9d929c5a730c5a))
+* replace app.phoenix.arize.com with generic placeholder in package docs ([23deebc](https://github.com/Arize-ai/phoenix/commit/23deebcc2ff045297d86be44b9b6291bf0461151))
+* trim endpoint docs to in-place corrections ([0f6aa07](https://github.com/Arize-ai/phoenix/commit/0f6aa07cdc8084189e58d0ec686df3ec2fc7e60c))
+
 ## [2.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.12.0...arize-phoenix-client-v2.13.0) (2026-07-12)
 
 

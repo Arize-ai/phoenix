@@ -1,5 +1,47 @@
 # @arizeai/phoenix-cli
 
+## 1.16.0
+
+### Minor Changes
+
+- 0ed987a: Re-enable the PXI agent-session server version guard. PXI now fails fast at startup with a clear upgrade message when the connected Phoenix server predates the agent-session chat contract (server < 20.0.0), instead of 404ing on the first send. phoenix-client adds capability requirements for the remaining agent-session routes (list, get, patch, compact, tool outputs), exports all agent-session requirements from the package root, and routes `getServerVersion` through the client's configured fetch.
+
+### Patch Changes
+
+- Updated dependencies [0ed987a]
+  - @arizeai/phoenix-client@7.5.0
+
+## 1.15.2
+
+### Patch Changes
+
+- Updated dependencies [90729f3]
+  - @arizeai/phoenix-client@7.4.0
+
+## 1.15.1
+
+### Patch Changes
+
+- Updated dependencies [c892873]
+  - @arizeai/phoenix-client@7.3.1
+
+## 1.15.0
+
+### Minor Changes
+
+- e90ba00: `px` now resolves its endpoint from `PHOENIX_ENDPOINT` (canonical for API access), inferring from the trace-export variables `PHOENIX_COLLECTOR_ENDPOINT` and `OTEL_EXPORTER_OTLP_ENDPOINT` when only those are set, then the legacy `PHOENIX_HOST` — matching the SDKs and API clients. Previously the CLI read only `PHOENIX_HOST` and silently fell back to `http://localhost:6006`.
+
+  An endpoint merely inferred from a trace-export variable still ranks below an active profile, so exporting one of those variables for application tracing cannot redirect authenticated commands.
+
+  `px setup` writes both `PHOENIX_ENDPOINT` and `PHOENIX_COLLECTOR_ENDPOINT` into `.env.phoenix` — the OTel SDKs read the collector variable — and every other `px` command run in that directory now honors the file. CLI messages name `PHOENIX_ENDPOINT`.
+
+### Patch Changes
+
+- de2ee8d: Tell the `px setup` instrumentation agent that `PHOENIX_COLLECTOR_ENDPOINT` is a base URL and that exporters taking a full OTLP URL (such as `@mastra/arize`'s `ArizeExporter`) must be given `<endpoint>/v1/traces`, and name that mistake in the "traces not verified" note. Pointing such an exporter at the base URL drops every span without erroring.
+- Updated dependencies [d04f0fc]
+  - @arizeai/phoenix-config@0.5.0
+  - @arizeai/phoenix-client@7.3.0
+
 ## 1.14.1
 
 ### Patch Changes

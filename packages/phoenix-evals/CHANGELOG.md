@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.3.0...arize-phoenix-evals-v3.4.0) (2026-08-08)
+
+
+### Features
+
+* **evals:** add hallucination evaluator ([#14708](https://github.com/Arize-ai/phoenix/issues/14708)) ([1aa1a84](https://github.com/Arize-ai/phoenix/commit/1aa1a8454b6524a9e7618f3c9970ae9466df67d2))
+
 ## [3.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.2.0...arize-phoenix-evals-v3.3.0) (2026-07-23)
 
 

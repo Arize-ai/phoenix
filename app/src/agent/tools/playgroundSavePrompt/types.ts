@@ -1,7 +1,6 @@
-import type { Chat } from "@ai-sdk/react";
-import type { UIMessage } from "ai";
 import type { z } from "zod";
 
+import type { AddToolOutput } from "@phoenix/agent/extensions/registry/defineTool";
 import type { ApprovalSource } from "@phoenix/agent/tools/approval";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
@@ -21,7 +20,7 @@ import type {
 
 export type SavePromptInput = z.output<typeof savePromptInputSchema>;
 
-export type SavePromptToolOutputSender = Chat<UIMessage>["addToolOutput"];
+export type SavePromptToolOutputSender = AddToolOutput;
 
 export type SavePromptMode = z.output<typeof savePromptModeSchema>;
 

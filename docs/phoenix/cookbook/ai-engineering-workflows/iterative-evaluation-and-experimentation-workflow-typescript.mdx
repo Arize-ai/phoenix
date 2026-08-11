@@ -87,10 +87,20 @@ Always use multiple tools in sequence to provide comprehensive recommendations. 
     # OpenAI API Key
     OPENAI_API_KEY=your-openai-api-key-here
 
-    # Phoenix Configuration
-    PHOENIX_ENDPOINT=http://localhost:6006/v1/traces
+    # Phoenix Configuration — same URL, one variable per concern
+    PHOENIX_ENDPOINT=http://localhost:6006
+    PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
     PHOENIX_PROJECT_NAME=mastra-project
     PHOENIX_API_KEY=your-api-key  # Only if authentication is enabled
+    ```
+
+    The eval and experiment scripts call the Phoenix API on `PHOENIX_ENDPOINT`, the server's base URL. `PHOENIX_COLLECTOR_ENDPOINT` is the exact URL traces are sent to — Mastra's `ArizeExporter` POSTs to it verbatim, so it carries the OTLP `/v1/traces` path and `src/mastra/index.ts` passes it straight through:
+
+    ```typescript
+    new ArizeExporter({
+      endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT,
+      // ...
+    })
     ```
   </Step>
 

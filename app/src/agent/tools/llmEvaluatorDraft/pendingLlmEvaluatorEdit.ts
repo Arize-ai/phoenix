@@ -60,6 +60,7 @@ export function bindPendingLlmEvaluatorEditActions({
         tool: EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
         toolCallId: pendingEdit.toolCallId,
         errorText: EDIT_LLM_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
+        outcome: "interrupted",
       });
     },
   };

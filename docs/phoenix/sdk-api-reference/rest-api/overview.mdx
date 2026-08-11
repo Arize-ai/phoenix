@@ -43,14 +43,14 @@ The example below lists projects and includes common pagination query params.
   <Tab title="cURL">
 ```bash
 curl --request GET \
-  --url "$PHOENIX_BASE_URL/v1/projects?limit=10" \
+  --url "$PHOENIX_ENDPOINT/v1/projects?limit=10" \
   --header "Authorization: Bearer $PHOENIX_API_KEY"
 ```
   </Tab>
 
   <Tab title="JavaScript" icon="js">
 ```javascript
-const baseUrl = process.env.PHOENIX_BASE_URL;
+const baseUrl = process.env.PHOENIX_ENDPOINT;
 const apiKey = process.env.PHOENIX_API_KEY;
 
 const response = await fetch(
@@ -72,7 +72,7 @@ console.log(body.data);
 import os
 import requests
 
-base_url = os.environ["PHOENIX_BASE_URL"]
+base_url = os.environ["PHOENIX_ENDPOINT"]
 api_key = os.environ.get("PHOENIX_API_KEY")
 headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
 

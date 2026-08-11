@@ -7,7 +7,7 @@ import {
   type AnnotationMetricsChartPoint,
   type AnnotationMetricsInputPoint,
   type AnnotationMetricsSeries,
-  AnnotationScoreLabelToggle,
+  AnnotationMetricsViewMenu,
   type AnnotationMetricsView,
   ChartPanel,
   compactCategoryXAxisProps,
@@ -227,7 +227,7 @@ function AnnotationMetricsChartStory({
         subtitle="Evaluation results across recent runs"
         actions={
           showViewToggle ? (
-            <AnnotationScoreLabelToggle view={activeView} onChange={setView} />
+            <AnnotationMetricsViewMenu view={activeView} onChange={setView} />
           ) : undefined
         }
       >

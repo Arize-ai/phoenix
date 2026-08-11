@@ -1,5 +1,16 @@
 # Migrations
 
+## v19.x to v20.0.0
+
+No action is required to upgrade from v19.x to v20.0.0.
+
+### Agent session persistence
+
+Conversations with the Phoenix agent are now persisted server-side. Sessions survive page reloads and can be browsed,
+restored, and continued later — from the browser or from the `pxi` terminal client, interchangeably. The terminal
+client gains session management commands (`/new`, `/temporary`, `/sessions`, `/model`, and `/compact` for summarizing
+older context into a checkpoint on long-running sessions).
+
 ## v18.x to v19.0.0
 
 ### Built-in OAuth2 authorization server

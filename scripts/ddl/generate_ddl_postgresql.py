@@ -326,6 +326,8 @@ class PostgreSQLDDLExtractor:
                 c.column_default,
                 c.is_identity,
                 c.identity_generation,
+                c.is_generated,
+                c.generation_expression,
                 c.ordinal_position,
                 c.udt_name
             FROM information_schema.columns c
@@ -608,40 +610,28 @@ class PostgreSQLDDLExtractor:
         return line
 
     def _wrap_foreign_key_constraint(self, line: str) -> str:
-        """Format foreign key constraints with consistent line breaks."""
-        parts = []
-        remaining = line
+        """Render a foreign key with one clause per line.
 
-        if " FOREIGN KEY " in remaining:
-            fk_split = remaining.split(" FOREIGN KEY ", 1)
-            constraint_part = fk_split[0] + " FOREIGN KEY"
+        The column list stays attached to FOREIGN KEY rather than being
+        orphaned on a line of its own, and the constraint name always gets its
+        own line so every foreign key has the same shape regardless of name
+        length. This matches how the SQLite schema renders the same constraint.
+        """
+        if " FOREIGN KEY " not in line or " REFERENCES " not in line:
+            return line
 
-            # Always break long constraint names
-            if len(constraint_part) > 70 and "CONSTRAINT " in constraint_part:
-                constraint_name_split = constraint_part.split(" FOREIGN KEY", 1)
-                parts.append(constraint_name_split[0])
-                parts.append("    FOREIGN KEY")
-            else:
-                parts.append(constraint_part)
+        name_part, remaining = line.split(" FOREIGN KEY ", 1)
+        columns_part, remaining = remaining.split(" REFERENCES ", 1)
+        parts = [name_part, f"    FOREIGN KEY {columns_part.strip()}"]
 
-            remaining = fk_split[1]
-
-        if " REFERENCES " in remaining:
-            ref_split = remaining.split(" REFERENCES ", 1)
-            column_part = ref_split[0].strip()
-            parts.append(f"    {column_part}")
-            remaining = ref_split[1]
-
-            # Handle the REFERENCES clause and any ON DELETE/UPDATE
-            if " ON " in remaining:
-                # Split on first ON keyword
-                on_split = remaining.split(" ON ", 1)
-                parts.append(f"    REFERENCES {on_split[0].strip()}")
-
-                # Add the ON clause
-                parts.append(f"    ON {on_split[1]}")
-            else:
-                parts.append(f"    REFERENCES {remaining}")
+        # Referential actions follow the referenced table; splitting on the
+        # first " ON " keeps ON UPDATE and ON DELETE together on one line.
+        if " ON " in remaining:
+            referenced_table, actions = remaining.split(" ON ", 1)
+            parts.append(f"    REFERENCES {referenced_table.strip()}")
+            parts.append(f"    ON {actions}")
+        else:
+            parts.append(f"    REFERENCES {remaining}")
 
         return "\n".join(parts)
 
@@ -800,8 +790,9 @@ class PostgreSQLDDLExtractor:
         """Format a single column definition.
 
         Raises NotImplementedError for column features this generator cannot
-        render (identity columns, non-int/bigint serials) rather than silently
-        emitting valid-looking DDL that loses semantics.
+        render (identity columns, non-int/bigint serials, unknown generated
+        column kinds) rather than silently emitting valid-looking DDL that
+        loses semantics.
         """
         # Quote column name if it contains mixed case or special characters
         column_name = self._quote_identifier_if_needed(col["column_name"])
@@ -836,6 +827,14 @@ class PostgreSQLDDLExtractor:
             parts.append(self._format_data_type(col, original_data_type))
 
         # === Column Attributes ===
+        if col.get("is_generated") == "ALWAYS":
+            parts.append(f"GENERATED ALWAYS AS ({col['generation_expression']}) STORED")
+        elif col.get("is_generated") not in (None, "NEVER"):
+            raise NotImplementedError(
+                f"Column {col['column_name']} has unsupported generated column kind "
+                f"{col['is_generated']}"
+            )
+
         if col["is_nullable"] == "NO":
             parts.append("NOT NULL")
 
@@ -974,7 +973,12 @@ class PostgreSQLDDLExtractor:
         elif constraint_type == "CHECK":
             constraint_def = constraint.get("constraint_definition")
             if constraint_def:
-                return self._wrap_line(constraint_def)
+                # pg_get_constraintdef returns a bare "CHECK (...)". Emitting it
+                # as-is lets PostgreSQL invent a name on replay, so a migration
+                # dropping the constraint by name would not find it. Quoting is
+                # required because the naming convention embeds backticks.
+                quoted_name = self._quote_identifier_if_needed(constraint_name)
+                return self._wrap_line(f"CONSTRAINT {quoted_name} {constraint_def}")
             return None
 
         return None

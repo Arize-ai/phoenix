@@ -43,7 +43,7 @@ npx @arizeai/phoenix-cli
 
 ```bash
 # Configure your Phoenix instance
-export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_ENDPOINT=http://localhost:6006
 export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 
@@ -64,7 +64,7 @@ px trace list ./my-traces --limit 50
 
 | Variable | Description |
 |----------|-------------|
-| `PHOENIX_HOST` | Phoenix API endpoint (e.g., `http://localhost:6006`) |
+| `PHOENIX_ENDPOINT` | Phoenix API endpoint (e.g., `http://localhost:6006`) |
 | `PHOENIX_PROJECT` | Project name or ID |
 | `PHOENIX_API_KEY` | API key for authentication (if required) |
 | `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string |
@@ -231,7 +231,7 @@ px setup mcp --agent claude         # Register the Phoenix MCP server with an ag
 
 ### `px setup mcp`
 
-Register the Phoenix **remote MCP server** (`<endpoint>/mcp`) with a coding agent, so it can search, query, and operate on your Phoenix data. The endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_HOST` — you never re-type it. See [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) for what the server exposes.
+Register the Phoenix **remote MCP server** (`<endpoint>/mcp`) with a coding agent, so it can search, query, and operate on your Phoenix data. The endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_ENDPOINT` — you never re-type it. See [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) for what the server exposes.
 
 ```bash
 px setup mcp                        # Pick scope + agent interactively
@@ -918,7 +918,7 @@ px api graphql '<query>' [--endpoint <url>] [--api-key <key>]
 | Argument/Option | Description | Default |
 |-----------------|-------------|---------|
 | `<query>` | GraphQL query string | — |
-| `--endpoint <url>` | Phoenix API endpoint | `$PHOENIX_HOST` |
+| `--endpoint <url>` | Phoenix API endpoint | `$PHOENIX_ENDPOINT` |
 | `--api-key <key>` | Phoenix API key | `$PHOENIX_API_KEY` |
 
 #### Discover the schema with introspection

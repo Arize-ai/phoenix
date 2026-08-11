@@ -28,13 +28,16 @@ import {
 } from "@phoenix/components/nav";
 import { GlobalSearch } from "@phoenix/components/search";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import {
   useActiveDrawerWidth,
   useHasOpenDrawer,
   useHasOpenModal,
 } from "@phoenix/hooks/useHasOpenModal";
 
+import type { layoutLoaderQuery } from "./__generated__/layoutLoaderQuery.graphql";
 import type { LayoutLoaderData } from "./layoutLoader";
+import { layoutLoaderGql } from "./layoutLoader";
 
 const layoutCSS = css`
   display: flex;
@@ -170,6 +173,38 @@ export function Layout() {
 function SideNav({ isExpanded }: { isExpanded: boolean }) {
   const loaderData = useLoaderData<LayoutLoaderData>();
   return (
+    <Suspense fallback={<SideNavContent isExpanded={isExpanded} />}>
+      <SideNavWithCounts
+        isExpanded={isExpanded}
+        queryRef={loaderData.queryRef}
+      />
+    </Suspense>
+  );
+}
+
+function SideNavWithCounts({
+  isExpanded,
+  queryRef,
+}: {
+  isExpanded: boolean;
+  queryRef: LayoutLoaderData["queryRef"];
+}) {
+  const counts = useOwnedPreloadedQuery<layoutLoaderQuery>({
+    query: layoutLoaderGql,
+    queryRef,
+  });
+
+  return <SideNavContent isExpanded={isExpanded} counts={counts} />;
+}
+
+function SideNavContent({
+  isExpanded,
+  counts,
+}: {
+  isExpanded: boolean;
+  counts?: layoutLoaderQuery["response"];
+}) {
+  return (
     <SideNavbar isExpanded={isExpanded}>
       <Brand />
       <Flex direction="column" justifyContent="space-between" flex="1 1 auto">
@@ -183,8 +218,8 @@ function SideNav({ isExpanded }: { isExpanded: boolean }) {
               text="Tracing"
               leadingVisual={<Icon svg={<Icons.Trace />} />}
               trailingVisual={
-                loaderData?.projectCount != null ? (
-                  <Counter variant="quiet">{loaderData.projectCount}</Counter>
+                counts?.projectCount != null ? (
+                  <Counter variant="quiet">{counts.projectCount}</Counter>
                 ) : undefined
               }
               isExpanded={isExpanded}
@@ -204,8 +239,8 @@ function SideNav({ isExpanded }: { isExpanded: boolean }) {
               text="Datasets & Experiments"
               leadingVisual={<Icon svg={<Icons.Database />} />}
               trailingVisual={
-                loaderData?.datasetCount != null ? (
-                  <Counter variant="quiet">{loaderData.datasetCount}</Counter>
+                counts?.datasetCount != null ? (
+                  <Counter variant="quiet">{counts.datasetCount}</Counter>
                 ) : undefined
               }
               isExpanded={isExpanded}
@@ -225,8 +260,8 @@ function SideNav({ isExpanded }: { isExpanded: boolean }) {
               text="Evaluators"
               leadingVisual={<Icon svg={<Icons.Scale />} />}
               trailingVisual={
-                loaderData?.evaluatorCount != null ? (
-                  <Counter variant="quiet">{loaderData.evaluatorCount}</Counter>
+                counts?.evaluatorCount != null ? (
+                  <Counter variant="quiet">{counts.evaluatorCount}</Counter>
                 ) : undefined
               }
               isExpanded={isExpanded}
@@ -238,8 +273,8 @@ function SideNav({ isExpanded }: { isExpanded: boolean }) {
               text="Prompts"
               leadingVisual={<Icon svg={<Icons.MessageSquare />} />}
               trailingVisual={
-                loaderData?.promptCount != null ? (
-                  <Counter variant="quiet">{loaderData.promptCount}</Counter>
+                counts?.promptCount != null ? (
+                  <Counter variant="quiet">{counts.promptCount}</Counter>
                 ) : undefined
               }
               isExpanded={isExpanded}

@@ -4,6 +4,8 @@ import { useCallback, useRef, useState } from "react";
 
 import { Button, CopyToClipboardButton, Flex } from "@phoenix/components";
 import { ExpandableContent } from "@phoenix/components/core/content/ExpandableContent";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import { selectIsSessionOccupied } from "@phoenix/store/agentStore";
 
 import { useScrollAnchor } from "./scrollAnchor";
 
@@ -130,7 +132,11 @@ const approvalActionsRowCSS = css`
  * The right-aligned Accept/Reject buttons rendered at the bottom of a tool part
  * awaiting user approval. When the proposal can no longer be acted on (e.g. it
  * was made in an earlier session), pass `staleMessage` to explain why the
- * disabled buttons can't be used.
+ * disabled buttons can't be used. The buttons are also disabled — without the
+ * stale explanation — while the active session is occupied (a response is
+ * streaming, or another client's turn holds the session lock): responding
+ * then would race the turn that is about to resolve — or supersede — the
+ * pending tool call.
  */
 export function ToolPartApprovalActions({
   onAccept,
@@ -143,6 +149,10 @@ export function ToolPartApprovalActions({
   isDisabled?: boolean;
   staleMessage?: string;
 }) {
+  const isPaused = useAgentContext((state) =>
+    selectIsSessionOccupied(state, state.activeSessionId)
+  );
+  const isActionDisabled = isDisabled || isPaused;
   return (
     <>
       <div css={approvalActionsRowCSS}>
@@ -150,12 +160,12 @@ export function ToolPartApprovalActions({
           <Button
             size="S"
             variant="primary"
-            isDisabled={isDisabled}
+            isDisabled={isActionDisabled}
             onPress={onAccept}
           >
             Accept
           </Button>
-          <Button size="S" isDisabled={isDisabled} onPress={onReject}>
+          <Button size="S" isDisabled={isActionDisabled} onPress={onReject}>
             Reject
           </Button>
         </Flex>

@@ -99,8 +99,7 @@ CREATE TABLE public.projects (
     CONSTRAINT uq_projects_name
         UNIQUE (name),
     CONSTRAINT fk_projects_trace_retention_policy_id_project_trace_ret_aa47
-        FOREIGN KEY
-        (trace_retention_policy_id)
+        FOREIGN KEY (trace_retention_policy_id)
         REFERENCES public.project_trace_retention_policies (id)
         ON DELETE SET NULL
 );
@@ -119,13 +118,11 @@ CREATE TABLE public.project_annotation_configs (
     CONSTRAINT uq_project_annotation_configs_project_id_annotation_config_id
         UNIQUE (project_id, annotation_config_id),
     CONSTRAINT fk_project_annotation_configs_annotation_config_id_anno_98f5
-        FOREIGN KEY
-        (annotation_config_id)
+        FOREIGN KEY (annotation_config_id)
         REFERENCES public.annotation_configs (id)
         ON DELETE CASCADE,
     CONSTRAINT fk_project_annotation_configs_project_id_projects
-        FOREIGN KEY
-        (project_id)
+        FOREIGN KEY (project_id)
         REFERENCES public.projects (id)
         ON DELETE CASCADE
 );
@@ -145,8 +142,8 @@ CREATE TABLE public.project_sessions (
     CONSTRAINT pk_project_sessions PRIMARY KEY (id),
     CONSTRAINT uq_project_sessions_session_id
         UNIQUE (session_id),
-    CONSTRAINT fk_project_sessions_project_id_projects FOREIGN KEY
-        (project_id)
+    CONSTRAINT fk_project_sessions_project_id_projects
+        FOREIGN KEY (project_id)
         REFERENCES public.projects (id)
         ON DELETE CASCADE
 );
@@ -182,8 +179,8 @@ CREATE TABLE public.prompts (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_prompts PRIMARY KEY (id),
-    CONSTRAINT fk_prompts_source_prompt_id_prompts FOREIGN KEY
-        (source_prompt_id)
+    CONSTRAINT fk_prompts_source_prompt_id_prompts
+        FOREIGN KEY (source_prompt_id)
         REFERENCES public.prompts (id)
         ON DELETE SET NULL
 );
@@ -203,13 +200,12 @@ CREATE TABLE public.prompts_prompt_labels (
     CONSTRAINT pk_prompts_prompt_labels PRIMARY KEY (id),
     CONSTRAINT uq_prompts_prompt_labels_prompt_label_id_prompt_id
         UNIQUE (prompt_label_id, prompt_id),
-    CONSTRAINT fk_prompts_prompt_labels_prompt_id_prompts FOREIGN KEY
-        (prompt_id)
+    CONSTRAINT fk_prompts_prompt_labels_prompt_id_prompts
+        FOREIGN KEY (prompt_id)
         REFERENCES public.prompts (id)
         ON DELETE CASCADE,
     CONSTRAINT fk_prompts_prompt_labels_prompt_label_id_prompt_labels
-        FOREIGN KEY
-        (prompt_label_id)
+        FOREIGN KEY (prompt_label_id)
         REFERENCES public.prompt_labels (id)
         ON DELETE CASCADE
 );
@@ -230,8 +226,8 @@ CREATE TABLE public.token_prices (
     CONSTRAINT pk_token_prices PRIMARY KEY (id),
     CONSTRAINT uq_token_prices_model_id_token_type_is_prompt
         UNIQUE (model_id, token_type, is_prompt),
-    CONSTRAINT fk_token_prices_model_id_generative_models FOREIGN KEY
-        (model_id)
+    CONSTRAINT fk_token_prices_model_id_generative_models
+        FOREIGN KEY (model_id)
         REFERENCES public.generative_models (id)
         ON DELETE CASCADE
 );
@@ -249,13 +245,12 @@ CREATE TABLE public.traces (
     CONSTRAINT pk_traces PRIMARY KEY (id),
     CONSTRAINT uq_traces_trace_id
         UNIQUE (trace_id),
-    CONSTRAINT fk_traces_project_rowid_projects FOREIGN KEY
-        (project_rowid)
+    CONSTRAINT fk_traces_project_rowid_projects
+        FOREIGN KEY (project_rowid)
         REFERENCES public.projects (id)
         ON DELETE CASCADE,
     CONSTRAINT fk_traces_project_session_rowid_project_sessions
-        FOREIGN KEY
-        (project_session_rowid)
+        FOREIGN KEY (project_session_rowid)
         REFERENCES public.project_sessions (id)
         ON DELETE CASCADE
 );
@@ -289,21 +284,20 @@ CREATE TABLE public.spans (
     CONSTRAINT pk_spans PRIMARY KEY (id),
     CONSTRAINT uq_spans_span_id
         UNIQUE (span_id),
-    CHECK (((status_code)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_spans_`valid_status`"
+        CHECK (((status_code)::text = ANY ((ARRAY[
             'OK'::character varying,
             'ERROR'::character varying,
             'UNSET'::character varying
         ])::text[]))),
-    CONSTRAINT fk_spans_trace_rowid_traces FOREIGN KEY
-        (trace_rowid)
+    CONSTRAINT fk_spans_trace_rowid_traces
+        FOREIGN KEY (trace_rowid)
         REFERENCES public.traces (id)
         ON DELETE CASCADE
 );
 
 CREATE INDEX ix_cumulative_llm_token_count_total ON public.spans
     USING btree (((cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)));
-CREATE INDEX ix_latency ON public.spans
-    USING btree (((end_time - start_time)));
 CREATE INDEX ix_spans_parent_id ON public.spans
     USING btree (parent_id);
 CREATE INDEX ix_spans_session_id ON public.spans
@@ -331,16 +325,16 @@ CREATE TABLE public.span_costs (
     completion_cost DOUBLE PRECISION,
     completion_tokens DOUBLE PRECISION,
     CONSTRAINT pk_span_costs PRIMARY KEY (id),
-    CONSTRAINT fk_span_costs_model_id_generative_models FOREIGN KEY
-        (model_id)
+    CONSTRAINT fk_span_costs_model_id_generative_models
+        FOREIGN KEY (model_id)
         REFERENCES public.generative_models (id)
         ON DELETE RESTRICT,
-    CONSTRAINT fk_span_costs_span_rowid_spans FOREIGN KEY
-        (span_rowid)
+    CONSTRAINT fk_span_costs_span_rowid_spans
+        FOREIGN KEY (span_rowid)
         REFERENCES public.spans (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_span_costs_trace_rowid_traces FOREIGN KEY
-        (trace_rowid)
+    CONSTRAINT fk_span_costs_trace_rowid_traces
+        FOREIGN KEY (trace_rowid)
         REFERENCES public.traces (id)
         ON DELETE CASCADE
 );
@@ -368,8 +362,8 @@ CREATE TABLE public.span_cost_details (
     CONSTRAINT pk_span_cost_details PRIMARY KEY (id),
     CONSTRAINT uq_span_cost_details_span_cost_id_token_type_is_prompt
         UNIQUE (span_cost_id, token_type, is_prompt),
-    CONSTRAINT fk_span_cost_details_span_cost_id_span_costs FOREIGN KEY
-        (span_cost_id)
+    CONSTRAINT fk_span_cost_details_span_cost_id_span_costs
+        FOREIGN KEY (span_cost_id)
         REFERENCES public.span_costs (id)
         ON DELETE CASCADE
 );
@@ -408,18 +402,19 @@ CREATE TABLE public.users (
     auth_method VARCHAR NOT NULL,
     ldap_unique_id VARCHAR,
     CONSTRAINT pk_users PRIMARY KEY (id),
-    CHECK ((((auth_method)::text <> 'LDAP'::text) OR ((oauth2_client_id IS NULL) AND (oauth2_user_id IS NULL) AND ((email IS NOT NULL) OR (ldap_unique_id IS NOT NULL))))),
-    CHECK ((((auth_method)::text <> 'LOCAL'::text) OR ((password_hash IS NOT NULL) AND (password_salt IS NOT NULL) AND (oauth2_client_id IS NULL) AND (oauth2_user_id IS NULL) AND (ldap_unique_id IS NULL)))),
-    CHECK ((((auth_method)::text = 'LDAP'::text) OR (email IS NOT NULL))),
-    CHECK ((((auth_method)::text = 'LOCAL'::text) OR ((password_hash IS NULL) AND (password_salt IS NULL)))),
-    CHECK ((((auth_method)::text <> 'OAUTH2'::text) OR (ldap_unique_id IS NULL))),
-    CHECK (((auth_method)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_users_`ldap_auth_valid`" CHECK ((((auth_method)::text <> 'LDAP'::text) OR ((oauth2_client_id IS NULL) AND (oauth2_user_id IS NULL) AND ((email IS NOT NULL) OR (ldap_unique_id IS NOT NULL))))),
+    CONSTRAINT "ck_users_`local_auth_has_password_no_oauth`" CHECK ((((auth_method)::text <> 'LOCAL'::text) OR ((password_hash IS NOT NULL) AND (password_salt IS NOT NULL) AND (oauth2_client_id IS NULL) AND (oauth2_user_id IS NULL) AND (ldap_unique_id IS NULL)))),
+    CONSTRAINT "ck_users_`non_ldap_auth_has_email`" CHECK ((((auth_method)::text = 'LDAP'::text) OR (email IS NOT NULL))),
+    CONSTRAINT "ck_users_`non_local_auth_has_no_password`" CHECK ((((auth_method)::text = 'LOCAL'::text) OR ((password_hash IS NULL) AND (password_salt IS NULL)))),
+    CONSTRAINT "ck_users_`oauth2_auth_no_ldap_fields`" CHECK ((((auth_method)::text <> 'OAUTH2'::text) OR (ldap_unique_id IS NULL))),
+    CONSTRAINT "ck_users_`valid_auth_method`"
+        CHECK (((auth_method)::text = ANY ((ARRAY[
             'LOCAL'::character varying,
             'OAUTH2'::character varying,
             'LDAP'::character varying
         ])::text[]))),
-    CONSTRAINT fk_users_user_role_id_user_roles FOREIGN KEY
-        (user_role_id)
+    CONSTRAINT fk_users_user_role_id_user_roles
+        FOREIGN KEY (user_role_id)
         REFERENCES public.user_roles (id)
         ON DELETE CASCADE
 );
@@ -448,8 +443,8 @@ CREATE TABLE public.api_keys (
     scopes JSONB,
     audience JSONB,
     CONSTRAINT pk_api_keys PRIMARY KEY (id),
-    CONSTRAINT fk_api_keys_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_api_keys_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE CASCADE
 );
@@ -471,8 +466,8 @@ CREATE TABLE public.dataset_labels (
     CONSTRAINT pk_dataset_labels PRIMARY KEY (id),
     CONSTRAINT uq_dataset_labels_name
         UNIQUE (name),
-    CONSTRAINT fk_dataset_labels_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_dataset_labels_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -495,8 +490,8 @@ CREATE TABLE public.dataset_splits (
     CONSTRAINT pk_dataset_splits PRIMARY KEY (id),
     CONSTRAINT uq_dataset_splits_name
         UNIQUE (name),
-    CONSTRAINT fk_dataset_splits_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_dataset_splits_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -518,8 +513,8 @@ CREATE TABLE public.datasets (
     CONSTRAINT pk_datasets PRIMARY KEY (id),
     CONSTRAINT uq_datasets_name
         UNIQUE (name),
-    CONSTRAINT fk_datasets_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_datasets_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -539,12 +534,12 @@ CREATE TABLE public.dataset_examples (
     CONSTRAINT pk_dataset_examples PRIMARY KEY (id),
     CONSTRAINT uq_dataset_examples_dataset_id_external_id
         UNIQUE (dataset_id, external_id),
-    CONSTRAINT fk_dataset_examples_dataset_id_datasets FOREIGN KEY
-        (dataset_id)
+    CONSTRAINT fk_dataset_examples_dataset_id_datasets
+        FOREIGN KEY (dataset_id)
         REFERENCES public.datasets (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_dataset_examples_span_rowid_spans FOREIGN KEY
-        (span_rowid)
+    CONSTRAINT fk_dataset_examples_span_rowid_spans
+        FOREIGN KEY (span_rowid)
         REFERENCES public.spans (id)
         ON DELETE SET NULL
 );
@@ -560,13 +555,11 @@ CREATE TABLE public.dataset_splits_dataset_examples (
     dataset_example_id BIGINT NOT NULL,
     CONSTRAINT pk_dataset_splits_dataset_examples PRIMARY KEY (dataset_split_id, dataset_example_id),
     CONSTRAINT fk_dataset_splits_dataset_examples_dataset_example_id_d_63b2
-        FOREIGN KEY
-        (dataset_example_id)
+        FOREIGN KEY (dataset_example_id)
         REFERENCES public.dataset_examples (id)
         ON DELETE CASCADE,
     CONSTRAINT fk_dataset_splits_dataset_examples_dataset_split_id_dat_a90c
-        FOREIGN KEY
-        (dataset_split_id)
+        FOREIGN KEY (dataset_split_id)
         REFERENCES public.dataset_splits (id)
         ON DELETE CASCADE
 );
@@ -585,12 +578,12 @@ CREATE TABLE public.dataset_versions (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     user_id BIGINT,
     CONSTRAINT pk_dataset_versions PRIMARY KEY (id),
-    CONSTRAINT fk_dataset_versions_dataset_id_datasets FOREIGN KEY
-        (dataset_id)
+    CONSTRAINT fk_dataset_versions_dataset_id_datasets
+        FOREIGN KEY (dataset_id)
         REFERENCES public.datasets (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_dataset_versions_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_dataset_versions_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -616,19 +609,18 @@ CREATE TABLE public.dataset_example_revisions (
     CONSTRAINT pk_dataset_example_revisions PRIMARY KEY (id),
     CONSTRAINT uq_dataset_example_revisions_dataset_example_id_dataset_bbf2
         UNIQUE (dataset_example_id, dataset_version_id),
-    CHECK (((revision_kind)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_dataset_example_revisions_`valid_revision_kind`"
+        CHECK (((revision_kind)::text = ANY ((ARRAY[
             'CREATE'::character varying,
             'PATCH'::character varying,
             'DELETE'::character varying
         ])::text[]))),
     CONSTRAINT fk_dataset_example_revisions_dataset_example_id_dataset_c72a
-        FOREIGN KEY
-        (dataset_example_id)
+        FOREIGN KEY (dataset_example_id)
         REFERENCES public.dataset_examples (id)
         ON DELETE CASCADE,
     CONSTRAINT fk_dataset_example_revisions_dataset_version_id_dataset_3a56
-        FOREIGN KEY
-        (dataset_version_id)
+        FOREIGN KEY (dataset_version_id)
         REFERENCES public.dataset_versions (id)
         ON DELETE CASCADE
 );
@@ -645,13 +637,12 @@ CREATE TABLE public.datasets_dataset_labels (
     dataset_id BIGINT NOT NULL,
     dataset_label_id BIGINT NOT NULL,
     CONSTRAINT pk_datasets_dataset_labels PRIMARY KEY (dataset_id, dataset_label_id),
-    CONSTRAINT fk_datasets_dataset_labels_dataset_id_datasets FOREIGN KEY
-        (dataset_id)
+    CONSTRAINT fk_datasets_dataset_labels_dataset_id_datasets
+        FOREIGN KEY (dataset_id)
         REFERENCES public.datasets (id)
         ON DELETE CASCADE,
     CONSTRAINT fk_datasets_dataset_labels_dataset_label_id_dataset_labels
-        FOREIGN KEY
-        (dataset_label_id)
+        FOREIGN KEY (dataset_label_id)
         REFERENCES public.dataset_labels (id)
         ON DELETE CASCADE
 );
@@ -680,21 +671,23 @@ CREATE TABLE public.document_annotations (
     CONSTRAINT pk_document_annotations PRIMARY KEY (id),
     CONSTRAINT uq_document_annotations_name_span_rowid_document_pos_identifier
         UNIQUE (name, span_rowid, document_position, identifier),
-    CHECK (((annotator_kind)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_document_annotations_`valid_annotator_kind`"
+        CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
             'HUMAN'::character varying
         ])::text[]))),
-    CHECK (((source)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_document_annotations_`valid_source`"
+        CHECK (((source)::text = ANY ((ARRAY[
             'API'::character varying,
             'APP'::character varying
         ])::text[]))),
-    CONSTRAINT fk_document_annotations_span_rowid_spans FOREIGN KEY
-        (span_rowid)
+    CONSTRAINT fk_document_annotations_span_rowid_spans
+        FOREIGN KEY (span_rowid)
         REFERENCES public.spans (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_document_annotations_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_document_annotations_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -720,13 +713,14 @@ CREATE TABLE public.evaluators (
         UNIQUE (kind, id),
     CONSTRAINT uq_evaluators_name
         UNIQUE (name),
-    CHECK (((kind)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_evaluators_`valid_evaluator_kind`"
+        CHECK (((kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
             'BUILTIN'::character varying
         ])::text[]))),
-    CONSTRAINT fk_evaluators_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_evaluators_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -747,9 +741,9 @@ CREATE TABLE public.builtin_evaluators (
     CONSTRAINT pk_builtin_evaluators PRIMARY KEY (id),
     CONSTRAINT uq_builtin_evaluators_key
         UNIQUE (key),
-    CHECK (((kind)::text = 'BUILTIN'::text)),
-    CONSTRAINT fk_builtin_evaluators_kind_evaluators FOREIGN KEY
-        (kind, id)
+    CONSTRAINT "ck_builtin_evaluators_`valid_evaluator_kind`" CHECK (((kind)::text = 'BUILTIN'::text)),
+    CONSTRAINT fk_builtin_evaluators_kind_evaluators
+        FOREIGN KEY (kind, id)
         REFERENCES public.evaluators (kind, id)
         ON DELETE CASCADE
 );
@@ -772,20 +766,20 @@ CREATE TABLE public.dataset_evaluators (
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
     CONSTRAINT uq_dataset_evaluators_dataset_id_name
         UNIQUE (dataset_id, name),
-    CONSTRAINT fk_dataset_evaluators_dataset_id_datasets FOREIGN KEY
-        (dataset_id)
+    CONSTRAINT fk_dataset_evaluators_dataset_id_datasets
+        FOREIGN KEY (dataset_id)
         REFERENCES public.datasets (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_dataset_evaluators_evaluator_id_evaluators FOREIGN KEY
-        (evaluator_id)
+    CONSTRAINT fk_dataset_evaluators_evaluator_id_evaluators
+        FOREIGN KEY (evaluator_id)
         REFERENCES public.evaluators (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_dataset_evaluators_project_id_projects FOREIGN KEY
-        (project_id)
+    CONSTRAINT fk_dataset_evaluators_project_id_projects
+        FOREIGN KEY (project_id)
         REFERENCES public.projects (id)
         ON DELETE RESTRICT,
-    CONSTRAINT fk_dataset_evaluators_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_dataset_evaluators_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -794,6 +788,8 @@ CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
     USING btree (evaluator_id);
 CREATE INDEX ix_dataset_evaluators_project_id ON public.dataset_evaluators
     USING btree (project_id);
+CREATE INDEX ix_dataset_evaluators_user_id ON public.dataset_evaluators
+    USING btree (user_id);
 
 
 -- Table: experiments
@@ -812,17 +808,16 @@ CREATE TABLE public.experiments (
     user_id BIGINT,
     is_ephemeral BOOLEAN NOT NULL DEFAULT false,
     CONSTRAINT pk_experiments PRIMARY KEY (id),
-    CONSTRAINT fk_experiments_dataset_id_datasets FOREIGN KEY
-        (dataset_id)
+    CONSTRAINT fk_experiments_dataset_id_datasets
+        FOREIGN KEY (dataset_id)
         REFERENCES public.datasets (id)
         ON DELETE CASCADE,
     CONSTRAINT fk_experiments_dataset_version_id_dataset_versions
-        FOREIGN KEY
-        (dataset_version_id)
+        FOREIGN KEY (dataset_version_id)
         REFERENCES public.dataset_versions (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_experiments_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_experiments_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -853,18 +848,20 @@ CREATE TABLE public.experiment_jobs (
     CONSTRAINT pk_experiment_jobs PRIMARY KEY (id),
     CONSTRAINT uq_experiment_jobs_type_id
         UNIQUE (type, id),
-    CHECK (((status)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_experiment_jobs_`valid_experiment_status`"
+        CHECK (((status)::text = ANY ((ARRAY[
             'RUNNING'::character varying,
             'COMPLETED'::character varying,
             'STOPPED'::character varying,
             'ERROR'::character varying
         ])::text[]))),
-    CHECK (((type)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_experiment_jobs_`valid_type`"
+        CHECK (((type)::text = ANY ((ARRAY[
             'PROMPT'::character varying,
             'EVAL_ONLY'::character varying
         ])::text[]))),
-    CONSTRAINT fk_experiment_jobs_id_experiments FOREIGN KEY
-        (id)
+    CONSTRAINT fk_experiment_jobs_id_experiments
+        FOREIGN KEY (id)
         REFERENCES public.experiments (id)
         ON DELETE CASCADE
 );
@@ -877,13 +874,11 @@ CREATE TABLE public.experiment_dataset_evaluators (
     dataset_evaluator_id BIGINT NOT NULL,
     CONSTRAINT pk_experiment_dataset_evaluators PRIMARY KEY (experiment_id, dataset_evaluator_id),
     CONSTRAINT fk_experiment_dataset_evaluators_dataset_evaluator_id_d_138b
-        FOREIGN KEY
-        (dataset_evaluator_id)
+        FOREIGN KEY (dataset_evaluator_id)
         REFERENCES public.dataset_evaluators (id)
         ON DELETE CASCADE,
     CONSTRAINT fk_experiment_dataset_evaluators_experiment_id_experiment_jobs
-        FOREIGN KEY
-        (experiment_id)
+        FOREIGN KEY (experiment_id)
         REFERENCES public.experiment_jobs (id)
         ON DELETE CASCADE
 );
@@ -905,19 +900,20 @@ CREATE TABLE public.experiment_logs (
     CONSTRAINT pk_experiment_logs PRIMARY KEY (id),
     CONSTRAINT uq_experiment_logs_category_id
         UNIQUE (category, id),
-    CHECK (((category)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_experiment_logs_`valid_event_category`"
+        CHECK (((category)::text = ANY ((ARRAY[
             'TASK'::character varying,
             'EVAL'::character varying,
             'EXPERIMENT'::character varying
         ])::text[]))),
-    CHECK (((level)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_experiment_logs_`valid_event_level`"
+        CHECK (((level)::text = ANY ((ARRAY[
             'ERROR'::character varying,
             'WARN'::character varying,
             'INFO'::character varying
         ])::text[]))),
     CONSTRAINT fk_experiment_logs_experiment_id_experiment_jobs
-        FOREIGN KEY
-        (experiment_id)
+        FOREIGN KEY (experiment_id)
         REFERENCES public.experiment_jobs (id)
         ON DELETE CASCADE
 );
@@ -946,12 +942,11 @@ CREATE TABLE public.experiment_runs (
     CONSTRAINT uq_experiment_runs_experiment_id_dataset_example_id_rep_81e7
         UNIQUE (experiment_id, dataset_example_id, repetition_number),
     CONSTRAINT fk_experiment_runs_dataset_example_id_dataset_examples
-        FOREIGN KEY
-        (dataset_example_id)
+        FOREIGN KEY (dataset_example_id)
         REFERENCES public.dataset_examples (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_experiment_runs_experiment_id_experiments FOREIGN KEY
-        (experiment_id)
+    CONSTRAINT fk_experiment_runs_experiment_id_experiments
+        FOREIGN KEY (experiment_id)
         REFERENCES public.experiments (id)
         ON DELETE CASCADE
 );
@@ -968,20 +963,17 @@ CREATE TABLE public.experiment_eval_logs (
     experiment_run_id BIGINT NOT NULL,
     dataset_evaluator_id BIGINT NOT NULL,
     CONSTRAINT pk_experiment_eval_logs PRIMARY KEY (id),
-    CHECK (((category)::text = 'EVAL'::text)),
+    CONSTRAINT "ck_experiment_eval_logs_`valid_category`" CHECK (((category)::text = 'EVAL'::text)),
     CONSTRAINT fk_experiment_eval_logs_category_experiment_logs
-        FOREIGN KEY
-        (category, id)
+        FOREIGN KEY (category, id)
         REFERENCES public.experiment_logs (category, id)
         ON DELETE CASCADE,
     CONSTRAINT fk_experiment_eval_logs_dataset_evaluator_id_dataset_evaluators
-        FOREIGN KEY
-        (dataset_evaluator_id)
+        FOREIGN KEY (dataset_evaluator_id)
         REFERENCES public.dataset_evaluators (id)
         ON DELETE CASCADE,
     CONSTRAINT fk_experiment_eval_logs_experiment_run_id_experiment_runs
-        FOREIGN KEY
-        (experiment_run_id)
+        FOREIGN KEY (experiment_run_id)
         REFERENCES public.experiment_runs (id)
         ON DELETE CASCADE
 );
@@ -1010,14 +1002,14 @@ CREATE TABLE public.experiment_run_annotations (
     CONSTRAINT pk_experiment_run_annotations PRIMARY KEY (id),
     CONSTRAINT uq_experiment_run_annotations_experiment_run_id_name
         UNIQUE (experiment_run_id, name),
-    CHECK (((annotator_kind)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_experiment_run_annotations_`valid_annotator_kind`"
+        CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
             'HUMAN'::character varying
         ])::text[]))),
     CONSTRAINT fk_experiment_run_annotations_experiment_run_id_experiment_runs
-        FOREIGN KEY
-        (experiment_run_id)
+        FOREIGN KEY (experiment_run_id)
         REFERENCES public.experiment_runs (id)
         ON DELETE CASCADE
 );
@@ -1035,16 +1027,16 @@ CREATE TABLE public.experiment_tags (
     CONSTRAINT pk_experiment_tags PRIMARY KEY (id),
     CONSTRAINT uq_experiment_tags_dataset_id_name
         UNIQUE (dataset_id, name),
-    CONSTRAINT fk_experiment_tags_dataset_id_datasets FOREIGN KEY
-        (dataset_id)
+    CONSTRAINT fk_experiment_tags_dataset_id_datasets
+        FOREIGN KEY (dataset_id)
         REFERENCES public.datasets (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_experiment_tags_experiment_id_experiments FOREIGN KEY
-        (experiment_id)
+    CONSTRAINT fk_experiment_tags_experiment_id_experiments
+        FOREIGN KEY (experiment_id)
         REFERENCES public.experiments (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_experiment_tags_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_experiment_tags_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -1063,15 +1055,13 @@ CREATE TABLE public.experiment_task_logs (
     dataset_example_id BIGINT NOT NULL,
     repetition_number INTEGER NOT NULL,
     CONSTRAINT pk_experiment_task_logs PRIMARY KEY (id),
-    CHECK (((category)::text = 'TASK'::text)),
+    CONSTRAINT "ck_experiment_task_logs_`valid_category`" CHECK (((category)::text = 'TASK'::text)),
     CONSTRAINT fk_experiment_task_logs_category_experiment_logs
-        FOREIGN KEY
-        (category, id)
+        FOREIGN KEY (category, id)
         REFERENCES public.experiment_logs (category, id)
         ON DELETE CASCADE,
     CONSTRAINT fk_experiment_task_logs_dataset_example_id_dataset_examples
-        FOREIGN KEY
-        (dataset_example_id)
+        FOREIGN KEY (dataset_example_id)
         REFERENCES public.dataset_examples (id)
         ON DELETE CASCADE
 );
@@ -1088,18 +1078,15 @@ CREATE TABLE public.experiments_dataset_examples (
     dataset_example_revision_id BIGINT NOT NULL,
     CONSTRAINT pk_experiments_dataset_examples PRIMARY KEY (experiment_id, dataset_example_id),
     CONSTRAINT fk_experiments_dataset_examples_dataset_example_id_data_7c5c
-        FOREIGN KEY
-        (dataset_example_id)
+        FOREIGN KEY (dataset_example_id)
         REFERENCES public.dataset_examples (id)
         ON DELETE CASCADE,
     CONSTRAINT fk_experiments_dataset_examples_dataset_example_revisio_7f42
-        FOREIGN KEY
-        (dataset_example_revision_id)
+        FOREIGN KEY (dataset_example_revision_id)
         REFERENCES public.dataset_example_revisions (id)
         ON DELETE CASCADE,
     CONSTRAINT fk_experiments_dataset_examples_experiment_id_experiments
-        FOREIGN KEY
-        (experiment_id)
+        FOREIGN KEY (experiment_id)
         REFERENCES public.experiments (id)
         ON DELETE CASCADE
 );
@@ -1117,13 +1104,11 @@ CREATE TABLE public.experiments_dataset_splits (
     dataset_split_id BIGINT NOT NULL,
     CONSTRAINT pk_experiments_dataset_splits PRIMARY KEY (experiment_id, dataset_split_id),
     CONSTRAINT fk_experiments_dataset_splits_dataset_split_id_dataset_splits
-        FOREIGN KEY
-        (dataset_split_id)
+        FOREIGN KEY (dataset_split_id)
         REFERENCES public.dataset_splits (id)
         ON DELETE CASCADE,
     CONSTRAINT fk_experiments_dataset_splits_experiment_id_experiments
-        FOREIGN KEY
-        (experiment_id)
+        FOREIGN KEY (experiment_id)
         REFERENCES public.experiments (id)
         ON DELETE CASCADE
 );
@@ -1148,10 +1133,94 @@ CREATE TABLE public.generative_model_custom_providers (
     CONSTRAINT uq_generative_model_custom_providers_name
         UNIQUE (name),
     CONSTRAINT fk_generative_model_custom_providers_user_id_users
-        FOREIGN KEY
-        (user_id)
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
+);
+
+CREATE INDEX ix_generative_model_custom_providers_user_id ON public.generative_model_custom_providers
+    USING btree (user_id);
+
+
+-- Table: agent_sessions
+-- ---------------------
+CREATE TABLE public.agent_sessions (
+    id bigserial NOT NULL,
+    project_name VARCHAR NOT NULL,
+    user_id BIGINT,
+    title VARCHAR NOT NULL,
+    model_provider VARCHAR NOT NULL,
+    model_name VARCHAR NOT NULL,
+    custom_provider_id BIGINT,
+    is_ephemeral BOOLEAN NOT NULL,
+    heartbeat_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_agent_sessions PRIMARY KEY (id),
+    CONSTRAINT fk_agent_sessions_custom_provider_id_generative_model_c_af13
+        FOREIGN KEY
+        (custom_provider_id)
+        REFERENCES public.generative_model_custom_providers (id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_agent_sessions_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_agent_sessions_custom_provider_id ON public.agent_sessions
+    USING btree (custom_provider_id);
+CREATE INDEX ix_agent_sessions_ephemeral_updated_at ON public.agent_sessions
+    USING btree (updated_at) WHERE (is_ephemeral IS TRUE);
+CREATE INDEX ix_agent_sessions_updated_at_id ON public.agent_sessions
+    USING btree (updated_at, id);
+CREATE INDEX ix_agent_sessions_user_id_updated_at ON public.agent_sessions
+    USING btree (user_id, updated_at DESC);
+
+
+-- Table: agent_session_messages
+-- -----------------------------
+CREATE TABLE public.agent_session_messages (
+    id bigserial NOT NULL,
+    agent_session_id BIGINT NOT NULL,
+    message JSONB NOT NULL,
+    message_id VARCHAR GENERATED ALWAYS AS (((message ->> 'id'::text))::character varying) STORED NOT NULL,
+    is_compaction_message BOOLEAN GENERATED ALWAYS AS (COALESCE(((message #>> '{metadata,phoenix,isCompactionMessage}'::text[]))::boolean, false)) STORED NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_agent_session_messages PRIMARY KEY (id),
+    CONSTRAINT uq_agent_session_messages_message_id
+        UNIQUE (message_id),
+    CHECK (((message_id)::text ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'::text)),
+    CONSTRAINT fk_agent_session_messages_agent_session_id_agent_sessions
+        FOREIGN KEY
+        (agent_session_id)
+        REFERENCES public.agent_sessions (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_agent_session_messages_agent_session_id_id ON public.agent_session_messages
+    USING btree (agent_session_id, id);
+CREATE INDEX ix_agent_session_messages_compaction ON public.agent_session_messages
+    USING btree (agent_session_id, id DESC) WHERE is_compaction_message;
+
+
+-- Table: agent_session_snapshots
+-- ------------------------------
+CREATE TABLE public.agent_session_snapshots (
+    id bigserial NOT NULL,
+    agent_session_id BIGINT NOT NULL,
+    bashkit_snapshot BYTEA,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_agent_session_snapshots PRIMARY KEY (id),
+    CONSTRAINT uq_agent_session_snapshots_agent_session_id
+        UNIQUE (agent_session_id),
+    CONSTRAINT fk_agent_session_snapshots_agent_session_id_agent_sessions
+        FOREIGN KEY
+        (agent_session_id)
+        REFERENCES public.agent_sessions (id)
+        ON DELETE CASCADE
 );
 
 
@@ -1172,12 +1241,11 @@ CREATE TABLE public.oauth2_authorization_codes (
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     CONSTRAINT pk_oauth2_authorization_codes PRIMARY KEY (id),
     CONSTRAINT fk_oauth2_authorization_codes_oauth2_client_id_oauth2_clients
-        FOREIGN KEY
-        (oauth2_client_id)
+        FOREIGN KEY (oauth2_client_id)
         REFERENCES public.oauth2_clients (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_oauth2_authorization_codes_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_oauth2_authorization_codes_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE CASCADE
 );
@@ -1202,12 +1270,11 @@ CREATE TABLE public.oauth2_grants (
     revoked_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_oauth2_grants PRIMARY KEY (id),
     CONSTRAINT fk_oauth2_grants_oauth2_client_id_oauth2_clients
-        FOREIGN KEY
-        (oauth2_client_id)
+        FOREIGN KEY (oauth2_client_id)
         REFERENCES public.oauth2_clients (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_oauth2_grants_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_oauth2_grants_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE CASCADE
 );
@@ -1226,8 +1293,8 @@ CREATE TABLE public.password_reset_tokens (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     CONSTRAINT pk_password_reset_tokens PRIMARY KEY (id),
-    CONSTRAINT fk_password_reset_tokens_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_password_reset_tokens_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE CASCADE
 );
@@ -1257,22 +1324,23 @@ CREATE TABLE public.project_session_annotations (
     CONSTRAINT pk_project_session_annotations PRIMARY KEY (id),
     CONSTRAINT uq_project_session_annotations_name_project_session_id__6b58
         UNIQUE (name, project_session_id, identifier),
-    CHECK (((annotator_kind)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_project_session_annotations_`valid_annotator_kind`"
+        CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
             'HUMAN'::character varying
         ])::text[]))),
-    CHECK (((source)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_project_session_annotations_`valid_source`"
+        CHECK (((source)::text = ANY ((ARRAY[
             'API'::character varying,
             'APP'::character varying
         ])::text[]))),
     CONSTRAINT fk_project_session_annotations_project_session_id_proje_ea96
-        FOREIGN KEY
-        (project_session_id)
+        FOREIGN KEY (project_session_id)
         REFERENCES public.project_sessions (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_project_session_annotations_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_project_session_annotations_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -1302,26 +1370,27 @@ CREATE TABLE public.prompt_versions (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     custom_provider_id BIGINT,
     CONSTRAINT pk_prompt_versions PRIMARY KEY (id),
-    CHECK (((template_format)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_prompt_versions_`template_format`"
+        CHECK (((template_format)::text = ANY ((ARRAY[
             'F_STRING'::character varying,
             'MUSTACHE'::character varying,
             'NONE'::character varying
         ])::text[]))),
-    CHECK (((template_type)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_prompt_versions_`template_type`"
+        CHECK (((template_type)::text = ANY ((ARRAY[
             'CHAT'::character varying,
             'STR'::character varying
         ])::text[]))),
     CONSTRAINT fk_prompt_versions_custom_provider_id_generative_model__f97f
-        FOREIGN KEY
-        (custom_provider_id)
+        FOREIGN KEY (custom_provider_id)
         REFERENCES public.generative_model_custom_providers (id)
         ON DELETE SET NULL,
-    CONSTRAINT fk_prompt_versions_prompt_id_prompts FOREIGN KEY
-        (prompt_id)
+    CONSTRAINT fk_prompt_versions_prompt_id_prompts
+        FOREIGN KEY (prompt_id)
         REFERENCES public.prompts (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_prompt_versions_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_prompt_versions_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -1353,23 +1422,26 @@ CREATE TABLE public.experiment_prompt_tasks (
     playground_config JSONB,
     stream_model_output BOOLEAN NOT NULL DEFAULT true,
     CONSTRAINT pk_experiment_prompt_tasks PRIMARY KEY (id),
-    CHECK ((NOT ((custom_provider_id IS NOT NULL) AND (connection IS NOT NULL)))),
-    CHECK (((type)::text = 'PROMPT'::text)),
+    CONSTRAINT "ck_experiment_prompt_tasks_`custom_provider_or_connection`" CHECK ((NOT ((custom_provider_id IS NOT NULL) AND (connection IS NOT NULL)))),
+    CONSTRAINT "ck_experiment_prompt_tasks_`valid_type`" CHECK (((type)::text = 'PROMPT'::text)),
     CONSTRAINT fk_experiment_prompt_tasks_custom_provider_id_generativ_44e2
-        FOREIGN KEY
-        (custom_provider_id)
+        FOREIGN KEY (custom_provider_id)
         REFERENCES public.generative_model_custom_providers (id)
         ON DELETE SET NULL,
     CONSTRAINT fk_experiment_prompt_tasks_prompt_version_id_prompt_versions
-        FOREIGN KEY
-        (prompt_version_id)
+        FOREIGN KEY (prompt_version_id)
         REFERENCES public.prompt_versions (id)
         ON DELETE SET NULL,
-    CONSTRAINT fk_experiment_prompt_tasks_type_experiment_jobs FOREIGN KEY
-        (type, id)
+    CONSTRAINT fk_experiment_prompt_tasks_type_experiment_jobs
+        FOREIGN KEY (type, id)
         REFERENCES public.experiment_jobs (type, id)
         ON DELETE CASCADE
 );
+
+CREATE INDEX ix_experiment_prompt_tasks_custom_provider_id ON public.experiment_prompt_tasks
+    USING btree (custom_provider_id);
+CREATE INDEX ix_experiment_prompt_tasks_prompt_version_id ON public.experiment_prompt_tasks
+    USING btree (prompt_version_id);
 
 
 -- Table: prompt_version_tags
@@ -1384,17 +1456,16 @@ CREATE TABLE public.prompt_version_tags (
     CONSTRAINT pk_prompt_version_tags PRIMARY KEY (id),
     CONSTRAINT uq_prompt_version_tags_name_prompt_id
         UNIQUE (name, prompt_id),
-    CONSTRAINT fk_prompt_version_tags_prompt_id_prompts FOREIGN KEY
-        (prompt_id)
+    CONSTRAINT fk_prompt_version_tags_prompt_id_prompts
+        FOREIGN KEY (prompt_id)
         REFERENCES public.prompts (id)
         ON DELETE CASCADE,
     CONSTRAINT fk_prompt_version_tags_prompt_version_id_prompt_versions
-        FOREIGN KEY
-        (prompt_version_id)
+        FOREIGN KEY (prompt_version_id)
         REFERENCES public.prompt_versions (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_prompt_version_tags_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_prompt_version_tags_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -1417,18 +1488,17 @@ CREATE TABLE public.llm_evaluators (
     output_configs JSONB NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_llm_evaluators PRIMARY KEY (id),
-    CHECK (((kind)::text = 'LLM'::text)),
-    CONSTRAINT fk_llm_evaluators_kind_evaluators FOREIGN KEY
-        (kind, id)
+    CONSTRAINT "ck_llm_evaluators_`valid_evaluator_kind`" CHECK (((kind)::text = 'LLM'::text)),
+    CONSTRAINT fk_llm_evaluators_kind_evaluators
+        FOREIGN KEY (kind, id)
         REFERENCES public.evaluators (kind, id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_llm_evaluators_prompt_id_prompts FOREIGN KEY
-        (prompt_id)
+    CONSTRAINT fk_llm_evaluators_prompt_id_prompts
+        FOREIGN KEY (prompt_id)
         REFERENCES public.prompts (id)
         ON DELETE RESTRICT,
     CONSTRAINT fk_llm_evaluators_prompt_version_tag_id_prompt_version_tags
-        FOREIGN KEY
-        (prompt_version_tag_id)
+        FOREIGN KEY (prompt_version_tag_id)
         REFERENCES public.prompt_version_tags (id)
         ON DELETE SET NULL
 );
@@ -1451,12 +1521,12 @@ CREATE TABLE public.refresh_tokens (
     audience JSONB,
     consumed_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_refresh_tokens PRIMARY KEY (id),
-    CONSTRAINT fk_refresh_tokens_oauth2_grant_id_oauth2_grants FOREIGN KEY
-        (oauth2_grant_id)
+    CONSTRAINT fk_refresh_tokens_oauth2_grant_id_oauth2_grants
+        FOREIGN KEY (oauth2_grant_id)
         REFERENCES public.oauth2_grants (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_refresh_tokens_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_refresh_tokens_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE CASCADE
 );
@@ -1481,12 +1551,11 @@ CREATE TABLE public.access_tokens (
     audience JSONB,
     CONSTRAINT pk_access_tokens PRIMARY KEY (id),
     CONSTRAINT fk_access_tokens_refresh_token_id_refresh_tokens
-        FOREIGN KEY
-        (refresh_token_id)
+        FOREIGN KEY (refresh_token_id)
         REFERENCES public.refresh_tokens (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_access_tokens_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_access_tokens_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE CASCADE
 );
@@ -1508,8 +1577,8 @@ CREATE TABLE public.sandbox_providers (
     user_id BIGINT,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_sandbox_providers PRIMARY KEY (backend_type),
-    CONSTRAINT fk_sandbox_providers_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_sandbox_providers_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -1538,16 +1607,15 @@ CREATE TABLE public.sandbox_configs (
     CONSTRAINT uq_sandbox_configs_language_id
         UNIQUE (language, id),
     CONSTRAINT fk_sandbox_configs_backend_type_sandbox_providers
-        FOREIGN KEY
-        (backend_type)
+        FOREIGN KEY (backend_type)
         REFERENCES public.sandbox_providers (backend_type)
         ON DELETE RESTRICT,
-    CONSTRAINT fk_sandbox_configs_language_languages FOREIGN KEY
-        (language)
+    CONSTRAINT fk_sandbox_configs_language_languages
+        FOREIGN KEY (language)
         REFERENCES public.languages (name)
         ON DELETE RESTRICT,
-    CONSTRAINT fk_sandbox_configs_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_sandbox_configs_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -1567,22 +1635,21 @@ CREATE TABLE public.code_evaluators (
     output_configs JSONB NOT NULL DEFAULT '[]'::jsonb,
     sandbox_config_id BIGINT,
     CONSTRAINT pk_code_evaluators PRIMARY KEY (id),
-    CHECK (((kind)::text = 'CODE'::text)),
-    CONSTRAINT fk_code_evaluators_kind_evaluators FOREIGN KEY
-        (kind, id)
+    CONSTRAINT "ck_code_evaluators_`valid_evaluator_kind`" CHECK (((kind)::text = 'CODE'::text)),
+    CONSTRAINT fk_code_evaluators_kind_evaluators
+        FOREIGN KEY (kind, id)
         REFERENCES public.evaluators (kind, id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_code_evaluators_language_languages FOREIGN KEY
-        (language)
+    CONSTRAINT fk_code_evaluators_language_languages
+        FOREIGN KEY (language)
         REFERENCES public.languages (name)
         ON DELETE RESTRICT,
     CONSTRAINT fk_code_evaluators_sandbox_config_id_sandbox_configs
-        FOREIGN KEY
-        (sandbox_config_id)
+        FOREIGN KEY (sandbox_config_id)
         REFERENCES public.sandbox_configs (id)
         ON DELETE SET NULL,
-    CONSTRAINT fk_code_evaluators_sandbox_config_language FOREIGN KEY
-        (sandbox_config_id, language)
+    CONSTRAINT fk_code_evaluators_sandbox_config_language
+        FOREIGN KEY (sandbox_config_id, language)
         REFERENCES public.sandbox_configs (id, language)
 );
 
@@ -1602,12 +1669,11 @@ CREATE TABLE public.code_evaluator_code_versions (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_code_evaluator_code_versions PRIMARY KEY (id),
     CONSTRAINT fk_code_evaluator_code_versions_code_evaluator_id_code__3f57
-        FOREIGN KEY
-        (code_evaluator_id)
+        FOREIGN KEY (code_evaluator_id)
         REFERENCES public.code_evaluators (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_code_evaluator_code_versions_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_code_evaluator_code_versions_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -1626,11 +1692,14 @@ CREATE TABLE public.secrets (
     user_id BIGINT,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_secrets PRIMARY KEY (key),
-    CONSTRAINT fk_secrets_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_secrets_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
+
+CREATE INDEX ix_secrets_user_id ON public.secrets
+    USING btree (user_id);
 
 
 -- Table: span_annotations
@@ -1652,21 +1721,23 @@ CREATE TABLE public.span_annotations (
     CONSTRAINT pk_span_annotations PRIMARY KEY (id),
     CONSTRAINT uq_span_annotations_name_span_rowid_identifier
         UNIQUE (name, span_rowid, identifier),
-    CHECK (((annotator_kind)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_span_annotations_`valid_annotator_kind`"
+        CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
             'HUMAN'::character varying
         ])::text[]))),
-    CHECK (((source)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_span_annotations_`valid_source`"
+        CHECK (((source)::text = ANY ((ARRAY[
             'API'::character varying,
             'APP'::character varying
         ])::text[]))),
-    CONSTRAINT fk_span_annotations_span_rowid_spans FOREIGN KEY
-        (span_rowid)
+    CONSTRAINT fk_span_annotations_span_rowid_spans
+        FOREIGN KEY (span_rowid)
         REFERENCES public.spans (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_span_annotations_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_span_annotations_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -1685,8 +1756,8 @@ CREATE TABLE public.system_settings (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_by BIGINT,
     CONSTRAINT pk_system_settings PRIMARY KEY (key),
-    CONSTRAINT fk_system_settings_updated_by_users FOREIGN KEY
-        (updated_by)
+    CONSTRAINT fk_system_settings_updated_by_users
+        FOREIGN KEY (updated_by)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
@@ -1714,21 +1785,23 @@ CREATE TABLE public.trace_annotations (
     CONSTRAINT pk_trace_annotations PRIMARY KEY (id),
     CONSTRAINT uq_trace_annotations_name_trace_rowid_identifier
         UNIQUE (name, trace_rowid, identifier),
-    CHECK (((annotator_kind)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_trace_annotations_`valid_annotator_kind`"
+        CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
             'HUMAN'::character varying
         ])::text[]))),
-    CHECK (((source)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_trace_annotations_`valid_source`"
+        CHECK (((source)::text = ANY ((ARRAY[
             'API'::character varying,
             'APP'::character varying
         ])::text[]))),
-    CONSTRAINT fk_trace_annotations_trace_rowid_traces FOREIGN KEY
-        (trace_rowid)
+    CONSTRAINT fk_trace_annotations_trace_rowid_traces
+        FOREIGN KEY (trace_rowid)
         REFERENCES public.traces (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_trace_annotations_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_trace_annotations_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );

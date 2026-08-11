@@ -231,7 +231,7 @@ Commands that prompt for input or confirmation MUST support non-interactive mode
 The CLI MUST resolve configuration from multiple sources. Use `resolveConfig()` from `src/config.ts` for this merge logic. Priority:
 
 1. **CLI flags** (highest priority) — `--endpoint`, `--api-key`, `--project`
-2. **Environment variables** — `PHOENIX_HOST`, `PHOENIX_API_KEY`, `PHOENIX_PROJECT` (alias: `PHOENIX_PROJECT_NAME`)
+2. **Environment variables** — `PHOENIX_ENDPOINT`, `PHOENIX_API_KEY`, `PHOENIX_PROJECT` (alias: `PHOENIX_PROJECT_NAME`)
 3. **Defaults** — `http://localhost:6006` for endpoint
 
 Command handlers MUST NOT read environment variables directly.

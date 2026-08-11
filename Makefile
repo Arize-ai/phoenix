@@ -32,12 +32,13 @@ NC := \033[0m # No Color
 .PHONY: help check-tools \
 	setup setup-remote-export install-python install-node \
 	graphql schema-graphql relay-build \
-	openapi schema-openapi schema-generative-ui codegen-python-client codegen-ts-client codegen-ts-app \
+	openapi schema-openapi schema-generative-ui ui-message-stream-fixtures codegen-python-client codegen-ts-client codegen-ts-app \
 	dev dev-backend dev-frontend dev-docker dev-mock-llm \
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	codegen-prompts sync-models schema-ddl check-graphql-permissions gen-otel-models \
+	gen-session-filter-ai-query-vocabulary check-session-filter-ai-query-vocabulary \
 	gh-comment-watch \
 	harbor-stage-environments harbor-publish-fixtures harbor-oracle harbor-run harbor-view \
 	clean clean-all
@@ -53,6 +54,7 @@ help: ## Show this help message
 	@echo -e "  relay-build            - Build Relay from existing schema"
 	@echo -e "  schema-openapi         - Generate OpenAPI schema only"
 	@echo -e "  schema-generative-ui   - Generate Generative UI catalog schema artifacts"
+	@echo -e "  ui-message-stream-fixtures - Generate AI SDK reducer conformance fixtures"
 	@echo -e "  codegen-python-client  - Generate Python client types from OpenAPI"
 	@echo -e "  codegen-ts-client      - Generate TypeScript client types from OpenAPI"
 	@echo -e "  codegen-ts-app         - Generate TypeScript OpenAPI types for frontend (app/)"
@@ -99,8 +101,10 @@ help: ## Show this help message
 	@echo -e "$(GREEN)Utilities:$(NC)"
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
-	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL (use ARGS= for arguments)"
+	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL and SQLite (use ARGS=/SQLITE_ARGS= for arguments)"
 	@echo -e "  gen-otel-models        - Generate OTel GenAI semconv Pydantic models"
+	@echo -e "  gen-session-filter-ai-query-vocabulary   - Generate the session AI query vocabulary"
+	@echo -e "  check-session-filter-ai-query-vocabulary - Check the session AI query vocabulary for drift"
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
@@ -216,6 +220,11 @@ codegen-ts-client: ## Generate TypeScript client types from OpenAPI
 	@cd $(JS_DIR)/packages/phoenix-testing && $(PNPM) run --silent generate
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
+codegen-ts-testing: ## Generate phoenix-testing TypeScript types from OpenAPI
+	@echo -e "$(CYAN)Generating phoenix-testing TypeScript types...$(NC)"
+	@cd $(JS_DIR)/packages/phoenix-testing && $(PNPM) run --silent generate
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
 codegen-ts-app: ## Generate TypeScript OpenAPI types for app/
 	@echo -e "$(CYAN)Generating TypeScript OpenAPI types for app...$(NC)"
 	@cd $(APP_DIR) && $(PNPM) run --silent generate:openapi
@@ -226,7 +235,12 @@ schema-generative-ui: ## Generate generative UI catalog schema artifacts
 	@cd $(APP_DIR) && $(PNPM) run --silent generate:generative-ui-catalog
 	@echo -e "$(GREEN)✓ src/phoenix/server/generative_ui$(NC)"
 
-openapi: schema-openapi codegen-python-client codegen-ts-client codegen-ts-app ## Generate OpenAPI schema and all clients (full workflow)
+ui-message-stream-fixtures: ## Generate AI SDK UI-message reducer conformance fixtures
+	@echo -e "$(CYAN)Generating UI-message stream conformance fixtures...$(NC)"
+	@cd $(APP_DIR) && $(PNPM) run --silent generate:ui-message-stream-fixtures
+	@echo -e "$(GREEN)✓ tests/unit/server/agents/fixtures/ui_message_stream$(NC)"
+
+openapi: schema-openapi codegen-python-client codegen-ts-client codegen-ts-testing codegen-ts-app ## Generate OpenAPI schema and all clients (full workflow)
 	@echo -e "$(GREEN)✓ OpenAPI schema workflow complete$(NC)"
 
 #=============================================================================
@@ -292,7 +306,7 @@ typecheck-ts: ## Type check TypeScript packages (js/)
 	@echo -e "$(CYAN)Type checking TypeScript packages...$(NC)"
 	@cd $(JS_DIR) && $(PNPM) run --silent -r typecheck
 
-typecheck: typecheck-python typecheck-frontend typecheck-ts ## Type check all code (Python + frontend + TypeScript)
+typecheck: check-session-filter-ai-query-vocabulary typecheck-python typecheck-frontend typecheck-ts ## Type check all code (Python + frontend + TypeScript)
 	@echo -e "$(GREEN)✓ Type checking complete$(NC)"
 
 #=============================================================================
@@ -367,6 +381,12 @@ build-ts: ## Build TypeScript packages
 build: build-python build-frontend build-ts ## Build everything (Python + frontend + TypeScript packages)
 	@echo -e "$(GREEN)✓ Build complete$(NC)"
 
+gen-session-filter-ai-query-vocabulary: ## Generate the session AI query vocabulary
+	@$(UV) run python scripts/generate_session_filter_ai_query_vocabulary.py
+
+check-session-filter-ai-query-vocabulary: ## Check the session AI query vocabulary for drift
+	@$(UV) run python scripts/generate_session_filter_ai_query_vocabulary.py --check
+
 #=============================================================================
 # Utilities
 #=============================================================================
@@ -387,11 +407,34 @@ sync-models: ## Sync model cost manifest from remote sources
 	@$(UV) run python .github/.scripts/sync_models.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-schema-ddl: ## Compile DDL schema from PostgreSQL database (use ARGS= to pass arguments)
+# ARGS=--external points the PostgreSQL extractor at a foreign database, which
+# says nothing about SQLite; regenerating sqlite_schema.sql from ephemeral
+# migrations would overwrite a checked-in file as a side effect. SQLITE_ARGS
+# requests the SQLite step outright, so it always runs.
+ifeq (,$(strip $(SQLITE_ARGS)))
+SKIP_SQLITE := $(findstring --external,$(ARGS))
+endif
+
+# The cross-dialect comparison reads the two canonical files, so it is only
+# meaningful when this run rewrote both. Either variable may have redirected a
+# generator elsewhere, leaving a fresh file compared against a stale one.
+COMPARE_DIALECTS_ARGS := $(strip $(ARGS))$(strip $(SQLITE_ARGS))
+
+schema-ddl: ## Compile DDL schema from PostgreSQL and SQLite databases (ARGS=/SQLITE_ARGS= pass per-database arguments)
 	@echo -e "$(CYAN)Compiling DDL schema...$(NC)"
 	@$(UV) pip install --strict psycopg[binary] testing.postgresql pglast ty
 	@$(UV) pip install --no-sources --strict --reinstall-package arize-phoenix .
 	@cd scripts/ddl && $(UV) run ty check generate_ddl_postgresql.py && $(UV) run python generate_ddl_postgresql.py $(ARGS)
+ifeq (,$(SKIP_SQLITE))
+	@cd scripts/ddl && $(UV) run ty check generate_ddl_sqlite.py && $(UV) run python generate_ddl_sqlite.py $(SQLITE_ARGS)
+else
+	@echo -e "$(YELLOW)Skipping SQLite: ARGS targets an external PostgreSQL database (pass SQLITE_ARGS= to run it too)$(NC)"
+endif
+ifeq (,$(COMPARE_DIALECTS_ARGS))
+	@cd scripts/ddl && $(UV) run ty check compare_schemas.py && $(UV) run python compare_schemas.py
+else
+	@echo -e "$(YELLOW)Skipping cross-dialect comparison: ARGS/SQLITE_ARGS may not have written the canonical files$(NC)"
+endif
 
 check-graphql-permissions: ## Ensure GraphQL mutations and subscriptions have permission classes
 	@echo -e "$(CYAN)Checking GraphQL permissions...$(NC)"

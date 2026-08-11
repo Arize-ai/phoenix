@@ -1416,6 +1416,13 @@ class Project(Node):
         last: Optional[int] = None,
         after: Optional[str] = None,
         before: Optional[str] = None,
+        names: Annotated[
+            Optional[list[str]],
+            strawberry.argument(
+                description="When provided, return only annotation configs whose name "
+                "exactly matches one of the given names."
+            ),
+        ] = UNSET,
     ) -> Connection[AnnotationConfig]:
         args = ConnectionArgs(
             first=first,
@@ -1423,8 +1430,21 @@ class Project(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        loader = info.context.data_loaders.annotation_configs_by_project
-        configs = await loader.load(self.id)
+        if names:
+            stmt = (
+                select(models.AnnotationConfig)
+                .join_from(models.ProjectAnnotationConfig, models.AnnotationConfig)
+                .where(
+                    models.ProjectAnnotationConfig.project_id == self.id,
+                    models.AnnotationConfig.name.in_(names),
+                )
+                .order_by(models.AnnotationConfig.name.asc())
+            )
+            async with info.context.db.read() as session:
+                configs = tuple(await session.scalars(stmt))
+        else:
+            loader = info.context.data_loaders.annotation_configs_by_project
+            configs = await loader.load(self.id)
         data = [to_gql_annotation_config(config) for config in configs]
         return connection_from_list(data=data, args=args)
 

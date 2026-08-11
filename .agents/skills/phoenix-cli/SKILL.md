@@ -78,10 +78,12 @@ without deleting anything.
 ## Setup
 
 ```bash
-export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_ENDPOINT=http://localhost:6006
 export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if auth is enabled
 ```
+
+`PHOENIX_ENDPOINT` is the base URL for API access. It usually holds the same URL as `PHOENIX_COLLECTOR_ENDPOINT`; when only the collector variable is set, the CLI uses it for API access too.
 
 For interactive local use, `px auth login` stores an OAuth session in the selected profile; the session acts with the permissions of the user who logged in. API keys take precedence over OAuth tokens when both are configured.
 OAuth access tokens are refreshed automatically for REST, GraphQL, and PXI
@@ -147,7 +149,7 @@ px setup skills                      # install the Phoenix coding-agent skills
 
 Wire the Phoenix remote MCP server (`<endpoint>/mcp`) into a coding agent so it
 can query Phoenix data. The endpoint is inferred from `--endpoint`, the active
-profile, or `PHOENIX_HOST`. Bare command prompts for scope (global default) then
+profile, or `PHOENIX_ENDPOINT`. Bare command prompts for scope (global default) then
 agent; `--agent` skips both prompts.
 
 ```bash

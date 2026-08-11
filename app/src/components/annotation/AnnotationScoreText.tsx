@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
 import type { TextProps } from "@phoenix/components";
-import { Text } from "@phoenix/components";
+import { Text, VisuallyHidden } from "@phoenix/components";
 
 type AnnotationScoreTextProps = Omit<TextProps, "children" | "color"> & {
   /**
@@ -63,6 +63,13 @@ export function AnnotationScoreText({
 
   return (
     <Text {...textProps} data-direction={direction} css={directionCSS}>
+      {direction && (
+        <VisuallyHidden>
+          {direction === "positive"
+            ? "Favorable score: "
+            : "Unfavorable score: "}
+        </VisuallyHidden>
+      )}
       {children}
     </Text>
   );

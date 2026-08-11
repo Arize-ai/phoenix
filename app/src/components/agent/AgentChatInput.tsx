@@ -67,6 +67,7 @@ export type AgentChatInputProps = {
   textareaRef?: React.Ref<HTMLTextAreaElement>;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
+  isInputDisabled?: boolean;
   isSubmitDisabled?: boolean;
   onStop: () => void;
 };
@@ -93,6 +94,7 @@ export function AgentChatInput({
   textareaRef,
   modelMenuValue,
   onModelChange,
+  isInputDisabled,
   isSubmitDisabled,
   onStop,
 }: AgentChatInputProps) {
@@ -104,6 +106,9 @@ export function AgentChatInput({
   );
 
   const handleSubmit = (text: string) => {
+    if (isInputDisabled) {
+      return;
+    }
     // Commands parse first and are stripped; a name that collided with a skill
     // would act as a command. Skills then parse from the stripped text.
     const { commandNames, text: messageText } = parsePromptCommands(
@@ -133,6 +138,8 @@ export function AgentChatInput({
           status={status}
           value={value}
           onValueChange={onValueChange}
+          isDisabled={isInputDisabled}
+          isSubmitDisabled={isSubmitDisabled}
         >
           <AgentContextPills />
           <PromptInputBody>

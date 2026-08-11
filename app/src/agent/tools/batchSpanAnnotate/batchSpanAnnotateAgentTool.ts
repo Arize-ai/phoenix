@@ -55,6 +55,7 @@ export const batchSpanAnnotateAgentTool = defineTool<BatchSpanAnnotateInput>({
     autoOpen: true,
     scrollIntoViewOnMount: true,
   },
+  rehydratable: true,
   execute: async ({
     toolCall,
     input,

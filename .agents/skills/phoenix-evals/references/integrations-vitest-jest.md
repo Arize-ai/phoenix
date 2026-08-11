@@ -25,7 +25,7 @@ export default defineConfig({
   test: {
     include: ["**/*.eval.?(c|m)[jt]s"],
     reporters: ["default", "@arizeai/phoenix-client/vitest/reporter"],
-    setupFiles: ["dotenv/config"],  // loads PHOENIX_HOST, PHOENIX_API_KEY, ...
+    setupFiles: ["dotenv/config"],  // loads PHOENIX_ENDPOINT, PHOENIX_API_KEY, ...
     testTimeout: 30_000,            // LLM calls are slow
   },
 });
@@ -147,7 +147,7 @@ px.describe("text-to-sql", () => { /* tests log token_f1, valid_sql, latency_ms 
 
 | Variable | Purpose |
 |---|---|
-| `PHOENIX_HOST` | Phoenix base URL (the client reads this for `baseUrl` — **not** `PHOENIX_COLLECTOR_ENDPOINT`) |
+| `PHOENIX_ENDPOINT` | Phoenix base URL — usually the same URL as `PHOENIX_COLLECTOR_ENDPOINT`, which is used when this is unset |
 | `PHOENIX_API_KEY` | Bearer token |
 | `PHOENIX_CLIENT_HEADERS` | Optional JSON headers |
 | `PHOENIX_TEST_TRACKING` | `false` disables sync (dry run) |
@@ -175,7 +175,7 @@ jobs:
       - run: npm ci
       - name: Run eval suite
         env:
-          PHOENIX_HOST: ${{ secrets.PHOENIX_HOST }}
+          PHOENIX_ENDPOINT: ${{ secrets.PHOENIX_ENDPOINT }}
           PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: npm run eval

@@ -261,15 +261,19 @@
 - [Amazon Bedrock SDK JS](https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-sdk-js): Instrument Bedrock SDK in TypeScript
 - [Google GenAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing): Auto-instrument Google GenAI SDK
 - [Gemini Go SDK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk): Instrument google.golang.org/genai using OTel GenAI semantic conventions (Phoenix ingests gen_ai.* attributes)
+- [Cohere Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/cohere/cohere-tracing): Auto-instrument Cohere v2 Python client (chat and chat_stream) with openinference-instrumentation-cohere
 - [Groq Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/groq/groq-tracing): Auto-instrument Groq SDK
 - [LiteLLM Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing): Auto-instrument LiteLLM unified API calls
 - [MistralAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai/mistralai-tracing): Auto-instrument MistralAI SDK
+- [Ollama Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/ollama/ollama-tracing): Instrument the Ollama Python client with openinference-instrumentation-ollama
 - [OpenRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing): Trace OpenRouter API calls
 - [OrcaRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing): Auto-instrument OrcaRouter via its OpenAI-compatible endpoint with openinference-instrumentation-openai
+- [Together AI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/together/together-tracing): Auto-instrument the Together AI Python SDK with openinference-instrumentation-together
 - [VertexAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing): Auto-instrument VertexAI SDK
 
 ### Python Frameworks
 
+- [AG2 Tracing](https://arize.com/docs/phoenix/integrations/python/ag2/ag2-tracing): Auto-instrument AG2 multi-agent applications
 - [Agno Tracing](https://arize.com/docs/phoenix/integrations/python/agno/agno-tracing): Auto-instrument Agno agent workflows
 - [AgentSpec Tracing](https://arize.com/docs/phoenix/integrations/python/agentspec/agentspec-tracing): Auto-instrument AgentSpec agents
 - [AutoGen Tracing](https://arize.com/docs/phoenix/integrations/python/autogen/autogen-tracing): Auto-instrument AutoGen conversations
@@ -388,9 +392,11 @@
 - [Groq Integration](https://arize.com/docs/phoenix/integrations/llm-providers/groq): Trace Groq's low-latency LPU inference calls in Phoenix
 - [LiteLLM Integration](https://arize.com/docs/phoenix/integrations/llm-providers/litellm): Trace and evaluate calls routed through LiteLLM's unified 100+ model interface
 - [MistralAI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai): Trace and evaluate Mistral open-weight model calls in Phoenix
+- [Ollama Integration](https://arize.com/docs/phoenix/integrations/llm-providers/ollama): Trace chat calls made with the local Ollama Python client in Phoenix
 - [OpenAI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/openai): Pick an OpenAI tracing or evals path across Python, Node.js, Go, and Agents SDK
 - [OpenRouter Integration](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter): Trace calls routed through OpenRouter's unified multi-model API
 - [OrcaRouter Integration](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter): Trace calls through OrcaRouter's OpenAI-compatible gateway to 200+ models
+- [Together AI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/together): Trace Together AI's fast open-source model inference calls in Phoenix
 - [VertexAI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai): Trace and evaluate Google Cloud Vertex AI model calls in Phoenix
 
 ## Settings
@@ -599,6 +605,9 @@
 - [Get Experiment By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/get-experiment-by-id): GET /v1/experiments/{experiment_id} — fetch experiment metadata
 - [Update An Experiment By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/update-an-experiment-by-id): PATCH /v1/experiments/{experiment_id} — partially update name, description, or metadata; patching an ephemeral experiment extends its sweep window
 - [Delete Experiment By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/delete-experiment-by-id): DELETE /v1/experiments/{experiment_id} — delete an experiment and its runs
+- [List The Tags Applied To An Experiment](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-the-tags-applied-to-an-experiment): GET /v1/experiments/{experiment_id}/tags — list the dataset-scoped tags this experiment currently owns
+- [Assign A Tag To An Experiment](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/assign-a-tag-to-an-experiment): POST /v1/experiments/{experiment_id}/tags — assign a tag (e.g. `baseline`), moving it off any other experiment on the same dataset
+- [Remove A Tag From An Experiment](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/remove-a-tag-from-an-experiment): DELETE /v1/experiments/{experiment_id}/tags/{tag_name} — remove a tag from the experiment that owns it (idempotent)
 - [Download Experiment Runs As JSON](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-json-file): GET /v1/experiments/{experiment_id}/json — export full experiment runs as JSON
 - [Download Experiment Runs As CSV](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-csv-file): GET /v1/experiments/{experiment_id}/csv — export experiment runs as CSV
 - [List Runs For An Experiment](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-runs-for-an-experiment): GET /v1/experiments/{experiment_id}/runs — list run rows for an experiment

@@ -63,4 +63,29 @@ jobs:
           if [[ "${PXI_DRY_RUN}" == "true" ]]; then
             args+=(--dry-run)
           fi
+          args+=(--summary-json "${RUNNER_TEMP}/pxi-online-evals-summary.json")
           uv run python -m evals.pxi.online_evals.run "${args[@]}"
+      - name: Upload evaluation summary
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: pxi-online-evals-summary
+          path: ${{ runner.temp }}/pxi-online-evals-summary.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  slack-notification:
+    name: Slack notification
+    needs: [evaluate]
+    if: ${{ always() && needs.evaluate.result == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify failure
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": ":x: PXI Online Evals failed for `${{ env.PHOENIX_PROJECT }}`\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }

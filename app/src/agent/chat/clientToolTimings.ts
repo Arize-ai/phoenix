@@ -22,6 +22,10 @@ export function createClientToolTimingRecorder({
         timing.endedAt = getCurrentTime().toISOString();
       }
     },
+    isInFlight: (toolCallId: string): boolean => {
+      const timing = timingsByToolCallId.get(toolCallId);
+      return timing != null && timing.endedAt == null;
+    },
     get: (toolCallId: string): Required<ToolTiming> | null => {
       const timing = timingsByToolCallId.get(toolCallId);
       return timing?.endedAt != null

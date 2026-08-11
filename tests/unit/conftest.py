@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import os
 from asyncio import AbstractEventLoop
@@ -22,7 +23,7 @@ from pytest import FixtureRequest
 from pytest_postgresql.janitor import DatabaseJanitor
 from sqlalchemy import URL, StaticPool
 from sqlalchemy.dialects import postgresql, sqlite
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, create_async_engine
 from starlette.types import ASGIApp
 
 from phoenix.db import models
@@ -280,6 +281,31 @@ async def _sqlite_test_conn(
         pass
 
 
+def _serialized(
+    factory: Callable[[], contextlib.AbstractAsyncContextManager[AsyncSession]],
+) -> Callable[[], contextlib.AbstractAsyncContextManager[AsyncSession]]:
+    """Give sessions exclusive use of the connection these fixtures share.
+
+    Tests bind every session to one `AsyncConnection` held open under a
+    transaction and savepoint, so a test rolls back wholesale. Concurrent
+    sessions would then interleave transaction boundaries on a connection none
+    of them owns, and one rollback would remove a savepoint another still
+    needs.
+
+    Production shares nothing: its pool hands out a connection per checkout, so
+    the serialisation belongs to the fixture that creates the sharing.
+    """
+    lock = asyncio.Lock()
+
+    @contextlib.asynccontextmanager
+    async def serialized() -> AsyncIterator[AsyncSession]:
+        async with lock:
+            async with factory() as session:
+                yield session
+
+    return serialized
+
+
 @pytest.fixture(scope="function")
 def db(
     request: SubRequest,
@@ -287,7 +313,7 @@ def db(
 ) -> DbSessionFactory:
     if dialect == "sqlite":
         conn = request.getfixturevalue("_sqlite_test_conn")
-        return DbSessionFactory(db=_db(conn), dialect=dialect)
+        return DbSessionFactory(db=_serialized(_db(conn)), dialect=dialect)
     elif dialect == "postgresql":
         engine = request.getfixturevalue("postgresql_engine")
         return DbSessionFactory(db=_db(engine), dialect=dialect)

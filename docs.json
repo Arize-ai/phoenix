@@ -533,6 +533,13 @@
                 ]
               },
               {
+                "group": "Cohere",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/cohere",
+                  "docs/phoenix/integrations/llm-providers/cohere/cohere-tracing"
+                ]
+              },
+              {
                 "group": "Google",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/google-gen-ai",
@@ -562,6 +569,13 @@
                 ]
               },
               {
+                "group": "Ollama",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/ollama",
+                  "docs/phoenix/integrations/llm-providers/ollama/ollama-tracing"
+                ]
+              },
+              {
                 "group": "OpenAI",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/openai",
@@ -583,6 +597,13 @@
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/orcarouter",
                   "docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing"
+                ]
+              },
+              {
+                "group": "Together AI",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/together",
+                  "docs/phoenix/integrations/llm-providers/together/together-tracing"
                 ]
               },
               {
@@ -649,6 +670,13 @@
             "group": "Python",
             "icon": "python",
             "pages": [
+              {
+                "group": "AG2",
+                "pages": [
+                  "docs/phoenix/integrations/python/ag2",
+                  "docs/phoenix/integrations/python/ag2/ag2-tracing"
+                ]
+              },
               {
                 "group": "Agent Spec",
                 "pages": [
@@ -1054,6 +1082,9 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/get-experiment-by-id",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/update-an-experiment-by-id",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/delete-experiment-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-the-tags-applied-to-an-experiment",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/assign-a-tag-to-an-experiment",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/remove-a-tag-from-an-experiment",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-json-file",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-csv-file",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-runs-for-an-experiment",
@@ -1340,6 +1371,12 @@
             "group": " ",
             "pages": [
               "docs/phoenix/release-notes",
+              {
+                "group": "08.2026",
+                "pages": [
+                  "docs/phoenix/release-notes/08-2026/08-04-2026-chat-completions-proxy-ai-query-and-annotation-charts"
+                ]
+              },
               {
                 "group": "07.2026",
                 "pages": [

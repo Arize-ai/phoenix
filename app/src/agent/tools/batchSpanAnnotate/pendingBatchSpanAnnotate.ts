@@ -85,6 +85,7 @@ export function bindPendingBatchSpanAnnotateActions({
         tool: BATCH_SPAN_ANNOTATE_TOOL_NAME,
         toolCallId: pendingAnnotation.toolCallId,
         errorText: BATCH_SPAN_ANNOTATE_NAVIGATION_CANCEL_ERROR,
+        outcome: "interrupted",
       });
     },
   };

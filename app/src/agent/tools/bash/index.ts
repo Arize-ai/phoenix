@@ -1,23 +1,6 @@
 // --- Bash tool ---
 export { BASH_TOOL_NAME } from "./constants";
-export { bashAgentTool } from "./bashAgentTool";
 export { getBashToolInput, getBashToolSummary } from "./bashToolSchema";
-export {
-  applyBashToolFilesystemPolicy,
-  BASH_TOOL_WORKSPACE_ROOT,
-} from "./bashToolFilesystemPolicy";
-export {
-  clearBashToolRuntime,
-  garbageCollectBashToolRuntimes,
-  getBashToolSessionKey,
-  getOrCreateBashToolRuntime,
-} from "./bashToolSessionRegistry";
-export {
-  createBashToolRuntime,
-  DEFAULT_BASH_TOOL_CWD,
-  DEFAULT_BASH_TOOL_EXECUTION_LIMITS,
-} from "./bashToolRuntime";
-export type { BashToolFilesystemPolicy } from "./bashToolFilesystemPolicy";
 export type { BashToolInput } from "./bashToolSchema";
 export {
   getBashToolCommandDisplayResult,
@@ -26,5 +9,4 @@ export {
 export type {
   BashToolCommandDisplayResult,
   BashToolCommandResult,
-  BashToolRuntime,
 } from "./bashToolTypes";

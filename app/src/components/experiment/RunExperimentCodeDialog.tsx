@@ -21,8 +21,8 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 function getSetBaseUrlPython({ isAuthEnabled }: { isAuthEnabled: boolean }) {
   let setBaseURLPython =
     `import os\n` +
-    `# Set the phoenix base url to point to your Phoenix instance \n` +
-    `os.environ["PHOENIX_BASE_URL"] = "${BASE_URL}"`;
+    `# Point Phoenix at your instance \n` +
+    `os.environ["PHOENIX_ENDPOINT"] = "${BASE_URL}"`;
   if (isAuthEnabled) {
     setBaseURLPython +=
       `\n` +

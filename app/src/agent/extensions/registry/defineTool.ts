@@ -1,16 +1,27 @@
 import type { Chat } from "@ai-sdk/react";
 
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import type {
+  AgentUIMessage,
+  AgentUIMessagePart,
+} from "@phoenix/agent/chat/types";
 import type { components } from "@phoenix/api/__generated__/v1";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import type { AgentCapabilities, AgentCapabilityKey } from "../capabilities";
 
-export type AddToolOutput = Chat<AgentUIMessage>["addToolOutput"];
-export type AppendMessagePart = (part: AgentUIMessage["parts"][number]) => void;
+export type AgentToolOutput = Parameters<
+  Chat<AgentUIMessage>["addToolOutput"]
+>[0] & {
+  outcome?: "interrupted";
+};
 
-type ToolCallProviderMetadata =
-  components["schemas"]["ToolCallProviderMetadata"];
+export type AddToolOutput = (
+  toolOutput: AgentToolOutput
+) => void | PromiseLike<void>;
+export type AppendMessagePart = (part: AgentUIMessagePart) => void;
+
+type PhoenixToolCallProviderMetadata =
+  components["schemas"]["PhoenixToolCallProviderMetadata"];
 
 /**
  * Minimal tool-call shape produced by the AI SDK runtime.
@@ -20,7 +31,7 @@ export type AgentToolCall = {
   toolName: string;
   input: unknown;
   providerMetadata?: {
-    phoenix?: ToolCallProviderMetadata;
+    phoenix?: PhoenixToolCallProviderMetadata;
   };
 };
 
@@ -59,15 +70,14 @@ export type AgentToolDefinition = {
   name: string;
   uiBehavior?: AgentToolUIBehavior;
   requiredCapabilities?: AgentCapabilityKey[];
+  /** Safe to re-dispatch on reload: dispatch only shows an Accept/Reject prompt. */
+  rehydratable?: boolean;
   /**
    * Parse the raw tool-call input and execute the handler. Emits an
    * `output-error` itself when the input fails to parse. The kernel calls this
    * only after the server-environment guard and capability gate have passed.
    */
   dispatch: (context: AgentToolDispatchContext) => Promise<void>;
-  // TODO(pending-tool-rehydration): a future `rehydration?` field can declare
-  // how a pending tool serializes its UI state and rebinds runtime
-  // dependencies, replacing each tool's bespoke Zustand + page-level logic.
 };
 
 /** Resolves a tool's invalid-input message, which may depend on the input. */
@@ -94,6 +104,8 @@ function resolveInvalidInputErrorText(
  * @param config.invalidInputErrorText - message (or builder) for invalid input
  * @param config.requiredCapabilities - capability keys gated by the kernel
  * @param config.uiBehavior - chat UI surfacing hints
+ * @param config.rehydratable - dispatch only shows an approval prompt, so
+ * re-dispatching on page reload is safe
  * @param config.execute - handler invoked with parsed input
  */
 export function defineTool<TInput>(config: {
@@ -102,12 +114,14 @@ export function defineTool<TInput>(config: {
   invalidInputErrorText: string | ((input: unknown) => string);
   requiredCapabilities?: AgentCapabilityKey[];
   uiBehavior?: AgentToolUIBehavior;
+  rehydratable?: boolean;
   execute: (context: AgentToolHandlerContext<TInput>) => Promise<void>;
 }): AgentToolDefinition {
   return {
     name: config.name,
     uiBehavior: config.uiBehavior,
     requiredCapabilities: config.requiredCapabilities,
+    rehydratable: config.rehydratable,
     dispatch: async (context) => {
       const input = config.parseInput(context.toolCall.input);
       if (input == null) {

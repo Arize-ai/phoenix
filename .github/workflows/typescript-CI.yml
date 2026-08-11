@@ -33,6 +33,7 @@ jobs:
               - "app/**"
               - "schemas/openapi.json"
               - "src/phoenix/server/generative_ui/**"
+              - "tests/unit/server/agents/fixtures/ui_message_stream/**"
               - ".oxlintrc.json"
               - ".oxfmtrc.jsonc"
               - ".nvmrc"
@@ -84,6 +85,10 @@ jobs:
       - name: Generative UI Schema Codegen
         run: |
           make schema-generative-ui
+          git diff --exit-code
+      - name: UI Message Stream Fixture Codegen
+        run: |
+          make ui-message-stream-fixtures
           git diff --exit-code
       - name: Test
         working-directory: ./app

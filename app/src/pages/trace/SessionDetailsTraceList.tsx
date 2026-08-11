@@ -14,7 +14,7 @@ import {
   useDefaultLayout,
 } from "react-resizable-panels";
 import type { To } from "react-router";
-import { useLocation, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -32,6 +32,8 @@ import {
   Truncate,
   View,
 } from "@phoenix/components";
+import { MessageActions } from "@phoenix/components/ai/message/MessageActions";
+import { MessageCopyAction } from "@phoenix/components/ai/message/MessageCopyAction";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
@@ -59,7 +61,7 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { TraceFeedbackActionToolbar } from "./TraceFeedbackActionToolbar";
+import { TraceActionToolbar } from "./TraceActionToolbar";
 
 export const sessionDetailsTraceListQuery = graphql`
   query SessionDetailsTraceListQuery($id: ID!, $first: Int!) {
@@ -253,8 +255,9 @@ function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
               <LatencyText latencyMs={rootSpan.latencyMs} />
             ) : null}
           </Flex>
-          <TraceFeedbackActionToolbar
+          <TraceActionToolbar
             trace={rootSpan.trace}
+            copyText={rootSpan.output?.value}
             onAnnotate={() => {
               setIsAnnotationDialogOpen(true);
             }}
@@ -349,6 +352,8 @@ function SessionTurnDetail({
 }: RootSpanProps & { traceId: string; index: number }) {
   const user = getUserFromRootSpanAttributes(rootSpan.attributes);
   const inputLabel = user != null ? `USER: ${user}` : "INPUT";
+  const inputText = rootSpan.input?.value ?? "";
+  const hasInputText = Boolean(inputText.trim());
 
   return (
     <Flex direction="column" gap="size-200">
@@ -365,7 +370,20 @@ function SessionTurnDetail({
           role="INPUT"
           value={rootSpan.input?.value}
         />
-        <RootSpanStartTime rootSpan={rootSpan} />
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          width="100%"
+          gap="size-100"
+        >
+          <RootSpanStartTime rootSpan={rootSpan} />
+          {hasInputText ? (
+            <MessageActions aria-label="Input message actions">
+              <MessageCopyAction text={inputText} />
+            </MessageActions>
+          ) : null}
+        </Flex>
       </Flex>
       <Flex
         direction="column"
@@ -381,7 +399,7 @@ function SessionTurnDetail({
   );
 }
 
-type SessionTurnRow = {
+export type SessionTurnRow = {
   traceId: string;
   rootSpan: SessionTraceRootSpan;
 };
@@ -446,14 +464,16 @@ const turnListCSS = css`
   }
 `;
 
-function SessionTurnList({
+export function SessionTurnList({
   rows,
   selectedTraceId,
   onTurnClick,
+  onTurnDoubleClick,
 }: {
   rows: ReadonlyArray<SessionTurnRow>;
   selectedTraceId: string | null;
   onTurnClick: (traceId: string) => void;
+  onTurnDoubleClick: (turn: { traceId: string; spanNodeId: string }) => void;
 }) {
   const { fullTimeFormatter } = useTimeFormatters();
   const indexedRows: IndexedSessionTurnRow[] = rows.map((row, index) => ({
@@ -480,7 +500,16 @@ function SessionTurnList({
         const paddedIndex = String(row.index + 1).padStart(2, "0");
         const turnLabel = `${paddedIndex} | ${row.rootSpan.name}`;
         return (
-          <ListBoxItem id={row.traceId} textValue={turnLabel}>
+          <ListBoxItem
+            id={row.traceId}
+            textValue={turnLabel}
+            onDoubleClick={() =>
+              onTurnDoubleClick({
+                traceId: row.traceId,
+                spanNodeId: row.rootSpan.id,
+              })
+            }
+          >
             <Flex direction="column" gap="size-50">
               <Flex
                 direction="row"
@@ -597,7 +626,7 @@ export function SessionDetailsTraceList({
                 trace {
                   id
                   ...TraceAnnotationSummaryGroup
-                  ...TraceFeedbackActionToolbar_trace
+                  ...TraceActionToolbar_trace
                   costSummary {
                     total {
                       cost
@@ -672,6 +701,8 @@ export function SessionDetailsTraceList({
     storage: localStorage,
   });
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const selectedTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
 
   const handleTurnClick = (traceId: string) => {
@@ -681,6 +712,23 @@ export function SessionDetailsTraceList({
         return params;
       },
       { replace: true }
+    );
+  };
+
+  const handleTurnDoubleClick = ({
+    traceId,
+    spanNodeId,
+  }: {
+    traceId: string;
+    spanNodeId: string;
+  }) => {
+    navigate(
+      getSessionTraceUrl({
+        pathname: location.pathname,
+        search: location.search,
+        traceId,
+        spanNodeId,
+      })
     );
   };
 
@@ -723,6 +771,7 @@ export function SessionDetailsTraceList({
         rows={sessionRootSpans}
         selectedTraceId={selectedTraceId}
         onTurnClick={handleTurnClick}
+        onTurnDoubleClick={handleTurnDoubleClick}
       />
     </div>
   );

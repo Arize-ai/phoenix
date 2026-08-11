@@ -135,7 +135,7 @@ export const ENDPOINT = {
   headlessNeedsEndpoint: [
     "Missing endpoint. Provide one of:",
     "  --endpoint <url>",
-    "  PHOENIX_HOST=<url> (or PHOENIX_COLLECTOR_ENDPOINT=<url>)",
+    "  PHOENIX_ENDPOINT=<url> (or PHOENIX_COLLECTOR_ENDPOINT=<url>)",
   ].join("\n"),
 } as const;
 
@@ -292,6 +292,13 @@ export const VERIFY = {
   notVerifiedBody: (tracesUrl: string) =>
     [
       `Your first trace will appear at ${tracesUrl}`,
+      "",
+      // The failure mode that looks like success: an exporter pointed at the
+      // base URL POSTs to the wrong path, and batching swallows the error.
+      "Most often the exporter is posting to the wrong URL. An exporter that POSTs to",
+      "exactly the URL it is given needs the full OTLP URL, /v1/traces included — build",
+      "it in code from the endpoint variable.",
+      "",
       `Not seeing traces? ${DOCS.troubleshooting}`,
     ].join("\n"),
 } as const;

@@ -39,6 +39,31 @@ const assistantMessageCSS = css`
   align-self: flex-start;
   max-width: 100%;
   width: 100%;
+
+  /* Mirrors the chat's compaction-divider treatment so turn-level notices
+     share one visual language, in the warning palette the interrupted
+     recovery notice already uses. */
+  .assistant-message__interrupted {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
+    width: 100%;
+    margin: var(--global-dimension-size-100) 0;
+    color: var(--global-color-warning-700);
+    font-size: var(--global-font-size-xs);
+  }
+
+  .assistant-message__interrupted::before,
+  .assistant-message__interrupted::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background-color: var(--global-color-warning-500);
+  }
+
+  .assistant-message__interrupted-label {
+    flex: none;
+  }
 `;
 
 // ---------------------------------------------------------------------------
@@ -115,11 +140,13 @@ export function AssistantMessage({
   allowRewind?: boolean;
 }) {
   const segments = partitionMessageParts(message.parts);
+  const isInterrupted =
+    getAssistantMessageMetadata(message)?.interrupted === true;
 
   return (
     <Message from="assistant" data-pin-toolbar={pinToolbar || undefined}>
       <MessageContent>
-        <div css={assistantMessageCSS}>
+        <div css={assistantMessageCSS} className="assistant-message">
           {segments.map((segment) => {
             switch (segment.kind) {
               case "text":
@@ -148,6 +175,15 @@ export function AssistantMessage({
                 return null;
             }
           })}
+          {isInterrupted ? (
+            <div className="assistant-message__interrupted" role="status">
+              <span className="assistant-message__interrupted-label">
+                {segments.length > 0
+                  ? "Response interrupted"
+                  : "Interrupted before a response was generated"}
+              </span>
+            </div>
+          ) : null}
         </div>
       </MessageContent>
       {showActions ? (
@@ -158,7 +194,9 @@ export function AssistantMessage({
               role="assistant"
               onRequest={onRewindRequest}
               showRewind={allowRewind}
-              traceId={getAssistantMessageMetadata(message)?.trace?.traceId}
+              traceId={
+                getAssistantMessageMetadata(message)?.turnTraceContext?.traceId
+              }
             />
           ) : null}
         </AssistantMessageActions>
