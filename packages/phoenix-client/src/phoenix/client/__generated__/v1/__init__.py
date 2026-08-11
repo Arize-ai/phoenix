@@ -1261,6 +1261,7 @@ class PhoenixToolCallCallbackProviderMetadata(TypedDict):
     toolInputEmittedAt: NotRequired[str]
     clientStartedAt: NotRequired[str]
     clientEndedAt: NotRequired[str]
+    outcome: NotRequired[str]
 
 
 class PhoenixToolCallProviderMetadata(TypedDict):
@@ -1948,6 +1949,10 @@ class GetSessionResponseBody(TypedDict):
 class GetSessionsResponseBody(TypedDict):
     data: Sequence[SessionData]
     next_cursor: Optional[str]
+
+
+class GetTraceResponseBody(TypedDict):
+    data: TraceData
 
 
 class GetTracesResponseBody(TypedDict):

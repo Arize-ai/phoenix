@@ -811,7 +811,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get a single trace by identifier
+         * @description Fetch a single trace by its identifier, without requiring a project. The identifier can be either:
+         *     1. A Relay node ID (base64-encoded GlobalID)
+         *     2. An OpenTelemetry trace_id (hex string)
+         *
+         *     Returns the same trace shape as the project traces list endpoint, including cumulative token counts and the owning `project_id`. Span details are not included; use `GET /projects/{project_identifier}/spans?trace_id=...` to retrieve spans.
+         */
+        get: operations["getTrace"];
         put?: never;
         post?: never;
         /**
@@ -3466,6 +3474,10 @@ export interface components {
             data: components["schemas"]["SessionData"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** GetTraceResponseBody */
+        GetTraceResponseBody: {
+            data: components["schemas"]["TraceData"];
         };
         /** GetTracesResponseBody */
         GetTracesResponseBody: {
@@ -9901,6 +9913,56 @@ export interface operations {
                 };
             };
             /** @description Trace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getTrace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The trace identifier: either a relay GlobalID or OpenTelemetry trace_id */
+                trace_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetTraceResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
