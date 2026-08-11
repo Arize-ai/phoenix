@@ -152,6 +152,41 @@ export const AGENT_SESSION_CREATE: RouteRequirement = {
   minServerVersion: [20, 0, 0],
 };
 
+export const AGENT_SESSION_LIST: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/agent_sessions",
+  minServerVersion: [20, 0, 0],
+};
+
+export const AGENT_SESSION_GET: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/agent_sessions/{session_id}",
+  minServerVersion: [20, 0, 0],
+};
+
+export const AGENT_SESSION_PATCH: RouteRequirement = {
+  kind: "route",
+  method: "PATCH",
+  path: "/v1/agent_sessions/{session_id}",
+  minServerVersion: [20, 0, 0],
+};
+
+export const AGENT_SESSION_COMPACT: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/agent_sessions/{session_id}/compact",
+  minServerVersion: [20, 0, 0],
+};
+
+export const AGENT_SESSION_TOOL_OUTPUTS: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/agent_sessions/{session_id}/tool_outputs",
+  minServerVersion: [20, 0, 0],
+};
+
 export const AGENT_SESSION_CHAT: RouteRequirement = {
   kind: "route",
   method: "POST",
@@ -191,6 +226,11 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   ADD_SESSION_NOTE_IDENTIFIER,
   PATCH_PROMPT,
   AGENT_SESSION_CREATE,
+  AGENT_SESSION_LIST,
+  AGENT_SESSION_GET,
+  AGENT_SESSION_PATCH,
+  AGENT_SESSION_COMPACT,
+  AGENT_SESSION_TOOL_OUTPUTS,
   AGENT_SESSION_CHAT,
   AGENT_SESSION_MESSAGES,
 ] as const;

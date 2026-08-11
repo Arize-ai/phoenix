@@ -6,6 +6,7 @@ import {
   isSameModelSelection,
   resolveRestoredPxiModelSelection,
   runPxiModelPreflight,
+  runPxiServerVersionPreflight,
 } from "../src/pxi/preflight";
 
 type FetchCall = {
@@ -539,5 +540,54 @@ describe("PXI model preflight", () => {
     expect(message).toContain("Cause: connect ECONNREFUSED 127.0.0.1:6006");
     expect(message).toContain("pass --endpoint <url> or set PHOENIX_ENDPOINT");
     expect(message).toContain("pass --skip-model-preflight");
+  });
+});
+
+describe("PXI server version preflight", () => {
+  function createVersionFetch({
+    body,
+    status = 200,
+  }: {
+    body: string;
+    status?: number;
+  }) {
+    const calls: string[] = [];
+    const fetchImpl: typeof globalThis.fetch = async (input) => {
+      calls.push(input instanceof Request ? input.url : String(input));
+      return new Response(body, { status });
+    };
+    return { fetchImpl, calls };
+  }
+
+  it("passes when the server meets the agent-session contract version, checking every capability with a single version request", async () => {
+    const options = createRuntimeOptions();
+    const { fetchImpl, calls } = createVersionFetch({ body: "20.0.0" });
+
+    await runPxiServerVersionPreflight({ options, fetchImpl });
+
+    expect(calls).toEqual(["http://localhost:6006/arize_phoenix_version"]);
+  });
+
+  it("rejects a server that predates the agent-session contract with an upgrade message", async () => {
+    const options = createRuntimeOptions();
+    const { fetchImpl } = createVersionFetch({ body: "19.21.0" });
+
+    await expect(
+      runPxiServerVersionPreflight({ options, fetchImpl })
+    ).rejects.toThrow(
+      /requires Phoenix server >= 20\.0\.0, but connected to server 19\.21\.0/
+    );
+  });
+
+  it("rejects when the server version cannot be determined", async () => {
+    const options = createRuntimeOptions();
+    const { fetchImpl } = createVersionFetch({
+      body: "Not Found",
+      status: 404,
+    });
+
+    await expect(
+      runPxiServerVersionPreflight({ options, fetchImpl })
+    ).rejects.toThrow(/version could not be determined/i);
   });
 });

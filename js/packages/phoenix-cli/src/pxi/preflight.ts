@@ -1,3 +1,16 @@
+import {
+  AGENT_SESSION_CHAT,
+  AGENT_SESSION_COMPACT,
+  AGENT_SESSION_CREATE,
+  AGENT_SESSION_GET,
+  AGENT_SESSION_LIST,
+  AGENT_SESSION_MESSAGES,
+  AGENT_SESSION_PATCH,
+  ensureServerCapability,
+  type CapabilityRequirement,
+} from "@arizeai/phoenix-client";
+
+import { createPhoenixClient } from "../client";
 import { buildGraphqlRequest } from "../commands/api";
 import type { PhoenixConfig } from "../config";
 import { InvalidArgumentError } from "../exitCodes";
@@ -446,6 +459,44 @@ export async function runPxiModelPreflight({
     data,
     modelSelection,
   });
+}
+
+/**
+ * Agent-session capabilities every PXI run depends on. All of them shipped in
+ * the same server release, so a single version check covers the set; keeping
+ * the full list here documents exactly which routes PXI drives.
+ */
+const PXI_SERVER_CAPABILITIES: readonly CapabilityRequirement[] = [
+  AGENT_SESSION_CREATE,
+  AGENT_SESSION_LIST,
+  AGENT_SESSION_GET,
+  AGENT_SESSION_PATCH,
+  AGENT_SESSION_MESSAGES,
+  AGENT_SESSION_COMPACT,
+  AGENT_SESSION_CHAT,
+];
+
+/**
+ * Fail fast when the Phoenix server predates the agent-session contract PXI
+ * chats over. Runs once at startup, before the UI renders, so an old server
+ * surfaces a clear upgrade message instead of a 404 on the first send. The
+ * server version is fetched once and cached by the client, so checking every
+ * capability costs a single request.
+ */
+export async function runPxiServerVersionPreflight({
+  options,
+  fetchImpl,
+}: {
+  options: PxiRuntimeOptions;
+  fetchImpl?: typeof globalThis.fetch;
+}): Promise<void> {
+  const client = createPhoenixClient({
+    config: options.config,
+    fetch: fetchImpl,
+  });
+  for (const requirement of PXI_SERVER_CAPABILITIES) {
+    await ensureServerCapability({ client, requirement });
+  }
 }
 
 /** Whether two selections name the same provider and model. */
