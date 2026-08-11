@@ -461,11 +461,7 @@ export async function runPxiModelPreflight({
   });
 }
 
-/**
- * Agent-session capabilities every PXI run depends on. All of them shipped in
- * the same server release, so a single version check covers the set; keeping
- * the full list here documents exactly which routes PXI drives.
- */
+/** Agent-session capabilities every PXI run depends on. */
 const PXI_SERVER_CAPABILITIES: readonly CapabilityRequirement[] = [
   AGENT_SESSION_CREATE,
   AGENT_SESSION_LIST,
@@ -477,11 +473,9 @@ const PXI_SERVER_CAPABILITIES: readonly CapabilityRequirement[] = [
 ];
 
 /**
- * Fail fast when the Phoenix server predates the agent-session contract PXI
- * chats over. Runs once at startup, before the UI renders, so an old server
- * surfaces a clear upgrade message instead of a 404 on the first send. The
- * server version is fetched once and cached by the client, so checking every
- * capability costs a single request.
+ * Fail fast at startup when the Phoenix server predates the agent-session
+ * contract, surfacing an upgrade message instead of a 404 on the first send.
+ * The client caches the server version, so the whole check costs one request.
  */
 export async function runPxiServerVersionPreflight({
   options,

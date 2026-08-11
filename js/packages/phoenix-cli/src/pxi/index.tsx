@@ -15,11 +15,9 @@ import {
 /**
  * Entry point for the `pxi` command.
  *
- * Parses CLI flags into runtime options, runs the model preflight (verifying
- * the chosen provider/model is available and credentialed on the Phoenix
- * server) and the server version guard (verifying the server supports the
- * agent-session chat contract) before anything is drawn, then mounts the Ink
- * chat UI and blocks until the user exits. Preflights run first so
+ * Parses CLI flags into runtime options, runs the preflights (model
+ * availability and server version) before anything is drawn, then mounts the
+ * Ink chat UI and blocks until the user exits. Preflights run first so
  * configuration problems surface as a clean error instead of a half-rendered
  * terminal.
  */
@@ -29,9 +27,7 @@ export async function main({
   argv?: string[];
 } = {}): Promise<void> {
   const options = await parsePxiRuntimeOptions({ argv });
-  // Model preflight first: its endpoint/network failures carry the most
-  // actionable messages. The version guard then rejects servers that predate
-  // the agent-session chat contract before the UI renders.
+  // Model preflight first: its failures carry the more actionable messages.
   await runPxiModelPreflight({ options });
   await runPxiServerVersionPreflight({ options });
   // Ink's kitty-keyboard "auto" detection writes a `CSI ? u` capability query to

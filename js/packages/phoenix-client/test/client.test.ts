@@ -48,9 +48,7 @@ describe("non-2xx responses", () => {
 });
 
 describe("getServerVersion", () => {
-  // The version endpoint must go through the configured fetch (not the
-  // global), so custom transports — OAuth token refresh, test doubles — cover
-  // capability checks too.
+  // Custom transports (e.g. OAuth token refresh) must cover version checks.
   it("fetches the version via the configured fetch", async () => {
     const urls: string[] = [];
     const client = createClient({
