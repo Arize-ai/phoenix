@@ -16,7 +16,7 @@ from openinference.semconv.trace import (
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import StatusCode, Tracer
+from opentelemetry.trace import INVALID_SPAN, StatusCode, Tracer
 from pydantic import SecretStr
 
 from phoenix.db import models
@@ -51,7 +51,6 @@ from phoenix.server.api.helpers.playground_clients import (
     _resolve_provider_api_key,
     get_openai_client_class,
 )
-from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
@@ -680,7 +679,7 @@ class TestGetOpenAIClientClass:
 
     def test_openai_chat_completions_reasoning_model_returns_reasoning_client(self) -> None:
         """Reasoning models (o1, o3) with CHAT_COMPLETIONS should return reasoning client."""
-        for model_name in ["o1", "o3", "o3-mini"]:
+        for model_name in ["o1", "o3", "o3-mini", "gpt-5.6-luna"]:
             client_class = get_openai_client_class(
                 GenerativeProviderKey.OPENAI,
                 model_name,
@@ -747,12 +746,15 @@ class TestGetOpenAIClientClass:
 
     def test_azure_chat_completions_reasoning_model_returns_reasoning_client(self) -> None:
         """Azure reasoning models with CHAT_COMPLETIONS should return reasoning client."""
-        client_class = get_openai_client_class(
-            GenerativeProviderKey.AZURE_OPENAI,
-            "o1",
-            OpenAIApiType.CHAT_COMPLETIONS,
-        )
-        assert client_class is AzureOpenAIReasoningNonStreamingClient
+        for model_name in ["o1", "gpt-5.6-luna"]:
+            client_class = get_openai_client_class(
+                GenerativeProviderKey.AZURE_OPENAI,
+                model_name,
+                OpenAIApiType.CHAT_COMPLETIONS,
+            )
+            assert client_class is AzureOpenAIReasoningNonStreamingClient, (
+                f"Failed for {model_name}"
+            )
 
     def test_azure_responses_returns_azure_responses_client(self) -> None:
         """Azure with RESPONSES should return AzureOpenAIResponsesAPIStreamingClient."""
@@ -802,60 +804,32 @@ class TestReasoningModelClientRouting:
     reasoning models must therefore route to the Responses API clients.
     """
 
-    def test_openai_reasoning_models_default_to_responses_client(self) -> None:
+    @pytest.mark.parametrize(
+        "provider_key,expected_class",
+        [
+            (GenerativeProviderKey.OPENAI, OpenAIResponsesAPIStreamingClient),
+            (GenerativeProviderKey.AZURE_OPENAI, AzureOpenAIResponsesAPIStreamingClient),
+        ],
+    )
+    def test_reasoning_models_default_to_responses_client(
+        self,
+        provider_key: GenerativeProviderKey,
+        expected_class: type[OpenAIBaseStreamingClient],
+    ) -> None:
         for model_name in OPENAI_REASONING_MODELS:
-            client_class = get_openai_client_class(
-                GenerativeProviderKey.OPENAI,
-                model_name,
-                None,
-            )
-            assert client_class is OpenAIResponsesAPIStreamingClient, f"Failed for {model_name}"
-
-    def test_azure_reasoning_models_default_to_responses_client(self) -> None:
-        for model_name in OPENAI_REASONING_MODELS:
-            client_class = get_openai_client_class(
-                GenerativeProviderKey.AZURE_OPENAI,
-                model_name,
-                None,
-            )
-            assert client_class is AzureOpenAIResponsesAPIStreamingClient, (
-                f"Failed for {model_name}"
-            )
-
-    def test_registry_maps_reasoning_models_to_responses_clients(self) -> None:
-        for model_name in OPENAI_REASONING_MODELS:
-            assert (
-                PLAYGROUND_CLIENT_REGISTRY.get_client(GenerativeProviderKey.OPENAI, model_name)
-                is OpenAIResponsesAPIStreamingClient
-            ), f"Failed for {model_name}"
-            assert (
-                PLAYGROUND_CLIENT_REGISTRY.get_client(
-                    GenerativeProviderKey.AZURE_OPENAI, model_name
-                )
-                is AzureOpenAIResponsesAPIStreamingClient
-            ), f"Failed for {model_name}"
-
-    def test_explicit_chat_completions_still_selects_reasoning_chat_clients(self) -> None:
-        assert (
-            get_openai_client_class(
-                GenerativeProviderKey.OPENAI, "gpt-5.6-luna", OpenAIApiType.CHAT_COMPLETIONS
-            )
-            is OpenAIReasoningNonStreamingClient
-        )
-        assert (
-            get_openai_client_class(
-                GenerativeProviderKey.AZURE_OPENAI, "gpt-5.6-luna", OpenAIApiType.CHAT_COMPLETIONS
-            )
-            is AzureOpenAIReasoningNonStreamingClient
-        )
+            client_class = get_openai_client_class(provider_key, model_name, None)
+            assert client_class is expected_class, f"Failed for {model_name}"
 
     def test_response_params_keep_tools_and_map_reasoning_effort(self) -> None:
         """Function tools + reasoning_effort + disabled parallel tool calls must all
         survive translation into a Responses API request."""
-        from unittest.mock import MagicMock
-
-        client = object.__new__(OpenAIResponsesAPIStreamingClient)
-        client.model_name = "gpt-5.6-luna"
+        client = OpenAIResponsesAPIStreamingClient(
+            client_factory=LLMClientFactory(
+                lambda: AsyncOpenAI(api_key="sk-test"), ("openai", "test")
+            ),
+            model_name="gpt-5.6-luna",
+            provider="openai",
+        )
 
         tools = PromptTools(
             type="tools",
@@ -890,7 +864,7 @@ class TestReasoningModelClientRouting:
             tools=tools,
             response_format=None,
             invocation_parameters=invocation_parameters,
-            span=MagicMock(),
+            span=INVALID_SPAN,
         )
 
         assert extra_body is None
