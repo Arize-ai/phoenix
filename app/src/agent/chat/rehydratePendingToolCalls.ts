@@ -76,13 +76,19 @@ export type PartitionedPendingToolCalls = {
   staleToolCalls: AgentToolCall[];
 };
 
-/** Partition the trailing assistant message's pending client tool calls into rehydratable (safe to re-dispatch) and stale (resolve with an error). */
+/**
+ * Partition the trailing assistant message's pending client tool calls into
+ * rehydratable (safe to re-dispatch) and stale (resolve with an error).
+ * In-flight calls are skipped entirely.
+ */
 export function partitionPendingClientToolCalls({
   messages,
   isRehydratableTool,
+  isToolCallInFlight,
 }: {
   messages: AgentUIMessage[];
   isRehydratableTool: (toolName: string) => boolean;
+  isToolCallInFlight: (toolCallId: string) => boolean;
 }): PartitionedPendingToolCalls {
   const rehydratableToolCalls: AgentToolCall[] = [];
   const staleToolCalls: AgentToolCall[] = [];
@@ -92,6 +98,9 @@ export function partitionPendingClientToolCalls({
   }
   for (const part of message.parts) {
     if (!isPendingClientToolCallPart(part)) {
+      continue;
+    }
+    if (isToolCallInFlight(part.toolCallId)) {
       continue;
     }
     const toolName = getToolName(part);

@@ -4,9 +4,13 @@ import { commitLocalUpdate } from "react-relay";
 
 import {
   buildAgentChatRequestBody,
+  enrichMessageWithClientToolMetadata,
   type AgentModelSelection,
 } from "@phoenix/agent/chat/buildAgentChatRequestBody";
-import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
+import {
+  createClientToolTimingRecorder,
+  type ClientToolTimingRecorder,
+} from "@phoenix/agent/chat/clientToolTimings";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import {
   partitionPendingClientToolCalls,
@@ -163,6 +167,19 @@ export function createAgentSessionChat({
           store.getState().markToolCallInterrupted(toolCall.toolCallId);
         }
         await chat.addToolOutput(toolOutput);
+        // Bake the browser-recorded timings into the transcript copy of the
+        // resolved part. Request-time enrichment stamps them onto the wire
+        // payload only, and the recorder clears when the turn completes, so
+        // without this a resend of the output after turn completion (e.g. a
+        // new user message re-carrying the preceding assistant message's
+        // resolved outputs before the poll syncs the persisted transcript)
+        // could not reproduce the persisted part and would be rejected as a
+        // divergent result.
+        chat.messages = applyClientToolTimingMetadata({
+          messages: chat.messages,
+          toolCallId: toolCall.toolCallId,
+          toolTimings,
+        });
       },
       appendMessagePart: (part) => {
         chat.messages = appendPartToToolMessage({
@@ -333,6 +350,7 @@ export function createAgentSessionChat({
       partitionPendingClientToolCalls({
         messages: chat.messages,
         isRehydratableTool: isRehydratableAgentTool,
+        isToolCallInFlight: toolTimings.isInFlight,
       });
     for (const toolCall of rehydratableToolCalls) {
       runAgentToolCall(toolCall);
@@ -347,6 +365,40 @@ export function createAgentSessionChat({
   recoverPendingToolCalls();
   turnClientStateByChat.set(chat, { toolTimings, recoverPendingToolCalls });
   return chat;
+}
+
+/**
+ * Write the recorder's timing metadata for a resolved tool call back into the
+ * message that owns it, using the same enrichment the request payload gets so
+ * the local part stays byte-identical to what the server persists.
+ */
+export function applyClientToolTimingMetadata({
+  messages,
+  toolCallId,
+  toolTimings,
+}: {
+  messages: AgentUIMessage[];
+  toolCallId: string;
+  toolTimings: ClientToolTimingRecorder;
+}): AgentUIMessage[] {
+  const messageIndex = messages.findIndex((message) =>
+    message.parts.some(
+      (part) => isToolUIPart(part) && part.toolCallId === toolCallId
+    )
+  );
+  if (messageIndex === -1) {
+    return messages;
+  }
+  const enrichedMessage = enrichMessageWithClientToolMetadata({
+    message: messages[messageIndex],
+    toolTimings,
+  });
+  if (enrichedMessage === messages[messageIndex]) {
+    return messages;
+  }
+  return messages.map((message, index) =>
+    index === messageIndex ? enrichedMessage : message
+  );
 }
 
 function appendPartToToolMessage({

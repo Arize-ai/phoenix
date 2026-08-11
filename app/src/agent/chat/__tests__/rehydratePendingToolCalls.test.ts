@@ -23,6 +23,8 @@ const NON_REHYDRATABLE_TOOL = "edit_prompt_instance";
 
 const isRehydratableTool = (toolName: string) => toolName === REHYDRATABLE_TOOL;
 
+const noToolCallsInFlight = () => false;
+
 function pendingClientToolPart({
   toolCallId,
   toolName = REHYDRATABLE_TOOL,
@@ -58,7 +60,11 @@ describe("partitionPendingClientToolCalls", () => {
     ];
 
     expect(
-      partitionPendingClientToolCalls({ messages, isRehydratableTool })
+      partitionPendingClientToolCalls({
+        messages,
+        isRehydratableTool,
+        isToolCallInFlight: noToolCallsInFlight,
+      })
     ).toEqual({
       rehydratableToolCalls: [
         {
@@ -95,7 +101,11 @@ describe("partitionPendingClientToolCalls", () => {
     ];
 
     const { rehydratableToolCalls, staleToolCalls } =
-      partitionPendingClientToolCalls({ messages, isRehydratableTool });
+      partitionPendingClientToolCalls({
+        messages,
+        isRehydratableTool,
+        isToolCallInFlight: noToolCallsInFlight,
+      });
     expect(
       rehydratableToolCalls.map((toolCall) => toolCall.toolCallId)
     ).toEqual(["tool-call-1"]);
@@ -137,7 +147,11 @@ describe("partitionPendingClientToolCalls", () => {
     ];
 
     const { rehydratableToolCalls, staleToolCalls } =
-      partitionPendingClientToolCalls({ messages, isRehydratableTool });
+      partitionPendingClientToolCalls({
+        messages,
+        isRehydratableTool,
+        isToolCallInFlight: noToolCallsInFlight,
+      });
     expect(
       rehydratableToolCalls.map((toolCall) => toolCall.toolCallId)
     ).toEqual(["tool-call-3"]);
@@ -170,8 +184,41 @@ describe("partitionPendingClientToolCalls", () => {
     ];
 
     expect(
-      partitionPendingClientToolCalls({ messages, isRehydratableTool })
+      partitionPendingClientToolCalls({
+        messages,
+        isRehydratableTool,
+        isToolCallInFlight: noToolCallsInFlight,
+      })
     ).toEqual({ rehydratableToolCalls: [], staleToolCalls: [] });
+  });
+
+  it("skips in-flight calls so a live handler keeps ownership of its pending part", () => {
+    const messages: AgentUIMessage[] = [
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          pendingClientToolPart({ toolCallId: "tool-call-1" }),
+          pendingClientToolPart({
+            toolCallId: "tool-call-2",
+            toolName: NON_REHYDRATABLE_TOOL,
+          }),
+          pendingClientToolPart({ toolCallId: "tool-call-3" }),
+        ],
+      },
+    ];
+
+    const { rehydratableToolCalls, staleToolCalls } =
+      partitionPendingClientToolCalls({
+        messages,
+        isRehydratableTool,
+        isToolCallInFlight: (toolCallId) =>
+          toolCallId === "tool-call-1" || toolCallId === "tool-call-2",
+      });
+    expect(
+      rehydratableToolCalls.map((toolCall) => toolCall.toolCallId)
+    ).toEqual(["tool-call-3"]);
+    expect(staleToolCalls).toEqual([]);
   });
 
   it("ignores pending calls on non-trailing messages", () => {
@@ -189,13 +236,21 @@ describe("partitionPendingClientToolCalls", () => {
     ];
 
     expect(
-      partitionPendingClientToolCalls({ messages, isRehydratableTool })
+      partitionPendingClientToolCalls({
+        messages,
+        isRehydratableTool,
+        isToolCallInFlight: noToolCallsInFlight,
+      })
     ).toEqual({ rehydratableToolCalls: [], staleToolCalls: [] });
   });
 
   it("returns nothing for an empty transcript", () => {
     expect(
-      partitionPendingClientToolCalls({ messages: [], isRehydratableTool })
+      partitionPendingClientToolCalls({
+        messages: [],
+        isRehydratableTool,
+        isToolCallInFlight: noToolCallsInFlight,
+      })
     ).toEqual({ rehydratableToolCalls: [], staleToolCalls: [] });
   });
 });

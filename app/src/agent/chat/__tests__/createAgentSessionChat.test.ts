@@ -2,7 +2,9 @@ import { isToolUIPart } from "ai";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import {
+  applyClientToolTimingMetadata,
   createAgentSessionChat,
   getTurnClientState,
 } from "@phoenix/agent/chat/createAgentSessionChat";
@@ -33,6 +35,97 @@ async function flushMicrotasks() {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe("applyClientToolTimingMetadata", () => {
+  it("bakes recorded timings into the resolved part so a resend survives the recorder clearing", () => {
+    let now = new Date("2026-08-11T16:08:57.143Z");
+    const toolTimings = createClientToolTimingRecorder({
+      getCurrentTime: () => now,
+    });
+    toolTimings.recordStart("tool-call-1");
+    now = new Date("2026-08-11T16:08:57.150Z");
+    toolTimings.recordEnd("tool-call-1");
+    const messages: AgentUIMessage[] = [
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-1",
+            state: "output-available",
+            input: { edits: [] },
+            output: "done",
+            callProviderMetadata: CLIENT_EXECUTION_METADATA,
+          } as AgentUIMessagePart,
+        ],
+      },
+    ];
+
+    const updated = applyClientToolTimingMetadata({
+      messages,
+      toolCallId: "tool-call-1",
+      toolTimings,
+    });
+
+    // The transcript copy now matches the enriched wire payload, so building
+    // a resend after toolTimings.clear() reproduces the persisted part.
+    toolTimings.clear();
+    const part = updated[0]?.parts.find((candidate) => isToolUIPart(candidate));
+    expect(part).toMatchObject({
+      callProviderMetadata: {
+        phoenix: {
+          toolExecutionEnvironment: "client",
+          clientStartedAt: "2026-08-11T16:08:57.143Z",
+          clientEndedAt: "2026-08-11T16:08:57.150Z",
+        },
+      },
+    });
+    // The original messages are not mutated.
+    expect(messages[0]?.parts[0]).toMatchObject({
+      callProviderMetadata: CLIENT_EXECUTION_METADATA,
+    });
+    expect(
+      (messages[0]?.parts[0] as { callProviderMetadata: object })
+        .callProviderMetadata
+    ).toEqual(CLIENT_EXECUTION_METADATA);
+  });
+
+  it("returns the same array when the call has no recorded timings", () => {
+    const toolTimings = createClientToolTimingRecorder();
+    const messages: AgentUIMessage[] = [
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-1",
+            state: "output-available",
+            input: { edits: [] },
+            output: "done",
+            callProviderMetadata: CLIENT_EXECUTION_METADATA,
+          } as AgentUIMessagePart,
+        ],
+      },
+    ];
+
+    expect(
+      applyClientToolTimingMetadata({
+        messages,
+        toolCallId: "tool-call-1",
+        toolTimings,
+      })
+    ).toBe(messages);
+    expect(
+      applyClientToolTimingMetadata({
+        messages,
+        toolCallId: "tool-call-unknown",
+        toolTimings,
+      })
+    ).toBe(messages);
+  });
 });
 
 describe("createAgentSessionChat rehydration", () => {
