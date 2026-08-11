@@ -1,9 +1,6 @@
 import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval";
 
-import {
-  EDIT_LLM_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
-  EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-} from "./constants";
+import { EDIT_LLM_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR } from "./constants";
 import type {
   BindPendingLlmEvaluatorEditOptions,
   PendingLlmEvaluatorEdit,
@@ -12,7 +9,7 @@ import type {
 export function bindPendingLlmEvaluatorEditActions({
   pendingEdit,
   draftHost,
-  addToolOutput,
+  emitResult,
   setPendingLlmEvaluatorEdit,
 }: BindPendingLlmEvaluatorEditOptions): PendingLlmEvaluatorEdit {
   return {
@@ -21,18 +18,11 @@ export function bindPendingLlmEvaluatorEditActions({
       setPendingLlmEvaluatorEdit(pendingEdit.toolCallId, null);
       const applied = draftHost.applyOperations(pendingEdit.operations);
       if (!applied.ok) {
-        await addToolOutput({
-          state: "output-error",
-          tool: EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-          toolCallId: pendingEdit.toolCallId,
-          errorText: applied.error,
-        });
+        emitResult({ ok: false, error: applied.error });
         return;
       }
-      await addToolOutput({
-        state: "output-available",
-        tool: EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-        toolCallId: pendingEdit.toolCallId,
+      emitResult({
+        ok: true,
         output: {
           status: "accepted",
           acceptedBy: approvalSource,
@@ -46,10 +36,8 @@ export function bindPendingLlmEvaluatorEditActions({
     },
     reject: async () => {
       setPendingLlmEvaluatorEdit(pendingEdit.toolCallId, null);
-      await addToolOutput({
-        state: "output-available",
-        tool: EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-        toolCallId: pendingEdit.toolCallId,
+      emitResult({
+        ok: true,
         output: {
           status: "rejected",
           message: "User rejected the proposed LLM-evaluator draft edit.",
@@ -59,12 +47,9 @@ export function bindPendingLlmEvaluatorEditActions({
     },
     cancel: async () => {
       setPendingLlmEvaluatorEdit(pendingEdit.toolCallId, null);
-      await addToolOutput({
-        state: "output-error",
-        tool: EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-        toolCallId: pendingEdit.toolCallId,
-        errorText: EDIT_LLM_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
-        outcome: "interrupted",
+      emitResult({
+        ok: false,
+        error: EDIT_LLM_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
       });
     },
   };

@@ -1,5 +1,4 @@
-import { z } from "zod";
-
+import { parseUiOperationCallContext } from "@phoenix/agent/uiOperations/types";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
@@ -9,27 +8,11 @@ import {
   getSavePromptPreview,
   savePlaygroundPrompt,
 } from "./savePlaygroundPrompt";
-import type {
-  SavePlaygroundPromptParams,
-  SavePromptToolOutputSender,
-  PendingSavePrompt,
-} from "./types";
+import type { SavePlaygroundPromptParams, PendingSavePrompt } from "./types";
 
 type SavePlaygroundPrompt = (
   params: SavePlaygroundPromptParams
 ) => ReturnType<typeof savePlaygroundPrompt>;
-
-const savePromptActionContextSchema = z.object({
-  toolCallId: z.string(),
-  sessionId: z.string(),
-  addToolOutput: z.custom<SavePromptToolOutputSender>(
-    (value) => typeof value === "function"
-  ),
-});
-
-function parseSavePromptActionContext(context: unknown) {
-  return savePromptActionContextSchema.safeParse(context).data ?? null;
-}
 
 /**
  * Creates the client action handler for save_prompt.
@@ -53,49 +36,52 @@ export function createSavePromptClientAction({
     input: unknown,
     context?: unknown
   ): Promise<AgentClientActionResult> => {
-    const actionContext = parseSavePromptActionContext(context);
-    if (!actionContext) {
+    const callContext = parseUiOperationCallContext(context);
+    if (!callContext) {
       return {
         ok: false,
-        error: "Cannot propose prompt save without tool call context.",
+        error: "Cannot propose prompt save without an operation call context.",
       };
     }
     const parsed = parseSavePromptInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid save_prompt input." };
+      return { ok: false, error: "Invalid playground.prompt.save input." };
     }
 
     const preview = getSavePromptPreview({ playgroundStore, input: parsed });
     if (!preview.ok) return preview;
 
-    const pendingSave = bindPendingSavePromptActions({
-      pendingSave: {
-        toolCallId: actionContext.toolCallId,
-        sessionId: actionContext.sessionId,
-        input: parsed,
-        preview: preview.output,
-      },
-      savePrompt: async (saveInput) => {
-        const result = await savePrompt({
-          playgroundStore,
-          input: saveInput,
-        });
-        if (!result.ok) return result;
-        return {
-          ok: true,
-          output: JSON.stringify(result.output, null, 2),
-        };
-      },
-      addToolOutput: actionContext.addToolOutput,
-      setPendingSavePrompt,
+    // The returned promise resolves when the user (or bypass mode) decides;
+    // the awaiting execute_ui script sits parked on it until then.
+    return new Promise((resolve) => {
+      const pendingSave = bindPendingSavePromptActions({
+        pendingSave: {
+          toolCallId: callContext.callId,
+          sessionId: callContext.sessionId ?? "",
+          input: parsed,
+          preview: preview.output,
+        },
+        savePrompt: async (saveInput) => {
+          const result = await savePrompt({
+            playgroundStore,
+            input: saveInput,
+          });
+          if (!result.ok) return result;
+          return {
+            ok: true,
+            output: JSON.stringify(result.output, null, 2),
+          };
+        },
+        emitResult: resolve,
+        setPendingSavePrompt,
+      });
+
+      if (shouldAutoAccept()) {
+        void pendingSave.accept?.({ approvalSource: "auto" });
+        return;
+      }
+
+      setPendingSavePrompt(callContext.callId, pendingSave);
     });
-
-    if (shouldAutoAccept()) {
-      await pendingSave.accept?.({ approvalSource: "auto" });
-      return { ok: true };
-    }
-
-    setPendingSavePrompt(actionContext.toolCallId, pendingSave);
-    return { ok: true };
   };
 }

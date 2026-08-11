@@ -1,10 +1,10 @@
 import { createEvaluatorSubmitClientAction } from "@phoenix/agent/tools/approval";
 import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
+import { parseUiOperationCallContext } from "@phoenix/agent/uiOperations/types";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 import { SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "./constants";
 import {
-  parseEditLlmEvaluatorDraftActionContext,
   parseEditLlmEvaluatorDraftInput,
   parseReadLlmEvaluatorDraftInput,
   parseTestLlmEvaluatorDraftInput,
@@ -56,19 +56,19 @@ export function createEditLlmEvaluatorDraftClientAction({
     input: unknown,
     context?: unknown
   ): Promise<AgentClientActionResult> => {
-    const editContext = parseEditLlmEvaluatorDraftActionContext(context);
-    if (!editContext) {
+    const callContext = parseUiOperationCallContext(context);
+    if (!callContext) {
       return {
         ok: false,
         error:
-          "Cannot propose LLM-evaluator draft edit without tool call context.",
+          "Cannot propose LLM-evaluator draft edit without an operation call context.",
       };
     }
     const parsed = parseEditLlmEvaluatorDraftInput(input);
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid edit_llm_evaluator_draft input.",
+        error: "Invalid evaluators.llm.edit input.",
       };
     }
     const host = getDraftHost();
@@ -82,26 +82,29 @@ export function createEditLlmEvaluatorDraftClientAction({
     const proposed = host.previewOperations(before, parsed.operations);
     if (!proposed.ok) return proposed;
 
-    const pendingEdit = bindPendingLlmEvaluatorEditActions({
-      pendingEdit: {
-        toolCallId: editContext.toolCallId,
-        sessionId: editContext.sessionId,
-        before,
-        after: proposed.output,
-        operations: parsed.operations,
-      },
-      draftHost: host,
-      addToolOutput: editContext.addToolOutput,
-      setPendingLlmEvaluatorEdit,
+    // The returned promise resolves when the user (or bypass mode) decides;
+    // the awaiting execute_ui script sits parked on it until then.
+    return new Promise((resolve) => {
+      const pendingEdit = bindPendingLlmEvaluatorEditActions({
+        pendingEdit: {
+          toolCallId: callContext.callId,
+          sessionId: callContext.sessionId ?? "",
+          before,
+          after: proposed.output,
+          operations: parsed.operations,
+        },
+        draftHost: host,
+        emitResult: resolve,
+        setPendingLlmEvaluatorEdit,
+      });
+
+      if (shouldAutoAccept()) {
+        void pendingEdit.accept?.({ approvalSource: "auto" });
+        return;
+      }
+
+      setPendingLlmEvaluatorEdit(callContext.callId, pendingEdit);
     });
-
-    if (shouldAutoAccept()) {
-      await pendingEdit.accept?.({ approvalSource: "auto" });
-      return { ok: true };
-    }
-
-    setPendingLlmEvaluatorEdit(editContext.toolCallId, pendingEdit);
-    return { ok: true };
   };
 }
 

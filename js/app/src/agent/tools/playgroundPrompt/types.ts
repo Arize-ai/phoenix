@@ -1,21 +1,18 @@
 import type { z } from "zod";
 
 import type { ApprovalSource } from "@phoenix/agent/tools/approval";
+import type { UiOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
 import type { ChatMessage, PlaygroundStore } from "@phoenix/store/playground";
 
 import type {
   addPromptInstanceInputSchema,
   clonePromptInstanceInputSchema,
-  editPromptActionContextSchema,
   editPromptInputSchema,
   editPromptOperationSchema,
-  PromptEditToolOutputSender,
   readPromptInputSchema,
   removePromptInstanceInputSchema,
   removePromptInstanceOutputSchema,
 } from "./schemas";
-
-export type { PromptEditToolOutputSender } from "./schemas";
 export type PromptMessageRole = ChatMessage["role"];
 export type PromptToolCalls = NonNullable<ChatMessage["toolCalls"]>;
 
@@ -110,8 +107,13 @@ export type PromptEditSummary = {
 };
 
 export type PendingPromptEdit = {
+  /**
+   * Key of this pending entry. Under `execute_ui` this is the inner
+   * operation call id (`<toolCallId>:<sequence>`), not an AI SDK toolCallId;
+   * the field keeps its historical name to limit churn across consumers.
+   */
   toolCallId: string;
-  /** Agent session that owns the unresolved edit_prompt_instance tool call. */
+  /** Agent session that owns the unresolved playground.prompt.edit call. */
   sessionId: string;
   instanceId: number;
   expectedRevision: string;
@@ -124,8 +126,9 @@ export type PendingPromptEdit = {
 };
 
 export type PendingPromptInstanceRemoval = {
+  /** Inner operation call id under `execute_ui`; see {@link PendingPromptEdit}. */
   toolCallId: string;
-  /** Agent session that owns the unresolved remove_prompt_instance tool call. */
+  /** Agent session that owns the unresolved playground.instance.remove call. */
   sessionId: string;
   instanceId: number;
   label: string;
@@ -134,17 +137,13 @@ export type PendingPromptInstanceRemoval = {
   cancel?: () => Promise<void>;
 };
 
-export type EditPromptActionContext = z.output<
-  typeof editPromptActionContextSchema
->;
-
 export type BindPendingPromptEditOptions = {
   /** Serializable pending edit proposal, possibly restored from Zustand. */
   pendingEdit: PendingPromptEdit;
   /** Live playground store used to re-check revisions and apply accepted edits. */
   playgroundStore: PlaygroundStore;
-  /** Live AI SDK tool-output sender for the original tool call. */
-  addToolOutput: PromptEditToolOutputSender;
+  /** Resolves the awaiting `execute_ui` script call with the user's decision. */
+  emitResult: UiOperationResultEmitter;
   setPendingPromptEdit: (
     toolCallId: string,
     edit: PendingPromptEdit | null
@@ -154,7 +153,8 @@ export type BindPendingPromptEditOptions = {
 export type BindPendingPromptInstanceRemovalOptions = {
   pendingRemoval: PendingPromptInstanceRemoval;
   playgroundStore: PlaygroundStore;
-  addToolOutput: PromptEditToolOutputSender;
+  /** Resolves the awaiting `execute_ui` script call with the user's decision. */
+  emitResult: UiOperationResultEmitter;
   setPendingPromptInstanceRemoval: (
     toolCallId: string,
     removal: PendingPromptInstanceRemoval | null

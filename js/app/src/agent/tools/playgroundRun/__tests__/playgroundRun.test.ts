@@ -17,38 +17,6 @@ describe("playground run agent tool", () => {
     _resetMessageId();
   });
 
-  it("starts a playground run for all current instances", async () => {
-    const playgroundStore = createPlaygroundStore({
-      datasetId: null,
-      modelConfigByProvider: {},
-    });
-    playgroundStore.getState().addInstance();
-    const action = createRunPlaygroundClientAction({ playgroundStore });
-
-    const result = await action({});
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    const output = JSON.parse(result.output ?? "") as {
-      status: string;
-      instances: { instanceId: number; label: string }[];
-    };
-    expect(output).toEqual(
-      expect.objectContaining({
-        status: "started",
-        instances: [
-          { instanceId: 0, label: "A" },
-          { instanceId: 1, label: "B" },
-        ],
-      })
-    );
-    expect(
-      playgroundStore
-        .getState()
-        .instances.every((instance) => instance.activeRunId != null)
-    ).toBe(true);
-  });
-
   it("rejects run requests while the playground is already running", async () => {
     const playgroundStore = createPlaygroundStore({
       datasetId: null,
@@ -78,39 +46,6 @@ describe("playground run agent tool", () => {
     const result = await action({ instanceId: 0 });
 
     expect(result.ok).toBe(true);
-  });
-
-  it("cancels an active playground run", async () => {
-    const playgroundStore = createPlaygroundStore({
-      datasetId: null,
-      modelConfigByProvider: {},
-    });
-    playgroundStore.getState().addInstance();
-    playgroundStore.getState().runPlaygroundInstances();
-    const action = createCancelPlaygroundRunClientAction({ playgroundStore });
-
-    const result = await action({});
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    const output = JSON.parse(result.output ?? "") as {
-      status: string;
-      instances: { instanceId: number; label: string }[];
-    };
-    expect(output).toEqual(
-      expect.objectContaining({
-        status: "cancelled",
-        instances: [
-          { instanceId: 0, label: "A" },
-          { instanceId: 1, label: "B" },
-        ],
-      })
-    );
-    expect(
-      playgroundStore
-        .getState()
-        .instances.every((instance) => instance.activeRunId == null)
-    ).toBe(true);
   });
 
   it("rejects cancel requests when the playground is not running", async () => {

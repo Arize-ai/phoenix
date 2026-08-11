@@ -1,21 +1,20 @@
 import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval";
 
-import {
-  EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
-  EDIT_PROMPT_TOOL_NAME,
-} from "./constants";
+import { EDIT_PROMPT_NAVIGATION_CANCEL_ERROR } from "./constants";
 import { computePromptEditSummary } from "./diffSummary";
 import { applyPromptOperations, getPromptSnapshot } from "./promptStore";
 import type { BindPendingPromptEditOptions, PendingPromptEdit } from "./types";
 
 /**
- * Attaches accept/reject callbacks to a pending prompt edit using the live
- * AI SDK tool-call context that created the proposal.
+ * Attaches accept/reject callbacks to a pending prompt edit. Each callback
+ * resolves the awaiting `execute_ui` script call via `emitResult` — the
+ * script sees `{ ok: true, output: { status: "accepted" | "rejected", ... } }`
+ * for a decision and `{ ok: false }` for staleness or navigation cancel.
  */
 export function bindPendingPromptEditActions({
   pendingEdit,
   playgroundStore,
-  addToolOutput,
+  emitResult,
   setPendingPromptEdit,
 }: BindPendingPromptEditOptions): PendingPromptEdit {
   return {
@@ -27,20 +26,13 @@ export function bindPendingPromptEditActions({
         instanceId: pendingEdit.instanceId,
       });
       if (!current.ok) {
-        await addToolOutput({
-          state: "output-error",
-          tool: EDIT_PROMPT_TOOL_NAME,
-          toolCallId: pendingEdit.toolCallId,
-          errorText: current.error,
-        });
+        emitResult({ ok: false, error: current.error });
         return;
       }
       if (current.output.revision !== pendingEdit.expectedRevision) {
-        await addToolOutput({
-          state: "output-error",
-          tool: EDIT_PROMPT_TOOL_NAME,
-          toolCallId: pendingEdit.toolCallId,
-          errorText:
+        emitResult({
+          ok: false,
+          error:
             "The prompt was changed after this edit was proposed, so it can no longer be applied.",
         });
         return;
@@ -58,10 +50,8 @@ export function bindPendingPromptEditActions({
         pendingEdit.before,
         afterApply.ok ? afterApply.output : pendingEdit.after
       );
-      await addToolOutput({
-        state: "output-available",
-        tool: EDIT_PROMPT_TOOL_NAME,
-        toolCallId: pendingEdit.toolCallId,
+      emitResult({
+        ok: true,
         output: {
           status: "accepted",
           acceptedBy: approvalSource,
@@ -80,10 +70,8 @@ export function bindPendingPromptEditActions({
     },
     reject: async () => {
       setPendingPromptEdit(pendingEdit.toolCallId, null);
-      await addToolOutput({
-        state: "output-available",
-        tool: EDIT_PROMPT_TOOL_NAME,
-        toolCallId: pendingEdit.toolCallId,
+      emitResult({
+        ok: true,
         output: {
           status: "rejected",
           instanceId: pendingEdit.instanceId,
@@ -94,13 +82,7 @@ export function bindPendingPromptEditActions({
     },
     cancel: async () => {
       setPendingPromptEdit(pendingEdit.toolCallId, null);
-      await addToolOutput({
-        state: "output-error",
-        tool: EDIT_PROMPT_TOOL_NAME,
-        toolCallId: pendingEdit.toolCallId,
-        errorText: EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
-        outcome: "interrupted",
-      });
+      emitResult({ ok: false, error: EDIT_PROMPT_NAVIGATION_CANCEL_ERROR });
     },
   };
 }

@@ -4,8 +4,8 @@ import type { AddToolOutput, AgentToolCall } from "./defineTool";
  * Shared session guard for tools that cannot run without an active session.
  *
  * Requiring a session is orthogonal to whether a tool delegates to a page
- * action: both `defineClientActionTool` (via its `requireSession` knob) and
- * standalone `defineTool` tools (`ask_user`, `batch_span_annotate`) compose this
+ * action: `defineTool` tools (`ask_user`, `batch_span_annotate`) and the
+ * UI-operation dispatch compose this
  * guard instead of hand-rolling the same check. Returns the non-null session id,
  * or emits an `output-error` and returns `null` so the caller can bail.
  *

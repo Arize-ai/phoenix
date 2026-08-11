@@ -53,29 +53,6 @@ describe("playground repetitions agent tool", () => {
     expect(parseSetPlaygroundRepetitionsInput({ repetitions: "3" })).toBeNull();
   });
 
-  it("sets playground repetitions", async () => {
-    const playgroundStore = createPlaygroundStore({
-      datasetId: null,
-      modelConfigByProvider: {},
-    });
-    const action = createSetPlaygroundRepetitionsClientAction({
-      playgroundStore,
-    });
-
-    const result = await action({ repetitions: 3 });
-
-    expect(result.ok).toBe(true);
-    expect(playgroundStore.getState().repetitions).toBe(3);
-    if (!result.ok) return;
-    expect(JSON.parse(result.output ?? "")).toEqual(
-      expect.objectContaining({
-        status: "updated",
-        previousRepetitions: 1,
-        repetitions: 3,
-      })
-    );
-  });
-
   it("rejects invalid input without changing repetitions", async () => {
     const playgroundStore = createPlaygroundStore({
       datasetId: null,

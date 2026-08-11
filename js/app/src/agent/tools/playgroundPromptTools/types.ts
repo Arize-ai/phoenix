@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 import type { ApprovalSource } from "@phoenix/agent/tools/approval";
+import type { UiOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
 import type {
   CanonicalToolChoice,
   PlaygroundStore,
@@ -8,8 +9,6 @@ import type {
 } from "@phoenix/store/playground";
 
 import type {
-  promptToolsActionContextSchema,
-  PromptToolsWriteToolOutputSender,
   readPromptToolsInputSchema,
   writePromptToolsInputSchema,
 } from "./schemas";
@@ -152,8 +151,13 @@ export type PromptToolsWriteSummary = {
  * and the batch is applied (re-checking the revision) when accepted.
  */
 export type PendingPromptToolWrite = {
+  /**
+   * Key of this pending entry. Under `execute_ui` this is the inner
+   * operation call id (`<toolCallId>:<sequence>`), not an AI SDK toolCallId;
+   * the field keeps its historical name to limit churn across consumers.
+   */
   toolCallId: string;
-  /** Agent session that owns the unresolved write_prompt_tools tool call. */
+  /** Agent session that owns the unresolved playground.prompt.tools.write call. */
   sessionId: string;
   instanceId: number;
   expectedRevision: string;
@@ -169,17 +173,13 @@ export type PendingPromptToolWrite = {
   cancel?: () => Promise<void>;
 };
 
-export type PromptToolsActionContext = z.output<
-  typeof promptToolsActionContextSchema
->;
-
 export type BindPendingPromptToolWriteOptions = {
   /** Serializable pending batch proposal, possibly restored from Zustand. */
   pendingWrite: PendingPromptToolWrite;
   /** Live playground store used to re-check the revision and apply the batch. */
   playgroundStore: PlaygroundStore;
-  /** Live AI SDK tool-output sender for the original tool call. */
-  addToolOutput: PromptToolsWriteToolOutputSender;
+  /** Resolves the awaiting `execute_ui` script call with the user's decision. */
+  emitResult: UiOperationResultEmitter;
   setPendingPromptToolWrite: (
     toolCallId: string,
     write: PendingPromptToolWrite | null

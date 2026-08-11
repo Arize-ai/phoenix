@@ -1,5 +1,6 @@
 import type { SetURLSearchParams } from "react-router";
 
+import { parseUiOperationCallContext } from "@phoenix/agent/uiOperations/types";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
@@ -8,10 +9,7 @@ import {
   buildSelectionRevision,
   resolveLoadDatasetTarget,
 } from "./loadPlaygroundDataset";
-import {
-  parseLoadDatasetActionContext,
-  parseLoadDatasetInput,
-} from "./parsers";
+import { parseLoadDatasetInput } from "./parsers";
 import { bindPendingLoadDatasetActions } from "./pendingLoadDataset";
 import type {
   DatasetSelectionSnapshot,
@@ -78,45 +76,49 @@ export function createLoadDatasetClientAction({
     input: unknown,
     context?: unknown
   ): Promise<AgentClientActionResult> => {
-    const actionContext = parseLoadDatasetActionContext(context);
-    if (!actionContext) {
+    const callContext = parseUiOperationCallContext(context);
+    if (!callContext) {
       return {
         ok: false,
-        error: "Cannot propose dataset load without tool call context.",
+        error: "Cannot propose dataset load without an operation call context.",
       };
     }
     const parsed = parseLoadDatasetInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid load_dataset input." };
+      return { ok: false, error: "Invalid playground.dataset.load input." };
     }
 
     const resolution = await resolveDatasetTarget(parsed);
     if (!resolution.ok) return resolution;
 
     const expectedSelection = getUrlSelection(getSearchParams());
-    const pendingLoad = bindPendingLoadDatasetActions({
-      pendingLoad: {
-        toolCallId: actionContext.toolCallId,
-        sessionId: actionContext.sessionId,
-        input: parsed,
-        snapshot: buildDatasetSelectionSnapshot(resolution.output),
-        expectedSelection,
-        expectedRevision: buildSelectionRevision(expectedSelection),
-      },
-      resolveDatasetTarget,
-      readSelectionRevision,
-      applyDatasetSelection: (snapshot) =>
-        applyDatasetSelection({ snapshot, playgroundStore, setSearchParams }),
-      addToolOutput: actionContext.addToolOutput,
-      setPendingLoadDataset,
+
+    // The returned promise resolves when the user (or bypass mode) decides;
+    // the awaiting execute_ui script sits parked on it until then.
+    return new Promise((resolve) => {
+      const pendingLoad = bindPendingLoadDatasetActions({
+        pendingLoad: {
+          toolCallId: callContext.callId,
+          sessionId: callContext.sessionId ?? "",
+          input: parsed,
+          snapshot: buildDatasetSelectionSnapshot(resolution.output),
+          expectedSelection,
+          expectedRevision: buildSelectionRevision(expectedSelection),
+        },
+        resolveDatasetTarget,
+        readSelectionRevision,
+        applyDatasetSelection: (snapshot) =>
+          applyDatasetSelection({ snapshot, playgroundStore, setSearchParams }),
+        emitResult: resolve,
+        setPendingLoadDataset,
+      });
+
+      if (shouldAutoAccept()) {
+        void pendingLoad.accept?.({ approvalSource: "auto" });
+        return;
+      }
+
+      setPendingLoadDataset(callContext.callId, pendingLoad);
     });
-
-    if (shouldAutoAccept()) {
-      await pendingLoad.accept?.({ approvalSource: "auto" });
-      return { ok: true };
-    }
-
-    setPendingLoadDataset(actionContext.toolCallId, pendingLoad);
-    return { ok: true };
   };
 }

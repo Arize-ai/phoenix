@@ -58,6 +58,10 @@ const TOOL_ICON_CATEGORY_BY_NAME: Partial<Record<string, ToolIconCategory>> = {
   // Command execution
   bash: "command",
 
+  // UI operation meta-tools
+  execute_ui: "command",
+  search_ui: "search",
+
   // Configuration
   set_appended_messages_path: "configure",
   set_dataset_evaluator_selection: "configure",

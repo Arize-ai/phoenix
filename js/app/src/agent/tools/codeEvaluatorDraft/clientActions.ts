@@ -1,10 +1,10 @@
 import { createEvaluatorSubmitClientAction } from "@phoenix/agent/tools/approval";
 import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
+import { parseUiOperationCallContext } from "@phoenix/agent/uiOperations/types";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 import { SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "./constants";
 import {
-  parseEditCodeEvaluatorDraftActionContext,
   parseEditCodeEvaluatorDraftInput,
   parseReadCodeEvaluatorDraftInput,
   parseTestCodeEvaluatorDraftInput,
@@ -56,19 +56,19 @@ export function createEditCodeEvaluatorDraftClientAction({
     input: unknown,
     context?: unknown
   ): Promise<AgentClientActionResult> => {
-    const editContext = parseEditCodeEvaluatorDraftActionContext(context);
-    if (!editContext) {
+    const callContext = parseUiOperationCallContext(context);
+    if (!callContext) {
       return {
         ok: false,
         error:
-          "Cannot propose code-evaluator draft edit without tool call context.",
+          "Cannot propose code-evaluator draft edit without an operation call context.",
       };
     }
     const parsed = parseEditCodeEvaluatorDraftInput(input);
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid edit_code_evaluator_draft input.",
+        error: "Invalid evaluators.code.edit input.",
       };
     }
     const host = getDraftHost();
@@ -82,26 +82,29 @@ export function createEditCodeEvaluatorDraftClientAction({
     const proposed = host.previewOperations(before, parsed.operations);
     if (!proposed.ok) return proposed;
 
-    const pendingEdit = bindPendingCodeEvaluatorEditActions({
-      pendingEdit: {
-        toolCallId: editContext.toolCallId,
-        sessionId: editContext.sessionId,
-        before,
-        after: proposed.output,
-        operations: parsed.operations,
-      },
-      draftHost: host,
-      addToolOutput: editContext.addToolOutput,
-      setPendingCodeEvaluatorEdit,
+    // The returned promise resolves when the user (or bypass mode) decides;
+    // the awaiting execute_ui script sits parked on it until then.
+    return new Promise((resolve) => {
+      const pendingEdit = bindPendingCodeEvaluatorEditActions({
+        pendingEdit: {
+          toolCallId: callContext.callId,
+          sessionId: callContext.sessionId ?? "",
+          before,
+          after: proposed.output,
+          operations: parsed.operations,
+        },
+        draftHost: host,
+        emitResult: resolve,
+        setPendingCodeEvaluatorEdit,
+      });
+
+      if (shouldAutoAccept()) {
+        void pendingEdit.accept?.({ approvalSource: "auto" });
+        return;
+      }
+
+      setPendingCodeEvaluatorEdit(callContext.callId, pendingEdit);
     });
-
-    if (shouldAutoAccept()) {
-      await pendingEdit.accept?.({ approvalSource: "auto" });
-      return { ok: true };
-    }
-
-    setPendingCodeEvaluatorEdit(editContext.toolCallId, pendingEdit);
-    return { ok: true };
   };
 }
 
