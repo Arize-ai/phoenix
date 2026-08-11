@@ -46,6 +46,23 @@ class TestContentConversion:
             new_obj.model_dump(exclude_none=True),
         )
 
+    def test_function_response_requires_matching_function_call(self) -> None:
+        content = genai_types.Content(
+            role="user",
+            parts=[
+                genai_types.Part(
+                    function_response=genai_types.FunctionResponse(
+                        id="call-1",
+                        name="get_weather",
+                        response={"temperature": 20},
+                    )
+                )
+            ],
+        )
+
+        with pytest.raises(NotImplementedError, match="preceding matching function call"):
+            create_prompt_version_from_google_genai("gemini-2.0-flash", [content])
+
 
 class TestTextPartConversion:
     def test_round_trip(self) -> None:
@@ -173,6 +190,47 @@ class TestFunctionDeclarationConversion:
         )
         assert fd.parameters_json_schema == params
 
+    def test_schema_metadata_is_preserved(self) -> None:
+        declaration = genai_types.FunctionDeclaration(
+            name="f",
+            parameters=genai_types.Schema.model_validate(
+                {
+                    "type": "OBJECT",
+                    "properties": {
+                        "value": {
+                            "any_of": [{"type": "STRING"}, {"type": "NULL"}],
+                            "default": "fallback",
+                            "title": "Value",
+                        }
+                    },
+                }
+            ),
+        )
+
+        converted = _FunctionDeclarationConversion.to_google(
+            _FunctionDeclarationConversion.from_google(declaration)
+        )
+
+        assert converted.parameters_json_schema == {
+            "type": "object",
+            "properties": {
+                "value": {
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "default": "fallback",
+                    "title": "Value",
+                }
+            },
+        }
+
+    def test_function_response_schema_is_rejected(self) -> None:
+        declaration = genai_types.FunctionDeclaration(
+            name="f",
+            response_json_schema={"type": "object"},
+        )
+
+        with pytest.raises(NotImplementedError, match="response schemas"):
+            _FunctionDeclarationConversion.from_google(declaration)
+
 
 # Uses JSON-schema declarations so the round trip is representation-preserving:
 # `to_google` always emits `parameters_json_schema` (see
@@ -248,6 +306,20 @@ class TestToolKwargsConversion:
             new_obj["tools"][0].model_dump(exclude_none=True),
         )
 
+    def test_multiple_allowed_function_names_are_rejected(self) -> None:
+        obj: _ToolKwargs = {
+            "tools": _TOOLS,
+            "tool_config": genai_types.ToolConfig(
+                function_calling_config=genai_types.FunctionCallingConfig(
+                    mode=genai_types.FunctionCallingConfigMode.ANY,
+                    allowed_function_names=["_f", "_g"],
+                )
+            ),
+        }
+
+        with pytest.raises(NotImplementedError, match="multiple allowed function names"):
+            _ToolKwargsConversion.from_google(obj)
+
 
 class TestToolMessages:
     def test_tool_call_and_result_are_preserved(self) -> None:
@@ -310,6 +382,42 @@ class TestToolMessages:
         response = _first_part(messages[0]).function_response
         assert response is not None
         assert response.response == {"output": 42}
+
+    def test_output_mapping_is_not_unwrapped(self) -> None:
+        contents = [
+            genai_types.Content(
+                role="model",
+                parts=[
+                    genai_types.Part(
+                        function_call=genai_types.FunctionCall(id="c1", name="f", args={})
+                    )
+                ],
+            ),
+            genai_types.Content(
+                role="user",
+                parts=[
+                    genai_types.Part(
+                        function_response=genai_types.FunctionResponse(
+                            id="c1",
+                            name="f",
+                            response={"output": "hello"},
+                        )
+                    )
+                ],
+            ),
+        ]
+
+        prompt = create_prompt_version_from_google_genai(
+            "gemini-2.0-flash", contents, template_format="NONE"
+        )
+
+        template = prompt["template"]
+        assert template["type"] == "chat"
+        content = template["messages"][1]["content"]
+        assert isinstance(content, list)
+        tool_result = content[0]
+        assert tool_result["type"] == "tool_result"
+        assert tool_result["tool_result"] == {"output": "hello"}
 
     def test_malformed_tool_call_arguments_do_not_raise(self) -> None:
         obj = _prompt_version(

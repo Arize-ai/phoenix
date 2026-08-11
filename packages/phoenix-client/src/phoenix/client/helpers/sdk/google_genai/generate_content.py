@@ -85,7 +85,10 @@ def create_prompt_version_from_google_genai(
             config.system_instruction,
         )
     )
-    messages.extend(_ContentConversion.from_google(content) for content in contents)
+    tool_call_names: dict[str, str] = {}
+    messages.extend(
+        _ContentConversion.from_google(content, tool_call_names) for content in contents
+    )
     ans = v1.PromptVersionData(
         model_provider=model_provider,
         model_name=model,
@@ -480,6 +483,11 @@ class _ToolConfigConversion:
             if not fcc.allowed_function_names:
                 choice_one_or_more: v1.PromptToolChoiceOneOrMore = {"type": "one_or_more"}
                 return choice_one_or_more
+            if len(fcc.allowed_function_names) > 1:
+                raise NotImplementedError(
+                    "Google GenAI tool configuration with multiple allowed function names "
+                    "is not supported"
+                )
             choice_specific_function_tool: v1.PromptToolChoiceSpecificFunctionTool = {
                 "type": "specific_function",
                 "function_name": fcc.allowed_function_names[0],
@@ -511,6 +519,10 @@ class _FunctionDeclarationConversion:
     def from_google(
         obj: genai_types.FunctionDeclaration,
     ) -> v1.PromptToolFunction:
+        if obj.response is not None or obj.response_json_schema is not None:
+            raise NotImplementedError("Google GenAI function response schemas are not supported")
+        if obj.behavior is not None:
+            raise NotImplementedError("Google GenAI function behavior is not supported")
         function = v1.PromptToolFunctionDefinition(
             name=obj.name or "",
             description=obj.description or "",
@@ -542,7 +554,48 @@ class _SchemaConversion:
     ) -> dict[str, Any]:
         from google.genai import types as genai_types
 
-        ans: dict[str, Any] = {}
+        def convert_list(values: Sequence[Any]) -> list[Any]:
+            return [convert(value) for value in values]
+
+        def convert(value: Any) -> Any:
+            if isinstance(value, genai_types.Schema):
+                return _SchemaConversion.from_google(value)
+            if isinstance(value, genai_types.Type):
+                return value.value.lower()
+            if isinstance(value, list):
+                return convert_list(value)  # pyright: ignore[reportUnknownArgumentType]
+            if isinstance(value, Mapping):
+                mapping: Mapping[str, Any] = value
+                converted: dict[str, Any] = {}
+                for key in mapping:
+                    converted[key] = convert(mapping[key])
+                return converted
+            return value
+
+        ans: dict[str, Any] = {
+            "additionalProperties": obj.additional_properties,
+            "$defs": obj.defs,
+            "$ref": obj.ref,
+            "anyOf": obj.any_of,
+            "default": obj.default,
+            "description": obj.description,
+            "enum": obj.enum,
+            "example": obj.example,
+            "format": obj.format,
+            "maxItems": obj.max_items,
+            "maxLength": obj.max_length,
+            "maxProperties": obj.max_properties,
+            "maximum": obj.maximum,
+            "minItems": obj.min_items,
+            "minLength": obj.min_length,
+            "minProperties": obj.min_properties,
+            "minimum": obj.minimum,
+            "nullable": obj.nullable,
+            "pattern": obj.pattern,
+            "propertyOrdering": obj.property_ordering,
+            "required": obj.required,
+            "title": obj.title,
+        }
         if obj.type is genai_types.Type.STRING:
             ans["type"] = "string"
         elif obj.type is genai_types.Type.NUMBER:
@@ -551,31 +604,19 @@ class _SchemaConversion:
             ans["type"] = "integer"
         elif obj.type is genai_types.Type.BOOLEAN:
             ans["type"] = "boolean"
+        elif obj.type is genai_types.Type.NULL:
+            ans["type"] = "null"
         elif obj.type is genai_types.Type.ARRAY:
             ans["type"] = "array"
         elif obj.type is genai_types.Type.OBJECT:
             ans["type"] = "object"
-        if obj.format:
-            ans["format"] = obj.format
-        if obj.description:
-            ans["description"] = obj.description
-        if obj.nullable:
-            ans["nullable"] = obj.nullable
-        if obj.enum:
-            ans["enum"] = list(obj.enum)
         if obj.items is not None:
             ans["items"] = _SchemaConversion.from_google(obj.items)
-        if obj.max_items:
-            ans["maxItems"] = obj.max_items
-        if obj.min_items:
-            ans["minItems"] = obj.min_items
         if obj.properties:
             ans["properties"] = {
                 k: _SchemaConversion.from_google(v) for k, v in obj.properties.items()
             }
-        if obj.required:
-            ans["required"] = list(obj.required)
-        return ans
+        return {key: convert(value) for key, value in ans.items() if value is not None}
 
 
 class _ContentConversion:
@@ -614,6 +655,7 @@ class _ContentConversion:
     @staticmethod
     def from_google(
         obj: genai_types.Content,
+        tool_call_names: Optional[dict[str, str]] = None,
     ) -> v1.PromptMessage:
         role = _RoleConversion.from_google(obj)
         parts: list[_ContentPart] = []
@@ -621,8 +663,22 @@ class _ContentConversion:
             if _has_text(part):
                 parts.append(_TextContentPartConversion.from_google(part))
             elif _has_function_call(part):
-                parts.append(_ToolCallContentPartConversion.from_google(part))
+                tool_call = _ToolCallContentPartConversion.from_google(part)
+                if tool_call_names is not None:
+                    tool_call_names[tool_call["tool_call_id"]] = tool_call["tool_call"]["name"]
+                parts.append(tool_call)
             elif _has_function_response(part):
+                function_response = part.function_response
+                assert function_response is not None
+                if (
+                    not function_response.id
+                    or not function_response.name
+                    or tool_call_names is None
+                    or tool_call_names.get(function_response.id) != function_response.name
+                ):
+                    raise NotImplementedError(
+                        "Google GenAI function responses require a preceding matching function call"
+                    )
                 parts.append(_ToolResultContentPartConversion.from_google(part))
             else:
                 raise NotImplementedError("Unsupported Google GenAI content part")
@@ -705,15 +761,10 @@ class _ToolResultContentPartConversion:
         assert obj.function_response is not None
         fr = obj.function_response
         response = fr.response
-        result: Any = response
-        if isinstance(response, Mapping):
-            mapping: Mapping[str, Any] = response
-            # Unwrap the envelope added by `to_google` for non-mapping results.
-            result = mapping["output"] if set(mapping) == {"output"} else dict(mapping)
         return v1.ToolResultContentPart(
             type="tool_result",
             tool_call_id=fr.id or "",
-            tool_result=result,
+            tool_result=dict(response) if isinstance(response, Mapping) else response,
         )
 
 
