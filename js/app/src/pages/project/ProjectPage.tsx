@@ -19,6 +19,7 @@ import {
 } from "react-router";
 
 import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
+import { Counter } from "@phoenix/components/core/counter";
 import {
   ConnectedTimeRangeSelector,
   type TimeRangeISOStrings,
@@ -207,6 +208,7 @@ function ProjectPageContentBody({
       query ProjectPageQuery($id: ID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
           ... on Project {
+            evaluatorCount
             ...ProjectStats_project
             ...ProjectTimeRangeControls_data
           }
@@ -405,7 +407,12 @@ function ProjectPageContentBody({
             <Tab id="traces">Traces</Tab>
             <Tab id="sessions">Sessions</Tab>
             <Tab id="metrics">Metrics</Tab>
-            <Tab id="evaluators">Evaluators</Tab>
+            <Tab id="evaluators">
+              Evaluators{" "}
+              <Counter variant="quiet">
+                {data.project.evaluatorCount ?? 0}
+              </Counter>
+            </Tab>
             <Tab id="config">Config</Tab>
           </TabList>
           <LazyTabPanel padded={false} id="spans">
