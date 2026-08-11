@@ -108,6 +108,67 @@ tool name, per-tool schema pins in Python, approval factories' old context
 contract) were removed rather than rewritten — new tests land after the
 behavior is validated on this branch. Remaining suites pass.
 
+## Proposed follow-up: approval-gated navigation (`navigation.goTo`)
+
+PXI cannot navigate today. `get_route_info` is read-only — it resolves the
+route catalog (`handle.agentRoute` in `Routes.tsx`) so the model can render a
+link, but the user does the navigating. And dispatch's not-mounted error is a
+deliberate dead end: "requires the Playground page", with no way to act on it
+except asking the user.
+
+Now that `search_ui` discovers operations on pages that are not open, the
+catalog architecture gives the missing piece an obvious shape: **one more
+`approval`-kind operation**, not a new tool.
+
+### Design
+
+- **Descriptor.** `navigation.goTo` with `kind: "approval"` and input
+  `{ path, reason }`. The `reason` field plays the same role as `execute_ui`'s
+  `summary` argument: user-facing intent as a first-class schema field,
+  rendered in the approval card — "PXI wants to take you to **Playground** —
+  _'so I can stage the prompt edit you asked for'_". `path` is validated
+  against the route catalog (the `get_route_info` data), so the model cannot
+  navigate to a guess.
+- **Always mounted.** Unlike every existing operation, the handler registers
+  at the app root (it only needs `useNavigate`), so it is available from any
+  page — exactly right, since its job is to be reachable when nothing else is.
+- **Approval mechanics are the existing ones.** The handler stages a pending
+  entry keyed `<executeUiToolCallId>:<sequence>`, returns a promise that stays
+  pending, and `emitResult` resolves it on accept/reject. Because approvals
+  pause the script's wall-clock budget, waiting on the user costs nothing.
+  The pending map joins `EXECUTE_UI_PENDING_MAP_CLEANERS` so interrupt/rewind
+  clears a dangling card.
+- **Resolve after the destination mounts.** The composition this enables —
+  `await ui.navigation.goTo(...)` then `await ui.playground.prompt.edit(...)`
+  — has a race: destination operations register asynchronously as React
+  mounts. The machinery to close the gap already exists:
+  `waitForRegisteredClientActions` is subscription-based precisely so flows
+  can await a page's operations after navigation. On accept, the handler
+  resolves only once the route change commits (optionally once expected
+  operations appear), so the script's next call doesn't hit a spurious
+  not-mounted error.
+
+### Decisions to settle up front
+
+1. **Never auto-accept.** Existing approvals honor
+   `permissions.edits === "bypass"`, but navigation yanks the user's view out
+   from under them mid-task — more invasive than an edit, which at least
+   stays where they're looking. Either exempt navigation from bypass or give
+   it its own permission key.
+2. **Unsaved-state hazard.** Navigating away from the playground can discard
+   in-progress work. The handler must respect route blockers, and a blocked
+   or declined navigation should resolve a useful `{ ok: false, error }` so
+   the model explains instead of retrying.
+3. **Rejection continues the script.** The script receives
+   `{ ok: false, error: "The user declined navigation." }` and can fall back
+   to returning a link — today's behavior as the graceful floor — rather
+   than the run failing.
+4. **Close the error loop.** The real payoff is changing dispatch's
+   not-mounted error from a dead end to a recovery instruction: "…requires
+   the Playground page. Use `ui.navigation.goTo` to ask the user to go
+   there." The same self-healing pattern `search_ui` ⇄ `execute_ui` already
+   use, extended one more hop.
+
 ## Known follow-ups
 
 1. Bespoke diff cards for script-child approvals (prompt diff, evaluator
