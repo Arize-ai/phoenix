@@ -6,7 +6,7 @@ import { Loading } from "@phoenix/components";
 import {
   AnnotationMetricsChart,
   type AnnotationMetricsInputPoint,
-  AnnotationScoreLabelToggle,
+  AnnotationMetricsViewMenu,
   ChartPanel,
   getDefaultAnnotationMetricsView,
   normalizeAnnotationMetrics,
@@ -168,7 +168,7 @@ function ExperimentAnnotationMetricPanelContent({
       fillHeight={fillHeight}
       actions={
         showViewToggle ? (
-          <AnnotationScoreLabelToggle view={activeView} onChange={setView} />
+          <AnnotationMetricsViewMenu view={activeView} onChange={setView} />
         ) : undefined
       }
     >
