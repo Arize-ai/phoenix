@@ -1036,6 +1036,20 @@ class TraceSpanData(TypedDict):
     end_time: str
 
 
+class TransferTracesData(TypedDict):
+    transferred: int
+    destination_project_id: str
+
+
+class TransferTracesRequestBody(TypedDict):
+    trace_ids: Sequence[str]
+    destination_project_identifier: str
+
+
+class TransferTracesResponseBody(TypedDict):
+    data: TransferTracesData
+
+
 class TurnTraceContext(TypedDict):
     traceId: str
     rootSpanId: str
@@ -1261,6 +1275,7 @@ class PhoenixToolCallCallbackProviderMetadata(TypedDict):
     toolInputEmittedAt: NotRequired[str]
     clientStartedAt: NotRequired[str]
     clientEndedAt: NotRequired[str]
+    outcome: NotRequired[str]
 
 
 class PhoenixToolCallProviderMetadata(TypedDict):
