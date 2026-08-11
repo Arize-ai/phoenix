@@ -42,11 +42,13 @@ import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refe
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 
 export const CreateProjectCodeEvaluatorDialogContent = ({
+  title,
   projectId,
   scope,
   onScopeChange,
   onSuccess,
 }: {
+  title: string;
   projectId: string;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
@@ -213,7 +215,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
 
   return (
     <EvaluatorFormDialogContent
-      title="Create project evaluator"
+      title={title}
       submitLabel="Create"
       onSubmit={onSubmit}
       isSubmitting={isCreating}

@@ -1,5 +1,4 @@
-import type { Environment } from "react-relay";
-import { fetchQuery, graphql } from "react-relay";
+import { graphql } from "react-relay";
 
 import {
   extractCodeEvaluatorVariables,
@@ -34,7 +33,7 @@ export const projectEvaluatorOptionsQuery = graphql`
   }
 `;
 
-const projectEvaluatorDetailsQueryNode = graphql`
+export const projectEvaluatorDetailsQueryNode = graphql`
   query projectEvaluatorDetailsQuery($id: ID!) {
     evaluator: node(id: $id) {
       __typename
@@ -132,7 +131,7 @@ const projectEvaluatorDetailsQueryNode = graphql`
 export type ProjectEvaluatorOption =
   projectEvaluatorOptionsQuery$data["evaluators"]["edges"][number]["evaluator"];
 
-export type ProjectEvaluatorDetails = NonNullable<
+type ProjectEvaluatorDetails = NonNullable<
   projectEvaluatorDetailsQuery["response"]["evaluator"]
 >;
 type LlmProjectEvaluatorDetails = ProjectEvaluatorDetails & {
@@ -174,24 +173,6 @@ export function isCodeProjectEvaluatorDetails(
     typeof evaluator.sourceCode === "string" &&
     Array.isArray(evaluator.outputConfigs)
   );
-}
-
-export async function fetchProjectEvaluatorDetails({
-  environment,
-  evaluatorId,
-}: {
-  environment: Environment;
-  evaluatorId: string;
-}): Promise<ProjectEvaluatorDetails> {
-  const data = await fetchQuery<projectEvaluatorDetailsQuery>(
-    environment,
-    projectEvaluatorDetailsQueryNode,
-    { id: evaluatorId }
-  ).toPromise();
-  if (!data?.evaluator) {
-    throw new Error("Evaluator details could not be loaded");
-  }
-  return data.evaluator;
 }
 
 export type BuildCopyLlmCreationModeResult =

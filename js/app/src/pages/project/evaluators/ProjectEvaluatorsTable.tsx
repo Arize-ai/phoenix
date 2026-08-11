@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-table";
 import { startTransition, useCallback, useEffect, useMemo } from "react";
 import { graphql, readInlineData, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router";
 
 import {
   Flex,
@@ -23,6 +24,7 @@ import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
+import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorsEmptyGallery } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyGallery";
 
 const PAGE_SIZE = 30;
@@ -109,6 +111,12 @@ export function ProjectEvaluatorsTable({
     () => data.evaluators.edges.map(({ node }) => readRow(node)),
     [data.evaluators.edges]
   );
+  const navigate = useNavigate();
+  const paths = useProjectEvaluatorPaths();
+  const openEditSlideover = useCallback(
+    (projectEvaluatorId: string) => navigate(paths.edit(projectEvaluatorId)),
+    [navigate, paths]
+  );
   const columns = useMemo<ColumnDef<TableRow>[]>(
     () => [
       {
@@ -155,11 +163,12 @@ export function ProjectEvaluatorsTable({
             projectId={projectId}
             evaluatorKind={row.original.evaluator.kind}
             evaluatorName={row.original.name}
+            onEdit={openEditSlideover}
           />
         ),
       },
     ],
-    [projectId]
+    [projectId, openEditSlideover]
   );
   // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
@@ -205,7 +214,7 @@ export function ProjectEvaluatorsTable({
                 />
               </TableEmptyWrap>
             ) : (
-              <ProjectEvaluatorsEmptyGallery projectId={projectId} />
+              <ProjectEvaluatorsEmptyGallery />
             )
           ) : (
             <tbody>
