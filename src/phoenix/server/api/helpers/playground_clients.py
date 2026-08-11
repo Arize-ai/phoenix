@@ -613,7 +613,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                     assert_never(tc.type)
             if tools.disable_parallel_tool_calls:
                 params["parallel_tool_calls"] = False
-            elif tools.tools:
+            if tools.tools:
                 resp_tool_list: list[ToolParam] = []
                 for tool in tools.tools:
                     if tool.type == "raw":
@@ -1948,6 +1948,12 @@ class OpenAIReasoningReasoningModelsMixin:
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
+        # Reasoning models must default to the Responses API: OpenAI rejects
+        # function tools combined with reasoning_effort on /v1/chat/completions,
+        # and LLM evaluators always emit their output via a function tool.
+        # An explicit CHAT_COMPLETIONS connection config still selects
+        # OpenAIReasoningNonStreamingClient via get_openai_client_class.
+        *OPENAI_REASONING_MODELS,
     ],
 )
 class OpenAIResponsesAPIStreamingClient(
@@ -1982,10 +1988,9 @@ class OpenAIResponsesAPIStreamingClient(
             yield chunk
 
 
-@register_llm_client(
-    provider_key=GenerativeProviderKey.OPENAI,
-    model_names=OPENAI_REASONING_MODELS,
-)
+# Not registered in the playground registry: reasoning models resolve to
+# OpenAIResponsesAPIStreamingClient by default. This client is reachable only
+# through an explicit CHAT_COMPLETIONS api type (see get_openai_client_class).
 class OpenAIReasoningNonStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
     OpenAIStreamingClient,
@@ -2110,10 +2115,10 @@ class AzureOpenAIResponsesAPIStreamingClient(
         return (self._client_factory.rate_limit_key, self.model_name)
 
 
-@register_llm_client(
-    provider_key=GenerativeProviderKey.AZURE_OPENAI,
-    model_names=OPENAI_REASONING_MODELS,
-)
+# Not registered in the playground registry: registering it here would
+# overwrite the AzureOpenAIResponsesAPIStreamingClient entries for the same
+# model names. Reachable only through an explicit CHAT_COMPLETIONS api type
+# (see get_openai_client_class).
 class AzureOpenAIReasoningNonStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
     AzureOpenAIStreamingClient,
