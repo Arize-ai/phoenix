@@ -155,19 +155,6 @@ const revalidateOnPathChange: ShouldRevalidateFunction = ({
   return defaultShouldRevalidate;
 };
 
-// Re-run the loader when a navigation comes back up from a nested child route
-// — above all closing an edit slideover, which must show fresh data on the
-// page beneath it — while leaving descents into the child to the default
-// (which skips them, since the params don't change).
-const revalidateOnReturnFromChildRoute: ShouldRevalidateFunction = ({
-  currentUrl,
-  nextUrl,
-  defaultShouldRevalidate,
-}) => {
-  if (currentUrl.pathname.startsWith(`${nextUrl.pathname}/`)) return true;
-  return defaultShouldRevalidate;
-};
-
 // :projectId's loader depends only on its own param. Same-URL requests
 // (useRevalidator) defer to the router's default so manual revalidation works.
 export const revalidateOnProjectChange: ShouldRevalidateFunction = ({
@@ -546,7 +533,6 @@ export const appRouteObjects = createRoutesFromElements(
                 path=":projectEvaluatorId"
                 element={<ProjectEvaluatorDetailsPage />}
                 loader={projectEvaluatorDetailsLoader}
-                shouldRevalidate={revalidateOnReturnFromChildRoute}
                 handle={{
                   crumb: (data: ProjectEvaluatorDetailsLoaderData) =>
                     data?.evaluatorDisplayName || "evaluator",

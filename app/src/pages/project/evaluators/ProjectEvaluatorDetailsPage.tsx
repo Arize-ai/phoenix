@@ -19,6 +19,7 @@ import {
 } from "@phoenix/components";
 import { Empty } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import type { OwnedPreloadedQueryRef } from "@phoenix/hooks";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorDetailsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsLoaderQuery.graphql";
 import { LLMProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/LLMProjectEvaluatorDetails";
@@ -27,13 +28,6 @@ import { projectEvaluatorDetailsLoaderGQL } from "@phoenix/pages/project/evaluat
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorScopeDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeDetails";
-
-type ProjectEvaluatorNode = Extract<
-  NonNullable<
-    projectEvaluatorDetailsLoaderQuery["response"]["projectEvaluator"]
-  >,
-  { readonly __typename: "ProjectEvaluator" }
->;
 
 const mainCSS = css`
   display: flex;
@@ -63,10 +57,10 @@ export function ProjectEvaluatorDetailsPage() {
 function ProjectEvaluatorDetailsPageLoaded({
   queryRef,
 }: {
-  queryRef: NonNullable<
-    Awaited<ReturnType<typeof projectEvaluatorDetailsLoader>>["queryRef"]
-  >;
+  queryRef: OwnedPreloadedQueryRef<projectEvaluatorDetailsLoaderQuery>;
 }) {
+  const navigate = useNavigate();
+  const paths = useProjectEvaluatorPaths();
   const data = useOwnedPreloadedQuery<projectEvaluatorDetailsLoaderQuery>({
     query: projectEvaluatorDetailsLoaderGQL,
     queryRef,
@@ -75,18 +69,6 @@ function ProjectEvaluatorDetailsPageLoaded({
   if (projectEvaluator?.__typename !== "ProjectEvaluator") {
     return <ProjectEvaluatorNotFound />;
   }
-  return (
-    <ProjectEvaluatorDetailsPageContent projectEvaluator={projectEvaluator} />
-  );
-}
-
-function ProjectEvaluatorDetailsPageContent({
-  projectEvaluator,
-}: {
-  projectEvaluator: ProjectEvaluatorNode;
-}) {
-  const navigate = useNavigate();
-  const paths = useProjectEvaluatorPaths();
   const evaluator = projectEvaluator.evaluator;
   const isLLMEvaluator = evaluator.kind === "LLM";
   const canEdit = evaluator.kind === "LLM" || evaluator.kind === "CODE";

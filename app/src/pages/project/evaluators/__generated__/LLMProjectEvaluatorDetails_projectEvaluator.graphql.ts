@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5fd8189e9f474b912538e4a7843686f0>>
+ * @generated SignedSource<<bf86473a5f192e9a8aaff703bd0c421f>>
  * @lightSyntaxTransform
  */
 
@@ -55,9 +55,6 @@ export type LLMProjectEvaluatorDetails_projectEvaluator$data = {
             readonly parameters: any;
           };
         } | {
-          readonly __typename: "PromptToolRaw";
-          readonly raw: any;
-        } | {
           // This will never be '%other', but we need some
           // value in case none of the concrete values match.
           readonly __typename: "%other";
@@ -69,7 +66,6 @@ export type LLMProjectEvaluatorDetails_projectEvaluator$data = {
       readonly name: string;
     } | null;
   };
-  readonly id: string;
   readonly inputMapping: {
     readonly literalMapping: any;
     readonly pathMapping: any;
@@ -86,66 +82,59 @@ var v0 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "name",
   "storageKey": null
 },
 v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "__typename",
   "storageKey": null
 },
 v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "__typename",
+  "name": "temperature",
   "storageKey": null
 },
 v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "temperature",
+  "name": "frequencyPenalty",
   "storageKey": null
 },
 v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "frequencyPenalty",
+  "name": "presencePenalty",
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "presencePenalty",
+  "name": "topP",
   "storageKey": null
 },
 v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "topP",
+  "name": "extraBody",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "extraBody",
-  "storageKey": null
-},
-v8 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "stopSequences",
   "storageKey": null
 },
-v9 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -158,7 +147,6 @@ return {
   "metadata": null,
   "name": "LLMProjectEvaluatorDetails_projectEvaluator",
   "selections": [
-    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -210,8 +198,14 @@ return {
               "name": "prompt",
               "plural": false,
               "selections": [
-                (v0/*:: as any*/),
-                (v1/*:: as any*/)
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "id",
+                  "storageKey": null
+                },
+                (v0/*:: as any*/)
               ],
               "storageKey": null
             },
@@ -249,11 +243,11 @@ return {
                       "kind": "InlineDataFragmentSpread",
                       "name": "PromptInvocationParametersReadableFragment",
                       "selections": [
-                        (v2/*:: as any*/),
+                        (v1/*:: as any*/),
                         {
                           "kind": "InlineFragment",
                           "selections": [
-                            (v3/*:: as any*/),
+                            (v2/*:: as any*/),
                             {
                               "alias": "openaiMaxTokens",
                               "args": null,
@@ -268,9 +262,9 @@ return {
                               "name": "maxCompletionTokens",
                               "storageKey": null
                             },
+                            (v3/*:: as any*/),
                             (v4/*:: as any*/),
                             (v5/*:: as any*/),
-                            (v6/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -292,7 +286,7 @@ return {
                               "name": "reasoningEffort",
                               "storageKey": null
                             },
-                            (v7/*:: as any*/)
+                            (v6/*:: as any*/)
                           ],
                           "type": "PromptOpenAIInvocationParameters",
                           "abstractKey": null
@@ -307,9 +301,9 @@ return {
                               "name": "maxTokens",
                               "storageKey": null
                             },
-                            (v3/*:: as any*/),
-                            (v6/*:: as any*/),
-                            (v8/*:: as any*/),
+                            (v2/*:: as any*/),
+                            (v5/*:: as any*/),
+                            (v7/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -336,7 +330,7 @@ return {
                               "name": "thinking",
                               "plural": false,
                               "selections": [
-                                (v2/*:: as any*/),
+                                (v1/*:: as any*/),
                                 {
                                   "kind": "InlineFragment",
                                   "selections": [
@@ -389,7 +383,7 @@ return {
                               ],
                               "storageKey": null
                             },
-                            (v7/*:: as any*/)
+                            (v6/*:: as any*/)
                           ],
                           "type": "PromptAnthropicInvocationParameters",
                           "abstractKey": null
@@ -397,7 +391,7 @@ return {
                         {
                           "kind": "InlineFragment",
                           "selections": [
-                            (v3/*:: as any*/),
+                            (v2/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -405,10 +399,10 @@ return {
                               "name": "maxOutputTokens",
                               "storageKey": null
                             },
-                            (v8/*:: as any*/),
-                            (v5/*:: as any*/),
+                            (v7/*:: as any*/),
                             (v4/*:: as any*/),
-                            (v6/*:: as any*/),
+                            (v3/*:: as any*/),
+                            (v5/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -462,9 +456,9 @@ return {
                               "name": "maxTokens",
                               "storageKey": null
                             },
-                            (v3/*:: as any*/),
-                            (v6/*:: as any*/),
-                            (v8/*:: as any*/)
+                            (v2/*:: as any*/),
+                            (v5/*:: as any*/),
+                            (v7/*:: as any*/)
                           ],
                           "type": "PromptAwsInvocationParameters",
                           "abstractKey": null
@@ -492,7 +486,7 @@ return {
                       "name": "tools",
                       "plural": true,
                       "selections": [
-                        (v2/*:: as any*/),
+                        (v1/*:: as any*/),
                         {
                           "kind": "InlineFragment",
                           "selections": [
@@ -517,20 +511,6 @@ return {
                           ],
                           "type": "PromptToolFunction",
                           "abstractKey": null
-                        },
-                        {
-                          "kind": "InlineFragment",
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "raw",
-                              "storageKey": null
-                            }
-                          ],
-                          "type": "PromptToolRaw",
-                          "abstractKey": null
                         }
                       ],
                       "storageKey": null
@@ -554,7 +534,7 @@ return {
               "name": "promptVersionTag",
               "plural": false,
               "selections": [
-                (v1/*:: as any*/)
+                (v0/*:: as any*/)
               ],
               "storageKey": null
             },
@@ -566,12 +546,12 @@ return {
               "name": "outputConfigs",
               "plural": true,
               "selections": [
-                (v2/*:: as any*/),
+                (v1/*:: as any*/),
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v1/*:: as any*/),
-                    (v9/*:: as any*/),
+                    (v0/*:: as any*/),
+                    (v8/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -604,8 +584,8 @@ return {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v1/*:: as any*/),
-                    (v9/*:: as any*/),
+                    (v0/*:: as any*/),
+                    (v8/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -627,8 +607,8 @@ return {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v1/*:: as any*/),
-                    (v9/*:: as any*/)
+                    (v0/*:: as any*/),
+                    (v8/*:: as any*/)
                   ],
                   "type": "FreeformAnnotationConfig",
                   "abstractKey": null
@@ -649,6 +629,6 @@ return {
 };
 })();
 
-(node as any).hash = "53848aac7911c1aab099aedd39065036";
+(node as any).hash = "6fdf5926d2b416baccc4a12f21117549";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0594ef95c2efca8045f03aa1bc894c54>>
+ * @generated SignedSource<<263d3240e8057ed789c4eb1d86d7cfd9>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,6 @@ import { ReaderFragment } from 'relay-runtime';
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorScopeDetails_projectEvaluator$data = {
-  readonly enabled: boolean;
   readonly evaluationTarget: EvaluationTarget;
   readonly filterCondition: string;
   readonly samplingRate: number;
@@ -48,19 +47,12 @@ const node: ReaderFragment = {
       "kind": "ScalarField",
       "name": "samplingRate",
       "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "enabled",
-      "storageKey": null
     }
   ],
   "type": "ProjectEvaluator",
   "abstractKey": null
 };
 
-(node as any).hash = "83eb231c25da9938f9c3b1406257e559";
+(node as any).hash = "206d2fc44e707d0e5030e443056ed522";
 
 export default node;

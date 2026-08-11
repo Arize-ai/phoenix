@@ -14,14 +14,8 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         id
         name
         enabled
-        project {
-          id
-        }
         evaluator {
-          __typename
-          id
           kind
-          name
           description
         }
         ...ProjectEvaluatorScopeDetails_projectEvaluator
@@ -53,32 +47,31 @@ export async function projectEvaluatorDetailsLoader(
   const { projectEvaluatorId } = args.params;
   invariant(projectEvaluatorId, "projectEvaluatorId is required");
 
-  let evaluatorDisplayName: string | null = null;
-  let found = false;
+  let data: projectEvaluatorDetailsLoaderQuery["response"] | undefined;
   try {
-    const data = await fetchQuery<projectEvaluatorDetailsLoaderQuery>(
+    data = await fetchQuery<projectEvaluatorDetailsLoaderQuery>(
       RelayEnvironment,
       projectEvaluatorDetailsLoaderGQL,
       { projectEvaluatorId }
     ).toPromise();
-    if (data?.projectEvaluator?.__typename === "ProjectEvaluator") {
-      found = true;
-      evaluatorDisplayName = data.projectEvaluator.name;
-    }
   } catch {
-    // A malformed or stale id falls through to the not-found state.
+    // The server rejects ids that don't name a live evaluator, so a malformed
+    // or stale id surfaces here; fall through to the not-found state rather
+    // than the route error boundary.
   }
 
-  const queryRef = found
-    ? loadQuery<projectEvaluatorDetailsLoaderQuery>(
-        RelayEnvironment,
-        projectEvaluatorDetailsLoaderGQL,
-        { projectEvaluatorId }
-      )
-    : null;
+  const node = data?.projectEvaluator;
+  const projectEvaluator =
+    node?.__typename === "ProjectEvaluator" ? node : null;
 
   return {
-    queryRef,
-    evaluatorDisplayName,
+    queryRef: projectEvaluator
+      ? loadQuery<projectEvaluatorDetailsLoaderQuery>(
+          RelayEnvironment,
+          projectEvaluatorDetailsLoaderGQL,
+          { projectEvaluatorId }
+        )
+      : null,
+    evaluatorDisplayName: projectEvaluator?.name ?? null,
   };
 }
