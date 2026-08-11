@@ -1940,27 +1940,25 @@ OPENAI_REASONING_MODELS = [
 ]
 
 
-class OpenAIReasoningReasoningModelsMixin:
-    """Mixin class for OpenAI-style reasoning model clients (o1, o3 series)."""
-
-
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
-        # Reasoning models must default to the Responses API: OpenAI rejects
-        # function tools combined with reasoning_effort on /v1/chat/completions,
-        # and LLM evaluators always emit their output via a function tool.
-        # An explicit CHAT_COMPLETIONS connection config still selects
-        # OpenAIReasoningNonStreamingClient via get_openai_client_class.
         *OPENAI_REASONING_MODELS,
     ],
+    override=True,  # intentionally replaces OpenAIStreamingClient as the provider default
 )
-class OpenAIResponsesAPIStreamingClient(
-    OpenAIReasoningReasoningModelsMixin,
-    OpenAIStreamingClient,
-):
-    """OpenAI Responses API (responses.create) for gpt-5.2, gpt-5.1, etc."""
+class OpenAIResponsesAPIStreamingClient(OpenAIStreamingClient):
+    """OpenAI Responses API (responses.create) client.
+
+    The provider default, and the default for all reasoning models: OpenAI
+    rejects function tools combined with reasoning_effort on
+    /v1/chat/completions, and LLM evaluators always emit their structured
+    output via a function tool (see
+    https://github.com/Arize-ai/phoenix/issues/15299). An explicit
+    CHAT_COMPLETIONS connection config still selects
+    OpenAIReasoningNonStreamingClient via get_openai_client_class.
+    """
 
     @override
     async def _chat_completion_create(
@@ -1988,13 +1986,9 @@ class OpenAIResponsesAPIStreamingClient(
             yield chunk
 
 
-# Not registered in the playground registry: reasoning models resolve to
-# OpenAIResponsesAPIStreamingClient by default. This client is reachable only
-# through an explicit CHAT_COMPLETIONS api type (see get_openai_client_class).
-class OpenAIReasoningNonStreamingClient(
-    OpenAIReasoningReasoningModelsMixin,
-    OpenAIStreamingClient,
-):
+# Not registered; reachable only via an explicit CHAT_COMPLETIONS api type
+# (see get_openai_client_class).
+class OpenAIReasoningNonStreamingClient(OpenAIStreamingClient):
     def _to_openai_chat_completion_param(
         self,
         message: PlaygroundMessage,
@@ -2078,10 +2072,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
     model_names=OPENAI_REASONING_MODELS,
 )
-class AzureOpenAIResponsesAPIStreamingClient(
-    OpenAIReasoningReasoningModelsMixin,
-    AzureOpenAIStreamingClient,
-):
+class AzureOpenAIResponsesAPIStreamingClient(AzureOpenAIStreamingClient):
     """Azure OpenAI Responses API (responses.create) for gpt-5.2, gpt-5.1, etc."""
 
     @override
@@ -2115,14 +2106,9 @@ class AzureOpenAIResponsesAPIStreamingClient(
         return (self._client_factory.rate_limit_key, self.model_name)
 
 
-# Not registered in the playground registry: registering it here would
-# overwrite the AzureOpenAIResponsesAPIStreamingClient entries for the same
-# model names. Reachable only through an explicit CHAT_COMPLETIONS api type
+# Not registered; reachable only via an explicit CHAT_COMPLETIONS api type
 # (see get_openai_client_class).
-class AzureOpenAIReasoningNonStreamingClient(
-    OpenAIReasoningReasoningModelsMixin,
-    AzureOpenAIStreamingClient,
-):
+class AzureOpenAIReasoningNonStreamingClient(AzureOpenAIStreamingClient):
     @override
     def _to_openai_chat_completion_message_param(
         self,
@@ -3044,6 +3030,7 @@ GEMINI_2_5_MODELS = [
 @register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=GEMINI_2_5_MODELS,
+    override=True,  # intentionally replaces GoogleStreamingClient as the provider default
 )
 class Gemini25GoogleStreamingClient(GoogleStreamingClient):
     pass
