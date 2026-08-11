@@ -1,5 +1,10 @@
 # Migrations
 
+## v19.x to v20.0.0
+
+No action is required to upgrade from v19.x to v20.0.0. The new agent session persistence feature adds database tables
+via a schema migration that is applied automatically on startup.
+
 ## v18.x to v19.0.0
 
 ### Built-in OAuth2 authorization server
