@@ -63,9 +63,9 @@ def register_llm_client(
 ) -> Callable[[type["PlaygroundStreamingClient[Any]"]], type["PlaygroundStreamingClient[Any]"]]:
     """Add a provider's models to the playground catalog.
 
-    This declares which model names the UI offers for a provider, and which client
-    supplies the provider's dependency metadata. It does not decide which client
-    serves a request -- see ``get_openai_client_class`` in ``playground_clients``.
+    Declares the model names the UI offers and the client supplying the provider's
+    dependency metadata. Does not select the client that serves a request -- see
+    ``get_openai_client_class`` in ``playground_clients``.
     """
 
     def decorator(

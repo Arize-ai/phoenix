@@ -1899,11 +1899,8 @@ OPENAI_CHAT_COMPLETIONS_MODELS = [
     "gpt-4",
     "gpt-3.5-turbo",
 ]
-"""Models that default to /v1/chat/completions when no API type is configured.
-
-Everything else — including model names Phoenix has never heard of — defaults to
-the Responses API. See ``get_openai_client_class``.
-"""
+"""OpenAI models that default to /v1/chat/completions. Any other name, known or
+not, defaults to the Responses API. See ``get_openai_client_class``."""
 
 
 @register_llm_client(
@@ -1960,13 +1957,8 @@ OPENAI_REASONING_MODELS = [
 class OpenAIResponsesAPIStreamingClient(OpenAIStreamingClient):
     """OpenAI Responses API (responses.create) client.
 
-    The provider default, and the default for all reasoning models: OpenAI
-    rejects function tools combined with reasoning_effort on
-    /v1/chat/completions, and LLM evaluators always emit their structured
-    output via a function tool (see
-    https://github.com/Arize-ai/phoenix/issues/15299). An explicit
-    CHAT_COMPLETIONS connection config still selects
-    OpenAIReasoningNonStreamingClient via get_openai_client_class.
+    Encodes reasoning effort as ``reasoning: {"effort": ...}``, which is the only
+    form OpenAI accepts alongside function tools.
     """
 
     @override
@@ -1996,7 +1988,7 @@ class OpenAIResponsesAPIStreamingClient(OpenAIStreamingClient):
 
 
 # Not in the catalog; reachable only via an explicit CHAT_COMPLETIONS api type.
-class OpenAIReasoningNonStreamingClient(OpenAIStreamingClient):
+class OpenAIReasoningChatCompletionsClient(OpenAIStreamingClient):
     @override
     def _to_openai_chat_completion_message_param(
         self,
@@ -2117,7 +2109,7 @@ class AzureOpenAIResponsesAPIStreamingClient(AzureOpenAIStreamingClient):
 
 # Not registered; reachable only via an explicit CHAT_COMPLETIONS api type
 # (see get_openai_client_class).
-class AzureOpenAIReasoningNonStreamingClient(AzureOpenAIStreamingClient):
+class AzureOpenAIReasoningChatCompletionsClient(AzureOpenAIStreamingClient):
     @override
     def _to_openai_chat_completion_message_param(
         self,
@@ -3299,15 +3291,12 @@ def get_openai_client_class(
     if provider_key == GenerativeProviderKey.OPENAI:
         if openai_api_type == OpenAIApiType.CHAT_COMPLETIONS:
             if model_name in OPENAI_REASONING_MODELS:
-                return OpenAIReasoningNonStreamingClient
+                return OpenAIReasoningChatCompletionsClient
             return OpenAIStreamingClient
         elif openai_api_type == OpenAIApiType.RESPONSES:
             return OpenAIResponsesAPIStreamingClient
-        # No API type configured. The Responses API is the default for everything
-        # except the legacy models that predate it: OpenAI rejects function tools
-        # combined with reasoning_effort on /v1/chat/completions, and LLM evaluators
-        # always emit their structured output via a function tool.
-        # See https://github.com/Arize-ai/phoenix/issues/15299.
+        # Unconfigured default: Responses, except the models predating it. Reasoning
+        # models cannot use /v1/chat/completions when function tools are present.
         if model_name in OPENAI_CHAT_COMPLETIONS_MODELS:
             return OpenAIStreamingClient
         return OpenAIResponsesAPIStreamingClient
@@ -3315,13 +3304,13 @@ def get_openai_client_class(
     elif provider_key == GenerativeProviderKey.AZURE_OPENAI:
         if openai_api_type == OpenAIApiType.CHAT_COMPLETIONS:
             if model_name in OPENAI_REASONING_MODELS:
-                return AzureOpenAIReasoningNonStreamingClient
+                return AzureOpenAIReasoningChatCompletionsClient
             return AzureOpenAIStreamingClient
         elif openai_api_type == OpenAIApiType.RESPONSES:
             return AzureOpenAIResponsesAPIStreamingClient
-        # No API type configured. Azure deployments are not guaranteed to expose
-        # /v1/responses, so only the reasoning models — which cannot work on
-        # /v1/chat/completions with tools — are routed there by default.
+        # Unconfigured default: Chat Completions, since an Azure deployment may not
+        # expose /v1/responses. Reasoning models are routed there regardless -- they
+        # cannot use /v1/chat/completions when function tools are present.
         if model_name in OPENAI_REASONING_MODELS:
             return AzureOpenAIResponsesAPIStreamingClient
         return AzureOpenAIStreamingClient

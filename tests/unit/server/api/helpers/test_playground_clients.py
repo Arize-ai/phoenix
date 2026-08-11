@@ -40,12 +40,12 @@ from phoenix.server.api.helpers.playground_clients import (
     OPENAI_CHAT_COMPLETIONS_MODELS,
     OPENAI_REASONING_MODELS,
     AnthropicStreamingClient,
-    AzureOpenAIReasoningNonStreamingClient,
+    AzureOpenAIReasoningChatCompletionsClient,
     AzureOpenAIResponsesAPIStreamingClient,
     AzureOpenAIStreamingClient,
     GoogleStreamingClient,
     OpenAIBaseStreamingClient,
-    OpenAIReasoningNonStreamingClient,
+    OpenAIReasoningChatCompletionsClient,
     OpenAIResponsesAPIStreamingClient,
     OpenAIStreamingClient,
     _get_builtin_provider_client,
@@ -690,7 +690,7 @@ class TestGetOpenAIClientClass:
                 model_name,
                 OpenAIApiType.CHAT_COMPLETIONS,
             )
-            assert client_class is OpenAIReasoningNonStreamingClient, f"Failed for {model_name}"
+            assert client_class is OpenAIReasoningChatCompletionsClient, f"Failed for {model_name}"
 
     def test_openai_responses_returns_responses_client(self) -> None:
         """RESPONSES API type should return OpenAIResponsesAPIStreamingClient."""
@@ -757,7 +757,7 @@ class TestGetOpenAIClientClass:
                 model_name,
                 OpenAIApiType.CHAT_COMPLETIONS,
             )
-            assert client_class is AzureOpenAIReasoningNonStreamingClient, (
+            assert client_class is AzureOpenAIReasoningChatCompletionsClient, (
                 f"Failed for {model_name}"
             )
 
@@ -951,7 +951,7 @@ class TestDefaultApiTypeRouting:
 class TestReasoningChatCompletionsMessages:
     @pytest.mark.parametrize(
         "client_class",
-        [OpenAIReasoningNonStreamingClient, AzureOpenAIReasoningNonStreamingClient],
+        [OpenAIReasoningChatCompletionsClient, AzureOpenAIReasoningChatCompletionsClient],
     )
     def test_system_messages_become_developer_messages(
         self, client_class: type[OpenAIBaseStreamingClient]
