@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from phoenix_harbor import PhoenixConfig, TraceMode
+from phoenix_harbor._config import PhoenixConfig, TraceMode
 
 
 def test_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
