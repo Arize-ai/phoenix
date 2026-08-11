@@ -2699,7 +2699,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
 
     @override
     def is_rate_limit_error(self, e: Exception) -> bool:
-        # Google GenAI uses Stainless SDK with RateLimitError (429)
+        # The Interactions API raises RateLimitError for HTTP 429 responses.
         from google.genai._interactions._exceptions import RateLimitError
 
         return isinstance(e, RateLimitError)
