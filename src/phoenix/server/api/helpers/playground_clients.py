@@ -3029,7 +3029,6 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
 
 
 GEMINI_2_5_MODELS = [
-    PROVIDER_DEFAULT,
     "gemini-2.5-pro",  # Will be deprecated and will be shut down on June 17, 2026.
     "gemini-2.5-flash",  # Will be deprecated and will be shut down on June 17, 2026.
     "gemini-2.5-flash-lite",  # Will be deprecated and will be shut down on July 22, 2026.
