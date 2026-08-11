@@ -158,10 +158,24 @@ export function AttachCodeProjectEvaluatorPage() {
   );
 }
 
+/**
+ * The edit route is nested under the evaluator's details page, so closing the
+ * slideover lands on the details view it was opened over rather than the list.
+ */
+function useCloseEditSlideover(projectEvaluatorId: string) {
+  const navigate = useNavigate();
+  const { details } = useProjectEvaluatorPaths();
+  return (isOpen: boolean) => {
+    if (!isOpen) {
+      navigate(details(projectEvaluatorId), { replace: true });
+    }
+  };
+}
+
 export function EditProjectEvaluatorPage() {
   const { projectEvaluatorId } = useParams();
   invariant(projectEvaluatorId, "projectEvaluatorId is required");
-  const onOpenChange = useCloseSlideover();
+  const onOpenChange = useCloseEditSlideover(projectEvaluatorId);
   const { evaluator, sandboxConfigs } = useProjectEvaluator(projectEvaluatorId);
   if (
     evaluator.evaluator.kind !== "LLM" &&

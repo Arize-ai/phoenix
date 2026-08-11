@@ -20,6 +20,9 @@ import {
 } from "@phoenix/pages/dataset/evaluators/EvaluatorTracePage";
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
+import type { ProjectEvaluatorDetailsLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
+import { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
+import { ProjectEvaluatorDetailsPage } from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsPage";
 import { RootLayout } from "@phoenix/pages/RootLayout";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
@@ -149,6 +152,19 @@ const revalidateOnPathChange: ShouldRevalidateFunction = ({
   defaultShouldRevalidate,
 }) => {
   if (currentUrl.pathname === nextUrl.pathname) return false;
+  return defaultShouldRevalidate;
+};
+
+// Re-run the loader when a navigation comes back up from a nested child route
+// — above all closing an edit slideover, which must show fresh data on the
+// page beneath it — while leaving descents into the child to the default
+// (which skips them, since the params don't change).
+const revalidateOnReturnFromChildRoute: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}) => {
+  if (currentUrl.pathname.startsWith(`${nextUrl.pathname}/`)) return true;
   return defaultShouldRevalidate;
 };
 
@@ -510,8 +526,39 @@ export const appRouteObjects = createRoutesFromElements(
                     },
                   }}
                 />
+              </Route>
+            </Route>
+            {/* The evaluator details page is a full page rather than a tab,
+                mirroring the dataset evaluator details route. The edit
+                slideover nests beneath it so it opens over the details view. */}
+            <Route
+              path="evaluators"
+              handle={{
+                crumb: () => "evaluators",
+                agentRoute: {
+                  label: "Project Evaluators",
+                  description:
+                    "Create and manage project evaluators — online evals that automatically run against live spans.",
+                },
+              }}
+            >
+              <Route
+                path=":projectEvaluatorId"
+                element={<ProjectEvaluatorDetailsPage />}
+                loader={projectEvaluatorDetailsLoader}
+                shouldRevalidate={revalidateOnReturnFromChildRoute}
+                handle={{
+                  crumb: (data: ProjectEvaluatorDetailsLoaderData) =>
+                    data?.evaluatorDisplayName || "evaluator",
+                  agentRoute: {
+                    label: "Project Evaluator Details",
+                    description:
+                      "Inspect a project evaluator's configuration and scope policy — model, prompt template, output configs, input mapping, evaluation target, filter condition, sampling rate, and enabled state. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                  },
+                }}
+              >
                 <Route
-                  path=":projectEvaluatorId/edit"
+                  path="edit"
                   element={<EditProjectEvaluatorPage />}
                   handle={{
                     agentRoute: {
