@@ -166,14 +166,12 @@ export function buildAgentChatRequestBody({
   if (trailingMessage.role === "assistant") {
     // Client-tool continuation: the server owns the assistant message, so
     // only the resolved client tool outputs are sent, not the message itself.
-    const [enrichedAssistant] = enrichMessagesWithClientToolMetadata({
-      messages: [trailingMessage],
+    const enrichedAssistant = enrichMessageWithClientToolMetadata({
+      message: trailingMessage,
       toolTimings,
       interruptedToolCallIds,
     });
-    const toolOutputs = getClientToolOutputs(
-      enrichedAssistant ?? trailingMessage
-    );
+    const toolOutputs = getClientToolOutputs(enrichedAssistant);
     if (toolOutputs.length === 0) {
       throw new Error(
         "A chat continuation requires resolved client tool outputs to send"
@@ -186,13 +184,13 @@ export function buildAgentChatRequestBody({
       lastMessageId: getLastPersistedMessageId(messages),
     };
   }
-  const [message] = toServerSafeUIMessages(
-    enrichMessagesWithClientToolMetadata({
-      messages: [trailingMessage],
+  const [message] = toServerSafeUIMessages([
+    enrichMessageWithClientToolMetadata({
+      message: trailingMessage,
       toolTimings,
       interruptedToolCallIds,
-    })
-  );
+    }),
+  ]);
   if (!message) {
     throw new Error("A chat submit request requires a message to send");
   }
@@ -205,11 +203,11 @@ export function buildAgentChatRequestBody({
   const toolOutputs =
     precedingMessage?.role === "assistant"
       ? getClientToolOutputs(
-          enrichMessagesWithClientToolMetadata({
-            messages: [precedingMessage],
+          enrichMessageWithClientToolMetadata({
+            message: precedingMessage,
             toolTimings,
             interruptedToolCallIds,
-          })[0] ?? precedingMessage
+          })
         )
       : [];
   return {
@@ -242,52 +240,50 @@ function getLastPersistedMessageId(
 }
 
 /**
- * Return a copy of resolved tool parts annotated with client execution
- * timings and, where marked, the interrupted outcome.
+ * Return a copy of the message whose resolved tool parts are annotated with
+ * client execution timings and, where marked, the interrupted outcome.
  */
-export function enrichMessagesWithClientToolMetadata({
-  messages,
+export function enrichMessageWithClientToolMetadata({
+  message,
   toolTimings,
   interruptedToolCallIds = {},
 }: {
-  messages: AgentUIMessage[];
+  message: AgentUIMessage;
   toolTimings: ClientToolTimingRecorder | null;
   interruptedToolCallIds?: InterruptedToolCallIds;
-}): AgentUIMessage[] {
-  return messages.map((message) => {
-    let hasChangedPart = false;
-    const parts = message.parts.map((part) => {
-      const isResolvedToolPart =
-        isToolUIPart(part) &&
-        (part.state === "output-available" || part.state === "output-error");
-      if (!isResolvedToolPart) {
-        return part;
-      }
-      const timing = toolTimings?.get(part.toolCallId) ?? null;
-      const isInterrupted = interruptedToolCallIds[part.toolCallId] === true;
-      if (timing == null && !isInterrupted) {
-        return part;
-      }
-      hasChangedPart = true;
-      const timingMetadata: ClientToolTimingMetadata | null =
-        timing == null
-          ? null
-          : {
-              clientStartedAt: timing.startedAt,
-              clientEndedAt: timing.endedAt,
-            };
-      return {
-        ...part,
-        callProviderMetadata: {
-          ...part.callProviderMetadata,
-          phoenix: {
-            ...part.callProviderMetadata?.phoenix,
-            ...timingMetadata,
-            ...(isInterrupted ? { outcome: "interrupted" as const } : null),
-          },
+}): AgentUIMessage {
+  let hasChangedPart = false;
+  const parts = message.parts.map((part) => {
+    const isResolvedToolPart =
+      isToolUIPart(part) &&
+      (part.state === "output-available" || part.state === "output-error");
+    if (!isResolvedToolPart) {
+      return part;
+    }
+    const timing = toolTimings?.get(part.toolCallId) ?? null;
+    const isInterrupted = interruptedToolCallIds[part.toolCallId] === true;
+    if (timing == null && !isInterrupted) {
+      return part;
+    }
+    hasChangedPart = true;
+    const timingMetadata: ClientToolTimingMetadata | null =
+      timing == null
+        ? null
+        : {
+            clientStartedAt: timing.startedAt,
+            clientEndedAt: timing.endedAt,
+          };
+    return {
+      ...part,
+      callProviderMetadata: {
+        ...part.callProviderMetadata,
+        phoenix: {
+          ...part.callProviderMetadata?.phoenix,
+          ...timingMetadata,
+          ...(isInterrupted ? { outcome: "interrupted" as const } : null),
         },
-      };
-    });
-    return hasChangedPart ? { ...message, parts } : message;
+      },
+    };
   });
+  return hasChangedPart ? { ...message, parts } : message;
 }

@@ -7,7 +7,7 @@ import {
 
 import {
   buildAgentChatRequestBody,
-  enrichMessagesWithClientToolMetadata,
+  enrichMessageWithClientToolMetadata,
 } from "../buildAgentChatRequestBody";
 import { createClientToolTimingRecorder } from "../clientToolTimings";
 import type { AgentUIMessage } from "../types";
@@ -453,7 +453,7 @@ describe("buildAgentChatRequestBody", () => {
   });
 });
 
-describe("enrichMessagesWithClientToolMetadata", () => {
+describe("enrichMessageWithClientToolMetadata", () => {
   it("copies completed tool parts and preserves provider metadata", () => {
     const times = [
       new Date("2026-07-10T12:00:00Z"),
@@ -464,39 +464,36 @@ describe("enrichMessagesWithClientToolMetadata", () => {
     });
     toolTimings.recordStart("call-1");
     toolTimings.recordEnd("call-1");
-    const messages: AgentUIMessage[] = [
-      {
-        id: "assistant-1",
-        role: "assistant",
-        parts: [
-          {
-            type: "tool-read_prompt",
-            toolCallId: "call-1",
-            state: "output-available",
-            input: { id: 1 },
-            output: { name: "prompt" },
-            callProviderMetadata: {
-              phoenix: {
-                toolExecutionEnvironment: "client",
-                toolInputEmittedAt: "2026-07-10T11:59:59Z",
-              },
-              provider: { retained: true },
+    const message: AgentUIMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-read_prompt",
+          toolCallId: "call-1",
+          state: "output-available",
+          input: { id: 1 },
+          output: { name: "prompt" },
+          callProviderMetadata: {
+            phoenix: {
+              toolExecutionEnvironment: "client",
+              toolInputEmittedAt: "2026-07-10T11:59:59Z",
             },
+            provider: { retained: true },
           },
-        ],
-      },
-    ];
-    const original = structuredClone(messages);
+        },
+      ],
+    };
+    const original = structuredClone(message);
 
-    const enriched = enrichMessagesWithClientToolMetadata({
-      messages,
+    const enriched = enrichMessageWithClientToolMetadata({
+      message,
       toolTimings,
     });
 
-    expect(enriched).not.toBe(messages);
-    expect(enriched[0]).not.toBe(messages[0]);
-    expect(enriched[0]?.parts[0]).not.toBe(messages[0]?.parts[0]);
-    expect(enriched[0]?.parts[0]).toMatchObject({
+    expect(enriched).not.toBe(message);
+    expect(enriched.parts[0]).not.toBe(message.parts[0]);
+    expect(enriched.parts[0]).toMatchObject({
       callProviderMetadata: {
         provider: { retained: true },
         phoenix: {
@@ -507,77 +504,73 @@ describe("enrichMessagesWithClientToolMetadata", () => {
         },
       },
     });
-    expect(messages).toEqual(original);
+    expect(message).toEqual(original);
   });
 
   it("leaves parts without complete timings untouched", () => {
     const toolTimings = createClientToolTimingRecorder();
     toolTimings.recordStart("call-1");
-    const messages: AgentUIMessage[] = [
-      {
-        id: "assistant-1",
-        role: "assistant",
-        parts: [
-          {
-            type: "tool-read_prompt",
-            toolCallId: "call-1",
-            state: "output-available",
-            input: {},
-            output: "done",
-          },
-        ],
-      },
-    ];
+    const message: AgentUIMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-read_prompt",
+          toolCallId: "call-1",
+          state: "output-available",
+          input: {},
+          output: "done",
+        },
+      ],
+    };
 
-    const enriched = enrichMessagesWithClientToolMetadata({
-      messages,
+    const enriched = enrichMessageWithClientToolMetadata({
+      message,
       toolTimings,
     });
 
-    expect(enriched[0]).toBe(messages[0]);
-    expect(enriched[0]?.parts[0]).toBe(messages[0]?.parts[0]);
+    expect(enriched).toBe(message);
+    expect(enriched.parts[0]).toBe(message.parts[0]);
   });
 
   it("stamps the interrupted outcome on marked resolved parts", () => {
-    const messages: AgentUIMessage[] = [
-      {
-        id: "assistant-1",
-        role: "assistant",
-        parts: [
-          {
-            type: "tool-edit_prompt_instance",
-            toolCallId: "call-1",
-            state: "output-error",
-            input: {},
-            errorText: "The user has interrupted this tool call.",
-            callProviderMetadata: {
-              phoenix: {
-                toolExecutionEnvironment: "client",
-                toolInputEmittedAt: "2026-07-10T11:59:59Z",
-              },
+    const message: AgentUIMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-edit_prompt_instance",
+          toolCallId: "call-1",
+          state: "output-error",
+          input: {},
+          errorText: "The user has interrupted this tool call.",
+          callProviderMetadata: {
+            phoenix: {
+              toolExecutionEnvironment: "client",
+              toolInputEmittedAt: "2026-07-10T11:59:59Z",
             },
           },
-          {
-            type: "tool-read_prompt",
-            toolCallId: "call-2",
-            state: "output-available",
-            input: {},
-            output: "done",
-            callProviderMetadata: {
-              phoenix: { toolExecutionEnvironment: "client" },
-            },
+        },
+        {
+          type: "tool-read_prompt",
+          toolCallId: "call-2",
+          state: "output-available",
+          input: {},
+          output: "done",
+          callProviderMetadata: {
+            phoenix: { toolExecutionEnvironment: "client" },
           },
-        ],
-      },
-    ];
+        },
+      ],
+    };
 
-    const enriched = enrichMessagesWithClientToolMetadata({
-      messages,
+    const enriched = enrichMessageWithClientToolMetadata({
+      message,
       toolTimings: null,
       interruptedToolCallIds: { "call-1": true },
     });
 
-    expect(enriched[0]?.parts[0]).toMatchObject({
+    expect(enriched.parts[0]).toMatchObject({
       callProviderMetadata: {
         phoenix: {
           toolExecutionEnvironment: "client",
@@ -587,6 +580,6 @@ describe("enrichMessagesWithClientToolMetadata", () => {
       },
     });
     // Unmarked parts are untouched.
-    expect(enriched[0]?.parts[1]).toBe(messages[0]?.parts[1]);
+    expect(enriched.parts[1]).toBe(message.parts[1]);
   });
 });

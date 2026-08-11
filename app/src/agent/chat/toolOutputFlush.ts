@@ -1,6 +1,6 @@
 import type { components } from "@phoenix/api/__generated__/v1";
 
-import { enrichMessagesWithClientToolMetadata } from "./buildAgentChatRequestBody";
+import { enrichMessageWithClientToolMetadata } from "./buildAgentChatRequestBody";
 import type { ClientToolTimingRecorder } from "./clientToolTimings";
 import {
   getFlushableClientToolOutputs,
@@ -33,13 +33,13 @@ export function flushToolOutputs({
   /** Tool calls this client resolved as interrupted; suppresses the flush. */
   interruptedToolCallIds?: InterruptedToolCallIds;
 }): void {
-  const [enrichedMessage] = enrichMessagesWithClientToolMetadata({
-    messages: [message],
+  const enrichedMessage = enrichMessageWithClientToolMetadata({
+    message,
     toolTimings,
     interruptedToolCallIds,
   });
   const toolOutputs = getFlushableClientToolOutputs({
-    message: enrichedMessage ?? message,
+    message: enrichedMessage,
     interruptedToolCallIds,
   });
   if (toolOutputs.length === 0) {
