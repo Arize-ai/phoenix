@@ -1534,6 +1534,10 @@ class CreateDatasetSplitRequestBody(V1RoutesBaseModel):
     )
 
 
+class ListDatasetSplitsResponseBody(PaginatedResponseBody[DatasetSplit]):
+    pass
+
+
 class CreateDatasetSplitResponseBody(ResponseBody[DatasetSplit]):
     pass
 
@@ -1641,6 +1645,80 @@ def _to_dataset_split(split: models.DatasetSplit, *, example_count: int) -> Data
         created_at=split.created_at,
         updated_at=split.updated_at,
     )
+
+
+@router.get(
+    "/datasets/{dataset_identifier}/splits",
+    operation_id="listDatasetSplits",
+    summary="List dataset splits",
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 404, "description": "Dataset not found"},
+            {"status_code": 422, "description": "Invalid request"},
+        ]
+    ),
+)
+async def list_dataset_splits(
+    request: Request,
+    dataset_identifier: str = Path(
+        description="The dataset identifier: either dataset ID or dataset name."
+    ),
+    cursor: Optional[str] = Query(
+        default=None,
+        description="Cursor for pagination",
+    ),
+    limit: int = Query(
+        default=10, description="The max number of dataset splits to return at a time.", gt=0
+    ),
+) -> ListDatasetSplitsResponseBody:
+    async with request.app.state.db() as session:
+        dataset = await get_dataset_by_identifier(session, dataset_identifier)
+        # A split belongs to a dataset when at least one of its examples does. The join is
+        # restricted to this dataset's examples, so the per-split count is dataset-scoped and
+        # matches what the create/update/delete endpoints report.
+        query = (
+            select(
+                models.DatasetSplit,
+                func.count(models.DatasetSplitDatasetExample.dataset_example_id).label(
+                    "example_count"
+                ),
+            )
+            .select_from(models.DatasetSplit)
+            .join(
+                models.DatasetSplitDatasetExample,
+                onclause=(
+                    models.DatasetSplit.id == models.DatasetSplitDatasetExample.dataset_split_id
+                ),
+            )
+            .join(
+                models.DatasetExample,
+                onclause=(
+                    models.DatasetSplitDatasetExample.dataset_example_id == models.DatasetExample.id
+                ),
+            )
+            .where(models.DatasetExample.dataset_id == dataset.id)
+            .group_by(models.DatasetSplit.id)
+            .order_by(models.DatasetSplit.id.desc())
+        )
+        if cursor:
+            try:
+                cursor_id = from_global_id_with_expected_type(
+                    GlobalID.from_id(cursor), DATASET_SPLIT_NODE_NAME
+                )
+            except ValueError:
+                raise HTTPException(
+                    detail=f"Invalid cursor format: {cursor}",
+                    status_code=422,
+                )
+            query = query.where(models.DatasetSplit.id <= cursor_id)
+        rows = (await session.execute(query.limit(limit + 1))).all()
+
+    next_cursor = None
+    if len(rows) == limit + 1:
+        next_cursor = str(GlobalID(DATASET_SPLIT_NODE_NAME, str(rows[-1][0].id)))
+        rows = rows[:-1]
+    data = [_to_dataset_split(split, example_count=example_count) for split, example_count in rows]
+    return ListDatasetSplitsResponseBody(next_cursor=next_cursor, data=data)
 
 
 @router.post(
