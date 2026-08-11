@@ -13,12 +13,15 @@ import {
   Flex,
   Icon,
   Icons,
+  Link,
   LoadMoreButton,
   Text,
   View,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
-import { tableCSS } from "@phoenix/components/table/styles";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
@@ -26,6 +29,10 @@ import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/Pr
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
+import {
+  formatEvaluationTarget,
+  formatSamplingRate,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 const PAGE_SIZE = 30;
 
@@ -128,6 +135,11 @@ export function ProjectEvaluatorsTable({
       {
         header: "Name",
         accessorKey: "name",
+        cell: ({ getValue, row }) => (
+          <Link to={paths.details(row.original.id)}>
+            <Truncate maxWidth="100%">{getValue() as string}</Truncate>
+          </Link>
+        ),
       },
       {
         id: "target",
@@ -153,11 +165,13 @@ export function ProjectEvaluatorsTable({
         id: "enabled",
         header: "Enabled",
         cell: ({ row }) => (
-          <ProjectEvaluatorEnabledSwitch
-            projectEvaluatorId={row.original.id}
-            name={row.original.name}
-            enabled={row.original.enabled}
-          />
+          <StopPropagation>
+            <ProjectEvaluatorEnabledSwitch
+              projectEvaluatorId={row.original.id}
+              name={row.original.name}
+              enabled={row.original.enabled}
+            />
+          </StopPropagation>
         ),
       },
       {
@@ -174,7 +188,7 @@ export function ProjectEvaluatorsTable({
         ),
       },
     ],
-    [projectId, openEditSlideover]
+    [projectId, openEditSlideover, paths]
   );
   // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
@@ -195,7 +209,7 @@ export function ProjectEvaluatorsTable({
   }
   return (
     <div css={scrollableAreaCSS}>
-      <table css={tableCSS} aria-label="Project evaluators">
+      <table css={selectableTableCSS} aria-label="Project evaluators">
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -223,7 +237,10 @@ export function ProjectEvaluatorsTable({
         ) : (
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id}>
+              <tr
+                key={row.id}
+                onClick={() => navigate(paths.details(row.original.id))}
+              >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -246,15 +263,4 @@ export function ProjectEvaluatorsTable({
       ) : null}
     </div>
   );
-}
-
-function formatEvaluationTarget(target: "SPAN" | "TRACE" | "SESSION") {
-  return `${target.charAt(0)}${target.slice(1).toLowerCase()}`;
-}
-
-function formatSamplingRate(samplingRate: number) {
-  return new Intl.NumberFormat(undefined, {
-    style: "percent",
-    maximumFractionDigits: 2,
-  }).format(samplingRate);
 }

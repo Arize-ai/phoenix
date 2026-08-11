@@ -1,9 +1,12 @@
-import { css } from "@emotion/react";
 import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
 import { Flex, Heading, Text } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import {
+  evaluatorDetailsCardCSS,
+  EvaluatorInputMappingDetails,
+} from "@phoenix/components/evaluators/EvaluatorDetailsSection";
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
@@ -95,15 +98,7 @@ export function LLMDatasetEvaluatorDetails({
           return (
             <Flex direction="column" gap="size-100">
               <Heading level={2}>Evaluator Annotation</Heading>
-              <div
-                css={css`
-                  border-radius: var(--global-rounding-medium);
-                  padding: var(--global-dimension-size-200);
-                  margin-top: var(--global-dimension-size-50);
-                  border: 1px solid var(--global-border-color-default);
-                  overflow: hidden;
-                `}
-              >
+              <div css={evaluatorDetailsCardCSS}>
                 <Flex direction="column" gap="size-100">
                   <Truncate title={outputConfig.name}>
                     <Text size="S">
@@ -167,61 +162,7 @@ export function LLMDatasetEvaluatorDetails({
           <PromptChatMessages promptVersion={evaluator.promptVersion} />
         )}
       </Flex>
-      <LLMEvaluatorInputMapping inputMapping={inputMapping} />
-    </Flex>
-  );
-}
-
-function LLMEvaluatorInputMapping({
-  inputMapping,
-}: {
-  inputMapping: {
-    literalMapping?: Record<string, boolean | string | number> | null;
-    pathMapping?: Record<string, string> | null;
-  } | null;
-}) {
-  const literalMapping = inputMapping?.literalMapping;
-  const pathMapping = inputMapping?.pathMapping;
-
-  const hasLiteralMapping =
-    literalMapping && Object.keys(literalMapping).length > 0;
-  const hasPathMapping = pathMapping && Object.keys(pathMapping).length > 0;
-
-  if (!hasLiteralMapping && !hasPathMapping) {
-    return null;
-  }
-
-  return (
-    <Flex direction="column" gap="size-100">
-      <Heading level={2}>Input Mapping</Heading>
-      <div
-        css={css`
-          border-radius: var(--global-rounding-medium);
-          padding: var(--global-dimension-size-200);
-          margin-top: var(--global-dimension-size-50);
-          border: 1px solid var(--global-border-color-default);
-        `}
-      >
-        <Flex direction="column" gap="size-100">
-          {pathMapping &&
-            Object.entries(pathMapping).map(([key, value]) => (
-              <Text key={key} size="S">
-                <Text weight="heavy">{key}:</Text> {value || "Not mapped"}
-              </Text>
-            ))}
-          {literalMapping &&
-            Object.entries(literalMapping).map(([key, value]) => (
-              <Text key={key} size="S">
-                <Text weight="heavy">{key}:</Text>{" "}
-                {typeof value === "boolean"
-                  ? value
-                    ? "Yes"
-                    : "No"
-                  : String(value)}
-              </Text>
-            ))}
-        </Flex>
-      </div>
+      <EvaluatorInputMappingDetails inputMapping={inputMapping} />
     </Flex>
   );
 }
