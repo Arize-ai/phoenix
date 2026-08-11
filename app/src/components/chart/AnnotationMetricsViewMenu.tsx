@@ -1,3 +1,5 @@
+import { css } from "@emotion/react";
+
 import {
   Button,
   Icon,
@@ -33,6 +35,9 @@ export function AnnotationMetricsViewMenu({
       <Popover placement="bottom end">
         <Menu
           aria-label="Evaluation metric view"
+          css={css`
+            --menu-min-width: auto;
+          `}
           selectionMode="single"
           selectedKeys={[view]}
           onAction={(selectedView) => {
