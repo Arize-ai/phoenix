@@ -118,7 +118,8 @@ jobs:
       id-token: write
       actions: write
     uses: ./.github/workflows/publish.yaml
-    secrets: inherit
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
   publish-docker:
     name: Publish Docker images
@@ -135,4 +136,8 @@ jobs:
     uses: ./.github/workflows/docker-build-release.yml
     with:
       version: ${{ needs.release-please.outputs.phoenix_version }}
-    secrets: inherit
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+      MY_RELEASE_PLEASE_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

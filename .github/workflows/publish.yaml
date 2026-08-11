@@ -16,6 +16,9 @@ on:
         required: false
         type: string
         default: ""
+    secrets:
+      SLACK_WEBHOOK_URL:
+        required: false
 
 name: Publish Python packages
 

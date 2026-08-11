@@ -11,6 +11,15 @@ on:
       version:
         required: true
         type: string
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_PASSWORD:
+        required: true
+      MY_RELEASE_PLEASE_TOKEN:
+        required: true
+      SLACK_WEBHOOK_URL:
+        required: false
 
 jobs:
   push_to_registry:
