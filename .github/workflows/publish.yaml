@@ -8,10 +8,18 @@ on:
         required: false
         type: string
         default: ""
+  # Called by release.yml as the gated Python-publish step of a release. No
+  # feature_branch is passed, so it defaults to "" and runs the release flow.
+  workflow_call:
+    inputs:
+      feature_branch:
+        required: false
+        type: string
+        default: ""
 
 name: Publish Python packages
 
-# This workflow has two modes, both dispatched manually:
+# This workflow has two modes:
 #   - Release (feature_branch empty): the production flow — build from
 #     release-please tags and publish final versions to PyPI.
 #   - Preview (feature_branch set): publish PEP 440 development (dev) pre-releases

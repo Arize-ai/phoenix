@@ -2,9 +2,15 @@ name: Publish Docker images
 permissions:
   contents: read
 on:
-  push:
-    tags:
-      - "arize-phoenix-v*"
+  # Called by release.yml as the gated Docker step of a release. `version` is
+  # the released arize-phoenix version (from the release-please manifest). No
+  # tag-push trigger: images ship only after release.yml's CI gate passes,
+  # never straight off a tag on an un-verified build.
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
 
 jobs:
   push_to_registry:
@@ -27,13 +33,15 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Extract version from tag
+      - name: Resolve version
         id: extract_version
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
-          echo "VERSION=${GITHUB_REF#refs/tags/arize-phoenix-v}" >> $GITHUB_ENV
-          echo "VERSION=${GITHUB_REF#refs/tags/arize-phoenix-v}" >> $GITHUB_OUTPUT
-          echo "MAJOR_VERSION=$(echo ${GITHUB_REF#refs/tags/arize-phoenix-v} | cut -d. -f1)" >> $GITHUB_ENV
-          echo "MINOR_VERSION=$(echo ${GITHUB_REF#refs/tags/arize-phoenix-v} | cut -d. -f2)" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "MAJOR_VERSION=$(echo "$VERSION" | cut -d. -f1)" >> $GITHUB_ENV
+          echo "MINOR_VERSION=$(echo "$VERSION" | cut -d. -f2)" >> $GITHUB_ENV
 
       - name: Set BASE_IMAGE environment variable
         id: set-base-image

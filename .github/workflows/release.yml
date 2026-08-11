@@ -5,20 +5,134 @@ on:
 
 name: release
 
+# One release workflow, driven by release-please.
+#
+# A release starts when the release-please PR is merged to main. That merge is
+# this run's github.sha — the exact commit CI runs on. Before anything ships we
+# wait for that commit's required CI checks to conclude green (await-ci):
+# "release at will, only if CI passes". Publishing then runs as gated jobs in
+# this single workflow — Python packages via publish.yaml and Docker images via
+# docker-build-release.yml — instead of being fired blindly with
+# `gh workflow run` or off a tag push.
+#
+# Left on their own tracks (not consolidated here): npm packages
+# (typescript-packages-publish.yml, changesets) and the Helm chart
+# (helm-release.yaml, which runs off the version-bump PR that Docker opens).
+
+permissions: {}
+
 jobs:
-  release:
+  release-please:
     runs-on: ubuntu-latest
     permissions:
-      actions: write
       contents: write
       pull-requests: write
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      paths_released: ${{ steps.release.outputs.paths_released }}
+      phoenix_version: ${{ steps.version.outputs.version }}
     steps:
       - uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4.4.0
         with:
           token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
         id: release
-      - name: Trigger publish
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         if: steps.release.outputs.releases_created == 'true'
-        run: gh workflow run publish.yaml --repo ${{ github.repository }}
+        with:
+          persist-credentials: false
+          sparse-checkout: .release-please-manifest.json
+          sparse-checkout-cone-mode: false
+      - name: Read arize-phoenix version from manifest
+        id: version
+        if: steps.release.outputs.releases_created == 'true'
+        run: |
+          v=$(jq -r '.["."] // empty' .release-please-manifest.json)
+          if [ -z "$v" ]; then echo "::error::No version for root (.) in manifest"; exit 1; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+  # Gate: block all publishing until the release commit's required CI checks are
+  # green. Those checks run on this same push, so they may not exist yet when we
+  # start — poll until each required workflow has a completed run for github.sha,
+  # fail fast if any concludes non-success, and time out rather than hang.
+  await-ci:
+    name: Wait for CI to pass
+    needs: release-please
+    if: needs.release-please.outputs.releases_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    steps:
+      - name: Wait for required checks on the release commit
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          required=("Python CI" "Typescript CI" "Typescript Packages CI" "Playwright Tests")
+          timeout=$(( 60 * 60 ))   # 60 minutes
+          interval=30
+          waited=0
+          while :; do
+            runs=$(gh api "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100")
+            pending=()
+            for wf in "${required[@]}"; do
+              read -r status conclusion < <(
+                echo "$runs" | jq -r --arg n "$wf" '
+                  [.workflow_runs[] | select(.name == $n)]
+                  | sort_by(.run_started_at) | last
+                  | "\(.status // "missing") \(.conclusion // "none")"'
+              )
+              case "$status" in
+                completed)
+                  if [ "$conclusion" != "success" ]; then
+                    echo "::error::$wf concluded '$conclusion' on $SHA — aborting release"
+                    exit 1
+                  fi
+                  echo "PASS  $wf"
+                  ;;
+                *)
+                  echo "wait  $wf ($status)"
+                  pending+=("$wf")
+                  ;;
+              esac
+            done
+            if [ "${#pending[@]}" -eq 0 ]; then
+              echo "All required checks passed."
+              break
+            fi
+            if [ "$waited" -ge "$timeout" ]; then
+              echo "::error::Timed out after ${timeout}s waiting for: ${pending[*]}"
+              exit 1
+            fi
+            sleep "$interval"
+            waited=$(( waited + interval ))
+          done
+
+  publish-python:
+    name: Publish Python packages
+    needs: [release-please, await-ci]
+    if: needs.release-please.outputs.releases_created == 'true'
+    permissions:
+      contents: read
+      id-token: write
+      actions: write
+    uses: ./.github/workflows/publish.yaml
+    secrets: inherit
+
+  publish-docker:
+    name: Publish Docker images
+    needs: [release-please, await-ci]
+    # Only when the root arize-phoenix package itself was released — a
+    # sibling-only release (e.g. arize-phoenix-evals) ships no new image.
+    if: >-
+      needs.release-please.outputs.releases_created == 'true' &&
+      contains(fromJSON(needs.release-please.outputs.paths_released), '.')
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    uses: ./.github/workflows/docker-build-release.yml
+    with:
+      version: ${{ needs.release-please.outputs.phoenix_version }}
+    secrets: inherit
