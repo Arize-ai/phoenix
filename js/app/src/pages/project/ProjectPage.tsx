@@ -34,8 +34,6 @@ import {
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
 import {
-  CREATE_CODE_EVALUATOR_PARAM,
-  CREATE_LLM_EVALUATOR_PARAM,
   SESSION_FILTER_CONDITION_PARAM,
   SPAN_FILTER_CONDITION_PARAM,
   TRACE_FILTER_CONDITION_PARAM,
@@ -46,10 +44,7 @@ import {
   useStreamState,
 } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
-import {
-  clearSelectionScopedParams,
-  withSearchParams,
-} from "@phoenix/utils/urlUtils";
+import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 import type { ProjectOnboardingOverlay_project$key } from "./__generated__/ProjectOnboardingOverlay_project.graphql";
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
@@ -618,14 +613,7 @@ function ProjectPageContentBody({
   const onTabChange = useCallback(
     (index: number) => {
       startTransition(() => {
-        // The evaluators tab owns these; drop them so it does not reopen.
-        const search = withSearchParams(
-          clearSelectionScopedParams(location.search),
-          (params) => {
-            params.delete(CREATE_LLM_EVALUATOR_PARAM);
-            params.delete(CREATE_CODE_EVALUATOR_PARAM);
-          }
-        );
+        const search = clearSelectionScopedParams(location.search);
         const tab = TAB_PATH_BY_INDEX[index] ?? "spans";
         navigate({
           pathname: `${rootPath}/${tab}`,
