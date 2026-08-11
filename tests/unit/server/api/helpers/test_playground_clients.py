@@ -37,6 +37,7 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
+    OPENAI_REASONING_MODELS,
     AnthropicStreamingClient,
     AzureOpenAIReasoningNonStreamingClient,
     AzureOpenAIResponsesAPIStreamingClient,
@@ -50,6 +51,7 @@ from phoenix.server.api.helpers.playground_clients import (
     _resolve_provider_api_key,
     get_openai_client_class,
 )
+from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
@@ -789,6 +791,117 @@ class TestGetOpenAIClientClass:
             None,
         )
         assert client_class is None
+
+
+class TestReasoningModelClientRouting:
+    """Regression tests for https://github.com/Arize-ai/phoenix/issues/15299.
+
+    LLM evaluators emit structured output via a function tool, and OpenAI
+    reasoning models reject function tools combined with ``reasoning_effort``
+    on ``/v1/chat/completions``. When no API type is explicitly configured,
+    reasoning models must therefore route to the Responses API clients.
+    """
+
+    def test_openai_reasoning_models_default_to_responses_client(self) -> None:
+        for model_name in OPENAI_REASONING_MODELS:
+            client_class = get_openai_client_class(
+                GenerativeProviderKey.OPENAI,
+                model_name,
+                None,
+            )
+            assert client_class is OpenAIResponsesAPIStreamingClient, f"Failed for {model_name}"
+
+    def test_azure_reasoning_models_default_to_responses_client(self) -> None:
+        for model_name in OPENAI_REASONING_MODELS:
+            client_class = get_openai_client_class(
+                GenerativeProviderKey.AZURE_OPENAI,
+                model_name,
+                None,
+            )
+            assert client_class is AzureOpenAIResponsesAPIStreamingClient, (
+                f"Failed for {model_name}"
+            )
+
+    def test_registry_maps_reasoning_models_to_responses_clients(self) -> None:
+        for model_name in OPENAI_REASONING_MODELS:
+            assert (
+                PLAYGROUND_CLIENT_REGISTRY.get_client(GenerativeProviderKey.OPENAI, model_name)
+                is OpenAIResponsesAPIStreamingClient
+            ), f"Failed for {model_name}"
+            assert (
+                PLAYGROUND_CLIENT_REGISTRY.get_client(
+                    GenerativeProviderKey.AZURE_OPENAI, model_name
+                )
+                is AzureOpenAIResponsesAPIStreamingClient
+            ), f"Failed for {model_name}"
+
+    def test_explicit_chat_completions_still_selects_reasoning_chat_clients(self) -> None:
+        assert (
+            get_openai_client_class(
+                GenerativeProviderKey.OPENAI, "gpt-5.6-luna", OpenAIApiType.CHAT_COMPLETIONS
+            )
+            is OpenAIReasoningNonStreamingClient
+        )
+        assert (
+            get_openai_client_class(
+                GenerativeProviderKey.AZURE_OPENAI, "gpt-5.6-luna", OpenAIApiType.CHAT_COMPLETIONS
+            )
+            is AzureOpenAIReasoningNonStreamingClient
+        )
+
+    def test_response_params_keep_tools_and_map_reasoning_effort(self) -> None:
+        """Function tools + reasoning_effort + disabled parallel tool calls must all
+        survive translation into a Responses API request."""
+        from unittest.mock import MagicMock
+
+        client = object.__new__(OpenAIResponsesAPIStreamingClient)
+        client.model_name = "gpt-5.6-luna"
+
+        tools = PromptTools(
+            type="tools",
+            tools=[
+                PromptToolFunction(
+                    type="function",
+                    function=PromptToolFunctionDefinition(
+                        name="record_evaluation",
+                        description="Record the evaluation result",
+                        parameters={
+                            "type": "object",
+                            "properties": {"label": {"type": "string"}},
+                        },
+                    ),
+                )
+            ],
+            tool_choice=PromptToolChoiceSpecificFunctionTool(
+                type="specific_function", function_name="record_evaluation"
+            ),
+            disable_parallel_tool_calls=True,
+        )
+        invocation_parameters = PromptOpenAIInvocationParameters(
+            type="openai",
+            openai=PromptOpenAIInvocationParametersContent(reasoning_effort="high"),
+        )
+        messages: list[PlaygroundMessage] = [
+            create_playground_message(ChatCompletionMessageRole.USER, "Evaluate this span.")
+        ]
+
+        params, extra_body = client._openai_response_build_params(
+            messages=messages,
+            tools=tools,
+            response_format=None,
+            invocation_parameters=invocation_parameters,
+            span=MagicMock(),
+        )
+
+        assert extra_body is None
+        assert params["model"] == "gpt-5.6-luna"
+        assert params["parallel_tool_calls"] is False
+        tool_params = params.get("tools")
+        assert tool_params, "function tools were dropped from the Responses request"
+        assert tool_params[0]["name"] == "record_evaluation"
+        assert params["tool_choice"] == {"type": "function", "name": "record_evaluation"}
+        assert params["reasoning"] == {"effort": "high"}
+        assert "reasoning_effort" not in params
 
 
 def _identity_decrypt(value: bytes) -> bytes:
