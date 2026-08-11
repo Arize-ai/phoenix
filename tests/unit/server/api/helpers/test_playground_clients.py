@@ -16,7 +16,7 @@ from openinference.semconv.trace import (
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import StatusCode, Tracer
+from opentelemetry.trace import INVALID_SPAN, StatusCode, Tracer
 from pydantic import SecretStr
 
 from phoenix.db import models
@@ -37,6 +37,7 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
+    OPENAI_REASONING_MODELS,
     AnthropicStreamingClient,
     AzureOpenAIReasoningNonStreamingClient,
     AzureOpenAIResponsesAPIStreamingClient,
@@ -678,7 +679,7 @@ class TestGetOpenAIClientClass:
 
     def test_openai_chat_completions_reasoning_model_returns_reasoning_client(self) -> None:
         """Reasoning models (o1, o3) with CHAT_COMPLETIONS should return reasoning client."""
-        for model_name in ["o1", "o3", "o3-mini"]:
+        for model_name in ["o1", "o3", "o3-mini", "gpt-5.6-luna"]:
             client_class = get_openai_client_class(
                 GenerativeProviderKey.OPENAI,
                 model_name,
@@ -745,12 +746,15 @@ class TestGetOpenAIClientClass:
 
     def test_azure_chat_completions_reasoning_model_returns_reasoning_client(self) -> None:
         """Azure reasoning models with CHAT_COMPLETIONS should return reasoning client."""
-        client_class = get_openai_client_class(
-            GenerativeProviderKey.AZURE_OPENAI,
-            "o1",
-            OpenAIApiType.CHAT_COMPLETIONS,
-        )
-        assert client_class is AzureOpenAIReasoningNonStreamingClient
+        for model_name in ["o1", "gpt-5.6-luna"]:
+            client_class = get_openai_client_class(
+                GenerativeProviderKey.AZURE_OPENAI,
+                model_name,
+                OpenAIApiType.CHAT_COMPLETIONS,
+            )
+            assert client_class is AzureOpenAIReasoningNonStreamingClient, (
+                f"Failed for {model_name}"
+            )
 
     def test_azure_responses_returns_azure_responses_client(self) -> None:
         """Azure with RESPONSES should return AzureOpenAIResponsesAPIStreamingClient."""
@@ -789,6 +793,89 @@ class TestGetOpenAIClientClass:
             None,
         )
         assert client_class is None
+
+
+class TestReasoningModelClientRouting:
+    """Regression tests for https://github.com/Arize-ai/phoenix/issues/15299.
+
+    LLM evaluators emit structured output via a function tool, and OpenAI
+    reasoning models reject function tools combined with ``reasoning_effort``
+    on ``/v1/chat/completions``. When no API type is explicitly configured,
+    reasoning models must therefore route to the Responses API clients.
+    """
+
+    @pytest.mark.parametrize(
+        "provider_key,expected_class",
+        [
+            (GenerativeProviderKey.OPENAI, OpenAIResponsesAPIStreamingClient),
+            (GenerativeProviderKey.AZURE_OPENAI, AzureOpenAIResponsesAPIStreamingClient),
+        ],
+    )
+    def test_reasoning_models_default_to_responses_client(
+        self,
+        provider_key: GenerativeProviderKey,
+        expected_class: type[OpenAIBaseStreamingClient],
+    ) -> None:
+        for model_name in OPENAI_REASONING_MODELS:
+            client_class = get_openai_client_class(provider_key, model_name, None)
+            assert client_class is expected_class, f"Failed for {model_name}"
+
+    def test_response_params_keep_tools_and_map_reasoning_effort(self) -> None:
+        """Function tools + reasoning_effort + disabled parallel tool calls must all
+        survive translation into a Responses API request."""
+        client = OpenAIResponsesAPIStreamingClient(
+            client_factory=LLMClientFactory(
+                lambda: AsyncOpenAI(api_key="sk-test"), ("openai", "test")
+            ),
+            model_name="gpt-5.6-luna",
+            provider="openai",
+        )
+
+        tools = PromptTools(
+            type="tools",
+            tools=[
+                PromptToolFunction(
+                    type="function",
+                    function=PromptToolFunctionDefinition(
+                        name="record_evaluation",
+                        description="Record the evaluation result",
+                        parameters={
+                            "type": "object",
+                            "properties": {"label": {"type": "string"}},
+                        },
+                    ),
+                )
+            ],
+            tool_choice=PromptToolChoiceSpecificFunctionTool(
+                type="specific_function", function_name="record_evaluation"
+            ),
+            disable_parallel_tool_calls=True,
+        )
+        invocation_parameters = PromptOpenAIInvocationParameters(
+            type="openai",
+            openai=PromptOpenAIInvocationParametersContent(reasoning_effort="high"),
+        )
+        messages: list[PlaygroundMessage] = [
+            create_playground_message(ChatCompletionMessageRole.USER, "Evaluate this span.")
+        ]
+
+        params, extra_body = client._openai_response_build_params(
+            messages=messages,
+            tools=tools,
+            response_format=None,
+            invocation_parameters=invocation_parameters,
+            span=INVALID_SPAN,
+        )
+
+        assert extra_body is None
+        assert params["model"] == "gpt-5.6-luna"
+        assert params["parallel_tool_calls"] is False
+        tool_params = params.get("tools")
+        assert tool_params, "function tools were dropped from the Responses request"
+        assert tool_params[0]["name"] == "record_evaluation"
+        assert params["tool_choice"] == {"type": "function", "name": "record_evaluation"}
+        assert params["reasoning"] == {"effort": "high"}
+        assert "reasoning_effort" not in params
 
 
 def _identity_decrypt(value: bytes) -> bytes:
