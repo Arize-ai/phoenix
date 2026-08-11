@@ -18,6 +18,12 @@ async function createProject(
   await expect(page).toHaveURL(/\/projects\/.+/);
 }
 
+// The evaluator slideovers are routes, so the test asserts on them. Each ends
+// in `(\?|$)` because project pages always carry a time-range search param.
+const EVALUATORS_URL = /\/projects\/[^/]+\/evaluators(\?|$)/;
+const NEW_LLM_EVALUATOR_URL = /\/projects\/[^/]+\/evaluators\/new\/llm(\?|$)/;
+const EDIT_EVALUATOR_URL = /\/projects\/[^/]+\/evaluators\/[^/]+\/edit(\?|$)/;
+
 async function clickSortableHeaderAndExpect(
   header: Locator,
   direction: "ascending" | "descending"
@@ -201,19 +207,27 @@ test.describe.serial("Projects", () => {
     );
 
     await page.getByRole("tab", { name: "Evaluators" }).click();
-    await expect(page).toHaveURL(/\/projects\/.+\/evaluators/);
+    await expect(page).toHaveURL(EVALUATORS_URL);
     await page.getByRole("button", { name: "Add evaluator" }).click();
     await page
       .getByRole("menuitem", { name: "Create new LLM evaluator" })
       .click();
 
+    // The slideover is a route of its own, so it is linkable and closable with
+    // the browser's back button.
+    await expect(page).toHaveURL(NEW_LLM_EVALUATOR_URL);
     const createDialog = page.getByRole("dialog", {
-      name: "Create project evaluator",
+      name: "Create new LLM evaluator",
     });
     await expect(createDialog).toBeVisible();
     await expect(
       createDialog.getByRole("tab", { name: "Bindings" })
     ).toBeVisible();
+    await page.goBack();
+    await expect(createDialog).not.toBeVisible();
+    await expect(page).toHaveURL(EVALUATORS_URL);
+    await page.goForward();
+    await expect(createDialog).toBeVisible();
     // The annotation output has a "Name" field too; the evaluator's own name is
     // the first one.
     await createDialog.getByLabel("Name").first().fill(evaluatorName);
@@ -240,8 +254,9 @@ test.describe.serial("Projects", () => {
       .getByRole("button", { name: "Evaluator actions" })
       .click();
     await page.getByRole("menuitem", { name: "Edit" }).click();
+    await expect(page).toHaveURL(EDIT_EVALUATOR_URL);
     const editDialog = page.getByRole("dialog", {
-      name: "Edit project evaluator",
+      name: `Edit LLM evaluator “${evaluatorName}”`,
     });
     await expect(editDialog).toBeVisible();
     await editDialog.getByLabel("Name").first().fill(updatedEvaluatorName);
