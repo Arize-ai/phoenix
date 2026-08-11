@@ -1,14 +1,17 @@
 import { css } from "@emotion/react";
+import { useId } from "react";
 
+import { DialogTrigger, Label } from "@phoenix/components";
 import {
   Button,
   Icon,
   Icons,
-  Menu,
-  MenuItem,
-  MenuTrigger,
   Popover,
+  SegmentedControl,
+  SegmentedControlItem,
+  View,
 } from "@phoenix/components/core";
+import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 
 import type { AnnotationMetricsView } from "./annotationMetricsUtils";
 
@@ -25,31 +28,42 @@ export function AnnotationMetricsViewMenu({
   view: AnnotationMetricsView;
   onChange: (view: AnnotationMetricsView) => void;
 }) {
+  const labelId = useId();
   return (
-    <MenuTrigger>
+    <DialogTrigger>
       <Button
         size="S"
         aria-label="Choose evaluation metric view"
         leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
       />
       <Popover placement="bottom end">
-        <Menu
-          aria-label="Evaluation metric view"
-          css={css`
-            --menu-min-width: auto;
-          `}
-          selectionMode="single"
-          selectedKeys={[view]}
-          onAction={(selectedView) => {
-            if (isAnnotationMetricsView(selectedView)) {
-              onChange(selectedView);
-            }
-          }}
-        >
-          <MenuItem id="scores">Scores</MenuItem>
-          <MenuItem id="labels">Labels</MenuItem>
-        </Menu>
+        <View padding="size-100">
+          <div
+            css={css(
+              fieldBaseCSS,
+              css`
+                display: flex;
+                flex-direction: column;
+              `
+            )}
+          >
+            <Label id={labelId}>View</Label>
+            <SegmentedControl
+              aria-labelledby={labelId}
+              size="S"
+              selectedKey={view}
+              onSelectionChange={(selectedView) => {
+                if (isAnnotationMetricsView(selectedView)) {
+                  onChange(selectedView);
+                }
+              }}
+            >
+              <SegmentedControlItem id="scores">Scores</SegmentedControlItem>
+              <SegmentedControlItem id="labels">Labels</SegmentedControlItem>
+            </SegmentedControl>
+          </div>
+        </View>
       </Popover>
-    </MenuTrigger>
+    </DialogTrigger>
   );
 }
