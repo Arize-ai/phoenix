@@ -18,7 +18,6 @@ const meta: Meta<typeof ProjectToken> = {
     layout: "centered",
   },
   args: {
-    projectId: "UHJvamVjdDox",
     name: "playground",
     ...GRADIENTS[0],
   },
