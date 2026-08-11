@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<11171255bd06a75d7a3d7d44e8bea9b9>>
+ * @generated SignedSource<<c8228c691f37b54aa9ac22b7d60dd1ce>>
  * @lightSyntaxTransform
  */
 
@@ -60,10 +60,17 @@ v4 = {
   "storageKey": null
 },
 v5 = [
+  {
+    "kind": "Literal",
+    "name": "first",
+    "value": 10
+  }
+],
+v6 = [
   (v1/*:: as any*/),
   (v2/*:: as any*/)
 ],
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "concreteType": "User",
@@ -195,13 +202,7 @@ return {
                     (v4/*:: as any*/),
                     {
                       "alias": null,
-                      "args": [
-                        {
-                          "kind": "Literal",
-                          "name": "first",
-                          "value": 10
-                        }
-                      ],
+                      "args": (v5/*:: as any*/),
                       "concreteType": "DatasetConnection",
                       "kind": "LinkedField",
                       "name": "datasets",
@@ -222,7 +223,7 @@ return {
                               "kind": "LinkedField",
                               "name": "node",
                               "plural": false,
-                              "selections": (v5/*:: as any*/),
+                              "selections": (v6/*:: as any*/),
                               "storageKey": null
                             }
                           ],
@@ -230,6 +231,55 @@ return {
                         }
                       ],
                       "storageKey": "datasets(first:10)"
+                    },
+                    {
+                      "alias": null,
+                      "args": (v5/*:: as any*/),
+                      "concreteType": "ProjectConnection",
+                      "kind": "LinkedField",
+                      "name": "projects",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "ProjectEdge",
+                          "kind": "LinkedField",
+                          "name": "edges",
+                          "plural": true,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "Project",
+                              "kind": "LinkedField",
+                              "name": "node",
+                              "plural": false,
+                              "selections": [
+                                (v1/*:: as any*/),
+                                (v2/*:: as any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "gradientStartColor",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "gradientEndColor",
+                                  "storageKey": null
+                                }
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": "projects(first:10)"
                     },
                     {
                       "alias": null,
@@ -250,10 +300,10 @@ return {
                           "kind": "LinkedField",
                           "name": "dataset",
                           "plural": false,
-                          "selections": (v5/*:: as any*/),
+                          "selections": (v6/*:: as any*/),
                           "storageKey": null
                         },
-                        (v6/*:: as any*/)
+                        (v7/*:: as any*/)
                       ],
                       "storageKey": null
                     },
@@ -267,7 +317,7 @@ return {
                           "kind": "LinkedField",
                           "name": "prompt",
                           "plural": false,
-                          "selections": (v5/*:: as any*/),
+                          "selections": (v6/*:: as any*/),
                           "storageKey": null
                         },
                         {
@@ -307,7 +357,7 @@ return {
                           ],
                           "storageKey": null
                         },
-                        (v6/*:: as any*/)
+                        (v7/*:: as any*/)
                       ],
                       "type": "LLMEvaluator",
                       "abstractKey": null
@@ -315,7 +365,7 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v6/*:: as any*/)
+                        (v7/*:: as any*/)
                       ],
                       "type": "CodeEvaluator",
                       "abstractKey": null
