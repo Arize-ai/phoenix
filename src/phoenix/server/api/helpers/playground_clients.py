@@ -2107,8 +2107,7 @@ class AzureOpenAIResponsesAPIStreamingClient(AzureOpenAIStreamingClient):
         return (self._client_factory.rate_limit_key, self.model_name)
 
 
-# Not registered; reachable only via an explicit CHAT_COMPLETIONS api type
-# (see get_openai_client_class).
+# Not in the catalog; reachable only via an explicit CHAT_COMPLETIONS api type.
 class AzureOpenAIReasoningChatCompletionsClient(AzureOpenAIStreamingClient):
     @override
     def _to_openai_chat_completion_message_param(
@@ -3265,17 +3264,11 @@ def get_openai_client_class(
     openai_api_type: Optional["OpenAIApiType"] = None,
 ) -> Optional[type["PlaygroundStreamingClient[Any]"]]:
     """
-    Get the appropriate OpenAI/Azure client class based on provider, model, and API type.
+    Select the OpenAI/Azure client class for a provider, model, and API type.
 
-    This function centralizes the logic for selecting the correct client class for
-    OpenAI and Azure OpenAI providers, ensuring consistency between parameter fetching
-    and client instantiation.
-
-    This is the source of truth for OpenAI/Azure client selection, including the
-    default when no API type is configured. The playground registry is not consulted:
-    it carries the model catalog, not routing.
-
-    For non-OpenAI providers, returns None (callers should fall back to the registry).
+    The source of truth for both parameter fetching and client instantiation,
+    including the default when no API type is configured. The playground registry
+    is not consulted: it carries the model catalog, not routing.
 
     Args:
         provider_key: The generative provider (OPENAI, AZURE_OPENAI, etc.)
@@ -3284,7 +3277,8 @@ def get_openai_client_class(
             the provider's default for that model applies.
 
     Returns:
-        The appropriate client class, or None if the provider is not OpenAI/Azure.
+        The client class, or None for non-OpenAI providers, whose callers fall
+        back to the registry.
     """
     from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
@@ -3309,7 +3303,7 @@ def get_openai_client_class(
         elif openai_api_type == OpenAIApiType.RESPONSES:
             return AzureOpenAIResponsesAPIStreamingClient
         # Unconfigured default: Chat Completions, since an Azure deployment may not
-        # expose /v1/responses. Reasoning models are routed there regardless -- they
+        # expose /v1/responses. Reasoning models go to Responses regardless -- they
         # cannot use /v1/chat/completions when function tools are present.
         if model_name in OPENAI_REASONING_MODELS:
             return AzureOpenAIResponsesAPIStreamingClient

@@ -801,12 +801,10 @@ class TestGetOpenAIClientClass:
 
 
 class TestReasoningModelClientRouting:
-    """Regression tests for https://github.com/Arize-ai/phoenix/issues/15299.
+    """Reasoning models must reach the Responses API when no API type is configured.
 
-    LLM evaluators emit structured output via a function tool, and OpenAI
-    reasoning models reject function tools combined with ``reasoning_effort``
-    on ``/v1/chat/completions``. When no API type is explicitly configured,
-    reasoning models must therefore route to the Responses API clients.
+    They reject function tools combined with ``reasoning_effort`` on
+    ``/v1/chat/completions``, and LLM evaluators always send a function tool.
     """
 
     @pytest.mark.parametrize(
@@ -884,11 +882,9 @@ class TestReasoningModelClientRouting:
 
 
 class TestDefaultApiTypeRouting:
-    """Routing with no configured API type is decided by ``get_openai_client_class``.
+    """``get_openai_client_class`` decides the client when no API type is configured.
 
-    The playground registry carries the model catalog, not routing. Keeping the two
-    separate is what prevents a stale catalog entry from shadowing a newer provider
-    default -- the shape of https://github.com/Arize-ai/phoenix/issues/15299.
+    The playground registry carries the model catalog, not routing.
     """
 
     def test_openai_defaults_to_responses_except_legacy_models(self) -> None:
