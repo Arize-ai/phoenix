@@ -1,6 +1,6 @@
 # Changelog
 
-## [20.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.21.0...arize-phoenix-v19.22.0) (2026-08-11)
+## [20.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.21.0...arize-phoenix-v20.0.0) (2026-08-11)
 
 
 ### ⚠ BREAKING CHANGES
