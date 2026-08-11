@@ -55,12 +55,18 @@ async def test_schema_carries_the_invariants_the_envelope_does_not(
     assert "percentile(x, p)" in text or "percentile_cont(p)" in text
     assert 'detail="detailed"' in text
     assert "cannot use a direct index" in text
-    assert "`->` yields JSON text" in text
+    assert "JSON operators: parenthesise a cast" in text
 
 
 def test_postgres_preamble_advertises_its_percentile_spelling() -> None:
     """The function names must match the backend that will execute the query."""
     assert "percentile_cont(p) WITHIN GROUP" in _preamble("postgresql", None)
+
+
+def test_sqlite_preamble_separates_the_two_json_accessors() -> None:
+    """Only SQLite returns JSON text from `->`, so only its preamble says so."""
+    assert "`->` yields JSON text" in _preamble("sqlite", None)
+    assert "`->` yields JSON text" not in _preamble("postgresql", None)
 
 
 async def test_filtered_schema_does_not_limit_the_global_allowlist(analytics_mcp: FastMCP) -> None:

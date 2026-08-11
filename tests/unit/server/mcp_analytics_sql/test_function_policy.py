@@ -47,9 +47,10 @@ DIALECTS: list[SupportedSQLDialectName] = ["postgresql", "sqlite"]
 # effect of adding a class to a set. Raise these deliberately, with fixtures and
 # a case in the admission corpus for the newly permitted function.
 #
-# Postgres carries one more than the portable set: an ordered-set aggregate that
-# depends on grammar SQLite does not have.
-EXPECTED_ALLOWED_BY_DIALECT: dict[SupportedSQLDialectName, int] = {"postgresql": 42, "sqlite": 35}
+# Both backends carry more than the 35-class portable set, because each spells
+# JSON access, date bucketing and percentiles in grammar the other cannot run:
+# 15 more on Postgres, 7 on SQLite.
+EXPECTED_ALLOWED_BY_DIALECT: dict[SupportedSQLDialectName, int] = {"postgresql": 50, "sqlite": 42}
 EXPECTED_EXCLUDED = 6
 
 

@@ -64,6 +64,14 @@ GOVERNED_BY_CHECK: dict[str, str] = {
     # system catalogs for any relation, role or function and never appear as a
     # scanned relation, so the plan gate cannot see them.
     "ObjectIdentifier": "parse._refused_cast_target",
+    # Grammar the parser builds for both backends and only PostgreSQL executes.
+    # Structural under Postgres, refused under SQLite with the correction to
+    # write instead, so the decision is the dialect's rather than the class's.
+    "Cube": "parse._check_dialect_specific_syntax",
+    "GroupingSets": "parse._check_dialect_specific_syntax",
+    "Rollup": "parse._check_dialect_specific_syntax",
+    "ILike": "parse._check_dialect_specific_syntax",
+    "SimilarTo": "parse._check_dialect_specific_syntax",
 }
 
 

@@ -32,6 +32,7 @@ Sub
 Subquery
 Table
 TableAlias
+Tuple
 Union
 Var
 Where
