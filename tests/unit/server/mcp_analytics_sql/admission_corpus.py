@@ -302,6 +302,18 @@ CASES: tuple[AdmissionCase, ...] = (
         dialect="sqlite",
     ),
     AdmissionCase(
+        sql="SELECT id FROM spans WHERE id = ANY(SELECT id FROM traces)",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="SQLite has no ANY/ALL quantifiers; SQLGlot still builds the node",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT id FROM spans WHERE start_time = ANY(VALUES ('2026-01-01T10:30:00'))",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="ANY(VALUES) is a list of literals spelled as a quantifier; the parser wraps VALUES in a Subquery that the timestamp walk would otherwise skip",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
         sql="SELECT name, COUNT(*) FROM spans GROUP BY CUBE(name)",
         expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
         note="SQLite parses CUBE but cannot execute it; PostgreSQL remains covered by grammar tests",

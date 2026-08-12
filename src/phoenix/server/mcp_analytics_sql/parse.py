@@ -354,6 +354,11 @@ def _check_dialect_specific_syntax(
                 "ROW_NUMBER() OVER (PARTITION BY ...) = 1, or run the statement "
                 "on PostgreSQL.",
             )
+        if isinstance(node, (exp.Any, exp.All)):
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                f"{node.key.upper()} is not supported by SQLite. Use IN (...) or a join.",
+            )
     return None
 
 
@@ -558,9 +563,9 @@ def _timestamp_comparison_pairs(
     consumers ignore it. `date(start_time) = '...'` and `start_time = '...' ||
     ''` are both outside, because in each the caller wrote an expression that
     computes a value rather than naming one, and rewriting a literal beside it
-    would change a comparison they authored. A value the query has to run to
-    produce -- a scalar subquery, `VALUES` reached through one -- is outside for
-    the same reason the quantifier's subquery is.
+    would change a comparison they authored. A SELECT subquery is outside for
+    the same reason. `ANY(VALUES (...))` is a list of literals spelled as a
+    quantifier, not a computed subquery, and is decided like `IN (VALUES ...)`.
 
     On SQLite that limit is a wrong answer rather than an error, because text
     comparison succeeds against the wrong spelling. It is the first place to
@@ -569,13 +574,15 @@ def _timestamp_comparison_pairs(
     if isinstance(node, _TIMESTAMP_COMPARISONS):
         pairs = [(node.this, node.expression), (node.expression, node.this)]
         for column, other in ((node.this, node.expression), (node.expression, node.this)):
-            if isinstance(other, exp.Any):
+            if isinstance(other, (exp.Any, exp.All)):
                 # Bounded at the subquery edge: `= ANY(SELECT ...)` compares
                 # against what the subquery returns, so a value written inside
                 # it is beside that subquery's columns, not beside this one.
+                # `= ANY(VALUES (...))` is a list; the parser wraps it in a
+                # Subquery, which `_within_scope` would otherwise skip.
                 pairs.extend(
                     (column, held)
-                    for held in _within_scope(other, exp.Expression)
+                    for held in _quantifier_compared_values(other)
                     if held is not other
                 )
         return _unwrapped(pairs)
@@ -599,6 +606,22 @@ def _timestamp_comparison_pairs(
         # node and is covered above; this spelling compares without one.
         return _unwrapped((node.this, when.this) for when in node.args.get("ifs") or [])
     return []
+
+
+def _quantifier_compared_values(quantifier: exp.Expression) -> list[exp.Expression]:
+    """Operands a = ANY / = ALL compares against in this scope.
+
+    A SELECT subquery is computed and is skipped. VALUES, including when the
+    parser wraps it in a Subquery, is a list of literals spelled as a
+    quantifier.
+    """
+    held = [node for node in _within_scope(quantifier, exp.Expression) if node is not quantifier]
+    inner = _strip_parens(quantifier.this)
+    if isinstance(inner, exp.Subquery):
+        inner = _strip_parens(inner.this)
+    if isinstance(inner, exp.Values):
+        held.extend(inner.expressions)
+    return held
 
 
 def _unwrapped(
