@@ -79,6 +79,25 @@ DATASET_VERSION_NODE_NAME = DatasetVersionNodeType.__name__
 DATASET_SPLIT_NODE_NAME = DatasetSplitNodeType.__name__
 DATASET_EXAMPLE_NODE_NAME = DatasetExampleNodeType.__name__
 
+
+def _parse_cursor_rowid(cursor: str, node_name: str) -> int:
+    """Parse a pagination cursor into a rowid for the given node type.
+
+    Raises 422 for malformed cursors, including ids outside the DB's integer
+    range, which would otherwise overflow at bind time and surface as a 500.
+    """
+    try:
+        rowid = from_global_id_with_expected_type(GlobalID.from_id(cursor), node_name)
+        if not 0 <= rowid < 2**63:
+            raise ValueError(cursor)
+    except ValueError:
+        raise HTTPException(
+            detail=f"Invalid cursor format: {cursor}",
+            status_code=422,
+        )
+    return rowid
+
+
 # Matches the dataset-split form's default color (app NewDatasetSplitForm).
 DEFAULT_DATASET_SPLIT_COLOR = "#33c5e8"
 
@@ -132,14 +151,9 @@ async def list_datasets(
         )
 
         if cursor:
-            try:
-                cursor_id = GlobalID.from_id(cursor).node_id
-                query = query.filter(models.Dataset.id <= int(cursor_id))
-            except ValueError:
-                raise HTTPException(
-                    detail=f"Invalid cursor format: {cursor}",
-                    status_code=422,
-                )
+            query = query.filter(
+                models.Dataset.id <= _parse_cursor_rowid(cursor, DATASET_NODE_NAME)
+            )
         if name:
             query = query.filter(models.Dataset.name == name)
 
@@ -315,15 +329,7 @@ async def list_dataset_versions(
         .limit(limit + 1)
     )
     if cursor:
-        try:
-            dataset_version_id = from_global_id_with_expected_type(
-                GlobalID.from_id(cursor), DATASET_VERSION_NODE_NAME
-            )
-        except ValueError:
-            raise HTTPException(
-                detail=f"Invalid cursor: {cursor}",
-                status_code=422,
-            )
+        dataset_version_id = _parse_cursor_rowid(cursor, DATASET_VERSION_NODE_NAME)
         max_dataset_version_id = (
             select(models.DatasetVersion.id)
             .where(models.DatasetVersion.id == dataset_version_id)
@@ -1629,10 +1635,16 @@ async def _dataset_scoped_example_counts(
     """
     if not dataset_split_ids:
         return {}
+    # Bound the latest-revision aggregation to the splits' members so it scales
+    # with their membership rather than the dataset's full revision history.
+    member_example_ids = select(models.DatasetSplitDatasetExample.dataset_example_id).where(
+        models.DatasetSplitDatasetExample.dataset_split_id.in_(dataset_split_ids)
+    )
     latest_revision_ids = (
         select(func.max(models.DatasetExampleRevision.id))
         .join(models.DatasetExample)
         .where(models.DatasetExample.dataset_id == dataset_id)
+        .where(models.DatasetExampleRevision.dataset_example_id.in_(member_example_ids))
         .group_by(models.DatasetExampleRevision.dataset_example_id)
     )
     rows = await session.execute(
@@ -1710,22 +1722,7 @@ async def list_dataset_splits(
 ) -> ListDatasetSplitsResponseBody:
     cursor_id: Optional[int] = None
     if cursor:
-        try:
-            cursor_id = from_global_id_with_expected_type(
-                GlobalID.from_id(cursor), DATASET_SPLIT_NODE_NAME
-            )
-        except ValueError:
-            raise HTTPException(
-                detail=f"Invalid cursor format: {cursor}",
-                status_code=422,
-            )
-        # Reject ids outside the DB's integer range; they would otherwise
-        # overflow at bind time and surface as a 500.
-        if not 0 <= cursor_id < 2**63:
-            raise HTTPException(
-                detail=f"Invalid cursor format: {cursor}",
-                status_code=422,
-            )
+        cursor_id = _parse_cursor_rowid(cursor, DATASET_SPLIT_NODE_NAME)
     async with request.app.state.db.read() as session:
         dataset = await get_dataset_by_identifier(session, dataset_identifier)
         # A split belongs to a dataset when at least one of its examples does. A split
@@ -1832,11 +1829,7 @@ async def create_dataset_split(
                 ],
             )
         await session.refresh(split)
-        example_count = (
-            await _dataset_scoped_example_count(session, split.id, dataset.id)
-            if example_rowids
-            else 0
-        )
+        example_count = await _dataset_scoped_example_count(session, split.id, dataset.id)
         data = _to_dataset_split(split, example_count=example_count)
     return CreateDatasetSplitResponseBody(data=data)
 
