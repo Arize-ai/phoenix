@@ -23,6 +23,10 @@ spec:
     metadata:
       labels:
         app: {{ include "phoenix.fullname" . }}
+        {{- /* quoted: label values must be strings, and the common ones look boolean */}}
+        {{- range $key, $value := .Values.deployment.podLabels }}
+        {{ $key }}: {{ $value | quote }}
+        {{- end }}
     spec:
       terminationGracePeriodSeconds: {{ .Values.deployment.terminationGracePeriodSeconds }}
       {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
