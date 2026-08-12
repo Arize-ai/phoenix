@@ -374,6 +374,26 @@ def test_quoted_alias_star_keeps_the_callers_quoting() -> None:
     assert " S.id" not in rendered.replace('"S".id', "")
 
 
+def test_qualified_star_matches_the_exposed_name_not_the_physical_table() -> None:
+    """After ``FROM traces AS spans``, ``spans.*`` is traces, not the table ``spans``."""
+    _, rendered = _rewritten(
+        "SELECT spans.* FROM traces AS spans JOIN spans AS t ON t.trace_rowid = spans.id",
+        dialect="postgresql",
+    )
+    assert "t.span_id" not in rendered
+    assert "spans.trace_id" in rendered
+
+
+def test_unquoted_star_does_not_match_a_quoted_alias() -> None:
+    """PostgreSQL: unquoted ``s`` and quoted ``"S"`` are different identifiers."""
+    _, rendered = _rewritten(
+        'SELECT s.* FROM spans AS "S" JOIN traces AS s ON true',
+        dialect="postgresql",
+    )
+    assert '"S".id' not in rendered
+    assert "s.trace_id" in rendered
+
+
 def test_quoted_alias_virtual_columns_keep_the_callers_quoting() -> None:
     """Virtual-column substitution keeps the caller's quoting on the qualifier."""
     _, latency = _rewritten('SELECT "S".latency_ms FROM spans AS "S"', dialect="postgresql")

@@ -491,19 +491,31 @@ def _star_sources(node: exp.Select, scope: Optional[Any]) -> list[tuple[str, str
     return sources
 
 
+def _identifier_key(name: str, *, quoted: bool, dialect: SupportedSQLDialectName) -> str:
+    """Compare identifiers the way this dialect does."""
+    if dialect == "sqlite" or not quoted:
+        return name.casefold()
+    return name
+
+
 def _matches_star_source(
     explicit: str,
     identifier: Optional[exp.Expression],
-    source: tuple[str, str],
+    qualifier: exp.Identifier,
     dialect: SupportedSQLDialectName,
 ) -> bool:
-    """Whether a qualified star names a physical source under SQL identifier rules."""
-    name, alias = source
-    if dialect == "sqlite":
-        return explicit.casefold() in {name.casefold(), alias.casefold()}
-    if isinstance(identifier, exp.Identifier) and identifier.args.get("quoted"):
-        return explicit in source
-    return explicit.casefold() in {name.casefold(), alias.casefold()}
+    """Whether a qualified star names this relation under SQL identifier rules.
+
+    Match the name the relation is exposed as, not its physical table name.
+    After ``FROM traces AS spans``, ``spans.*`` is traces; the table ``spans``
+    is only reachable under its own alias.
+    """
+    star_quoted = isinstance(identifier, exp.Identifier) and bool(identifier.args.get("quoted"))
+    return _identifier_key(explicit, quoted=star_quoted, dialect=dialect) == _identifier_key(
+        qualifier.name or "",
+        quoted=bool(qualifier.args.get("quoted")),
+        dialect=dialect,
+    )
 
 
 def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
@@ -544,9 +556,7 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                     for name, alias, qualifier in _star_sources(
                         node, scope_by_expression.get(id(node))
                     )
-                    if _matches_star_source(
-                        explicit, explicit_identifier, (name, alias), ctx.dialect
-                    )
+                    if _matches_star_source(explicit, explicit_identifier, qualifier, ctx.dialect)
                 ] or [("", explicit, exp.to_identifier(explicit))]
             else:
                 targets = _star_sources(node, scope_by_expression.get(id(node)))
