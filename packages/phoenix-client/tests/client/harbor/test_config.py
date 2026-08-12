@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from phoenix_harbor._config import PhoenixConfig, TraceMode
+from phoenix.client.harbor._config import PhoenixConfig
 
 
 def test_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -11,9 +11,11 @@ def test_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
 
     config = PhoenixConfig.from_sources()
 
-    assert config.trace_mode is TraceMode.ATIF
+    assert config.trace_mode == "atif"
+    assert config.dataset is None
     assert config.endpoint is None
     assert config.api_key is None
+    assert config.project is None
     assert config.experiment_name_template == "{job_name} · {agent} · {model}"
 
 
@@ -38,7 +40,16 @@ def test_explicit_values_override_environment(monkeypatch: pytest.MonkeyPatch) -
 
     assert config.endpoint == "https://explicit.test"
     assert config.api_key == "explicit-secret"
-    assert config.trace_mode is TraceMode.NONE
+    assert config.trace_mode == "none"
+
+
+@pytest.mark.parametrize("mode", ["atif", "otlp", "none"])
+def test_accepts_supported_trace_modes(mode: str) -> None:
+    assert PhoenixConfig.from_sources(trace_mode=mode).trace_mode == mode
+
+
+def test_strips_trace_mode() -> None:
+    assert PhoenixConfig.from_sources(trace_mode=" atif ").trace_mode == "atif"
 
 
 def test_rejects_unknown_trace_mode() -> None:

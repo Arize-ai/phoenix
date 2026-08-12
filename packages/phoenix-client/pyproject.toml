@@ -48,6 +48,13 @@ evals = [
 [project.entry-points.pytest11]
 phoenix = "phoenix.client.pytest.plugin"
 
+# The Harbor plugin is opt-in in the same spirit: `harbor` is NOT a dependency of this
+# package. Harbor reads this group lazily (it enumerates names without importing, and only
+# imports the target when a user selects `--plugin phoenix`), so declaring it costs nothing at
+# import time. phoenix.client.harbor imports harbor only under TYPE_CHECKING.
+[project.entry-points."harbor.plugins"]
+phoenix = "phoenix.client.harbor:PhoenixJobPlugin"
+
 [project.urls]
 Documentation = "https://arize.com/docs/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"
@@ -96,6 +103,14 @@ exclude = [
   "scripts/",
   "src/phoenix/client/helpers/sdk/",
 ]
+
+# `harbor` is a type-only import in phoenix.client.harbor. It is not installed in most
+# environments (it requires Python >=3.12), and even where it is installed it ships no
+# py.typed. This override covers both cases (import-not-found and import-untyped) so the
+# annotations degrade to Any rather than failing the strict type check.
+[[tool.mypy.overrides]]
+module = ["harbor.*"]
+ignore_missing_imports = true
 
 [tool.pyright]
 typeCheckingMode = "strict"
