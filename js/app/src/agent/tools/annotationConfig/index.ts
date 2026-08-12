@@ -1,8 +1,4 @@
 export {
-  createAnnotationConfigAgentTool,
-  updateAnnotationConfigAgentTool,
-} from "./agentTools";
-export {
   createCreateAnnotationConfigClientAction,
   createUpdateAnnotationConfigClientAction,
 } from "./clientActions";
