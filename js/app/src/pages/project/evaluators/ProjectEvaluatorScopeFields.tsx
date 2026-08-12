@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
 import {
   Alert,
@@ -22,13 +22,19 @@ import {
   type ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import {
+  EMPTY_SESSION_FILTER_VOCABULARY,
+  SessionFilterConditionFieldCore,
+  type SessionFilterConditionFieldCoreProps,
+  useSessionFilterVocabulary,
+} from "@phoenix/pages/project/SessionFilterConditionField";
+import {
   SpanFilterConditionFieldCore,
   type SpanFilterValidConditionArgs,
 } from "@phoenix/pages/project/SpanFilterConditionField";
 
 /**
- * The target, sampling, and span-filter fields wired to a scope object.
- * `children` renders additional fields in the first row after sampling.
+ * The target, sampling, and filter fields wired to a scope object. `children`
+ * renders additional fields in the first row after sampling.
  */
 export const ProjectEvaluatorScopeFieldGroup = ({
   projectId,
@@ -50,22 +56,13 @@ export const ProjectEvaluatorScopeFieldGroup = ({
 }) => {
   const isSessionTarget = scope.targetType === "SESSION";
   const unschedulableReason = getSessionScopeUnschedulableReason(scope);
-  // A session evaluator only runs unfiltered and unsampled, so those controls
-  // stay hidden unless a stored value is holding this evaluator back, in which
-  // case they are the only way to clear it.
-  const showSamplingField = !isSessionTarget || scope.samplingRate !== 1;
-  const showFilterField = !isSessionTarget || scope.filterCondition !== "";
+  // Spans and sessions are filtered in different languages, so a condition
+  // written for one target cannot carry over to the other.
   const handleTargetChange = (targetType: ProjectEvaluatorTarget) => {
-    if (targetType === "SESSION") {
-      onScopeChange({
-        ...scope,
-        targetType,
-        filterCondition: "",
-        samplingRate: 1,
-      });
+    if (targetType === scope.targetType) {
       return;
     }
-    onScopeChange({ ...scope, targetType });
+    onScopeChange({ ...scope, targetType, filterCondition: "" });
   };
   return (
     <Flex direction="column" gap="size-200">
@@ -83,29 +80,25 @@ export const ProjectEvaluatorScopeFieldGroup = ({
             }
           />
         ) : null}
-        {showSamplingField ? (
-          <ProjectEvaluatorSamplingField
-            fill={fillSampling}
-            value={scope.samplingRate}
-            onChange={(samplingRate) =>
-              onScopeChange({ ...scope, samplingRate })
-            }
-          />
-        ) : null}
+        <ProjectEvaluatorSamplingField
+          fill={fillSampling}
+          value={scope.samplingRate}
+          onChange={(samplingRate) => onScopeChange({ ...scope, samplingRate })}
+        />
         {children}
       </Flex>
-      {showFilterField ? (
-        <ProjectEvaluatorSpanFilterField
-          projectId={projectId}
-          targetType={scope.targetType}
-          value={scope.filterCondition}
-          onChange={(filterCondition) =>
-            onScopeChange({ ...scope, filterCondition })
-          }
-          onValidityChange={onFilterValidityChange}
-          showHint={!isSessionTarget}
-        />
-      ) : null}
+      {/* Remounted per target so the draft condition does not survive a switch
+          into a language that cannot parse it. */}
+      <ProjectEvaluatorFilterField
+        key={scope.targetType}
+        projectId={projectId}
+        targetType={scope.targetType}
+        value={scope.filterCondition}
+        onChange={(filterCondition) =>
+          onScopeChange({ ...scope, filterCondition })
+        }
+        onValidityChange={onFilterValidityChange}
+      />
       {isSessionTarget ? (
         <Text size="XS" color="text-500">
           Every session in this project is evaluated once, after it stays quiet
@@ -116,7 +109,7 @@ export const ProjectEvaluatorScopeFieldGroup = ({
       {unschedulableReason ? (
         <Alert variant="warning" title="This evaluator will not run">
           {unschedulableReason === "filter"
-            ? "Session evaluators with a filter are saved but never scheduled. Clear the span filter to schedule this evaluator."
+            ? "Session evaluators with a filter are saved but never scheduled. Clear the session filter to schedule this evaluator."
             : "Session evaluators with a sampling rate below 100% are saved but never scheduled. Set sampling to 100% to schedule this evaluator."}
         </Alert>
       ) : null}
@@ -261,30 +254,26 @@ const samplingSliderFillCSS = css`
 `;
 
 /**
- * The span filter with its own draft state: only validated conditions are
- * lifted into the committed scope via `onChange`.
+ * The filter for whichever records the target names, with its own draft state:
+ * only validated conditions are lifted into the committed scope via `onChange`.
  */
-const ProjectEvaluatorSpanFilterField = ({
+const ProjectEvaluatorFilterField = ({
   projectId,
   targetType,
   value,
   onChange,
   onValidityChange,
-  showHint = true,
 }: {
   projectId: string;
-  /** Names the records the condition selects, in the label and the hint. */
+  /** Picks the filter language, and names the records in the label and hint. */
   targetType: ProjectEvaluatorTarget;
   value: string;
   onChange: (filterCondition: string) => void;
   onValidityChange?: (isValid: boolean) => void;
-  /** Hidden where an empty filter is the only schedulable value. */
-  showHint?: boolean;
 }) => {
+  const isSessionTarget = targetType === "SESSION";
   const [draft, setDraft] = useState(value);
-  const handleValidCondition = ({
-    condition: filterCondition,
-  }: SpanFilterValidConditionArgs) => {
+  const applyValidCondition = (filterCondition: string) => {
     if (filterCondition === value) {
       return;
     }
@@ -293,23 +282,61 @@ const ProjectEvaluatorSpanFilterField = ({
   return (
     <Flex direction="column" gap="size-50">
       <Text size="XS" weight="heavy" color="text-700">
-        {targetType === "SESSION" ? "Session filter" : "Span filter"}
+        {isSessionTarget ? "Session filter" : "Span filter"}
       </Text>
-      <SpanFilterConditionFieldCore
-        projectId={projectId}
-        filterCondition={draft}
-        onFilterConditionChange={setDraft}
-        onValidCondition={handleValidCondition}
-        onValidityChange={onValidityChange}
-        placeholder="span_kind == 'LLM'"
-      />
-      {showHint ? (
-        <Text size="XS" color="text-500">
-          {targetType === "SESSION"
-            ? "Leave empty to evaluate every session."
-            : "Leave empty to evaluate every span."}
-        </Text>
-      ) : null}
+      {isSessionTarget ? (
+        <SessionScopeFilterField
+          projectId={projectId}
+          filterCondition={draft}
+          onFilterConditionChange={setDraft}
+          onValidCondition={applyValidCondition}
+          onValidityChange={onValidityChange}
+        />
+      ) : (
+        <SpanFilterConditionFieldCore
+          projectId={projectId}
+          filterCondition={draft}
+          onFilterConditionChange={setDraft}
+          onValidCondition={({ condition }: SpanFilterValidConditionArgs) =>
+            applyValidCondition(condition)
+          }
+          onValidityChange={onValidityChange}
+          placeholder="span_kind == 'LLM'"
+        />
+      )}
+      <Text size="XS" color="text-500">
+        {isSessionTarget
+          ? "Leave empty to evaluate every session."
+          : "Leave empty to evaluate every span."}
+      </Text>
     </Flex>
   );
 };
+
+/**
+ * Autocomplete data must not gate the field, so it filters with an empty
+ * vocabulary until the project's vocabulary arrives.
+ */
+function SessionScopeFilterField(
+  props: Omit<SessionFilterConditionFieldCoreProps, "vocabulary">
+) {
+  return (
+    <Suspense
+      fallback={
+        <SessionFilterConditionFieldCore
+          {...props}
+          vocabulary={EMPTY_SESSION_FILTER_VOCABULARY}
+        />
+      }
+    >
+      <SessionScopeFilterFieldWithVocabulary {...props} />
+    </Suspense>
+  );
+}
+
+function SessionScopeFilterFieldWithVocabulary(
+  props: Omit<SessionFilterConditionFieldCoreProps, "vocabulary">
+) {
+  const vocabulary = useSessionFilterVocabulary(props.projectId);
+  return <SessionFilterConditionFieldCore {...props} vocabulary={vocabulary} />;
+}

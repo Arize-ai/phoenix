@@ -51,6 +51,7 @@ import {
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
 import type { ProjectEvaluatorScopePanelCountQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelCountQuery.graphql";
 import type {
@@ -58,6 +59,8 @@ import type {
   InlineLLMEvaluatorInput,
   ProjectEvaluatorScopePanelPreviewMutation,
 } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelPreviewMutation.graphql";
+import type { ProjectEvaluatorScopePanelSessionCountQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionCountQuery.graphql";
+import type { ProjectEvaluatorScopePanelSessionsQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionsQuery.graphql";
 import type { ProjectEvaluatorScopePanelSpansQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSpansQuery.graphql";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import {
@@ -192,7 +195,7 @@ export const ProjectEvaluatorScopePanel = (
               <Heading level={2}>Scope</Heading>
               <Text color="text-500" size="S">
                 {isSessionTarget
-                  ? "Choose when this evaluator runs on each session."
+                  ? "Choose which sessions this evaluator runs on and when."
                   : "Choose what gets evaluated and how much of it."}
               </Text>
             </Flex>
@@ -208,7 +211,50 @@ export const ProjectEvaluatorScopePanel = (
           </>
         ) : null}
         {isSessionTarget ? (
-          <SessionInputNote />
+          <>
+            <SessionInputNote />
+            <Flex direction="column" gap="size-25">
+              {props.showScopeFields !== false ? (
+                <Heading level={2}>Matching sessions</Heading>
+              ) : (
+                <Flex
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  gap="size-200"
+                >
+                  <Heading level={2} weight="heavy">
+                    Matching Sessions
+                  </Heading>
+                  <TimeWindowSegmentedControl
+                    size="S"
+                    value={timeWindow.presetId}
+                    onChange={setTimeWindow}
+                  />
+                </Flex>
+              )}
+              <Suspense
+                fallback={
+                  <Text size="S" color="text-500">
+                    Counting matching sessions…
+                  </Text>
+                }
+              >
+                <MatchedSessionCountLine
+                  projectId={projectId}
+                  filterCondition={scope.filterCondition}
+                  timeWindow={timeWindow}
+                />
+              </Suspense>
+            </Flex>
+            <Suspense fallback={<Loading />}>
+              <SessionList
+                projectId={projectId}
+                filterCondition={scope.filterCondition}
+                timeWindow={timeWindow}
+              />
+            </Suspense>
+          </>
         ) : (
           <>
             <Flex direction="column" gap="size-25">
@@ -291,10 +337,7 @@ export const ProjectEvaluatorScopePanel = (
   );
 };
 
-/**
- * Sessions have no span-shaped preview, so name the bindings the evaluator will
- * actually receive rather than testing it against a span that it will never see.
- */
+/** Names the bindings a session evaluator receives, which no span vocabulary covers. */
 function SessionInputNote() {
   return (
     <Flex direction="column" gap="size-25">
@@ -426,17 +469,15 @@ function ScopeEditorCard({
         onFilterValidityChange={onFilterValidityChange}
         isTargetDisabled={isTargetDisabled}
       >
-        {scope.targetType === "SESSION" ? null : (
-          <Flex direction="column" gap="size-50">
-            <Text size="XS" weight="heavy" color="text-700">
-              Preview window
-            </Text>
-            <TimeWindowSegmentedControl
-              value={timeWindow.presetId}
-              onChange={onTimeWindowChange}
-            />
-          </Flex>
-        )}
+        <Flex direction="column" gap="size-50">
+          <Text size="XS" weight="heavy" color="text-700">
+            Preview window
+          </Text>
+          <TimeWindowSegmentedControl
+            value={timeWindow.presetId}
+            onChange={onTimeWindowChange}
+          />
+        </Flex>
       </ProjectEvaluatorScopeFieldGroup>
     </div>
   );
@@ -466,6 +507,195 @@ function MatchedSpanCountLine({
     </Text>
   );
 }
+
+function MatchedSessionCountLine({
+  projectId,
+  filterCondition,
+  timeWindow,
+}: {
+  projectId: string;
+  filterCondition: string;
+  timeWindow: TimeWindow;
+}) {
+  const { startIso, prose } = timeWindow;
+  const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSessionCountQuery>(
+    graphql`
+      query ProjectEvaluatorScopePanelSessionCountQuery(
+        $projectId: ID!
+        $timeRange: TimeRange!
+        $sessionFilterCondition: String
+      ) {
+        project: node(id: $projectId) {
+          ... on Project {
+            sessionCount(
+              timeRange: $timeRange
+              sessionFilterCondition: $sessionFilterCondition
+            )
+          }
+        }
+      }
+    `,
+    {
+      projectId,
+      timeRange: { start: startIso },
+      sessionFilterCondition: filterCondition.trim() || null,
+    },
+    { fetchPolicy: "store-and-network" }
+  );
+  const matchedCount = data.project?.sessionCount ?? 0;
+  const hasMatches = matchedCount > 0;
+  return (
+    <Text size="S" color="text-500">
+      {hasMatches
+        ? `${matchedCount.toLocaleString()} session${matchedCount === 1 ? "" : "s"} matched ${prose}. The most recent are shown below.`
+        : `No sessions matched this scope ${prose}.`}
+    </Text>
+  );
+}
+
+const SESSION_LIST_PAGE_SIZE = 5;
+
+/**
+ * The sessions this evaluator would run on. A session carries no evaluation
+ * context to bind against, so each row names the session rather than previewing
+ * a run of the evaluator against it.
+ */
+function SessionList({
+  projectId,
+  filterCondition,
+  timeWindow,
+}: {
+  projectId: string;
+  filterCondition: string;
+  timeWindow: TimeWindow;
+}) {
+  const { shortDateTimeFormatter } = useTimeFormatters();
+  const [limit, setLimit] = useState(SESSION_LIST_PAGE_SIZE);
+  // A transition keeps the current rows visible instead of collapsing the list
+  // to its Suspense fallback while the wider page loads.
+  const [isShowingMore, startShowMoreTransition] = useTransition();
+  const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSessionsQuery>(
+    graphql`
+      query ProjectEvaluatorScopePanelSessionsQuery(
+        $projectId: ID!
+        $sessionFilterCondition: String
+        $timeRange: TimeRange
+        $first: Int!
+      ) {
+        project: node(id: $projectId) {
+          ... on Project {
+            sessions(
+              first: $first
+              sort: { col: startTime, dir: desc }
+              sessionFilterCondition: $sessionFilterCondition
+              timeRange: $timeRange
+            ) {
+              edges {
+                session: node {
+                  id
+                  sessionId
+                  startTime
+                  numTraces
+                  tokenUsage {
+                    total
+                  }
+                  firstInput {
+                    truncatedValue
+                  }
+                }
+              }
+              pageInfo {
+                hasNextPage
+              }
+            }
+          }
+        }
+      }
+    `,
+    {
+      projectId,
+      sessionFilterCondition: filterCondition.trim() || null,
+      timeRange: { start: timeWindow.startIso },
+      first: limit,
+    },
+    { fetchPolicy: "store-and-network" }
+  );
+  const sessions = data.project?.sessions?.edges.map(({ session }) => session);
+  const hasMoreSessions = data.project?.sessions?.pageInfo.hasNextPage ?? false;
+  if (!sessions?.length) {
+    return null;
+  }
+  return (
+    <div css={runListCSS}>
+      <ul aria-label="Recent matching sessions" className="span-run-list__rows">
+        {sessions.map((session) => (
+          <li key={session.id} css={sessionRowCSS}>
+            <span className="session-row__name">{session.sessionId}</span>
+            <span className="session-row__snippet">
+              {session.firstInput?.truncatedValue ?? ""}
+            </span>
+            <span className="session-row__metric">
+              {session.numTraces.toLocaleString()} trace
+              {session.numTraces === 1 ? "" : "s"}
+            </span>
+            <span className="session-row__metric">
+              {session.tokenUsage.total.toLocaleString()} tokens
+            </span>
+            <span className="session-row__time">
+              {shortDateTimeFormatter(new Date(session.startTime))}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {hasMoreSessions ? (
+        <Flex justifyContent="center">
+          <LoadMoreButton
+            isLoadingNext={isShowingMore}
+            onLoadMore={() =>
+              startShowMoreTransition(() => {
+                setLimit((current) => current + SESSION_LIST_PAGE_SIZE);
+              })
+            }
+          />
+        </Flex>
+      ) : null}
+    </div>
+  );
+}
+
+const sessionRowCSS = css`
+  display: flex;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-75) var(--global-dimension-size-100);
+  .session-row__name {
+    flex: none;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--global-font-family-code, monospace);
+    font-size: var(--global-font-size-xs);
+    font-weight: 600;
+    color: var(--global-text-color-900);
+  }
+  .session-row__snippet {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--global-font-size-xs);
+    color: var(--global-text-color-500);
+  }
+  .session-row__metric,
+  .session-row__time {
+    flex: none;
+    font-variant-numeric: tabular-nums;
+    font-size: var(--global-font-size-xs);
+    color: var(--global-text-color-500);
+  }
+`;
 
 const scopeEditorCardCSS = css`
   border: 1px solid var(--global-border-color-default);
