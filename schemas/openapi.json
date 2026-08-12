@@ -2966,6 +2966,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 1000,
               "exclusiveMinimum": 0,
               "description": "The max number of dataset splits to return at a time.",
               "default": 10,
