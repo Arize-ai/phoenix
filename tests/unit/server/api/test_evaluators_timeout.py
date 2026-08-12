@@ -12,7 +12,10 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
 )
 from phoenix.db.types.evaluators import InputMapping
-from phoenix.server.api.evaluators import CodeEvaluatorRunner
+from phoenix.server.api.evaluators import (
+    CodeEvaluatorRunner,
+    SandboxRunnerTimeoutError,
+)
 from phoenix.server.sandbox.result_protocol import (
     PHOENIX_RESULT_BEGIN,
     PHOENIX_RESULT_END,
@@ -156,7 +159,8 @@ class TestTimeoutWrapper:
         )
 
         assert len(results) == 1
-        assert results[0]["error"] == "timeout"
+        assert results[0]["error"] == ("SANDBOX_RUNNER_TIMEOUT: sandbox runner deadline exceeded")
+        assert isinstance(results[0].get("error_exc"), SandboxRunnerTimeoutError)
 
     @pytest.mark.asyncio
     async def test_slow_backend_schedules_close_session(self) -> None:
@@ -189,7 +193,7 @@ class TestTimeoutWrapper:
             await asyncio.sleep(0)
 
         assert len(results) == 1
-        assert results[0]["error"] == "timeout"
+        assert results[0]["error"] == ("SANDBOX_RUNNER_TIMEOUT: sandbox runner deadline exceeded")
         assert any("close" in r.message.lower() for r in caplog.records)
 
     @pytest.mark.asyncio
