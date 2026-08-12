@@ -1037,7 +1037,7 @@ class TraceSpanData(TypedDict):
 
 
 class TransferTracesData(TypedDict):
-    transferred: int
+    transferred_trace_count: int
     destination_project_id: str
 
 

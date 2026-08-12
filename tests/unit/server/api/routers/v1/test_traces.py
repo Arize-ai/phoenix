@@ -662,7 +662,7 @@ async def test_transfer_traces_moves_traces_to_destination(
     )
     assert response.status_code == 200
     data = response.json()["data"]
-    assert data["transferred"] == 2
+    assert data["transferred_trace_count"] == 2
     assert data["destination_project_id"] == str(GlobalID("Project", str(dest_rowid)))
 
     async with db() as session:
@@ -690,7 +690,7 @@ async def test_transfer_traces_accepts_project_global_id(
         },
     )
     assert response.status_code == 200
-    assert response.json()["data"]["transferred"] == 1
+    assert response.json()["data"]["transferred_trace_count"] == 1
 
 
 async def test_transfer_traces_deduplicates_repeated_ids(
@@ -709,7 +709,7 @@ async def test_transfer_traces_deduplicates_repeated_ids(
         },
     )
     assert response.status_code == 200
-    assert response.json()["data"]["transferred"] == 1
+    assert response.json()["data"]["transferred_trace_count"] == 1
 
 
 async def test_transfer_traces_rejects_multiple_source_projects(

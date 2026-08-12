@@ -20248,18 +20248,20 @@
       },
       "TransferTracesData": {
         "properties": {
-          "transferred": {
+          "transferred_trace_count": {
             "type": "integer",
-            "title": "Transferred"
+            "title": "Transferred Trace Count",
+            "description": "The number of traces that were moved to the destination project."
           },
           "destination_project_id": {
             "type": "string",
-            "title": "Destination Project Id"
+            "title": "Destination Project Id",
+            "description": "The ID (GlobalID) of the project the traces were moved to."
           }
         },
         "type": "object",
         "required": [
-          "transferred",
+          "transferred_trace_count",
           "destination_project_id"
         ],
         "title": "TransferTracesData"

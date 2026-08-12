@@ -593,8 +593,12 @@ class TransferTracesRequestBody(V1RoutesBaseModel):
 
 
 class TransferTracesData(V1RoutesBaseModel):
-    transferred: int
-    destination_project_id: str
+    transferred_trace_count: int = Field(
+        description="The number of traces that were moved to the destination project."
+    )
+    destination_project_id: str = Field(
+        description="The ID (GlobalID) of the project the traces were moved to."
+    )
 
 
 class TransferTracesResponseBody(ResponseBody[TransferTracesData]):
@@ -664,7 +668,7 @@ async def transfer_traces(
     request.state.event_queue.put(SpanDeleteEvent(tuple({*source_project_rowids, project.id})))
     return TransferTracesResponseBody(
         data=TransferTracesData(
-            transferred=result.rowcount,
+            transferred_trace_count=result.rowcount,
             destination_project_id=str(GlobalID(ProjectNodeType.__name__, str(project.id))),
         )
     )

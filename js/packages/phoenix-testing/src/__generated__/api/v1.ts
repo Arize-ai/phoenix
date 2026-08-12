@@ -6314,9 +6314,15 @@ export interface components {
         };
         /** TransferTracesData */
         TransferTracesData: {
-            /** Transferred */
-            transferred: number;
-            /** Destination Project Id */
+            /**
+             * Transferred Trace Count
+             * @description The number of traces that were moved to the destination project.
+             */
+            transferred_trace_count: number;
+            /**
+             * Destination Project Id
+             * @description The ID (GlobalID) of the project the traces were moved to.
+             */
             destination_project_id: string;
         };
         /** TransferTracesRequestBody */
