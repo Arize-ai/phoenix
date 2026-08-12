@@ -3508,7 +3508,11 @@ export interface components {
         };
         /**
          * GraphQLContext
-         * @description GraphQL runtime state.
+         * @description Deprecated: GraphQL mutations are always enabled.
+         *
+         *     Kept in the wire contract so requests from older clients that still send
+         *     this context (e.g. an installed phoenix-cli with `--enable-graphql-mutations`)
+         *     continue to validate. The value is ignored.
          */
         GraphQLContext: {
             /**

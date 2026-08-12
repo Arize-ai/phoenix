@@ -2794,9 +2794,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         request_user_id = int(phoenix_user.identity) if phoenix_user is not None else None
         is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
         subagents_enabled = _subagents_enabled(resolved_contexts)
-        graphql_mutations_enabled = (
-            resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
-        )
         phoenix_user_email: str | None = None
         initial_bash_snapshot: bytes | None = None
         try:
@@ -2939,7 +2936,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     prompts=ServerAgentPrompts(base=agent_prompts.base),
                     docs_mcp_server=request.app.state.docs_mcp_server,
                     enable_web_access=web_access_enabled,
-                    allow_mutations=graphql_mutations_enabled,
                     read_only=request.app.state.read_only,
                     auth_enabled=request.app.state.authentication_enabled,
                     user_id=request_user_id,
@@ -2982,7 +2978,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         event_queue=request.state.event_queue,
                         docs_mcp_server=request.app.state.docs_mcp_server,
                         enable_web_access=web_access_enabled,
-                        allow_mutations=graphql_mutations_enabled,
                         read_only=request.app.state.read_only,
                         auth_enabled=request.app.state.authentication_enabled,
                         user_id=request_user_id,
@@ -3037,7 +3032,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         if bash_enabled
                         else None
                     ),
-                    allow_mutations=graphql_mutations_enabled,
                     initial_bash_snapshot=initial_bash_snapshot,
                     on_bash_snapshot=_capture_bash_snapshot,
                 )

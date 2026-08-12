@@ -45,8 +45,7 @@ class TestBuildContexts:
         assert contexts.app is not None
         assert contexts.app.current_date_time == "2026-05-18T14:30:00-07:00"
         assert contexts.app.time_zone == "America/Los_Angeles"
-        assert contexts.graphql is not None
-        assert contexts.graphql.mutations_enabled is False
+        # The deprecated graphql context is accepted on the wire but ignored.
         assert contexts.project is not None
         assert contexts.project.project_node_id == "UHJvamVjdDoxMg=="
         assert contexts.project.span_filter == "span_kind == 'LLM' and parent_span is None"

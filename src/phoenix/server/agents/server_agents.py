@@ -62,7 +62,6 @@ def build_server_agent(
     prompts: ServerAgentPrompts | None = None,
     docs_mcp_server: MCPToolset[None] | None = None,
     enable_web_access: bool = False,
-    allow_mutations: bool = False,
     read_only: bool = False,
     auth_enabled: bool = False,
     user_id: int | None = None,
@@ -83,7 +82,6 @@ def build_server_agent(
         BashCapability[None](
             schema=schema,
             build_graphql_context=build_graphql_context,
-            allow_mutations=allow_mutations,
             initial_snapshot=initial_bash_snapshot,
             on_snapshot=on_bash_snapshot,
         ),
@@ -130,7 +128,6 @@ def build_server_agent(
             event_queue=event_queue,
             docs_mcp_server=docs_mcp_server,
             enable_web_access=enable_web_access,
-            allow_mutations=allow_mutations,
             read_only=read_only,
             auth_enabled=auth_enabled,
             user_id=user_id,

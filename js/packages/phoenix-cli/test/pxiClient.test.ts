@@ -64,7 +64,6 @@ describe("PXI client", () => {
       model: "gpt-5.4",
       enableWebAccess: true,
       enableSubagents: true,
-      enableGraphqlMutations: true,
       bypassEdits: true,
       ingestTraces: true,
       exportRemoteTraces: true,
@@ -91,7 +90,6 @@ describe("PXI client", () => {
     });
     expect(request.contexts).toEqual(
       expect.arrayContaining([
-        { type: "graphql", mutationsEnabled: true },
         { type: "web_access", enabled: true },
         { type: "subagents", enabled: true },
       ])

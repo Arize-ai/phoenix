@@ -232,7 +232,12 @@ class DatasetContext(_ChatContextBase):
 
 
 class GraphQLContext(_ChatContextBase):
-    """GraphQL runtime state."""
+    """Deprecated: GraphQL mutations are always enabled.
+
+    Kept in the wire contract so requests from older clients that still send
+    this context (e.g. an installed phoenix-cli with `--enable-graphql-mutations`)
+    continue to validate. The value is ignored.
+    """
 
     type: Literal["graphql"]
     mutations_enabled: bool = Field(alias="mutationsEnabled")
@@ -289,7 +294,6 @@ class ResolvedContexts:
     code_evaluator: CodeEvaluatorContext | None = None
     llm_evaluator: LlmEvaluatorContext | None = None
     dataset: DatasetContext | None = None
-    graphql: GraphQLContext | None = None
     web_access: WebAccessContext | None = None
     subagents: SubagentsContext | None = None
 
@@ -321,7 +325,7 @@ def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
         elif isinstance(context_value, AgentSpanContext):
             resolved.span = context_value
         elif isinstance(context_value, GraphQLContext):
-            resolved.graphql = context_value
+            pass  # deprecated: mutations are always enabled, the value is ignored
         elif isinstance(context_value, WebAccessContext):
             resolved.web_access = context_value
         elif isinstance(context_value, SubagentsContext):

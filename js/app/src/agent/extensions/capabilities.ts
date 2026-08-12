@@ -6,10 +6,7 @@
  * `defineClientActionTool` helpers in `./registry` and the registry aggregator
  * in `./toolRegistry`.
  */
-export type AgentCapabilityKey =
-  | "graphql.mutations"
-  | "subagents.enabled"
-  | "web.access";
+export type AgentCapabilityKey = "subagents.enabled" | "web.access";
 
 /** Describes one capability and how it should appear across the app. */
 export type AgentCapabilityDefinition = {
@@ -18,29 +15,18 @@ export type AgentCapabilityDefinition = {
   description: string;
   defaultValue: boolean;
   scope: "global" | "session";
-  controlSurface?: "experimental-settings";
 };
 
 /** Boolean runtime snapshot keyed by capability name. */
 export type AgentCapabilities = Record<AgentCapabilityKey, boolean>;
 
 const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
-  "graphql.mutations": false,
   "subagents.enabled": false,
   "web.access": false,
 };
 
 /** Ordered capability catalog used by the UI and runtime. */
 export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
-  {
-    key: "graphql.mutations",
-    label: "Dangerously enable mutations",
-    description:
-      "Allows the phoenix-gql bash command to execute GraphQL mutations in addition to queries.",
-    defaultValue: false,
-    scope: "global",
-    controlSurface: "experimental-settings",
-  },
   {
     key: "subagents.enabled",
     label: "Subagents",
@@ -89,13 +75,4 @@ export function getAgentCapabilityDefinition(
   key: AgentCapabilityKey
 ): AgentCapabilityDefinition {
   return AGENT_CAPABILITY_DEFINITIONS_BY_KEY[key];
-}
-
-/** Filters the capability catalog down to one UI control surface. */
-export function getAgentCapabilitiesForControlSurface(
-  controlSurface: NonNullable<AgentCapabilityDefinition["controlSurface"]>
-): AgentCapabilityDefinition[] {
-  return AGENT_CAPABILITY_DEFINITIONS.filter(
-    (definition) => definition.controlSurface === controlSurface
-  );
 }

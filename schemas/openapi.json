@@ -13810,7 +13810,7 @@
           "mutationsEnabled"
         ],
         "title": "GraphQLContext",
-        "description": "GraphQL runtime state."
+        "description": "Deprecated: GraphQL mutations are always enabled.\n\nKept in the wire contract so requests from older clients that still send\nthis context (e.g. an installed phoenix-cli with `--enable-graphql-mutations`)\ncontinue to validate. The value is ignored."
       },
       "HTTPValidationError": {
         "properties": {

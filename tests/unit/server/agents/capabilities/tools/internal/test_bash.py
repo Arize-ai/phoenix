@@ -60,11 +60,11 @@ def _assert_execution_metadata(result: dict[str, Any], command: str) -> None:
     assert isinstance(result["stderrTruncated"], bool)
 
 
-def _build_run_bash(*, allow_mutations: bool) -> RunBash:
+@pytest.fixture
+def run_bash() -> RunBash:
     toolset = BashToolset(
         schema=strawberry.Schema(query=Query, mutation=Mutation),
         build_graphql_context=lambda: Mock(spec=Context),
-        allow_mutations=allow_mutations,
     )
     ctx: RunContext[None] = RunContext(deps=None, model=TestModel(), usage=RunUsage())
 
@@ -77,16 +77,6 @@ def _build_run_bash(*, allow_mutations: bool) -> RunBash:
         return result
 
     return run
-
-
-@pytest.fixture
-def run_bash() -> RunBash:
-    return _build_run_bash(allow_mutations=False)
-
-
-@pytest.fixture
-def run_bash_with_mutations() -> RunBash:
-    return _build_run_bash(allow_mutations=True)
 
 
 async def test_result_reports_execution_metadata(run_bash: RunBash) -> None:
@@ -174,26 +164,16 @@ async def test_query_from_file(run_bash: RunBash) -> None:
     assert result["stderr"] == ""
 
 
-async def test_mutation_rejected_when_disabled(run_bash: RunBash) -> None:
+async def test_mutation_executes(run_bash: RunBash) -> None:
     result = await run_bash("phoenix-gql 'mutation { deleteEverything }'")
-
-    assert result["exitCode"] == 1
-    assert result["stdout"] == ""
-    assert "Mutations are not permitted" in result["stderr"]
-
-
-async def test_mutation_allowed_when_enabled(run_bash_with_mutations: RunBash) -> None:
-    result = await run_bash_with_mutations("phoenix-gql 'mutation { deleteEverything }'")
 
     assert result["exitCode"] == 0
     assert json.loads(result["stdout"]) == {"data": {"deleteEverything": "deleted"}}
     assert result["stderr"] == ""
 
 
-async def test_subscription_rejected_even_when_mutations_enabled(
-    run_bash_with_mutations: RunBash,
-) -> None:
-    result = await run_bash_with_mutations("phoenix-gql 'subscription { hello }'")
+async def test_subscription_rejected(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql 'subscription { hello }'")
 
     assert result["exitCode"] == 1
     assert result["stdout"] == ""
@@ -219,19 +199,13 @@ async def test_unknown_option_errors(run_bash: RunBash) -> None:
     assert "Unknown option: --bogus" in result["stderr"]
 
 
-async def test_help_reflects_permissions(
-    run_bash: RunBash, run_bash_with_mutations: RunBash
-) -> None:
-    queries_only = await run_bash("phoenix-gql --help")
-    with_mutations = await run_bash_with_mutations("phoenix-gql --help")
+async def test_help_reports_permissions(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql --help")
 
-    assert queries_only["exitCode"] == 0
-    assert "Usage: phoenix-gql" in queries_only["stdout"]
-    assert "queries only (mutations are disabled)" in queries_only["stdout"]
-    assert queries_only["stderr"] == ""
-    assert with_mutations["exitCode"] == 0
-    assert "queries and mutations are ENABLED" in with_mutations["stdout"]
-    assert with_mutations["stderr"] == ""
+    assert result["exitCode"] == 0
+    assert "Usage: phoenix-gql" in result["stdout"]
+    assert "queries and mutations are enabled" in result["stdout"]
+    assert result["stderr"] == ""
 
 
 async def test_output_path_writes_file(run_bash: RunBash) -> None:

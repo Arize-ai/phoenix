@@ -42,9 +42,9 @@ should not be assumed to work.
 other host binaries exist.
 - Language runtimes such as python, python3, and node are not available.
 - phoenix-gql is available for GraphQL operations against the Phoenix GraphQL API. \
-Run `phoenix-gql --help` for usage and current permissions. It is read-only by \
-default: only `query` operations are permitted, and mutations and subscriptions are \
-rejected unless mutations have been explicitly enabled.
+Run `phoenix-gql --help` for usage. Queries and mutations are permitted; \
+subscriptions are rejected. Mutations are still subject to server-side \
+authorization, so they may fail on read-only deployments or for viewer roles.
 
 Args:
     summary: Short, user-facing description of what this command does. Shown as the
@@ -115,19 +115,13 @@ def _format_graphql_errors(messages: list[str]) -> str:
     return f"GraphQL errors:\n{formatted}\n"
 
 
-# Annotated because jinja2's `Template.__new__` returns `t.Any`, which would
-# make the instance (and `.render()`) untyped under mypy.
-_HELP_TEXT_TEMPLATE: Template = Template(
-    """\
+_HELP_TEXT = """\
 Usage: phoenix-gql [query] [options] [query-or-file]
 
 Execute GraphQL operations against Phoenix.
 
-{% if mutations_enabled -%}
-Permissions: queries and mutations are ENABLED.
-{% else -%}
-Permissions: queries only (mutations are disabled).
-{% endif %}
+Permissions: queries and mutations are enabled (subscriptions are not supported).
+
 Recommended flow:
   1. start with a tiny query or an introspection query to confirm the schema
   2. add filters, sorting, and deeper fields only after the base query works
@@ -145,11 +139,6 @@ Examples:
   cat query.graphql | phoenix-gql --vars '{"id":"abc"}'
   phoenix-gql query.graphql --vars-file vars.json | jq '.data'
 """
-)
-
-
-def _get_help_text(mutations_enabled: bool) -> str:
-    return _HELP_TEXT_TEMPLATE.render(mutations_enabled=mutations_enabled)
 
 
 @dataclass
@@ -258,19 +247,16 @@ def create_phoenix_gql_builtin(
     *,
     schema: strawberry.Schema,
     build_graphql_context: Callable[[], Context],
-    allow_mutations: bool,
 ) -> Callable[[BuiltinContext], Awaitable[BuiltinResult]]:
     """Build the ``phoenix-gql`` custom shell command."""
-    allowed_operation_types = (
-        {OperationType.QUERY, OperationType.MUTATION} if allow_mutations else {OperationType.QUERY}
-    )
+    allowed_operation_types = {OperationType.QUERY, OperationType.MUTATION}
 
     async def phoenix_gql(ctx: BuiltinContext) -> BuiltinResult:
         try:
             parsed = _parse_args(list(ctx.argv))
 
             if parsed.show_help:
-                return BuiltinResult(stdout=_get_help_text(allow_mutations), stderr="", exit_code=0)
+                return BuiltinResult(stdout=_HELP_TEXT, stderr="", exit_code=0)
 
             query = _resolve_query_text(parsed, ctx)
 
@@ -278,9 +264,6 @@ def create_phoenix_gql_builtin(
 
             if GraphQLOperationType.SUBSCRIPTION in operation_types:
                 raise ValueError("Subscriptions are not supported by phoenix-gql")
-
-            if GraphQLOperationType.MUTATION in operation_types and not allow_mutations:
-                raise ValueError("Mutations are not permitted.")
 
             variables = _resolve_variables(parsed, ctx)
 
@@ -345,7 +328,6 @@ def _build_shell(
     *,
     schema: strawberry.Schema,
     build_graphql_context: Callable[[], Context],
-    allow_mutations: bool,
     initial_snapshot: Optional[bytes],
 ) -> Bash:
     """Build the virtual shell, restoring prior session state when available."""
@@ -353,7 +335,6 @@ def _build_shell(
         "phoenix-gql": create_phoenix_gql_builtin(
             schema=schema,
             build_graphql_context=build_graphql_context,
-            allow_mutations=allow_mutations,
         ),
     }
     if initial_snapshot is not None:
@@ -383,14 +364,12 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
         *,
         schema: strawberry.Schema,
         build_graphql_context: Callable[[], Context],
-        allow_mutations: bool,
         initial_snapshot: Optional[bytes] = None,
         on_snapshot: Optional[Callable[[bytes], None]] = None,
     ) -> None:
         shell = _build_shell(
             schema=schema,
             build_graphql_context=build_graphql_context,
-            allow_mutations=allow_mutations,
             initial_snapshot=initial_snapshot,
         )
 
@@ -434,7 +413,6 @@ class BashCapability(AbstractCapability[AgentDepsT], Generic[AgentDepsT]):
 
     schema: strawberry.Schema
     build_graphql_context: Callable[[], Context]
-    allow_mutations: bool = False
     initial_snapshot: Optional[bytes] = None
     on_snapshot: Optional[Callable[[bytes], None]] = None
 
@@ -442,7 +420,6 @@ class BashCapability(AbstractCapability[AgentDepsT], Generic[AgentDepsT]):
         return BashToolset[AgentDepsT](
             schema=self.schema,
             build_graphql_context=self.build_graphql_context,
-            allow_mutations=self.allow_mutations,
             initial_snapshot=self.initial_snapshot,
             on_snapshot=self.on_snapshot,
         )

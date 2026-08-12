@@ -114,7 +114,6 @@ def build_agent(
     is_viewer: bool = False,
     schema: strawberry.Schema | None = None,
     build_graphql_context: Callable[[], Context] | None = None,
-    allow_mutations: bool = False,
     initial_bash_snapshot: bytes | None = None,
     on_bash_snapshot: Callable[[bytes], None] | None = None,
 ) -> AbstractAgent[AgentDependencies, AgentOutput]:
@@ -165,7 +164,6 @@ def build_agent(
             BashCapability[AgentDependencies](
                 schema=schema,
                 build_graphql_context=build_graphql_context,
-                allow_mutations=allow_mutations,
                 initial_snapshot=initial_bash_snapshot,
                 on_snapshot=on_bash_snapshot,
             )

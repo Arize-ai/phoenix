@@ -1,9 +1,8 @@
 <phoenix_gql_mutations_policy>
-{% if enabled %}
   <status>enabled</status>
-  <guidance>GraphQL mutations are enabled for phoenix-gql. Mutation operations may be executed when they are necessary and appropriate.</guidance>
+{% if edit_permission == "bypass" %}
+  <guidance>GraphQL mutations are enabled for phoenix-gql, and the user has auto-accept enabled. Execute mutations without a separate confirmation when they are necessary and appropriate. A mutation may still be rejected by server-side authorization (for example on a read-only deployment or for a viewer role); report such failures plainly.</guidance>
 {% else %}
-  <status>disabled</status>
-  <guidance>GraphQL mutations are disabled for phoenix-gql. Only read-only GraphQL queries are permitted.</guidance>
+  <guidance>GraphQL mutations are enabled for phoenix-gql, but mutations change the user's data, so confirm before you act: unless the user's most recent request explicitly asked for the exact change, describe what the mutation will do and get their approval first (the ask_user tool works well for this). Never chain destructive mutations such as deletes behind a single approval. A mutation may still be rejected by server-side authorization (for example on a read-only deployment or for a viewer role); report such failures plainly.</guidance>
 {% endif %}
 </phoenix_gql_mutations_policy>

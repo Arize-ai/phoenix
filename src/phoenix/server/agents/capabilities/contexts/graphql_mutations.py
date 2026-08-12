@@ -12,7 +12,7 @@ from phoenix.server.agents.types import AgentDependencies
 
 @dataclass
 class GraphQLMutationsCapability(AbstractDynamicCapability[AgentDependencies]):
-    """Always included so the model knows whether GraphQL mutations are available."""
+    """Always included so the model knows how to handle GraphQL mutations."""
 
     instructions: Template
 
@@ -20,9 +20,7 @@ class GraphQLMutationsCapability(AbstractDynamicCapability[AgentDependencies]):
         instructions = self.instructions
 
         def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            graphql = ctx.deps.contexts.graphql
-            enabled = graphql is not None and graphql.mutations_enabled
-            return instructions.render(enabled=enabled)
+            return instructions.render(edit_permission=ctx.deps.edit_permission)
 
         return _instructions
 
