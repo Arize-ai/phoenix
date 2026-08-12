@@ -1301,13 +1301,13 @@ Understanding what is created when, and what is shared:
 │   PER EXPERIMENT (created when experiment starts)                           │
 │   ═══════════════════════════════════════════════                           │
 │                                                                             │
-│   PlaygroundClient  ◄─── Created via get_playground_client()       │
+│   PlaygroundClient  ◄─── Created via get_playground_client()                │
 │       ├── _client_factory: Closure (captures credentials)                   │
 │       ├── model_name, provider                                              │
 │       └── rate_limiter: Reference to SINGLETON                              │
 │                                                                             │
 │   Experiment                                                                │
-│       ├── _client: PlaygroundClient                                │
+│       ├── _client: PlaygroundClient                                         │
 │       ├── _token_bucket: Reference to singleton's _throttler                │
 │       ├── _task_queue, _eval_queue, _retry_queue                            │
 │       └── create_job() method                                               │
