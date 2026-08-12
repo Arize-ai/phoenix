@@ -8,7 +8,6 @@ from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapab
 from phoenix.server.agents.capabilities.tools.external import (
     ask_user,
     batch_span_annotate,
-    create_annotation_config,
     execute_browser_action,
     get_route_info,
     list_dataset_examples,
@@ -20,14 +19,10 @@ from phoenix.server.agents.capabilities.tools.external import (
     patch_experiment,
     render_generative_ui,
     search_browser_actions,
-    update_annotation_config,
 )
 from phoenix.server.agents.capabilities.tools.external.ask_user import AskUserCapability
 from phoenix.server.agents.capabilities.tools.external.batch_span_annotate import (
     BatchSpanAnnotateCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.create_annotation_config import (
-    CreateAnnotationConfigCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.execute_browser_action import (
     ExecuteBrowserActionCapability,
@@ -62,9 +57,6 @@ from phoenix.server.agents.capabilities.tools.external.render_generative_ui impo
 from phoenix.server.agents.capabilities.tools.external.search_browser_actions import (
     SearchBrowserActionsCapability,
 )
-from phoenix.server.agents.capabilities.tools.external.update_annotation_config import (
-    UpdateAnnotationConfigCapability,
-)
 from phoenix.server.agents.types import AgentDependencies
 
 _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
@@ -78,8 +70,6 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         list_splits.TOOL_DEFINITION,
         list_dataset_labels.TOOL_DEFINITION,
         batch_span_annotate.TOOL_DEFINITION,
-        create_annotation_config.TOOL_DEFINITION,
-        update_annotation_config.TOOL_DEFINITION,
         execute_browser_action.TOOL_DEFINITION,
         get_route_info.TOOL_DEFINITION,
         patch_experiment.TOOL_DEFINITION,
@@ -115,8 +105,6 @@ def get_external_tool_capability_function() -> CapabilityFunc[AgentDependencies]
         ListDatasetSplitsCapability(),
         ListDatasetLabelsCapability(),
         PatchExperimentCapability(),
-        CreateAnnotationConfigCapability(),
-        UpdateAnnotationConfigCapability(),
     ]
 
     def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:
@@ -135,8 +123,6 @@ __all__ = [
     "ListLabelsCapability",
     "ListSplitsCapability",
     "BatchSpanAnnotateCapability",
-    "CreateAnnotationConfigCapability",
-    "UpdateAnnotationConfigCapability",
     "ExecuteBrowserActionCapability",
     "GetRouteInfoCapability",
     "PatchExperimentCapability",

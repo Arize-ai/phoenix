@@ -241,7 +241,7 @@ annotation config → experiment → span annotate), so each layer is reviewable
 Progress:
 
 - [x] dataset writes — `dataset.create/patch/delete`, `dataset.examples.add/
-  patch/delete`, `dataset.addSpans`. Introduced the reusable machinery the
+patch/delete`, `dataset.addSpans`. Introduced the reusable machinery the
       remaining families ride on: `stageApprovalOperation` (generic
       emit-resolving staging in `shared/pendingApproval`),
       `stageDatasetWriteOperation` (dataset specialization reusing the
@@ -255,7 +255,14 @@ Progress:
       registered at the root alongside the dataset writes.
 - [x] dataset labels — `dataset.label.create/set/delete`
       (`operations/datasetLabels.ts` + `tools/datasetLabels/clientActions.ts`).
-- [ ] annotation config
+- [x] annotation config — `annotationConfig.create/update`
+      (`operations/annotationConfig.ts` +
+      `tools/annotationConfig/clientActions.ts`), with
+      `stageAnnotationConfigWriteOperation` mirroring the dataset staging and
+      the `annotationConfigWriteApprovalPreview` normalizer feeding script-child
+      cards. Note: the standalone tools were `rehydratable`; as operations,
+      unresolved calls now resolve through the execute_ui stale path instead
+      (the rehydration unit test moved to `ask_user`).
 - [ ] experiment patch
 - [ ] span annotate
 

@@ -336,6 +336,7 @@ class TestSystemBlockCacheBoundary:
                     project_node_id="UHJvamVjdDox",
                     span_filter="",
                 ),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
             ),
         )
 
@@ -382,6 +383,7 @@ class TestSystemBlockCacheBoundary:
                     project_node_id="UHJvamVjdDox",
                     span_filter="",
                 ),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
             ),
         )
 
