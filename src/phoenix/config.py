@@ -1686,19 +1686,24 @@ def get_env_smtp_validate_certs() -> bool:
     return _bool_val(ENV_PHOENIX_SMTP_VALIDATE_CERTS, True)
 
 
-WORKLOAD_IDENTITY_AUTH_METHOD = "workload_identity"
-"""Client authenticates with a pre-signed JWT read from disk (RFC 7523 §2.2).
+CLIENT_ASSERTION_JWT_AUTH_METHOD = "client_assertion_jwt"
+"""Client authenticates with a JWT it did not sign (RFC 7523 §2.2).
 
-Not an OIDC Core §9 method: §9's `private_key_jwt` signs the assertion locally, whereas
-here the assertion is minted by the platform (e.g. a Kubernetes projected service account
-token) and Phoenix only relays it.
+Not an OIDC Core §9 method, and no registered method fits: §9's `client_secret_jwt` and
+`private_key_jwt` both name the key the client signs with, whereas here the assertion is
+minted by the platform (e.g. a Kubernetes projected service account token) and Phoenix
+only relays it. The name matches authlib's constant for the same wire format.
+
+Named for the wire format rather than for a platform, because that is what stays fixed:
+where the assertion comes from is carried by client_assertion_file, so another source
+does not need another auth method.
 """
 
 _ALLOWED_TOKEN_ENDPOINT_AUTH_METHODS = (
     "client_secret_basic",
     "client_secret_post",
     "none",
-    WORKLOAD_IDENTITY_AUTH_METHOD,
+    CLIENT_ASSERTION_JWT_AUTH_METHOD,
 )
 """Allowed OAuth2 token endpoint authentication methods (OIDC Core §9 unless noted)."""
 
@@ -1766,19 +1771,19 @@ class OAuth2ClientConfig:
     client_assertion_file: Optional[str] = None
     """Path to a file holding the JWT sent as `client_assertion`.
 
-    Required when token_endpoint_auth_method is WORKLOAD_IDENTITY_AUTH_METHOD, unset
+    Required when token_endpoint_auth_method is CLIENT_ASSERTION_JWT_AUTH_METHOD, unset
     otherwise. Re-read on every token request, since the platform rotates the token in
     place well before its expiry.
     """
 
     def __post_init__(self) -> None:
         if (
-            self.token_endpoint_auth_method == WORKLOAD_IDENTITY_AUTH_METHOD
+            self.token_endpoint_auth_method == CLIENT_ASSERTION_JWT_AUTH_METHOD
             and not self.client_assertion_file
         ):
             raise ValueError(
                 f"client_assertion_file is required when token_endpoint_auth_method is "
-                f"'{WORKLOAD_IDENTITY_AUTH_METHOD}' (IDP: {self.idp_name}). Set "
+                f"'{CLIENT_ASSERTION_JWT_AUTH_METHOD}' (IDP: {self.idp_name}). Set "
                 f"PHOENIX_OAUTH2_{self.idp_name.upper()}_CLIENT_ASSERTION_FILE to the path "
                 f"the platform projects the token to. On AKS this is supplied automatically "
                 f"via {_AZURE_FEDERATED_TOKEN_FILE_ENV} once the pod carries the label "
@@ -1843,7 +1848,7 @@ class OAuth2ClientConfig:
         client_secret: Optional[str] = None
 
         # Determine if CLIENT_SECRET is required based on TOKEN_ENDPOINT_AUTH_METHOD:
-        # - "workload_identity": no secret; a platform-minted JWT is sent as client assertion
+        # - "client_assertion_jwt": no secret; a platform-minted JWT is sent as client assertion
         # - "none": CLIENT_SECRET is optional (public clients, RFC 8252 §8.1)
         # - "client_secret_basic" or "client_secret_post": CLIENT_SECRET is required
         # - Not set: Default to requiring CLIENT_SECRET (assumes confidential client with
@@ -1855,7 +1860,7 @@ class OAuth2ClientConfig:
 
         client_assertion_file: Optional[str] = None
 
-        if token_endpoint_auth_method == WORKLOAD_IDENTITY_AUTH_METHOD:
+        if token_endpoint_auth_method == CLIENT_ASSERTION_JWT_AUTH_METHOD:
             # The platform-minted JWT replaces the client secret entirely. Provider-agnostic:
             # any IDP accepting RFC 7523 client assertions works, and IDP names are
             # operator-chosen so they cannot be used to gate this.
@@ -2659,7 +2664,7 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
 
         - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_SECRET: The OAuth2 client secret issued by the identity provider.
           Required by default for confidential clients. Only optional when TOKEN_ENDPOINT_AUTH_METHOD is
-          explicitly set to "none" (public clients) or "workload_identity" (client assertion).
+          explicitly set to "none" (public clients) or "client_assertion_jwt" (client assertion).
 
         - PHOENIX_OAUTH2_{IDP_NAME}_OIDC_CONFIG_URL: The OpenID Connect configuration URL (must be HTTPS
           except for localhost). This URL typically ends with /.well-known/openid-configuration and is
@@ -2692,14 +2697,14 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
             • none: No client authentication (for public clients).
               CLIENT_SECRET is not required. Use this for public clients that cannot
               securely store a client secret, typically in combination with PKCE.
-            • workload_identity: Authenticate with a platform-minted JWT sent as a client
+            • client_assertion_jwt: Authenticate with a platform-minted JWT sent as a client
               assertion (RFC 7523 §2.2). CLIENT_SECRET is not required. The assertion is read
               from CLIENT_ASSERTION_FILE on every token request, so rotation is picked up
               without a restart. Requires a federated credential on the IDP that trusts the
               workload's identity.
 
         - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_ASSERTION_FILE: Path to the file holding the JWT used
-          when TOKEN_ENDPOINT_AUTH_METHOD is "workload_identity"; required for that method and
+          when TOKEN_ENDPOINT_AUTH_METHOD is "client_assertion_jwt"; required for that method and
           ignored for the others. On AKS the Azure Workload Identity webhook both projects the
           token and exports its path as AZURE_FEDERATED_TOKEN_FILE, which is used when this
           setting is unset, so labelled pods need no explicit path. Other platforms must set it.

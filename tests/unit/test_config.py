@@ -2534,15 +2534,15 @@ class TestGetEnvPostgresAzureScope:
         )
 
 
-class TestWorkloadIdentityFromEnv:
-    """Tests for TOKEN_ENDPOINT_AUTH_METHOD=workload_identity in OAuth2ClientConfig.from_env."""
+class TestClientAssertionJWTFromEnv:
+    """Tests for TOKEN_ENDPOINT_AUTH_METHOD=client_assertion_jwt in OAuth2ClientConfig.from_env."""
 
     _BASE_ENVS = {
         "PHOENIX_OAUTH2_ENTRA_CLIENT_ID": "entra-client-id",
         "PHOENIX_OAUTH2_ENTRA_OIDC_CONFIG_URL": (
             "https://login.microsoftonline.com/tenant-id/v2.0/.well-known/openid-configuration"
         ),
-        "PHOENIX_OAUTH2_ENTRA_TOKEN_ENDPOINT_AUTH_METHOD": "workload_identity",
+        "PHOENIX_OAUTH2_ENTRA_TOKEN_ENDPOINT_AUTH_METHOD": "client_assertion_jwt",
         "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE": "/explicit/path/token",
     }
 
@@ -2557,7 +2557,7 @@ class TestWorkloadIdentityFromEnv:
 
     def test_token_endpoint_auth_method_stored(self) -> None:
         config = OAuth2ClientConfig.from_env("entra")
-        assert config.token_endpoint_auth_method == "workload_identity"
+        assert config.token_endpoint_auth_method == "client_assertion_jwt"
 
     def test_unset_assertion_file_is_rejected_without_an_azure_signal(
         self, monkeypatch: pytest.MonkeyPatch
@@ -2590,7 +2590,7 @@ class TestWorkloadIdentityFromEnv:
             "https://sso.example.com/.well-known/openid-configuration",
         )
         monkeypatch.setenv(
-            "PHOENIX_OAUTH2_COMPANY_SSO_TOKEN_ENDPOINT_AUTH_METHOD", "workload_identity"
+            "PHOENIX_OAUTH2_COMPANY_SSO_TOKEN_ENDPOINT_AUTH_METHOD", "client_assertion_jwt"
         )
         config = OAuth2ClientConfig.from_env("company_sso")
         assert config.client_assertion_file == "/spiffe/jwt-svid"
@@ -2605,7 +2605,7 @@ class TestWorkloadIdentityFromEnv:
         config = OAuth2ClientConfig.from_env("google")
         assert config.client_assertion_file is None
 
-    def test_config_rejects_workload_identity_without_assertion_file(self) -> None:
+    def test_config_rejects_client_assertion_jwt_without_assertion_file(self) -> None:
         with pytest.raises(ValueError, match="client_assertion_file is required"):
             OAuth2ClientConfig(
                 idp_name="entra",
@@ -2616,7 +2616,7 @@ class TestWorkloadIdentityFromEnv:
                 allow_sign_up=True,
                 auto_login=False,
                 use_pkce=False,
-                token_endpoint_auth_method="workload_identity",
+                token_endpoint_auth_method="client_assertion_jwt",
                 scopes="openid email profile",
                 groups_attribute_path=None,
                 allowed_groups=[],

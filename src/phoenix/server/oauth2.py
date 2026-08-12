@@ -14,7 +14,7 @@ from authlib.oauth2.rfc7523 import ClientSecretJWT
 from jmespath.exceptions import JMESPathError, ParseError
 
 from phoenix.config import (
-    WORKLOAD_IDENTITY_AUTH_METHOD,
+    CLIENT_ASSERTION_JWT_AUTH_METHOD,
     AssignableUserRoleName,
     OAuth2ClientConfig,
 )
@@ -58,7 +58,7 @@ def search_claim_path(
         return None
 
 
-class WorkloadIdentityJWT(ClientSecretJWT):  # type:ignore[misc]
+class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
     """Client authentication with a platform-minted JWT (RFC 7523 §2.2).
 
     Unlike `private_key_jwt`, the assertion is not signed here: the platform writes it to
@@ -70,7 +70,7 @@ class WorkloadIdentityJWT(ClientSecretJWT):  # type:ignore[misc]
     needing to know the mechanism exists.
     """
 
-    name = WORKLOAD_IDENTITY_AUTH_METHOD
+    name = CLIENT_ASSERTION_JWT_AUTH_METHOD
 
     def __init__(self, assertion_file: Path) -> None:
         super().__init__()
@@ -487,7 +487,7 @@ class OAuth2Clients:
         # proxies requiring end-to-end HTTP/2, e.g. ZITADEL)
         client_kwargs = {"scope": config.scopes, "http2": True}
 
-        if config.token_endpoint_auth_method == WORKLOAD_IDENTITY_AUTH_METHOD:
+        if config.token_endpoint_auth_method == CLIENT_ASSERTION_JWT_AUTH_METHOD:
             # authlib accepts an auth method instance here, not just one of its built-in
             # names (authlib >=0.15).
             assert config.client_assertion_file is not None  # enforced by OAuth2ClientConfig
@@ -499,7 +499,7 @@ class OAuth2Clients:
                     f"Identity webhook, which requires the pod label "
                     f"azure.workload.identity/use=true."
                 )
-            client_kwargs["token_endpoint_auth_method"] = WorkloadIdentityJWT(assertion_file)
+            client_kwargs["token_endpoint_auth_method"] = ClientAssertionJWT(assertion_file)
         elif config.token_endpoint_auth_method:
             # OIDC Core §9: Client authentication method at token endpoint
             client_kwargs["token_endpoint_auth_method"] = config.token_endpoint_auth_method

@@ -10,12 +10,12 @@ import pytest
 from authlib.integrations.base_client import OAuthError
 from authlib.oauth2.auth import ClientAuth
 
-from phoenix.config import WORKLOAD_IDENTITY_AUTH_METHOD, OAuth2ClientConfig
+from phoenix.config import CLIENT_ASSERTION_JWT_AUTH_METHOD, OAuth2ClientConfig
 from phoenix.server.api.routers.oauth2 import MissingEmailScope, _parse_user_info
 from phoenix.server.oauth2 import (
+    ClientAssertionJWT,
     OAuth2Client,
     OAuth2Clients,
-    WorkloadIdentityJWT,
     search_claim_path,
 )
 
@@ -1394,14 +1394,14 @@ class TestRuntimeJMESPathErrorHandling:
             client.validate_access(claims)
 
 
-class TestWorkloadIdentityJWT:
-    """Test the client assertion that WorkloadIdentityJWT puts on the wire."""
+class TestClientAssertionJWT:
+    """Test the client assertion that ClientAssertionJWT puts on the wire."""
 
     _CONFIG_DEFAULTS: dict[str, Any] = {
         **_OAUTH2_CONFIG_DEFAULTS,
         "idp_name": "entra",
         "client_secret": None,
-        "token_endpoint_auth_method": WORKLOAD_IDENTITY_AUTH_METHOD,
+        "token_endpoint_auth_method": CLIENT_ASSERTION_JWT_AUTH_METHOD,
         "groups_attribute_path": None,
         "allowed_groups": [],
         "role_attribute_path": None,
@@ -1415,7 +1415,7 @@ class TestWorkloadIdentityJWT:
         auth = ClientAuth(
             client_id=client_id,
             client_secret=None,
-            auth_method=WorkloadIdentityJWT(assertion_file),
+            auth_method=ClientAssertionJWT(assertion_file),
         )
         _, _, body = auth.prepare("POST", "https://idp/token", {}, "grant_type=authorization_code")
         return parse_qs(body)
@@ -1468,7 +1468,7 @@ class TestWorkloadIdentityJWT:
 
         client = clients.get_client("entra")
         assert client is not None
-        assert isinstance(client.client_kwargs["token_endpoint_auth_method"], WorkloadIdentityJWT)
+        assert isinstance(client.client_kwargs["token_endpoint_auth_method"], ClientAssertionJWT)
 
     def test_add_client_rejects_missing_assertion_file(self, tmp_path: Path) -> None:
         config = OAuth2ClientConfig(
