@@ -13,9 +13,9 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "list_splits"
 
 DESCRIPTION = """\
-List the dataset splits that exist across this Phoenix instance, returning each split's id, name, description, and color. Read-only. A split is a named slice of dataset examples (e.g. train/validation/test, or by facet); splits are global, so the same split can hold examples from more than one dataset. Use this to discover what splits exist before assigning examples with set_dataset_example_splits, editing one with patch_dataset_split, or deleting one with delete_dataset_splits; for just the splits the dataset in view is using, use list_dataset_splits. Prefer this over hand-writing GraphQL.
+List the dataset splits that exist across this Phoenix instance, returning each split's id, name, description, and color. Read-only. A split is a named slice of dataset examples (e.g. train/validation/test, or by facet); splits are global, so the same split can hold examples from more than one dataset. Use this to discover what splits exist before assigning examples with the `ui.dataset.split.setExampleSplits` operation, editing one with `ui.dataset.split.patch`, or deleting one with `ui.dataset.split.delete` (all via `execute_ui`); for just the splits the dataset in view is using, use list_dataset_splits. Prefer this over hand-writing GraphQL.
 The list is paginated: if the result reports more pages (`hasNextPage`), call again with the returned cursor in `after` before concluding a split does not exist. The set/patch/delete split tools already resolve names against the full split set.
-If a split the user wants does not exist yet, create it with create_dataset_split."""
+If a split the user wants does not exist yet, create it with the `ui.dataset.split.create` operation via `execute_ui`."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

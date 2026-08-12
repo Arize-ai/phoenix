@@ -10,9 +10,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     batch_span_annotate,
     create_annotation_config,
     create_dataset_label,
-    create_dataset_split,
     delete_dataset_labels,
-    delete_dataset_splits,
     execute_browser_action,
     get_route_info,
     list_dataset_examples,
@@ -21,11 +19,9 @@ from phoenix.server.agents.capabilities.tools.external import (
     list_datasets,
     list_labels,
     list_splits,
-    patch_dataset_split,
     patch_experiment,
     render_generative_ui,
     search_browser_actions,
-    set_dataset_example_splits,
     set_dataset_labels,
     update_annotation_config,
 )
@@ -39,14 +35,8 @@ from phoenix.server.agents.capabilities.tools.external.create_annotation_config 
 from phoenix.server.agents.capabilities.tools.external.create_dataset_label import (
     CreateDatasetLabelCapability,
 )
-from phoenix.server.agents.capabilities.tools.external.create_dataset_split import (
-    CreateDatasetSplitCapability,
-)
 from phoenix.server.agents.capabilities.tools.external.delete_dataset_labels import (
     DeleteDatasetLabelsCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.delete_dataset_splits import (
-    DeleteDatasetSplitsCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.execute_browser_action import (
     ExecuteBrowserActionCapability,
@@ -72,9 +62,6 @@ from phoenix.server.agents.capabilities.tools.external.list_labels import (
 from phoenix.server.agents.capabilities.tools.external.list_splits import (
     ListSplitsCapability,
 )
-from phoenix.server.agents.capabilities.tools.external.patch_dataset_split import (
-    PatchDatasetSplitCapability,
-)
 from phoenix.server.agents.capabilities.tools.external.patch_experiment import (
     PatchExperimentCapability,
 )
@@ -83,9 +70,6 @@ from phoenix.server.agents.capabilities.tools.external.render_generative_ui impo
 )
 from phoenix.server.agents.capabilities.tools.external.search_browser_actions import (
     SearchBrowserActionsCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.set_dataset_example_splits import (
-    SetDatasetExampleSplitsCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.set_dataset_labels import (
     SetDatasetLabelsCapability,
@@ -104,13 +88,9 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         list_datasets.TOOL_DEFINITION,
         list_labels.TOOL_DEFINITION,
         list_splits.TOOL_DEFINITION,
-        create_dataset_split.TOOL_DEFINITION,
-        set_dataset_example_splits.TOOL_DEFINITION,
         list_dataset_labels.TOOL_DEFINITION,
         create_dataset_label.TOOL_DEFINITION,
         set_dataset_labels.TOOL_DEFINITION,
-        patch_dataset_split.TOOL_DEFINITION,
-        delete_dataset_splits.TOOL_DEFINITION,
         delete_dataset_labels.TOOL_DEFINITION,
         batch_span_annotate.TOOL_DEFINITION,
         create_annotation_config.TOOL_DEFINITION,
@@ -148,13 +128,9 @@ def get_external_tool_capability_function() -> CapabilityFunc[AgentDependencies]
     gated_capabilities: list[AbstractGatedToolCapability[AgentDependencies]] = [
         ListDatasetExamplesCapability(),
         ListDatasetSplitsCapability(),
-        CreateDatasetSplitCapability(),
-        SetDatasetExampleSplitsCapability(),
         ListDatasetLabelsCapability(),
         CreateDatasetLabelCapability(),
         SetDatasetLabelsCapability(),
-        PatchDatasetSplitCapability(),
-        DeleteDatasetSplitsCapability(),
         DeleteDatasetLabelsCapability(),
         PatchExperimentCapability(),
         CreateAnnotationConfigCapability(),
@@ -172,13 +148,9 @@ __all__ = [
     "AskUserCapability",
     "ListDatasetExamplesCapability",
     "ListDatasetSplitsCapability",
-    "CreateDatasetSplitCapability",
-    "SetDatasetExampleSplitsCapability",
     "ListDatasetLabelsCapability",
     "CreateDatasetLabelCapability",
     "SetDatasetLabelsCapability",
-    "PatchDatasetSplitCapability",
-    "DeleteDatasetSplitsCapability",
     "DeleteDatasetLabelsCapability",
     "ListDatasetsCapability",
     "ListLabelsCapability",

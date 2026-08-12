@@ -241,7 +241,7 @@ annotation config → experiment → span annotate), so each layer is reviewable
 Progress:
 
 - [x] dataset writes — `dataset.create/patch/delete`, `dataset.examples.add/
-      patch/delete`, `dataset.addSpans`. Introduced the reusable machinery the
+    patch/delete`, `dataset.addSpans`. Introduced the reusable machinery the
       remaining families ride on: `stageApprovalOperation` (generic
       emit-resolving staging in `shared/pendingApproval`),
       `stageDatasetWriteOperation` (dataset specialization reusing the
@@ -250,7 +250,9 @@ Progress:
       `AuthenticatedRoot`), the dataset-writes cleaner in
       `EXECUTE_UI_PENDING_MAP_CLEANERS`, and the `datasetWriteApprovalPreview`
       normalizer feeding `ExecuteUiToolDetails` child cards.
-- [ ] dataset splits
+- [x] dataset splits — `dataset.split.create/setExampleSplits/patch/delete`
+      (`operations/datasetSplits.ts` + `tools/datasetSplits/clientActions.ts`),
+      registered at the root alongside the dataset writes.
 - [ ] dataset labels
 - [ ] annotation config
 - [ ] experiment patch
