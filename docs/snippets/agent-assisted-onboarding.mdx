@@ -5,6 +5,8 @@
 npx -y @arizeai/phoenix-cli setup
 ```
 
+This connects to a *running* Phoenix — if you don't have one, start it first with `uvx arize-phoenix serve`.
+
 See [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup) for the full flow, CI/non-interactive usage, and unsupported agents. Prefer to wire it up yourself? Continue below. Just need the skills? Run `npx skills add Arize-ai/phoenix`.
 </Info>
 
@@ -14,6 +16,7 @@ See [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup) for the full flow
 <Accordion title="Required procedure for AI coding agents">
 Follow this in order. Do not skip ahead to the manual instrumentation code and wire tracing up from memory — `px setup` is the intended path, and it verifies a real trace actually arrives before reporting success.
 
+1. **Ensure Phoenix is running.** `px setup` connects to a running instance. If nothing is listening on the endpoint, start one with `uvx arize-phoenix serve` (or confirm the user's existing deployment) before continuing.
 1. **Run the setup command shown above** from the application's root directory. Run it even though it is not already installed — "not preinstalled" is the expected state and means *run it now*, not skip it.
 1. **If you cannot run it** — permission prompt, sandbox, no network, or missing `npx`/Node — tell the user exactly what is blocking you and ask them to run it or grant access. Retry once the block is cleared. Do not silently fall through to manual instrumentation.
 1. **Follow the interactive flow.** It establishes the Phoenix connection, hands instrumentation to you, and waits until the Phoenix API confirms a real trace arrived — the agent's own claim that it finished does not count.

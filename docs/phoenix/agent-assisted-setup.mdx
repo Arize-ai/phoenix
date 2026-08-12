@@ -1,32 +1,44 @@
 ---
 title: "Agent-Assisted Setup"
 description: >-
-  Add Phoenix tracing to your app with a single command — `px setup` hands the
-  instrumentation to your coding agent and waits until a real trace arrives.
+  Start Phoenix, then let your coding agent instrument your app — `px setup`
+  connects the two and waits until a real trace arrives.
 ---
+
+import StartPhoenix from "../snippets/start-phoenix.mdx";
 
 # Agent-Assisted Setup
 
-The fastest way to add Phoenix tracing to your application. One command connects your app to Phoenix, hands the instrumentation to your coding agent, and confirms a real trace arrived — so "done" means traces are actually flowing.
-
-<Tip>
-**Run this from your app's root directory:**
-```bash
-npx -y @arizeai/phoenix-cli setup
-```
-Already installed the CLI (`npm install -g @arizeai/phoenix-cli`)? Just run `px setup`.
-</Tip>
+The fastest way to add Phoenix tracing to your application. Start Phoenix, then run `px setup` to connect your app, hand the instrumentation to your coding agent, and confirm a real trace arrived — so "done" means traces are actually flowing.
 
 <Info>
 **Supported stacks:** Python and TypeScript/JavaScript. See the [full integration list](/docs/phoenix/integrations) for the LLM providers and frameworks Phoenix instruments.
 </Info>
+
+<Steps>
+  <Step title={<span className="step-title">Start Phoenix</span>}>
+    `px setup` connects to a *running* Phoenix, so start one first. Already have a Phoenix deployment? Skip to the next step.
+
+    <StartPhoenix />
+  </Step>
+
+  <Step title={<span className="step-title">Connect your app</span>}>
+    From your app's root directory, run:
+
+    ```bash
+    npx -y @arizeai/phoenix-cli setup
+    ```
+
+    Already installed the CLI (`npm install -g @arizeai/phoenix-cli`)? Just run `px setup`.
+  </Step>
+</Steps>
 
 ## What happens when you run it
 
 `px setup` walks you through an interactive flow with five steps:
 
 1. **Checks git safety.** Warns on a dirty tree so agent edits stay separate from your own work.
-2. **Establishes the connection.** Asks where your Phoenix instance is running, handles auth, and writes a gitignored `.env.phoenix` file.
+2. **Establishes the connection.** Points the CLI at the Phoenix you just started (or an existing deployment), handles auth, and writes a gitignored `.env.phoenix` file.
 3. **Hands off instrumentation.** Passes an instrumentation task to a coding agent (Claude Code, Codex, Cursor, or OpenCode), which detects your language, LLM providers, and frameworks, then adds tracing.
 4. **Verifies traces.** Waits until the Phoenix API confirms a real trace arrived.
 5. **Sets up tooling.** Optionally points `px` at the new project and installs Phoenix [skills](/docs/phoenix/integrations/developer-tools/coding-agents#skills) so your agent can query what you captured.
