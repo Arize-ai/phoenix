@@ -298,6 +298,13 @@ def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
                 "prepared, which silently returns an arbitrary subset of the tied "
                 "rows. Rank explicitly with a window function instead.",
             )
+        if options.args.get("percent"):
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "`PERCENT` is not supported: it is dropped when the statement is "
+                "prepared, which silently turns a fraction of the rows into that "
+                "many rows. Write an explicit row count instead.",
+            )
     for literal in root.find_all(exp.HexString):
         # The parse is lossy: `0x1f` and `x'1f'` are both valid SQLite, mean an
         # integer and a blob respectively, and produce one identical node. So

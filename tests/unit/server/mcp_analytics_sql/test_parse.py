@@ -703,6 +703,20 @@ class TestLossyShapesAreRefused:
         assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
         assert "WITH TIES" in result.detail
 
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT id FROM spans ORDER BY id FETCH FIRST 100 PERCENT ROWS ONLY",
+            "SELECT id FROM spans LIMIT 10 PERCENT",
+        ],
+    )
+    def test_percent_limit_is_refused(self, sql: str) -> None:
+        """SQLite renders FETCH PERCENT as a row count, so 100 percent becomes 100 rows."""
+        result = self._admit(sql)
+
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert "PERCENT" in result.detail
+
     def test_hex_literals_are_refused(self) -> None:
         """`0x1f` and `x'1f'` collapse to one node, so an integer written in hex
         would execute as a blob. Refuses the blob spelling too, deliberately."""
