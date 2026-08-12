@@ -804,6 +804,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/traces/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transfer traces to a project
+         * @description Move traces into a different project. This re-parents the traces rather than copying them, so they no longer appear under their original project. All traces must currently belong to the same source project.
+         */
+        post: operations["transferTraces"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/traces/{trace_identifier}": {
         parameters: {
             query?: never;
@@ -6292,6 +6312,36 @@ export interface components {
              */
             end_time: string;
         };
+        /** TransferTracesData */
+        TransferTracesData: {
+            /**
+             * Transferred Trace Count
+             * @description The number of traces that were moved to the destination project.
+             */
+            transferred_trace_count: number;
+            /**
+             * Destination Project Id
+             * @description The ID (GlobalID) of the project the traces were moved to.
+             */
+            destination_project_id: string;
+        };
+        /** TransferTracesRequestBody */
+        TransferTracesRequestBody: {
+            /**
+             * Trace Identifiers
+             * @description The traces to transfer. Each identifier is either a trace ID (GlobalID) or an OpenTelemetry trace_id (hex string). Must be non-empty, and all traces must currently belong to the same source project.
+             */
+            trace_identifiers: string[];
+            /**
+             * Destination Project Identifier
+             * @description The destination project: either project ID (GlobalID) or project name.
+             */
+            destination_project_identifier: string;
+        };
+        /** TransferTracesResponseBody */
+        TransferTracesResponseBody: {
+            data: components["schemas"]["TransferTracesData"];
+        };
         /**
          * TurnTraceContext
          * @description The trace identity a turn's spans are parented to.
@@ -9916,6 +9966,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transferTraces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferTracesRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferTracesResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Destination project or trace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };

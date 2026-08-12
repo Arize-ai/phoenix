@@ -4924,6 +4924,68 @@
         }
       }
     },
+    "/v1/traces/transfer": {
+      "post": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Transfer traces to a project",
+        "description": "Move traces into a different project. This re-parents the traces rather than copying them, so they no longer appear under their original project. All traces must currently belong to the same source project.",
+        "operationId": "transferTraces",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferTracesRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferTracesResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Destination project or trace not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/traces/{trace_identifier}": {
       "delete": {
         "tags": [
@@ -20183,6 +20245,62 @@
           "end_time"
         ],
         "title": "TraceSpanData"
+      },
+      "TransferTracesData": {
+        "properties": {
+          "transferred_trace_count": {
+            "type": "integer",
+            "title": "Transferred Trace Count",
+            "description": "The number of traces that were moved to the destination project."
+          },
+          "destination_project_id": {
+            "type": "string",
+            "title": "Destination Project Id",
+            "description": "The ID (GlobalID) of the project the traces were moved to."
+          }
+        },
+        "type": "object",
+        "required": [
+          "transferred_trace_count",
+          "destination_project_id"
+        ],
+        "title": "TransferTracesData"
+      },
+      "TransferTracesRequestBody": {
+        "properties": {
+          "trace_identifiers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Trace Identifiers",
+            "description": "The traces to transfer. Each identifier is either a trace ID (GlobalID) or an OpenTelemetry trace_id (hex string). Must be non-empty, and all traces must currently belong to the same source project."
+          },
+          "destination_project_identifier": {
+            "type": "string",
+            "title": "Destination Project Identifier",
+            "description": "The destination project: either project ID (GlobalID) or project name."
+          }
+        },
+        "type": "object",
+        "required": [
+          "trace_identifiers",
+          "destination_project_identifier"
+        ],
+        "title": "TransferTracesRequestBody"
+      },
+      "TransferTracesResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TransferTracesData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "TransferTracesResponseBody"
       },
       "TurnTraceContext": {
         "properties": {
