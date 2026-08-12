@@ -1,4 +1,6 @@
 import logging
+import os
+import stat
 from collections.abc import Iterable, Mapping
 from functools import cached_property
 from pathlib import Path
@@ -21,6 +23,9 @@ from phoenix.config import (
 )
 
 logger = logging.getLogger(__name__)
+
+_MAX_CLIENT_ASSERTION_BYTES = 64 * 1024
+"""Generous for a JWT; small enough that a wrong path cannot exhaust the process."""
 
 # Pre-compiled default JMESPath for email extraction (standard OIDC "email" claim)
 DEFAULT_EMAIL_PATH = jmespath.compile("email")
@@ -79,22 +84,47 @@ class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
         self._assertion_file = assertion_file
 
     def sign(self, auth: Any, token_endpoint: str) -> str:
-        # Re-read per request, by path: the token rotates in place, and Kubernetes rotates a
-        # projected volume by swapping the symlink the path resolves through.
-        # Regular files only, checked on each read. A FIFO blocks until a writer appears and a
-        # character device never reaches EOF; either would hang or exhaust this coroutine, and
-        # the read is synchronous inside the async auth flow, so it would take the event loop
-        # with it. Startup only warns, so this cannot be hoisted out of the request path.
-        if not self._assertion_file.is_file():
+        # Re-read per request: the token rotates, and Kubernetes rotates a projected volume by
+        # swapping the symlink the configured path resolves through.
+        # Opened once and inspected through the descriptor rather than the path: a stat
+        # followed by a separate open leaves a window in which the platform swaps the symlink
+        # for something else. O_NONBLOCK keeps a FIFO from blocking on open, and the fstat
+        # rejects anything that is not a regular file — a FIFO waits for a writer and a
+        # character device never reaches EOF, either of which would stall the event loop,
+        # since this read is synchronous inside the async auth flow.
+        try:
+            fd = os.open(self._assertion_file, os.O_RDONLY | os.O_NONBLOCK)
+        except OSError as e:
+            # OAuthError is the only failure the login route translates into a redirect;
+            # anything else surfaces as a 500.
+            raise OAuthError(description=f"cannot read client assertion file: {e}") from e
+        try:
+            if not stat.S_ISREG(os.fstat(fd).st_mode):
+                raise OAuthError(
+                    description=(
+                        f"client assertion file is not a regular file: {self._assertion_file}"
+                    )
+                )
+            # Bounded: a regular file can still be arbitrarily large, and the value is copied
+            # again by strip() and once more by form encoding. Reading one byte past the limit
+            # distinguishes "at the limit" from "over it" without trusting st_size, which
+            # pseudo-files misreport.
+            raw = os.read(fd, _MAX_CLIENT_ASSERTION_BYTES + 1)
+        except OSError as e:
+            raise OAuthError(description=f"cannot read client assertion file: {e}") from e
+        finally:
+            os.close(fd)
+        if len(raw) > _MAX_CLIENT_ASSERTION_BYTES:
             raise OAuthError(
-                description=f"client assertion file is not a regular file: {self._assertion_file}"
+                description=(
+                    f"client assertion file exceeds {_MAX_CLIENT_ASSERTION_BYTES} bytes: "
+                    f"{self._assertion_file}"
+                )
             )
         try:
-            assertion = self._assertion_file.read_text().strip()
-        except (OSError, UnicodeDecodeError) as e:
-            # OAuthError is the only failure the login route translates into a redirect;
-            # anything else surfaces as a 500. UnicodeDecodeError is a ValueError, not an
-            # OSError, and is what a wrong path pointing at a binary produces.
+            assertion = raw.decode().strip()
+        except UnicodeDecodeError as e:
+            # A ValueError, not an OSError, and what a path pointing at a binary produces.
             raise OAuthError(description=f"cannot read client assertion file: {e}") from e
         if not assertion:
             # An empty value would be sent as `client_assertion=`, which IDPs reject as a
@@ -135,6 +165,18 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
     """
 
     client_cls = AsyncHttpxOAuth2Client
+
+    #: Keys BaseApp must not take from server metadata. It merges the discovery document
+    #: over client_kwargs, so a provider advertising one of these would replace locally
+    #: configured client authentication — a document setting "none" strips the assertion
+    #: from the token request entirely. Standard OIDC advertises the plural
+    #: token_endpoint_auth_methods_supported, so this only bites on nonstandard fields.
+    _METADATA_RESERVED_KEYS = ("token_endpoint_auth_method", "revocation_endpoint_auth_method")
+
+    def _get_oauth_client(self, **metadata: Any) -> Any:
+        for key in self._METADATA_RESERVED_KEYS:
+            metadata.pop(key, None)
+        return super()._get_oauth_client(**metadata)
 
     def __init__(
         self,

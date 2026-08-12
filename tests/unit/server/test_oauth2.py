@@ -1505,13 +1505,44 @@ class TestClientAssertionJWT:
         with pytest.raises(OAuthError, match="does not match"):
             auth.prepare("POST", "https://idp/token", {}, f"grant_type=x&{supplied}")
 
-    def test_non_regular_assertion_file_raises_oauth_error(self, tmp_path: Path) -> None:
-        # A FIFO blocks until a writer appears; read_text() would hang the event loop.
+    @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="mkfifo is POSIX-only")
+    def test_fifo_assertion_file_raises_oauth_error(self, tmp_path: Path) -> None:
+        # A FIFO blocks until a writer appears, which would stall the event loop.
         fifo = tmp_path / "azure-identity-token"
         os.mkfifo(fifo)
 
         with pytest.raises(OAuthError, match="not a regular file"):
             self._prepare(fifo)
+
+    def test_directory_assertion_file_raises_oauth_error(self, tmp_path: Path) -> None:
+        with pytest.raises(OAuthError, match="cannot read|not a regular file"):
+            self._prepare(tmp_path)
+
+    def test_oversized_assertion_file_raises_oauth_error(self, tmp_path: Path) -> None:
+        # A regular file can still be arbitrarily large; the value is copied again by strip()
+        # and once more by form encoding.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("x" * (64 * 1024 + 1))
+
+        with pytest.raises(OAuthError, match="exceeds"):
+            self._prepare(assertion_file)
+
+    def test_server_metadata_cannot_replace_the_auth_method(self, tmp_path: Path) -> None:
+        # BaseApp merges the discovery document over client_kwargs, so a provider advertising
+        # token_endpoint_auth_method would otherwise strip the assertion from token requests.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+        config = OAuth2ClientConfig(
+            **self._CONFIG_DEFAULTS, client_assertion_file=str(assertion_file)
+        )
+        clients = OAuth2Clients()
+        clients.add_client(config)
+        client = clients.get_client("entra")
+        assert client is not None
+
+        session = client._get_oauth_client(token_endpoint_auth_method="none")
+
+        assert isinstance(session.token_endpoint_auth_method, ClientAssertionJWT)
 
     def test_revocation_uses_the_same_auth_method(self, tmp_path: Path) -> None:
         # authlib selects revocation auth separately; without this it falls back to "none".
