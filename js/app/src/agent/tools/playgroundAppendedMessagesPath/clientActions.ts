@@ -2,14 +2,19 @@ import { resolvePlaygroundDatasetId } from "@phoenix/pages/playground/playground
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
+import { fetchFirstExampleInput } from "./fetchFirstExampleInput";
 import { parseSetAppendedMessagesPathInput } from "./parsers";
+import { validateAppendedMessagesPath } from "./validateAppendedMessagesPath";
 
 export function createSetAppendedMessagesPathClientAction({
   playgroundStore,
   getSearchParams,
+  getFirstExampleInput = fetchFirstExampleInput,
 }: {
   playgroundStore: PlaygroundStore;
   getSearchParams: () => URLSearchParams;
+  /** Injectable for tests; the default fetches via Relay. */
+  getFirstExampleInput?: (datasetId: string) => Promise<unknown | null>;
 }) {
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseSetAppendedMessagesPathInput(input);
@@ -38,6 +43,26 @@ export function createSetAppendedMessagesPathClientAction({
     }
 
     const path = parsed.path === "" ? null : parsed.path;
+
+    // Validate a non-empty path against the loaded dataset's first example so
+    // a wrong path fails here — one actionable error — instead of failing
+    // every run of the next experiment. Validation is best-effort: when the
+    // example cannot be fetched (network, empty dataset) the set proceeds.
+    if (path != null) {
+      let exampleInput: unknown = null;
+      try {
+        exampleInput = await getFirstExampleInput(datasetId);
+      } catch {
+        exampleInput = null;
+      }
+      if (exampleInput != null) {
+        const validation = validateAppendedMessagesPath({ exampleInput, path });
+        if (!validation.ok) {
+          return validation;
+        }
+      }
+    }
+
     playgroundStore.getState().setAppendedMessagesPath({ path, datasetId });
 
     return {

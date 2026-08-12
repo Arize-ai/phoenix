@@ -40,8 +40,12 @@ export const setTemplateVariablesPathOperation = defineUiOperation({
   name: "playground.variables.setPath",
   description:
     "Set the dataset field path that playground template variables resolve against, " +
-    "when a prompt references dataset fields outside the default `input` root. This " +
-    "only updates browser UI state; it does not edit prompt messages or run the playground.",
+    "when a prompt references dataset fields outside the default `input` root. The " +
+    "path resolves against the whole example context `{input, reference, metadata}` " +
+    "— e.g. `metadata` binds variables to each example's metadata. (Note this base " +
+    "differs from `playground.messages.setPath`, which resolves inside the example's " +
+    "`input`.) This only updates browser UI state; it does not edit prompt messages " +
+    "or run the playground.",
   inputSchema: setTemplateVariablesPathInputSchema,
   kind: "write",
   defaultSuccessOutput: "Template variables path updated.",
@@ -59,8 +63,13 @@ export const setAppendedMessagesPathOperation = defineUiOperation({
   description:
     "Set the dataset message-list path appended to playground runs for the currently " +
     "mounted playground. Use this when the user asks to append, set, or clear the " +
-    "conversational message history for message-based dataset re-runs. This only updates " +
-    "browser UI state; it does not edit prompt messages or run the playground.",
+    "conversational message history for message-based dataset re-runs. The path " +
+    "resolves against each example's `input` object ONLY: for examples shaped " +
+    "`{input: {messages: [...]}}` pass `messages`, NOT `input.messages`. (Note this " +
+    "base differs from `playground.variables.setPath`, which resolves against the " +
+    "whole example context.) The path is validated against the loaded dataset's " +
+    "first example, so a wrong path fails here instead of failing the run. This only " +
+    "updates browser UI state; it does not edit prompt messages or run the playground.",
   inputSchema: setAppendedMessagesPathInputSchema,
   kind: "write",
   defaultSuccessOutput: "Appended messages path updated.",

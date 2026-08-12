@@ -73,6 +73,14 @@ export type OutputConfigDraft =
   | ContinuousOutputConfigDraft
   | FreeformOutputConfigDraft;
 
+/** One selectable sandbox, as surfaced in the draft snapshot. */
+export type AvailableSandboxConfig = {
+  id: string;
+  name: string;
+  language: CodeEvaluatorLanguage;
+  backendType: string;
+};
+
 export type CodeEvaluatorDraftSnapshot = {
   mode: CodeEvaluatorFormMode;
   evaluatorNodeId: string | null;
@@ -84,6 +92,13 @@ export type CodeEvaluatorDraftSnapshot = {
   inputMapping: EvaluatorInputMapping;
   testPayload: EvaluatorMappingSource;
   outputConfigs: OutputConfigDraft[];
+  /**
+   * The sandboxes `set_sandbox_config` may target, so the agent picks a
+   * `sandboxConfigId` from the snapshot instead of querying the API.
+   * Optional: absent in snapshots embedded in approval diffs and older
+   * fixtures.
+   */
+  availableSandboxConfigs?: AvailableSandboxConfig[];
 };
 
 export type CodeEvaluatorActionResult<TOutput> =
