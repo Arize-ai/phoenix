@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from datetime import datetime
-from typing import Any, Literal, Mapping, Optional, Sequence, TypedDict, Union
+from typing import Any, Literal, Optional, TypedDict, Union
 
 from typing_extensions import NotRequired
 
@@ -45,18 +46,15 @@ class AnonymousUser(TypedDict):
     auth_method: Literal["ANONYMOUS"]
 
 
-class ApiKey(TypedDict):
-    id: str
-    name: str
-    created_at: str
-    description: NotRequired[str]
-    expires_at: NotRequired[str]
-
-
 class ApiKeyData(TypedDict):
     name: str
     description: NotRequired[str]
     expires_at: NotRequired[str]
+
+
+class ApiKey(ApiKeyData):
+    id: str
+    created_at: str
 
 
 class ApiKeyUser(TypedDict):
@@ -100,7 +98,7 @@ class ChatCompletionErrorResponse(TypedDict):
 
 class ChatCompletionMessage(TypedDict):
     content: str
-    role: NotRequired[str]
+    role: NotRequired[Literal["assistant"]]
 
 
 class ChatCompletionStreamOptions(TypedDict):
@@ -188,9 +186,9 @@ class CreatedApiKey(TypedDict):
 
 
 class CustomProviderModelSelection(TypedDict):
+    providerType: Literal["custom"]
     providerId: str
     modelName: str
-    providerType: Literal["custom"]
 
 
 class DataUIPart(TypedDict):
@@ -350,21 +348,17 @@ class InsertedTraceAnnotation(TypedDict):
     id: str
 
 
-class LDAPUser(TypedDict):
-    id: str
-    created_at: str
-    updated_at: str
-    email: str
-    username: str
-    role: Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
-    auth_method: Literal["LDAP"]
-
-
 class LDAPUserData(TypedDict):
     email: str
     username: str
     role: Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
     auth_method: Literal["LDAP"]
+
+
+class LDAPUser(LDAPUserData):
+    id: str
+    created_at: str
+    updated_at: str
 
 
 class ListAgentSessionsResponseBody(TypedDict):
@@ -724,15 +718,13 @@ class PromptVersionContext(TypedDict):
     promptVersionNodeId: str
 
 
-class PromptVersionTag(TypedDict):
-    name: str
-    id: str
-    description: NotRequired[str]
-
-
 class PromptVersionTagData(TypedDict):
     name: str
     description: NotRequired[str]
+
+
+class PromptVersionTag(PromptVersionTagData):
+    id: str
 
 
 class PromptXAIInvocationParametersContent(TypedDict):
@@ -764,20 +756,6 @@ class SecretKeyValue(TypedDict):
     value: Optional[str]
 
 
-class SessionAnnotation(TypedDict):
-    id: str
-    created_at: str
-    updated_at: str
-    source: Literal["API", "APP"]
-    user_id: Optional[str]
-    name: str
-    annotator_kind: Literal["LLM", "CODE", "HUMAN"]
-    session_id: str
-    result: NotRequired[AnnotationResult]
-    metadata: NotRequired[Mapping[str, Any]]
-    identifier: NotRequired[str]
-
-
 class SessionAnnotationData(TypedDict):
     name: str
     annotator_kind: Literal["LLM", "CODE", "HUMAN"]
@@ -785,6 +763,14 @@ class SessionAnnotationData(TypedDict):
     result: NotRequired[AnnotationResult]
     metadata: NotRequired[Mapping[str, Any]]
     identifier: NotRequired[str]
+
+
+class SessionAnnotation(SessionAnnotationData):
+    id: str
+    created_at: str
+    updated_at: str
+    source: Literal["API", "APP"]
+    user_id: Optional[str]
 
 
 class SessionAnnotationsResponseBody(TypedDict):
@@ -933,7 +919,7 @@ class ToolApprovalRespondedPart(TypedDict):
     type: str
     toolCallId: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["approval-responded"]]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
@@ -950,7 +936,7 @@ class ToolInputAvailablePart(TypedDict):
     type: str
     toolCallId: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["input-available"]]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
@@ -961,7 +947,7 @@ class ToolInputStreamingPart(TypedDict):
     type: str
     toolCallId: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["input-streaming"]]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
@@ -972,7 +958,7 @@ class ToolOutputDeniedPart(TypedDict):
     type: str
     toolCallId: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-denied"]]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
@@ -985,20 +971,6 @@ class ToolResultContentPart(TypedDict):
     tool_result: Optional[Union[bool, int, float, str, Mapping[str, Any], Sequence[Any]]]
 
 
-class TraceAnnotation(TypedDict):
-    id: str
-    created_at: str
-    updated_at: str
-    source: Literal["API", "APP"]
-    user_id: Optional[str]
-    name: str
-    annotator_kind: Literal["LLM", "CODE", "HUMAN"]
-    trace_id: str
-    result: NotRequired[AnnotationResult]
-    metadata: NotRequired[Mapping[str, Any]]
-    identifier: NotRequired[str]
-
-
 class TraceAnnotationData(TypedDict):
     name: str
     annotator_kind: Literal["LLM", "CODE", "HUMAN"]
@@ -1006,6 +978,14 @@ class TraceAnnotationData(TypedDict):
     result: NotRequired[AnnotationResult]
     metadata: NotRequired[Mapping[str, Any]]
     identifier: NotRequired[str]
+
+
+class TraceAnnotation(TraceAnnotationData):
+    id: str
+    created_at: str
+    updated_at: str
+    source: Literal["API", "APP"]
+    user_id: Optional[str]
 
 
 class TraceAnnotationsResponseBody(TypedDict):
@@ -1163,7 +1143,7 @@ class PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart
     input: Any
     output: Any
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-available"]]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     resultProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
@@ -1178,7 +1158,7 @@ class PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart(Typ
     input: Any
     errorText: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-error"]]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     resultProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
@@ -1189,7 +1169,7 @@ class PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart(TypedD
     type: str
     toolCallId: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-available"]]
     input: NotRequired[Any]
     output: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -1204,7 +1184,7 @@ class PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart(TypedDict)
     toolCallId: str
     errorText: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-error"]]
     input: NotRequired[Any]
     rawInput: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -1220,7 +1200,7 @@ class PydanticAiUiVercelAiRequestTypesDynamicToolOutputAvailablePart(TypedDict):
     input: Any
     output: Any
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-available"]]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     preliminary: NotRequired[bool]
@@ -1234,7 +1214,7 @@ class PydanticAiUiVercelAiRequestTypesDynamicToolOutputErrorPart(TypedDict):
     input: Any
     errorText: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-error"]]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
@@ -1244,7 +1224,7 @@ class PydanticAiUiVercelAiRequestTypesToolOutputAvailablePart(TypedDict):
     type: str
     toolCallId: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-available"]]
     input: NotRequired[Any]
     output: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -1258,7 +1238,7 @@ class PydanticAiUiVercelAiRequestTypesToolOutputErrorPart(TypedDict):
     toolCallId: str
     errorText: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-error"]]
     input: NotRequired[Any]
     rawInput: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -1275,7 +1255,7 @@ class PhoenixToolCallCallbackProviderMetadata(TypedDict):
     toolInputEmittedAt: NotRequired[str]
     clientStartedAt: NotRequired[str]
     clientEndedAt: NotRequired[str]
-    outcome: NotRequired[str]
+    outcome: NotRequired[Literal["interrupted"]]
 
 
 class PhoenixToolCallProviderMetadata(TypedDict):
@@ -1287,7 +1267,7 @@ class SessionSummaryChunk(TypedDict):
     type: Literal["data-session-summary"]
     data: str
     id: NotRequired[str]
-    transient: NotRequired[bool]
+    transient: NotRequired[Literal[True]]
 
 
 class TranscriptPersistedData(TypedDict):
@@ -1336,6 +1316,7 @@ class AssistantMessageMetadataUsage(TypedDict):
 
 
 class BuiltInProviderModelSelection(TypedDict):
+    providerType: Literal["builtin"]
     provider: Literal[
         "OPENAI",
         "AZURE_OPENAI",
@@ -1353,16 +1334,6 @@ class BuiltInProviderModelSelection(TypedDict):
         "TOGETHER",
     ]
     modelName: str
-    providerType: Literal["builtin"]
-
-
-class CategoricalAnnotationConfig(TypedDict):
-    type: Literal["CATEGORICAL"]
-    name: str
-    optimization_direction: Literal["MINIMIZE", "MAXIMIZE", "NONE"]
-    values: Sequence[CategoricalAnnotationValue]
-    id: str
-    description: NotRequired[str]
 
 
 class CategoricalAnnotationConfigData(TypedDict):
@@ -1371,6 +1342,10 @@ class CategoricalAnnotationConfigData(TypedDict):
     optimization_direction: Literal["MINIMIZE", "MAXIMIZE", "NONE"]
     values: Sequence[CategoricalAnnotationValue]
     description: NotRequired[str]
+
+
+class CategoricalAnnotationConfig(CategoricalAnnotationConfigData):
+    id: str
 
 
 class ChatCompletionChoice(TypedDict):
@@ -1384,16 +1359,6 @@ class ChatCompletionRequestMessage(TypedDict):
     content: Union[str, Sequence[ChatCompletionTextPart]]
 
 
-class ContinuousAnnotationConfig(TypedDict):
-    type: Literal["CONTINUOUS"]
-    name: str
-    optimization_direction: Literal["MINIMIZE", "MAXIMIZE", "NONE"]
-    id: str
-    description: NotRequired[str]
-    lower_bound: NotRequired[float]
-    upper_bound: NotRequired[float]
-
-
 class ContinuousAnnotationConfigData(TypedDict):
     type: Literal["CONTINUOUS"]
     name: str
@@ -1401,6 +1366,10 @@ class ContinuousAnnotationConfigData(TypedDict):
     description: NotRequired[str]
     lower_bound: NotRequired[float]
     upper_bound: NotRequired[float]
+
+
+class ContinuousAnnotationConfig(ContinuousAnnotationConfigData):
+    id: str
 
 
 class CreateAgentSessionResponseBody(TypedDict):
@@ -1499,7 +1468,7 @@ class DynamicToolApprovalRequestedPart(TypedDict):
     toolCallId: str
     input: Any
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["approval-requested"]]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
@@ -1511,7 +1480,7 @@ class DynamicToolApprovalRespondedPart(TypedDict):
     toolCallId: str
     input: Any
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["approval-responded"]]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
@@ -1523,7 +1492,7 @@ class DynamicToolInputAvailablePart(TypedDict):
     toolCallId: str
     input: Any
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["input-available"]]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
@@ -1534,7 +1503,7 @@ class DynamicToolInputStreamingPart(TypedDict):
     toolName: str
     toolCallId: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["input-streaming"]]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
@@ -1547,21 +1516,10 @@ class DynamicToolOutputDeniedPart(TypedDict):
     toolCallId: str
     input: Any
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-denied"]]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
-
-
-class FreeformAnnotationConfig(TypedDict):
-    type: Literal["FREEFORM"]
-    name: str
-    id: str
-    description: NotRequired[str]
-    optimization_direction: NotRequired[Literal["MINIMIZE", "MAXIMIZE", "NONE"]]
-    threshold: NotRequired[float]
-    lower_bound: NotRequired[float]
-    upper_bound: NotRequired[float]
 
 
 class FreeformAnnotationConfigData(TypedDict):
@@ -1572,6 +1530,10 @@ class FreeformAnnotationConfigData(TypedDict):
     threshold: NotRequired[float]
     lower_bound: NotRequired[float]
     upper_bound: NotRequired[float]
+
+
+class FreeformAnnotationConfig(FreeformAnnotationConfigData):
+    id: str
 
 
 class GetAllUserApiKeysResponseBody(TypedDict):
@@ -1849,7 +1811,7 @@ class ToolApprovalRequestedPart(TypedDict):
     type: str
     toolCallId: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["approval-requested"]]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
@@ -1893,7 +1855,7 @@ class TranscriptPersistedChunk(TypedDict):
     type: Literal["data-transcript-persisted"]
     data: TranscriptPersistedData
     id: NotRequired[str]
-    transient: NotRequired[bool]
+    transient: NotRequired[Literal[True]]
 
 
 class AgentSessionData(TypedDict):
@@ -1917,7 +1879,7 @@ class ChatCompletion(TypedDict):
     model: str
     choices: Sequence[ChatCompletionChoice]
     usage: ChatCompletionUsage
-    object: NotRequired[str]
+    object: NotRequired[Literal["chat.completion"]]
 
 
 class CompactAgentSessionRequestBody(TypedDict):
@@ -2002,10 +1964,10 @@ class LegacyAssistantMetadataUIMessage(TypedDict):
 
 
 class LegacyChatRegenerateMessage(TypedDict):
+    trigger: Literal["regenerate-message"]
     id: str
     messages: Sequence[LegacyAssistantMetadataUIMessage]
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-    trigger: Literal["regenerate-message"]
     messageId: NotRequired[str]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
@@ -2038,7 +2000,7 @@ class LegacyChatSubmitMessage(TypedDict):
     id: str
     messages: Sequence[LegacyAssistantMetadataUIMessage]
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-    trigger: Literal["submit-message"]
+    trigger: NotRequired[Literal["submit-message"]]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
     attachUserId: NotRequired[bool]
@@ -2158,7 +2120,7 @@ class ChatRequestBody(TypedDict):
     ]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
-    trigger: NotRequired[str]
+    trigger: NotRequired[Literal["submit-message"]]
     message: NotRequired[PhoenixUIMessage]
     toolOutputs: NotRequired[
         Sequence[

@@ -206,9 +206,10 @@ codegen-python-client: ## Generate Python client types from OpenAPI
 		--use-default-kwarg \
 		--use-double-quotes \
 		--use-generic-container-types \
+		--no-use-union-operator \
 		--wrap-string-literal \
+		--formatters black isort \
 		--disable-timestamp
-	@$(UV) run python -c "import re; file = '$(PHOENIX_CLIENT_GENERATED)/v1/.dataclass.py'; lines = [re.sub(r'\\bSequence]', 'Sequence[Any]]', line) for line in open(file).readlines()]; open(file, 'w').writelines(lines)"
 	@$(UV) run python $(CURDIR)/packages/phoenix-client/scripts/codegen/transform.py $(PHOENIX_CLIENT_GENERATED)/v1
 	@$(UV) run ruff format $(PHOENIX_CLIENT_GENERATED)/v1
 	@$(UV) run ruff check --fix $(PHOENIX_CLIENT_GENERATED)/v1
