@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from importlib import import_module
 from typing import Sequence, cast
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from sqlalchemy import Table, func, select, update
@@ -51,6 +51,24 @@ def test_live_key_predicate_is_single_sourced_from_max_attempts() -> None:
     assert str(live_key_index.dialect_options["sqlite"]["where"]) == predicate
     assert str(session_sweeper._LIVE_WORK_INDEX_PREDICATE) == predicate
     assert migration.live_eval_work_index_predicate is live_eval_work_index_predicate
+
+
+@pytest.mark.parametrize(
+    "database_dialect,expected_clock",
+    [("sqlite", "now()"), ("postgresql", "statement_timestamp()")],
+)
+async def test_database_now_uses_statement_time(
+    database_dialect: str,
+    expected_clock: str,
+) -> None:
+    session = AsyncMock(spec=AsyncSession)
+    session.scalar.return_value = _now()
+    sweeper = SessionEvalSweeper(DbSessionFactory(db=Mock(), dialect=database_dialect))
+
+    await sweeper._database_now(session)
+
+    statement = session.scalar.await_args.args[0]
+    assert expected_clock in str(statement)
 
 
 async def test_materialization_rechecks_eligibility_at_write_time(

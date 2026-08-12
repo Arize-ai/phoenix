@@ -401,7 +401,12 @@ class SessionEvalSweeper(DaemonTask):
         return renewed is not None
 
     async def _database_now(self, session: AsyncSession) -> datetime:
-        database_now = await session.scalar(select(type_coerce(func.now(), models.UtcTimeStamp())))
+        clock = (
+            func.statement_timestamp()
+            if self._db.dialect is SupportedSQLDialect.POSTGRESQL
+            else func.now()
+        )
+        database_now = await session.scalar(select(type_coerce(clock, models.UtcTimeStamp())))
         if database_now is None:
             raise RuntimeError("Database did not return its current time")
         return database_now
