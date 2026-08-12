@@ -488,9 +488,10 @@ CASES: tuple[AdmissionCase, ...] = (
         dialect="sqlite",
     ),
     AdmissionCase(
-        sql="SELECT s.* FROM spans s",
+        sql="SELECT id FROM spans LIMIT ALL",
         expect=AdmissionOutcome.ADMIT,
-        note="a star is expanded from the manifest by a later pass and is not a column reference",
+        note="LIMIT ALL means no numeric bound; SQLite parses ALL as a column, so the column check must not treat the keyword as spans.all",
+        dialect="sqlite",
     ),
     AdmissionCase(
         sql="SELECT pg_catalog.current_user FROM spans",

@@ -653,8 +653,22 @@ def _scope_columns(expression: exp.Expr) -> list[exp.Column]:
         node
         for child in expression.iter_expressions()
         for node in child.walk(prune=lambda n: isinstance(n, (exp.Select, exp.Subquery)))
-        if isinstance(node, exp.Column)
+        if isinstance(node, exp.Column) and not _is_limit_all(node)
     ]
+
+
+def _is_limit_all(column: exp.Column) -> bool:
+    """Whether this node is the ALL keyword in LIMIT ALL, not a column named all."""
+    ident = column.this
+    if isinstance(ident, exp.Identifier) and ident.args.get("quoted"):
+        return False
+    parent = column.parent
+    return (
+        isinstance(parent, exp.Limit)
+        and parent.expression is column
+        and not column.table
+        and (column.name or "").casefold() == "all"
+    )
 
 
 class Locality(Enum):

@@ -868,6 +868,11 @@ class TestLimitInjection:
         assert "limit_injection" in ctx.applied
         assert "LIMIT 11" in rendered.upper()
 
+    def test_sqlite_limit_all_is_capped(self) -> None:
+        ctx, rendered = _rewritten("SELECT id FROM spans LIMIT ALL", dialect="sqlite")
+        assert "limit_injection" in ctx.applied
+        assert "LIMIT 11" in rendered.upper()
+
     def test_fetch_below_the_cap_is_kept(self) -> None:
         ctx, rendered = _rewritten(
             "SELECT id FROM spans ORDER BY id FETCH FIRST 5 ROWS ONLY",
