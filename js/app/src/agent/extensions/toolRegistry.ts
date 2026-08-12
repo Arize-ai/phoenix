@@ -25,7 +25,6 @@ import {
 import { askUserAgentTool } from "@phoenix/agent/tools/elicit";
 import { getRouteInfoAgentTool } from "@phoenix/agent/tools/getRouteInfo";
 import { listDatasetsAgentTool } from "@phoenix/agent/tools/listDatasets";
-import { patchExperimentAgentTool } from "@phoenix/agent/tools/patchExperiment";
 import { renderGenerativeUIAgentTool } from "@phoenix/agent/tools/renderGenerativeUI";
 import { executeUiAgentTool } from "@phoenix/agent/uiOperations/executeUiAgentTool";
 import { searchUiAgentTool } from "@phoenix/agent/uiOperations/searchUiAgentTool";
@@ -68,15 +67,14 @@ const datasetTools: AgentToolDefinition[] = [
  * `defineTool`):
  * - `get_route_info` resolves route info from the catalog and returns it directly;
  * - `render_generative_ui` synchronously acknowledges an out-of-band chart render;
- * - `ask_user`, `batch_span_annotate`, and `patch_experiment` write a
- *   pending-approval store entry and defer their output to a later accept/reject.
+ * - `ask_user` and `batch_span_annotate` write a pending-approval store entry
+ *   and defer their output to a later accept/reject.
  */
 const tools: AgentToolDefinition[] = [
   getRouteInfoAgentTool,
   renderGenerativeUIAgentTool,
   askUserAgentTool,
   batchSpanAnnotateAgentTool,
-  patchExperimentAgentTool,
 ];
 
 /** Ordered registry of all frontend-executable tools. */

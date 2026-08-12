@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 import type { ApprovalSource } from "@phoenix/agent/tools/approval";
+import type { UiOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
 
 import type {
   patchExperimentActionContextSchema,
@@ -70,4 +71,16 @@ export type BindPendingPatchExperimentOptions = {
     toolCallId: string,
     patch: PendingPatchExperiment | null
   ) => void;
+};
+
+/**
+ * Options for the operation-flavored binder: `emitResult` resolves the
+ * promise the calling `execute_ui` script awaits, in place of the tool-call
+ * `addToolOutput` sender.
+ */
+export type BindPendingPatchExperimentOperationOptions = Omit<
+  BindPendingPatchExperimentOptions,
+  "addToolOutput"
+> & {
+  emitResult: UiOperationResultEmitter;
 };

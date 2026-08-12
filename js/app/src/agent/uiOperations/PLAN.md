@@ -263,7 +263,10 @@ patch/delete`, `dataset.addSpans`. Introduced the reusable machinery the
       cards. Note: the standalone tools were `rehydratable`; as operations,
       unresolved calls now resolve through the execute_ui stale path instead
       (the rehydration unit test moved to `ask_user`).
-- [ ] experiment patch
+- [x] experiment patch — `experiment.patch` (`operations/experiment.ts` +
+      `tools/patchExperiment/clientActions.ts`), with an emit-flavored binder
+      (`bindPendingPatchExperimentOperationActions`) alongside the tool binder
+      and a field-level unified diff in the script-child card.
 - [ ] span annotate
 
 ### Q2 cleanup (final commits on this branch)

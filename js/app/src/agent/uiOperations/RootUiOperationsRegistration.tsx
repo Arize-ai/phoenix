@@ -25,6 +25,7 @@ import {
   createPatchDatasetSplitClientAction,
   createSetDatasetExampleSplitsClientAction,
 } from "@phoenix/agent/tools/datasetSplits";
+import { createPatchExperimentClientAction } from "@phoenix/agent/tools/patchExperiment";
 import { createAddSpansToDatasetClientAction } from "@phoenix/agent/tools/spansToDataset";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 
@@ -57,6 +58,10 @@ import {
   patchDatasetExamplesOperation,
   patchDatasetOperation,
 } from "./operations/datasetWrites";
+import {
+  experimentOperations,
+  patchExperimentOperation,
+} from "./operations/experiment";
 
 /** Every operation family registered at the root, for unmount cleanup. */
 const rootUiOperations = [
@@ -64,6 +69,7 @@ const rootUiOperations = [
   ...datasetSplitOperations,
   ...datasetLabelOperations,
   ...annotationConfigOperations,
+  ...experimentOperations,
 ];
 
 /**
@@ -156,6 +162,11 @@ export function RootUiOperationsRegistration() {
       agentStore,
       descriptor: updateAnnotationConfigOperation,
       handler: createUpdateAnnotationConfigClientAction({ agentStore }),
+    });
+    registerUiOperation({
+      agentStore,
+      descriptor: patchExperimentOperation,
+      handler: createPatchExperimentClientAction({ agentStore }),
     });
     return () => {
       for (const descriptor of rootUiOperations) {

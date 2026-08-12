@@ -19,7 +19,6 @@ from phoenix.server.agents.capabilities.tools.external import (
     list_datasets,
     list_labels,
     list_splits,
-    patch_experiment,
     render_generative_ui,
     search_ui,
 )
@@ -51,9 +50,6 @@ from phoenix.server.agents.capabilities.tools.external.list_labels import (
 from phoenix.server.agents.capabilities.tools.external.list_splits import (
     ListSplitsCapability,
 )
-from phoenix.server.agents.capabilities.tools.external.patch_experiment import (
-    PatchExperimentCapability,
-)
 from phoenix.server.agents.capabilities.tools.external.render_generative_ui import (
     RenderGenerativeUICapability,
 )
@@ -76,7 +72,6 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         batch_span_annotate.TOOL_DEFINITION,
         execute_ui.TOOL_DEFINITION,
         get_route_info.TOOL_DEFINITION,
-        patch_experiment.TOOL_DEFINITION,
         render_generative_ui.RENDER_GENERATIVE_UI_TOOL_DEFINITION,
         search_ui.TOOL_DEFINITION,
     )
@@ -111,7 +106,6 @@ def get_external_tool_capability_function(
         ListDatasetExamplesCapability(instructions=prompts.list_dataset_examples_tool),
         ListDatasetSplitsCapability(instructions=prompts.list_dataset_splits_tool),
         ListDatasetLabelsCapability(instructions=prompts.list_dataset_labels_tool),
-        PatchExperimentCapability(instructions=prompts.patch_experiment_tool),
     ]
 
     def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:
@@ -132,7 +126,6 @@ __all__ = [
     "BatchSpanAnnotateCapability",
     "ExecuteUiCapability",
     "GetRouteInfoCapability",
-    "PatchExperimentCapability",
     "RenderGenerativeUICapability",
     "SearchUiCapability",
     "get_external_tool_capability_function",
