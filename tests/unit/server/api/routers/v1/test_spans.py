@@ -10,6 +10,7 @@ from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
 from phoenix.server.api.routers.v1.spans import (
     OtlpAnyValue,
     OtlpSpan,
@@ -17,6 +18,13 @@ from phoenix.server.api.routers.v1.spans import (
     Span,
 )
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import (
+    _add_live_session_work_unit,
+    _add_project,
+    _add_project_session,
+    _add_span,
+    _add_trace,
+)
 
 
 @pytest.mark.parametrize("sync", [False, True])
@@ -380,6 +388,36 @@ async def test_delete_span_empty_trace_cleanup(
             select(models.Trace).where(models.Trace.project_rowid == project.id)
         )
         assert remaining_trace is None
+
+
+async def test_delete_span_stands_down_the_sessions_evaluations(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Deleting one span mutates session content without deleting a trace, so the
+    stand-down has to key off the span, not off trace deletion.
+    """
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        span = await _add_span(session, trace)
+        await _add_span(session, trace)
+        work_unit_id = (await _add_live_session_work_unit(session, project_session)).id
+        project_session_id = project_session.id
+        span_id = span.span_id
+
+    response = await httpx_client.delete(f"v1/spans/{span_id}")
+    assert response.status_code == 204
+
+    async with db() as session:
+        remaining_session = await session.get(models.ProjectSession, project_session_id)
+        assert remaining_session is not None
+        assert remaining_session.content_complete is False
+        work_unit = await session.get(models.EvalSessionWorkUnit, work_unit_id)
+        assert work_unit is not None
+        assert work_unit.status == "EXPIRED"
+        assert work_unit.error == SESSION_CONTENT_INCOMPLETE_ERROR
 
 
 async def test_delete_span_with_global_id(

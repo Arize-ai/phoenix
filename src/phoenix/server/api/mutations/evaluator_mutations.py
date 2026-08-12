@@ -65,6 +65,10 @@ from phoenix.server.api.types.SandboxConfig import (
     SandboxConfig,
 )
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.online_eval.session_policy import (
+    DEFAULT_SESSION_EVALUATION_DELAY_SECONDS,
+    MINIMUM_EVALUATION_DELAY_SECONDS,
+)
 from phoenix.server.sandbox import SANDBOX_ADAPTERS
 from phoenix.server.sandbox.types import SandboxRuntimeContext, SandboxValidationUnavailable
 from phoenix.server.types import DbSessionFactory
@@ -75,6 +79,16 @@ _EVALUATOR_KIND_BY_TYPENAME: dict[str, EvaluatorKind] = {
     CodeEvaluator.__name__: "CODE",
     BuiltInEvaluator.__name__: "BUILTIN",
 }
+
+_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
+    "SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling "
+    "rate of 1 are evaluated once per session: evaluation is scheduled after the session "
+    "first stays quiet for the evaluation delay, then runs asynchronously. Later activity "
+    "does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE "
+    "evaluators are stored but not scheduled. Non-SESSION targets preserve the evaluation "
+    "delay without using it. The target can change only until evaluation work exists for the "
+    "project evaluator."
+)
 
 
 def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConfigType:
@@ -315,6 +329,32 @@ def _validate_project_evaluator_sampling_rate(sampling_rate: float) -> None:
         raise BadRequest("samplingRate must be between 0.0 and 1.0")
 
 
+def _materialize_project_evaluator_evaluation_delay(
+    evaluation_delay_seconds: Optional[int],
+) -> int:
+    if (
+        evaluation_delay_seconds is not None
+        and evaluation_delay_seconds < MINIMUM_EVALUATION_DELAY_SECONDS
+    ):
+        raise BadRequest(
+            f"evaluationDelaySeconds must be at least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds"
+        )
+    return (
+        DEFAULT_SESSION_EVALUATION_DELAY_SECONDS
+        if evaluation_delay_seconds is None
+        else evaluation_delay_seconds
+    )
+
+
+def _validate_project_evaluator_target_update(
+    criteria: models.ProjectEvaluatorCriteria,
+    evaluation_target: EvaluationTarget,
+) -> None:
+    if criteria.evaluation_target == evaluation_target.value:
+        return
+    raise BadRequest("evaluationTarget is fixed at project evaluator creation")
+
+
 async def _garbage_collect_evaluators(
     session: AsyncSession,
     *,
@@ -464,6 +504,16 @@ class CreateProjectLLMEvaluatorInput:
     prompt_version_id: Optional[GlobalID] = UNSET
     filter_condition: str = ""
     enabled: bool = True
+    evaluation_delay_seconds: Optional[int] = strawberry.field(
+        default=None,
+        description=(
+            "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Omit or use null to store the current "
+            f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is "
+            "evaluated only once, and later activity does not schedule another evaluation. "
+            "Non-SESSION targets preserve this value without using it."
+        ),
+    )
 
 
 @strawberry.input
@@ -474,11 +524,24 @@ class UpdateProjectLLMEvaluatorInput:
     output_configs: list[AnnotationConfigInput]
     input_mapping: EvaluatorInputMappingInput
     sampling_rate: float
-    evaluation_target: EvaluationTarget
+    evaluation_target: EvaluationTarget = strawberry.field(
+        description="The evaluation target is fixed at project evaluator creation."
+    )
     filter_condition: str
     enabled: Optional[bool] = UNSET
     description: Optional[str] = UNSET
     prompt_version_id: Optional[GlobalID] = UNSET
+    evaluation_delay_seconds: Optional[int] = strawberry.field(
+        default=UNSET,
+        description=(
+            "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds; omit to preserve the current setting "
+            f"or use null to store the current default of "
+            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
+            "once, and later activity does not schedule another evaluation. Non-SESSION targets "
+            "preserve this value without using it."
+        ),
+    )
 
 
 @strawberry.input
@@ -497,6 +560,16 @@ class AddProjectCodeEvaluatorInput:
     )
     filter_condition: str = ""
     enabled: bool = True
+    evaluation_delay_seconds: Optional[int] = strawberry.field(
+        default=None,
+        description=(
+            "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Omit or use null to store the current "
+            f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is "
+            "evaluated only once, and later activity does not schedule another evaluation. "
+            "Non-SESSION targets preserve this value without using it."
+        ),
+    )
 
 
 @strawberry.input
@@ -520,6 +593,16 @@ class CreateProjectCodeEvaluatorInput:
     )
     filter_condition: str = ""
     enabled: bool = True
+    evaluation_delay_seconds: Optional[int] = strawberry.field(
+        default=None,
+        description=(
+            "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Omit or use null to store the current "
+            f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is "
+            "evaluated only once, and later activity does not schedule another evaluation. "
+            "Non-SESSION targets preserve this value without using it."
+        ),
+    )
 
 
 @strawberry.input
@@ -527,7 +610,9 @@ class UpdateProjectCodeEvaluatorInput:
     project_evaluator_id: GlobalID
     name: Identifier
     sampling_rate: float
-    evaluation_target: EvaluationTarget
+    evaluation_target: EvaluationTarget = strawberry.field(
+        description="The evaluation target is fixed at project evaluator creation."
+    )
     filter_condition: str
     evaluator_input_mapping: Optional[EvaluatorInputMappingInput] = UNSET
     enabled: Optional[bool] = UNSET
@@ -540,6 +625,17 @@ class UpdateProjectCodeEvaluatorInput:
         description=(
             "Project-specific CODE input mapping patch. Omit to preserve the current setting, "
             "use null to inherit the evaluator input mapping, or provide an object to override it."
+        ),
+    )
+    evaluation_delay_seconds: Optional[int] = strawberry.field(
+        default=UNSET,
+        description=(
+            "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds; omit to preserve the current setting "
+            f"or use null to store the current default of "
+            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
+            "once, and later activity does not schedule another evaluation. Non-SESSION targets "
+            "preserve this value without using it."
         ),
     )
 
@@ -617,10 +713,7 @@ class CreateCodeEvaluatorVersionPayload:
 class EvaluatorMutationMixin:
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
-        description=(
-            "Create an LLM project evaluator. SPAN is executable; TRACE and SESSION "
-            "are stored but inactive until their runtimes are available."
-        ),
+        description=f"Create an LLM project evaluator. {_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
     )  # type: ignore
     async def create_project_llm_evaluator(
         self, info: Info[Context, None], input: CreateProjectLLMEvaluatorInput
@@ -631,6 +724,9 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid project id: {input.project_id}")
         _validate_project_evaluator_filter(input.filter_condition)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
+        evaluation_delay_seconds = _materialize_project_evaluator_evaluation_delay(
+            input.evaluation_delay_seconds
+        )
         try:
             name = IdentifierModel.model_validate(input.name)
             prompt_version = input.prompt_version.to_orm_prompt_version(None)
@@ -710,6 +806,7 @@ class EvaluatorMutationMixin:
                     sampling_rate=input.sampling_rate,
                     evaluation_target=input.evaluation_target.value,
                     input_mapping=input.input_mapping.to_orm(),
+                    evaluation_delay_seconds=evaluation_delay_seconds,
                     enabled=input.enabled,
                 )
                 session.add(criteria)
@@ -724,10 +821,7 @@ class EvaluatorMutationMixin:
 
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
-        description=(
-            "Update an LLM project evaluator. SPAN is executable; TRACE and SESSION "
-            "are stored but inactive until their runtimes are available."
-        ),
+        description=f"Update an LLM project evaluator. {_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
     )  # type: ignore
     async def update_project_llm_evaluator(
         self, info: Info[Context, None], input: UpdateProjectLLMEvaluatorInput
@@ -742,6 +836,8 @@ class EvaluatorMutationMixin:
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
         if input.enabled is None:
             raise BadRequest("enabled cannot be set to null")
+        if input.evaluation_delay_seconds is not UNSET:
+            _materialize_project_evaluator_evaluation_delay(input.evaluation_delay_seconds)
         try:
             name = IdentifierModel.model_validate(input.name)
             prompt_version = input.prompt_version.to_orm_prompt_version(None)
@@ -773,6 +869,10 @@ class EvaluatorMutationMixin:
                 if pair is None:
                     raise NotFound(f"LLM project evaluator not found: {input.project_evaluator_id}")
                 criteria, evaluator = pair
+                _validate_project_evaluator_target_update(
+                    criteria,
+                    input.evaluation_target,
+                )
                 shared_evaluator_changed = False
                 if criteria.name != name:
                     evaluator.name = await _generate_unique_evaluator_name(session, name)
@@ -858,6 +958,12 @@ class EvaluatorMutationMixin:
                 criteria.sampling_rate = input.sampling_rate
                 criteria.evaluation_target = input.evaluation_target.value
                 criteria.input_mapping = input.input_mapping.to_orm()
+                if input.evaluation_delay_seconds is not UNSET:
+                    criteria.evaluation_delay_seconds = (
+                        _materialize_project_evaluator_evaluation_delay(
+                            input.evaluation_delay_seconds
+                        )
+                    )
                 if input.enabled is not UNSET:
                     assert input.enabled is not None
                     criteria.enabled = input.enabled
@@ -874,8 +980,8 @@ class EvaluatorMutationMixin:
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
         description=(
             "Bind an existing CODE evaluator to a project. The evaluator's configuration is "
-            "shared with every project and dataset it is bound to. SPAN is executable; TRACE "
-            "and SESSION are stored but inactive until their runtimes are available."
+            "shared with every project and dataset it is bound to. "
+            f"{_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}"
         ),
     )  # type: ignore
     async def add_project_code_evaluator(
@@ -897,6 +1003,9 @@ class EvaluatorMutationMixin:
             raise BadRequest(str(error))
         _validate_project_evaluator_filter(input.filter_condition)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
+        evaluation_delay_seconds = _materialize_project_evaluator_evaluation_delay(
+            input.evaluation_delay_seconds
+        )
 
         try:
             async with info.context.db() as session:
@@ -914,6 +1023,7 @@ class EvaluatorMutationMixin:
                     input_mapping=(
                         input.input_mapping.to_orm() if input.input_mapping is not None else None
                     ),
+                    evaluation_delay_seconds=evaluation_delay_seconds,
                     enabled=input.enabled,
                 )
                 session.add(criteria)
@@ -928,10 +1038,7 @@ class EvaluatorMutationMixin:
 
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
-        description=(
-            "Create a CODE project evaluator. SPAN is executable; TRACE and SESSION "
-            "are stored but inactive until their runtimes are available."
-        ),
+        description=f"Create a CODE project evaluator. {_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
     )  # type: ignore
     async def create_project_code_evaluator(
         self, info: Info[Context, None], input: CreateProjectCodeEvaluatorInput
@@ -943,6 +1050,9 @@ class EvaluatorMutationMixin:
             raise BadRequest(str(error))
         _validate_project_evaluator_filter(input.filter_condition)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
+        evaluation_delay_seconds = _materialize_project_evaluator_evaluation_delay(
+            input.evaluation_delay_seconds
+        )
         _raise_on_uninferable_evaluate_signature(input.source_code, input.language)
         if input.output_configs is not None:
             try:
@@ -1005,6 +1115,7 @@ class EvaluatorMutationMixin:
                     input_mapping=(
                         input.input_mapping.to_orm() if input.input_mapping is not None else None
                     ),
+                    evaluation_delay_seconds=evaluation_delay_seconds,
                     enabled=input.enabled,
                 )
                 session.add(criteria)
@@ -1021,8 +1132,8 @@ class EvaluatorMutationMixin:
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
         description=(
             "Update a CODE project evaluator. Editing changes the underlying evaluator, which "
-            "applies to every project and dataset it is bound to. SPAN is executable; TRACE and "
-            "SESSION are stored but inactive until their runtimes are available."
+            "applies to every project and dataset it is bound to. "
+            f"{_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}"
         ),
     )  # type: ignore
     async def update_project_code_evaluator(
@@ -1041,6 +1152,8 @@ class EvaluatorMutationMixin:
             raise BadRequest("evaluator_input_mapping cannot be set to null")
         if input.enabled is None:
             raise BadRequest("enabled cannot be set to null")
+        if input.evaluation_delay_seconds is not UNSET:
+            _materialize_project_evaluator_evaluation_delay(input.evaluation_delay_seconds)
         if input.source_code is not UNSET and input.source_code is None:
             raise BadRequest("source_code cannot be set to null")
         if input.output_configs is None:
@@ -1120,6 +1233,10 @@ class EvaluatorMutationMixin:
                         f"CODE project evaluator not found: {input.project_evaluator_id}"
                     )
                 criteria, evaluator = pair
+                _validate_project_evaluator_target_update(
+                    criteria,
+                    input.evaluation_target,
+                )
                 shared_evaluator_changed = False
                 if criteria.name != name:
                     evaluator.name = await _generate_unique_evaluator_name(session, name)
@@ -1181,6 +1298,12 @@ class EvaluatorMutationMixin:
                 if input.input_mapping is not UNSET:
                     criteria.input_mapping = (
                         input.input_mapping.to_orm() if input.input_mapping is not None else None
+                    )
+                if input.evaluation_delay_seconds is not UNSET:
+                    criteria.evaluation_delay_seconds = (
+                        _materialize_project_evaluator_evaluation_delay(
+                            input.evaluation_delay_seconds
+                        )
                     )
                 if input.enabled is not UNSET:
                     assert input.enabled is not None
