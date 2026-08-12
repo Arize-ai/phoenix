@@ -192,7 +192,7 @@ def _sanitize_error_message(error: BaseException) -> str:
 class LLMClient(Protocol):
     """Narrow interface for the LLM client methods the runner actually uses.
 
-    PlaygroundStreamingClient satisfies this implicitly.  The Protocol
+    PlaygroundClient satisfies this implicitly.  The Protocol
     decouples the runner from the ~20-method ABC and enables _NoOpLLMClient
     for EVAL_ONLY experiments.
     """
