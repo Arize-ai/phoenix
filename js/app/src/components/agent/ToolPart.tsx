@@ -51,6 +51,7 @@ import {
 } from "@phoenix/agent/tools/spansFilter";
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
 import { EXECUTE_UI_TOOL_NAME } from "@phoenix/agent/uiOperations/executeUiAgentTool";
+import { SEARCH_UI_TOOL_NAME } from "@phoenix/agent/uiOperations/searchUiAgentTool";
 import { Icon, Icons } from "@phoenix/components";
 import { revealOnHoverCSS } from "@phoenix/components/core/styles";
 import type { Variant } from "@phoenix/components/core/types";
@@ -148,6 +149,10 @@ import {
   SavePromptToolDetails,
 } from "./SavePromptToolDetails";
 import { getScrollableParent } from "./scrollAnchor";
+import {
+  getSearchUiToolPreview,
+  SearchUiToolDetails,
+} from "./SearchUiToolDetails";
 import { ToolExecutionSummary } from "./ToolExecutionSummary";
 import { getToolIconKey } from "./toolIconConfig";
 import {
@@ -1045,6 +1050,13 @@ function getToolPresentation(
         stateLabel: formatExecuteUiState(part),
         statusVariant,
         details: <ExecuteUiToolDetails part={part} />,
+      };
+    case SEARCH_UI_TOOL_NAME:
+      return {
+        preview: getSearchUiToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <SearchUiToolDetails part={part} />,
       };
     case "bash":
       return {
