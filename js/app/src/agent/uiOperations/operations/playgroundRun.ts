@@ -89,10 +89,13 @@ export const readExperimentResultsOperation = defineUiOperation({
     "status and metrics (run counts, error rate, latency, cost), per-evaluator " +
     "annotation summaries (mean score, count, errors), and every run with its " +
     "dataset example (input, reference output, metadata), actual output, error, " +
-    "and annotation labels/scores/explanations. Pass `failuresOnly: true` to " +
-    "keep only runs that errored or scored below 1 — the set to inspect before " +
-    "the next prompt iteration. Call it in the same script as `playground.run`, " +
-    "right after the run resolves.",
+    "and annotation labels/scores/explanations. The aggregate metrics and " +
+    "summaries are always included regardless of `failuresOnly`, which only " +
+    "trims the runs list to those that errored or scored below 1 — so call it " +
+    "ONCE per experiment: `failuresOnly: true` while iterating (the summaries " +
+    "already cover the passing runs), the full read only when you need passing " +
+    "outputs too. Never call it twice for the same experiment. Call it in the " +
+    "same script as `playground.run`, right after the run resolves.",
   inputSchema: readExperimentResultsInputSchema,
   kind: "read",
   defaultSuccessOutput: "Experiment results read.",

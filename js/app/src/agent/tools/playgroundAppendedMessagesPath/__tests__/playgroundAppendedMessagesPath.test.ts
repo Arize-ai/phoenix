@@ -13,6 +13,7 @@ describe("playground appended messages path agent tool", () => {
     });
     const action = createSetAppendedMessagesPathClientAction({
       playgroundStore,
+      getFirstExampleInput: async () => null,
       getSearchParams: () => new URLSearchParams("datasetId=ds-url"),
     });
 
@@ -33,6 +34,7 @@ describe("playground appended messages path agent tool", () => {
     });
     const action = createSetAppendedMessagesPathClientAction({
       playgroundStore,
+      getFirstExampleInput: async () => null,
       getSearchParams: () =>
         new URLSearchParams("experimentId=exp-1&datasetId=ds-url"),
     });
@@ -59,6 +61,7 @@ describe("playground appended messages path agent tool", () => {
     });
     const action = createSetAppendedMessagesPathClientAction({
       playgroundStore,
+      getFirstExampleInput: async () => null,
       // URL has not caught up yet (no datasetId param).
       getSearchParams: () => new URLSearchParams(),
     });
@@ -79,6 +82,7 @@ describe("playground appended messages path agent tool", () => {
     });
     const action = createSetAppendedMessagesPathClientAction({
       playgroundStore,
+      getFirstExampleInput: async () => null,
       getSearchParams: () => new URLSearchParams(),
     });
 
@@ -99,6 +103,7 @@ describe("playground appended messages path agent tool", () => {
     });
     const action = createSetAppendedMessagesPathClientAction({
       playgroundStore,
+      getFirstExampleInput: async () => null,
       getSearchParams: () => new URLSearchParams("datasetId=ds-url"),
     });
 
@@ -122,6 +127,7 @@ describe("playground appended messages path agent tool", () => {
     });
     const action = createSetAppendedMessagesPathClientAction({
       playgroundStore,
+      getFirstExampleInput: async () => null,
       getSearchParams: () => new URLSearchParams("datasetId=ds-url"),
     });
 
@@ -141,11 +147,84 @@ describe("playground appended messages path agent tool", () => {
     });
     const action = createSetAppendedMessagesPathClientAction({
       playgroundStore,
+      getFirstExampleInput: async () => null,
       getSearchParams: () => new URLSearchParams("datasetId=ds-url"),
     });
 
     const result = await action({ path: "messages", extra: "nope" });
 
     expect(result.ok).toBe(false);
+  });
+
+  it("rejects a path that misses the first example's message list, suggesting the real one", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: "ds-store",
+      modelConfigByProvider: {},
+    });
+    const action = createSetAppendedMessagesPathClientAction({
+      playgroundStore,
+      getFirstExampleInput: async () => ({
+        messages: [{ role: "user", content: "hi" }],
+      }),
+      getSearchParams: () => new URLSearchParams(),
+    });
+
+    // The classic trap: a path relative to the whole example instead of input.
+    const result = await action({ path: "input.messages" });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: expect.stringContaining('message list at: "messages"'),
+      })
+    );
+    expect(
+      playgroundStore.getState().stateByDatasetId["ds-store"]
+        ?.appendedMessagesPath
+    ).toBeUndefined();
+  });
+
+  it("accepts a path that resolves to the first example's message list", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: "ds-store",
+      modelConfigByProvider: {},
+    });
+    const action = createSetAppendedMessagesPathClientAction({
+      playgroundStore,
+      getFirstExampleInput: async () => ({
+        conversation: { messages: [{ role: "user", content: "hi" }] },
+      }),
+      getSearchParams: () => new URLSearchParams(),
+    });
+
+    const result = await action({ path: "conversation.messages" });
+
+    expect(result.ok).toBe(true);
+    expect(
+      playgroundStore.getState().stateByDatasetId["ds-store"]
+        ?.appendedMessagesPath
+    ).toBe("conversation.messages");
+  });
+
+  it("sets the path unvalidated when the first example cannot be fetched", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: "ds-store",
+      modelConfigByProvider: {},
+    });
+    const action = createSetAppendedMessagesPathClientAction({
+      playgroundStore,
+      getFirstExampleInput: async () => {
+        throw new Error("network down");
+      },
+      getSearchParams: () => new URLSearchParams(),
+    });
+
+    const result = await action({ path: "messages" });
+
+    expect(result.ok).toBe(true);
+    expect(
+      playgroundStore.getState().stateByDatasetId["ds-store"]
+        ?.appendedMessagesPath
+    ).toBe("messages");
   });
 });

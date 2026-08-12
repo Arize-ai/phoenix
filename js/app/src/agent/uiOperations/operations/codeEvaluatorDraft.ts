@@ -48,7 +48,9 @@ export const readCodeEvaluatorDraftOperation = defineUiOperation({
   description:
     "Read the open code-evaluator draft. Returns the draft's name, description, " +
     "language, sourceCode, sandboxConfigId, inputMapping, outputConfigs, " +
-    "testPayload, and form mode (`create` or `edit`). " +
+    "testPayload, form mode (`create` or `edit`), and `availableSandboxConfigs` " +
+    "(id, name, language, backendType) — pick the `sandboxConfigId` for " +
+    "`set_sandbox_config` from that list instead of querying the API. " +
     "Call this before `evaluators.code.edit` or " +
     "`evaluators.code.test` to see the current draft.",
   inputSchema: emptyInputSchema,
