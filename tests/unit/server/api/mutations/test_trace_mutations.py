@@ -5,7 +5,9 @@ from sqlalchemy import func, insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _add_live_session_work_unit
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -67,6 +69,37 @@ class TestTraceMutationMixin:
                 )
             ).all()
             assert len(spans) == 0
+
+    async def test_deleting_a_trace_stands_down_the_surviving_sessions_evaluations(
+        self,
+        gql_client: AsyncGraphQLClient,
+        trace_ids_to_delete: tuple[int, ...],
+        db: DbSessionFactory,
+    ) -> None:
+        trace_id = trace_ids_to_delete[0]  # this trace belongs to a session with two traces
+
+        async with db() as session:
+            trace = await session.get(models.Trace, trace_id)
+            assert trace is not None
+            assert (session_id := trace.project_session_rowid) is not None
+            project_session = await session.get(models.ProjectSession, session_id)
+            assert project_session is not None
+            work_unit_id = (await _add_live_session_work_unit(session, project_session)).id
+
+        result = await gql_client.execute(
+            self.DELETE_TRACES_MUTATION,
+            variables={"traceIds": [str(GlobalID("Trace", str(trace_id)))]},
+        )
+        assert not result.errors
+
+        async with db() as session:
+            project_session = await session.get(models.ProjectSession, session_id)
+            assert project_session is not None
+            assert project_session.content_complete is False
+            work_unit = await session.get(models.EvalSessionWorkUnit, work_unit_id)
+            assert work_unit is not None
+            assert work_unit.status == "EXPIRED"
+            assert work_unit.error == SESSION_CONTENT_INCOMPLETE_ERROR
 
     async def test_deleting_all_traces_in_a_session_also_deletes_the_session(
         self,

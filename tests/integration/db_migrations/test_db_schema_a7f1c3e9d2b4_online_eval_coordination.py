@@ -152,6 +152,40 @@ class TestEvalWorkCursors(_OnlineEvalSchemaTest):
         )
 
 
+class TestEvalWorkLeases(_OnlineEvalSchemaTest):
+    table_name = "eval_work_leases"
+
+    @override
+    @classmethod
+    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> Optional[_TableSchemaInfo]:
+        column_names = {
+            "id",
+            "name",
+            "holder",
+            "heartbeat_at",
+            "created_at",
+            "updated_at",
+        }
+        index_names: set[str] = set()
+        constraint_names = {
+            "pk_eval_work_leases",
+            "uq_eval_work_leases_name",
+        }
+        if db_backend == "postgresql":
+            index_names.update({"pk_eval_work_leases", "uq_eval_work_leases_name"})
+        elif db_backend == "sqlite":
+            index_names.update({"sqlite_autoindex_eval_work_leases_1"})
+        else:
+            assert_never(db_backend)
+        return _TableSchemaInfo(
+            table_name=cls.table_name,
+            column_names=frozenset(column_names),
+            index_names=frozenset(index_names),
+            constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset(["holder", "heartbeat_at"]),
+        )
+
+
 class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
     table_name = "project_evaluator_criteria"
 
@@ -166,6 +200,7 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             "filter_condition",
             "sampling_rate",
             "evaluation_target",
+            "evaluation_delay_seconds",
             "input_mapping",
             "enabled",
             "work_materialized_at",
@@ -183,6 +218,7 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             "fk_project_evaluator_criteria_evaluator_id_evaluators",
             "ck_project_evaluator_criteria_`valid_sampling_rate`",
             "ck_project_evaluator_criteria_`valid_evaluation_target`",
+            "ck_project_evaluator_criteria_`valid_evaluation_delay_seconds`",
         }
         if db_backend == "postgresql":
             index_names.update(
@@ -258,6 +294,70 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
             constraint_names=frozenset(constraint_names),
             nullable_column_names=frozenset(
                 ["claimed_at", "claimed_by", "error", "cooldown_until"]
+            ),
+        )
+
+
+class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
+    table_name = "eval_session_work_units"
+
+    @override
+    @classmethod
+    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
+        index_names = {
+            "ix_eval_session_work_units_claimable",
+            "ix_eval_session_work_units_evaluator_id",
+            "ix_eval_session_work_units_criteria_id",
+            "ix_eval_session_work_units_error_attempts",
+            "ix_eval_session_work_units_terminal",
+            "uq_eval_session_work_units_live_key",
+        }
+        constraint_names = {
+            "pk_eval_session_work_units",
+            _constraint_name(
+                "fk_eval_session_work_units_project_session_rowid_project_sessions",
+                db_backend,
+            ),
+            _constraint_name(
+                "fk_eval_session_work_units_evaluator_id_evaluators",
+                db_backend,
+            ),
+            _constraint_name(
+                "fk_eval_session_work_units_criteria_id_project_evaluator_criteria",
+                db_backend,
+            ),
+            "ck_eval_session_work_units_`valid_eval_work_status`",
+        }
+        if db_backend == "postgresql":
+            index_names.add("pk_eval_session_work_units")
+        elif db_backend == "sqlite":
+            index_names.add("sqlite_autoindex_eval_session_work_units_1")
+        else:
+            assert_never(db_backend)
+        return _TableSchemaInfo(
+            table_name=cls.table_name,
+            column_names=frozenset(
+                {
+                    "id",
+                    "project_session_rowid",
+                    "evaluator_id",
+                    "criteria_id",
+                    "config_fingerprint",
+                    "evaluated_through",
+                    "status",
+                    "claimed_at",
+                    "claimed_by",
+                    "attempts",
+                    "error",
+                    "cooldown_until",
+                    "created_at",
+                    "updated_at",
+                }
+            ),
+            index_names=frozenset(index_names),
+            constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset(
+                {"claimed_at", "claimed_by", "error", "cooldown_until"}
             ),
         )
 
@@ -340,12 +440,16 @@ async def test_project_session_liveness_schema(
     before = await _run_async(_engine, _get)
     assert before is not None
     assert "last_span_ingested_at" not in before["column_names"]
+    assert "content_complete" not in before["column_names"]
     await _run_async(_engine, _seed)
 
     await _up(_engine, _alembic_config, _UP, _schema)
     after = await _run_async(_engine, _get)
     assert after is not None
-    assert after["column_names"] == before["column_names"] | {"last_span_ingested_at"}
+    assert after["column_names"] == before["column_names"] | {
+        "last_span_ingested_at",
+        "content_complete",
+    }
     assert after["index_names"] == before["index_names"] | {
         "ix_project_sessions_project_id_last_span_ingested_at"
     }

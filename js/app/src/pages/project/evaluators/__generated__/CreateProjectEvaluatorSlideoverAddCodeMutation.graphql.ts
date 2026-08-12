@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3846d339b24501be0bf0d13b23edaf82>>
+ * @generated SignedSource<<c61f314c168553ea85f73721a691c124>>
  * @lightSyntaxTransform
  */
 
@@ -12,6 +12,7 @@ export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type AddProjectCodeEvaluatorInput = {
   enabled?: boolean;
+  evaluationDelaySeconds?: number | null;
   evaluationTarget: EvaluationTarget;
   evaluatorId: string;
   filterCondition?: string;

@@ -453,6 +453,7 @@ function EditLlmProjectEvaluatorContent({
                 onScopeChange={setScope}
                 onFilterValidityChange={setIsFilterValid}
                 showAnnotationTemplate
+                isTargetDisabled
               />
             }
           />
