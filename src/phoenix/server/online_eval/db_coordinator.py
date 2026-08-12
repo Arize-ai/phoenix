@@ -273,8 +273,9 @@ class DbEvalWorkCoordinator:
             if identity is None:
                 raise PublicationClaimLostError(f"work unit {work_unit_id} no longer exists")
 
-            # Publication lock order: criteria (C) -> session (S) -> work unit -> write.
-            # Retention takes S before work, and no path may invert either edge.
+            # Global lock order: criteria (C) -> session (S) -> work unit (W) -> write.
+            # Publication takes C -> S -> W; SESSION materialization takes C -> S before
+            # inserting W. Retention takes S -> W, and no path may invert either edge.
             criteria_enabled = await session.scalar(
                 select(models.ProjectEvaluatorCriteria.enabled)
                 .where(models.ProjectEvaluatorCriteria.id == identity.criteria_id)
@@ -453,7 +454,7 @@ class DbEvalWorkCoordinator:
                 .order_by(work_unit_model.created_at)
                 .limit(1)
             )
-        oldest_pending_age_seconds = (
+        oldest_actionable_age_seconds = (
             max((now - oldest_work_created_at).total_seconds(), 0.0)
             if oldest_work_created_at is not None
             else None
@@ -464,5 +465,5 @@ class DbEvalWorkCoordinator:
             retryable_error_count=counts.get(("ERROR", False), 0),
             exhausted_error_count=counts.get(("ERROR", True), 0),
             expired_count=counts.get(("EXPIRED", False), 0),
-            oldest_pending_age_seconds=oldest_pending_age_seconds,
+            oldest_actionable_age_seconds=oldest_actionable_age_seconds,
         )

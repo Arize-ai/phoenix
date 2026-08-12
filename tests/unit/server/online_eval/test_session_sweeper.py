@@ -641,9 +641,9 @@ async def _advance_liveness(
 async def test_terminal_history_re_materializes_only_after_new_ingest(
     db: DbSessionFactory,
 ) -> None:
-    """Work that will never run again — exhausted ERROR, EXPIRED — carries the session
-    content it already covered in ``evaluated_through``. Replacing it without newer
-    content just repeats the same failure every tick.
+    """Work that will never run again — exhausted ERROR, EXPIRED — carries the ingest
+    scheduling snapshot in ``evaluated_through``. Replacing it without newer ingest
+    just repeats the same scheduling attempt every tick.
     """
     project_id, project_session_id, last_span_ingested_at = await _add_session_liveness(
         db,

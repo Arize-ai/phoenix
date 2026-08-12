@@ -62,15 +62,15 @@ class ClaimedWorkUnit:
 @dataclass(frozen=True)
 class QueueLag:
     """Observable backlog; all counts are zero when no work rows exist.
-    ``oldest_pending_age_seconds`` covers PENDING and retryable ERROR work and is None
-    when that backlog is empty."""
+    ``oldest_actionable_age_seconds`` covers PENDING and retryable ERROR work and is
+    None when that backlog is empty."""
 
     pending_count: int
     running_count: int
     retryable_error_count: int
     exhausted_error_count: int
     expired_count: int
-    oldest_pending_age_seconds: Optional[float]
+    oldest_actionable_age_seconds: Optional[float]
 
 
 class EvalWorkCoordinator(Protocol):

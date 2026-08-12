@@ -173,9 +173,9 @@ ONLINE_EVAL_EXPIRED_WORK_UNITS = Gauge(
     "evaluations were dropped.",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS = Gauge(
+ONLINE_EVAL_OLDEST_ACTIONABLE_AGE_SECONDS = Gauge(
     namespace="phoenix",
-    name="online_eval_oldest_pending_age_seconds",
+    name="online_eval_oldest_actionable_age_seconds",
     documentation="Age in seconds of the oldest PENDING or retryable ERROR online-eval work unit "
     "(0 when the backlog is empty)",
     labelnames=_EVALUATION_TARGET_LABELS,

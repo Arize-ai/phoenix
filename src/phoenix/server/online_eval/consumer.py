@@ -1,9 +1,9 @@
 """Online-eval consumer daemon.
 
 Runs on every replica; instances compete for work through coordinator claims.
-Each cycle claims a batch of work units and processes them concurrently — the
-batch size is therefore the per-replica evaluation concurrency, since a cycle
-awaits its whole batch before claiming again:
+Each cycle claims a batch of work units and awaits the whole batch before claiming
+again. The batch size bounds fetched work; shared semaphores bound evaluation and
+database-phase concurrency across SPAN and SESSION consumers:
 hydrate behind the staleness guard (stale units are expired, never executed),
 evaluate with lease heartbeats, write annotations, then complete — or fail
 with a cooldown. Shutdown gives in-flight evals a grace period, then cancels
@@ -41,7 +41,7 @@ from phoenix.server.online_eval.failure_policy import FailureDisposition, classi
 from phoenix.server.prometheus import (
     ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS,
     ONLINE_EVAL_EXPIRED_WORK_UNITS,
-    ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS,
+    ONLINE_EVAL_OLDEST_ACTIONABLE_AGE_SECONDS,
     ONLINE_EVAL_PENDING_WORK_UNITS,
     ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS,
     ONLINE_EVAL_RUNNING_WORK_UNITS,
@@ -165,8 +165,8 @@ class OnlineEvalConsumer(DaemonTask):
         ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS.labels(**labels).set(lag.retryable_error_count)
         ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS.labels(**labels).set(lag.exhausted_error_count)
         ONLINE_EVAL_EXPIRED_WORK_UNITS.labels(**labels).set(lag.expired_count)
-        ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS.labels(**labels).set(
-            lag.oldest_pending_age_seconds or 0.0
+        ONLINE_EVAL_OLDEST_ACTIONABLE_AGE_SECONDS.labels(**labels).set(
+            lag.oldest_actionable_age_seconds or 0.0
         )
 
     async def stop(self) -> None:
@@ -501,9 +501,9 @@ class OnlineEvalConsumer(DaemonTask):
                         ),
                         deadline_seconds=self._execution_deadline_seconds,
                     ) from None
-                # A lost claim does not cancel the eval: the result is still
-                # valid under this unit's identifier and the write dedupes
-                # against whichever consumer got there first.
+                # A lost claim does not cancel the eval immediately. Publication
+                # requires current RUNNING ownership and rejects this result if the
+                # claim stays lost.
                 if not heartbeat_enabled:
                     continue
                 try:
