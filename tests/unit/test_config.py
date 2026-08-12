@@ -9,6 +9,7 @@ from _pytest.monkeypatch import MonkeyPatch
 from starlette.datastructures import URL
 
 from phoenix.config import (
+    DEFAULT_CLIENT_ASSERTION_FILE,
     AssignableUserRoleName,
     OAuth2ClientConfig,
     ensure_working_dir_if_needed,
@@ -2534,56 +2535,61 @@ class TestGetEnvPostgresAzureScope:
         )
 
 
-class TestAzureWorkloadIdentityFromEnv:
-    """Tests for TOKEN_ENDPOINT_AUTH_METHOD=azure_workload_identity in OAuth2ClientConfig.from_env."""
+class TestWorkloadIdentityFromEnv:
+    """Tests for TOKEN_ENDPOINT_AUTH_METHOD=workload_identity in OAuth2ClientConfig.from_env."""
 
     _BASE_ENVS = {
-        "PHOENIX_OAUTH2_MICROSOFT_ENTRA_ID_CLIENT_ID": "entra-client-id",
-        "PHOENIX_OAUTH2_MICROSOFT_ENTRA_ID_OIDC_CONFIG_URL": (
+        "PHOENIX_OAUTH2_ENTRA_CLIENT_ID": "entra-client-id",
+        "PHOENIX_OAUTH2_ENTRA_OIDC_CONFIG_URL": (
             "https://login.microsoftonline.com/tenant-id/v2.0/.well-known/openid-configuration"
         ),
-        "PHOENIX_OAUTH2_MICROSOFT_ENTRA_ID_TOKEN_ENDPOINT_AUTH_METHOD": "azure_workload_identity",
+        "PHOENIX_OAUTH2_ENTRA_TOKEN_ENDPOINT_AUTH_METHOD": "workload_identity",
     }
 
-    def _set_base_envs(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    @pytest.fixture(autouse=True)
+    def _base_envs(self, monkeypatch: pytest.MonkeyPatch) -> None:
         for k, v in self._BASE_ENVS.items():
             monkeypatch.setenv(k, v)
-
-    def test_no_client_secret_required(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        self._set_base_envs(monkeypatch)
-        config = OAuth2ClientConfig.from_env("microsoft_entra_id")
-        assert config.client_secret is None
-
-    def test_token_endpoint_auth_method_stored(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        self._set_base_envs(monkeypatch)
-        config = OAuth2ClientConfig.from_env("microsoft_entra_id")
-        assert config.token_endpoint_auth_method == "azure_workload_identity"
-
-    def test_token_file_none_when_env_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        self._set_base_envs(monkeypatch)
         monkeypatch.delenv("AZURE_FEDERATED_TOKEN_FILE", raising=False)
-        config = OAuth2ClientConfig.from_env("microsoft_entra_id")
-        assert config.azure_workload_identity_token_file is None
 
-    def test_token_file_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        self._set_base_envs(monkeypatch)
-        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/custom/path/token")
-        config = OAuth2ClientConfig.from_env("microsoft_entra_id")
-        assert config.azure_workload_identity_token_file == "/custom/path/token"
+    def test_no_client_secret_required(self) -> None:
+        assert OAuth2ClientConfig.from_env("entra").client_secret is None
 
-    def test_non_entra_provider_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_ID", "some-id")
+    def test_token_endpoint_auth_method_stored(self) -> None:
+        config = OAuth2ClientConfig.from_env("entra")
+        assert config.token_endpoint_auth_method == "workload_identity"
+
+    def test_assertion_file_defaults_to_webhook_mount_path(self) -> None:
+        config = OAuth2ClientConfig.from_env("entra")
+        assert config.client_assertion_file == DEFAULT_CLIENT_ASSERTION_FILE
+
+    def test_azure_federated_token_file_overrides_default(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/webhook/path/token")
+        config = OAuth2ClientConfig.from_env("entra")
+        assert config.client_assertion_file == "/webhook/path/token"
+
+    def test_explicit_setting_takes_precedence(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/webhook/path/token")
+        monkeypatch.setenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE", "/explicit/path/token")
+        config = OAuth2ClientConfig.from_env("entra")
+        assert config.client_assertion_file == "/explicit/path/token"
+
+    def test_any_idp_name_is_accepted(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # IDP names are operator-chosen, so the mechanism cannot be gated on one.
+        monkeypatch.setenv("PHOENIX_OAUTH2_COMPANY_SSO_CLIENT_ID", "some-id")
         monkeypatch.setenv(
-            "PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL",
-            "https://accounts.google.com/.well-known/openid-configuration",
+            "PHOENIX_OAUTH2_COMPANY_SSO_OIDC_CONFIG_URL",
+            "https://sso.example.com/.well-known/openid-configuration",
         )
         monkeypatch.setenv(
-            "PHOENIX_OAUTH2_GOOGLE_TOKEN_ENDPOINT_AUTH_METHOD", "azure_workload_identity"
+            "PHOENIX_OAUTH2_COMPANY_SSO_TOKEN_ENDPOINT_AUTH_METHOD", "workload_identity"
         )
-        with pytest.raises(ValueError, match="azure_workload_identity.*microsoft_entra_id"):
-            OAuth2ClientConfig.from_env("google")
+        config = OAuth2ClientConfig.from_env("company_sso")
+        assert config.client_assertion_file == DEFAULT_CLIENT_ASSERTION_FILE
 
-    def test_token_file_none_for_other_methods(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_assertion_file_unset_for_other_methods(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_ID", "some-id")
         monkeypatch.setenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET", "some-secret")
         monkeypatch.setenv(
@@ -2591,4 +2597,24 @@ class TestAzureWorkloadIdentityFromEnv:
             "https://accounts.google.com/.well-known/openid-configuration",
         )
         config = OAuth2ClientConfig.from_env("google")
-        assert config.azure_workload_identity_token_file is None
+        assert config.client_assertion_file is None
+
+    def test_config_rejects_workload_identity_without_assertion_file(self) -> None:
+        with pytest.raises(ValueError, match="client_assertion_file is required"):
+            OAuth2ClientConfig(
+                idp_name="entra",
+                idp_display_name="Entra",
+                client_id="entra-client-id",
+                client_secret=None,
+                oidc_config_url="https://login.microsoftonline.com/t/v2.0/.well-known/openid-configuration",
+                allow_sign_up=True,
+                auto_login=False,
+                use_pkce=False,
+                token_endpoint_auth_method="workload_identity",
+                scopes="openid email profile",
+                groups_attribute_path=None,
+                allowed_groups=[],
+                role_attribute_path=None,
+                role_mapping={},
+                role_attribute_strict=False,
+            )

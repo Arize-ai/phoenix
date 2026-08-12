@@ -1,16 +1,23 @@
 import logging
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Iterable, Mapping
 from functools import cached_property
+from pathlib import Path
 from typing import Any, Iterator, Optional, get_args
 
 import jmespath
-from authlib.integrations.base_client import BaseApp
+from authlib.common.urls import add_params_to_qs
+from authlib.integrations.base_client import BaseApp, OAuthError
 from authlib.integrations.base_client.async_app import AsyncOAuth2Mixin
 from authlib.integrations.base_client.async_openid import AsyncOpenIDMixin
 from authlib.integrations.httpx_client import AsyncOAuth2Client as AsyncHttpxOAuth2Client
+from authlib.oauth2.rfc7523 import ClientSecretJWT
 from jmespath.exceptions import JMESPathError, ParseError
 
-from phoenix.config import AssignableUserRoleName, OAuth2ClientConfig
+from phoenix.config import (
+    WORKLOAD_IDENTITY_AUTH_METHOD,
+    AssignableUserRoleName,
+    OAuth2ClientConfig,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +58,46 @@ def search_claim_path(
         return None
 
 
+class WorkloadIdentityJWT(ClientSecretJWT):  # type:ignore[misc]
+    """Client authentication with a platform-minted JWT (RFC 7523 §2.2).
+
+    Unlike `private_key_jwt`, the assertion is not signed here: the platform writes it to
+    `assertion_file` (Azure Workload Identity webhook, SPIFFE, and similar all project a
+    Kubernetes service account token this way) and Phoenix relays it verbatim.
+
+    Registered as the `token_endpoint_auth_method` instance, so authlib applies it to every
+    token endpoint request — fetch, refresh, revoke, introspect — without any call site
+    needing to know the mechanism exists.
+    """
+
+    name = WORKLOAD_IDENTITY_AUTH_METHOD
+
+    def __init__(self, assertion_file: Path) -> None:
+        super().__init__()
+        self._assertion_file = assertion_file
+
+    def sign(self, auth: Any, token_endpoint: str) -> str:
+        # Re-read per request: the platform rotates the token in place, typically hourly.
+        try:
+            return self._assertion_file.read_text().strip()
+        except OSError as e:
+            # OAuthError is the only failure the login route translates into a redirect;
+            # anything else surfaces as a 500.
+            raise OAuthError(description=f"cannot read client assertion file: {e}") from e
+
+    def __call__(
+        self, auth: Any, method: str, uri: str, headers: Any, body: Any
+    ) -> tuple[str, Any, Any]:
+        uri, headers, body = super().__call__(auth, method, uri, headers, body)
+        # RFC 7523 §3 lets the server identify the client from the assertion's `sub`, which
+        # holds for private_key_jwt but not here: the platform sets `sub` to the workload
+        # identity (e.g. system:serviceaccount:<ns>:<sa>), so client_id must be explicit.
+        body = add_params_to_qs(body, [("client_id", auth.client_id)])
+        if "Content-Length" in headers:
+            headers["Content-Length"] = str(len(body))
+        return uri, headers, body
+
+
 class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[misc]
     """
     An OAuth2 client class that supports OpenID Connect. Adapted from authlib's
@@ -75,14 +122,12 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         role_attribute_strict: bool = False,
         role_resync: bool = True,
         email_attribute_path: Optional[str] = None,
-        client_assertion_callable: Optional[Callable[[], str]] = None,
         **kwargs: Any,
     ) -> None:
         self._display_name = display_name
         self._allow_sign_up = allow_sign_up
         self._auto_login = auto_login
         self._use_pkce = use_pkce
-        self._client_assertion_callable = client_assertion_callable
 
         self._groups_attribute_path = (
             groups_attribute_path.strip()
@@ -172,10 +217,6 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
     @cached_property
     def use_pkce(self) -> bool:
         return self._use_pkce
-
-    @cached_property
-    def client_assertion_callable(self) -> Optional[Callable[[], str]]:
-        return self._client_assertion_callable
 
     @cached_property
     def role_resync(self) -> bool:
@@ -446,27 +487,19 @@ class OAuth2Clients:
         # proxies requiring end-to-end HTTP/2, e.g. ZITADEL)
         client_kwargs = {"scope": config.scopes, "http2": True}
 
-        client_assertion_callable: Optional[Callable[[], str]] = None
-
-        if config.token_endpoint_auth_method == "azure_workload_identity":
-            # Azure Workload Identity Federation (RFC 7523 §2 / JWT Bearer assertion):
-            # tell authlib not to inject a client secret; the SA token is injected
-            # directly into fetch_access_token() at callback time via
-            # client_assertion_callable so the token is always read fresh from disk.
-            client_kwargs["token_endpoint_auth_method"] = "none"
-            token_file = config.azure_workload_identity_token_file
-            if token_file is None:
+        if config.token_endpoint_auth_method == WORKLOAD_IDENTITY_AUTH_METHOD:
+            # authlib accepts an auth method instance here, not just one of its built-in
+            # names (authlib >=0.15).
+            assert config.client_assertion_file is not None  # enforced by OAuth2ClientConfig
+            assertion_file = Path(config.client_assertion_file)
+            if not assertion_file.is_file():
                 raise ValueError(
-                    "AZURE_FEDERATED_TOKEN_FILE environment variable is not set. "
-                    "The Azure Workload Identity webhook must be installed and the pod "
-                    "must be labelled with azure.workload.identity/use=true."
+                    f"client assertion file not found for IDP {config.idp_name}: "
+                    f"{assertion_file}. On AKS this file is projected by the Azure Workload "
+                    f"Identity webhook, which requires the pod label "
+                    f"azure.workload.identity/use=true."
                 )
-
-            def _read_sa_token() -> str:
-                with open(token_file) as fh:  # noqa: WPS110
-                    return fh.read().strip()
-
-            client_assertion_callable = _read_sa_token
+            client_kwargs["token_endpoint_auth_method"] = WorkloadIdentityJWT(assertion_file)
         elif config.token_endpoint_auth_method:
             # OIDC Core §9: Client authentication method at token endpoint
             client_kwargs["token_endpoint_auth_method"] = config.token_endpoint_auth_method
@@ -492,7 +525,6 @@ class OAuth2Clients:
             role_attribute_strict=config.role_attribute_strict,
             role_resync=config.role_resync,
             email_attribute_path=config.email_attribute_path,
-            client_assertion_callable=client_assertion_callable,
         )
 
         if config.auto_login:

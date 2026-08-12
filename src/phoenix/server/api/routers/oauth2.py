@@ -205,13 +205,6 @@ async def create_tokens(
                 )
                 return _redirect_to_login(request=request, error="auth_failed")
             fetch_kwargs["code_verifier"] = code_verifier
-        # Azure Workload Identity Federation: inject the pod SA JWT as a client assertion
-        # (RFC 7521 §4.2 / RFC 7523).  authlib merges extra kwargs into the token POST body.
-        if (assertion_fn := oauth2_client.client_assertion_callable) is not None:
-            fetch_kwargs["client_assertion_type"] = (
-                "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
-            )
-            fetch_kwargs["client_assertion"] = assertion_fn()
         token_data = await oauth2_client.fetch_access_token(**fetch_kwargs)
     except OAuthError as e:
         logger.error("OAuth2 error for IDP %s: %s", idp_name, e)

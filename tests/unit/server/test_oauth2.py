@@ -1,14 +1,23 @@
 """Unit tests for OAuth2Client."""
 
 import logging
+from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs
 
 import jmespath
 import pytest
+from authlib.integrations.base_client import OAuthError
+from authlib.oauth2.auth import ClientAuth
 
-from phoenix.config import OAuth2ClientConfig
+from phoenix.config import WORKLOAD_IDENTITY_AUTH_METHOD, OAuth2ClientConfig
 from phoenix.server.api.routers.oauth2 import MissingEmailScope, _parse_user_info
-from phoenix.server.oauth2 import OAuth2Client, OAuth2Clients, search_claim_path
+from phoenix.server.oauth2 import (
+    OAuth2Client,
+    OAuth2Clients,
+    WorkloadIdentityJWT,
+    search_claim_path,
+)
 
 # Common test configuration constants
 # Note: Optional features (groups, roles) are excluded - tests add them explicitly
@@ -1385,20 +1394,14 @@ class TestRuntimeJMESPathErrorHandling:
             client.validate_access(claims)
 
 
-class TestAzureWorkloadIdentityClientWiring:
-    """Test that add_client() correctly wires azure_workload_identity into OAuth2Client."""
+class TestWorkloadIdentityJWT:
+    """Test the client assertion that WorkloadIdentityJWT puts on the wire."""
 
-    _ENTRA_CONFIG_DEFAULTS: dict[str, Any] = {
-        "idp_name": "microsoft_entra_id",
-        "idp_display_name": "Microsoft Entra ID",
-        "client_id": "entra-client-id",
+    _CONFIG_DEFAULTS: dict[str, Any] = {
+        **_OAUTH2_CONFIG_DEFAULTS,
+        "idp_name": "entra",
         "client_secret": None,
-        "oidc_config_url": "https://login.microsoftonline.com/tid/v2.0/.well-known/openid-configuration",
-        "allow_sign_up": True,
-        "auto_login": False,
-        "use_pkce": False,
-        "token_endpoint_auth_method": "azure_workload_identity",
-        "scopes": "openid email profile",
+        "token_endpoint_auth_method": WORKLOAD_IDENTITY_AUTH_METHOD,
         "groups_attribute_path": None,
         "allowed_groups": [],
         "role_attribute_path": None,
@@ -1406,57 +1409,91 @@ class TestAzureWorkloadIdentityClientWiring:
         "role_attribute_strict": False,
     }
 
-    def test_client_assertion_callable_is_set(self, tmp_path: Any) -> None:
-        token_file = tmp_path / "azure-identity-token"
-        token_file.write_text("header.payload.sig")
+    @staticmethod
+    def _prepare(assertion_file: Path, client_id: str = "entra-client-id") -> dict[str, list[str]]:
+        """Run the token request through authlib's client auth and return the form body."""
+        auth = ClientAuth(
+            client_id=client_id,
+            client_secret=None,
+            auth_method=WorkloadIdentityJWT(assertion_file),
+        )
+        _, _, body = auth.prepare("POST", "https://idp/token", {}, "grant_type=authorization_code")
+        return parse_qs(body)
+
+    def test_assertion_is_sent_in_token_request(self, tmp_path: Path) -> None:
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+
+        body = self._prepare(assertion_file)
+
+        assert body["client_assertion"] == ["header.payload.sig"]
+        assert body["client_assertion_type"] == [
+            "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+        ]
+
+    def test_client_id_is_sent_alongside_the_assertion(self, tmp_path: Path) -> None:
+        # The assertion's `sub` is the workload identity, not the client, so the IDP cannot
+        # resolve the client without an explicit client_id.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+
+        body = self._prepare(assertion_file, client_id="entra-client-id")
+
+        assert body["client_id"] == ["entra-client-id"]
+
+    def test_assertion_is_reread_on_each_token_request(self, tmp_path: Path) -> None:
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("first.token.value")
+
+        assert self._prepare(assertion_file)["client_assertion"] == ["first.token.value"]
+
+        assertion_file.write_text("rotated.token.value")
+        assert self._prepare(assertion_file)["client_assertion"] == ["rotated.token.value"]
+
+    def test_unreadable_assertion_file_raises_oauth_error(self, tmp_path: Path) -> None:
+        # OAuthError is what the login route translates into a redirect rather than a 500.
+        with pytest.raises(OAuthError):
+            self._prepare(tmp_path / "does-not-exist")
+
+    def test_add_client_registers_the_auth_method(self, tmp_path: Path) -> None:
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
 
         config = OAuth2ClientConfig(
-            **self._ENTRA_CONFIG_DEFAULTS,
-            azure_workload_identity_token_file=str(token_file),
+            **self._CONFIG_DEFAULTS,
+            client_assertion_file=str(assertion_file),
         )
         clients = OAuth2Clients()
         clients.add_client(config)
 
-        client = clients.get_client("microsoft_entra_id")
+        client = clients.get_client("entra")
         assert client is not None
-        assert client.client_assertion_callable is not None
+        assert isinstance(client.client_kwargs["token_endpoint_auth_method"], WorkloadIdentityJWT)
 
-    def test_client_assertion_callable_reads_token_file(self, tmp_path: Any) -> None:
-        token_file = tmp_path / "azure-identity-token"
-        token_file.write_text("header.payload.sig")
+    def test_add_client_rejects_missing_assertion_file(self, tmp_path: Path) -> None:
+        config = OAuth2ClientConfig(
+            **self._CONFIG_DEFAULTS,
+            client_assertion_file=str(tmp_path / "does-not-exist"),
+        )
+        clients = OAuth2Clients()
+        with pytest.raises(ValueError, match="client assertion file not found"):
+            clients.add_client(config)
+
+    def test_any_idp_name_is_accepted(self, tmp_path: Path) -> None:
+        # IDP names are operator-chosen, so the mechanism cannot be gated on one.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
 
         config = OAuth2ClientConfig(
-            **self._ENTRA_CONFIG_DEFAULTS,
-            azure_workload_identity_token_file=str(token_file),
+            **{**self._CONFIG_DEFAULTS, "idp_name": "company_sso"},
+            client_assertion_file=str(assertion_file),
         )
         clients = OAuth2Clients()
         clients.add_client(config)
 
-        client = clients.get_client("microsoft_entra_id")
-        assert client is not None
-        assert client.client_assertion_callable is not None
-        assert client.client_assertion_callable() == "header.payload.sig"
+        assert clients.get_client("company_sso") is not None
 
-    def test_client_assertion_callable_reads_fresh_token_on_each_call(self, tmp_path: Any) -> None:
-        token_file = tmp_path / "azure-identity-token"
-        token_file.write_text("first.token.value")
-
-        config = OAuth2ClientConfig(
-            **self._ENTRA_CONFIG_DEFAULTS,
-            azure_workload_identity_token_file=str(token_file),
-        )
-        clients = OAuth2Clients()
-        clients.add_client(config)
-
-        client = clients.get_client("microsoft_entra_id")
-        assert client is not None
-        assert client.client_assertion_callable is not None
-        assert client.client_assertion_callable() == "first.token.value"
-
-        token_file.write_text("rotated.token.value")
-        assert client.client_assertion_callable() == "rotated.token.value"
-
-    def test_normal_client_has_no_assertion_callable(self) -> None:
+    def test_other_auth_methods_are_left_alone(self) -> None:
         config = OAuth2ClientConfig(
             **{
                 **_OAUTH2_CONFIG_DEFAULTS,
@@ -1472,4 +1509,4 @@ class TestAzureWorkloadIdentityClientWiring:
 
         client = clients.get_client("test")
         assert client is not None
-        assert client.client_assertion_callable is None
+        assert "token_endpoint_auth_method" not in client.client_kwargs

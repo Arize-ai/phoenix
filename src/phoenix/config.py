@@ -1686,16 +1686,27 @@ def get_env_smtp_validate_certs() -> bool:
     return _bool_val(ENV_PHOENIX_SMTP_VALIDATE_CERTS, True)
 
 
+WORKLOAD_IDENTITY_AUTH_METHOD = "workload_identity"
+"""Client authenticates with a pre-signed JWT read from disk (RFC 7523 §2.2).
+
+Not an OIDC Core §9 method: §9's `private_key_jwt` signs the assertion locally, whereas
+here the assertion is minted by the platform (e.g. a Kubernetes projected service account
+token) and Phoenix only relays it.
+"""
+
 _ALLOWED_TOKEN_ENDPOINT_AUTH_METHODS = (
     "client_secret_basic",
     "client_secret_post",
     "none",
-    "azure_workload_identity",
+    WORKLOAD_IDENTITY_AUTH_METHOD,
 )
-"""Allowed OAuth2 token endpoint authentication methods (OIDC Core §9)."""
+"""Allowed OAuth2 token endpoint authentication methods (OIDC Core §9 unless noted)."""
 
 _AZURE_FEDERATED_TOKEN_FILE_ENV = "AZURE_FEDERATED_TOKEN_FILE"
-_AZURE_WORKLOAD_IDENTITY_IDP = "microsoft_entra_id"  # OAuth2Idp.MICROSOFT_ENTRA_ID.value
+"""Injected by the Azure Workload Identity webhook into labelled pods."""
+
+DEFAULT_CLIENT_ASSERTION_FILE = "/var/run/secrets/azure/tokens/azure-identity-token"
+"""Mount path the Azure Workload Identity webhook projects the service account token to."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1748,12 +1759,24 @@ class OAuth2ClientConfig:
         PHOENIX_OAUTH2_AZURE_AD_EMAIL_ATTRIBUTE_PATH=preferred_username
     """
 
-    # Azure Workload Identity Federation
-    azure_workload_identity_token_file: Optional[str] = None
-    """Path to the projected service account token file injected by the Azure Workload
-    Identity webhook.  Read from the AZURE_FEDERATED_TOKEN_FILE env var (injected by
-    the webhook).  Only set when token_endpoint_auth_method is 'azure_workload_identity'.
+    # Workload identity (RFC 7523 §2.2)
+    client_assertion_file: Optional[str] = None
+    """Path to a file holding the JWT sent as `client_assertion`.
+
+    Required when token_endpoint_auth_method is WORKLOAD_IDENTITY_AUTH_METHOD, unset
+    otherwise. Re-read on every token request, since the platform rotates the token in
+    place well before its expiry.
     """
+
+    def __post_init__(self) -> None:
+        if (
+            self.token_endpoint_auth_method == WORKLOAD_IDENTITY_AUTH_METHOD
+            and not self.client_assertion_file
+        ):
+            raise ValueError(
+                f"client_assertion_file is required when token_endpoint_auth_method is "
+                f"'{WORKLOAD_IDENTITY_AUTH_METHOD}' (IDP: {self.idp_name})"
+            )
 
     @classmethod
     def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
@@ -1813,7 +1836,7 @@ class OAuth2ClientConfig:
         client_secret: Optional[str] = None
 
         # Determine if CLIENT_SECRET is required based on TOKEN_ENDPOINT_AUTH_METHOD:
-        # - "azure_workload_identity": no secret; pod SA token used as client assertion
+        # - "workload_identity": no secret; a platform-minted JWT is sent as client assertion
         # - "none": CLIENT_SECRET is optional (public clients, RFC 8252 §8.1)
         # - "client_secret_basic" or "client_secret_post": CLIENT_SECRET is required
         # - Not set: Default to requiring CLIENT_SECRET (assumes confidential client with
@@ -1823,20 +1846,18 @@ class OAuth2ClientConfig:
         # used with both public clients (no secret) and confidential clients (with secret) to
         # protect the authorization code from interception.
 
-        azure_workload_identity_token_file: Optional[str] = None
+        client_assertion_file: Optional[str] = None
 
-        if token_endpoint_auth_method == "azure_workload_identity":
-            # Azure Workload Identity Federation (AKS): the pod's projected SA token is
-            # sent as a JWT bearer assertion to the Entra ID token endpoint — no static
-            # client secret is needed.  Only supported for microsoft_entra_id.
-            if idp_name != _AZURE_WORKLOAD_IDENTITY_IDP:
-                raise ValueError(
-                    f"token_endpoint_auth_method 'azure_workload_identity' is only "
-                    f"supported for the '{_AZURE_WORKLOAD_IDENTITY_IDP}' provider, "
-                    f"but got '{idp_name}'"
-                )
+        if token_endpoint_auth_method == WORKLOAD_IDENTITY_AUTH_METHOD:
+            # The platform-minted JWT replaces the client secret entirely. Provider-agnostic:
+            # any IDP accepting RFC 7523 client assertions works, and IDP names are
+            # operator-chosen so they cannot be used to gate this.
             client_secret = None
-            azure_workload_identity_token_file = os.getenv(_AZURE_FEDERATED_TOKEN_FILE_ENV)
+            client_assertion_file = (
+                _get_optional("CLIENT_ASSERTION_FILE")
+                or os.getenv(_AZURE_FEDERATED_TOKEN_FILE_ENV)
+                or DEFAULT_CLIENT_ASSERTION_FILE
+            )
         elif token_endpoint_auth_method == "none":
             # Public client - no client authentication required
             client_secret = _get_optional("CLIENT_SECRET")
@@ -1978,7 +1999,7 @@ class OAuth2ClientConfig:
             role_attribute_strict=role_attribute_strict,
             role_resync=role_resync,
             email_attribute_path=email_attribute_path,
-            azure_workload_identity_token_file=azure_workload_identity_token_file,
+            client_assertion_file=client_assertion_file,
         )
 
 
