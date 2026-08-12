@@ -1797,6 +1797,20 @@ class OAuth2ClientConfig:
                 f"AZURE_FEDERATED_TOKEN_FILE and owns its value, so name the variable rather "
                 f"than the path"
             )
+        if self.client_assertion_file and not os.path.isabs(self.client_assertion_file):
+            # Enforced here so the rule holds however the path arrived. A relative path would
+            # resolve against the working directory, which nothing about this deployment
+            # pins — and requiring it now is only possible now, since tightening the contract
+            # after a release would break anyone who had relied on the looser one.
+            source = (
+                f"named by {self.client_assertion_file_env}"
+                if self.client_assertion_file_env
+                else repr(self.client_assertion_file)
+            )
+            raise ValueError(
+                f"client_assertion_file must be an absolute path (IDP: {self.idp_name}), "
+                f"got {source}"
+            )
 
     @classmethod
     def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":

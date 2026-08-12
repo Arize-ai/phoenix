@@ -2620,6 +2620,24 @@ class TestClientAssertionJWTFromEnv:
         with pytest.raises(ValueError, match="unset or empty"):
             OAuth2ClientConfig.from_env("entra")
 
+    def test_relative_direct_path_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Same rule whichever setting supplied it: a relative path resolves against a working
+        # directory nothing about the deployment pins.
+        monkeypatch.setenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE", "secrets/token")
+        with pytest.raises(ValueError, match="must be an absolute path"):
+            OAuth2ClientConfig.from_env("entra")
+
+    def test_relative_indirect_path_does_not_echo_the_value(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("SOME_VARIABLE", "not-a-path-secret")
+        monkeypatch.setenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV", "SOME_VARIABLE")
+        with pytest.raises(ValueError) as exc_info:
+            OAuth2ClientConfig.from_env("entra")
+
+        assert "not-a-path-secret" not in str(exc_info.value)
+        assert "SOME_VARIABLE" in str(exc_info.value)
+
     def test_any_idp_name_is_accepted(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # IDP names are operator-chosen, so the mechanism cannot be gated on one.
         monkeypatch.setenv("PHOENIX_OAUTH2_COMPANY_SSO_CLIENT_ID", "some-id")
