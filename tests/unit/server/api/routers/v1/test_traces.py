@@ -628,7 +628,7 @@ async def _project_with_traces(
         project_rowid = await session.scalar(
             insert(models.Project).values(name=project_name).returning(models.Project.id)
         )
-        trace_rowids = []
+        trace_rowids: list[int] = []
         for i in range(num_traces):
             trace_rowid = await session.scalar(
                 insert(models.Trace)
@@ -640,6 +640,7 @@ async def _project_with_traces(
                 )
                 .returning(models.Trace.id)
             )
+            assert trace_rowid is not None
             trace_rowids.append(trace_rowid)
     assert project_rowid is not None
     return project_rowid, trace_rowids
