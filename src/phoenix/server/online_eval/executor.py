@@ -663,9 +663,19 @@ class OnlineEvalExecutor:
         version_ref: Any,
     ) -> Optional[_HydratedEvaluatorSnapshot]:
         if isinstance(evaluator_orm, models.LLMEvaluator):
-            if not isinstance(version_ref, int):
+            if isinstance(version_ref, int):
+                prompt_version_id = version_ref
+            elif (
+                isinstance(version_ref, list)
+                and len(version_ref) == 3
+                and isinstance(version_ref[0], int)
+                and isinstance(version_ref[1], int)
+                and isinstance(version_ref[2], str)
+            ):
+                prompt_version_id = version_ref[0]
+            else:
                 return None
-            return await self._hydrate_llm(session, evaluator_orm, version_ref)
+            return await self._hydrate_llm(session, evaluator_orm, prompt_version_id)
         if isinstance(evaluator_orm, models.CodeEvaluator):
             if (
                 not isinstance(version_ref, list)

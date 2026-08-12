@@ -45,6 +45,7 @@ from phoenix.server.dml_event import (
     ProjectSessionAnnotationInsertEvent,
     SpanAnnotationInsertEvent,
 )
+from phoenix.server.encryption import EncryptionService
 from phoenix.server.online_eval import consumer as consumer_module
 from phoenix.server.online_eval import executor as executor_module
 from phoenix.server.online_eval.consumer import (
@@ -267,10 +268,22 @@ async def _seed_llm_criteria(
     template_content: str = "Input: {{input}}\n\nOutput: {{output}}\n\nGood?",
     criteria_input_mapping: Optional[InputMapping] = None,
     evaluation_target: models.EvaluationTarget = "SPAN",
+    custom_provider: bool = False,
 ) -> tuple[int, int]:
     """Create an LLM evaluator (prompt + version + tools) and an enabled criteria
     row, returning (evaluator_id, criteria_id)."""
     async with db() as session:
+        custom_provider_id: Optional[int] = None
+        if custom_provider:
+            provider = models.GenerativeModelCustomProvider(
+                name=f"provider-{token_hex(4)}",
+                provider="openai",
+                sdk="OPENAI",
+                config=EncryptionService().encrypt(b'{"base_url": "https://vendor.example"}'),
+            )
+            session.add(provider)
+            await session.flush()
+            custom_provider_id = provider.id
         prompt = models.Prompt(
             name=Identifier(root=f"prompt-{token_hex(4)}"),
             description=None,
@@ -317,6 +330,7 @@ async def _seed_llm_criteria(
                     model_provider=ModelProvider.OPENAI,
                     model_name="gpt-4",
                     metadata_={},
+                    custom_provider_id=custom_provider_id,
                 )
             ],
         )
@@ -826,6 +840,31 @@ async def test_happy_path_claims_evaluates_annotates_and_completes(
     # Nothing is claimable afterwards; a repeat cycle writes nothing new.
     await consumer._cycle()
     assert len(await _annotations(db)) == 1
+
+
+async def test_custom_provider_materializes_claims_executes_and_annotates(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        custom_provider=True,
+    )
+    unit_id, fingerprint = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    _patch_playground_client(monkeypatch, _StubLLMClient())
+
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    await consumer._cycle()
+
+    unit = await _get_unit(db, unit_id)
+    assert unit.status == "DONE"
+    (annotation,) = await _annotations(db)
+    assert annotation.span_rowid == span.id
+    assert annotation.identifier == annotation_identifier(fingerprint)
 
 
 async def test_configuration_versions_are_resolved_once_per_claim_batch(
