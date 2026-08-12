@@ -3618,10 +3618,6 @@ class ProjectEvaluatorCriteria(HasId):
         nullable=False,
     )
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
-    # Stamped the first time a materializer creates evaluation work for this row, and
-    # never cleared. It records that work has ever existed, which outlives the work rows
-    # themselves — retention deletes them, so their presence cannot answer that question.
-    work_materialized_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -3773,6 +3769,7 @@ class EvalSessionWorkUnit(HasId):
     )
     config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
     evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    transcript_covered_through: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
     status: Mapped[EvalWorkStatus] = mapped_column(
         CheckConstraint(
             "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')",
@@ -3817,6 +3814,12 @@ class EvalSessionWorkUnit(HasId):
             "updated_at",
             postgresql_where=text("status IN ('DONE', 'EXPIRED')"),
             sqlite_where=text("status IN ('DONE', 'EXPIRED')"),
+        ),
+        Index(
+            "ix_eval_session_work_units_terminal_watermark",
+            "project_session_rowid",
+            "evaluator_id",
+            "config_fingerprint",
         ),
         Index(
             "ix_eval_session_work_units_error_attempts",

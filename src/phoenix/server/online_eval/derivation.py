@@ -20,6 +20,12 @@ from phoenix.db.eval_work import MAX_ATTEMPTS as MAX_ATTEMPTS
 _IDENTIFIER_PREFIX = "online:"
 _IDENTIFIER_FINGERPRINT_CHARS = 16
 
+# Error recorded when a claimed unit's recomputed fingerprint no longer matches the
+# stored one. The consumer stamps it on expiry and the producer keys its revival
+# scan and reset on it, so a criteria edited and reverted re-materializes; the two
+# sides must read the same constant or the revival path can never fire.
+STALE_FINGERPRINT_ERROR = "CONFIG_FINGERPRINT_MISMATCH"
+
 
 @dataclass(frozen=True)
 class ResolvedCriteria:
@@ -27,9 +33,8 @@ class ResolvedCriteria:
 
     ``version_ref`` must name an immutable version, never a mutable pointer: the
     concrete ``PromptVersion.id`` for LLM evaluators (resolving the tag), the current
-    ``CodeEvaluatorVersion.id`` for CODE, and ``(key, synced_at ISO string)`` for
-    BUILTIN. Every field must be JSON-serializable — pass the stored column form of
-    ``output_configs`` / ``input_mapping``, not model objects.
+    code version plus sandbox-runtime fingerprint for CODE, and the key, sync timestamp,
+    and implementation version for BUILTIN. Every field must be JSON-serializable.
     """
 
     criteria_id: int
@@ -42,6 +47,7 @@ class ResolvedCriteria:
     sandbox_config_id: int | None
     filter_condition: str
     sampling_rate: float
+    transcript_policy_fingerprint: str | None = None
 
 
 def _canonical_default(obj: Any) -> Any:
@@ -71,11 +77,7 @@ def config_fingerprint(resolved: ResolvedCriteria) -> str:
 
 
 def annotation_identifier(fingerprint: str) -> str:
-    """Identifier keying the idempotent annotation write for a work unit.
-
-    Collides re-runs of the same (span, evaluator, config) on the annotation table's
-    (name, span_rowid, identifier) unique constraint.
-    """
+    """Identifier keying the idempotent annotation write for a work unit."""
     return _IDENTIFIER_PREFIX + fingerprint[:_IDENTIFIER_FINGERPRINT_CHARS]
 
 
@@ -85,6 +87,9 @@ def sample_key(span_id: int) -> float:
     A span is sampled for a criteria iff ``sample_key(span_id) < sampling_rate``. The
     key is deliberately unsalted and shared across all criteria so lower-rate samples
     nest inside higher-rate ones (every 20% sample is a subset of every 60% sample).
+
+    Span-only, and only because sampling is: a SESSION criteria with a sampling rate
+    below 1 is refused as unschedulable rather than sampled.
     """
     digest = hashlib.sha256(str(span_id).encode("ascii")).digest()
     # Top 53 bits only: dividing the full digest by 2**256 can round up to exactly 1.0,
