@@ -112,6 +112,8 @@ def _normalize_value(value: Any, applied: Optional[set[str]] = None) -> Any:
 _DATE_SHAPED = re.compile(r"^\d{4}-\d{2}-\d{2}")
 _COMPACT_OFFSET = re.compile(r"([+-]\d{2})(\d{2})$")
 _BARE_OFFSET = re.compile(r"([+-]\d{2})$")
+_NAMED_UTC = re.compile(r"\s+(?:UTC|GMT)$", re.IGNORECASE)
+_EXTRA_FRACTION = re.compile(r"(\.\d{6})\d+")
 
 
 @dataclass(frozen=True)
@@ -143,13 +145,17 @@ def parse_timestamp_literal(text: str) -> Optional[TimestampLiteral]:
     raw = text.strip()
     if not _DATE_SHAPED.match(raw):
         return None
-    has_time = len(raw) > 10 and raw[10] in " Tt"
+    # Index 10 is the date/time separator. Python also accepts ``+`` and ``-``
+    # there, so ``2026-01-01+05:30`` is 05:30, not a bare date.
+    has_time = len(raw) > 10 and raw[10] in " Tt+-"
     candidate = raw
     # Only once a time is present, because a bare date ends in `-DD`, which the
     # offset patterns would otherwise read as an offset and corrupt.
     if has_time:
+        candidate = _NAMED_UTC.sub("+00:00", candidate)
         if candidate[-1] in "Zz":
             candidate = candidate[:-1] + "+00:00"
+        candidate = _EXTRA_FRACTION.sub(r"\1", candidate)
         candidate = _COMPACT_OFFSET.sub(r"\1:\2", candidate)
         candidate = _BARE_OFFSET.sub(r"\1:00", candidate)
     try:
@@ -157,6 +163,11 @@ def parse_timestamp_literal(text: str) -> Optional[TimestampLiteral]:
     except ValueError:
         return None
     return TimestampLiteral(value=value, has_time=has_time)
+
+
+def is_date_shaped(text: str) -> bool:
+    """Whether this string starts with a calendar date, so it is ours to read or refuse."""
+    return bool(_DATE_SHAPED.match(text.strip()))
 
 
 def format_timestamp_for_sqlite(value: datetime) -> str:

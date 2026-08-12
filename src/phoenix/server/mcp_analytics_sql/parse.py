@@ -24,6 +24,7 @@ from phoenix.server.mcp_analytics_sql.errors import (
     admission_error_from_outcome,
 )
 from phoenix.server.mcp_analytics_sql.normalize import (
+    is_date_shaped,
     parse_timestamp_literal,
     timestamp_column_names,
 )
@@ -924,7 +925,16 @@ def _check_timestamp_literals(
         return None
     for literal in _timestamp_literals(root, columns, allowlist=allowlist, dialect=dialect):
         parsed = parse_timestamp_literal(literal.this)
-        if parsed is None or parsed.is_aware or not parsed.has_time:
+        if parsed is None:
+            if is_date_shaped(literal.this):
+                return AdmissionResult(
+                    AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                    f"`{literal.this}` looks like a timestamp but could not be read. "
+                    "Write an ISO-8601 instant with an offset, for example "
+                    "`2026-07-01T00:00:00+00:00`, or a bare date such as `2026-07-01`.",
+                )
+            continue
+        if parsed.is_aware or not parsed.has_time:
             continue
         return AdmissionResult(
             AdmissionOutcome.UNSUPPORTED_SYNTAX,

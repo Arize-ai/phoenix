@@ -926,6 +926,55 @@ class TestTimestampLiterals:
         assert "'2026-07-01T00:00:00Z'" in rendered
 
     @pytest.mark.parametrize("backend", ["postgresql", "sqlite"])
+    def test_a_plus_separated_time_is_refused(self, backend: str) -> None:
+        """``2026-01-01+05:30`` is 05:30, not a bare date."""
+        result = try_parse_and_admit(
+            "SELECT count(*) FROM spans WHERE start_time >= '2026-01-01+05:30'",
+            dialect=cast(SupportedSQLDialectName, backend),
+        )
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert "+00:00" in result.detail
+
+    @pytest.mark.parametrize("backend", ["postgresql", "sqlite"])
+    def test_a_named_utc_suffix_is_admitted(self, backend: str) -> None:
+        result = try_parse_and_admit(
+            "SELECT count(*) FROM spans WHERE start_time >= '2026-07-01 00:00:00 UTC'",
+            dialect=cast(SupportedSQLDialectName, backend),
+        )
+        assert result.outcome is AdmissionOutcome.ADMIT, result.detail
+
+    @pytest.mark.parametrize("backend", ["postgresql", "sqlite"])
+    def test_extra_fractional_digits_are_admitted(self, backend: str) -> None:
+        result = try_parse_and_admit(
+            "SELECT count(*) FROM spans WHERE start_time >= '2026-07-01T00:00:00.123456789Z'",
+            dialect=cast(SupportedSQLDialectName, backend),
+        )
+        assert result.outcome is AdmissionOutcome.ADMIT, result.detail
+
+    @pytest.mark.parametrize("backend", ["postgresql", "sqlite"])
+    def test_an_unreadable_date_shaped_literal_is_refused(self, backend: str) -> None:
+        result = try_parse_and_admit(
+            "SELECT count(*) FROM spans WHERE start_time >= '2026-07-01 10:30:00 EST'",
+            dialect=cast(SupportedSQLDialectName, backend),
+        )
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert "could not be read" in result.detail
+
+    def test_sqlite_rewrites_a_named_utc_suffix_to_the_stored_layout(self) -> None:
+        _, rendered = _rewritten(
+            "SELECT count(*) FROM spans WHERE start_time >= '2026-07-01 00:00:00 UTC'",
+            dialect="sqlite",
+        )
+        assert "'2026-07-01 00:00:00.000000'" in rendered, rendered
+
+    def test_sqlite_rewrites_extra_fractional_digits_to_the_stored_layout(self) -> None:
+        _, rendered = _rewritten(
+            "SELECT count(*) FROM spans WHERE start_time >= '2026-07-01T00:00:00.123456789Z'",
+            dialect="sqlite",
+        )
+        assert "'2026-07-01 00:00:00.123456'" in rendered, rendered
+
+    @pytest.mark.parametrize("backend", ["postgresql", "sqlite"])
     def test_a_bare_date_reports_the_assumption(self, backend: str) -> None:
         """Admitted rather than refused, so the assumption has to be stated."""
         ctx, _ = _rewrite_context(
