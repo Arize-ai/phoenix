@@ -1196,10 +1196,9 @@ const executeUiSavePromptChild = {
 } satisfies PendingSavePrompt;
 
 /**
- * REGRESSION WATCH: as a standalone tool, save_prompt renders a structured
- * preview (see SavePromptAwaitingApproval). Routed through execute_ui it falls
- * back to `stringifyToolValue(pending.preview)` — a raw JSON dump with no
- * labels or emphasis. Compare the two stories directly.
+ * Routed through execute_ui, save-prompt now renders the shared ApprovalCard
+ * with a labeled, curated payload (prompt name, label, tags) rather than a raw
+ * `stringifyToolValue(pending.preview)` dump — compare SavePromptAwaitingApproval.
  */
 export const ExecuteUiAwaitingSavePromptApproval: Story = {
   args: {
@@ -1241,9 +1240,8 @@ const executeUiLoadDatasetChild = {
 } satisfies PendingLoadDataset;
 
 /**
- * REGRESSION WATCH: load_dataset as a standalone tool has a purpose-built
- * preview (LoadDatasetToolDetails). Through execute_ui it renders
- * `stringifyToolValue(pending.input)` — the raw `{ datasetName, splitName }`.
+ * Load-dataset through execute_ui renders the shared ApprovalCard with a
+ * labeled `{ dataset, split }` payload rather than the raw pending input.
  */
 export const ExecuteUiAwaitingLoadDatasetApproval: Story = {
   args: {

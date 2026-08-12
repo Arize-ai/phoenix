@@ -21,14 +21,10 @@ import {
   promptToolsSnapshotToText,
 } from "@phoenix/agent/tools/playgroundPromptTools";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
-import { Flex } from "@phoenix/components";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
-import {
-  LazyToolPartDiffView,
-  LazyToolPartFileView,
-} from "./LazyToolPartPierreViews";
-import { ToolPartApprovalActions } from "./ToolPartPrimitives";
+import { ApprovalCard, type ApprovalPreview } from "./ApprovalCard";
+import { LazyToolPartFileView } from "./LazyToolPartPierreViews";
 import {
   ToolPartCodeBlock,
   ToolPartExpandableSection,
@@ -38,27 +34,14 @@ import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
 
 /**
- * Before/after text operands for rendering a pending approval as a unified
- * diff, for operation kinds whose pending state carries both sides.
- */
-type ScriptChildApprovalDiff = {
-  fileName: string;
-  before: string;
-  after: string;
-};
-
-/**
  * One pending approval staged by an inner `ui.*` call of a running script,
- * normalized for generic rendering: what to call it, what to show (a diff
- * when the operation stages a before/after change, a text summary
- * otherwise), and the accept/reject callbacks that resolve the script's
- * awaited promise.
+ * normalized to the shared {@link ApprovalPreview} — a unified diff when the
+ * operation stages a before/after change, a curated payload otherwise — plus
+ * the accept/reject callbacks that resolve the script's awaited promise.
  */
 type ScriptChildApproval = {
   key: string;
-  title: string;
-  summary: string;
-  diff?: ScriptChildApprovalDiff;
+  preview: ApprovalPreview;
   accept?: () => Promise<void>;
   reject?: () => Promise<void>;
 };
@@ -161,12 +144,14 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
         childKeyPrefix,
         toApproval: (pending, key) => ({
           key,
-          title: `Allow prompt edit for ${pending.before.label} (instance ${pending.instanceId})?`,
-          summary: promptSnapshotToText(pending.after),
-          diff: {
-            fileName: `playground-instance-${pending.instanceId}.txt`,
-            before: promptSnapshotToText(pending.before),
-            after: promptSnapshotToText(pending.after),
+          preview: {
+            title: `Edit prompt ${pending.before.label} (instance ${pending.instanceId})`,
+            body: {
+              kind: "diff",
+              fileName: `playground-instance-${pending.instanceId}.txt`,
+              before: promptSnapshotToText(pending.before),
+              after: promptSnapshotToText(pending.after),
+            },
           },
           accept: pending.accept,
           reject: pending.reject,
@@ -177,8 +162,13 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
         childKeyPrefix,
         toApproval: (pending, key) => ({
           key,
-          title: "Allow removing prompt instance?",
-          summary: `Prompt instance ${pending.label} will be removed.`,
+          preview: {
+            title: `Remove prompt instance ${pending.label}`,
+            body: {
+              kind: "text",
+              text: `Prompt instance ${pending.label} will be removed from the playground.`,
+            },
+          },
           accept: pending.accept,
           reject: pending.reject,
         }),
@@ -188,12 +178,14 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
         childKeyPrefix,
         toApproval: (pending, key) => ({
           key,
-          title: `Allow prompt tool changes (instance ${pending.instanceId})?`,
-          summary: stringifyToolValue(pending.input),
-          diff: {
-            fileName: `playground-instance-${pending.instanceId}-tools.json`,
-            before: promptToolsSnapshotToText(pending.before),
-            after: promptToolsSnapshotToText(pending.after),
+          preview: {
+            title: `Edit prompt tools (instance ${pending.instanceId})`,
+            body: {
+              kind: "diff",
+              fileName: `playground-instance-${pending.instanceId}-tools.json`,
+              before: promptToolsSnapshotToText(pending.before),
+              after: promptToolsSnapshotToText(pending.after),
+            },
           },
           accept: pending.accept,
           reject: pending.reject,
@@ -204,8 +196,25 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
         childKeyPrefix,
         toApproval: (pending, key) => ({
           key,
-          title: "Allow saving the prompt?",
-          summary: stringifyToolValue(pending.preview),
+          preview: {
+            title:
+              pending.preview.mode === "create"
+                ? "Save new prompt"
+                : "Save prompt version",
+            body: {
+              kind: "json",
+              payload: {
+                prompt: pending.preview.promptName,
+                label: pending.preview.label,
+                ...(pending.preview.description != null
+                  ? { description: pending.preview.description }
+                  : {}),
+                ...(pending.preview.tags?.length
+                  ? { tags: pending.preview.tags }
+                  : {}),
+              },
+            },
+          },
           accept: pending.accept,
           reject: pending.reject,
         }),
@@ -215,12 +224,14 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
         childKeyPrefix,
         toApproval: (pending, key) => ({
           key,
-          title: "Allow code evaluator draft edit?",
-          summary: stringifyToolValue(pending.operations),
-          diff: {
-            fileName: codeEvaluatorDraftFileName(pending.before),
-            before: codeEvaluatorDraftSnapshotToText(pending.before),
-            after: codeEvaluatorDraftSnapshotToText(pending.after),
+          preview: {
+            title: "Edit code evaluator draft",
+            body: {
+              kind: "diff",
+              fileName: codeEvaluatorDraftFileName(pending.before),
+              before: codeEvaluatorDraftSnapshotToText(pending.before),
+              after: codeEvaluatorDraftSnapshotToText(pending.after),
+            },
           },
           accept: pending.accept,
           reject: pending.reject,
@@ -231,12 +242,14 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
         childKeyPrefix,
         toApproval: (pending, key) => ({
           key,
-          title: "Allow LLM evaluator draft edit?",
-          summary: stringifyToolValue(pending.operations),
-          diff: {
-            fileName: llmEvaluatorDraftFileName(pending.before),
-            before: llmEvaluatorDraftSnapshotToText(pending.before),
-            after: llmEvaluatorDraftSnapshotToText(pending.after),
+          preview: {
+            title: "Edit LLM evaluator draft",
+            body: {
+              kind: "diff",
+              fileName: llmEvaluatorDraftFileName(pending.before),
+              before: llmEvaluatorDraftSnapshotToText(pending.before),
+              after: llmEvaluatorDraftSnapshotToText(pending.after),
+            },
           },
           accept: pending.accept,
           reject: pending.reject,
@@ -247,8 +260,18 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
         childKeyPrefix,
         toApproval: (pending, key) => ({
           key,
-          title: "Allow loading a dataset into the playground?",
-          summary: stringifyToolValue(pending.input),
+          preview: {
+            title: "Load dataset into playground",
+            body: {
+              kind: "json",
+              payload: {
+                dataset: pending.input.datasetName,
+                ...(pending.input.splitName
+                  ? { split: pending.input.splitName }
+                  : {}),
+              },
+            },
+          },
           accept: pending.accept,
           reject: pending.reject,
         }),
@@ -297,29 +320,14 @@ export function ExecuteUiToolDetails({ part }: { part: ToolInvocationPart }) {
         </>
       ) : null}
       {childApprovals.map((approval) => (
-        <Flex
+        <ApprovalCard
           key={approval.key}
-          direction="column"
-          gap="size-100"
-          minHeight="0"
-        >
-          <ToolPartLabel>{approval.title}</ToolPartLabel>
-          {approval.diff ? (
-            <LazyToolPartDiffView
-              fileName={approval.diff.fileName}
-              before={approval.diff.before}
-              after={approval.diff.after}
-            />
-          ) : (
-            <ToolPartCodeBlock>{approval.summary}</ToolPartCodeBlock>
-          )}
-          <ToolPartApprovalActions
-            onAccept={() => void approval.accept?.()}
-            onReject={() => void approval.reject?.()}
-            isDisabled={!approval.accept || !approval.reject}
-            staleMessage="This change was proposed by a script in an earlier session and can't be applied here. Re-run your request to have PXI propose it again."
-          />
-        </Flex>
+          preview={approval.preview}
+          onAccept={() => void approval.accept?.()}
+          onReject={() => void approval.reject?.()}
+          isDisabled={!approval.accept || !approval.reject}
+          staleMessage="This change was proposed by a script in an earlier session and can't be applied here. Re-run your request to have PXI propose it again."
+        />
       ))}
       {part.state === "output-available" ? (
         <>
