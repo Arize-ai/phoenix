@@ -20,9 +20,6 @@ from phoenix.server.agents.capabilities.contexts.prompt import (
     PromptVersionContextCapability,
 )
 from phoenix.server.agents.capabilities.contexts.session import SessionContextCapability
-from phoenix.server.agents.capabilities.tools.external.patch_experiment import (
-    PatchExperimentCapability,
-)
 from phoenix.server.agents.context import (
     CodeEvaluatorContext,
     DatasetContext,
@@ -734,38 +731,3 @@ class TestCodeEvaluatorContextCapabilityGate:
         content = _render(capability, ctx)
         assert "<mode>create</mode>" in content
         assert "<evaluator_node_id>" not in content
-
-
-class TestPatchExperimentCapabilityGate:
-    def _capability(self) -> PatchExperimentCapability:
-        return PatchExperimentCapability(
-            instructions=_DEFAULT_PROMPTS.patch_experiment_tool,
-        )
-
-    def _dataset_context(self) -> DatasetContext:
-        return DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox")
-
-    def _playground_context(self) -> PlaygroundContext:
-        return PlaygroundContext(
-            type="playground",
-            instances=[PlaygroundInstanceContext(instance_id=0)],
-        )
-
-    def test_excluded_without_dataset_or_playground_context(self) -> None:
-        ctx = _get_run_context(ResolvedContexts())
-        assert self._capability().include_for_run(ctx) is False
-
-    def test_included_with_dataset_context(self) -> None:
-        ctx = _get_run_context(ResolvedContexts(dataset=self._dataset_context()))
-        assert self._capability().include_for_run(ctx) is True
-
-    def test_included_with_playground_context(self) -> None:
-        ctx = _get_run_context(ResolvedContexts(playground=self._playground_context()))
-        assert self._capability().include_for_run(ctx) is True
-
-    def test_excluded_for_viewer_even_with_dataset_context(self) -> None:
-        ctx = _get_run_context(
-            ResolvedContexts(dataset=self._dataset_context()),
-            is_viewer=True,
-        )
-        assert self._capability().include_for_run(ctx) is False
