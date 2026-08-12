@@ -140,7 +140,9 @@ export function createRunPlaygroundClientAction({
         instances,
         ...(experimentIds.length > 0 ? { experimentIds } : {}),
         message:
-          "Playground run finished. Read the results with playground.run.readOutput.",
+          experimentIds.length > 0
+            ? "Playground run finished. Read the scored per-example results with playground.experiment.readResults."
+            : "Playground run finished. Read the results with playground.run.readOutput.",
       },
     };
   };

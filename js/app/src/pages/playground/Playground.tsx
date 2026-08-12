@@ -15,6 +15,7 @@ import type { BlockerFunction } from "react-router";
 import { useBlocker, useSearchParams } from "react-router";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
+import { createReadExperimentResultsClientAction } from "@phoenix/agent/tools/experimentResults";
 import { createSetAppendedMessagesPathClientAction } from "@phoenix/agent/tools/playgroundAppendedMessagesPath";
 import { createSetPlaygroundExperimentRecordingClientAction } from "@phoenix/agent/tools/playgroundExperimentRecording";
 import { createLoadDatasetClientAction } from "@phoenix/agent/tools/playgroundLoadDataset";
@@ -76,6 +77,7 @@ import {
 } from "@phoenix/agent/uiOperations/operations/playgroundPromptTools";
 import {
   cancelPlaygroundRunOperation,
+  readExperimentResultsOperation,
   readPlaygroundOutputOperation,
   runPlaygroundOperation,
 } from "@phoenix/agent/uiOperations/operations/playgroundRun";
@@ -436,6 +438,11 @@ function PlaygroundContent() {
     });
     registerUiOperation({
       agentStore,
+      descriptor: readExperimentResultsOperation,
+      handler: createReadExperimentResultsClientAction(),
+    });
+    registerUiOperation({
+      agentStore,
       descriptor: setVariableValuesOperation,
       handler: createSetVariableValuesClientAction({ playgroundStore }),
     });
@@ -514,6 +521,10 @@ function PlaygroundContent() {
       unregisterUiOperation({
         agentStore,
         name: readPlaygroundOutputOperation.name,
+      });
+      unregisterUiOperation({
+        agentStore,
+        name: readExperimentResultsOperation.name,
       });
       unregisterUiOperation({
         agentStore,

@@ -209,18 +209,37 @@ def _parse_args(args: list[str]) -> _ParsedArgs:
     )
 
 
+def _could_be_file_path(query_source: str) -> bool:
+    """Whether ``query_source`` could plausibly name a file.
+
+    Inline GraphQL always contains ``{`` (and often newlines), neither of which
+    appears in a real file path. Skipping the filesystem probe for such values
+    matters beyond aesthetics: sandbox filesystems raise on over-long path
+    components, so probing a multi-hundred-byte inline query as if it were a
+    path fails the whole command instead of executing the query.
+    """
+    return "{" not in query_source and "\n" not in query_source
+
+
 def _resolve_query_text(parsed: _ParsedArgs, ctx: BuiltinContext) -> str:
     """Return the GraphQL query text selected by ``parsed``.
 
-    A ``query_source`` that resolves to an existing file under ``ctx.cwd`` is read
-    from the filesystem; otherwise it is taken as a literal inline query. With no
-    ``query_source``, the stripped piped stdin is used, and an empty stdin is an
-    error.
+    A ``query_source`` that could name a file and resolves to an existing file
+    under ``ctx.cwd`` is read from the filesystem; otherwise it is taken as a
+    literal inline query. With no ``query_source``, the stripped piped stdin is
+    used, and an empty stdin is an error.
     """
     if parsed.query_source:
-        resolved_path = _resolve_path(ctx.cwd, parsed.query_source)
-        if ctx.fs.exists(resolved_path):
-            return ctx.fs.read_file(resolved_path).decode("utf-8")
+        if _could_be_file_path(parsed.query_source):
+            resolved_path = _resolve_path(ctx.cwd, parsed.query_source)
+            try:
+                is_file = ctx.fs.exists(resolved_path)
+            except Exception:
+                # A probe the filesystem refuses (e.g. over-long path) cannot
+                # be an existing file; fall through to the inline query.
+                is_file = False
+            if is_file:
+                return ctx.fs.read_file(resolved_path).decode("utf-8")
         return parsed.query_source
 
     piped_query = (ctx.stdin or "").strip()
