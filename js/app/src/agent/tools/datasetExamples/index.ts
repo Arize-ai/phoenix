@@ -1,6 +1,11 @@
 export * from "./agentTools";
 export { commitAddDatasetExamples } from "./addDatasetExamples";
 export {
+  createAddDatasetExamplesClientAction,
+  createDeleteDatasetExamplesClientAction,
+  createPatchDatasetExamplesClientAction,
+} from "./clientActions";
+export {
   ADD_DATASET_EXAMPLES_NO_DATASET_ERROR,
   ADD_DATASET_EXAMPLES_TOOL_NAME,
   DELETE_DATASET_EXAMPLES_TOOL_NAME,

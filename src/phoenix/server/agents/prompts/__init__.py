@@ -21,9 +21,6 @@ _GET_ROUTE_INFO_TOOL_INSTRUCTIONS = get_template("tools/GET_ROUTE_INFO_TOOL_INST
 _RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS = get_template(
     "tools/RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS.xml.j2"
 )
-_ADD_DATASET_EXAMPLES_TOOL_INSTRUCTIONS = get_template(
-    "tools/ADD_DATASET_EXAMPLES_TOOL_INSTRUCTIONS.xml.j2"
-)
 _LIST_DATASET_EXAMPLES_TOOL_INSTRUCTIONS = get_template(
     "tools/LIST_DATASET_EXAMPLES_TOOL_INSTRUCTIONS.xml.j2"
 )
@@ -46,14 +43,6 @@ _CREATE_DATASET_LABEL_TOOL_INSTRUCTIONS = get_template(
 _SET_DATASET_LABELS_TOOL_INSTRUCTIONS = get_template(
     "tools/SET_DATASET_LABELS_TOOL_INSTRUCTIONS.xml.j2"
 )
-_PATCH_DATASET_TOOL_INSTRUCTIONS = get_template("tools/PATCH_DATASET_TOOL_INSTRUCTIONS.xml.j2")
-_DELETE_DATASET_TOOL_INSTRUCTIONS = get_template("tools/DELETE_DATASET_TOOL_INSTRUCTIONS.xml.j2")
-_PATCH_DATASET_EXAMPLES_TOOL_INSTRUCTIONS = get_template(
-    "tools/PATCH_DATASET_EXAMPLES_TOOL_INSTRUCTIONS.xml.j2"
-)
-_DELETE_DATASET_EXAMPLES_TOOL_INSTRUCTIONS = get_template(
-    "tools/DELETE_DATASET_EXAMPLES_TOOL_INSTRUCTIONS.xml.j2"
-)
 _PATCH_DATASET_SPLIT_TOOL_INSTRUCTIONS = get_template(
     "tools/PATCH_DATASET_SPLIT_TOOL_INSTRUCTIONS.xml.j2"
 )
@@ -63,12 +52,8 @@ _DELETE_DATASET_SPLITS_TOOL_INSTRUCTIONS = get_template(
 _DELETE_DATASET_LABELS_TOOL_INSTRUCTIONS = get_template(
     "tools/DELETE_DATASET_LABELS_TOOL_INSTRUCTIONS.xml.j2"
 )
-_ADD_SPANS_TO_DATASET_TOOL_INSTRUCTIONS = get_template(
-    "tools/ADD_SPANS_TO_DATASET_TOOL_INSTRUCTIONS.xml.j2"
-)
 _LIST_DATASETS_TOOL_INSTRUCTIONS = get_template("tools/LIST_DATASETS_TOOL_INSTRUCTIONS.xml.j2")
 _LIST_LABELS_TOOL_INSTRUCTIONS = get_template("tools/LIST_LABELS_TOOL_INSTRUCTIONS.xml.j2")
-_CREATE_DATASET_TOOL_INSTRUCTIONS = get_template("tools/CREATE_DATASET_TOOL_INSTRUCTIONS.xml.j2")
 _PATCH_EXPERIMENT_TOOL_INSTRUCTIONS = get_template(
     "tools/PATCH_EXPERIMENT_TOOL_INSTRUCTIONS.xml.j2"
 )
@@ -126,7 +111,6 @@ class AgentPrompts:
     get_current_datetime_tool: Template = _GET_CURRENT_DATETIME_TOOL_INSTRUCTIONS
     get_route_info_tool: Template = _GET_ROUTE_INFO_TOOL_INSTRUCTIONS
     render_generative_ui_tool: Template = _RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS
-    add_dataset_examples_tool: Template = _ADD_DATASET_EXAMPLES_TOOL_INSTRUCTIONS
     list_dataset_examples_tool: Template = _LIST_DATASET_EXAMPLES_TOOL_INSTRUCTIONS
     list_dataset_splits_tool: Template = _LIST_DATASET_SPLITS_TOOL_INSTRUCTIONS
     list_splits_tool: Template = _LIST_SPLITS_TOOL_INSTRUCTIONS
@@ -135,17 +119,11 @@ class AgentPrompts:
     list_dataset_labels_tool: Template = _LIST_DATASET_LABELS_TOOL_INSTRUCTIONS
     create_dataset_label_tool: Template = _CREATE_DATASET_LABEL_TOOL_INSTRUCTIONS
     set_dataset_labels_tool: Template = _SET_DATASET_LABELS_TOOL_INSTRUCTIONS
-    patch_dataset_tool: Template = _PATCH_DATASET_TOOL_INSTRUCTIONS
-    delete_dataset_tool: Template = _DELETE_DATASET_TOOL_INSTRUCTIONS
-    patch_dataset_examples_tool: Template = _PATCH_DATASET_EXAMPLES_TOOL_INSTRUCTIONS
-    delete_dataset_examples_tool: Template = _DELETE_DATASET_EXAMPLES_TOOL_INSTRUCTIONS
     patch_dataset_split_tool: Template = _PATCH_DATASET_SPLIT_TOOL_INSTRUCTIONS
     delete_dataset_splits_tool: Template = _DELETE_DATASET_SPLITS_TOOL_INSTRUCTIONS
     delete_dataset_labels_tool: Template = _DELETE_DATASET_LABELS_TOOL_INSTRUCTIONS
-    add_spans_to_dataset_tool: Template = _ADD_SPANS_TO_DATASET_TOOL_INSTRUCTIONS
     list_datasets_tool: Template = _LIST_DATASETS_TOOL_INSTRUCTIONS
     list_labels_tool: Template = _LIST_LABELS_TOOL_INSTRUCTIONS
-    create_dataset_tool: Template = _CREATE_DATASET_TOOL_INSTRUCTIONS
     patch_experiment_tool: Template = _PATCH_EXPERIMENT_TOOL_INSTRUCTIONS
     batch_span_annotate_tool: Template = _BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS
     create_annotation_config_tool: Template = _CREATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS

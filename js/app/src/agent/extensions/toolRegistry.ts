@@ -17,17 +17,7 @@ import {
   updateAnnotationConfigAgentTool,
 } from "@phoenix/agent/tools/annotationConfig";
 import { batchSpanAnnotateAgentTool } from "@phoenix/agent/tools/batchSpanAnnotate";
-import { createDatasetAgentTool } from "@phoenix/agent/tools/createDataset";
-import {
-  deleteDatasetAgentTool,
-  patchDatasetAgentTool,
-} from "@phoenix/agent/tools/datasetEdit";
-import {
-  addDatasetExamplesAgentTool,
-  deleteDatasetExamplesAgentTool,
-  listDatasetExamplesAgentTool,
-  patchDatasetExamplesAgentTool,
-} from "@phoenix/agent/tools/datasetExamples";
+import { listDatasetExamplesAgentTool } from "@phoenix/agent/tools/datasetExamples";
 import {
   createDatasetLabelAgentTool,
   deleteDatasetLabelsAgentTool,
@@ -48,7 +38,6 @@ import { getRouteInfoAgentTool } from "@phoenix/agent/tools/getRouteInfo";
 import { listDatasetsAgentTool } from "@phoenix/agent/tools/listDatasets";
 import { patchExperimentAgentTool } from "@phoenix/agent/tools/patchExperiment";
 import { renderGenerativeUIAgentTool } from "@phoenix/agent/tools/renderGenerativeUI";
-import { addSpansToDatasetAgentTool } from "@phoenix/agent/tools/spansToDataset";
 import { executeUiAgentTool } from "@phoenix/agent/uiOperations/executeUiAgentTool";
 import { searchUiAgentTool } from "@phoenix/agent/uiOperations/searchUiAgentTool";
 
@@ -68,21 +57,17 @@ const uiOperationTools: AgentToolDefinition[] = [
 ];
 
 /**
- * Dataset management tools (built with the lower-level `defineTool`). They are
- * not UI operations: reads execute directly against the Relay environment, and
- * writes stage a pending-approval store entry (the inline Accept/Reject card)
- * — auto-applied in bypass edit mode. The dataset to act on is resolved from
- * the advertised UI context, never supplied by the model.
+ * Dataset tools that remain standalone (built with the lower-level
+ * `defineTool`): the reads, which execute directly against the Relay
+ * environment. Dataset *writes* are UI operations now — they run as
+ * `ui.dataset.*` calls inside `execute_ui` scripts, staging the same
+ * pending-approval store entry (the inline Accept/Reject card), auto-applied
+ * in bypass edit mode. The dataset to act on is resolved from the advertised
+ * UI context, never supplied by the model.
  */
 const datasetTools: AgentToolDefinition[] = [
   listDatasetsAgentTool,
-  createDatasetAgentTool,
-  patchDatasetAgentTool,
-  deleteDatasetAgentTool,
   listDatasetExamplesAgentTool,
-  addDatasetExamplesAgentTool,
-  patchDatasetExamplesAgentTool,
-  deleteDatasetExamplesAgentTool,
   listDatasetSplitsAgentTool,
   listSplitsAgentTool,
   createDatasetSplitAgentTool,
@@ -94,7 +79,6 @@ const datasetTools: AgentToolDefinition[] = [
   createDatasetLabelAgentTool,
   setDatasetLabelsAgentTool,
   deleteDatasetLabelsAgentTool,
-  addSpansToDatasetAgentTool,
 ];
 
 /**

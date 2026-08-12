@@ -1,5 +1,6 @@
 export * from "./agentTools";
 export { commitAddSpansToDataset } from "./addSpansToDataset";
+export { createAddSpansToDatasetClientAction } from "./clientActions";
 export {
   ADD_SPANS_TO_DATASET_NO_SPAN_ERROR,
   ADD_SPANS_TO_DATASET_TOOL_NAME,

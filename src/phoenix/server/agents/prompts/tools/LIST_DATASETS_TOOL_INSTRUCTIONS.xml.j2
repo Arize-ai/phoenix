@@ -1,7 +1,7 @@
 <tool name="list_datasets">
   <description>List the datasets in this Phoenix instance, returning each dataset's id, name, and example count. Read-only. Filter by a case-insensitive substring of the name and/or by label names, and paginate with a cursor. Use this to find existing datasets — to resolve which dataset the user means, and to check whether a name is already taken before creating one.</description>
   <when_to_use>
-    - Before create_dataset, to check whether the user's chosen name already exists (names are unique).
+    - Before creating a dataset (the `ui.dataset.create` operation via `execute_ui`), to check whether the user's chosen name already exists (names are unique).
     - To turn the user's loose reference ("my regression set") into a specific dataset id you can act on.
     - When the user asks what datasets exist.
   </when_to_use>

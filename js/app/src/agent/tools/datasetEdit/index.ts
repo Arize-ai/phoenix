@@ -1,5 +1,9 @@
 export * from "./agentTools";
 export {
+  createDeleteDatasetClientAction,
+  createPatchDatasetClientAction,
+} from "./clientActions";
+export {
   DATASET_EDIT_NO_DATASET_ERROR,
   DELETE_DATASET_TOOL_NAME,
   PATCH_DATASET_TOOL_NAME,

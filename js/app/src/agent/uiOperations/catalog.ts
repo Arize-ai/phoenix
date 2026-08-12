@@ -4,6 +4,7 @@ import type { AgentClientAction, AgentStore } from "@phoenix/store/agentStore";
 
 import { codeEvaluatorDraftOperations } from "./operations/codeEvaluatorDraft";
 import { datasetEvaluatorOperations } from "./operations/datasetEvaluators";
+import { datasetWriteOperations } from "./operations/datasetWrites";
 import { llmEvaluatorDraftOperations } from "./operations/llmEvaluatorDraft";
 import { playgroundLoadDatasetOperations } from "./operations/playgroundLoadDataset";
 import { playgroundModelOperations } from "./operations/playgroundModel";
@@ -38,6 +39,7 @@ const knownUiOperations: UiOperationDescriptor[] = [
   ...datasetEvaluatorOperations,
   ...codeEvaluatorDraftOperations,
   ...llmEvaluatorDraftOperations,
+  ...datasetWriteOperations,
 ];
 
 /**

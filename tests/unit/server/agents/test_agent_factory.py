@@ -33,7 +33,6 @@ from phoenix.server.agents.capabilities import (
     build_anthropic_prompt_cache_capability,
 )
 from phoenix.server.agents.context import (
-    AgentSpanContext,
     CodeEvaluatorContext,
     DatasetContext,
     LlmEvaluatorContext,
@@ -75,7 +74,6 @@ STATIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
 # advertised under the playground/project deps these tests construct.
 DYNAMIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     {
-        _DEFAULT_PROMPTS.create_dataset_tool.render(),
         _DEFAULT_PROMPTS.create_annotation_config_tool.render(),
         _DEFAULT_PROMPTS.update_annotation_config_tool.render(),
     }
@@ -539,58 +537,6 @@ class TestRouteInfoTool:
         assert "do not render its `path` as a markdown link" in joined_system
 
 
-class TestAddDatasetExamplesTool:
-    async def test_advertised_with_dataset_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            ),
-        )
-
-        await agent.run("hello", deps=deps)
-
-        assert "add_dataset_examples" in _get_tool_names(captured_request.body)
-        joined_system = "\n".join(_get_system_texts(captured_request.body))
-        assert '<tool name="add_dataset_examples">' in joined_system
-
-    async def test_absent_without_dataset_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(contexts=ResolvedContexts())
-
-        await agent.run("hello", deps=deps)
-
-        assert "add_dataset_examples" not in _get_tool_names(captured_request.body)
-
-    async def test_hidden_for_viewer_but_read_tool_remains(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            ),
-            is_viewer=True,
-        )
-
-        await agent.run("hello", deps=deps)
-
-        tool_names = _get_tool_names(captured_request.body)
-        assert "add_dataset_examples" not in tool_names
-        # Reads stay available to viewers.
-        assert "list_dataset_examples" in tool_names
-
-
 class TestListDatasetSplitsTool:
     async def test_advertised_with_dataset_context(
         self,
@@ -736,63 +682,8 @@ class TestDatasetLabelTools:
             assert name not in tool_names
 
 
-class TestAddSpanToDatasetTool:
-    async def test_advertised_with_span_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                span=AgentSpanContext(type="span", span_node_id="U3Bhbjox"),
-            ),
-        )
-
-        await agent.run("hello", deps=deps)
-
-        assert "add_spans_to_dataset" in _get_tool_names(captured_request.body)
-
-    async def test_hidden_for_viewer(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                span=AgentSpanContext(type="span", span_node_id="U3Bhbjox"),
-            ),
-            is_viewer=True,
-        )
-
-        await agent.run("hello", deps=deps)
-
-        assert "add_spans_to_dataset" not in _get_tool_names(captured_request.body)
-
-    async def test_absent_without_span_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            ),
-        )
-
-        await agent.run("hello", deps=deps)
-
-        assert "add_spans_to_dataset" not in _get_tool_names(captured_request.body)
-
-
 class TestDatasetCrudTools:
     _WRITE_TOOLS = (
-        "patch_dataset",
-        "delete_dataset",
-        "patch_dataset_examples",
-        "delete_dataset_examples",
         "patch_dataset_split",
         "delete_dataset_splits",
         "delete_dataset_labels",
@@ -904,35 +795,23 @@ class TestListDatasetExamplesTool:
 
         assert "list_dataset_examples" not in _get_tool_names(captured_request.body)
 
-
-class TestCreateDatasetTool:
-    async def test_advertised_without_any_context(
+    async def test_available_to_viewer(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
         agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(contexts=ResolvedContexts())
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            is_viewer=True,
+        )
 
         await agent.run("hello", deps=deps)
 
-        # create_dataset is advertised everywhere (a new dataset has no context
-        # to resolve a target from) — except to viewers, who cannot write.
-        assert "create_dataset" in _get_tool_names(captured_request.body)
-        joined_system = "\n".join(_get_system_texts(captured_request.body))
-        assert '<tool name="create_dataset">' in joined_system
-
-    async def test_hidden_for_viewer(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(contexts=ResolvedContexts(), is_viewer=True)
-
-        await agent.run("hello", deps=deps)
-
-        assert "create_dataset" not in _get_tool_names(captured_request.body)
+        # Reads stay available to viewers.
+        assert "list_dataset_examples" in _get_tool_names(captured_request.body)
 
 
 class TestDocsMCPToolset:
