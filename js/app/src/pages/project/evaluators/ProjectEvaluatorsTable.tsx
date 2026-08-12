@@ -1,11 +1,17 @@
 import { css } from "@emotion/react";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, ColumnSizingState } from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { startTransition, useCallback, useEffect, useMemo } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { graphql, readInlineData, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 
@@ -19,10 +25,19 @@ import {
   View,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
+import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
+import { GenerativeProviderIcon } from "@phoenix/components/generative";
+import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLabel";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
@@ -33,6 +48,7 @@ import {
   formatEvaluationTarget,
   formatSamplingRate,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 const PAGE_SIZE = 30;
 
@@ -52,8 +68,32 @@ const readRow = (row: ProjectEvaluatorsTable_row$key) => {
         filterCondition
         samplingRate
         enabled
+        updatedAt
         evaluator {
           kind
+          ... on LLMEvaluator {
+            prompt {
+              id
+              name
+            }
+            promptVersionTag {
+              name
+            }
+            promptVersion {
+              modelName
+              modelProvider
+            }
+          }
+          ... on CodeEvaluator {
+            language
+            sandboxConfig {
+              id
+              name
+              provider {
+                backendType
+              }
+            }
+          }
         }
       }
     `,
@@ -133,7 +173,8 @@ export function ProjectEvaluatorsTable({
   const columns = useMemo<ColumnDef<TableRow>[]>(
     () => [
       {
-        header: "Name",
+        header: "name",
+        size: 200,
         accessorKey: "name",
         cell: ({ getValue, row }) => (
           <Link to={paths.details(row.original.id)}>
@@ -142,14 +183,99 @@ export function ProjectEvaluatorsTable({
         ),
       },
       {
+        id: "kind",
+        header: "kind",
+        size: 80,
+        cell: ({ row }) => (
+          <EvaluatorKindToken kind={row.original.evaluator.kind} />
+        ),
+      },
+      {
+        id: "prompt",
+        header: "prompt",
+        size: 180,
+        cell: ({ row }) => {
+          const { prompt, promptVersionTag } = row.original.evaluator;
+          if (!prompt) {
+            return <Text color="text-700">—</Text>;
+          }
+          return (
+            <PromptCell
+              prompt={prompt}
+              promptVersionTag={promptVersionTag?.name}
+            />
+          );
+        },
+      },
+      {
+        id: "model",
+        header: "model",
+        size: 180,
+        cell: ({ row }) => {
+          const promptVersion = row.original.evaluator.promptVersion;
+          if (!promptVersion) {
+            return <Text color="text-700">—</Text>;
+          }
+          const { modelName, modelProvider } = promptVersion;
+          const providerIsValid = isModelProvider(modelProvider);
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              {providerIsValid && (
+                <GenerativeProviderIcon provider={modelProvider} height={16} />
+              )}
+              <Text minWidth={0}>
+                <Truncate>{modelName}</Truncate>
+              </Text>
+            </Flex>
+          );
+        },
+      },
+      {
+        id: "language",
+        header: "language",
+        size: 110,
+        cell: ({ row }) => {
+          const language = row.original.evaluator.language;
+          if (!language) {
+            return <Text color="text-700">—</Text>;
+          }
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              {language === "PYTHON" ? <PythonSVG /> : <TypeScriptSVG />}
+              <Text>{language === "PYTHON" ? "Python" : "TypeScript"}</Text>
+            </Flex>
+          );
+        },
+      },
+      {
+        id: "sandbox",
+        header: "sandbox",
+        size: 160,
+        cell: ({ row }) => {
+          const sandboxConfig = row.original.evaluator.sandboxConfig;
+          if (!sandboxConfig) {
+            return <Text color="text-700">—</Text>;
+          }
+          return (
+            <SandboxConfigLabel
+              sandboxConfigId={sandboxConfig.id}
+              name={sandboxConfig.name}
+              backendType={sandboxConfig.provider.backendType}
+            />
+          );
+        },
+      },
+      {
         id: "target",
-        header: "Target",
+        header: "target",
+        size: 110,
         cell: ({ row }) =>
           formatEvaluationTarget(row.original.evaluationTarget),
       },
       {
         id: "filter",
-        header: "Filter",
+        header: "filter",
+        size: 180,
         cell: ({ row }) => (
           <Text color={row.original.filterCondition ? undefined : "text-700"}>
             {row.original.filterCondition || "All spans"}
@@ -158,12 +284,21 @@ export function ProjectEvaluatorsTable({
       },
       {
         id: "sampling",
-        header: "Sampling",
+        header: "sampling",
+        size: 100,
         cell: ({ row }) => formatSamplingRate(row.original.samplingRate),
       },
       {
+        id: "updatedAt",
+        header: "last updated",
+        size: 160,
+        accessorKey: "updatedAt",
+        cell: TimestampCell,
+      },
+      {
         id: "enabled",
-        header: "Enabled",
+        header: "enabled",
+        size: 90,
         cell: ({ row }) => (
           <StopPropagation>
             <ProjectEvaluatorEnabledSwitch
@@ -176,7 +311,8 @@ export function ProjectEvaluatorsTable({
       },
       {
         id: "actions",
-        header: "Actions",
+        header: "actions",
+        size: 80,
         cell: ({ row }) => (
           <ProjectEvaluatorActionMenu
             projectEvaluatorId={row.original.id}
@@ -191,12 +327,42 @@ export function ProjectEvaluatorsTable({
     [projectId, openEditSlideover, paths]
   );
   // eslint-disable-next-line react-hooks-js/incompatible-library
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
   const table = useReactTable({
     columns,
     data: tableData,
+    state: {
+      columnPinning: {
+        right: ["enabled", "actions"],
+      },
+      columnSizing,
+    },
+    columnResizeMode: "onChange",
+    onColumnSizingChange: setColumnSizing,
     getCoreRowModel: getCoreRowModel(),
     getRowId: (row) => row.id,
   });
+  const { columnSizingInfo } = table.getState();
+  const getFlatHeaders = table.getFlatHeaders;
+  /**
+   * Calculate all column sizes at once at the root table level
+   * and pass them down as CSS variables to the <table> element.
+   * This avoids calling `column.getSize()` on every render for every cell.
+   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   */
+  const columnSizeVars = useMemo(() => {
+    const headers = getFlatHeaders();
+    const colSizes: { [key: string]: number } = {};
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i]!;
+      colSizes[`--header-${header.id}-size`] = header.getSize();
+      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
+    }
+    return colSizes;
+    // Disabled lint as per tanstack docs linked above
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getFlatHeaders, columnSizingInfo, columnSizing]);
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
   const isFiltered = trimmedFilter.length > 0;
@@ -209,18 +375,51 @@ export function ProjectEvaluatorsTable({
   }
   return (
     <div css={scrollableAreaCSS}>
-      <table css={selectableTableCSS} aria-label="Project evaluators">
+      <table
+        css={selectableTableCSS}
+        aria-label="Project evaluators"
+        style={{
+          ...columnSizeVars,
+          width: table.getTotalSize(),
+          minWidth: "100%",
+        }}
+      >
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th key={header.id} colSpan={header.colSpan}>
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
+                <th
+                  key={header.id}
+                  colSpan={header.colSpan}
+                  style={{
+                    width: `calc(var(--header-${header.id}-size) * 1px)`,
+                    ...(header.column.getIsPinned()
+                      ? {
+                          ...getCommonPinningStyles(header.column),
+                          zIndex: 3,
+                        }
+                      : {}),
+                  }}
+                >
+                  {header.isPlaceholder ? null : (
+                    <>
+                      <div>
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                      </div>
+                      <div
+                        {...{
+                          onMouseDown: header.getResizeHandler(),
+                          onTouchStart: header.getResizeHandler(),
+                          className: `resizer ${
+                            header.column.getIsResizing() ? "isResizing" : ""
+                          }`,
+                        }}
+                      />
+                    </>
+                  )}
                 </th>
               ))}
             </tr>
@@ -241,11 +440,29 @@ export function ProjectEvaluatorsTable({
                 key={row.id}
                 onClick={() => navigate(paths.details(row.original.id))}
               >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
+                {row.getVisibleCells().map((cell) => {
+                  const colSizeVar = `--col-${cell.column.id}-size`;
+                  return (
+                    <td
+                      key={cell.id}
+                      style={{
+                        width: `calc(var(${colSizeVar}) * 1px)`,
+                        maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        ...(cell.column.getIsPinned()
+                          ? getCommonPinningStyles(cell.column)
+                          : {}),
+                      }}
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
