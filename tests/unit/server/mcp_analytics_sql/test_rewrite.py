@@ -1058,6 +1058,17 @@ class TestOneSharedResolver:
 
         assert "ORDER BY latency_ms" in rendered
 
+    def test_group_by_binds_to_the_output_alias_when_no_input_column_carries_the_name(
+        self,
+    ) -> None:
+        """Virtual overlays are not input columns, so GROUP BY takes the alias."""
+        rendered = self._rewritten(
+            "SELECT 1 AS graphql_node_id FROM spans GROUP BY graphql_node_id"
+        )
+
+        assert "ENCODE" not in rendered.upper()
+        assert "GROUP BY graphql_node_id" in rendered
+
     def test_a_base_table_reference_is_still_substituted(self) -> None:
         """The guard must not close the case the pass exists for."""
         projection = self._outer_projection(

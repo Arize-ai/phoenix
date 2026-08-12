@@ -851,16 +851,12 @@ def query_local_columns(
         # GROUP BY takes the input column when one carries the name and the
         # output alias only otherwise. SQLite applies the same precedence in
         # HAVING; PostgreSQL does not permit output aliases there at all.
+        # Virtual overlays are not input columns: they exist only after rewrite.
         offered = {
             column.casefold()
             for alias, source in scope.sources.items()
             if isinstance(source, exp.Table) and source.name in table_specs
             for column in table_specs[source.name].columns
-        } | {
-            virtual.casefold()
-            for alias, source in scope.sources.items()
-            if isinstance(source, exp.Table) and source.name in table_specs
-            for virtual in table_specs[source.name].virtual_columns
         }
         group_clause = select.args.get("group") if select else None
         if group_clause is not None:
