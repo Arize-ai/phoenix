@@ -367,11 +367,7 @@ def test_star_over_an_aliased_table_uses_the_alias() -> None:
 
 
 def test_quoted_alias_star_keeps_the_callers_quoting() -> None:
-    """PostgreSQL folds unquoted S to s, so the expanded columns must stay quoted.
-
-    ``FROM spans AS "S" SELECT "S".*`` was rewritten to ``SELECT S.id ... FROM
-    spans AS "S"``, which cannot resolve. Unquoted aliases are unaffected.
-    """
+    """PostgreSQL folds unquoted identifiers; expanded columns keep the caller's quoting."""
     _, rendered = _rewritten('SELECT "S".* FROM spans AS "S"', dialect="postgresql")
     assert '"S".id' in rendered
     assert 'AS "S"' in rendered
@@ -379,7 +375,7 @@ def test_quoted_alias_star_keeps_the_callers_quoting() -> None:
 
 
 def test_quoted_alias_virtual_columns_keep_the_callers_quoting() -> None:
-    """The same quoting drop happened in latency_ms and graphql_node_id."""
+    """Virtual-column substitution keeps the caller's quoting on the qualifier."""
     _, latency = _rewritten('SELECT "S".latency_ms FROM spans AS "S"', dialect="postgresql")
     assert '"S".end_time' in latency and '"S".start_time' in latency
     assert 'AS "S"' in latency
@@ -712,14 +708,7 @@ def test_graphql_node_id_resolves_through_a_qualifier(dialect: str) -> None:
 
 
 def test_graphql_node_id_is_not_invented_for_a_cte_of_the_same_name() -> None:
-    """A CTE named after a GraphQL table is not that table.
-
-    Schema qualification already learned this: ``WITH spans AS (...) SELECT
-    count(*) FROM spans`` must not become a count of ``public.spans``. The node
-    id pass walked every Table node instead, so
-    ``WITH projects AS (SELECT 99 AS id) SELECT graphql_node_id FROM projects``
-    encoded 99 as a Project node id and reported success.
-    """
+    """A CTE named after a GraphQL table is not that table."""
     ctx, rendered = _rewritten(
         "WITH projects AS (SELECT 99 AS id) SELECT graphql_node_id FROM projects",
         dialect="postgresql",
@@ -730,12 +719,7 @@ def test_graphql_node_id_is_not_invented_for_a_cte_of_the_same_name() -> None:
 
 
 def test_graphql_node_id_through_a_cte_alias_is_not_called_ambiguous() -> None:
-    """Zero GraphQL tables in the outer scope is not a join.
-
-    ``WITH p AS (SELECT id FROM projects) SELECT graphql_node_id FROM p`` used
-    to raise the multi-table qualification error because the inner ``projects``
-    table made the statement-wide fallback None. Leave the column alone.
-    """
+    """Zero GraphQL tables in the outer scope is not a join. Leave the column alone."""
     ctx, rendered = _rewritten(
         "WITH p AS (SELECT id FROM projects) SELECT graphql_node_id FROM p",
         dialect="postgresql",
@@ -745,7 +729,7 @@ def test_graphql_node_id_through_a_cte_alias_is_not_called_ambiguous() -> None:
 
 
 def test_latency_ms_is_not_invented_for_a_cte_of_the_same_name() -> None:
-    """Same shape as the node-id CTE: the name is not the table."""
+    """A CTE named ``spans`` is not a duration table."""
     _, rendered = _rewritten(
         "WITH spans AS (SELECT 1 AS id) SELECT latency_ms FROM spans",
         dialect="sqlite",
@@ -797,16 +781,10 @@ def _rewritten(
 
 
 class TestLimitInjection:
-    """A caller-written LIMIT must still bound the answer.
+    """A caller LIMIT or FETCH below the cap is kept; at or above it is probed.
 
-    The count is rendered through SQLGlot to decide whether it already sits
-    under the cap. SQLGlot's PostgreSQL dialect is named ``postgres``, not
-    ``postgresql``, and passing the latter raises ValueError -- which this pass
-    treated as an unparseable expression and replaced with ``row_limit + 1``.
-    ``SELECT ... LIMIT 5`` then returned 500 rows on PostgreSQL and 5 on SQLite.
-
-    FETCH FIRST is a different node than LIMIT. Leaving it unread meant
-    ``FETCH FIRST 10000 ROWS ONLY`` skipped the SQL-level cap entirely.
+    The count is rendered through SQLGlot's dialect (``postgres``).
+    ``exp.Fetch`` is a distinct node from ``exp.Limit``.
     """
 
     @pytest.mark.parametrize("backend", ["postgresql", "sqlite"])

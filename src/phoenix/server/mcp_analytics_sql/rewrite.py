@@ -425,11 +425,9 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
 
 
 def _relation_qualifier(expression: exp.Expression) -> exp.Identifier:
-    """The identifier rewritten columns should use to name this relation.
+    """Qualifier for rewritten columns of this relation, quoting included.
 
-    Copies the caller's quoting. ``exp.to_identifier("S")`` emits unquoted S,
-    which PostgreSQL folds to s, so ``FROM spans AS "S" SELECT "S".*`` became
-    ``SELECT S.id ... FROM spans AS "S"`` and failed to resolve.
+    PostgreSQL folds unquoted identifiers; ``exp.to_identifier("S")`` is not ``"S"``.
     """
     alias = expression.args.get("alias")
     if isinstance(alias, exp.TableAlias) and isinstance(alias.this, exp.Identifier):
@@ -453,8 +451,7 @@ def _star_sources(node: exp.Select, scope: Optional[Any]) -> list[tuple[str, str
     """Every relation a bare ``*`` in this SELECT draws from.
 
     Each entry is (physical table name, alias string, qualifier identifier).
-    The identifier carries the caller's quoting so expanded columns still
-    resolve on PostgreSQL.
+    The identifier keeps the caller's quoting.
 
     A star means "every column of everything in the FROM clause", so the joins
     count as much as the leading table. Reading only the first source expands to
@@ -588,9 +585,8 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                 # them while retaining the ordered physical table shape.
                 emitted = [*spec.columns, *sorted(spec.virtual_columns)]
                 for name in emitted:
-                    # Qualified by the alias the caller used, not by the table
-                    # name: after `FROM spans AS s` the name `spans` no longer
-                    # resolves. Copy the identifier so a quoted alias stays quoted.
+                    # Qualify by the caller's alias, quoting included: after
+                    # ``FROM spans AS s`` the name ``spans`` no longer resolves.
                     new_exprs.append(
                         exp.Column(
                             this=exp.to_identifier(name, quoted=name in spec.quoted_columns),
@@ -645,11 +641,9 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     # duration this pass computes.
     query_local = query_local_columns(root, allowlist=ctx.allowlist, dialect=ctx.dialect)
     scope_root = build_scope(root)
-    # Per-column: how many duration tables this scope has, and the folded names
-    # a qualifier may use to name one. A CTE named `spans` is not a duration
-    # table -- scope.sources resolves it to a nested scope, not a Table -- so
-    # substituting here would rewrite `latency_ms` onto `start_time`/`end_time`
-    # that the CTE does not provide.
+    # Per-column: duration-table count in this scope, and folded names a
+    # qualifier may use. Only Table sources count; a CTE of the same name is a
+    # nested scope.
     duration_scope: dict[int, tuple[int, frozenset[str]]] = {}
     if scope_root is not None:
         for scope in scope_root.traverse():
@@ -836,9 +830,8 @@ def _qualify_schema(root: exp.Expression, ctx: RewriteContext) -> exp.Expression
 def _limit_count_expression(limit: exp.Expression) -> Optional[exp.Expression]:
     """The numeric bound a LIMIT or FETCH clause states.
 
-    FETCH FIRST ROW ONLY has no count node; SQL's default is one row. FETCH is
-    not a Limit subclass, so a check that only reads ``exp.Limit.expression``
-    never sees it.
+    FETCH FIRST ROW ONLY has no count node; SQL's default is one row.
+    ``exp.Fetch`` is not a subclass of ``exp.Limit``.
     """
     if isinstance(limit, exp.Limit):
         return limit.expression
@@ -853,11 +846,7 @@ def _parse_limit_count(
 ) -> Optional[int]:
     """The integer a limit expression names, or None if it cannot be read.
 
-    Rendered through SQLGlot's dialect name, not Phoenix's. ``postgresql`` is
-    not a SQLGlot dialect -- ``postgres`` is -- and passing the former raises
-    ``ValueError: Unknown dialect 'postgresql'``. The caller treated that as an
-    unparseable expression and replaced every PostgreSQL LIMIT with
-    ``row_limit + 1``, so ``LIMIT 5`` and ``LIMIT 0`` both returned 500 rows.
+    Render through SQLGlot's dialect (``postgres``), not Phoenix's (``postgresql``).
     """
     try:
         return int(expression.sql(dialect=sqlglot_read_dialect(dialect)))
@@ -942,13 +931,8 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
     alone: it will match nothing, which is the truthful answer, rather than being
     rewritten into a comparison the caller did not ask for.
     """
-    # Resolved per reference against the physical tables in that reference's
-    # scope, not against every Table node in the statement. A CTE named
-    # `projects` parses as a Table, so a statement-wide walk treated
-    # `WITH projects AS (SELECT 99 AS id) SELECT graphql_node_id FROM projects`
-    # as a read of the projects table and encoded 99 as a Project node id -- a
-    # wrong row, reported as success. Scope sources distinguish the two: a CTE
-    # resolves to a nested scope, not a Table, matching schema qualification.
+    # Physical tables in this reference's scope. A CTE of the same name is a
+    # nested scope, not a Table.
     query_local = query_local_columns(root, allowlist=ctx.allowlist, dialect=ctx.dialect)
     scope_root = build_scope(root)
     # column id -> (alias/table -> type, fallback type, physical graphql sources)
@@ -1004,11 +988,8 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
             continue
         type_name = type_for(column)
         if type_name is None:
-            # Raise only when this scope has several GraphQL tables, so a bare
-            # name cannot be attributed. Zero tables means the name is not ours
-            # to rewrite -- a CTE that does not project it -- and leaving it
-            # lets the engine say the column does not exist rather than
-            # reporting a join-ambiguity the statement does not have.
+            # Ambiguous only when this scope has several GraphQL tables. With
+            # none, leave the name for the engine.
             if not column.table and graphql_source_count(column) > 1:
                 raise AnalyticsSqlError(
                     code=ErrorCode.UNSUPPORTED_SYNTAX,
@@ -1063,9 +1044,8 @@ def _physical_graphql_types(
     self-join has one type per side and picking either would attribute a row id
     to the wrong one.
 
-    Only ``scope.sources`` that resolve to a Table count. A CTE of the same
-    name is a nested scope, and recording it here would encode its ``id`` as a
-    node id for a table it is not.
+    Only ``scope.sources`` that resolve to a Table. A CTE of the same name is a
+    nested scope.
     """
     found: dict[str, Optional[str]] = {}
     n_sources = 0
