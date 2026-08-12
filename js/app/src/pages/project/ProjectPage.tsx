@@ -198,8 +198,6 @@ function ProjectPageContentBody({
     useState<SettledSpanFilterSeed | null>(() =>
       settledSeedFromUrl(DEFAULT_SPAN_FILTER_CONDITION)
     );
-  const [tracesFilterSeed, setTracesFilterSeed] =
-    useState<SettledSpanFilterSeed | null>(() => settledSeedFromUrl(""));
   const [sessionsQueryReference, loadSessionsQuery] =
     useQueryLoader<ProjectPageSessionsQueryType>(
       ProjectPageQueriesSessionsQuery
@@ -275,31 +273,6 @@ function ProjectPageContentBody({
   // connection with stale rows (see issue #14216). The tables instead own
   // time-range and filter liveness through their own `refetch`; parent preloads
   // need only an initial window and reload solely on project or tab changes.
-  /** As `resolveSpansSeed`, for the traces tab. */
-  const resolveTracesSeed = useCallback(
-    (seed: SettledSpanFilterSeed, persistToUrl = true) => {
-      startTransition(() => {
-        setTracesFilterSeed(seed);
-        if (persistToUrl && !urlAlreadyHasCondition(seed.condition)) {
-          setSearchParamsRef.current(
-            (prev) => {
-              const next = new URLSearchParams(prev);
-              next.set(SPAN_FILTER_CONDITION_PARAM, seed.condition);
-              return next;
-            },
-            { replace: true }
-          );
-        }
-        loadTracesQuery({
-          id: projectId,
-          timeRange: timeRangeRef.current,
-          filterCondition: seed.condition || null,
-        });
-      });
-    },
-    [projectId, loadTracesQuery]
-  );
-
   const loadTableQueryForTab = useEffectEvent(
     (currentTabIndex: number, currentProjectId: string) => {
       if (currentTabIndex === TAB_INDEX_MAP.spans) {
@@ -328,19 +301,10 @@ function ProjectPageContentBody({
           resolveSpansSeed(seed, fromUrl !== null);
         }
       } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
-        const fromUrl = searchParams.get(SPAN_FILTER_CONDITION_PARAM);
-        const seed = spanFilterSeed(fromUrl ?? "");
-        if (
-          tracesQueryReference &&
-          tracesFilterSeed?.condition === seed.condition
-        ) {
-          return;
-        }
-        if (seed.requiresServerValidation) {
-          setTracesFilterSeed(null);
-        } else {
-          resolveTracesSeed(seed, fromUrl !== null);
-        }
+        loadTracesQuery({
+          id: currentProjectId,
+          timeRange: timeRangeISOStrings,
+        });
       } else if (currentTabIndex === TAB_INDEX_MAP.sessions) {
         loadSessionsQuery({
           id: currentProjectId,
@@ -386,8 +350,6 @@ function ProjectPageContentBody({
           resolveSpansSeed,
           sessionsQueryReference: sessionsQueryReference ?? null,
           tracesQueryReference: tracesQueryReference ?? null,
-          tracesFilterSeed,
-          resolveTracesSeed,
           projectConfigQueryReference: projectConfigQueryReference ?? null,
         }}
       >

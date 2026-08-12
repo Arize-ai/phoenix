@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8df5de8b06b5431ef292a078eb5627b3>>
+ * @generated SignedSource<<8fc6ef7456af70afb0a85d6e88dce6c6>>
  * @lightSyntaxTransform
  */
 
@@ -142,14 +142,14 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "id",
   "storageKey": null
 },
 v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "name",
   "storageKey": null
 },
 v3 = {
@@ -271,7 +271,7 @@ v15 = [
     "name": "meanScore",
     "storageKey": null
   },
-  (v1/*:: as any*/)
+  (v2/*:: as any*/)
 ],
 v16 = {
   "alias": null,
@@ -281,8 +281,8 @@ v16 = {
   "name": "spanAnnotations",
   "plural": true,
   "selections": [
-    (v2/*:: as any*/),
     (v1/*:: as any*/),
+    (v2/*:: as any*/),
     (v14/*:: as any*/),
     {
       "alias": null,
@@ -360,11 +360,6 @@ return {
       "name": "after"
     },
     {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "filterCondition"
-    },
-    {
       "defaultValue": 30,
       "kind": "LocalArgument",
       "name": "first"
@@ -385,6 +380,11 @@ return {
     {
       "kind": "RootArgument",
       "name": "timeRange"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "traceFilterCondition"
     }
   ],
   "kind": "Fragment",
@@ -419,6 +419,7 @@ return {
   "name": "TracesTable_spans",
   "selections": [
     (v1/*:: as any*/),
+    (v2/*:: as any*/),
     {
       "args": null,
       "kind": "FragmentSpread",
@@ -433,11 +434,6 @@ return {
       "alias": "rootSpans",
       "args": [
         {
-          "kind": "Variable",
-          "name": "filterCondition",
-          "variableName": "filterCondition"
-        },
-        {
           "kind": "Literal",
           "name": "rootSpansOnly",
           "value": true
@@ -451,6 +447,11 @@ return {
           "kind": "Variable",
           "name": "timeRange",
           "variableName": "timeRange"
+        },
+        {
+          "kind": "Variable",
+          "name": "traceFilterCondition",
+          "variableName": "traceFilterCondition"
         }
       ],
       "concreteType": "SpanConnection",
@@ -474,9 +475,9 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*:: as any*/),
-                (v3/*:: as any*/),
                 (v1/*:: as any*/),
+                (v3/*:: as any*/),
+                (v2/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -514,7 +515,7 @@ return {
                   "name": "trace",
                   "plural": false,
                   "selections": [
-                    (v2/*:: as any*/),
+                    (v1/*:: as any*/),
                     (v13/*:: as any*/),
                     {
                       "alias": null,
@@ -620,9 +621,9 @@ return {
                           "name": "node",
                           "plural": false,
                           "selections": [
-                            (v2/*:: as any*/),
-                            (v3/*:: as any*/),
                             (v1/*:: as any*/),
+                            (v3/*:: as any*/),
+                            (v2/*:: as any*/),
                             {
                               "alias": "statusCode",
                               "args": null,
@@ -653,7 +654,7 @@ return {
                               "name": "trace",
                               "plural": false,
                               "selections": [
-                                (v2/*:: as any*/),
+                                (v1/*:: as any*/),
                                 (v13/*:: as any*/)
                               ],
                               "storageKey": null
@@ -728,14 +729,13 @@ return {
         }
       ],
       "storageKey": null
-    },
-    (v2/*:: as any*/)
+    }
   ],
   "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "16a471d01a937ac52c8a5ddd2ccec751";
+(node as any).hash = "0811c5be6095de316e1cccb9188f81cf";
 
 export default node;
