@@ -6,6 +6,7 @@ from jinja2 import Template
 from pydantic_ai import RunContext
 from pydantic_ai.tools import SystemPromptFunc
 
+from phoenix.config import get_env_phoenix_agents_disable_graphql_mutations
 from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
 from phoenix.server.agents.types import AgentDependencies
 
@@ -21,8 +22,13 @@ class GraphQLMutationsCapability(AbstractDynamicCapability[AgentDependencies]):
 
         def _instructions(ctx: RunContext[AgentDependencies]) -> str:
             graphql = ctx.deps.contexts.graphql
-            enabled = graphql is not None and graphql.mutations_enabled
-            return instructions.render(enabled=enabled)
+            enabled = (
+                graphql is not None
+                and graphql.mutations_enabled
+                and not get_env_phoenix_agents_disable_graphql_mutations()
+            )
+            approval_required = enabled and ctx.deps.edit_permission == "manual"
+            return instructions.render(enabled=enabled, approval_required=approval_required)
 
         return _instructions
 

@@ -69,6 +69,11 @@ type ChatToolOutput = NonNullable<
   BuildAgentChatRequestBodyResult["toolOutputs"]
 >[number];
 
+/** A user approval response, as the chat endpoint's `toolApprovals` field models it. */
+type ChatToolApproval = NonNullable<
+  BuildAgentChatRequestBodyResult["toolApprovals"]
+>[number];
+
 /**
  * Extract the assistant message's resolved client-executed tool parts — the
  * `toolOutputs` a send may carry. The server matches them by `toolCallId`,
@@ -77,6 +82,27 @@ type ChatToolOutput = NonNullable<
  */
 function getClientToolOutputs(message: AgentUIMessage): ChatToolOutput[] {
   return message.parts.filter((part) => isResolvedClientToolOutputPart(part));
+}
+
+/**
+ * Extract the assistant message's responded tool approvals — the
+ * `toolApprovals` a continuation may carry. The server applies them to its
+ * persisted copy of the message and resumes the deferred tool calls: approved
+ * calls re-execute server-side and denied calls return a denial to the model.
+ */
+function getToolApprovals(message: AgentUIMessage): ChatToolApproval[] {
+  return message.parts.flatMap((part) => {
+    if (!isToolUIPart(part) || part.state !== "approval-responded") {
+      return [];
+    }
+    return [
+      {
+        toolCallId: part.toolCallId,
+        approved: part.approval.approved,
+        ...(part.approval.reason ? { reason: part.approval.reason } : null),
+      },
+    ];
+  });
 }
 
 export type AgentChatRequestBodyPatch = Pick<
@@ -165,22 +191,25 @@ export function buildAgentChatRequestBody({
   }
   if (trailingMessage.role === "assistant") {
     // Client-tool continuation: the server owns the assistant message, so
-    // only the resolved client tool outputs are sent, not the message itself.
+    // only the resolved client tool outputs and responded approvals are
+    // sent, not the message itself.
     const enrichedAssistant = enrichMessageWithClientToolMetadata({
       message: trailingMessage,
       toolTimings,
       locallyInterruptedToolCallIds,
     });
     const toolOutputs = getClientToolOutputs(enrichedAssistant);
-    if (toolOutputs.length === 0) {
+    const toolApprovals = getToolApprovals(enrichedAssistant);
+    if (toolOutputs.length === 0 && toolApprovals.length === 0) {
       throw new Error(
-        "A chat continuation requires resolved client tool outputs to send"
+        "A chat continuation requires resolved client tool outputs or approvals to send"
       );
     }
     return {
       ...base,
       trigger: "submit-message",
-      toolOutputs,
+      ...(toolOutputs.length > 0 ? { toolOutputs } : {}),
+      ...(toolApprovals.length > 0 ? { toolApprovals } : {}),
       lastMessageId: getLastPersistedMessageId(messages),
     };
   }

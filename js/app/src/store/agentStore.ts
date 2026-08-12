@@ -7,6 +7,7 @@ import {
   agentContextKey,
   type AgentContext,
 } from "@phoenix/agent/context/agentContextTypes";
+import type { PendingGraphQLMutation } from "@phoenix/agent/chat/types";
 import {
   createDefaultAgentCapabilities,
   type AgentCapabilities,
@@ -547,6 +548,17 @@ export interface AgentState extends AgentProps {
   // `phoenix.outcome`, the durable form.
   locallyInterruptedToolCallIds: Partial<Record<string, true>>;
   markToolCallInterrupted: (toolCallId: string) => void;
+  // Resolved GraphQL mutations awaiting approval on a deferred bash tool
+  // call, delivered by the transient `data-bash-mutation-approval` stream
+  // chunk for live rendering. After a reload the same payload is read from
+  // the persisted part's `callProviderMetadata` instead.
+  pendingBashMutationsByToolCallId: Partial<
+    Record<string, PendingGraphQLMutation[]>
+  >;
+  setPendingBashMutations: (
+    toolCallId: string,
+    pendingMutations: PendingGraphQLMutation[]
+  ) => void;
 }
 
 function normalizeAgentCapabilities({
@@ -692,6 +704,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingLlmEvaluatorEditsByToolCallId: {},
     pendingLoadDatasetsByToolCallId: {},
     locallyInterruptedToolCallIds: {},
+    pendingBashMutationsByToolCallId: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -1072,6 +1085,19 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
               },
         false,
         { type: "markToolCallInterrupted" }
+      );
+    },
+
+    setPendingBashMutations: (toolCallId, pendingMutations) => {
+      set(
+        (state) => ({
+          pendingBashMutationsByToolCallId: {
+            ...state.pendingBashMutationsByToolCallId,
+            [toolCallId]: pendingMutations,
+          },
+        }),
+        false,
+        { type: "setPendingBashMutations" }
       );
     },
 
