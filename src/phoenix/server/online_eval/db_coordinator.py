@@ -250,33 +250,75 @@ class DbEvalWorkCoordinator:
         if coverage_watermark is not None and self._coverage_column is None:
             raise ValueError(
                 f"{self._evaluation_target} work units do not carry a coverage watermark"
-            )
-        publishable = (
-            work_unit_model.id == work_unit_id,
-            work_unit_model.claimed_by == claimed_by,
-            work_unit_model.status == "RUNNING",
-            work_unit_model.criteria_id.in_(
-                select(models.ProjectEvaluatorCriteria.id).where(
-                    models.ProjectEvaluatorCriteria.enabled
-                )
-            ),
         )
         async with self._db() as session:
-            if coverage_watermark is not None:
-                assert self._coverage_column is not None
-                result = await session.execute(
-                    update(work_unit_model)
-                    .where(*publishable)
-                    .values({self._coverage_column: coverage_watermark})
-                )
-                fenced = bool(result.rowcount == 1)  # type: ignore[attr-defined]
+            identity_statement: Any
+            if self._evaluation_target == "SESSION":
+                identity_statement = select(
+                    work_unit_model.criteria_id,
+                    self._target_row_column.label("project_session_rowid"),
+                ).where(work_unit_model.id == work_unit_id)
             else:
-                fenced = (
-                    await session.scalar(select(work_unit_model.id).where(*publishable))
-                ) is not None
-            if not fenced:
+                identity_statement = (
+                    select(
+                        work_unit_model.criteria_id,
+                        models.Trace.project_session_rowid,
+                    )
+                    .select_from(work_unit_model)
+                    .join(models.Span, self._target_row_column == models.Span.id)
+                    .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                    .where(work_unit_model.id == work_unit_id)
+                )
+            identity = (await session.execute(identity_statement)).one_or_none()
+            if identity is None:
+                raise PublicationClaimLostError(f"work unit {work_unit_id} no longer exists")
+
+            # Publication lock order: criteria (C) -> session (S) -> work unit -> write.
+            # Retention takes S before work, and no path may invert either edge.
+            criteria_enabled = await session.scalar(
+                select(models.ProjectEvaluatorCriteria.enabled)
+                .where(models.ProjectEvaluatorCriteria.id == identity.criteria_id)
+                .with_for_update()
+            )
+            if criteria_enabled is not True:
+                raise PublicationClaimLostError(
+                    f"work unit {work_unit_id} criteria is disabled or missing"
+                )
+            project_session_rowid = identity.project_session_rowid
+            if project_session_rowid is not None:
+                content_complete = await session.scalar(
+                    select(models.ProjectSession.content_complete)
+                    .where(models.ProjectSession.id == project_session_rowid)
+                    .with_for_update()
+                )
+                if content_complete is not True:
+                    raise PublicationClaimLostError(
+                        f"work unit {work_unit_id} session content is incomplete or missing"
+                    )
+            elif self._evaluation_target == "SESSION":
+                raise PublicationClaimLostError(
+                    f"work unit {work_unit_id} session content is missing"
+                )
+
+            fenced = await session.scalar(
+                select(work_unit_model.id)
+                .where(
+                    work_unit_model.id == work_unit_id,
+                    work_unit_model.claimed_by == claimed_by,
+                    work_unit_model.status == "RUNNING",
+                )
+                .with_for_update()
+            )
+            if fenced is None:
                 raise PublicationClaimLostError(
                     f"work unit {work_unit_id} is no longer owned and live"
+                )
+            if coverage_watermark is not None:
+                assert self._coverage_column is not None
+                await session.execute(
+                    update(work_unit_model)
+                    .where(work_unit_model.id == work_unit_id)
+                    .values({self._coverage_column: coverage_watermark})
                 )
             await write(session)
 

@@ -1,9 +1,10 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 
 import pytest
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
@@ -619,3 +620,86 @@ async def test_claim_skips_rows_locked_by_a_concurrent_transaction(
 
     claimed = await coordinator.claim(claimed_by="consumer-1", limit=10)
     assert [unit.work_unit_id for unit in claimed] == [unit_ids[0]]
+
+
+@pytest.mark.postgres_only
+async def test_session_publish_holds_work_lock_against_reclaim(
+    postgresql_engine: AsyncEngine,
+) -> None:
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    _, (unit_id,) = await _seed_session_work_units(db, 1)
+    owner = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+    competitor = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+    (claim,) = await owner.claim(claimed_by="owner", limit=1)
+    async with db() as session:
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.id == unit_id)
+            .values(claimed_at=datetime.now(timezone.utc) - timedelta(seconds=120))
+        )
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def _write(session: AsyncSession) -> None:
+        entered.set()
+        await release.wait()
+
+    publication = asyncio.create_task(
+        owner.publish(
+            work_unit_id=unit_id,
+            claimed_by=claim.claimed_by,
+            write=_write,
+        )
+    )
+    await entered.wait()
+    assert await competitor.claim(claimed_by="competitor", limit=1) == []
+    release.set()
+    await publication
+    (reclaimed,) = await competitor.claim(claimed_by="competitor", limit=1)
+    assert reclaimed.work_unit_id == unit_id
+
+
+@pytest.mark.postgres_only
+async def test_session_publish_holds_criteria_lock_against_disable(
+    postgresql_engine: AsyncEngine,
+) -> None:
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    _, (unit_id,) = await _seed_session_work_units(db, 1)
+    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+    (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def _write(session: AsyncSession) -> None:
+        entered.set()
+        await release.wait()
+
+    async def _disable() -> None:
+        async with db() as session:
+            await session.execute(
+                update(models.ProjectEvaluatorCriteria)
+                .where(models.ProjectEvaluatorCriteria.id == claim.criteria_id)
+                .values(enabled=False)
+            )
+
+    publication = asyncio.create_task(
+        coordinator.publish(
+            work_unit_id=unit_id,
+            claimed_by=claim.claimed_by,
+            write=_write,
+        )
+    )
+    await entered.wait()
+    disable = asyncio.create_task(_disable())
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(asyncio.shield(disable), timeout=0.1)
+    release.set()
+    await publication
+    await disable
+    async with db() as session:
+        enabled = await session.scalar(
+            select(models.ProjectEvaluatorCriteria.enabled).where(
+                models.ProjectEvaluatorCriteria.id == claim.criteria_id
+            )
+        )
+    assert enabled is False
