@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useLocation, useNavigate } from "react-router";
 
 import {
   createCreateAnnotationConfigClientAction,
@@ -26,6 +27,7 @@ import {
   createPatchDatasetSplitClientAction,
   createSetDatasetExampleSplitsClientAction,
 } from "@phoenix/agent/tools/datasetSplits";
+import { createNavigationGoToClientAction } from "@phoenix/agent/tools/navigation";
 import { createPatchExperimentClientAction } from "@phoenix/agent/tools/patchExperiment";
 import { createAddSpansToDatasetClientAction } from "@phoenix/agent/tools/spansToDataset";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
@@ -63,6 +65,10 @@ import {
   experimentOperations,
   patchExperimentOperation,
 } from "./operations/experiment";
+import {
+  navigationGoToOperation,
+  navigationOperations,
+} from "./operations/navigation";
 import { batchSpanAnnotateOperation, spanOperations } from "./operations/spans";
 
 /** Every operation family registered at the root, for unmount cleanup. */
@@ -73,6 +79,7 @@ const rootUIOperations = [
   ...annotationConfigOperations,
   ...experimentOperations,
   ...spanOperations,
+  ...navigationOperations,
 ];
 
 /**
@@ -84,6 +91,20 @@ const rootUIOperations = [
  */
 export function RootUIOperationsRegistration() {
   const agentStore = useAgentStore();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // The navigation handler outlives any one render: refs keep the registered
+  // closure stable while always reading the current router state. The refs
+  // are written in an effect (never during render, per the react refs rule);
+  // the handler only runs from async operation dispatch, well after commit,
+  // so it never observes the pre-effect value.
+  const navigateRef = useRef(navigate);
+  const pathRef = useRef(location.pathname);
+  useEffect(() => {
+    navigateRef.current = navigate;
+    pathRef.current = location.pathname;
+  }, [navigate, location.pathname]);
 
   useEffect(() => {
     registerUIOperation({
@@ -175,6 +196,15 @@ export function RootUIOperationsRegistration() {
       agentStore,
       descriptor: batchSpanAnnotateOperation,
       handler: createBatchSpanAnnotateClientAction({ agentStore }),
+    });
+    registerUiOperation({
+      agentStore,
+      descriptor: navigationGoToOperation,
+      handler: createNavigationGoToClientAction({
+        agentStore,
+        navigate: (path) => navigateRef.current(path),
+        getCurrentPath: () => pathRef.current,
+      }),
     });
     return () => {
       for (const descriptor of rootUIOperations) {

@@ -13,6 +13,7 @@ import {
   llmEvaluatorDraftSnapshotToText,
   type PendingLlmEvaluatorEdit,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import type { PendingNavigation } from "@phoenix/agent/tools/navigation";
 import {
   patchExperimentDiffToText,
   type PendingPatchExperiment,
@@ -162,6 +163,9 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
   );
   const batchSpanAnnotates = useAgentContext(
     (state) => state.pendingBatchSpanAnnotatesByToolCallId
+  );
+  const navigations = useAgentContext(
+    (state) => state.pendingNavigationsByToolCallId
   );
 
   return useMemo(
@@ -341,6 +345,22 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
           reject: pending.reject,
         }),
       }),
+      ...collectChildApprovals<PendingNavigation>({
+        record: navigations,
+        childKeyPrefix,
+        toApproval: (pending, key) => ({
+          key,
+          preview: {
+            title: `Go to ${pending.label}`,
+            body: {
+              kind: "text",
+              text: `PXI wants to take you to ${pending.label} (${pending.path}) — "${pending.reason}"`,
+            },
+          },
+          accept: pending.accept,
+          reject: pending.reject,
+        }),
+      }),
       ...collectChildApprovals<PendingBatchSpanAnnotate>({
         record: batchSpanAnnotates,
         childKeyPrefix,
@@ -392,6 +412,7 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
       annotationConfigWrites,
       patchExperiments,
       batchSpanAnnotates,
+      navigations,
     ]
   );
 }
