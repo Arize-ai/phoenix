@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from difflib import get_close_matches
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from sqlglot import exp, parse
 from sqlglot.errors import ErrorLevel, ParseError, SqlglotError, UnsupportedError
@@ -1025,6 +1025,54 @@ def _table_identifier_name(table: exp.Table, *, dialect: SupportedSQLDialectName
     return name.casefold()
 
 
+def _identifier_key(name: str, *, quoted: bool, dialect: SupportedSQLDialectName) -> str:
+    """Compare identifiers the way this dialect does."""
+    if dialect == "sqlite" or not quoted:
+        return name.casefold()
+    return name
+
+
+def _scope_exposes_qualifier(
+    scope: Any,
+    qualifier: str,
+    *,
+    quoted: bool,
+    dialect: SupportedSQLDialectName,
+) -> bool:
+    """Whether `qualifier` names a relation this scope exposes."""
+    want = _identifier_key(qualifier, quoted=quoted, dialect=dialect)
+    for reference, source in scope.sources.items():
+        if isinstance(source, exp.Table):
+            alias = source.args.get("alias")
+            alias_identifier = alias.this if isinstance(alias, exp.TableAlias) else alias
+            if (
+                isinstance(alias_identifier, exp.Identifier)
+                and _identifier_key(
+                    alias_identifier.this or "",
+                    quoted=bool(alias_identifier.args.get("quoted")),
+                    dialect=dialect,
+                )
+                == want
+            ):
+                return True
+            table_identifier = source.this
+            if (
+                isinstance(table_identifier, exp.Identifier)
+                and _identifier_key(
+                    table_identifier.this or "",
+                    quoted=bool(table_identifier.args.get("quoted")),
+                    dialect=dialect,
+                )
+                == want
+            ):
+                return True
+            if source.name and _identifier_key(source.name, quoted=False, dialect=dialect) == want:
+                return True
+        elif _identifier_key(reference, quoted=False, dialect=dialect) == want or reference == want:
+            return True
+    return False
+
+
 def _check_base_tables(
     root: exp.Expression, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
 ) -> Optional[AdmissionResult]:
@@ -1117,6 +1165,29 @@ def _check_column_references(
         return AdmissionResult(AdmissionOutcome.UNSUPPORTED_SYNTAX, "scope: unresolved")
 
     for scope in scope_root.traverse():
+        # A qualifier must name a relation this scope exposes. Schema-qualified
+        # special forms (`pg_catalog.current_user`) are columns in the tree, not
+        # functions, so the function allowlist never sees them.
+        for column in _scope_columns(scope.expression):
+            if isinstance(column.this, exp.Star):
+                continue
+            if column.args.get("db") or column.args.get("catalog"):
+                return AdmissionResult(
+                    AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                    "Schema-qualified columns are not allowed",
+                )
+            qualifier = column.table or ""
+            if not qualifier:
+                continue
+            qualifier_identifier = column.args.get("table")
+            quoted = isinstance(qualifier_identifier, exp.Identifier) and bool(
+                qualifier_identifier.args.get("quoted")
+            )
+            if not _scope_exposes_qualifier(scope, qualifier, quoted=quoted, dialect=dialect):
+                return AdmissionResult(
+                    AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                    f"`{qualifier}` does not name a relation in this query.",
+                )
         by_reference: dict[str, str] = {}
         for reference, source in scope.sources.items():
             if isinstance(source, exp.Table):

@@ -492,4 +492,32 @@ CASES: tuple[AdmissionCase, ...] = (
         expect=AdmissionOutcome.ADMIT,
         note="a star is expanded from the manifest by a later pass and is not a column reference",
     ),
+    AdmissionCase(
+        sql="SELECT pg_catalog.current_user FROM spans",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="schema-qualified special forms parse as columns, so the function allowlist never sees them; the unqualified spelling is already refused",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT pg_catalog.localtimestamp FROM spans",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="same column-shaped special form as current_user; the unqualified spelling is refused as a function",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT public.spans.id FROM spans",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="schema qualification on a column is the same escape as schema qualification on a table, which is already refused",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT foo.bar FROM spans",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="a qualifier that names no relation in the query is not a misspelling the engine will always reject -- PostgreSQL executes pg_catalog.current_user",
+    ),
+    AdmissionCase(
+        sql="SELECT t.x FROM (SELECT 1 AS x) t",
+        expect=AdmissionOutcome.ADMIT,
+        note="a qualifier that names a derived relation in this scope is query-local, not a missing table",
+    ),
 )
