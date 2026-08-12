@@ -46,18 +46,15 @@ class AnonymousUser(TypedDict):
     auth_method: Literal["ANONYMOUS"]
 
 
-class ApiKey(TypedDict):
-    id: str
-    name: str
-    created_at: str
-    description: NotRequired[str]
-    expires_at: NotRequired[str]
-
-
 class ApiKeyData(TypedDict):
     name: str
     description: NotRequired[str]
     expires_at: NotRequired[str]
+
+
+class ApiKey(ApiKeyData):
+    id: str
+    created_at: str
 
 
 class ApiKeyUser(TypedDict):
@@ -351,21 +348,17 @@ class InsertedTraceAnnotation(TypedDict):
     id: str
 
 
-class LDAPUser(TypedDict):
-    id: str
-    created_at: str
-    updated_at: str
-    email: str
-    username: str
-    role: Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
-    auth_method: Literal["LDAP"]
-
-
 class LDAPUserData(TypedDict):
     email: str
     username: str
     role: Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
     auth_method: Literal["LDAP"]
+
+
+class LDAPUser(LDAPUserData):
+    id: str
+    created_at: str
+    updated_at: str
 
 
 class ListAgentSessionsResponseBody(TypedDict):
@@ -725,15 +718,13 @@ class PromptVersionContext(TypedDict):
     promptVersionNodeId: str
 
 
-class PromptVersionTag(TypedDict):
-    name: str
-    id: str
-    description: NotRequired[str]
-
-
 class PromptVersionTagData(TypedDict):
     name: str
     description: NotRequired[str]
+
+
+class PromptVersionTag(PromptVersionTagData):
+    id: str
 
 
 class PromptXAIInvocationParametersContent(TypedDict):
@@ -765,20 +756,6 @@ class SecretKeyValue(TypedDict):
     value: Optional[str]
 
 
-class SessionAnnotation(TypedDict):
-    id: str
-    created_at: str
-    updated_at: str
-    source: Literal["API", "APP"]
-    user_id: Optional[str]
-    name: str
-    annotator_kind: Literal["LLM", "CODE", "HUMAN"]
-    session_id: str
-    result: NotRequired[AnnotationResult]
-    metadata: NotRequired[Mapping[str, Any]]
-    identifier: NotRequired[str]
-
-
 class SessionAnnotationData(TypedDict):
     name: str
     annotator_kind: Literal["LLM", "CODE", "HUMAN"]
@@ -786,6 +763,14 @@ class SessionAnnotationData(TypedDict):
     result: NotRequired[AnnotationResult]
     metadata: NotRequired[Mapping[str, Any]]
     identifier: NotRequired[str]
+
+
+class SessionAnnotation(SessionAnnotationData):
+    id: str
+    created_at: str
+    updated_at: str
+    source: Literal["API", "APP"]
+    user_id: Optional[str]
 
 
 class SessionAnnotationsResponseBody(TypedDict):
@@ -986,20 +971,6 @@ class ToolResultContentPart(TypedDict):
     tool_result: Optional[Union[bool, int, float, str, Mapping[str, Any], Sequence[Any]]]
 
 
-class TraceAnnotation(TypedDict):
-    id: str
-    created_at: str
-    updated_at: str
-    source: Literal["API", "APP"]
-    user_id: Optional[str]
-    name: str
-    annotator_kind: Literal["LLM", "CODE", "HUMAN"]
-    trace_id: str
-    result: NotRequired[AnnotationResult]
-    metadata: NotRequired[Mapping[str, Any]]
-    identifier: NotRequired[str]
-
-
 class TraceAnnotationData(TypedDict):
     name: str
     annotator_kind: Literal["LLM", "CODE", "HUMAN"]
@@ -1007,6 +978,14 @@ class TraceAnnotationData(TypedDict):
     result: NotRequired[AnnotationResult]
     metadata: NotRequired[Mapping[str, Any]]
     identifier: NotRequired[str]
+
+
+class TraceAnnotation(TraceAnnotationData):
+    id: str
+    created_at: str
+    updated_at: str
+    source: Literal["API", "APP"]
+    user_id: Optional[str]
 
 
 class TraceAnnotationsResponseBody(TypedDict):
@@ -1357,21 +1336,16 @@ class BuiltInProviderModelSelection(TypedDict):
     modelName: str
 
 
-class CategoricalAnnotationConfig(TypedDict):
-    type: Literal["CATEGORICAL"]
-    name: str
-    optimization_direction: Literal["MINIMIZE", "MAXIMIZE", "NONE"]
-    values: Sequence[CategoricalAnnotationValue]
-    id: str
-    description: NotRequired[str]
-
-
 class CategoricalAnnotationConfigData(TypedDict):
     type: Literal["CATEGORICAL"]
     name: str
     optimization_direction: Literal["MINIMIZE", "MAXIMIZE", "NONE"]
     values: Sequence[CategoricalAnnotationValue]
     description: NotRequired[str]
+
+
+class CategoricalAnnotationConfig(CategoricalAnnotationConfigData):
+    id: str
 
 
 class ChatCompletionChoice(TypedDict):
@@ -1385,16 +1359,6 @@ class ChatCompletionRequestMessage(TypedDict):
     content: Union[str, Sequence[ChatCompletionTextPart]]
 
 
-class ContinuousAnnotationConfig(TypedDict):
-    type: Literal["CONTINUOUS"]
-    name: str
-    optimization_direction: Literal["MINIMIZE", "MAXIMIZE", "NONE"]
-    id: str
-    description: NotRequired[str]
-    lower_bound: NotRequired[float]
-    upper_bound: NotRequired[float]
-
-
 class ContinuousAnnotationConfigData(TypedDict):
     type: Literal["CONTINUOUS"]
     name: str
@@ -1402,6 +1366,10 @@ class ContinuousAnnotationConfigData(TypedDict):
     description: NotRequired[str]
     lower_bound: NotRequired[float]
     upper_bound: NotRequired[float]
+
+
+class ContinuousAnnotationConfig(ContinuousAnnotationConfigData):
+    id: str
 
 
 class CreateAgentSessionResponseBody(TypedDict):
@@ -1554,17 +1522,6 @@ class DynamicToolOutputDeniedPart(TypedDict):
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
 
-class FreeformAnnotationConfig(TypedDict):
-    type: Literal["FREEFORM"]
-    name: str
-    id: str
-    description: NotRequired[str]
-    optimization_direction: NotRequired[Literal["MINIMIZE", "MAXIMIZE", "NONE"]]
-    threshold: NotRequired[float]
-    lower_bound: NotRequired[float]
-    upper_bound: NotRequired[float]
-
-
 class FreeformAnnotationConfigData(TypedDict):
     type: Literal["FREEFORM"]
     name: str
@@ -1573,6 +1530,10 @@ class FreeformAnnotationConfigData(TypedDict):
     threshold: NotRequired[float]
     lower_bound: NotRequired[float]
     upper_bound: NotRequired[float]
+
+
+class FreeformAnnotationConfig(FreeformAnnotationConfigData):
+    id: str
 
 
 class GetAllUserApiKeysResponseBody(TypedDict):

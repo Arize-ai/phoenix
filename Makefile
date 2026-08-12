@@ -193,6 +193,11 @@ schema-openapi: ## Generate OpenAPI schema from Python
 	@echo -e "$(GREEN)✓ schemas/openapi.json$(NC)"
 
 codegen-python-client: ## Generate Python client types from OpenAPI
+# `--use-generic-container-types` emits Sequence/Mapping rather than list/dict.
+# Its help text claims it requires --target-python-version 3.11+, but it takes
+# effect at 3.10 and the containers it emits (from collections.abc) are
+# subscriptable from 3.9 onward. Dropping it would widen the client's public
+# types from Sequence/Mapping to list/dict, so keep it despite the help text.
 	@echo -e "$(CYAN)Generating Python client types...$(NC)"
 	@rm -f $(PHOENIX_CLIENT_GENERATED)/v1/__init__.py
 	@$(UV) run datamodel-codegen \
