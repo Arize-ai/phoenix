@@ -8,7 +8,7 @@ from unittest.mock import Mock
 
 import httpx
 import pytest
-from sqlalchemy import func, select, text, update
+from sqlalchemy import select, text, update
 from sqlalchemy.orm import with_polymorphic
 
 from phoenix.db import models
@@ -61,7 +61,11 @@ from phoenix.server.online_eval.criteria_resolution import (
     resolve_criteria_bulk,
 )
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
-from phoenix.server.online_eval.derivation import annotation_identifier, config_fingerprint
+from phoenix.server.online_eval.derivation import (
+    MAX_ATTEMPTS,
+    annotation_identifier,
+    config_fingerprint,
+)
 from phoenix.server.online_eval.executor import (
     EvalExecutionError,
     EvaluatorResultValidationError,
@@ -199,6 +203,7 @@ def _hydrated_stub(
     evaluator_kind: str,
     output_configs: Sequence[OutputConfigType],
     annotation_name: str = "criterion",
+    annotation_metadata: Optional[dict[str, Any]] = None,
 ) -> HydratedWorkUnit:
     return HydratedWorkUnit(
         annotation_name=annotation_name,
@@ -208,6 +213,7 @@ def _hydrated_stub(
         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
         output_configs=output_configs,
         context={},
+        annotation_metadata=annotation_metadata or {},
     )
 
 
@@ -612,16 +618,17 @@ async def _session_annotations(
         return list(await session.scalars(select(models.ProjectSessionAnnotation)))
 
 
-async def test_session_publication_closes_the_scheduled_watermark(
+async def test_session_publication_then_exhaustion_does_not_rematerialize(
     db: DbSessionFactory,
 ) -> None:
     scheduled_at = datetime.now(timezone.utc) - timedelta(minutes=10)
+    event_time = scheduled_at - timedelta(minutes=1)
     async with db() as session:
         project = await _add_project(session)
         project_session = await _add_project_session(session, project)
         project_session.last_span_ingested_at = scheduled_at
-        trace = await _add_trace(session, project, project_session)
-        await _add_span(session, trace)
+        trace = await _add_trace(session, project, project_session, start_time=event_time)
+        await _add_span(session, trace, start_time=event_time)
     evaluator_id, criteria_id = await _seed_builtin_criteria(
         db,
         project.id,
@@ -638,9 +645,7 @@ async def test_session_publication_closes_the_scheduled_watermark(
     async with db() as session:
         criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
         assert criteria is not None
-        stored_session = await session.get(models.ProjectSession, project_session.id)
-        assert stored_session is not None
-        stored_session.last_span_ingested_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+        criteria.created_at = scheduled_at - timedelta(days=1)
         annotation_name = criteria.name.root
 
     executor = _executor(db, evaluation_target="SESSION")
@@ -651,31 +656,44 @@ async def test_session_publication_closes_the_scheduled_watermark(
             evaluator_kind="BUILTIN",
             output_configs=[],
             annotation_name=annotation_name,
+            annotation_metadata={
+                "phoenix.online_eval.transcript_policy": {
+                    "last_retained_event_time": event_time.isoformat()
+                }
+            },
         ),
     )
 
-    # Publication records the coverage watermark and leaves the claim held; completing
-    # is the caller's next step, exactly as it is for spans.
     stored = await _get_session_unit(db, unit_id)
     assert stored.status == "RUNNING"
     assert stored.evaluated_through == scheduled_at
+    assert stored.transcript_covered_through == event_time
     (annotation,) = await _session_annotations(db)
     assert annotation.identifier == annotation_identifier(fingerprint)
-    assert await coordinator.complete(work_unit_id=unit_id, claimed_by="consumer")
-    assert (await _get_session_unit(db, unit_id)).status == "DONE"
+    async with db() as session:
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.id == unit_id)
+            .values(
+                attempts=MAX_ATTEMPTS - 1,
+                claimed_at=datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1),
+            )
+        )
 
     await SessionEvalSweeper(db)._tick()
     async with db() as session:
-        work_count = await session.scalar(
-            select(func.count())
-            .select_from(models.EvalSessionWorkUnit)
-            .where(
-                models.EvalSessionWorkUnit.project_session_rowid == project_session.id,
-                models.EvalSessionWorkUnit.evaluator_id == evaluator_id,
-                models.EvalSessionWorkUnit.config_fingerprint == fingerprint,
+        units = list(
+            await session.scalars(
+                select(models.EvalSessionWorkUnit).where(
+                    models.EvalSessionWorkUnit.project_session_rowid == project_session.id,
+                    models.EvalSessionWorkUnit.evaluator_id == evaluator_id,
+                    models.EvalSessionWorkUnit.config_fingerprint == fingerprint,
+                )
             )
         )
-    assert work_count == 1
+    assert len(units) == 1
+    assert units[0].status == "ERROR"
+    assert units[0].attempts == MAX_ATTEMPTS
 
 
 async def test_incomplete_session_hydration_expires_without_counting_attempt(
@@ -1190,11 +1208,13 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
             )
         )
     await consumer._executor.evaluate_and_annotate(duplicate, duplicate_hydrated)
-    assert len(await _session_annotations(db)) == 1
+    (replacement,) = await _session_annotations(db)
+    assert replacement.id == annotation.id
+    assert events.get_nowait() == ProjectSessionAnnotationInsertEvent((annotation.id,))
     assert events.empty()
 
 
-async def test_session_publication_stamps_the_evaluated_transcript_watermark(
+async def test_session_publication_preserves_ingest_and_records_transcript_watermarks(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -1225,7 +1245,93 @@ async def test_session_publication_stamps_the_evaluated_transcript_watermark(
 
     unit = await _get_session_unit(db, unit_id)
     assert unit.status == "DONE"
-    assert unit.evaluated_through == start_time
+    assert unit.evaluated_through == start_time + timedelta(seconds=5)
+    assert unit.transcript_covered_through == start_time
+
+
+async def test_reclaimed_session_publication_pairs_annotation_with_new_coverage(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    first_event_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    first_ingest_time = first_event_time + timedelta(minutes=2)
+    second_event_time = first_event_time + timedelta(minutes=1)
+    second_ingest_time = first_ingest_time + timedelta(minutes=1)
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(
+            session,
+            project,
+            start_time=first_event_time,
+        )
+        trace = await _add_trace(
+            session,
+            project,
+            project_session,
+            start_time=first_event_time,
+        )
+        await _add_span(session, trace, span_kind="CHAIN", start_time=first_event_time)
+        project_session.last_span_ingested_at = first_ingest_time
+    evaluator_id, criteria_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+    )
+    unit_id, _ = await _materialize_session_unit(
+        db,
+        project_session.id,
+        evaluator_id,
+        criteria_id,
+    )
+    _patch_playground_client(monkeypatch, _StubLLMClient())
+    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+    executor = _executor(db, evaluation_target="SESSION")
+
+    (first_claim,) = await coordinator.claim(claimed_by="attempt-a", limit=1)
+    first_hydrated = await executor.hydrate(first_claim)
+    assert isinstance(first_hydrated, HydratedWorkUnit)
+    await executor.evaluate_and_annotate(first_claim, first_hydrated)
+
+    async with db() as session:
+        second_trace = await _add_trace(
+            session,
+            project,
+            project_session,
+            start_time=second_event_time,
+        )
+        await _add_span(
+            session,
+            second_trace,
+            span_kind="CHAIN",
+            start_time=second_event_time,
+        )
+        await session.execute(
+            update(models.ProjectSession)
+            .where(models.ProjectSession.id == project_session.id)
+            .values(last_span_ingested_at=second_ingest_time)
+        )
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.id == unit_id)
+            .values(
+                claimed_at=datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1)
+            )
+        )
+
+    (second_claim,) = await coordinator.claim(claimed_by="attempt-b", limit=1)
+    second_hydrated = await executor.hydrate(second_claim)
+    assert isinstance(second_hydrated, HydratedWorkUnit)
+    await executor.evaluate_and_annotate(second_claim, second_hydrated)
+    assert await coordinator.complete(
+        work_unit_id=unit_id,
+        claimed_by=second_claim.claimed_by,
+    )
+
+    unit = await _get_session_unit(db, unit_id)
+    (annotation,) = await _session_annotations(db)
+    policy = annotation.metadata_["phoenix.online_eval.transcript_policy"]
+    assert policy["last_retained_event_time"] == second_event_time.isoformat()
+    assert unit.evaluated_through == first_ingest_time
+    assert unit.transcript_covered_through == second_event_time
 
 
 async def test_marker_only_session_transcript_is_terminal_without_counting_attempt(

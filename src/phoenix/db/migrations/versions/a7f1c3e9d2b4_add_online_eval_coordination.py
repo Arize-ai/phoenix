@@ -69,6 +69,11 @@ def _create_session_work_units_table() -> None:
             nullable=False,
         ),
         sa.Column(
+            "transcript_covered_through",
+            sa.TIMESTAMP(timezone=True),
+            nullable=True,
+        ),
+        sa.Column(
             "status",
             sa.String(),
             sa.CheckConstraint(

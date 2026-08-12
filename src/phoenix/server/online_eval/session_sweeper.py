@@ -43,12 +43,13 @@ from phoenix.db import models
 from phoenix.db.eval_work import live_eval_work_index_predicate
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.online_eval.criteria_resolution import (
-    resolve_criteria,
-    resolve_criteria_bulk,
-)
+from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
 from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
-from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, config_fingerprint
+from phoenix.server.online_eval.derivation import (
+    MAX_ATTEMPTS,
+    STALE_FINGERPRINT_ERROR,
+    config_fingerprint,
+)
 from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
 from phoenix.server.prometheus import (
     ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG,
@@ -186,7 +187,14 @@ def _eligible_pairs_statement(
             terminal_work.evaluator_id == criteria_relation.c.evaluator_id,
             terminal_work.config_fingerprint == criteria_relation.c.config_fingerprint,
             or_(
-                terminal_work.status.in_(("DONE", "EXPIRED")),
+                terminal_work.status == "DONE",
+                and_(
+                    terminal_work.status == "EXPIRED",
+                    or_(
+                        terminal_work.error.is_(None),
+                        terminal_work.error != STALE_FINGERPRINT_ERROR,
+                    ),
+                ),
                 and_(
                     terminal_work.status == "ERROR",
                     terminal_work.attempts >= MAX_ATTEMPTS,

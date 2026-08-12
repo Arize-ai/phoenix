@@ -18,11 +18,12 @@ from phoenix.server.online_eval.coordinator import (
     LEASE_ATTEMPTS_EXHAUSTED_ERROR,
     LEASE_TTL_SECONDS,
 )
-from phoenix.server.online_eval.criteria_resolution import (
-    resolve_criteria,
-    resolve_criteria_bulk,
+from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
+from phoenix.server.online_eval.derivation import (
+    MAX_ATTEMPTS,
+    STALE_FINGERPRINT_ERROR,
+    ResolvedCriteria,
 )
-from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, ResolvedCriteria
 from phoenix.server.online_eval.session_sweeper import (
     SESSION_SWEEP_LEASE_TTL_SECONDS,
     SessionEvalSweeper,
@@ -673,6 +674,26 @@ async def test_terminal_history_re_materializes_only_after_new_ingest(
         )
     await sweeper._tick()
     assert await _work_statuses(db) == ["ERROR", "EXPIRED"]
+
+
+async def test_stale_fingerprint_expiration_does_not_close_the_watermark(
+    db: DbSessionFactory,
+) -> None:
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+    async with db() as session:
+        await session.execute(
+            update(models.EvalSessionWorkUnit).values(
+                status="EXPIRED",
+                error=STALE_FINGERPRINT_ERROR,
+            )
+        )
+
+    await sweeper._tick()
+
+    assert await _work_statuses(db) == ["EXPIRED", "PENDING"]
 
 
 async def test_incomplete_session_is_never_scheduled(

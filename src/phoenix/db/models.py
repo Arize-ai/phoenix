@@ -3769,6 +3769,7 @@ class EvalSessionWorkUnit(HasId):
     )
     config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
     evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    transcript_covered_through: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
     status: Mapped[EvalWorkStatus] = mapped_column(
         CheckConstraint(
             "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')",

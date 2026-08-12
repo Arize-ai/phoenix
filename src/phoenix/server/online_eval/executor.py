@@ -268,7 +268,7 @@ def _transcript_coverage_watermark(hydrated: HydratedWorkUnit) -> Optional[datet
 
     A session row is materialized with ``evaluated_through`` set to the ingest
     watermark seen at sweep time, but the transcript is assembled later and can
-    cover more; publication corrects the row to what the annotation really read.
+    cover more; publication records what the annotation read separately.
     """
     policy = hydrated.annotation_metadata.get(_TRANSCRIPT_POLICY_METADATA_KEY)
     if not isinstance(policy, dict):
@@ -850,10 +850,10 @@ class OnlineEvalExecutor:
         self, unit: ClaimedWorkUnit, hydrated: HydratedWorkUnit
     ) -> None:
         """Run the eval and publish successful results as target annotations under
-        the unit's identifier. DO_NOTHING makes the write first-write-wins, so
-        re-runs of the same unit are no-ops. Raises before writing unless the
-        evaluator returns one complete, error-free result set. No DB session is
-        open while the evaluator runs."""
+        the unit's identifier. Span results are first-write-wins; session results
+        replace a prior attempt so the annotation stays paired with its transcript
+        coverage. Raises before writing unless the evaluator returns one complete,
+        error-free result set. No DB session is open while the evaluator runs."""
         results = await hydrated.evaluator.evaluate(
             context=hydrated.context,
             input_mapping=hydrated.input_mapping,
@@ -928,9 +928,11 @@ class OnlineEvalExecutor:
             if unit.evaluation_target == "SPAN":
                 annotation_table = models.SpanAnnotation
                 unique_by = ("name", "span_rowid", "identifier")
+                on_conflict = OnConflict.DO_NOTHING
             else:
                 annotation_table = models.ProjectSessionAnnotation
                 unique_by = ("name", "project_session_id", "identifier")
+                on_conflict = OnConflict.DO_UPDATE
             inserted_ids: Sequence[int] = ()
 
             async def _write_annotations(session: AsyncSession) -> None:
@@ -942,7 +944,7 @@ class OnlineEvalExecutor:
                             table=annotation_table,
                             dialect=self._db.dialect,
                             unique_by=unique_by,
-                            on_conflict=OnConflict.DO_NOTHING,
+                            on_conflict=on_conflict,
                         ).returning(annotation_table.id)
                     )
                 ).all()
@@ -960,8 +962,8 @@ class OnlineEvalExecutor:
                         else None
                     ),
                 )
-            # DO_NOTHING returns only rows actually inserted, so a deduped
-            # re-run emits no event and dataloader caches aren't re-invalidated.
+            # Span duplicates return no id and need no cache invalidation. Session
+            # replacements return their id because the annotation genuinely changed.
             if self._event_queue is not None and inserted_ids:
                 if unit.evaluation_target == "SPAN":
                     self._event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))

@@ -344,6 +344,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
                     "criteria_id",
                     "config_fingerprint",
                     "evaluated_through",
+                    "transcript_covered_through",
                     "status",
                     "claimed_at",
                     "claimed_by",
@@ -357,7 +358,13 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
             nullable_column_names=frozenset(
-                {"claimed_at", "claimed_by", "error", "cooldown_until"}
+                {
+                    "transcript_covered_through",
+                    "claimed_at",
+                    "claimed_by",
+                    "error",
+                    "cooldown_until",
+                }
             ),
         )
 

@@ -1397,6 +1397,7 @@ CREATE TABLE public.eval_session_work_units (
     criteria_id BIGINT NOT NULL,
     config_fingerprint VARCHAR NOT NULL,
     evaluated_through TIMESTAMP WITH TIME ZONE NOT NULL,
+    transcript_covered_through TIMESTAMP WITH TIME ZONE,
     status VARCHAR NOT NULL DEFAULT 'PENDING'::character varying,
     claimed_at TIMESTAMP WITH TIME ZONE,
     claimed_by VARCHAR,

@@ -99,14 +99,14 @@ class DbEvalWorkCoordinator:
         self._max_attempts = max_attempts
         # Only SESSION work carries a coverage watermark: a span is evaluated whole,
         # while a session is evaluated up to the content the transcript actually read.
-        self._coverage_column: Optional[InstrumentedAttribute[datetime]] = None
+        self._coverage_column: Optional[InstrumentedAttribute[Optional[datetime]]] = None
         if evaluation_target == "SPAN":
             self._work_unit_model: _WorkUnitModel = models.EvalWorkUnit
             self._target_row_column: InstrumentedAttribute[int] = models.EvalWorkUnit.span_rowid
         elif evaluation_target == "SESSION":
             self._work_unit_model = models.EvalSessionWorkUnit
             self._target_row_column = models.EvalSessionWorkUnit.project_session_rowid
-            self._coverage_column = models.EvalSessionWorkUnit.evaluated_through
+            self._coverage_column = models.EvalSessionWorkUnit.transcript_covered_through
         else:
             raise ValueError(
                 "Online evaluation work coordination supports SPAN and SESSION targets"
@@ -250,7 +250,7 @@ class DbEvalWorkCoordinator:
         if coverage_watermark is not None and self._coverage_column is None:
             raise ValueError(
                 f"{self._evaluation_target} work units do not carry a coverage watermark"
-        )
+            )
         async with self._db() as session:
             identity_statement: Any
             if self._evaluation_target == "SESSION":
