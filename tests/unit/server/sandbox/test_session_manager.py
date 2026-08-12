@@ -343,6 +343,71 @@ async def test_concurrent_acquires_respect_capacity_under_race() -> None:
 
 
 @pytest.mark.asyncio
+async def test_session_execution_serializes_backend_without_per_call_isolation() -> None:
+    manager = SandboxSessionManager()
+    backend = _FakeBackend()
+    active_calls = 0
+    max_active_calls = 0
+
+    async def _execute(
+        handle: object,
+        code: str,
+        timeout: Optional[int] = None,
+    ) -> ExecutionResult:
+        nonlocal active_calls, max_active_calls
+        del handle, timeout
+        active_calls += 1
+        max_active_calls = max(max_active_calls, active_calls)
+        await asyncio.sleep(0)
+        active_calls -= 1
+        return ExecutionResult(stdout=code, stderr="")
+
+    backend.execute_in_session = _execute  # type: ignore[method-assign]
+
+    async def _run(code: str) -> None:
+        async with manager.acquire(backend, "shared") as session:
+            await session.execute(code)
+
+    await asyncio.gather(_run("one"), _run("two"))
+
+    assert max_active_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_session_execution_allows_backend_with_per_call_isolation_to_overlap() -> None:
+    class _ConcurrentFakeBackend(_FakeBackend):
+        supports_concurrent_session_execution = True
+
+    manager = SandboxSessionManager()
+    backend = _ConcurrentFakeBackend()
+    active_calls = 0
+    max_active_calls = 0
+
+    async def _execute(
+        handle: object,
+        code: str,
+        timeout: Optional[int] = None,
+    ) -> ExecutionResult:
+        nonlocal active_calls, max_active_calls
+        del handle, timeout
+        active_calls += 1
+        max_active_calls = max(max_active_calls, active_calls)
+        await asyncio.sleep(0)
+        active_calls -= 1
+        return ExecutionResult(stdout=code, stderr="")
+
+    backend.execute_in_session = _execute  # type: ignore[method-assign]
+
+    async def _run(code: str) -> None:
+        async with manager.acquire(backend, "shared") as session:
+            await session.execute(code)
+
+    await asyncio.gather(_run("one"), _run("two"))
+
+    assert max_active_calls == 2
+
+
+@pytest.mark.asyncio
 async def test_find_or_create_session_failure_releases_reservation() -> None:
     """If ``find_or_create_session`` raises, the reserved slot is popped so
     the next acquire on the same key starts cleanly."""
