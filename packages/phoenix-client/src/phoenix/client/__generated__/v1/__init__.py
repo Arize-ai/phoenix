@@ -499,6 +499,11 @@ class ProjectContext(TypedDict):
     spanFilter: NotRequired[str]
 
 
+class ProjectRetentionPolicyData(TypedDict):
+    project_id: str
+    policy_id: Optional[str]
+
+
 class PromptData(TypedDict):
     name: str
     description: NotRequired[str]
@@ -830,6 +835,14 @@ class SetExperimentTagResponseBody(TypedDict):
 
 class SetProjectAnnotationConfigsRequestBody(TypedDict):
     annotation_config_ids: Sequence[str]
+
+
+class SetProjectRetentionPolicyRequestBody(TypedDict):
+    policy_id: Optional[str]
+
+
+class SetProjectRetentionPolicyResponseBody(TypedDict):
+    data: ProjectRetentionPolicyData
 
 
 class SourceDocumentUIPart(TypedDict):

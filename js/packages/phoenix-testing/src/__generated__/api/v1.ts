@@ -1185,6 +1185,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{project_identifier}/retention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set a project's trace retention policy
+         * @description Assign an existing trace retention policy to a project, or reset the project to the default policy with a null `policy_id`. Retention policies are standalone, reusable entities: this endpoint only changes which policy the project points at, and never creates, edits, or deletes a policy.
+         */
+        patch: operations["setProjectRetentionPolicy"];
+        trace?: never;
+    };
     "/v1/sessions/{session_identifier}": {
         parameters: {
             query?: never;
@@ -4436,6 +4456,16 @@ export interface components {
             /** Spanfilter */
             spanFilter?: string | null;
         };
+        /** ProjectRetentionPolicyData */
+        ProjectRetentionPolicyData: {
+            /** Project Id */
+            project_id: string;
+            /**
+             * Policy Id
+             * @description The retention policy the project now uses, or null when the project falls back to the default policy.
+             */
+            policy_id: string | null;
+        };
         /** Prompt */
         Prompt: {
             name: components["schemas"]["Identifier"];
@@ -5495,6 +5525,18 @@ export interface components {
             data: (components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"])[];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** SetProjectRetentionPolicyRequestBody */
+        SetProjectRetentionPolicyRequestBody: {
+            /**
+             * Policy Id
+             * @description The ID (GlobalID) of an existing trace retention policy to assign, or null to reset the project to the default policy.
+             */
+            policy_id: string | null;
+        };
+        /** SetProjectRetentionPolicyResponseBody */
+        SetProjectRetentionPolicyResponseBody: {
+            data: components["schemas"]["ProjectRetentionPolicyData"];
         };
         /**
          * SourceDocumentUIPart
@@ -11193,6 +11235,60 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    setProjectRetentionPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetProjectRetentionPolicyRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The project's retention policy assignment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetProjectRetentionPolicyResponseBody"];
+                };
             };
             /** @description Forbidden */
             403: {

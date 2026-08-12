@@ -14,6 +14,11 @@ from phoenix.config import DEFAULT_PROJECT_NAME, PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.trace_retention import (
+    MaxCountRule,
+    TraceRetentionCronExpression,
+    TraceRetentionRule,
+)
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.types import DbSessionFactory
@@ -1022,3 +1027,173 @@ class TestProjects:
         for i, p in enumerate(projects):
             print(f"Created test project {i + 1}: id={p.id}, name='{p.name}'")
         return projects
+
+
+class TestSetProjectRetentionPolicy:
+    """PATCH /projects/{project_identifier}/retention"""
+
+    @staticmethod
+    async def _policy(db: DbSessionFactory) -> models.ProjectTraceRetentionPolicy:
+        async with db() as session:
+            policy = models.ProjectTraceRetentionPolicy(
+                name=token_hex(8),
+                cron_expression=TraceRetentionCronExpression(root="0 1 * * 1"),
+                rule=TraceRetentionRule(root=MaxCountRule(max_count=1)),
+            )
+            session.add(policy)
+            await session.flush()
+        return policy
+
+    @staticmethod
+    async def _project(
+        db: DbSessionFactory,
+        policy_id: int | None = None,
+    ) -> models.Project:
+        async with db() as session:
+            project = models.Project(name=token_hex(16), trace_retention_policy_id=policy_id)
+            session.add(project)
+            await session.flush()
+        return project
+
+    @staticmethod
+    async def _policy_id_of(db: DbSessionFactory, project_rowid: int) -> int | None:
+        async with db() as session:
+            return await session.scalar(
+                select(models.Project.trace_retention_policy_id).where(
+                    models.Project.id == project_rowid
+                )
+            )
+
+    async def test_assigns_policy_to_project(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        policy = await self._policy(db)
+        project = await self._project(db)
+        policy_gid = str(GlobalID("ProjectTraceRetentionPolicy", str(policy.id)))
+
+        response = await httpx_client.patch(
+            f"v1/projects/{project.name}/retention",
+            json={"policy_id": policy_gid},
+        )
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["policy_id"] == policy_gid
+        assert data["project_id"] == str(GlobalID(Project.__name__, str(project.id)))
+        assert await self._policy_id_of(db, project.id) == policy.id
+
+    async def test_accepts_project_global_id(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        policy = await self._policy(db)
+        project = await self._project(db)
+        project_gid = str(GlobalID(Project.__name__, str(project.id)))
+
+        response = await httpx_client.patch(
+            f"v1/projects/{project_gid}/retention",
+            json={"policy_id": str(GlobalID("ProjectTraceRetentionPolicy", str(policy.id)))},
+        )
+        assert response.status_code == 200
+        assert await self._policy_id_of(db, project.id) == policy.id
+
+    async def test_null_policy_id_resets_to_default(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        policy = await self._policy(db)
+        project = await self._project(db, policy_id=policy.id)
+        assert await self._policy_id_of(db, project.id) == policy.id
+
+        response = await httpx_client.patch(
+            f"v1/projects/{project.name}/retention",
+            json={"policy_id": None},
+        )
+        assert response.status_code == 200
+        assert response.json()["data"]["policy_id"] is None
+        # NULL means the project falls back to the default policy.
+        assert await self._policy_id_of(db, project.id) is None
+
+    async def test_reassigns_between_policies(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        first, second = await self._policy(db), await self._policy(db)
+        project = await self._project(db, policy_id=first.id)
+
+        response = await httpx_client.patch(
+            f"v1/projects/{project.name}/retention",
+            json={"policy_id": str(GlobalID("ProjectTraceRetentionPolicy", str(second.id)))},
+        )
+        assert response.status_code == 200
+        assert await self._policy_id_of(db, project.id) == second.id
+
+    async def test_does_not_mutate_the_policy_itself(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """Policies are shared entities; assignment must not edit or delete them."""
+        policy = await self._policy(db)
+        project = await self._project(db)
+        response = await httpx_client.patch(
+            f"v1/projects/{project.name}/retention",
+            json={"policy_id": str(GlobalID("ProjectTraceRetentionPolicy", str(policy.id)))},
+        )
+        assert response.status_code == 200
+        async with db() as session:
+            stored = await session.get(models.ProjectTraceRetentionPolicy, policy.id)
+        assert stored is not None
+        assert stored.name == policy.name
+
+    async def test_unknown_policy_returns_404(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project = await self._project(db)
+        missing = str(GlobalID("ProjectTraceRetentionPolicy", "99999"))
+        response = await httpx_client.patch(
+            f"v1/projects/{project.name}/retention",
+            json={"policy_id": missing},
+        )
+        assert response.status_code == 404
+        assert await self._policy_id_of(db, project.id) is None
+
+    async def test_unknown_project_returns_404(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        policy = await self._policy(db)
+        response = await httpx_client.patch(
+            f"v1/projects/{token_hex(16)}/retention",
+            json={"policy_id": str(GlobalID("ProjectTraceRetentionPolicy", str(policy.id)))},
+        )
+        assert response.status_code == 404
+
+    async def test_malformed_policy_id_returns_422(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project = await self._project(db)
+        response = await httpx_client.patch(
+            f"v1/projects/{project.name}/retention",
+            json={"policy_id": "not-a-global-id"},
+        )
+        assert response.status_code == 422
+
+    async def test_missing_policy_id_field_returns_422(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """policy_id is required-but-nullable, so omitting it is not a silent reset."""
+        project = await self._project(db)
+        response = await httpx_client.patch(f"v1/projects/{project.name}/retention", json={})
+        assert response.status_code == 422
