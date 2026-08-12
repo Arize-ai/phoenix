@@ -1703,10 +1703,13 @@ _ALLOWED_TOKEN_ENDPOINT_AUTH_METHODS = (
 """Allowed OAuth2 token endpoint authentication methods (OIDC Core §9 unless noted)."""
 
 _AZURE_FEDERATED_TOKEN_FILE_ENV = "AZURE_FEDERATED_TOKEN_FILE"
-"""Injected by the Azure Workload Identity webhook into labelled pods."""
+"""Injected by the Azure Workload Identity webhook alongside the token it projects.
 
-DEFAULT_CLIENT_ASSERTION_FILE = "/var/run/secrets/azure/tokens/azure-identity-token"
-"""Mount path the Azure Workload Identity webhook projects the service account token to."""
+Read as an opportunistic fallback for CLIENT_ASSERTION_FILE: present exactly when Azure
+workload identity is active, absent on every other platform. Deliberately not defaulted to
+the webhook's mount path — with no signal that Azure is in play, an unset path is a
+configuration error and should be reported as one.
+"""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1775,7 +1778,11 @@ class OAuth2ClientConfig:
         ):
             raise ValueError(
                 f"client_assertion_file is required when token_endpoint_auth_method is "
-                f"'{WORKLOAD_IDENTITY_AUTH_METHOD}' (IDP: {self.idp_name})"
+                f"'{WORKLOAD_IDENTITY_AUTH_METHOD}' (IDP: {self.idp_name}). Set "
+                f"PHOENIX_OAUTH2_{self.idp_name.upper()}_CLIENT_ASSERTION_FILE to the path "
+                f"the platform projects the token to. On AKS this is supplied automatically "
+                f"via {_AZURE_FEDERATED_TOKEN_FILE_ENV} once the pod carries the label "
+                f"azure.workload.identity/use=true."
             )
 
     @classmethod
@@ -1853,10 +1860,8 @@ class OAuth2ClientConfig:
             # any IDP accepting RFC 7523 client assertions works, and IDP names are
             # operator-chosen so they cannot be used to gate this.
             client_secret = None
-            client_assertion_file = (
-                _get_optional("CLIENT_ASSERTION_FILE")
-                or os.getenv(_AZURE_FEDERATED_TOKEN_FILE_ENV)
-                or DEFAULT_CLIENT_ASSERTION_FILE
+            client_assertion_file = _get_optional("CLIENT_ASSERTION_FILE") or os.getenv(
+                _AZURE_FEDERATED_TOKEN_FILE_ENV
             )
         elif token_endpoint_auth_method == "none":
             # Public client - no client authentication required
@@ -2694,9 +2699,10 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
               workload's identity.
 
         - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_ASSERTION_FILE: Path to the file holding the JWT used
-          when TOKEN_ENDPOINT_AUTH_METHOD is "workload_identity". Falls back to the
-          AZURE_FEDERATED_TOKEN_FILE environment variable, then to the path the Azure Workload
-          Identity webhook projects the service account token to. Ignored for other auth methods.
+          when TOKEN_ENDPOINT_AUTH_METHOD is "workload_identity"; required for that method and
+          ignored for the others. On AKS the Azure Workload Identity webhook both projects the
+          token and exports its path as AZURE_FEDERATED_TOKEN_FILE, which is used when this
+          setting is unset, so labelled pods need no explicit path. Other platforms must set it.
 
           Most providers work with the default behavior. Set this explicitly only if your provider requires
           a specific method or if you're configuring a public client.

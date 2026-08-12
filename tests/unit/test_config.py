@@ -9,7 +9,6 @@ from _pytest.monkeypatch import MonkeyPatch
 from starlette.datastructures import URL
 
 from phoenix.config import (
-    DEFAULT_CLIENT_ASSERTION_FILE,
     AssignableUserRoleName,
     OAuth2ClientConfig,
     ensure_working_dir_if_needed,
@@ -2544,6 +2543,7 @@ class TestWorkloadIdentityFromEnv:
             "https://login.microsoftonline.com/tenant-id/v2.0/.well-known/openid-configuration"
         ),
         "PHOENIX_OAUTH2_ENTRA_TOKEN_ENDPOINT_AUTH_METHOD": "workload_identity",
+        "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE": "/explicit/path/token",
     }
 
     @pytest.fixture(autouse=True)
@@ -2559,25 +2559,31 @@ class TestWorkloadIdentityFromEnv:
         config = OAuth2ClientConfig.from_env("entra")
         assert config.token_endpoint_auth_method == "workload_identity"
 
-    def test_assertion_file_defaults_to_webhook_mount_path(self) -> None:
-        config = OAuth2ClientConfig.from_env("entra")
-        assert config.client_assertion_file == DEFAULT_CLIENT_ASSERTION_FILE
-
-    def test_azure_federated_token_file_overrides_default(
+    def test_unset_assertion_file_is_rejected_without_an_azure_signal(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        # No hardcoded Azure default: with nothing indicating the platform, an unset path is
+        # a configuration error rather than a guess.
+        monkeypatch.delenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE")
+        with pytest.raises(ValueError, match="client_assertion_file is required"):
+            OAuth2ClientConfig.from_env("entra")
+
+    def test_azure_webhook_env_var_supplies_the_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # The webhook exports this alongside the token it projects, so labelled AKS pods
+        # need no explicit path.
+        monkeypatch.delenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE")
         monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/webhook/path/token")
         config = OAuth2ClientConfig.from_env("entra")
         assert config.client_assertion_file == "/webhook/path/token"
 
     def test_explicit_setting_takes_precedence(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/webhook/path/token")
-        monkeypatch.setenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE", "/explicit/path/token")
         config = OAuth2ClientConfig.from_env("entra")
         assert config.client_assertion_file == "/explicit/path/token"
 
     def test_any_idp_name_is_accepted(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # IDP names are operator-chosen, so the mechanism cannot be gated on one.
+        monkeypatch.setenv("PHOENIX_OAUTH2_COMPANY_SSO_CLIENT_ASSERTION_FILE", "/spiffe/jwt-svid")
         monkeypatch.setenv("PHOENIX_OAUTH2_COMPANY_SSO_CLIENT_ID", "some-id")
         monkeypatch.setenv(
             "PHOENIX_OAUTH2_COMPANY_SSO_OIDC_CONFIG_URL",
@@ -2587,7 +2593,7 @@ class TestWorkloadIdentityFromEnv:
             "PHOENIX_OAUTH2_COMPANY_SSO_TOKEN_ENDPOINT_AUTH_METHOD", "workload_identity"
         )
         config = OAuth2ClientConfig.from_env("company_sso")
-        assert config.client_assertion_file == DEFAULT_CLIENT_ASSERTION_FILE
+        assert config.client_assertion_file == "/spiffe/jwt-svid"
 
     def test_assertion_file_unset_for_other_methods(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_ID", "some-id")

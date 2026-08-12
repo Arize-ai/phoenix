@@ -609,7 +609,8 @@ auth:
       #   token_endpoint_auth_method: "workload_identity"
       #   scopes: "offline_access User.Read"
       #   email_attribute_path: "preferred_username"
-      #   # Defaults to the webhook's mount path; set only for a non-default projection.
+      #   # Only needed off AKS: the webhook exports the path as AZURE_FEDERATED_TOKEN_FILE,
+      #   # which Phoenix picks up when this is unset.
       #   client_assertion_file: "/var/run/secrets/azure/tokens/azure-identity-token"
 
       # Example Keycloak with nested group path:
