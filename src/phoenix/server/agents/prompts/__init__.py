@@ -28,12 +28,6 @@ _LIST_DATASET_SPLITS_TOOL_INSTRUCTIONS = get_template(
     "tools/LIST_DATASET_SPLITS_TOOL_INSTRUCTIONS.xml.j2"
 )
 _LIST_SPLITS_TOOL_INSTRUCTIONS = get_template("tools/LIST_SPLITS_TOOL_INSTRUCTIONS.xml.j2")
-_CREATE_DATASET_SPLIT_TOOL_INSTRUCTIONS = get_template(
-    "tools/CREATE_DATASET_SPLIT_TOOL_INSTRUCTIONS.xml.j2"
-)
-_SET_DATASET_EXAMPLE_SPLITS_TOOL_INSTRUCTIONS = get_template(
-    "tools/SET_DATASET_EXAMPLE_SPLITS_TOOL_INSTRUCTIONS.xml.j2"
-)
 _LIST_DATASET_LABELS_TOOL_INSTRUCTIONS = get_template(
     "tools/LIST_DATASET_LABELS_TOOL_INSTRUCTIONS.xml.j2"
 )
@@ -42,12 +36,6 @@ _CREATE_DATASET_LABEL_TOOL_INSTRUCTIONS = get_template(
 )
 _SET_DATASET_LABELS_TOOL_INSTRUCTIONS = get_template(
     "tools/SET_DATASET_LABELS_TOOL_INSTRUCTIONS.xml.j2"
-)
-_PATCH_DATASET_SPLIT_TOOL_INSTRUCTIONS = get_template(
-    "tools/PATCH_DATASET_SPLIT_TOOL_INSTRUCTIONS.xml.j2"
-)
-_DELETE_DATASET_SPLITS_TOOL_INSTRUCTIONS = get_template(
-    "tools/DELETE_DATASET_SPLITS_TOOL_INSTRUCTIONS.xml.j2"
 )
 _DELETE_DATASET_LABELS_TOOL_INSTRUCTIONS = get_template(
     "tools/DELETE_DATASET_LABELS_TOOL_INSTRUCTIONS.xml.j2"
@@ -114,13 +102,9 @@ class AgentPrompts:
     list_dataset_examples_tool: Template = _LIST_DATASET_EXAMPLES_TOOL_INSTRUCTIONS
     list_dataset_splits_tool: Template = _LIST_DATASET_SPLITS_TOOL_INSTRUCTIONS
     list_splits_tool: Template = _LIST_SPLITS_TOOL_INSTRUCTIONS
-    create_dataset_split_tool: Template = _CREATE_DATASET_SPLIT_TOOL_INSTRUCTIONS
-    set_dataset_example_splits_tool: Template = _SET_DATASET_EXAMPLE_SPLITS_TOOL_INSTRUCTIONS
     list_dataset_labels_tool: Template = _LIST_DATASET_LABELS_TOOL_INSTRUCTIONS
     create_dataset_label_tool: Template = _CREATE_DATASET_LABEL_TOOL_INSTRUCTIONS
     set_dataset_labels_tool: Template = _SET_DATASET_LABELS_TOOL_INSTRUCTIONS
-    patch_dataset_split_tool: Template = _PATCH_DATASET_SPLIT_TOOL_INSTRUCTIONS
-    delete_dataset_splits_tool: Template = _DELETE_DATASET_SPLITS_TOOL_INSTRUCTIONS
     delete_dataset_labels_tool: Template = _DELETE_DATASET_LABELS_TOOL_INSTRUCTIONS
     list_datasets_tool: Template = _LIST_DATASETS_TOOL_INSTRUCTIONS
     list_labels_tool: Template = _LIST_LABELS_TOOL_INSTRUCTIONS

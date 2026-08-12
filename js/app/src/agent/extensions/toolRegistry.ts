@@ -26,12 +26,8 @@ import {
   setDatasetLabelsAgentTool,
 } from "@phoenix/agent/tools/datasetLabels";
 import {
-  createDatasetSplitAgentTool,
-  deleteDatasetSplitsAgentTool,
   listDatasetSplitsAgentTool,
   listSplitsAgentTool,
-  patchDatasetSplitAgentTool,
-  setDatasetExampleSplitsAgentTool,
 } from "@phoenix/agent/tools/datasetSplits";
 import { askUserAgentTool } from "@phoenix/agent/tools/elicit";
 import { getRouteInfoAgentTool } from "@phoenix/agent/tools/getRouteInfo";
@@ -70,10 +66,6 @@ const datasetTools: AgentToolDefinition[] = [
   listDatasetExamplesAgentTool,
   listDatasetSplitsAgentTool,
   listSplitsAgentTool,
-  createDatasetSplitAgentTool,
-  setDatasetExampleSplitsAgentTool,
-  patchDatasetSplitAgentTool,
-  deleteDatasetSplitsAgentTool,
   listDatasetLabelsAgentTool,
   listLabelsAgentTool,
   createDatasetLabelAgentTool,

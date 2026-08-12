@@ -10,10 +10,23 @@ import {
   createDeleteDatasetExamplesClientAction,
   createPatchDatasetExamplesClientAction,
 } from "@phoenix/agent/tools/datasetExamples";
+import {
+  createCreateDatasetSplitClientAction,
+  createDeleteDatasetSplitsClientAction,
+  createPatchDatasetSplitClientAction,
+  createSetDatasetExampleSplitsClientAction,
+} from "@phoenix/agent/tools/datasetSplits";
 import { createAddSpansToDatasetClientAction } from "@phoenix/agent/tools/spansToDataset";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 
 import { registerUiOperation, unregisterUiOperation } from "./catalog";
+import {
+  createDatasetSplitOperation,
+  datasetSplitOperations,
+  deleteDatasetSplitsOperation,
+  patchDatasetSplitOperation,
+  setDatasetExampleSplitsOperation,
+} from "./operations/datasetSplits";
 import {
   addDatasetExamplesOperation,
   addSpansToDatasetOperation,
@@ -24,6 +37,9 @@ import {
   patchDatasetExamplesOperation,
   patchDatasetOperation,
 } from "./operations/datasetWrites";
+
+/** Every operation family registered at the root, for unmount cleanup. */
+const rootUiOperations = [...datasetWriteOperations, ...datasetSplitOperations];
 
 /**
  * Registers the UI operations that are not tied to any page's UI surface —
@@ -71,8 +87,28 @@ export function RootUiOperationsRegistration() {
       descriptor: addSpansToDatasetOperation,
       handler: createAddSpansToDatasetClientAction({ agentStore }),
     });
+    registerUiOperation({
+      agentStore,
+      descriptor: createDatasetSplitOperation,
+      handler: createCreateDatasetSplitClientAction({ agentStore }),
+    });
+    registerUiOperation({
+      agentStore,
+      descriptor: setDatasetExampleSplitsOperation,
+      handler: createSetDatasetExampleSplitsClientAction({ agentStore }),
+    });
+    registerUiOperation({
+      agentStore,
+      descriptor: patchDatasetSplitOperation,
+      handler: createPatchDatasetSplitClientAction({ agentStore }),
+    });
+    registerUiOperation({
+      agentStore,
+      descriptor: deleteDatasetSplitsOperation,
+      handler: createDeleteDatasetSplitsClientAction({ agentStore }),
+    });
     return () => {
-      for (const descriptor of datasetWriteOperations) {
+      for (const descriptor of rootUiOperations) {
         unregisterUiOperation({ agentStore, name: descriptor.name });
       }
     };
