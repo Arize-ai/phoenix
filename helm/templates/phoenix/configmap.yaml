@@ -61,8 +61,8 @@ data:
   {{- if $provider_config.client_assertion_file }}
   PHOENIX_OAUTH2_{{ $provider_upper }}_CLIENT_ASSERTION_FILE: {{ $provider_config.client_assertion_file | quote }}
   {{- end }}
-  {{- if $provider_config.client_assertion_file_env }}
-  PHOENIX_OAUTH2_{{ $provider_upper }}_CLIENT_ASSERTION_FILE_ENV: {{ $provider_config.client_assertion_file_env | quote }}
+  {{- if $provider_config.client_assertion_file_env_var }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_CLIENT_ASSERTION_FILE_ENV_VAR: {{ $provider_config.client_assertion_file_env_var | quote }}
   {{- end }}
   {{- if $provider_config.scopes }}
   PHOENIX_OAUTH2_{{ $provider_upper }}_SCOPES: {{ $provider_config.scopes | quote }}

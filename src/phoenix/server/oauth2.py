@@ -78,7 +78,7 @@ class AssertionFile:
     """The client assertion's location, carrying whether it may be repeated in messages.
 
     This exists to keep a privilege boundary, not to phrase messages nicely.
-    CLIENT_ASSERTION_FILE_ENV lets provider config name any environment variable in the process,
+    CLIENT_ASSERTION_FILE_ENV_VAR lets provider config name any environment variable in the process,
     so an indirect path is a value the config selected but did not write. Repeating it anywhere
     an operator can read converts rights over the non-secret provider config into a read of any
     secret-bearing
@@ -642,7 +642,7 @@ class OAuth2Clients:
             assert config.client_assertion_file is not None  # enforced by OAuth2ClientConfig
             assertion_file = AssertionFile(
                 path=Path(config.client_assertion_file),
-                variable=config.client_assertion_file_env,
+                variable=config.client_assertion_file_env_var,
             )
             if not assertion_file.path.is_file():
                 # Warn rather than raise: the file is written by the platform, not by the

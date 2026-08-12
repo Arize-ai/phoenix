@@ -1662,7 +1662,7 @@ class TestClientAssertionJWT:
         config = OAuth2ClientConfig(
             **self._CONFIG_DEFAULTS,
             client_assertion_file=str(secret_shaped_path),
-            client_assertion_file_env="SOME_VARIABLE",
+            client_assertion_file_env_var="SOME_VARIABLE",
         )
         clients = OAuth2Clients()
         with caplog.at_level(logging.WARNING):

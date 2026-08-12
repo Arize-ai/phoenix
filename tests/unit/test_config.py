@@ -2569,7 +2569,7 @@ class TestClientAssertionJWTFromEnv:
     def test_path_resolved_from_named_variable(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", self._abs("webhook", "token"))
         monkeypatch.setenv(
-            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV", "AZURE_FEDERATED_TOKEN_FILE"
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV_VAR", "AZURE_FEDERATED_TOKEN_FILE"
         )
         config = OAuth2ClientConfig.from_env("entra")
         assert config.client_assertion_file == self._abs("webhook", "token")
@@ -2587,7 +2587,7 @@ class TestClientAssertionJWTFromEnv:
         # that never asked for it.
         monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", self._abs("webhook", "azure-token"))
         monkeypatch.setenv(
-            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV", "AZURE_FEDERATED_TOKEN_FILE"
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV_VAR", "AZURE_FEDERATED_TOKEN_FILE"
         )
         monkeypatch.setenv("PHOENIX_OAUTH2_OKTA_CLIENT_ID", "okta-client")
         monkeypatch.setenv(
@@ -2608,14 +2608,14 @@ class TestClientAssertionJWTFromEnv:
             "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE", self._abs("explicit", "token")
         )
         monkeypatch.setenv(
-            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV", "AZURE_FEDERATED_TOKEN_FILE"
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV_VAR", "AZURE_FEDERATED_TOKEN_FILE"
         )
         with pytest.raises(ValueError, match="mutually exclusive"):
             OAuth2ClientConfig.from_env("entra")
 
     def test_named_variable_unset_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(
-            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV", "AZURE_FEDERATED_TOKEN_FILE"
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV_VAR", "AZURE_FEDERATED_TOKEN_FILE"
         )
         with pytest.raises(ValueError, match="unset or empty"):
             OAuth2ClientConfig.from_env("entra")
@@ -2631,7 +2631,7 @@ class TestClientAssertionJWTFromEnv:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("SOME_VARIABLE", "not-a-path-secret")
-        monkeypatch.setenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV", "SOME_VARIABLE")
+        monkeypatch.setenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV_VAR", "SOME_VARIABLE")
         with pytest.raises(ValueError) as exc_info:
             OAuth2ClientConfig.from_env("entra")
 
