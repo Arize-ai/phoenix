@@ -77,6 +77,7 @@ from phoenix.server.session_filters import (
 from phoenix.server.trace_filters import (
     TraceFilterConditionError,
     compile_trace_filter,
+    get_filtered_trace_rowids_subquery,
     trace_filter_errors,
 )
 from phoenix.server.types import DbSessionFactory
@@ -605,9 +606,16 @@ class Project(Node):
         sort: Optional[SpanSort] = UNSET,
         root_spans_only: Optional[bool] = UNSET,
         filter_condition: Optional[str] = UNSET,
+        trace_filter_condition: Optional[str] = UNSET,
         orphan_span_as_root_span: Optional[bool] = True,
     ) -> Connection[Span]:
-        if root_spans_only and not filter_condition and sort and sort.col is SpanColumn.startTime:
+        if (
+            root_spans_only
+            and not filter_condition
+            and not trace_filter_condition
+            and sort
+            and sort.col is SpanColumn.startTime
+        ):
             return await _paginate_span_by_trace_start_time(
                 db=info.context.db,
                 project_rowid=self.id,
@@ -628,6 +636,14 @@ class Project(Node):
                 stmt = stmt.where(time_range.start <= models.Span.start_time)
             if time_range.end:
                 stmt = stmt.where(models.Span.start_time < time_range.end)
+        if trace_filter_condition:
+            filtered_trace_rowids = get_filtered_trace_rowids_subquery(
+                trace_filter_condition=trace_filter_condition,
+                project_rowids=[self.id],
+                start_time=time_range.start if time_range else None,
+                end_time=time_range.end if time_range else None,
+            )
+            stmt = stmt.where(models.Span.trace_rowid.in_(filtered_trace_rowids))
         filter_root_scope: Optional[RootSpanScope] = None
         if filter_condition:
             span_filter = SpanFilter(condition=filter_condition)

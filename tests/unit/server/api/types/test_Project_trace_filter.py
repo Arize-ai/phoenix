@@ -30,6 +30,53 @@ def _trace_annotation(trace: models.Trace, name: str) -> models.TraceAnnotation:
     )
 
 
+async def test_project_spans_trace_filter_condition_composes_with_span_filter(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        matching_trace = await _add_trace(session, project)
+        matching_span = await _add_span(session, matching_trace)
+        matching_span.name = "kept"
+        other_matching_trace_span = await _add_span(session, matching_trace)
+        other_matching_trace_span.name = "discarded"
+
+        non_matching_trace = await _add_trace(session, project)
+        non_matching_span = await _add_span(session, non_matching_trace)
+        non_matching_span.name = "kept"
+
+    query = """
+        query($id: ID!, $spanCondition: String, $traceCondition: String) {
+          node(id: $id) {
+            ... on Project {
+              spans(
+                first: 100
+                filterCondition: $spanCondition
+                traceFilterCondition: $traceCondition
+              ) {
+                edges { node { id } }
+              }
+            }
+          }
+        }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "id": _project_id(project),
+            "spanCondition": "name == 'kept'",
+            "traceCondition": "num_spans == 2",
+        },
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["spans"]["edges"] == [
+        {"node": {"id": str(GlobalID("Span", str(matching_span.id)))}}
+    ]
+
+
 async def test_validate_trace_filter_condition(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
