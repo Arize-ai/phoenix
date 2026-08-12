@@ -118,6 +118,12 @@ export function runUiScript({
     let timerStartedAt = 0;
     let timerId: ReturnType<typeof setTimeout> | undefined;
     let isSettled = false;
+    // How many timer-pausing operations (approval / long-running) are in
+    // flight right now. The clock is banked while this is > 0 and only
+    // resumes when the last one settles — a plain boolean would let the first
+    // of several concurrent approvals (e.g. a `Promise.all` of `ui.*` calls)
+    // restart the budget while the user is still deciding on the others.
+    let pauseDepth = 0;
 
     const worker = createWorker();
 
@@ -139,6 +145,9 @@ export function runUiScript({
     };
 
     const armTimer = () => {
+      // Clear first: never leak an orphaned timeout when re-arming (a stray
+      // one could fire later and time out an already-finished run).
+      clearTimer();
       timerStartedAt = Date.now();
       timerId = setTimeout(
         () => {
@@ -153,10 +162,25 @@ export function runUiScript({
       );
     };
 
+    // Bank the remaining budget when the first pausing op goes in flight; a
+    // no-op for further concurrent pausing ops (they just deepen the count).
     const pauseTimer = () => {
-      if (timerId !== undefined) {
+      pauseDepth += 1;
+      if (pauseDepth === 1 && timerId !== undefined) {
         remainingMs -= Date.now() - timerStartedAt;
         clearTimer();
+      }
+    };
+
+    // Resume only once the last pausing op has settled, so the budget stays
+    // frozen for the whole time any approval is still awaiting the user.
+    const resumeTimer = () => {
+      if (pauseDepth === 0) {
+        return;
+      }
+      pauseDepth -= 1;
+      if (pauseDepth === 0 && !isSettled) {
+        armTimer();
       }
     };
 
@@ -189,8 +213,8 @@ export function runUiScript({
         input: message.input,
         callSequence: message.callId,
       });
-      if (pausesTimerWhileInFlight && !isSettled) {
-        armTimer();
+      if (pausesTimerWhileInFlight) {
+        resumeTimer();
       }
       if (!isSettled) {
         worker.postMessage({
