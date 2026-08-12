@@ -31,6 +31,7 @@ jobs:
       phoenix: ${{ steps.filter.outputs.phoenix }}
       phoenix_client: ${{ steps.filter.outputs.phoenix_client }}
       phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
+      phoenix_executors: ${{ steps.filter.outputs.phoenix_executors }}
       phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
       migrations: ${{ steps.filter.outputs.migrations }}
       ddl: ${{ steps.filter.outputs.ddl }}
@@ -57,11 +58,19 @@ jobs:
               - "tutorials/**"
               - "pyproject.toml"
               - "tox.ini"
+            # phoenix-client and phoenix-evals both install phoenix-executors from local source, so
+            # a change there has to run their suites too. Same shape as the "tox.ini" entry below:
+            # one path listed under several filters.
             phoenix_client:
               - "packages/phoenix-client/**"
+              - "packages/phoenix-executors/**"
               - "tox.ini"
             phoenix_evals:
               - "packages/phoenix-evals/**"
+              - "packages/phoenix-executors/**"
+              - "tox.ini"
+            phoenix_executors:
+              - "packages/phoenix-executors/**"
               - "tox.ini"
             phoenix_otel:
               - "packages/phoenix-otel/**"
@@ -84,6 +93,7 @@ jobs:
           PHOENIX: ${{ steps.filter.outputs.phoenix }}
           PHOENIX_CLIENT: ${{ steps.filter.outputs.phoenix_client }}
           PHOENIX_EVALS: ${{ steps.filter.outputs.phoenix_evals }}
+          PHOENIX_EXECUTORS: ${{ steps.filter.outputs.phoenix_executors }}
           PHOENIX_OTEL: ${{ steps.filter.outputs.phoenix_otel }}
           MIGRATIONS: ${{ steps.filter.outputs.migrations }}
           DDL: ${{ steps.filter.outputs.ddl }}
@@ -96,6 +106,7 @@ jobs:
           echo "phoenix: $PHOENIX"
           echo "phoenix_client: $PHOENIX_CLIENT"
           echo "phoenix_evals: $PHOENIX_EVALS"
+          echo "phoenix_executors: $PHOENIX_EXECUTORS"
           echo "phoenix_otel: $PHOENIX_OTEL"
           echo "migrations: $MIGRATIONS"
           echo "ddl: $DDL"
@@ -118,6 +129,7 @@ jobs:
             requirements/
             packages/phoenix-client/
             packages/phoenix-evals/
+            packages/phoenix-executors/
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.py }}
@@ -142,6 +154,7 @@ jobs:
           sparse-checkout: |
             requirements/
             packages/phoenix-evals/
+            packages/phoenix-executors/
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.py }}
@@ -149,6 +162,50 @@ jobs:
         with:
           version: "0.11.31"
       - run: uvx tox run -e phoenix_evals -- -ra -x
+
+  phoenix-executors:
+    name: Phoenix Executors
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix_executors == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: ["3.10", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            requirements/
+            packages/phoenix-executors/
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.31"
+      - run: uvx tox run -e phoenix_executors -- -ra -x
+
+  phoenix-executors-compat:
+    # Deliberately ungated: a skipped run and a run that found nothing look identical in the
+    # checks list, and this is the only place a stale range is visible at all.
+    name: Phoenix Executors Compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/
+            packages/phoenix-client/pyproject.toml
+            packages/phoenix-evals/pyproject.toml
+            packages/phoenix-executors/pyproject.toml
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          python-version: "3.12"
+          version: "0.11.31"
+      - run: uv run --no-project scripts/check_phoenix_executors_compat.py
 
   phoenix-otel:
     name: Phoenix OTel
@@ -491,6 +548,7 @@ jobs:
             src/phoenix/
             evals/
             packages/phoenix-evals/
+            packages/phoenix-executors/
             tests/unit/
             tests/conftest.py
             tests/__generated__/
@@ -560,6 +618,7 @@ jobs:
             src/phoenix/
             packages/phoenix-client/
             packages/phoenix-evals/
+            packages/phoenix-executors/
             tests/integration/
             tests/__generated__/
             tests/__init__.py
@@ -681,6 +740,7 @@ jobs:
             requirements/
             packages/phoenix-client/
             packages/phoenix-evals/
+            packages/phoenix-executors/
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -699,6 +759,8 @@ jobs:
       - changes
       - phoenix-client
       - phoenix-evals
+      - phoenix-executors
+      - phoenix-executors-compat
       - phoenix-otel
       - clean-jupyter-notebooks
       - build-graphql-schema

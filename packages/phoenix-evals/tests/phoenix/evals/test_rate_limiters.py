@@ -6,7 +6,9 @@ from typing import Optional
 from unittest import mock
 
 import pytest
+from phoenix.executors import rate_limiters as shared_rate_limiters
 
+from phoenix.evals import rate_limiters
 from phoenix.evals.rate_limiters import (
     AdaptiveTokenBucket,
     UnavailableTokensError,
@@ -362,3 +364,33 @@ def test_token_bucket_decreases_rate_once_per_cooldown_period():
     with warp_time(start + 6):
         bucket.on_rate_limit_error(request_start_time=time.time())
         assert isclose(bucket.rate, 6.25)
+
+
+# See the note on the same constant in test_executor.py.
+FROZEN_RATE_LIMITER_NAMES = {
+    "AdaptiveTokenBucket",
+    "AsyncCallable",
+    "GenericType",
+    "ParameterSpec",
+    "RateLimitError",
+    "RateLimiter",
+    "UnavailableTokensError",
+    "printif",
+}
+
+
+def test_module_exports_its_frozen_names():
+    declared = set(rate_limiters.__all__)
+    assert declared == FROZEN_RATE_LIMITER_NAMES, (
+        f"missing: {sorted(FROZEN_RATE_LIMITER_NAMES - declared)}, "
+        f"extra: {sorted(declared - FROZEN_RATE_LIMITER_NAMES)}"
+    )
+    for name in FROZEN_RATE_LIMITER_NAMES:
+        assert hasattr(rate_limiters, name), f"{name} is in __all__ but not importable"
+
+
+def test_re_exports_are_the_shared_objects_not_copies():
+    # printif is excluded deliberately: it is deprecated and stays defined here rather than in the
+    # shared module, which no longer has it.
+    for name in FROZEN_RATE_LIMITER_NAMES - {"printif"}:
+        assert getattr(rate_limiters, name) is getattr(shared_rate_limiters, name)

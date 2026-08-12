@@ -36,6 +36,10 @@
             "package-name": "arize-phoenix-evals",
             "release-type": "python"
         },
+        "packages/phoenix-executors": {
+            "package-name": "arize-phoenix-executors",
+            "release-type": "python"
+        },
         "packages/phoenix-otel": {
             "package-name": "arize-phoenix-otel",
             "release-type": "python"

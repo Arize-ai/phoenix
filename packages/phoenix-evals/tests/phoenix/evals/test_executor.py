@@ -10,7 +10,9 @@ from unittest.mock import AsyncMock, Mock
 
 import nest_asyncio
 import pytest
+from phoenix.executors import executors as shared_executors
 
+from phoenix.evals import executors
 from phoenix.evals.executors import (
     AsyncExecutor,
     ExecutionStatus,
@@ -740,3 +742,35 @@ async def test_async_executor_timeouts_count_toward_max_retries():
     assert details[0].status == ExecutionStatus.FAILED
     assert len(details[0].exceptions) == 3
     assert all(isinstance(exc, TimeoutError) for exc in details[0].exceptions)
+
+
+# These names are the module's published surface. Two things can silently break it: dropping a name
+# from the re-export, and dropping it from __all__ — Sphinx renders nothing for a re-exported alias
+# that __all__ does not list, and no doc build runs in CI to notice.
+FROZEN_EXECUTOR_NAMES = {
+    "AsyncExecutor",
+    "ConcurrencyController",
+    "ExecutionDetails",
+    "ExecutionStatus",
+    "Executor",
+    "SyncExecutor",
+    "Unset",
+    "get_executor_on_sync_context",
+}
+
+
+def test_module_exports_its_frozen_names():
+    declared = set(executors.__all__)
+    assert declared == FROZEN_EXECUTOR_NAMES, (
+        f"missing: {sorted(FROZEN_EXECUTOR_NAMES - declared)}, "
+        f"extra: {sorted(declared - FROZEN_EXECUTOR_NAMES)}"
+    )
+    for name in FROZEN_EXECUTOR_NAMES:
+        assert hasattr(executors, name), f"{name} is in __all__ but not importable"
+
+
+def test_re_exports_are_the_shared_objects_not_copies():
+    # The executors decide how to handle a failure with isinstance checks, so a subclass or a
+    # separately-defined class here would break classification across package boundaries.
+    for name in FROZEN_EXECUTOR_NAMES:
+        assert getattr(executors, name) is getattr(shared_executors, name)

@@ -1,10 +1,8 @@
 from typing import Optional, Sequence, TypedDict
 
+from phoenix.executors.exceptions import PhoenixException
+
 __all__ = ["PhoenixException", "InvalidSpanInfo", "DuplicateSpanInfo", "SpanCreationError"]
-
-
-class PhoenixException(Exception):
-    pass
 
 
 class InvalidSpanInfo(TypedDict):

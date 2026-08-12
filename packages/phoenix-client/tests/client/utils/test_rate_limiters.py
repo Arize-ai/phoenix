@@ -5,7 +5,9 @@ from typing import Any, Callable, Iterator, List, Optional
 from unittest import mock
 
 import pytest
+from phoenix.executors import rate_limiters as shared_rate_limiters
 
+from phoenix.client.utils import rate_limiters
 from phoenix.client.utils.rate_limiters import (
     AdaptiveTokenBucket,
     UnavailableTokensError,
@@ -85,10 +87,10 @@ def test_token_bucket_gains_tokens_over_time() -> None:
         )
 
     with freeze_time(start + 5):
-        assert isclose(bucket.available_requests(), 5)
+        assert isclose(bucket.available_requests(), 6)
 
     with freeze_time(start + 10):
-        assert isclose(bucket.available_requests(), 10)
+        assert isclose(bucket.available_requests(), 11)
 
 
 def test_token_rate_limiter_can_max_out_on_requests() -> None:
@@ -105,7 +107,7 @@ def test_token_rate_limiter_can_max_out_on_requests() -> None:
         )
 
     with freeze_time(start + 30):
-        assert bucket.available_requests() == 30
+        assert bucket.available_requests() == 31
 
     with freeze_time(start + 120):
         assert bucket.available_requests() == 120
@@ -128,9 +130,9 @@ def test_token_rate_limiter_spends_tokens() -> None:
         )
 
     with freeze_time(start + 3):
-        assert bucket.available_requests() == 3
+        assert bucket.available_requests() == 4  # 1.0 + 3
         bucket.make_request_if_ready()
-        assert bucket.available_requests() == 2
+        assert bucket.available_requests() == 3  # 4 - 1
 
 
 def test_token_rate_limiter_cannot_spend_unavailable_tokens() -> None:
@@ -145,6 +147,8 @@ def test_token_rate_limiter_cannot_spend_unavailable_tokens() -> None:
             rate_increase_factor=0,
             cooldown_seconds=5,
         )
+        assert bucket.available_requests() == 1.0
+        bucket.make_request_if_ready()
         assert bucket.available_requests() == 0
         with pytest.raises(UnavailableTokensError):
             bucket.make_request_if_ready()
@@ -165,7 +169,11 @@ def test_token_rate_limiter_can_block_until_tokens_are_available() -> None:
         )
 
     with warp_time(start) as mock_sleep:
-        assert bucket.available_requests() == 0
+        assert bucket.available_requests() == 1.0
+        bucket.wait_until_ready()
+        sleeps = [call.args[0] for call in mock_sleep.call_args_list]
+        assert sum(sleeps) == 0, "the bucket starts with one token, so the first request is free"
+
         bucket.wait_until_ready()
         sleeps = [call.args[0] for call in mock_sleep.call_args_list]
         time_cost = 1 / rate
@@ -187,11 +195,10 @@ async def test_token_rate_limiter_async_waits_until_tokens_are_available() -> No
         )
 
     with async_warp_time(start) as mock_sleep:
-        assert bucket.available_requests() == 0
+        assert bucket.available_requests() == 1.0
         await bucket.async_wait_until_ready()
         sleeps = [call.args[0] for call in mock_sleep.call_args_list]
-        time_cost = 1 / rate
-        assert isclose(sum(sleeps), time_cost, rel_tol=0.2)
+        assert sum(sleeps) == 0, "the bucket starts with one token, so the first request is free"
 
 
 def test_token_rate_limiter_can_accumulate_tokens_before_waiting() -> None:
@@ -209,11 +216,10 @@ def test_token_rate_limiter_can_accumulate_tokens_before_waiting() -> None:
         )
 
     with warp_time(start + 5) as mock_sleep:
-        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        assert bucket.available_requests() == 1.5, "should have accumulated to 1.5 requests"
         bucket.wait_until_ready()
         sleeps = [call.args[0] for call in mock_sleep.call_args_list]
-        time_cost = (1 / rate) - 5
-        assert isclose(sum(sleeps), time_cost, rel_tol=0.2)
+        assert sum(sleeps) == 0
 
 
 async def test_token_rate_limiter_can_async_accumulate_tokens_before_waiting() -> None:
@@ -231,11 +237,10 @@ async def test_token_rate_limiter_can_async_accumulate_tokens_before_waiting() -
         )
 
     with async_warp_time(start + 5) as mock_sleep:
-        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        assert bucket.available_requests() == 1.5, "should have accumulated to 1.5 requests"
         await bucket.async_wait_until_ready()
         sleeps = [call.args[0] for call in mock_sleep.call_args_list]
-        time_cost = (1 / rate) - 5
-        assert isclose(sum(sleeps), time_cost, rel_tol=0.2)
+        assert sum(sleeps) == 0
 
 
 def test_token_bucket_adaptively_increases_rate_over_time() -> None:
@@ -253,7 +258,7 @@ def test_token_bucket_adaptively_increases_rate_over_time() -> None:
         )
 
     with warp_time(start + 5) as mock_sleep:
-        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        assert bucket.available_requests() == 1.5, "should have accumulated to 1.5 requests"
         bucket.wait_until_ready()
         sleeps = [call.args[0] for call in mock_sleep.call_args_list]
         elapsed_time = sum(sleeps) + 5
@@ -275,7 +280,7 @@ def test_token_bucket_does_not_increase_rate_past_maximum() -> None:
         )
 
     with warp_time(start + 5):
-        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        assert bucket.available_requests() == 1.5, "should have accumulated to 1.5 requests"
         bucket.wait_until_ready()
         assert isclose(bucket.rate, rate * 2)
 
@@ -295,7 +300,7 @@ def test_token_bucket_resets_rate_after_inactivity() -> None:
         )
 
     with warp_time(start + 5):
-        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        assert bucket.available_requests() == 1.5, "should have accumulated to 1.5 requests"
         bucket.wait_until_ready()
         assert isclose(bucket.rate, rate * 2)
 
@@ -350,3 +355,39 @@ def test_token_bucket_decreases_rate_once_per_cooldown_period() -> None:
     with warp_time(start + 6):
         bucket.on_rate_limit_error(request_start_time=time.time())
         assert isclose(bucket.rate, 6.25)
+
+
+# The names below are the module's published surface. Two things can silently break it: dropping a
+# name from the re-export, and dropping it from __all__ — Sphinx renders nothing for a re-exported
+# alias that __all__ does not list, and no doc build runs in CI to notice.
+FROZEN_RATE_LIMITER_NAMES = {
+    "AdaptiveTokenBucket",
+    "AsyncCallable",
+    "GenericType",
+    "ParameterSpec",
+    "RateLimitError",
+    "RateLimiter",
+    "UnavailableTokensError",
+}
+
+
+def test_module_exports_its_frozen_names() -> None:
+    declared = set(rate_limiters.__all__)
+    assert declared == FROZEN_RATE_LIMITER_NAMES, (
+        f"missing: {sorted(FROZEN_RATE_LIMITER_NAMES - declared)}, "
+        f"extra: {sorted(declared - FROZEN_RATE_LIMITER_NAMES)}"
+    )
+    for name in FROZEN_RATE_LIMITER_NAMES:
+        assert hasattr(rate_limiters, name), f"{name} is in __all__ but not importable"
+
+
+def test_re_exports_are_the_shared_objects_not_copies() -> None:
+    # The executors decide how to handle a failure with isinstance checks, so a subclass or a
+    # separately-defined class here would break classification across package boundaries.
+    for name in FROZEN_RATE_LIMITER_NAMES:
+        assert getattr(rate_limiters, name) is getattr(shared_rate_limiters, name)
+
+
+def test_rate_limiter_starts_at_five_requests_per_second() -> None:
+    limiter = rate_limiters.RateLimiter()
+    assert limiter._throttler.rate == 5.0  # pyright: ignore[reportPrivateUsage]

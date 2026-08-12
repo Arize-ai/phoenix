@@ -1,5 +1,5 @@
 [project]
-name = "arize-phoenix-client"
+name = "arize-phoenix-executors"
 description = "LLM Observability"
 readme = "README.md"
 requires-python = ">=3.10, <3.15"
@@ -21,33 +21,15 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
-version = "2.13.0"
+version = "0.1.0"
 dependencies = [
-  "arize-phoenix-executors>=0.1.0,<0.2",  # shared rate limiter and executors. Cap below 0.2: pre-1.0, so a minor is where a breaking change lands, and the executors classify errors by class identity — every Phoenix package installed together must resolve the same one.
-  "httpx",
   "tqdm",
-  "typing-extensions",
-  "openinference-semantic-conventions",
-  "openinference-instrumentation>=0.1.20",
-  "opentelemetry-sdk",
-  "opentelemetry-exporter-otlp",
+  "typing-extensions>=4.5, <5",
 ]
 
 [project.optional-dependencies]
-# The pytest plugin is opt-in: pytest stays OUT of base deps and is only required when a user
-# installs this extra (or already has pytest). The pytest11 entry point below is inert unless
-# pytest is importable, so importing arize-phoenix-client never pulls pytest in.
-pytest = [
-  "pytest>=7",
+test = [
 ]
-# Optional adapter for `phoenix.evals` evaluators used via @pytest.mark.phoenix(evaluators=...)
-# and px.evaluate(...). Kept separate so the base client never depends on arize-phoenix-evals.
-evals = [
-  "arize-phoenix-evals",
-]
-
-[project.entry-points.pytest11]
-phoenix = "phoenix.client.pytest.plugin"
 
 [project.urls]
 Documentation = "https://arize.com/docs/phoenix/"
@@ -65,9 +47,7 @@ packages = ["src/phoenix"]
 only-packages = true
 
 [tool.ruff]
-exclude = [
-  "dist",
-]
+exclude = [".git", "__pycache__", ".tox", "dist"]
 extend-include = ["*.ipynb"]
 line-length = 100
 target-version = "py310"
@@ -80,22 +60,18 @@ force-single-line = false
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
-"tests/**/*.py" = ["E501", "E731"]
-"src/phoenix/client/__generated__/v1/*.py" = ["E501"]
 
 [tool.ruff.format]
 line-ending = "native"
 
 [tool.mypy]
-plugins = ["pydantic.mypy"]
 explicit_package_bases = true
 strict = true
+# tests/mixed_version imports a pre-consolidation arize-phoenix-evals, which is installed only in
+# the tox environment that runs those tests and in no type-checking environment.
 exclude = [
   "dist/",
-  "examples",
-  "tests/canary",
-  "scripts/",
-  "src/phoenix/client/helpers/sdk/",
+  "tests/mixed_version/",
 ]
 
 [tool.pyright]
@@ -104,17 +80,13 @@ pythonVersion = "3.10"
 reportUnusedFunction = false
 exclude = [
   "dist/",
-  "examples",
-  "tests/canary/",
-  "scripts/",
-  "src/phoenix/client/helpers/sdk/",
+  "tests/mixed_version/",
   "**/.venv",
 ]
-
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = [
-  "tests",
+  "tests/unit",
 ]

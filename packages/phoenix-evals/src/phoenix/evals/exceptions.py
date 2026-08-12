@@ -1,5 +1,12 @@
-class PhoenixException(Exception):
-    pass
+from phoenix.executors.exceptions import PhoenixException
+
+__all__ = [
+    "PhoenixContextLimitExceeded",
+    "PhoenixException",
+    "PhoenixTemplateMappingError",
+    "PhoenixUnsupportedAudioFormat",
+    "PhoenixUnsupportedImageFormat",
+]
 
 
 class PhoenixContextLimitExceeded(PhoenixException):

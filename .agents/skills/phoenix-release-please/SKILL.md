@@ -30,7 +30,9 @@ Declared in `release-please-config.json`; current versions in `.release-please-m
 | `.` | `arize-phoenix` (root has `exclude-paths`; touch a file *outside* them, e.g. `src/phoenix/`) |
 | `packages/phoenix-client` | `arize-phoenix-client` |
 | `packages/phoenix-evals` | `arize-phoenix-evals` |
+| `packages/phoenix-executors` | `arize-phoenix-executors` |
 | `packages/phoenix-otel` | `arize-phoenix-otel` |
+| `packages/phoenix-sqlean` | `arize-phoenix-sqlean` (version lives in `setup.py`, not `pyproject.toml`) |
 
 ## Procedure
 
