@@ -6,6 +6,7 @@ import strawberry
 from fastapi import Request
 from pydantic import ValidationError
 from sqlalchemy import and_, delete, select, true
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -71,6 +72,7 @@ from phoenix.server.online_eval.session_policy import (
 )
 from phoenix.server.sandbox import SANDBOX_ADAPTERS
 from phoenix.server.sandbox.types import SandboxRuntimeContext, SandboxValidationUnavailable
+from phoenix.server.session_filters import compile_session_filter, session_filter_errors
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl.filter import validate_span_filter_condition
 
@@ -317,7 +319,24 @@ async def _ensure_evaluator_prompt_label(
         session.add(association)
 
 
-def _validate_project_evaluator_filter(filter_condition: str) -> None:
+def _validate_project_evaluator_filter(
+    filter_condition: str, evaluation_target: EvaluationTarget
+) -> None:
+    """Validate a filter in the language of the target it selects.
+
+    Spans and traces are filtered with the span filter DSL, sessions with the session
+    filter DSL, so the expression is compiled by the same path its target's scheduler
+    sweep will use.
+    """
+    if evaluation_target is EvaluationTarget.SESSION:
+        if not filter_condition.strip():
+            return
+        with session_filter_errors():
+            session_filter = compile_session_filter(filter_condition)
+            stmt = session_filter(select(models.ProjectSession))
+            stmt.compile(dialect=sqlite.dialect())
+            stmt.compile(dialect=postgresql.dialect())  # type: ignore[no-untyped-call]
+        return
     try:
         validate_span_filter_condition(filter_condition)
     except Exception:
@@ -722,7 +741,7 @@ class EvaluatorMutationMixin:
             project_id = from_global_id_with_expected_type(input.project_id, Project.__name__)
         except ValueError:
             raise BadRequest(f"Invalid project id: {input.project_id}")
-        _validate_project_evaluator_filter(input.filter_condition)
+        _validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
         evaluation_delay_seconds = _materialize_project_evaluator_evaluation_delay(
             input.evaluation_delay_seconds
@@ -832,7 +851,7 @@ class EvaluatorMutationMixin:
             )
         except ValueError:
             raise BadRequest(f"Invalid project evaluator id: {input.project_evaluator_id}")
-        _validate_project_evaluator_filter(input.filter_condition)
+        _validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
         if input.enabled is None:
             raise BadRequest("enabled cannot be set to null")
@@ -1001,7 +1020,7 @@ class EvaluatorMutationMixin:
             name = IdentifierModel.model_validate(input.name)
         except ValidationError as error:
             raise BadRequest(str(error))
-        _validate_project_evaluator_filter(input.filter_condition)
+        _validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
         evaluation_delay_seconds = _materialize_project_evaluator_evaluation_delay(
             input.evaluation_delay_seconds
@@ -1048,7 +1067,7 @@ class EvaluatorMutationMixin:
             name = IdentifierModel.model_validate(input.name)
         except (ValueError, ValidationError) as error:
             raise BadRequest(str(error))
-        _validate_project_evaluator_filter(input.filter_condition)
+        _validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
         evaluation_delay_seconds = _materialize_project_evaluator_evaluation_delay(
             input.evaluation_delay_seconds
@@ -1146,7 +1165,7 @@ class EvaluatorMutationMixin:
             name = IdentifierModel.model_validate(input.name)
         except (ValueError, ValidationError) as error:
             raise BadRequest(str(error))
-        _validate_project_evaluator_filter(input.filter_condition)
+        _validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
         if input.evaluator_input_mapping is None:
             raise BadRequest("evaluator_input_mapping cannot be set to null")

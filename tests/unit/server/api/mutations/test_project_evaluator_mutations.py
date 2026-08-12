@@ -166,7 +166,7 @@ def _code_add_input(
         "samplingRate": 0.25,
         "evaluationTarget": "SESSION",
         "inputMapping": _mapping(context="override"),
-        "filterCondition": "span_kind == 'LLM'",
+        "filterCondition": "num_traces >= 2",
         "enabled": False,
         "evaluationDelaySeconds": 30,
     }
@@ -421,7 +421,7 @@ async def test_add_project_code_evaluator_binds_existing_core(
     assert attached["samplingRate"] == 0.25
     assert attached["evaluationTarget"] == "SESSION"
     assert attached["inputMapping"] == _mapping(context="override")
-    assert attached["filterCondition"] == "span_kind == 'LLM'"
+    assert attached["filterCondition"] == "num_traces >= 2"
     assert attached["enabled"] is False
     assert attached["evaluationDelaySeconds"] == 30
 
@@ -802,6 +802,29 @@ async def test_invalid_filter_rejects_before_project_evaluator_writes(
     assert result.errors
     assert "Invalid filter condition:" in str(result.errors)
     assert await _row_counts(db) == before
+
+
+async def test_session_evaluator_filter_is_validated_in_the_session_language(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    project = await _add_project(db)
+    filter_condition = "any(span.latency_ms > 1_000 for span in spans)"
+    create_input = _llm_input(project, name="session-filter-llm", text="Evaluate {{input}}")
+    create_input["evaluationTarget"] = "SESSION"
+    create_input["filterCondition"] = filter_condition
+
+    result = await gql_client.execute(_CREATE_LLM, {"input": create_input})
+
+    assert result.data and not result.errors
+    created = result.data["createProjectLlmEvaluator"]["evaluator"]
+    assert created["evaluationTarget"] == "SESSION"
+    async with db() as session:
+        criteria = await session.get(
+            models.ProjectEvaluatorCriteria, int(GlobalID.from_id(created["id"]).node_id)
+        )
+        assert criteria is not None
+        assert criteria.filter_condition == filter_condition
 
 
 async def test_sampling_rate_rejected_at_project_evaluator_input_boundary(
