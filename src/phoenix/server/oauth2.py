@@ -77,13 +77,19 @@ class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
         self._assertion_file = assertion_file
 
     def sign(self, auth: Any, token_endpoint: str) -> str:
-        # Re-read per request: the platform rotates the token in place, typically hourly.
+        # Re-read per request, by path: the token rotates in place, and Kubernetes rotates a
+        # projected volume by swapping the symlink the path resolves through.
         try:
-            return self._assertion_file.read_text().strip()
+            assertion = self._assertion_file.read_text().strip()
         except OSError as e:
             # OAuthError is the only failure the login route translates into a redirect;
             # anything else surfaces as a 500.
             raise OAuthError(description=f"cannot read client assertion file: {e}") from e
+        if not assertion:
+            # An empty value would be sent as `client_assertion=`, which IDPs reject as a
+            # generic invalid_client with nothing pointing back at the file.
+            raise OAuthError(description=f"client assertion file is empty: {self._assertion_file}")
+        return assertion
 
     def __call__(
         self, auth: Any, method: str, uri: str, headers: Any, body: Any
@@ -493,11 +499,18 @@ class OAuth2Clients:
             assert config.client_assertion_file is not None  # enforced by OAuth2ClientConfig
             assertion_file = Path(config.client_assertion_file)
             if not assertion_file.is_file():
-                raise ValueError(
-                    f"client assertion file not found for IDP {config.idp_name}: "
-                    f"{assertion_file}. On AKS this file is projected by the Azure Workload "
-                    f"Identity webhook, which requires the pod label "
-                    f"azure.workload.identity/use=true."
+                # Warn rather than raise: the file is written by the platform, not by the
+                # operator, so it can legitimately appear after startup (an init or sidecar
+                # container that mints it). Failing here would take the whole server down —
+                # including other IDPs and password login — over one provider's mount. The
+                # login route reports the missing file per attempt.
+                logger.warning(
+                    "OAuth2 IDP %s: client assertion file %s does not exist; logins via this "
+                    "provider will fail until it appears. On AKS it is projected by the Azure "
+                    "Workload Identity webhook, which requires the pod label "
+                    "azure.workload.identity/use=true.",
+                    config.idp_name,
+                    assertion_file,
                 )
             client_kwargs["token_endpoint_auth_method"] = ClientAssertionJWT(assertion_file)
         elif config.token_endpoint_auth_method:

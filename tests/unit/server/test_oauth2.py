@@ -1470,14 +1470,47 @@ class TestClientAssertionJWT:
         assert client is not None
         assert isinstance(client.client_kwargs["token_endpoint_auth_method"], ClientAssertionJWT)
 
-    def test_add_client_rejects_missing_assertion_file(self, tmp_path: Path) -> None:
+    def test_empty_assertion_file_raises_oauth_error(self, tmp_path: Path) -> None:
+        # An empty value is sent as `client_assertion=` and comes back as a generic
+        # invalid_client, with nothing pointing at the file.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("   \n")
+
+        with pytest.raises(OAuthError, match="empty"):
+            self._prepare(assertion_file)
+
+    def test_add_client_tolerates_an_assertion_file_that_does_not_exist_yet(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # The file is written by the platform, so it may appear after startup. One provider's
+        # mount must not stop the server from serving the others.
         config = OAuth2ClientConfig(
             **self._CONFIG_DEFAULTS,
-            client_assertion_file=str(tmp_path / "does-not-exist"),
+            client_assertion_file=str(tmp_path / "not-yet"),
         )
         clients = OAuth2Clients()
-        with pytest.raises(ValueError, match="client assertion file not found"):
+        with caplog.at_level(logging.WARNING):
             clients.add_client(config)
+
+        assert clients.get_client("entra") is not None
+        assert "does not exist" in caplog.text
+
+    def test_assertion_is_reread_through_a_swapped_symlink(self, tmp_path: Path) -> None:
+        # Kubernetes rotates a projected volume by atomically swapping the symlink the
+        # configured path resolves through, not by rewriting the file in place.
+        first, second = tmp_path / "..data1", tmp_path / "..data2"
+        first.mkdir()
+        second.mkdir()
+        (first / "token").write_text("first.token.value")
+        (second / "token").write_text("rotated.token.value")
+        link = tmp_path / "azure-identity-token"
+        link.symlink_to(first / "token")
+
+        assert self._prepare(link)["client_assertion"] == ["first.token.value"]
+
+        link.unlink()
+        link.symlink_to(second / "token")
+        assert self._prepare(link)["client_assertion"] == ["rotated.token.value"]
 
     def test_any_idp_name_is_accepted(self, tmp_path: Path) -> None:
         # IDP names are operator-chosen, so the mechanism cannot be gated on one.
