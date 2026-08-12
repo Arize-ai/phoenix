@@ -267,6 +267,27 @@ async def test_graphql_node_id_round_trips(
     assert matched.envelope.rows == [[name]]
 
 
+async def test_graphql_node_id_in_predicate_reaches_the_primary_key(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+) -> None:
+    """Membership is equality, so it must decode to the integer key like ``=``."""
+    db, db_path = analytics_sqlite_db
+    projected = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql="SELECT graphql_node_id, name FROM projects"),
+        sqlite_db_path=db_path,
+    )
+    node_id, name = projected.envelope.rows[0]
+
+    matched = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql=f"SELECT name FROM projects WHERE graphql_node_id IN ('{node_id}')"),
+        sqlite_db_path=db_path,
+    )
+    assert matched.envelope.rows == [[name]]
+    assert "graphql_node_id" in matched.envelope.applied.rewrites
+
+
 async def test_graphql_node_id_predicate_reaches_the_primary_key(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
 ) -> None:

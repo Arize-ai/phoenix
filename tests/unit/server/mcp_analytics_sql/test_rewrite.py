@@ -808,6 +808,118 @@ def test_graphql_node_id_from_a_cte_column_list_is_not_substituted() -> None:
     assert "graphql_node_id" not in ctx.applied
 
 
+def _project_node_id(row_id: int) -> str:
+    return base64.b64encode(f"Project:{row_id}".encode()).decode()
+
+
+def test_graphql_node_id_membership_predicates_reach_the_primary_key() -> None:
+    """IN, ANY, and IS DISTINCT FROM are equality, so they decode like ``=``."""
+    one, two = _project_node_id(1), _project_node_id(2)
+    cases = [
+        (
+            f"SELECT name FROM projects WHERE graphql_node_id IN ('{one}', '{two}')",
+            "postgresql",
+            "id IN (1, 2)",
+        ),
+        (
+            f"SELECT name FROM projects WHERE graphql_node_id NOT IN ('{one}')",
+            "postgresql",
+            "NOT id IN (1)",
+        ),
+        (
+            f"SELECT name FROM projects WHERE graphql_node_id IN (VALUES ('{one}'))",
+            "postgresql",
+            "id IN (1)",
+        ),
+        (
+            f"SELECT name FROM projects WHERE graphql_node_id = ANY(ARRAY['{one}', '{two}'])",
+            "postgresql",
+            "id = ANY(ARRAY[1, 2])",
+        ),
+        (
+            f"SELECT name FROM projects WHERE graphql_node_id = ALL(ARRAY['{one}'])",
+            "postgresql",
+            "id = ALL(ARRAY[1])",
+        ),
+        (
+            f"SELECT name FROM projects WHERE graphql_node_id IS NOT DISTINCT FROM '{one}'",
+            "postgresql",
+            "id IS NOT DISTINCT FROM 1",
+        ),
+        (
+            f"SELECT name FROM projects WHERE graphql_node_id IS DISTINCT FROM '{one}'",
+            "postgresql",
+            "id IS DISTINCT FROM 1",
+        ),
+        (
+            f"SELECT name FROM projects WHERE graphql_node_id IN ('{one}', '{two}')",
+            "sqlite",
+            "id IN (1, 2)",
+        ),
+    ]
+    for sql, dialect, expected in cases:
+        _, rendered = _rewritten(sql, dialect=cast(SupportedSQLDialectName, dialect))
+        assert "ENCODE" not in rendered.upper(), rendered
+        assert expected in rendered, rendered
+
+
+def test_graphql_node_id_in_drops_members_that_are_not_this_type() -> None:
+    """A Dataset id never equals a project row, so it is not a member of the list."""
+    project = _project_node_id(1)
+    dataset = base64.b64encode(b"Dataset:1").decode()
+    _, rendered = _rewritten(
+        f"SELECT name FROM projects WHERE graphql_node_id IN ('{project}', '{dataset}')",
+        dialect="postgresql",
+    )
+    assert "ENCODE" not in rendered.upper()
+    assert "id IN (1)" in rendered
+
+
+def test_graphql_node_id_in_of_the_wrong_type_stays_encoded() -> None:
+    """Decoding a Dataset id into ``id IN (1)`` would select a project."""
+    dataset = base64.b64encode(b"Dataset:1").decode()
+    _, rendered = _rewritten(
+        f"SELECT name FROM projects WHERE graphql_node_id IN ('{dataset}')",
+        dialect="postgresql",
+    )
+    assert "ENCODE" in rendered.upper()
+    assert "id IN" not in rendered.lower().replace("graphql_node_id", "")
+
+
+def test_graphql_node_id_all_with_a_wrong_type_stays_encoded() -> None:
+    """``= ALL`` is true only if every member matches; dropping one would make it ``=``."""
+    project = _project_node_id(1)
+    dataset = base64.b64encode(b"Dataset:1").decode()
+    _, rendered = _rewritten(
+        f"SELECT name FROM projects WHERE graphql_node_id = ALL(ARRAY['{project}', '{dataset}'])",
+        dialect="postgresql",
+    )
+    assert "ENCODE" in rendered.upper()
+    assert "id = ALL" not in rendered.lower()
+
+
+def test_graphql_node_id_like_and_between_stay_encoded() -> None:
+    """A pattern or a range is not a node id.
+
+    LIKE matches text. BETWEEN orders the encoded form, which is not integer
+    id order, so decoding the endpoints would answer a different question.
+    """
+    one, two = _project_node_id(1), _project_node_id(2)
+    _, like_sql = _rewritten(
+        f"SELECT name FROM projects WHERE graphql_node_id LIKE '{one}'",
+        dialect="postgresql",
+    )
+    assert "ENCODE" in like_sql.upper()
+    assert "id LIKE" not in like_sql.lower()
+
+    _, between_sql = _rewritten(
+        f"SELECT name FROM projects WHERE graphql_node_id BETWEEN '{one}' AND '{two}'",
+        dialect="postgresql",
+    )
+    assert "ENCODE" in between_sql.upper()
+    assert "id BETWEEN" not in between_sql.upper()
+
+
 def test_latency_ms_from_a_subquery_column_list_is_not_substituted() -> None:
     """Same for a subquery alias list: the name is t's, not spans'."""
     ctx, rendered = _rewritten(

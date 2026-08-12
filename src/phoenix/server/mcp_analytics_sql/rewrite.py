@@ -26,7 +26,9 @@ from phoenix.server.mcp_analytics_sql.normalize import (
 from phoenix.server.mcp_analytics_sql.parse import (
     _allowlisted_table_name,
     _identifier_key,
+    _is_quantifier_call,
     _scope_columns,
+    _strip_parens,
     _timestamp_literals,
     _timestamp_passthrough_references,
     query_local_columns,
@@ -958,6 +960,112 @@ def _decode_node_id(value: str, type_name: str) -> Optional[int]:
         return None
 
 
+def _quantifier_member_container(quantifier: exp.Expression) -> Optional[exp.Expression]:
+    """ARRAY or VALUES a quantifier holds, if that is a stated list rather than a subquery."""
+    inner = (
+        _strip_parens(quantifier.expressions[0])
+        if isinstance(quantifier, exp.Anonymous) and quantifier.expressions
+        else _strip_parens(quantifier.this)
+    )
+    if isinstance(inner, exp.Subquery):
+        inner = _strip_parens(inner.this)
+    if isinstance(inner, (exp.Values, exp.Array)):
+        return inner
+    return None
+
+
+def _string_literals_in_container(container: exp.Expression) -> Optional[list[exp.Literal]]:
+    """String literals a membership list holds, or None if a member is computed.
+
+    IN, ARRAY, and VALUES are the same list. A subquery, a non-string, or a
+    multi-column VALUES row is not a stated node id.
+    """
+    if isinstance(container, exp.In):
+        if container.args.get("query") is not None:
+            return None
+        found: list[exp.Literal] = []
+        for member in container.expressions:
+            member = _strip_parens(member)
+            if isinstance(member, exp.Literal) and member.is_string:
+                found.append(member)
+            elif isinstance(member, exp.Values):
+                nested = _string_literals_in_container(member)
+                if nested is None:
+                    return None
+                found.extend(nested)
+            else:
+                return None
+        return found
+    if isinstance(container, exp.Array):
+        found = []
+        for member in container.expressions:
+            member = _strip_parens(member)
+            if isinstance(member, exp.Literal) and member.is_string:
+                found.append(member)
+            else:
+                return None
+        return found
+    if isinstance(container, exp.Values):
+        found = []
+        for row in container.expressions:
+            row = _strip_parens(row)
+            cells = list(row.expressions) if isinstance(row, exp.Tuple) else [row]
+            if len(cells) != 1:
+                return None
+            cell = _strip_parens(cells[0])
+            if not (isinstance(cell, exp.Literal) and cell.is_string):
+                return None
+            found.append(cell)
+        return found
+    return None
+
+
+def _decoded_membership_ids(
+    literals: list[exp.Literal], type_name: str, *, require_all: bool
+) -> Optional[list[int]]:
+    """Primary keys these literals name, or None if the comparison must stay encoded.
+
+    A value that is not an id for this type matches nothing. Dropping it from
+    ``IN`` / ``= ANY`` / ``NOT IN`` / ``<> ALL`` does not change who matches.
+    ``= ALL`` and ``<> ANY`` AND/OR against every member, so an undecodable
+    value cannot be dropped without changing the question.
+    """
+    ids: list[int] = []
+    for literal in literals:
+        row_id = _decode_node_id(literal.name, type_name)
+        if row_id is None:
+            if require_all:
+                return None
+            continue
+        ids.append(row_id)
+    return ids or None
+
+
+def _replace_membership_members(container: exp.Expression, ids: list[int]) -> None:
+    numbers = [exp.Literal.number(row_id) for row_id in ids]
+    if isinstance(container, (exp.In, exp.Array)):
+        container.set("expressions", numbers)
+    elif isinstance(container, exp.Values):
+        container.set("expressions", [exp.Tuple(expressions=[number]) for number in numbers])
+
+
+def _quantifier_requires_every_member(
+    comparison: exp.Expression, quantifier: exp.Expression
+) -> bool:
+    """Whether dropping an undecodable member would change this comparison.
+
+    ``x = ALL(a, b)`` is true only if x equals both; dropping a never-matching
+    b would make it ``x = a``. ``x <> ANY(a, b)`` is true if x differs from
+    either; dropping a never-matching b would make it ``x <> a``.
+    """
+    is_all = isinstance(quantifier, exp.All) or (
+        isinstance(quantifier, exp.Anonymous) and (quantifier.name or "").casefold() == "all"
+    )
+    if isinstance(comparison, (exp.EQ, exp.NullSafeEQ)):
+        return is_all
+    return not is_all
+
+
 def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     """Translate between Relay global ids and the integer primary key.
 
@@ -968,10 +1076,15 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
     The substitution differs by position, for the same reason latency_ms does.
 
     In a predicate the literal is decoded here and the comparison becomes
-    ``id = 7``, which reaches the primary key. Encoding in SQL instead would make
-    the engine compute a value for every row before comparing, turning a key
-    lookup into a full scan -- and the only way to index around that would be an
-    expression index, which means a migration.
+    ``id = 7`` -- or ``id IN (7, 8)`` for a membership list -- which reaches
+    the primary key. Encoding in SQL instead would make the engine compute a
+    value for every row before comparing, turning a key lookup into a full
+    scan -- and the only way to index around that would be an expression
+    index, which means a migration.
+
+    Equality, inequality, ``IN`` / ``NOT IN``, ``= ANY`` / ``= ALL``, and
+    ``IS [NOT] DISTINCT FROM`` are the same question. A pattern or a range
+    is not a node id, so ``LIKE`` and ``BETWEEN`` stay in the projection form.
 
     In a projection there is nothing to search, so the value is built in SQL,
     where it composes with ORDER BY, GROUP BY and joins. Encoding after the fact
@@ -1021,20 +1134,61 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
 
     # Predicate position first: rewriting the whole comparison removes the column
     # before the projection pass can see it.
-    for cmp_node in list(root.find_all(exp.EQ, exp.NEQ)):
+    def physical_id(column: exp.Column) -> exp.Column:
+        return exp.column("id", table=_copied_table_identifier(column))
+
+    for cmp_node in list(root.find_all(exp.EQ, exp.NEQ, exp.NullSafeEQ, exp.NullSafeNEQ)):
         left, right = cmp_node.this, cmp_node.expression
-        for column, literal in ((left, right), (right, left)):
-            if is_node_id(column) and isinstance(literal, exp.Literal) and literal.is_string:
-                type_name = type_for(column)
-                if type_name is None:
-                    continue
-                row_id = _decode_node_id(literal.name, type_name)
+        for column, other in ((left, right), (right, left)):
+            if not isinstance(column, exp.Column) or not is_node_id(column):
+                continue
+            type_name = type_for(column)
+            if type_name is None:
+                continue
+            if isinstance(other, exp.Literal) and other.is_string:
+                row_id = _decode_node_id(other.name, type_name)
                 if row_id is None:
                     continue
-                cmp_node.set("this", exp.column("id", table=_copied_table_identifier(column)))
+                cmp_node.set("this", physical_id(column))
                 cmp_node.set("expression", exp.Literal.number(row_id))
                 changed = True
                 break
+            if isinstance(other, (exp.Any, exp.All)) or _is_quantifier_call(other):
+                container = _quantifier_member_container(other)
+                literals = (
+                    _string_literals_in_container(container) if container is not None else None
+                )
+                if container is None or literals is None:
+                    continue
+                ids = _decoded_membership_ids(
+                    literals,
+                    type_name,
+                    require_all=_quantifier_requires_every_member(cmp_node, other),
+                )
+                if ids is None:
+                    continue
+                _replace_membership_members(container, ids)
+                cmp_node.set("this", physical_id(column))
+                cmp_node.set("expression", other)
+                changed = True
+                break
+
+    for in_node in list(root.find_all(exp.In)):
+        column = in_node.this
+        if not isinstance(column, exp.Column) or not is_node_id(column):
+            continue
+        type_name = type_for(column)
+        if type_name is None:
+            continue
+        literals = _string_literals_in_container(in_node)
+        if literals is None:
+            continue
+        ids = _decoded_membership_ids(literals, type_name, require_all=False)
+        if ids is None:
+            continue
+        in_node.set("this", physical_id(column))
+        _replace_membership_members(in_node, ids)
+        changed = True
 
     # Whatever is left is a projection or an unrecognised position; build the id.
     for column in list(root.find_all(exp.Column)):
