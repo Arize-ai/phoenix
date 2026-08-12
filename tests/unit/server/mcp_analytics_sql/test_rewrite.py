@@ -730,6 +730,66 @@ def _rewritten(
     return ctx, rendered
 
 
+class TestLimitInjection:
+    """A caller-written LIMIT must still bound the answer.
+
+    The count is rendered through SQLGlot to decide whether it already sits
+    under the cap. SQLGlot's PostgreSQL dialect is named ``postgres``, not
+    ``postgresql``, and passing the latter raises ValueError -- which this pass
+    treated as an unparseable expression and replaced with ``row_limit + 1``.
+    ``SELECT ... LIMIT 5`` then returned 500 rows on PostgreSQL and 5 on SQLite.
+
+    FETCH FIRST is a different node than LIMIT. Leaving it unread meant
+    ``FETCH FIRST 10000 ROWS ONLY`` skipped the SQL-level cap entirely.
+    """
+
+    @pytest.mark.parametrize("backend", ["postgresql", "sqlite"])
+    def test_a_limit_below_the_cap_is_kept(self, backend: str) -> None:
+        ctx, rendered = _rewritten(
+            "SELECT id FROM spans LIMIT 5",
+            dialect=cast(SupportedSQLDialectName, backend),
+        )
+        assert "limit_injection" not in ctx.applied
+        assert "LIMIT 5" in rendered.upper()
+
+    @pytest.mark.parametrize("backend", ["postgresql", "sqlite"])
+    def test_limit_zero_is_kept(self, backend: str) -> None:
+        ctx, rendered = _rewritten(
+            "SELECT id FROM spans LIMIT 0",
+            dialect=cast(SupportedSQLDialectName, backend),
+        )
+        assert "limit_injection" not in ctx.applied
+        assert "LIMIT 0" in rendered.upper()
+
+    def test_a_limit_at_the_cap_is_probed(self) -> None:
+        ctx, rendered = _rewritten("SELECT id FROM spans LIMIT 10", dialect="postgresql")
+        assert "limit_injection" in ctx.applied
+        assert "LIMIT 11" in rendered.upper()
+
+    def test_fetch_below_the_cap_is_kept(self) -> None:
+        ctx, rendered = _rewritten(
+            "SELECT id FROM spans ORDER BY id FETCH FIRST 5 ROWS ONLY",
+            dialect="postgresql",
+        )
+        assert "limit_injection" not in ctx.applied
+        assert "FETCH FIRST 5" in rendered.upper()
+
+    def test_fetch_above_the_cap_is_clamped(self) -> None:
+        ctx, rendered = _rewritten(
+            "SELECT id FROM spans ORDER BY id FETCH FIRST 10000 ROWS ONLY",
+            dialect="postgresql",
+        )
+        assert "limit_injection" in ctx.applied
+        assert "LIMIT 11" in rendered.upper()
+
+    def test_fetch_first_row_only_is_kept(self) -> None:
+        ctx, rendered = _rewritten(
+            "SELECT id FROM spans ORDER BY id FETCH FIRST ROW ONLY",
+            dialect="postgresql",
+        )
+        assert "limit_injection" not in ctx.applied
+
+
 class TestTimestampLiterals:
     """An offset is required where one is needed, and the spelling is not.
 

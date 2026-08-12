@@ -14,6 +14,7 @@ from phoenix.server.mcp_analytics_sql.allowlist import (
     GRAPHQL_NODE_ID_COLUMN,
     TABLE_GRAPHQL_TYPES,
     Allowlist,
+    sqlglot_read_dialect,
 )
 from phoenix.server.mcp_analytics_sql.catalog import IndexedJsonAccessor
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
@@ -776,6 +777,38 @@ def _qualify_schema(root: exp.Expression, ctx: RewriteContext) -> exp.Expression
     return root
 
 
+def _limit_count_expression(limit: exp.Expression) -> Optional[exp.Expression]:
+    """The numeric bound a LIMIT or FETCH clause states.
+
+    FETCH FIRST ROW ONLY has no count node; SQL's default is one row. FETCH is
+    not a Limit subclass, so a check that only reads ``exp.Limit.expression``
+    never sees it.
+    """
+    if isinstance(limit, exp.Limit):
+        return limit.expression
+    if isinstance(limit, exp.Fetch):
+        count = limit.args.get("count")
+        return count if isinstance(count, exp.Expression) else exp.Literal.number(1)
+    return None
+
+
+def _parse_limit_count(
+    expression: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> Optional[int]:
+    """The integer a limit expression names, or None if it cannot be read.
+
+    Rendered through SQLGlot's dialect name, not Phoenix's. ``postgresql`` is
+    not a SQLGlot dialect -- ``postgres`` is -- and passing the former raises
+    ``ValueError: Unknown dialect 'postgresql'``. The caller treated that as an
+    unparseable expression and replaced every PostgreSQL LIMIT with
+    ``row_limit + 1``, so ``LIMIT 5`` and ``LIMIT 0`` both returned 500 rows.
+    """
+    try:
+        return int(expression.sql(dialect=sqlglot_read_dialect(dialect)))
+    except ValueError:
+        return None
+
+
 def _inject_limit(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     # Set operations are admitted too, and they are the shape that most needs a
     # limit: UNION deduplicates and INTERSECT sorts, so the engine can be made to
@@ -785,14 +818,19 @@ def _inject_limit(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
         return root
     limit = root.args.get("limit")
     should_probe = limit is None
-    if isinstance(limit, exp.Limit) and limit.expression is not None:
-        try:
-            requested_limit = int(limit.expression.sql(dialect=ctx.dialect))
-            should_probe = requested_limit < 0 or requested_limit >= ctx.row_limit
-        except ValueError:
+    count_expression = _limit_count_expression(limit) if isinstance(limit, exp.Expression) else None
+    if count_expression is not None:
+        requested_limit = _parse_limit_count(count_expression, dialect=ctx.dialect)
+        if requested_limit is None:
             # An expression or placeholder can be unbounded at execution time.
             # Replacing it is safer than trusting a value admission cannot see.
             should_probe = True
+        else:
+            should_probe = requested_limit < 0 or requested_limit >= ctx.row_limit
+    elif limit is not None:
+        # A limit-like node we cannot read. Fail closed rather than leaving
+        # the statement unbounded.
+        should_probe = True
     if should_probe:
         # One more row than the caller asked for. Fetching exactly the limit
         # makes truncation undetectable: a result of exactly N rows is
