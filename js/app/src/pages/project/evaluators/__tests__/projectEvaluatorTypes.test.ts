@@ -1,7 +1,9 @@
 import {
   dropReferencePathMappings,
   getProjectEvaluatorMappingDiagnostics,
+  getSessionScopeUnschedulableReason,
   toProjectEvaluatorSamplingFraction,
+  type ProjectEvaluatorScope,
 } from "../projectEvaluatorTypes";
 
 describe("dropReferencePathMappings", () => {
@@ -35,6 +37,39 @@ describe("toProjectEvaluatorSamplingFraction", () => {
     [150, 1],
   ])("clamps %s percent to %s", (percent, expected) => {
     expect(toProjectEvaluatorSamplingFraction(percent)).toBe(expected);
+  });
+});
+
+describe("getSessionScopeUnschedulableReason", () => {
+  const sessionScope: ProjectEvaluatorScope = {
+    targetType: "SESSION",
+    filterCondition: "",
+    samplingRate: 1,
+    evaluationDelaySeconds: 300,
+  };
+
+  it.each<[string, Partial<ProjectEvaluatorScope>, string | null]>([
+    ["an unfiltered, unsampled session scope", {}, null],
+    [
+      "a filtered session scope",
+      { filterCondition: "name == 'chat'" },
+      "filter",
+    ],
+    ["a sampled session scope", { samplingRate: 0.5 }, "sampling"],
+    [
+      "a filtered and sampled session scope",
+      { filterCondition: "name == 'chat'", samplingRate: 0.5 },
+      "filter",
+    ],
+    [
+      "a filtered span scope",
+      { targetType: "SPAN", filterCondition: "a" },
+      null,
+    ],
+  ])("reports %s as %s", (_label, overrides, expected) => {
+    expect(
+      getSessionScopeUnschedulableReason({ ...sessionScope, ...overrides })
+    ).toBe(expected);
   });
 });
 

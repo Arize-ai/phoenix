@@ -3,7 +3,10 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 
 import {
+  Alert,
   Flex,
+  Input,
+  NumberField,
   SegmentedControl,
   SegmentedControlItem,
   Slider,
@@ -11,7 +14,9 @@ import {
   Text,
 } from "@phoenix/components";
 import {
+  getSessionScopeUnschedulableReason,
   isProjectEvaluatorTarget,
+  MIN_EVALUATION_DELAY_SECONDS,
   toProjectEvaluatorSamplingFraction,
   type ProjectEvaluatorScope,
   type ProjectEvaluatorTarget,
@@ -43,29 +48,107 @@ export const ProjectEvaluatorScopeFieldGroup = ({
   fillSampling?: boolean;
   children?: ReactNode;
 }) => {
+  const isSessionTarget = scope.targetType === "SESSION";
+  const unschedulableReason = getSessionScopeUnschedulableReason(scope);
+  // A session evaluator only runs unfiltered and unsampled, so those controls
+  // stay hidden unless a stored value is holding this evaluator back, in which
+  // case they are the only way to clear it.
+  const showSamplingField = !isSessionTarget || scope.samplingRate !== 1;
+  const showFilterField = !isSessionTarget || scope.filterCondition !== "";
+  const handleTargetChange = (targetType: ProjectEvaluatorTarget) => {
+    if (targetType === "SESSION") {
+      onScopeChange({
+        ...scope,
+        targetType,
+        filterCondition: "",
+        samplingRate: 1,
+      });
+      return;
+    }
+    onScopeChange({ ...scope, targetType });
+  };
   return (
     <Flex direction="column" gap="size-200">
       <Flex direction="row" gap="size-400" wrap alignItems="start">
         <ProjectEvaluatorTargetField
           value={scope.targetType}
-          onChange={(targetType) => onScopeChange({ ...scope, targetType })}
+          onChange={handleTargetChange}
           isDisabled={isTargetDisabled}
         />
-        <ProjectEvaluatorSamplingField
-          fill={fillSampling}
-          value={scope.samplingRate}
-          onChange={(samplingRate) => onScopeChange({ ...scope, samplingRate })}
-        />
+        {isSessionTarget ? (
+          <ProjectEvaluatorEvaluationDelayField
+            value={scope.evaluationDelaySeconds}
+            onChange={(evaluationDelaySeconds) =>
+              onScopeChange({ ...scope, evaluationDelaySeconds })
+            }
+          />
+        ) : null}
+        {showSamplingField ? (
+          <ProjectEvaluatorSamplingField
+            fill={fillSampling}
+            value={scope.samplingRate}
+            onChange={(samplingRate) =>
+              onScopeChange({ ...scope, samplingRate })
+            }
+          />
+        ) : null}
         {children}
       </Flex>
-      <ProjectEvaluatorSpanFilterField
-        projectId={projectId}
-        value={scope.filterCondition}
-        onChange={(filterCondition) =>
-          onScopeChange({ ...scope, filterCondition })
-        }
-        onValidityChange={onFilterValidityChange}
-      />
+      {showFilterField ? (
+        <ProjectEvaluatorSpanFilterField
+          projectId={projectId}
+          value={scope.filterCondition}
+          onChange={(filterCondition) =>
+            onScopeChange({ ...scope, filterCondition })
+          }
+          onValidityChange={onFilterValidityChange}
+          showHint={!isSessionTarget}
+        />
+      ) : null}
+      {isSessionTarget ? (
+        <Text size="XS" color="text-500">
+          Every session in this project is evaluated once, after it stays quiet
+          for the evaluation delay. Later activity in the session does not
+          schedule another evaluation.
+        </Text>
+      ) : null}
+      {unschedulableReason ? (
+        <Alert variant="warning" title="This evaluator will not run">
+          {unschedulableReason === "filter"
+            ? "Session evaluators with a filter are saved but never scheduled. Clear the span filter to schedule this evaluator."
+            : "Session evaluators with a sampling rate below 100% are saved but never scheduled. Set sampling to 100% to schedule this evaluator."}
+        </Alert>
+      ) : null}
+    </Flex>
+  );
+};
+
+const ProjectEvaluatorEvaluationDelayField = ({
+  value,
+  onChange,
+}: {
+  /** Seconds a session must stay quiet before its evaluation is scheduled. */
+  value: number;
+  onChange: (evaluationDelaySeconds: number) => void;
+}) => {
+  return (
+    <Flex direction="column" gap="size-50">
+      <Text size="XS" weight="heavy" color="text-700">
+        Evaluation delay
+      </Text>
+      <NumberField
+        aria-label="Evaluation delay in seconds"
+        size="S"
+        step={1}
+        minValue={MIN_EVALUATION_DELAY_SECONDS}
+        value={value}
+        onChange={onChange}
+        css={css`
+          width: 140px;
+        `}
+      >
+        <Input />
+      </NumberField>
     </Flex>
   );
 };
@@ -96,7 +179,7 @@ const ProjectEvaluatorTargetField = ({
         <SegmentedControlItem id="SPAN" isDisabled={isDisabled}>
           Span
         </SegmentedControlItem>
-        <SegmentedControlItem id="SESSION" isDisabled>
+        <SegmentedControlItem id="SESSION" isDisabled={isDisabled}>
           Session
         </SegmentedControlItem>
       </SegmentedControl>
@@ -185,11 +268,14 @@ const ProjectEvaluatorSpanFilterField = ({
   value,
   onChange,
   onValidityChange,
+  showHint = true,
 }: {
   projectId: string;
   value: string;
   onChange: (filterCondition: string) => void;
   onValidityChange?: (isValid: boolean) => void;
+  /** Hidden where an empty filter is the only schedulable value. */
+  showHint?: boolean;
 }) => {
   const [draft, setDraft] = useState(value);
   const handleValidCondition = ({
@@ -213,9 +299,11 @@ const ProjectEvaluatorSpanFilterField = ({
         onValidityChange={onValidityChange}
         placeholder="span_kind == 'LLM'"
       />
-      <Text size="XS" color="text-500">
-        Leave empty to evaluate every span.
-      </Text>
+      {showHint ? (
+        <Text size="XS" color="text-500">
+          Leave empty to evaluate every span.
+        </Text>
+      ) : null}
     </Flex>
   );
 };

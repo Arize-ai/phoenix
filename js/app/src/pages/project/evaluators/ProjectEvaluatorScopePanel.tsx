@@ -166,6 +166,7 @@ export const ProjectEvaluatorScopePanel = (
   const { projectId, scope, codeEvaluatorId, inlineCode, requiredVariables } =
     props;
   const [timeWindow, setTimeWindow] = useState(() => makeTimeWindow("7d"));
+  const isSessionTarget = scope.targetType === "SESSION";
   // The run list below the Suspense boundary owns the spans and the run
   // machinery; it hands the header's Test All button the latest run-all
   // closure through this ref and reports readiness through the state.
@@ -190,7 +191,9 @@ export const ProjectEvaluatorScopePanel = (
             <Flex direction="column" gap="size-25">
               <Heading level={2}>Scope</Heading>
               <Text color="text-500" size="S">
-                Choose what gets evaluated and how much of it.
+                {isSessionTarget
+                  ? "Choose when this evaluator runs on each session."
+                  : "Choose what gets evaluated and how much of it."}
               </Text>
             </Flex>
             <ScopeEditorCard
@@ -204,83 +207,106 @@ export const ProjectEvaluatorScopePanel = (
             />
           </>
         ) : null}
-        <Flex direction="column" gap="size-25">
-          {props.showScopeFields !== false ? (
-            <Flex
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-              gap="size-200"
-            >
-              <Heading level={2}>Matching spans</Heading>
-              {testAllButton}
-            </Flex>
-          ) : (
-            <>
-              <Flex
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                gap="size-200"
-              >
-                <Heading level={2} weight="heavy">
-                  Test with a Span
-                </Heading>
-                <Flex direction="row" alignItems="center" gap="size-100">
-                  <TimeWindowSegmentedControl
-                    size="S"
-                    value={timeWindow.presetId}
-                    onChange={setTimeWindow}
-                  />
+        {isSessionTarget ? (
+          <SessionInputNote />
+        ) : (
+          <>
+            <Flex direction="column" gap="size-25">
+              {props.showScopeFields !== false ? (
+                <Flex
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  gap="size-200"
+                >
+                  <Heading level={2}>Matching spans</Heading>
                   {testAllButton}
                 </Flex>
-              </Flex>
-              <Text color="text-500">
-                Test your evaluator on recent spans that match your scope.
-              </Text>
-            </>
-          )}
-          <Suspense
-            fallback={
-              <Text size="S" color="text-500">
-                Counting matching spans…
-              </Text>
-            }
-          >
-            <MatchedSpanCountLine
-              projectId={projectId}
-              filterCondition={scope.filterCondition}
-              timeWindow={timeWindow}
-            />
-          </Suspense>
-        </Flex>
-        <Suspense fallback={<Loading />}>
-          {codeEvaluatorId || inlineCode ? (
-            <SpanRunList
-              projectId={projectId}
-              filterCondition={scope.filterCondition}
-              timeWindow={timeWindow}
-              codeEvaluatorId={codeEvaluatorId}
-              inlineCode={inlineCode}
-              requiredVariables={requiredVariables}
-              runAllSpansRef={runAllSpansRef}
-              onCanRunAllChange={setCanRunAllSpans}
-            />
-          ) : (
-            <LlmSpanRunList
-              projectId={projectId}
-              filterCondition={scope.filterCondition}
-              timeWindow={timeWindow}
-              requiredVariables={requiredVariables}
-              runAllSpansRef={runAllSpansRef}
-              onCanRunAllChange={setCanRunAllSpans}
-            />
-          )}
-        </Suspense>
+              ) : (
+                <>
+                  <Flex
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    gap="size-200"
+                  >
+                    <Heading level={2} weight="heavy">
+                      Test with a Span
+                    </Heading>
+                    <Flex direction="row" alignItems="center" gap="size-100">
+                      <TimeWindowSegmentedControl
+                        size="S"
+                        value={timeWindow.presetId}
+                        onChange={setTimeWindow}
+                      />
+                      {testAllButton}
+                    </Flex>
+                  </Flex>
+                  <Text color="text-500">
+                    Test your evaluator on recent spans that match your scope.
+                  </Text>
+                </>
+              )}
+              <Suspense
+                fallback={
+                  <Text size="S" color="text-500">
+                    Counting matching spans…
+                  </Text>
+                }
+              >
+                <MatchedSpanCountLine
+                  projectId={projectId}
+                  filterCondition={scope.filterCondition}
+                  timeWindow={timeWindow}
+                />
+              </Suspense>
+            </Flex>
+            <Suspense fallback={<Loading />}>
+              {codeEvaluatorId || inlineCode ? (
+                <SpanRunList
+                  projectId={projectId}
+                  filterCondition={scope.filterCondition}
+                  timeWindow={timeWindow}
+                  codeEvaluatorId={codeEvaluatorId}
+                  inlineCode={inlineCode}
+                  requiredVariables={requiredVariables}
+                  runAllSpansRef={runAllSpansRef}
+                  onCanRunAllChange={setCanRunAllSpans}
+                />
+              ) : (
+                <LlmSpanRunList
+                  projectId={projectId}
+                  filterCondition={scope.filterCondition}
+                  timeWindow={timeWindow}
+                  requiredVariables={requiredVariables}
+                  runAllSpansRef={runAllSpansRef}
+                  onCanRunAllChange={setCanRunAllSpans}
+                />
+              )}
+            </Suspense>
+          </>
+        )}
       </div>
     </div>
   );
 };
+
+/**
+ * Sessions have no span-shaped preview, so name the bindings the evaluator will
+ * actually receive rather than testing it against a span that it will never see.
+ */
+function SessionInputNote() {
+  return (
+    <Flex direction="column" gap="size-25">
+      <Heading level={2}>Session input</Heading>
+      <Text color="text-500" size="S">
+        Your evaluator receives the session transcript as <code>input</code> and
+        the last response in the session as <code>output</code>. Testing against
+        a recorded session is not available yet.
+      </Text>
+    </Flex>
+  );
+}
 
 const panelCSS = css`
   display: flex;
@@ -400,15 +426,17 @@ function ScopeEditorCard({
         onFilterValidityChange={onFilterValidityChange}
         isTargetDisabled={isTargetDisabled}
       >
-        <Flex direction="column" gap="size-50">
-          <Text size="XS" weight="heavy" color="text-700">
-            Preview window
-          </Text>
-          <TimeWindowSegmentedControl
-            value={timeWindow.presetId}
-            onChange={onTimeWindowChange}
-          />
-        </Flex>
+        {scope.targetType === "SESSION" ? null : (
+          <Flex direction="column" gap="size-50">
+            <Text size="XS" weight="heavy" color="text-700">
+              Preview window
+            </Text>
+            <TimeWindowSegmentedControl
+              value={timeWindow.presetId}
+              onChange={onTimeWindowChange}
+            />
+          </Flex>
+        )}
       </ProjectEvaluatorScopeFieldGroup>
     </div>
   );

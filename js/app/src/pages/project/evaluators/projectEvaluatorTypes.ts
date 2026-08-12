@@ -28,10 +28,18 @@ export const PROJECT_EVALUATOR_TARGETS = [
 
 export type ProjectEvaluatorTarget = (typeof PROJECT_EVALUATOR_TARGETS)[number];
 
+/** The server rejects anything shorter. */
+export const MIN_EVALUATION_DELAY_SECONDS = 10;
+
+/** What the server stores when a create omits the delay. */
+export const DEFAULT_EVALUATION_DELAY_SECONDS = 300;
+
 export type ProjectEvaluatorScope = {
   targetType: ProjectEvaluatorTarget;
   filterCondition: string;
   samplingRate: number;
+  /** Only session evaluators use this; other targets store it unused. */
+  evaluationDelaySeconds: number;
 };
 
 export const isProjectEvaluatorTarget = (
@@ -46,6 +54,42 @@ export function toProjectEvaluatorSamplingFraction(percent: number): number {
 /** "SPAN" -> "Span", for display in the evaluators table and details page. */
 export function formatEvaluationTarget(target: EvaluationTarget): string {
   return `${target.charAt(0)}${target.slice(1).toLowerCase()}`;
+}
+
+/** "SPAN" -> "spans", for prose that names what an evaluator runs on. */
+export function formatEvaluationTargetPlural(target: EvaluationTarget): string {
+  return `${target.toLowerCase()}s`;
+}
+
+/** "300" -> "5 minutes"; whole minutes read better than raw seconds. */
+export function formatEvaluationDelay(seconds: number): string {
+  if (seconds < 60 || seconds % 60 !== 0) {
+    return `${seconds.toLocaleString()} second${seconds === 1 ? "" : "s"}`;
+  }
+  const minutes = seconds / 60;
+  return `${minutes.toLocaleString()} minute${minutes === 1 ? "" : "s"}`;
+}
+
+/**
+ * Why a session evaluator would be stored but never scheduled. Mirrors the
+ * server's SESSION schedulability conditions, in their order, so the form can
+ * warn before submit; a saved evaluator reports the server's own verdict.
+ */
+export type SessionScopeUnschedulableReason = "filter" | "sampling";
+
+export function getSessionScopeUnschedulableReason(
+  scope: ProjectEvaluatorScope
+): SessionScopeUnschedulableReason | null {
+  if (scope.targetType !== "SESSION") {
+    return null;
+  }
+  if (scope.filterCondition !== "") {
+    return "filter";
+  }
+  if (scope.samplingRate !== 1) {
+    return "sampling";
+  }
+  return null;
 }
 
 // Hoisted: Intl.NumberFormat construction does locale resolution, and the

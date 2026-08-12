@@ -113,6 +113,7 @@ export function useProjectEvaluator(projectEvaluatorId: string) {
             evaluationTarget
             filterCondition
             samplingRate
+            evaluationDelaySeconds
             enabled
             inputMapping {
               pathMapping
@@ -269,6 +270,7 @@ function getScope(evaluator: ProjectEvaluatorNode): ProjectEvaluatorScope {
     targetType: evaluator.evaluationTarget,
     filterCondition: evaluator.filterCondition,
     samplingRate: evaluator.samplingRate,
+    evaluationDelaySeconds: evaluator.evaluationDelaySeconds,
   };
 }
 
@@ -403,6 +405,7 @@ function EditLlmProjectEvaluatorContent({
             samplingRate: scope.samplingRate,
             evaluationTarget: scope.targetType,
             filterCondition: scope.filterCondition,
+            evaluationDelaySeconds: scope.evaluationDelaySeconds,
           },
         },
         onCompleted: () => {
@@ -637,6 +640,7 @@ function EditCodeProjectEvaluator({
                     samplingRate: scope.samplingRate,
                     evaluationTarget: scope.targetType,
                     filterCondition: scope.filterCondition,
+                    evaluationDelaySeconds: scope.evaluationDelaySeconds,
                   },
                 },
                 onCompleted: () => {

@@ -30,7 +30,10 @@ import { ProjectLlmEvaluatorFormSections } from "@phoenix/pages/project/evaluato
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import { useProjectEvaluatorSubmitHint } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
-import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import {
+  DEFAULT_EVALUATION_DELAY_SECONDS,
+  type ProjectEvaluatorScope,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import {
   useEvaluatorFormDirtyCheck,
@@ -147,6 +150,7 @@ const CreateProjectEvaluatorDialog = ({
     targetType: "SPAN",
     filterCondition: "",
     samplingRate: 1,
+    evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,
   });
 
   const initialState = (() => {
@@ -361,6 +365,7 @@ function AttachCodeProjectEvaluatorDialog({
               samplingRate: scope.samplingRate,
               evaluationTarget: scope.targetType,
               filterCondition: scope.filterCondition,
+              evaluationDelaySeconds: scope.evaluationDelaySeconds,
               enabled: true,
               inputMapping: null,
             },
@@ -452,6 +457,7 @@ function CreateLlmProjectEvaluatorDialog({
           evaluationTarget: scope.targetType,
           samplingRate: scope.samplingRate,
           filterCondition: scope.filterCondition,
+          evaluationDelaySeconds: scope.evaluationDelaySeconds,
           enabled: true,
         },
       });

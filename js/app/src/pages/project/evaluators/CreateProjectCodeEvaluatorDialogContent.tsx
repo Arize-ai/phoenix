@@ -188,6 +188,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           // A null per-project mapping inherits the evaluator's own mapping.
           inputMapping: null,
           filterCondition: scope.filterCondition,
+          evaluationDelaySeconds: scope.evaluationDelaySeconds,
           enabled: true,
         },
       },

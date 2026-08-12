@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<263d3240e8057ed789c4eb1d86d7cfd9>>
+ * @generated SignedSource<<fe16753be59bfb99d4f2104ad3013d02>>
  * @lightSyntaxTransform
  */
 
@@ -9,11 +9,16 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
+export type ProjectEvaluatorSchedulabilityReason = "DISABLED" | "SESSION_FILTER_UNSUPPORTED" | "SESSION_SAMPLING_UNSUPPORTED" | "TRACE_TARGET_UNSUPPORTED";
+export type ProjectEvaluatorSchedulabilityStatus = "NOT_SCHEDULABLE" | "SCHEDULABLE";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorScopeDetails_projectEvaluator$data = {
+  readonly evaluationDelaySeconds: number;
   readonly evaluationTarget: EvaluationTarget;
   readonly filterCondition: string;
   readonly samplingRate: number;
+  readonly schedulabilityReason: ProjectEvaluatorSchedulabilityReason | null;
+  readonly schedulabilityStatus: ProjectEvaluatorSchedulabilityStatus;
   readonly " $fragmentType": "ProjectEvaluatorScopeDetails_projectEvaluator";
 };
 export type ProjectEvaluatorScopeDetails_projectEvaluator$key = {
@@ -47,12 +52,33 @@ const node: ReaderFragment = {
       "kind": "ScalarField",
       "name": "samplingRate",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "evaluationDelaySeconds",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "schedulabilityStatus",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "schedulabilityReason",
+      "storageKey": null
     }
   ],
   "type": "ProjectEvaluator",
   "abstractKey": null
 };
 
-(node as any).hash = "206d2fc44e707d0e5030e443056ed522";
+(node as any).hash = "0d20a79f97199a3b9a330e4d26df794c";
 
 export default node;
