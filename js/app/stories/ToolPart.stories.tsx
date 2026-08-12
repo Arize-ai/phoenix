@@ -61,6 +61,7 @@ import {
 } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
 import { EXECUTE_UI_TOOL_NAME } from "@phoenix/agent/uiOperations/executeUiAgentTool";
+import { SEARCH_UI_TOOL_NAME } from "@phoenix/agent/uiOperations/searchUiAgentTool";
 import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
@@ -1100,6 +1101,62 @@ export const ExecuteUiCompleted: Story = {
 export const ExecuteUiStreaming: Story = {
   args: { part: executeUiStreamingPart },
   decorators: [withAgentStore()],
+};
+
+// ---------------------------------------------------------------------------
+// search_ui tool mocks
+//
+// search_ui returns a `.d.ts`-style catalog *string* (signatures + doc
+// comments). SearchUiToolDetails renders it verbatim as a highlighted code
+// file inside the collapsing section, instead of the generic renderer's
+// JSON.stringify (which would escape the whole thing onto one line).
+// ---------------------------------------------------------------------------
+
+const searchUiCatalog = [
+  "// UiResult = { ok: true; output?: unknown } | { ok: false; error: string }",
+  "",
+  "/**",
+  " * Set the playground time range for scoped views.",
+  " * kind: write; available on the current page.",
+  " */",
+  "ui.timeRange.set(input: { start?: string; end?: string }): Promise<UiResult>;",
+  "",
+  "/**",
+  " * Read a playground prompt instance.",
+  " * kind: read; available on the current page.",
+  " */",
+  "ui.playground.prompt.read(input: { instanceId: number }): Promise<UiResult>;",
+  "",
+  "/**",
+  " * Stage a prompt edit for review.",
+  " * kind: approval; available on the current page. Stages a change the user must accept; the returned promise resolves with the decision.",
+  " */",
+  "ui.playground.prompt.edit(input: { instanceId: number; expectedRevision: string; operations: unknown[] }): Promise<UiResult>;",
+].join("\n");
+
+const searchUiResultsPart = makePart({
+  toolName: SEARCH_UI_TOOL_NAME,
+  toolCallId: "search-ui-results",
+  state: "output-available",
+  input: { query: "playground prompt" },
+  output: searchUiCatalog,
+});
+
+const searchUiRunningPart = makePart({
+  toolName: SEARCH_UI_TOOL_NAME,
+  toolCallId: "search-ui-running",
+  state: "input-available",
+  input: { query: "evaluator" },
+});
+
+/** A search_ui call whose catalog output renders as a highlighted .d.ts file. */
+export const SearchUiResults: Story = {
+  args: { part: searchUiResultsPart },
+};
+
+/** A search_ui call still running — the query shows in the collapsed preview. */
+export const SearchUiRunning: Story = {
+  args: { part: searchUiRunningPart },
 };
 
 // ---------------------------------------------------------------------------
