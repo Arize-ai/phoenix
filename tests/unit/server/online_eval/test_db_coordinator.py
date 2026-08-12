@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
+from phoenix.server.online_eval import db_coordinator as db_coordinator_module
 from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS
 from phoenix.server.online_eval.db_coordinator import (
     TRANSIENT_RETRY_MAX_AGE_SECONDS,
@@ -118,7 +119,10 @@ async def test_claim_and_complete_happy_path(db: DbSessionFactory) -> None:
         assert claimed_unit.identifier == "online:" + claimed_unit.config_fingerprint[:16]
         assert claimed_unit.attempts == 0
         assert claimed_unit.claimed_by == "consumer-1"
-        assert claimed_unit.lease_expires_at >= before + timedelta(seconds=LEASE_TTL_SECONDS)
+        assert claimed_unit.lease_expires_at >= before + timedelta(
+            seconds=LEASE_TTL_SECONDS,
+            milliseconds=-1,
+        )
         row = await _get_unit(db, claimed_unit.work_unit_id)
         assert row.status == "RUNNING"
         assert row.claimed_by == "consumer-1"
@@ -150,6 +154,39 @@ async def test_heartbeat_keeps_lapsed_unit_unavailable_to_competing_consumer(
 
     assert await owner.heartbeat(work_unit_id=unit_id, claimed_by="consumer-1")
     assert await competitor.claim(claimed_by="consumer-2", limit=1) == []
+
+
+async def test_work_leases_and_retry_age_ignore_application_clock_skew(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _SkewedDateTime(datetime):
+        @classmethod
+        def now(cls, tz: object = None) -> datetime:
+            return datetime(2100, 1, 1, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(db_coordinator_module, "datetime", _SkewedDateTime)
+    (unit_id,) = await _seed_work_units(db, 1)
+    owner = DbEvalWorkCoordinator(db)
+    competitor = DbEvalWorkCoordinator(db)
+
+    (claim,) = await owner.claim(claimed_by="owner", limit=1)
+    row = await _get_unit(db, unit_id)
+    assert row.claimed_at is not None
+    assert row.claimed_at.year < 2100
+    assert claim.lease_expires_at == row.claimed_at + timedelta(seconds=LEASE_TTL_SECONDS)
+
+    assert await owner.heartbeat(work_unit_id=unit_id, claimed_by="owner")
+    assert await competitor.claim(claimed_by="competitor", limit=1) == []
+    assert await owner.fail(
+        work_unit_id=unit_id,
+        claimed_by="owner",
+        error="transient",
+        count_attempt=False,
+    )
+    failed = await _get_unit(db, unit_id)
+    assert failed.status == "ERROR"
+    assert failed.attempts == 0
 
 
 async def test_fail_sets_cooldown_and_unit_is_reclaimable_after_it(db: DbSessionFactory) -> None:

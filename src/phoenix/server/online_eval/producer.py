@@ -355,7 +355,7 @@ class OnlineEvalProducer(DaemonTask):
         reap_floor = produced_through_id - self._backstop_lookback_span_ids
         async with self._db() as session:
             if mutations_allowed:
-                await reap_lapsed_leases(session, models.EvalWorkUnit, now)
+                await reap_lapsed_leases(session, models.EvalWorkUnit)
             if mutations_allowed and self._pending_ttl_seconds > 0:
                 pending_cutoff = now - timedelta(seconds=self._pending_ttl_seconds)
                 await session.execute(

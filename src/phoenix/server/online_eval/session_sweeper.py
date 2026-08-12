@@ -498,7 +498,7 @@ class SessionEvalSweeper(DaemonTask):
         database_now: datetime,
     ) -> tuple[int, Optional[int]]:
         """Materialize this tick's work, returning (work created, pairs found eligible)."""
-        await reap_lapsed_leases(session, models.EvalSessionWorkUnit, database_now)
+        await reap_lapsed_leases(session, models.EvalSessionWorkUnit)
         work_budget = await self._admission_budget(session)
         if work_budget == 0:
             return 0, None

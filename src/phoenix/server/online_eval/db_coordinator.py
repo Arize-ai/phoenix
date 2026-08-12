@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Sequence
 
-from sqlalchemy import and_, case, func, or_, select, update
+from sqlalchemy import and_, case, func, or_, select, type_coerce, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
@@ -34,10 +34,22 @@ from phoenix.server.types import DbSessionFactory
 TRANSIENT_RETRY_MAX_AGE_SECONDS = 86_400.0
 
 _WorkUnitModel = type[models.EvalWorkUnit] | type[models.EvalSessionWorkUnit]
+_DATABASE_NOW = object()
+
+
+async def _database_now(session: AsyncSession) -> datetime:
+    if session.get_bind().dialect.name == "postgresql":
+        clock = func.statement_timestamp()
+    else:
+        clock = func.strftime("%Y-%m-%d %H:%M:%f", "now")
+    now = await session.scalar(select(type_coerce(clock, models.UtcTimeStamp())))
+    if now is None:
+        raise RuntimeError("Database did not return its current time")
+    return now
 
 
 def work_unit_lease_lapsed(
-    now: datetime,
+    now: datetime | ColumnElement[datetime],
     work_unit_model: _WorkUnitModel = models.EvalWorkUnit,
 ) -> ColumnElement[bool]:
     return work_unit_model.claimed_at < now - timedelta(seconds=LEASE_TTL_SECONDS)
@@ -46,7 +58,6 @@ def work_unit_lease_lapsed(
 async def reap_lapsed_leases(
     session: AsyncSession,
     work_unit_model: _WorkUnitModel,
-    now: datetime,
 ) -> None:
     """Terminalize RUNNING work whose lease lapsed with no attempts left.
 
@@ -57,6 +68,7 @@ async def reap_lapsed_leases(
     the materializers call it from their own tick because they already hold the
     single-writer lease that makes it safe to run unguarded.
     """
+    now = await _database_now(session)
     await session.execute(
         update(work_unit_model)
         .where(
@@ -125,9 +137,9 @@ class DbEvalWorkCoordinator:
         claimed_by: str,
         limit: int,
     ) -> Sequence[ClaimedWorkUnit]:
-        now = datetime.now(timezone.utc)
         work_unit_model = self._work_unit_model
         async with self._db() as session:
+            now = await _database_now(session)
             candidates = select(work_unit_model.id).where(self._claimable(now))
             candidates = candidates.order_by(work_unit_model.id).limit(limit)
             claim_values = {
@@ -209,7 +221,7 @@ class DbEvalWorkCoordinator:
         return await self._fenced_transition(
             work_unit_id=work_unit_id,
             claim_owner=claimed_by,
-            claimed_at=datetime.now(timezone.utc),
+            claimed_at=_DATABASE_NOW,
         )
 
     async def complete(
@@ -284,9 +296,9 @@ class DbEvalWorkCoordinator:
         if count_attempt:
             values["attempts"] = self._work_unit_model.attempts + 1
         else:
-            retry_age_cutoff = datetime.now(timezone.utc) - timedelta(
-                seconds=TRANSIENT_RETRY_MAX_AGE_SECONDS
-            )
+            async with self._db.read() as session:
+                database_now = await _database_now(session)
+            retry_age_cutoff = database_now - timedelta(seconds=TRANSIENT_RETRY_MAX_AGE_SECONDS)
             values["attempts"] = case(
                 (self._work_unit_model.created_at < retry_age_cutoff, self._max_attempts),
                 else_=self._work_unit_model.attempts,
@@ -338,6 +350,8 @@ class DbEvalWorkCoordinator:
     ) -> bool:
         work_unit_model = self._work_unit_model
         async with self._db() as session:
+            if values.get("claimed_at") is _DATABASE_NOW:
+                values["claimed_at"] = await _database_now(session)
             result = await session.execute(
                 update(work_unit_model)
                 .where(
