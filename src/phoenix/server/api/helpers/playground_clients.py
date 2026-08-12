@@ -162,7 +162,7 @@ class Dependency:
         return self.module_name or self.name
 
 
-class PlaygroundStreamingClient(ABC, Generic[ClientT]):
+class PlaygroundClient(ABC, Generic[ClientT]):
     _client_factory: ClientFactory[ClientT]
 
     def __init__(
@@ -326,7 +326,7 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         return None
 
 
-class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
+class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
     @property
     def llm_system(self) -> str:
         return OpenInferenceLLMSystemValues.OPENAI.value
@@ -1258,7 +1258,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         "deepseek-reasoner",
     ],
 )
-class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
+class DeepSeekClient(OpenAICompatibleClient):
     pass
 
 
@@ -1274,7 +1274,7 @@ class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
         "grok-2-vision-1212",
     ],
 )
-class XAIStreamingClient(OpenAIBaseStreamingClient):
+class XAIClient(OpenAICompatibleClient):
     pass
 
 
@@ -1295,7 +1295,7 @@ class XAIStreamingClient(OpenAIBaseStreamingClient):
         "gemma2",
     ],
 )
-class OllamaStreamingClient(OpenAIBaseStreamingClient):
+class OllamaClient(OpenAICompatibleClient):
     pass
 
 
@@ -1307,7 +1307,7 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
         "gpt-oss-120b",
     ],
 )
-class CerebrasStreamingClient(OpenAIBaseStreamingClient):
+class CerebrasClient(OpenAICompatibleClient):
     pass
 
 
@@ -1317,7 +1317,7 @@ class CerebrasStreamingClient(OpenAIBaseStreamingClient):
         PROVIDER_DEFAULT,
     ],
 )
-class FireworksStreamingClient(OpenAIBaseStreamingClient):
+class FireworksClient(OpenAICompatibleClient):
     pass
 
 
@@ -1335,7 +1335,7 @@ class FireworksStreamingClient(OpenAIBaseStreamingClient):
         "groq/compound-mini",
     ],
 )
-class GroqStreamingClient(OpenAIBaseStreamingClient):
+class GroqClient(OpenAICompatibleClient):
     pass
 
 
@@ -1353,7 +1353,7 @@ class GroqStreamingClient(OpenAIBaseStreamingClient):
         "moonshot-v1-auto",
     ],
 )
-class MoonshotStreamingClient(OpenAIBaseStreamingClient):
+class MoonshotClient(OpenAICompatibleClient):
     pass
 
 
@@ -1367,7 +1367,7 @@ class MoonshotStreamingClient(OpenAIBaseStreamingClient):
         "sonar-deep-research",
     ],
 )
-class PerplexityStreamingClient(OpenAIBaseStreamingClient):
+class PerplexityClient(OpenAICompatibleClient):
     pass
 
 
@@ -1385,7 +1385,7 @@ class PerplexityStreamingClient(OpenAIBaseStreamingClient):
         "deepseek-ai/DeepSeek-R1",
     ],
 )
-class TogetherStreamingClient(OpenAIBaseStreamingClient):
+class TogetherClient(OpenAICompatibleClient):
     pass
 
 
@@ -1436,7 +1436,7 @@ class TogetherStreamingClient(OpenAIBaseStreamingClient):
         "meta.llama4-maverick-17b-instruct-v1:0",
     ],
 )
-class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
+class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
     @property
     def llm_system(self) -> str:
         return "aws"
@@ -1910,7 +1910,7 @@ not, defaults to the Responses API. See ``get_openai_client_class``."""
         *OPENAI_CHAT_COMPLETIONS_MODELS,
     ],
 )
-class OpenAIStreamingClient(OpenAIBaseStreamingClient):
+class OpenAIChatCompletionsClient(OpenAICompatibleClient):
     @override
     def get_rate_limit_key(self) -> Hashable:
         """OpenAI has per-model rate limits within an organization."""
@@ -1954,7 +1954,7 @@ OPENAI_REASONING_MODELS = [
         *OPENAI_REASONING_MODELS,
     ],
 )
-class OpenAIResponsesAPIStreamingClient(OpenAIStreamingClient):
+class OpenAIResponsesClient(OpenAIChatCompletionsClient):
     """OpenAI Responses API (responses.create) client.
 
     Encodes reasoning effort as ``reasoning: {"effort": ...}``, which is the only
@@ -1993,7 +1993,7 @@ class OpenAIResponsesAPIStreamingClient(OpenAIStreamingClient):
         PROVIDER_DEFAULT,
     ],
 )
-class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
+class AzureOpenAIChatCompletionsClient(OpenAICompatibleClient):
     def __init__(
         self,
         *,
@@ -2009,7 +2009,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
     model_names=OPENAI_REASONING_MODELS,
 )
-class AzureOpenAIResponsesAPIStreamingClient(AzureOpenAIStreamingClient):
+class AzureOpenAIResponsesClient(AzureOpenAIChatCompletionsClient):
     """Azure OpenAI Responses API (responses.create) for gpt-5.2, gpt-5.1, etc."""
 
     @override
@@ -2107,7 +2107,7 @@ ANTHROPIC_EXTENDED_THINKING_MODELS = [
         *ANTHROPIC_EXTENDED_THINKING_MODELS,
     ],
 )
-class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
+class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
     @property
     def llm_system(self) -> str:
         return OpenInferenceLLMSystemValues.ANTHROPIC.value
@@ -2535,13 +2535,21 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         return content
 
 
+GEMINI_2_5_MODELS = [
+    "gemini-2.5-pro",  # Will be deprecated and will be shut down on June 17, 2026.
+    "gemini-2.5-flash",  # Will be deprecated and will be shut down on June 17, 2026.
+    "gemini-2.5-flash-lite",  # Will be deprecated and will be shut down on July 22, 2026.
+]
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=[
         PROVIDER_DEFAULT,
+        *GEMINI_2_5_MODELS,
     ],
 )
-class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
+class GoogleClient(PlaygroundClient["GoogleAsyncClient"]):
     @property
     def llm_system(self) -> str:
         return OpenInferenceLLMSystemValues.VERTEXAI.value
@@ -2891,21 +2899,6 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         return google_messages, "\n".join(system_prompts)
 
 
-GEMINI_2_5_MODELS = [
-    "gemini-2.5-pro",  # Will be deprecated and will be shut down on June 17, 2026.
-    "gemini-2.5-flash",  # Will be deprecated and will be shut down on June 17, 2026.
-    "gemini-2.5-flash-lite",  # Will be deprecated and will be shut down on July 22, 2026.
-]
-
-
-@register_llm_client(
-    provider_key=GenerativeProviderKey.GOOGLE,
-    model_names=GEMINI_2_5_MODELS,
-)
-class Gemini25GoogleStreamingClient(GoogleStreamingClient):
-    pass
-
-
 GEMINI_3_MODELS = [
     "gemini-3.6-flash",
     "gemini-3.5-flash",
@@ -2920,7 +2913,7 @@ GEMINI_3_MODELS = [
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=GEMINI_3_MODELS,
 )
-class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
+class GoogleGemini3Client(GoogleClient):
     async def chat_completion_create(
         self,
         *,
@@ -2997,9 +2990,9 @@ async def get_playground_client(
     credentials: Sequence[GenerativeCredentialInput] | None = None,
     connection: CustomProviderId | ConnectionConfig | None = None,
     headers: dict[str, str] | None = None,
-) -> "PlaygroundStreamingClient[Any]":
+) -> "PlaygroundClient[Any]":
     """
-    Create a playground streaming client for the given model configuration.
+    Create a playground client for the given model configuration.
 
     Resolves credentials and configuration, then returns a client ready for
     chat completions.  This is the single public entry point; callers should
@@ -3134,7 +3127,7 @@ def get_openai_client_class(
     provider_key: "GenerativeProviderKey",
     model_name: str,
     openai_api_type: Optional["OpenAIApiType"] = None,
-) -> Optional[type["PlaygroundStreamingClient[Any]"]]:
+) -> Optional[type["PlaygroundClient[Any]"]]:
     """
     Select the OpenAI/Azure client class for a provider, model, and API type.
 
@@ -3159,26 +3152,26 @@ def get_openai_client_class(
 
     if provider_key == GenerativeProviderKey.OPENAI:
         if openai_api_type == OpenAIApiType.CHAT_COMPLETIONS:
-            return OpenAIStreamingClient
+            return OpenAIChatCompletionsClient
         elif openai_api_type == OpenAIApiType.RESPONSES:
-            return OpenAIResponsesAPIStreamingClient
+            return OpenAIResponsesClient
         # Unconfigured default: Responses, except the models predating it. Reasoning
         # models cannot use /v1/chat/completions when function tools are present.
         if model_name in OPENAI_CHAT_COMPLETIONS_MODELS:
-            return OpenAIStreamingClient
-        return OpenAIResponsesAPIStreamingClient
+            return OpenAIChatCompletionsClient
+        return OpenAIResponsesClient
 
     elif provider_key == GenerativeProviderKey.AZURE_OPENAI:
         if openai_api_type == OpenAIApiType.CHAT_COMPLETIONS:
-            return AzureOpenAIStreamingClient
+            return AzureOpenAIChatCompletionsClient
         elif openai_api_type == OpenAIApiType.RESPONSES:
-            return AzureOpenAIResponsesAPIStreamingClient
+            return AzureOpenAIResponsesClient
         # Unconfigured default: Chat Completions, since an Azure deployment may not
         # expose /v1/responses. Reasoning models go to Responses regardless -- they
         # cannot use /v1/chat/completions when function tools are present.
         if model_name in OPENAI_REASONING_MODELS:
-            return AzureOpenAIResponsesAPIStreamingClient
-        return AzureOpenAIStreamingClient
+            return AzureOpenAIResponsesClient
+        return AzureOpenAIChatCompletionsClient
 
     # For non-OpenAI providers, return None to signal caller should use registry
     return None
@@ -3226,7 +3219,7 @@ async def _get_builtin_provider_client(
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: Sequence[GenerativeCredentialInput] | None = None,
-) -> "PlaygroundStreamingClient[Any]":
+) -> "PlaygroundClient[Any]":
     """
     Create a playground client from a builtin provider configuration.
 
@@ -3391,7 +3384,7 @@ async def _get_builtin_provider_client(
         anthropic_client_factory: ClientFactory["AsyncAnthropic"] = LLMClientFactory(
             create_anthropic_client, anthropic_rate_limit_key(api_key, None)
         )
-        return AnthropicStreamingClient(
+        return AnthropicClient(
             client_factory=anthropic_client_factory,
             model_name=model_name,
             provider=provider,
@@ -3436,12 +3429,12 @@ async def _get_builtin_provider_client(
             LLMClientFactory(create_google_client, google_rate_limit_key(api_key, None)),
         )
         if model_name in GEMINI_2_5_MODELS:
-            return Gemini25GoogleStreamingClient(
+            return GoogleClient(
                 client_factory=google_client_factory,
                 model_name=model_name,
                 provider=provider,
             )
-        return Gemini3GoogleStreamingClient(
+        return GoogleGemini3Client(
             client_factory=google_client_factory,
             model_name=model_name,
             provider=provider,
@@ -3489,7 +3482,7 @@ async def _get_builtin_provider_client(
             create_bedrock_client, bedrock_rate_limit_key(region, aws_access_key_id)
         )
 
-        return BedrockStreamingClient(
+        return BedrockClient(
             client_factory=bedrock_client_factory,
             model_name=model_name,
             provider=provider,
@@ -3530,7 +3523,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_deepseek_client, openai_rate_limit_key(api_key, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3571,7 +3564,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_xai_client, openai_rate_limit_key(api_key, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3602,7 +3595,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_ollama_client, openai_rate_limit_key(None, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3642,7 +3635,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_cerebras_client, openai_rate_limit_key(api_key, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3684,7 +3677,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_fireworks_client, openai_rate_limit_key(api_key, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3724,7 +3717,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_groq_client, openai_rate_limit_key(api_key, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3764,7 +3757,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_moonshot_client, openai_rate_limit_key(api_key, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3804,7 +3797,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_perplexity_client, openai_rate_limit_key(api_key, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3844,7 +3837,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_together_client, openai_rate_limit_key(api_key, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3859,7 +3852,7 @@ async def _get_custom_provider_client(
     model_name: str,
     extra_headers: dict[str, str] | None,
     decrypt: Callable[[bytes], bytes],
-) -> "PlaygroundStreamingClient[Any]":
+) -> "PlaygroundClient[Any]":
     """
     Create a playground client from a custom provider stored in the database.
 
@@ -3872,7 +3865,7 @@ async def _get_custom_provider_client(
         decrypt: Decryption function for the stored config.
 
     Returns:
-        A configured PlaygroundStreamingClient.
+        A configured PlaygroundClient.
 
     Raises:
         BadRequest: If decryption or parsing fails, or client creation fails.
@@ -3903,12 +3896,12 @@ async def _get_custom_provider_client(
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
         if cfg.openai_api_type == "responses":
-            return OpenAIResponsesAPIStreamingClient(
+            return OpenAIResponsesClient(
                 client_factory=openai_client_factory,
                 model_name=model_name,
                 provider=provider,
             )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=openai_client_factory,
             model_name=model_name,
             provider=provider,
@@ -3919,12 +3912,12 @@ async def _get_custom_provider_client(
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
         if cfg.openai_api_type == "responses":
-            return AzureOpenAIResponsesAPIStreamingClient(
+            return AzureOpenAIResponsesClient(
                 client_factory=azure_openai_client_factory,
                 model_name=model_name,
                 provider=provider,
             )
-        return AzureOpenAIStreamingClient(
+        return AzureOpenAIChatCompletionsClient(
             client_factory=azure_openai_client_factory,
             model_name=model_name,
             provider=provider,
@@ -3934,7 +3927,7 @@ async def _get_custom_provider_client(
             anthropic_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        return AnthropicStreamingClient(
+        return AnthropicClient(
             client_factory=anthropic_client_factory,
             model_name=model_name,
             provider=provider,
@@ -3944,7 +3937,7 @@ async def _get_custom_provider_client(
             aws_bedrock_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        return BedrockStreamingClient(
+        return BedrockClient(
             client_factory=aws_bedrock_client_factory,
             model_name=model_name,
             provider=provider,
@@ -3955,12 +3948,12 @@ async def _get_custom_provider_client(
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
         if model_name in GEMINI_2_5_MODELS:
-            return Gemini25GoogleStreamingClient(
+            return GoogleClient(
                 client_factory=google_genai_client_factory,
                 model_name=model_name,
                 provider=provider,
             )
-        return Gemini3GoogleStreamingClient(
+        return GoogleGemini3Client(
             client_factory=google_genai_client_factory,
             model_name=model_name,
             provider=provider,
