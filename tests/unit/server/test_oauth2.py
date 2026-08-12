@@ -1,6 +1,7 @@
 """Unit tests for OAuth2Client."""
 
 import logging
+import os
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs
@@ -1464,7 +1465,7 @@ class TestClientAssertionJWT:
         with pytest.raises(OAuthError, match="cannot read"):
             self._prepare(assertion_file)
 
-    def test_client_id_is_not_duplicated_when_already_present(self, tmp_path: Path) -> None:
+    def test_client_id_is_not_duplicated_when_already_correct(self, tmp_path: Path) -> None:
         assertion_file = tmp_path / "azure-identity-token"
         assertion_file.write_text("header.payload.sig")
         auth = ClientAuth(
@@ -1474,10 +1475,43 @@ class TestClientAssertionJWT:
         )
 
         _, _, body = auth.prepare(
-            "POST", "https://idp/token", {}, "grant_type=authorization_code&client_id=caller"
+            "POST",
+            "https://idp/token",
+            {},
+            "grant_type=authorization_code&client_id=entra-client-id",
         )
 
-        assert parse_qs(body)["client_id"] == ["caller"]
+        assert parse_qs(body)["client_id"] == ["entra-client-id"]
+
+    @pytest.mark.parametrize(
+        "supplied",
+        [
+            pytest.param("client_id=", id="blank"),
+            pytest.param("client_id=other-client", id="different_client"),
+            pytest.param("client_id=entra-client-id&client_id=other", id="multiple"),
+        ],
+    )
+    def test_conflicting_client_id_is_rejected(self, tmp_path: Path, supplied: str) -> None:
+        # The body's client_id selects which application the assertion is presented for, so a
+        # blank or differing value would authenticate as the wrong one.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+        auth = ClientAuth(
+            client_id="entra-client-id",
+            client_secret=None,
+            auth_method=ClientAssertionJWT(assertion_file),
+        )
+
+        with pytest.raises(OAuthError, match="does not match"):
+            auth.prepare("POST", "https://idp/token", {}, f"grant_type=x&{supplied}")
+
+    def test_non_regular_assertion_file_raises_oauth_error(self, tmp_path: Path) -> None:
+        # A FIFO blocks until a writer appears; read_text() would hang the event loop.
+        fifo = tmp_path / "azure-identity-token"
+        os.mkfifo(fifo)
+
+        with pytest.raises(OAuthError, match="not a regular file"):
+            self._prepare(fifo)
 
     def test_revocation_uses_the_same_auth_method(self, tmp_path: Path) -> None:
         # authlib selects revocation auth separately; without this it falls back to "none".

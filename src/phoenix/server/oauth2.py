@@ -81,6 +81,14 @@ class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
     def sign(self, auth: Any, token_endpoint: str) -> str:
         # Re-read per request, by path: the token rotates in place, and Kubernetes rotates a
         # projected volume by swapping the symlink the path resolves through.
+        # Regular files only, checked on each read. A FIFO blocks until a writer appears and a
+        # character device never reaches EOF; either would hang or exhaust this coroutine, and
+        # the read is synchronous inside the async auth flow, so it would take the event loop
+        # with it. Startup only warns, so this cannot be hoisted out of the request path.
+        if not self._assertion_file.is_file():
+            raise OAuthError(
+                description=f"client assertion file is not a regular file: {self._assertion_file}"
+            )
         try:
             assertion = self._assertion_file.read_text().strip()
         except (OSError, UnicodeDecodeError) as e:
@@ -101,12 +109,20 @@ class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
         # RFC 7523 §3 lets the server identify the client from the assertion's `sub`, which
         # holds for private_key_jwt but not here: the platform sets `sub` to the workload
         # identity (e.g. system:serviceaccount:<ns>:<sa>), so client_id must be explicit.
-        # Only when absent — appending unconditionally would emit it twice for any caller
-        # that already supplied one, which strict endpoints reject as invalid_request.
-        if "client_id" not in parse_qs(body or "", keep_blank_values=True):
+        # Appending unconditionally would emit it twice for a caller that already supplied
+        # one, which strict endpoints reject as invalid_request. Anything already present must
+        # be exactly this client: the body's client_id selects which application the assertion
+        # is presented for, so a blank or differing value authenticates as the wrong one where
+        # a workload is federated to more than one.
+        existing = parse_qs(body or "", keep_blank_values=True).get("client_id")
+        if existing is None:
             body = add_params_to_qs(body or "", [("client_id", auth.client_id)])
             if "Content-Length" in headers:
                 headers["Content-Length"] = str(len(body))
+        elif existing != [auth.client_id]:
+            raise OAuthError(
+                description="client_id in the token request does not match the configured client"
+            )
         return uri, headers, body
 
 

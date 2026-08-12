@@ -25,7 +25,8 @@ spec:
         {{- /* `app` is merged in last and wins: it is the immutable Deployment selector, and
                emitting it twice yields a manifest the API server rejects. Values are quoted
                because labels must be strings and the common ones look boolean. */}}
-        {{- $podLabels := merge (dict "app" (include "phoenix.fullname" .)) .Values.deployment.podLabels }}
+        {{- /* default: layered values may clear podLabels to null, which merge rejects */}}
+        {{- $podLabels := merge (dict "app" (include "phoenix.fullname" .)) (.Values.deployment.podLabels | default dict) }}
         {{- range $key, $value := $podLabels }}
         {{ $key }}: {{ $value | quote }}
         {{- end }}

@@ -1880,12 +1880,21 @@ class OAuth2ClientConfig:
                         f"exported by the Azure Workload Identity webhook, which requires the "
                         f"pod label azure.workload.identity/use=true"
                     )
-                # The named variable is process-global and may be read by other libraries
-                # for unrelated credentials, so record what this provider resolved it to.
+                if not os.path.isabs(client_assertion_file):
+                    # The value is never echoed: this setting can name any variable in the
+                    # process, so a caller with rights to the non-secret provider config could
+                    # otherwise route a secret-bearing one into the logs. Requiring an absolute
+                    # path also rejects the values most likely to be secrets, such as URLs.
+                    raise ValueError(
+                        f"{idp_prefix}_CLIENT_ASSERTION_FILE_ENV names {assertion_file_env}, "
+                        f"but its value is not an absolute path. Name the variable that holds "
+                        f"the assertion path, not the assertion or an unrelated setting"
+                    )
+                # Log the source, not the value: which variable a provider resolved through is
+                # the part an operator cannot otherwise recover.
                 logger.info(
-                    "OAuth2 IDP %s: client assertion path %s resolved from %s",
+                    "OAuth2 IDP %s: client assertion path resolved from %s",
                     idp_name,
-                    client_assertion_file,
                     assertion_file_env,
                 )
         elif token_endpoint_auth_method == "none":
