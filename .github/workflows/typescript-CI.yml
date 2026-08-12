@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: test-typescript-app-${{ github.head_ref }}
+  group: test-typescript-${{ github.head_ref }}
   cancel-in-progress: true
 
 jobs:
@@ -20,7 +20,7 @@ jobs:
     name: Filter Changes
     runs-on: ubuntu-latest
     outputs:
-      app: ${{ steps.filter.outputs.app }}
+      ts: ${{ steps.filter.outputs.ts }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -29,13 +29,9 @@ jobs:
         id: filter
         with:
           filters: |
-            app:
-              - "js/app/**"
-              - "js/pnpm-lock.yaml"
-              - "js/pnpm-workspace.yaml"
-              - "js/packages/phoenix-client/**"
-              - "js/packages/phoenix-evals/**"
-              - "schemas/openapi.json"
+            ts:
+              - "js/**"
+              - "schemas/**"
               - "src/phoenix/server/generative_ui/**"
               - "tests/unit/server/agents/fixtures/ui_message_stream/**"
               - ".oxlintrc.json"
@@ -46,7 +42,7 @@ jobs:
     name: CI Typescript
     runs-on: ubuntu-latest
     needs: changes
-    if: ${{ needs.changes.outputs.app == 'true' }}
+    if: ${{ needs.changes.outputs.ts == 'true' }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -65,25 +61,28 @@ jobs:
       - name: Install dependencies
         working-directory: ./js
         run: pnpm install --frozen-lockfile
-      - name: Build workspace dependencies
-        working-directory: ./js/app
-        run: pnpm run build:deps
+      # Builds every workspace package in topological order (the app's
+      # workspace dependencies build before the app itself). The diff check
+      # catches drift in committed build-time codegen: the packages' OpenAPI
+      # types (prebuild generate) and the app's relay artifacts (build:relay).
+      - name: Build
+        working-directory: ./js
+        run: |
+          pnpm run build
+          git diff --exit-code
       - name: Type Check
-        working-directory: ./js/app
+        working-directory: ./js
         run: pnpm run typecheck
       - name: Formatting
-        working-directory: ./js/app
+        working-directory: ./js
         run: |
           pnpm run fmt:check
       - name: Lint
-        working-directory: ./js/app
+        working-directory: ./js
         run: |
           pnpm run lint
-      - name: Relay Codegen
-        working-directory: ./js/app
-        run: |
-          pnpm run build:relay
-          git diff --exit-code
+      # Not part of the app's build; regenerated here to catch drift against
+      # schemas/openapi.json.
       - name: OpenAPI Codegen
         working-directory: ./js/app
         run: |
@@ -98,9 +97,8 @@ jobs:
           make ui-message-stream-fixtures
           git diff --exit-code
       - name: Test
-        working-directory: ./js/app
-        run: |
-          pnpm run test
+        working-directory: ./js
+        run: pnpm run test
 
   ci-required:
     name: TypeScript CI Required

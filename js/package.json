@@ -20,8 +20,8 @@
     "url": "git+https://github.com/Arize-ai/phoenix.git"
   },
   "scripts": {
-    "build": "pnpm --filter '!phoenix-ui' run -r build",
-    "ci:publish": "pnpm --filter '!phoenix-ui' run -r build && pnpm publish -r --access public --provenance",
+    "build": "pnpm run -r build",
+    "ci:publish": "pnpm --filter './packages/*' run -r build && pnpm publish -r --access public --provenance",
     "ci:version": "pnpm changeset version",
     "clean": "pnpm run clean:node_modules",
     "clean:node_modules": "rimraf --glob '**/node_modules/**'",
@@ -29,11 +29,11 @@
     "docs:preview": "rimraf docs && pnpm run docs:generate && pnpx http-server ./docs -p 8080 -o",
     "fmt": "oxfmt --config ../.oxfmtrc.jsonc",
     "fmt:check": "oxfmt --check --config ../.oxfmtrc.jsonc",
-    "lint": "oxlint packages examples benchmarks scripts",
-    "lint:fix": "oxlint --fix packages examples benchmarks scripts",
+    "lint": "oxlint packages examples benchmarks scripts && pnpm --filter phoenix-ui run lint",
+    "lint:fix": "oxlint --fix packages examples benchmarks scripts && pnpm --filter phoenix-ui run lint:fix",
     "sync-package-docs": "node ./scripts/sync-package-docs.mjs",
-    "test": "pnpm --filter '!phoenix-ui' run -r test",
-    "typecheck": "pnpm --filter '!phoenix-ui' run -r typecheck"
+    "test": "pnpm run -r test",
+    "typecheck": "pnpm run -r typecheck"
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.1",

@@ -26,11 +26,8 @@
     }
   ],
 
-  "ignorePatterns": [
-    // The app has its own oxlint config and is linted separately (typescript-CI)
-    "app/**",
-    "**/dist/**",
-    "**/build/**",
-    "**/*.{js,jsx,cjs,mjs}"
-  ]
+  // The app (js/app) is linted via its own config; the root `lint` script
+  // delegates to it because oxlint only allows `options.typeAware` in the
+  // cwd-root config, so a bare `oxlint` from js/ would refuse to run.
+  "ignorePatterns": ["**/dist/**", "**/build/**", "**/*.{js,jsx,cjs,mjs}"]
 }

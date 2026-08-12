@@ -354,8 +354,7 @@ Relevant CI files for TypeScript tooling:
 
 | Workflow | Purpose |
 |----------|---------|
-| `.github/workflows/typescript-CI.yml` | js/app/ typecheck, lint, test |
-| `.github/workflows/typescript-packages-CI.yml` | js/ packages build, test, lint |
+| `.github/workflows/typescript-CI.yml` | Whole js/ workspace (app + packages): build, typecheck, fmt, lint, codegen drift, test |
 | `.github/workflows/playwright.yaml` | E2E tests |
 
 ## References

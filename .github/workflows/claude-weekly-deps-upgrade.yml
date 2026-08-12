@@ -124,22 +124,19 @@ jobs:
           # Formatters run in write mode (like format-python above): style
           # churn from a formatter upgrade rides along in the commit instead
           # of failing the check.
-          run app-fmt             make format-frontend
+          # The js targets cover the whole workspace, app included.
           run js-fmt              make format-ts
           run js-lint             make lint-ts
           # Build before typecheck/test: workspace packages resolve each other
           # via dist/ (and the app resolves phoenix-client/phoenix-evals via
           # dist/), so running checks against unbuilt packages fails on module
           # resolution rather than real regressions. No `git diff --exit-code`
-          # here (unlike typescript-packages-CI.yml): the upgrade itself is
-          # uncommitted at this point, and anything the build regenerates is
-          # committed later by `git add -A`.
+          # here (unlike typescript-CI.yml): the upgrade itself is uncommitted
+          # at this point, and anything the build regenerates is committed
+          # later by `git add -A`.
           run js-build            make build-ts
+          run js-typecheck        make typecheck-ts
           run js-test             make test-ts
-          run app-typecheck       make typecheck-frontend
-          run app-lint            make lint-frontend
-          run app-test            make test-frontend
-          run app-build           make build-frontend
           # Write a one-line index of which checks failed for quick scanning.
           {
             echo "# Verify summary ($(date -u +%FT%TZ))"
