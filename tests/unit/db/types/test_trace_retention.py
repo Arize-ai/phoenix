@@ -439,8 +439,9 @@ async def test_trace_delete_stands_down_sessions_added_while_delete_waits(
             )
             == 0
         )
-        content_complete = dict(
-            (
+        content_complete = {
+            session_id: is_complete
+            for session_id, is_complete in (
                 await session.execute(
                     sa.select(
                         models.ProjectSession.id,
@@ -448,7 +449,7 @@ async def test_trace_delete_stands_down_sessions_added_while_delete_waits(
                     ).where(models.ProjectSession.id.in_((first_session_id, later_session_id)))
                 )
             ).all()
-        )
+        }
     assert content_complete == {first_session_id: False, later_session_id: False}
 
 

@@ -34,7 +34,7 @@ async def _seed_criteria(
     db: DbSessionFactory,
     project_id: int,
     *,
-    evaluation_target: str,
+    evaluation_target: models.EvaluationTarget,
     filter_condition: str = "",
     sampling_rate: float = 1.0,
 ) -> tuple[int, int]:
@@ -268,7 +268,7 @@ async def test_materialization_waits_for_publication_criteria_lock_before_sessio
     materialization_started = asyncio.Event()
     materialization_backend_pid: int | None = None
 
-    async def materialize() -> tuple[int, int]:
+    async def materialize() -> tuple[int, int | None]:
         nonlocal materialization_backend_pid
         async with db() as session:
             materialization_backend_pid = await session.scalar(select(func.pg_backend_pid()))
@@ -299,7 +299,7 @@ async def test_materialization_waits_for_publication_criteria_lock_before_sessio
                         select(func.pg_blocking_pids(materialization_backend_pid))
                     )
                 if blocking_pids:
-                    return blocking_pids
+                    return cast(Sequence[int], blocking_pids)
                 await asyncio.sleep(0)
 
         blocking_pids = await asyncio.wait_for(
@@ -329,7 +329,7 @@ async def test_materialization_waits_for_retention_session_lock(
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
     sweeper = SessionEvalSweeper(db)
 
-    async def materialize() -> tuple[int, int]:
+    async def materialize() -> tuple[int, int | None]:
         async with db() as session:
             database_now = await sweeper._database_now(session)
             return await sweeper._sweep(session, database_now)
