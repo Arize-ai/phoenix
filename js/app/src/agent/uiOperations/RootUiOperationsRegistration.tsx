@@ -11,6 +11,11 @@ import {
   createPatchDatasetExamplesClientAction,
 } from "@phoenix/agent/tools/datasetExamples";
 import {
+  createCreateDatasetLabelClientAction,
+  createDeleteDatasetLabelsClientAction,
+  createSetDatasetLabelsClientAction,
+} from "@phoenix/agent/tools/datasetLabels";
+import {
   createCreateDatasetSplitClientAction,
   createDeleteDatasetSplitsClientAction,
   createPatchDatasetSplitClientAction,
@@ -20,6 +25,12 @@ import { createAddSpansToDatasetClientAction } from "@phoenix/agent/tools/spansT
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 
 import { registerUiOperation, unregisterUiOperation } from "./catalog";
+import {
+  createDatasetLabelOperation,
+  datasetLabelOperations,
+  deleteDatasetLabelsOperation,
+  setDatasetLabelsOperation,
+} from "./operations/datasetLabels";
 import {
   createDatasetSplitOperation,
   datasetSplitOperations,
@@ -39,7 +50,11 @@ import {
 } from "./operations/datasetWrites";
 
 /** Every operation family registered at the root, for unmount cleanup. */
-const rootUiOperations = [...datasetWriteOperations, ...datasetSplitOperations];
+const rootUiOperations = [
+  ...datasetWriteOperations,
+  ...datasetSplitOperations,
+  ...datasetLabelOperations,
+];
 
 /**
  * Registers the UI operations that are not tied to any page's UI surface —
@@ -106,6 +121,21 @@ export function RootUiOperationsRegistration() {
       agentStore,
       descriptor: deleteDatasetSplitsOperation,
       handler: createDeleteDatasetSplitsClientAction({ agentStore }),
+    });
+    registerUiOperation({
+      agentStore,
+      descriptor: createDatasetLabelOperation,
+      handler: createCreateDatasetLabelClientAction({ agentStore }),
+    });
+    registerUiOperation({
+      agentStore,
+      descriptor: setDatasetLabelsOperation,
+      handler: createSetDatasetLabelsClientAction({ agentStore }),
+    });
+    registerUiOperation({
+      agentStore,
+      descriptor: deleteDatasetLabelsOperation,
+      handler: createDeleteDatasetLabelsClientAction({ agentStore }),
     });
     return () => {
       for (const descriptor of rootUiOperations) {

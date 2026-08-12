@@ -568,8 +568,6 @@ class TestListDatasetSplitsTool:
 
 
 class TestDatasetLabelTools:
-    _WRITE_TOOLS = ("create_dataset_label", "set_dataset_labels")
-
     async def test_advertised_with_dataset_context(
         self,
         anthropic_model: AnthropicModel,
@@ -584,12 +582,9 @@ class TestDatasetLabelTools:
 
         await agent.run("hello", deps=deps)
 
-        tool_names = _get_tool_names(captured_request.body)
-        assert "list_dataset_labels" in tool_names
-        for name in self._WRITE_TOOLS:
-            assert name in tool_names
+        assert "list_dataset_labels" in _get_tool_names(captured_request.body)
 
-    async def test_writes_hidden_for_viewer_but_read_remains(
+    async def test_available_to_viewer(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
@@ -604,10 +599,7 @@ class TestDatasetLabelTools:
 
         await agent.run("hello", deps=deps)
 
-        tool_names = _get_tool_names(captured_request.body)
-        assert "list_dataset_labels" in tool_names
-        for name in self._WRITE_TOOLS:
-            assert name not in tool_names
+        assert "list_dataset_labels" in _get_tool_names(captured_request.body)
 
     async def test_absent_without_dataset_context(
         self,
@@ -619,65 +611,7 @@ class TestDatasetLabelTools:
 
         await agent.run("hello", deps=deps)
 
-        tool_names = _get_tool_names(captured_request.body)
-        assert "list_dataset_labels" not in tool_names
-        for name in self._WRITE_TOOLS:
-            assert name not in tool_names
-
-
-class TestDatasetCrudTools:
-    _WRITE_TOOLS = ("delete_dataset_labels",)
-
-    async def test_advertised_with_dataset_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            ),
-        )
-
-        await agent.run("hello", deps=deps)
-
-        tool_names = _get_tool_names(captured_request.body)
-        for name in self._WRITE_TOOLS:
-            assert name in tool_names
-
-    async def test_hidden_for_viewer(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            ),
-            is_viewer=True,
-        )
-
-        await agent.run("hello", deps=deps)
-
-        tool_names = _get_tool_names(captured_request.body)
-        for name in self._WRITE_TOOLS:
-            assert name not in tool_names
-
-    async def test_absent_without_dataset_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(contexts=ResolvedContexts())
-
-        await agent.run("hello", deps=deps)
-
-        tool_names = _get_tool_names(captured_request.body)
-        for name in self._WRITE_TOOLS:
-            assert name not in tool_names
+        assert "list_dataset_labels" not in _get_tool_names(captured_request.body)
 
 
 class TestListDatasetsTool:

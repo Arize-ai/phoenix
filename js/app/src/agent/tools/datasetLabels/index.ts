@@ -1,5 +1,10 @@
 export * from "./agentTools";
 export {
+  createCreateDatasetLabelClientAction,
+  createDeleteDatasetLabelsClientAction,
+  createSetDatasetLabelsClientAction,
+} from "./clientActions";
+export {
   CREATE_DATASET_LABEL_TOOL_NAME,
   DATASET_LABELS_NO_DATASET_ERROR,
   DEFAULT_DATASET_LABEL_COLOR,

@@ -19,11 +19,8 @@ import {
 import { batchSpanAnnotateAgentTool } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { listDatasetExamplesAgentTool } from "@phoenix/agent/tools/datasetExamples";
 import {
-  createDatasetLabelAgentTool,
-  deleteDatasetLabelsAgentTool,
   listDatasetLabelsAgentTool,
   listLabelsAgentTool,
-  setDatasetLabelsAgentTool,
 } from "@phoenix/agent/tools/datasetLabels";
 import {
   listDatasetSplitsAgentTool,
@@ -68,9 +65,6 @@ const datasetTools: AgentToolDefinition[] = [
   listSplitsAgentTool,
   listDatasetLabelsAgentTool,
   listLabelsAgentTool,
-  createDatasetLabelAgentTool,
-  setDatasetLabelsAgentTool,
-  deleteDatasetLabelsAgentTool,
 ];
 
 /**
