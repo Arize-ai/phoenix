@@ -67,16 +67,21 @@ def search_claim_path(
 
 @dataclass(frozen=True, repr=False)
 class AssertionFile:
-    """The client assertion's location, and how it may be named in messages.
+    """The client assertion's location, carrying whether it may be repeated in messages.
 
-    An indirect path is the contents of a variable the provider config chose, so it is named
-    by its source rather than echoed: a variable holding something other than an assertion
-    path would otherwise reach the logs, and naming the variable is the more useful thing to
-    report anyway. A direct path was written into the config verbatim and discloses nothing
-    by being repeated.
+    This exists to keep a privilege boundary, not to phrase messages nicely.
+    CLIENT_ASSERTION_FILE_ENV lets provider config name any environment variable in the process,
+    so an indirect path is a value the config selected but did not write. Repeating it anywhere
+    converts rights over the non-secret provider config into a read of any secret-bearing
+    variable — an escalation wherever those privileges differ, as they do for a Kubernetes
+    ConfigMap versus a Secret. An indirect path is therefore named by its source and never
+    echoed. A direct path was typed into the config verbatim, so repeating it discloses
+    nothing and is the useful half of a missing-file message.
 
-    Filesystem calls take the real path via __fspath__; anything formatting this for a human
-    gets the safe form, so no message site has to remember the distinction.
+    Both __str__ and __repr__ redact, because repr is what tracebacks, debuggers and structured
+    loggers reach for and is the likelier disclosure route of the two. Filesystem calls take the
+    real path through __fspath__, so the safe form is what every message gets without any call
+    site opting in — which is the point: the redaction cannot be forgotten at a site added later.
     """
 
     path: Path

@@ -1778,8 +1778,11 @@ class OAuth2ClientConfig:
     client_assertion_file_env: Optional[str] = None
     """Environment variable client_assertion_file was resolved from, when named indirectly.
 
-    Retained so messages can name the variable rather than echo a value the provider config
-    chose but did not write.
+    Retained for its security consequence, not for diagnostics: this setting can name any
+    variable in the process, so a value that arrived through it must never be repeated where
+    an operator can read it, or rights over the non-secret provider config become a read of
+    any secret-bearing variable. Consumers pair the two fields in AssertionFile, which
+    enforces that. A path set directly needs no such treatment.
     """
 
     def __post_init__(self) -> None:
