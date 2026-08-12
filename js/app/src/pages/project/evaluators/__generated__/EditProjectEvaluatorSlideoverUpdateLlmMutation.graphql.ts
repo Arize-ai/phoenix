@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f2c1941226debc1a9f7f80ace39b9454>>
+ * @generated SignedSource<<16612b354ce6f6eef3d7b47753bbfc6e>>
  * @lightSyntaxTransform
  */
 
@@ -20,6 +20,7 @@ export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type UpdateProjectLLMEvaluatorInput = {
   description?: string | null;
   enabled?: boolean | null;
+  evaluationDelaySeconds?: number | null;
   evaluationTarget: EvaluationTarget;
   filterCondition: string;
   inputMapping: EvaluatorInputMappingInput;

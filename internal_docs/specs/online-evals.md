@@ -220,6 +220,12 @@ Design questions include:
 
 Project evaluators run after ingestion. They must never delay or fail ingestion.
 
+The live path uses project-evaluator creation as its boundary: an artifact's latest activity must
+be at or after the criterion's `created_at`. Older quiet artifacts belong to backfill. Disabling
+and later re-enabling a criterion deliberately retains that creation boundary, so activity after
+creation can still become eligible. If re-enablement should reset the live boundary, that requires
+a dedicated enablement timestamp and is future work rather than an inference from `enabled`.
+
 ### Spans
 
 Spans are eligible as soon as they are stored. When a matching span is ingested, the project
@@ -248,12 +254,17 @@ Example: after an agent trace finishes, score whether the user got a correct ans
 Sessions are open-ended and can resume. The likely readiness mechanism is an idle timeout: a
 session is treated as ready for evaluation after no new activity arrives for some configured
 duration. This is only a pragmatic proxy for "complete" — e.g. sessions idle for a day may be
-considered done, even though that is not strictly true. If the session resumes and later goes idle
-again, it can be evaluated again. The visible session annotation reflects the latest evaluation.
+considered done, even though that is not strictly true.
 
-Re-evaluation **overrides** rather than stacks: if a session was judged "incomplete" and later
-completes, the newer judgment should replace the earlier one (see [Output](#output) for override-key
-requirements). Run history still preserves prior evaluations for audit.
+v1 evaluates each session once, when its first quiet period elapses. Later activity does not
+schedule another evaluation. This deliberate initial limitation is tracked in
+[#14903](https://github.com/Arize-ai/phoenix/issues/14903), which owns result identity, re-entry and
+frequency, recovery after permanent failure, and staleness detection for in-flight evaluation.
+
+When re-evaluation lands, it should **override** rather than stack: if a session was judged
+"incomplete" and later completes, the newer judgment should replace the earlier one (see
+[Output](#output) for override-key requirements). Run history should still preserve prior
+evaluations for audit.
 
 Example: after a support chat ends, assess whether the agent stayed coherent and moved toward
 resolution.
@@ -282,10 +293,10 @@ database, so some evaluation happens in Python, which makes them open-endedly ex
 not need to solve all levels at launch; a subset is still useful, and we can carve out room for
 the rest.
 
-Session filtering is the hardest: there is no obvious filter vocabulary for a session yet (it may
-come down to consistent metadata on root spans), and it is unclear whether a condition should
-apply to *any* or *all* of the session's spans. v1 should either define a small set of session
-filter options or omit session filters until that exists.
+The session filter DSL shipped in [#14101](https://github.com/Arize-ai/phoenix/pull/14101), closing
+[#14041](https://github.com/Arize-ai/phoenix/issues/14041). SESSION online-evaluation criteria do
+not consume it yet: filtered or sampled SESSION criteria are accepted but not scheduled.
+[#14038](https://github.com/Arize-ai/phoenix/issues/14038) owns the sampling half.
 
 Changing a filter affects only future artifacts; it does not backfill or re-run past data.
 
