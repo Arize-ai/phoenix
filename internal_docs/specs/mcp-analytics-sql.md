@@ -529,11 +529,10 @@ promoted-column guidance and column notes likewise affect only schema teaching.
 Token accounting for this surface depends on how the client calls it, and the
 default is not the obvious one.
 
-Under **MCP code mode** — the default, and what `scripts/mcp_analytics_sql`
-assumes — the model does not receive tool results. It writes Python that calls
-`call_tool(...)`, which returns a **deserialized dict**, and only what that code
-returns reaches the model's context. Intermediate results are filtered and
-aggregated inside the sandbox.
+Under **MCP code mode** — the default — the model does not receive tool
+results. It writes Python that calls `call_tool(...)`, which returns a
+**deserialized dict**, and only what that code returns reaches the model's
+context. Intermediate results are filtered and aggregated inside the sandbox.
 
 Measured across five orchestrated `executeSql` calls:
 
@@ -744,5 +743,4 @@ Ordered by how much they would change the design.
 
 - Implementation: `src/phoenix/server/mcp_analytics_sql/`
 - Tests: `tests/unit/server/mcp_analytics_sql/`
-- Fixture and cold-agent harness: `scripts/mcp_analytics_sql/`
 - Related: [Read replica routing](./pg-read-replica-routing.md)
