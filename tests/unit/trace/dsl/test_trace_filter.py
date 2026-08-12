@@ -51,6 +51,13 @@ async def _seed_reference_trace(
             else dict(reference_span.attributes),
             start_time=start_time,
             end_time=start_time + timedelta(milliseconds=reference_span.latency_ms),
+            cumulative_error_count=fixture.cumulative_error_count(reference_span),
+            cumulative_llm_token_count_prompt=fixture.cumulative_token_count(
+                reference_span, "prompt"
+            ),
+            cumulative_llm_token_count_completion=fixture.cumulative_token_count(
+                reference_span, "completion"
+            ),
             llm_token_count_prompt=reference_span.llm_token_count_prompt,
             llm_token_count_completion=reference_span.llm_token_count_completion,
         )
@@ -194,3 +201,27 @@ def test_trace_iterable_correlation_keys_are_non_nullable() -> None:
     for spec in _ITERABLE_SPECS.values():
         column = spec.trace_key(spec.model).property.columns[0]
         assert column.nullable is False, column
+
+
+def test_trace_parent_fields_share_one_left_self_join() -> None:
+    compiled = str(
+        TraceFilter(
+            'any(s.parent.name == "finalize" and s.parent.status_code == "OK" for s in spans)'
+        )(select(models.Trace.id)).compile(dialect=_POSTGRESQL_DIALECT)
+    ).lower()
+
+    assert compiled.count("left outer join spans as parent_") == 1
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "first(s.start_time for s in spans) is None",
+        "any(any(x.name == s.name for x in s.before) for s in spans)",
+        'any(s.parent.parent.name == "x" for s in spans)',
+        "any(any(any(y.name == c.name for y in c.children) for c in s.children) for s in spans)",
+    ],
+)
+def test_trace_filter_rejects_unsettled_topology_and_ordering_forms(condition: str) -> None:
+    with pytest.raises(SyntaxError):
+        TraceFilter(condition)

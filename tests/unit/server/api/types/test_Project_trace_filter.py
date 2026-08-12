@@ -182,7 +182,12 @@ async def test_trace_filter_vocabulary_is_compiler_derived_and_project_scoped(
     iterable_names = {term["name"] for term in top_level_terms if term["category"] == "iterable"}
     assert iterable_names == set(TRACE_BINDINGS.iterables)
     for iterable_name, grammar in TRACE_BINDINGS.iterables.items():
-        expected_fields = set(grammar.element_bindings.binding_names)
+        expected_fields = set(grammar.element_bindings.binding_names) | set(grammar.nested)
+        expected_fields.update(
+            f"{related_name}.{field_name}"
+            for related_name, related_bindings in grammar.related.items()
+            for field_name in related_bindings.binding_names
+        )
         observed_fields = {term["name"] for term in terms if term["iterableName"] == iterable_name}
         assert observed_fields == expected_fields
 

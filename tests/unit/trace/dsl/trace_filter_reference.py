@@ -148,6 +148,39 @@ class ReferenceTrace:
     def annotations_named(self, name: str) -> tuple[ReferenceAnnotation, ...]:
         return tuple(annotation for annotation in self.annotations if annotation.name == name)
 
+    def parent_span(self, span: ReferenceSpan) -> Optional[ReferenceSpan]:
+        if span.parent is None or span.parent == "missing-parent":
+            return None
+        if span.parent == "root":
+            return self.root_span
+        return next((candidate for candidate in self.spans if candidate.name == span.parent), None)
+
+    def children(self, span: ReferenceSpan) -> tuple[ReferenceSpan, ...]:
+        return tuple(candidate for candidate in self.spans if self.parent_span(candidate) is span)
+
+    def siblings(self, span: ReferenceSpan) -> tuple[ReferenceSpan, ...]:
+        parent = self.parent_span(span)
+        if parent is None:
+            return ()
+        return tuple(candidate for candidate in self.children(parent) if candidate is not span)
+
+    def start_time_for(self, span: ReferenceSpan) -> datetime:
+        return self.start_time + timedelta(milliseconds=self.spans.index(span))
+
+    def end_time_for(self, span: ReferenceSpan) -> datetime:
+        return self.start_time_for(span) + timedelta(milliseconds=span.latency_ms)
+
+    def cumulative_error_count(self, span: ReferenceSpan) -> int:
+        return int(span.status_code.upper() == "ERROR") + sum(
+            self.cumulative_error_count(child) for child in self.children(span)
+        )
+
+    def cumulative_token_count(self, span: ReferenceSpan, side: str) -> int:
+        own = (
+            getattr(span, f"llm_token_count_{side}") or 0 if span.span_kind.upper() == "LLM" else 0
+        )
+        return own + sum(self.cumulative_token_count(child, side) for child in self.children(span))
+
 
 _FLAT_NAMES = frozenset(
     {
@@ -187,7 +220,13 @@ _ELEMENT_FIELDS: Mapping[str, frozenset[str]] = {
             "name",
             "span_kind",
             "status_code",
+            "start_time",
+            "end_time",
             "latency_ms",
+            "cumulative_error_count",
+            "cumulative_llm_token_count_prompt",
+            "cumulative_llm_token_count_completion",
+            "cumulative_llm_token_count_total",
             "llm_token_count_prompt",
             "llm_token_count_completion",
             "llm_token_count_total",
@@ -318,12 +357,35 @@ class _Evaluator:
         raise SyntaxError(f"unknown name `{node.id}`")
 
     def _element_field(self, node: ast.Attribute, scope: _Scope) -> Any:
-        if not isinstance(node.value, ast.Name) or node.value.id not in scope:
+        root, path = _element_path(node)
+        if root is None or root not in scope:
             raise SyntaxError(f"unsupported attribute access: {ast.unparse(node)}")
-        iterable, element = scope[node.value.id]
-        if node.attr not in _ELEMENT_FIELDS[iterable]:
-            raise SyntaxError(f"`{iterable}` elements have no field `{node.attr}`")
-        value = getattr(element, node.attr)
+        iterable, element = scope[root]
+        if len(path) == 2 and path[0] == "parent" and iterable == "spans":
+            element = self._trace.parent_span(element)
+            if element is None:
+                return MISSING
+            path = path[1:]
+        if len(path) != 1 or path[0] not in _ELEMENT_FIELDS[iterable]:
+            raise SyntaxError(f"`{iterable}` elements have no field `{'.'.join(path)}`")
+        field = path[0]
+        value: Any
+        if iterable == "spans" and field == "start_time":
+            value = self._trace.start_time_for(element)
+        elif iterable == "spans" and field == "end_time":
+            value = self._trace.end_time_for(element)
+        elif iterable == "spans" and field == "cumulative_error_count":
+            value = self._trace.cumulative_error_count(element)
+        elif iterable == "spans" and field == "cumulative_llm_token_count_prompt":
+            value = self._trace.cumulative_token_count(element, "prompt")
+        elif iterable == "spans" and field == "cumulative_llm_token_count_completion":
+            value = self._trace.cumulative_token_count(element, "completion")
+        elif iterable == "spans" and field == "cumulative_llm_token_count_total":
+            value = self._trace.cumulative_token_count(
+                element, "prompt"
+            ) + self._trace.cumulative_token_count(element, "completion")
+        else:
+            value = getattr(element, field)
         return MISSING if value is None else value
 
     def _root_span_attribute(self, node: ast.Subscript) -> Any:
@@ -401,6 +463,16 @@ class _Evaluator:
             name = node.attr
         elif isinstance(node, ast.Name) and node.id not in scope:
             name = node.id
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in ("max", "min")
+            and len(node.args) == 1
+            and isinstance(node.args[0], (ast.GeneratorExp, ast.ListComp))
+            and isinstance(node.args[0].elt, ast.Attribute)
+            and node.args[0].elt.attr in _DATETIME_FIELDS
+        ):
+            return "datetime"
         if name in _UPPERCASE_FIELDS:
             return "uppercase"
         if name in _DATETIME_FIELDS:
@@ -461,16 +533,44 @@ class _Evaluator:
         generator = node.generators[0]
         if not isinstance(generator.target, ast.Name):
             raise SyntaxError("a comprehension loop variable must be a plain name")
-        iterable, elements = self._iterable(generator.iter)
+        iterable, elements = self._iterable(generator.iter, scope)
         for element in elements:
             inner = {**scope, generator.target.id: (iterable, element)}
             if all(self.evaluate(condition, inner) is True for condition in generator.ifs):
                 yield inner
 
-    def _iterable(self, node: ast.expr) -> tuple[str, tuple[Any, ...]]:
+    def _iterable(self, node: ast.expr, scope: _Scope) -> tuple[str, tuple[Any, ...]]:
         if isinstance(node, ast.Name) and node.id in _ITERABLES:
             return node.id, _ITERABLES[node.id](self._trace)
+        if (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id in scope
+        ):
+            iterable, element = scope[node.value.id]
+            if iterable != "spans":
+                raise SyntaxError(f"unknown iterable: {ast.unparse(node)}")
+            if node.attr == "children":
+                return "spans", self._trace.children(element)
+            if node.attr == "siblings":
+                return "spans", self._trace.siblings(element)
+            if node.attr == "annotations":
+                return "span_annotations", element.annotations
+            if node.attr == "cost_details":
+                cost = element.cost
+                return "span_cost_details", () if cost is None else cost.details
         raise SyntaxError(f"unknown iterable: {ast.unparse(node)}")
+
+
+def _element_path(node: ast.Attribute) -> tuple[Optional[str], tuple[str, ...]]:
+    path: list[str] = []
+    current: ast.expr = node
+    while isinstance(current, ast.Attribute):
+        path.append(current.attr)
+        current = current.value
+    if not isinstance(current, ast.Name):
+        return None, ()
+    return current.id, tuple(reversed(path))
 
 
 def _attribute_path_keys(node: ast.Subscript) -> Optional[tuple[Union[str, int], ...]]:
@@ -593,6 +693,7 @@ FIXTURE_TRACES: tuple[ReferenceTrace, ...] = (
                 llm_token_count_prompt=999,
                 annotations=(ReferenceAnnotation("Correctness", label="correct", score=0.9),),
             ),
+            ReferenceSpan("lookup-peer", span_kind="tool", parent="root"),
         ),
     ),
     ReferenceTrace(
@@ -601,12 +702,13 @@ FIXTURE_TRACES: tuple[ReferenceTrace, ...] = (
         _BASE_TIME + timedelta(minutes=1, seconds=2),
         spans=(
             ReferenceSpan(
-                "chat",
+                "finalize",
                 llm_token_count_prompt=2,
                 llm_token_count_completion=3,
                 attributes={"input": {"value": "Please refund"}},
             ),
             ReferenceSpan("search", span_kind="TOOL", status_code="error", parent="root"),
+            ReferenceSpan("search", span_kind="TOOL", parent="root"),
         ),
     ),
     ReferenceTrace(
@@ -702,4 +804,18 @@ DIFFERENTIAL_CONDITIONS: tuple[str, ...] = (
     'trace_id == "CLEAN"',
     'any("CHAT" in s.name for s in spans)',
     'any(s.name == "Chat" for s in spans)',
+    "any(s.cumulative_error_count > 0 for s in spans)",
+    "any(s.cumulative_llm_token_count_prompt == 10 for s in spans)",
+    "any(s.cumulative_llm_token_count_completion == 5 for s in spans)",
+    "any(s.cumulative_llm_token_count_total == 15 for s in spans)",
+    'max(s.start_time for s in spans if s.status_code == "ERROR") > '
+    'max(s.start_time for s in spans if "finalize" in s.name)',
+    'min(s.end_time for s in spans if s.name == "absent") is None',
+    'any(s.name == "search" and s.parent.name == "finalize" for s in spans)',
+    'any(any(c.status_code == "ERROR" for c in s.children) for s in spans)',
+    'any(any(x.name == "lookup-peer" for x in s.siblings) for s in spans)',
+    'any(any(a.label == "correct" for a in s.annotations) for s in spans)',
+    'any(any(d.token_type == "output" for d in s.cost_details) for s in spans)',
+    'any(s.name == "search" and any(x.name == s.name and x.start_time > s.start_time '
+    "for x in spans) for s in spans)",
 )

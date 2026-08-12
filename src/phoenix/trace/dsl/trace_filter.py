@@ -3,6 +3,7 @@
 import ast
 import typing
 from dataclasses import dataclass, field
+from itertools import count
 from types import MappingProxyType
 
 from openinference.semconv.trace import SpanAttributes
@@ -87,12 +88,18 @@ class _ElementField(typing.NamedTuple):
     kind: typing.Literal["string", "float", "datetime", "boolean"]
 
 
+class _NestedIterable(typing.NamedTuple):
+    iterable: str
+    correlate: typing.Callable[[typing.Any, typing.Any], typing.Any]
+
+
 class _IterableSpec(typing.NamedTuple):
     model: typing.Any
     fields: typing.Mapping[str, _ElementField]
     joins: tuple[typing.Any, ...]
     trace_key: typing.Callable[[typing.Any], typing.Any]
     uppercase_fields: frozenset[str] = frozenset()
+    nested: typing.Mapping[str, _NestedIterable] = MappingProxyType({})
 
 
 _SPAN_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
@@ -100,7 +107,19 @@ _SPAN_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
         "name": _ElementField("name", "string"),
         "span_kind": _ElementField("span_kind", "string"),
         "status_code": _ElementField("status_code", "string"),
+        "start_time": _ElementField("start_time", "datetime"),
+        "end_time": _ElementField("end_time", "datetime"),
         "latency_ms": _ElementField("latency_ms", "float"),
+        "cumulative_error_count": _ElementField("cumulative_error_count", "float"),
+        "cumulative_llm_token_count_prompt": _ElementField(
+            "cumulative_llm_token_count_prompt", "float"
+        ),
+        "cumulative_llm_token_count_completion": _ElementField(
+            "cumulative_llm_token_count_completion", "float"
+        ),
+        "cumulative_llm_token_count_total": _ElementField(
+            "cumulative_llm_token_count_total", "float"
+        ),
         "llm_token_count_prompt": _ElementField("llm_token_count_prompt", "float"),
         "llm_token_count_completion": _ElementField("llm_token_count_completion", "float"),
         "llm_token_count_total": _ElementField("llm_token_count_total", "float"),
@@ -131,6 +150,28 @@ _ITERABLE_SPECS: typing.Mapping[str, _IterableSpec] = MappingProxyType(
             joins=(),
             trace_key=lambda element: element.trace_rowid,
             uppercase_fields=frozenset({"span_kind", "status_code"}),
+            nested=MappingProxyType(
+                {
+                    "children": _NestedIterable(
+                        "spans", lambda element, parent: element.parent_id == parent.span_id
+                    ),
+                    "siblings": _NestedIterable(
+                        "spans",
+                        lambda element, parent: and_(
+                            element.parent_id == parent.parent_id,
+                            element.id != parent.id,
+                        ),
+                    ),
+                    "annotations": _NestedIterable(
+                        "span_annotations",
+                        lambda element, parent: element.span_rowid == parent.id,
+                    ),
+                    "cost_details": _NestedIterable(
+                        "span_cost_details",
+                        lambda _element, parent: models.SpanCost.span_rowid == parent.id,
+                    ),
+                }
+            ),
         ),
         "trace_annotations": _IterableSpec(
             model=models.TraceAnnotation,
@@ -190,7 +231,15 @@ def _element_bindings(spec: _IterableSpec) -> _FilterBindings:
 
 _TRACE_ITERABLES: typing.Mapping[str, _IterableGrammar] = MappingProxyType(
     {
-        name: _IterableGrammar(element_bindings=_element_bindings(spec))
+        name: _IterableGrammar(
+            element_bindings=_element_bindings(spec),
+            nested=MappingProxyType(
+                {attribute: nested.iterable for attribute, nested in spec.nested.items()}
+            ),
+            related=MappingProxyType(
+                {"parent": _element_bindings(spec)} if name == "spans" else {}
+            ),
+        )
         for name, spec in _ITERABLE_SPECS.items()
     }
 )
@@ -215,6 +264,8 @@ TRACE_BINDINGS = _FilterBindings(
     case_insensitive_containment=True,
     strict_semantics=True,
     attribute_proxies=frozenset({"user.id"}),
+    allow_outer_element_references=True,
+    allow_datetime_reductions=True,
 )
 
 TRACE_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
@@ -261,10 +312,69 @@ TRACE_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "spans.name": "Span name.",
         "spans.span_kind": "Span kind, e.g. LLM, TOOL, or RETRIEVER; casing is ignored.",
         "spans.status_code": "Span status: OK, ERROR, or UNSET; casing is ignored.",
+        "spans.start_time": "Span start timestamp. Compare against an ISO 8601 string.",
+        "spans.end_time": "Span end timestamp. Compare against an ISO 8601 string.",
         "spans.latency_ms": "Span duration in milliseconds.",
+        "spans.cumulative_error_count": (
+            "Number of ERROR spans at or under this span, including this span."
+        ),
+        "spans.cumulative_llm_token_count_prompt": (
+            "Prompt tokens recorded at or under this span, including this span."
+        ),
+        "spans.cumulative_llm_token_count_completion": (
+            "Completion tokens recorded at or under this span, including this span."
+        ),
+        "spans.cumulative_llm_token_count_total": (
+            "Total tokens recorded at or under this span, including this span."
+        ),
         "spans.llm_token_count_prompt": "Prompt tokens recorded on this span.",
         "spans.llm_token_count_completion": "Completion tokens recorded on this span.",
         "spans.llm_token_count_total": "Prompt plus completion tokens recorded on this span.",
+        "spans.children": "Spans whose parent edge points to this span.",
+        "spans.siblings": "Other spans with the same non-null parent edge as this span.",
+        "spans.annotations": "Annotations attached to this span.",
+        "spans.cost_details": "Per-token-type cost rows attached to this span.",
+        "spans.parent.name": "Direct parent span name; missing when no parent row is stored.",
+        "spans.parent.span_kind": (
+            "Direct parent span kind; missing when no parent row is stored."
+        ),
+        "spans.parent.status_code": (
+            "Direct parent span status; missing when no parent row is stored."
+        ),
+        "spans.parent.start_time": (
+            "Direct parent span start timestamp; missing when no parent row is stored."
+        ),
+        "spans.parent.end_time": (
+            "Direct parent span end timestamp; missing when no parent row is stored."
+        ),
+        "spans.parent.latency_ms": (
+            "Direct parent span duration in milliseconds; missing when no parent row is stored."
+        ),
+        "spans.parent.cumulative_error_count": (
+            "ERROR spans at or under the direct parent, including the parent; missing when no "
+            "parent row is stored."
+        ),
+        "spans.parent.cumulative_llm_token_count_prompt": (
+            "Prompt tokens at or under the direct parent, including the parent; missing when no "
+            "parent row is stored."
+        ),
+        "spans.parent.cumulative_llm_token_count_completion": (
+            "Completion tokens at or under the direct parent, including the parent; missing when "
+            "no parent row is stored."
+        ),
+        "spans.parent.cumulative_llm_token_count_total": (
+            "Total tokens at or under the direct parent, including the parent; missing when no "
+            "parent row is stored."
+        ),
+        "spans.parent.llm_token_count_prompt": (
+            "Prompt tokens recorded on the direct parent; missing when no parent row is stored."
+        ),
+        "spans.parent.llm_token_count_completion": (
+            "Completion tokens recorded on the direct parent; missing when no parent row is stored."
+        ),
+        "spans.parent.llm_token_count_total": (
+            "Total tokens recorded on the direct parent; missing when no parent row is stored."
+        ),
         "trace_annotations.name": "Annotation name.",
         "trace_annotations.label": "Annotation label; null when absent.",
         "trace_annotations.score": "Annotation score; null when absent.",
@@ -294,34 +404,113 @@ def _comprehension_bindings(
     specs: typing.Iterable[ComprehensionSpec],
     lowering: FilterLowering,
 ) -> tuple[Select[typing.Any], dict[str, typing.Any]]:
+    aliases = count()
+
+    class _Scope(typing.NamedTuple):
+        spec: ComprehensionSpec
+        element: typing.Any
+        parent: typing.Optional[typing.Any]
+
+    def needs_parent(spec: ComprehensionSpec) -> bool:
+        return any(
+            reference.path[0] == "parent" and reference.scope_depth == 0
+            for reference in spec.element_references.values()
+        ) or any(
+            reference.path[0] == "parent" and reference.scope_depth == 1
+            for child in spec.children
+            for reference in child.element_references.values()
+        )
+
+    def reference_column(
+        reference: typing.Any,
+        current: _Scope,
+        ancestors: tuple[_Scope, ...],
+    ) -> typing.Any:
+        scope = current if reference.scope_depth == 0 else ancestors[-reference.scope_depth]
+        source = scope.element
+        if len(reference.path) == 2:
+            assert reference.path[0] == "parent" and scope.parent is not None
+            source = scope.parent
+        return _element_column(
+            source,
+            reference.path[-1],
+            _ITERABLE_SPECS[reference.source_iterable],
+        )
+
     def element_scope(
         spec: ComprehensionSpec,
-    ) -> tuple[_IterableSpec, typing.Any, dict[str, typing.Any], typing.Any]:
+        ancestors: tuple[_Scope, ...],
+    ) -> tuple[_IterableSpec, _Scope, dict[str, typing.Any], typing.Any]:
         iterable = _ITERABLE_SPECS[spec.iterable]
-        element = aliased(iterable.model)
+        element = aliased(iterable.model, name=f"{spec.iterable}_{next(aliases)}")
+        parent = (
+            aliased(models.Span, name=f"parent_{next(aliases)}") if needs_parent(spec) else None
+        )
+        current = _Scope(spec, element, parent)
         columns = {name: _element_column(element, name, iterable) for name in iterable.fields}
+        nested_bindings = {
+            child.name: build(child, spec, element, (*ancestors, current))
+            for child in spec.children
+        }
+        reference_bindings = {
+            name: reference_column(reference, current, ancestors)
+            for name, reference in spec.element_references.items()
+        }
         element_globals = _eval_globals(
             _TRACE_ITERABLES[spec.iterable].element_bindings,
             {},
-            {**spec.literal_bindings, **columns},
+            {
+                **spec.literal_bindings,
+                **columns,
+                **nested_bindings,
+                **reference_bindings,
+            },
         )
         predicate: typing.Any = (
             None if spec.predicate is None else eval(spec.predicate, element_globals)
         )
-        return iterable, element, element_globals, predicate
+        return iterable, current, element_globals, predicate
 
-    def build(spec: ComprehensionSpec) -> typing.Any:
-        iterable, element, element_globals, predicate = element_scope(spec)
+    def apply_joins(
+        element_stmt: Select[typing.Any],
+        iterable: _IterableSpec,
+        scope: _Scope,
+    ) -> Select[typing.Any]:
+        for target in iterable.joins:
+            element_stmt = element_stmt.join(target)
+        if scope.parent is not None:
+            element_stmt = element_stmt.outerjoin(
+                scope.parent,
+                scope.parent.span_id == scope.element.parent_id,
+            )
+        return element_stmt
+
+    def build(
+        spec: ComprehensionSpec,
+        parent_spec: typing.Optional[ComprehensionSpec] = None,
+        parent_element: typing.Optional[typing.Any] = None,
+        ancestors: tuple[_Scope, ...] = (),
+    ) -> typing.Any:
+        iterable, scope, element_globals, predicate = element_scope(spec, ancestors)
         if spec.kind in QUANTIFIER_NAMES:
             element_stmt = select(literal(1))
         elif spec.kind == "len":
             element_stmt = select(func.count())
         else:
             element_stmt = select(_REDUCTION_FUNCTIONS[spec.kind](predicate))
-        element_stmt = element_stmt.select_from(element)
-        for target in iterable.joins:
-            element_stmt = element_stmt.join(target)
-        element_stmt = element_stmt.where(iterable.trace_key(element) == models.Trace.id)
+        element_stmt = apply_joins(element_stmt.select_from(scope.element), iterable, scope)
+        if parent_spec is None:
+            element_stmt = element_stmt.where(iterable.trace_key(scope.element) == models.Trace.id)
+        elif spec.nested_attribute is None:
+            assert parent_element is not None
+            element_stmt = element_stmt.where(
+                iterable.trace_key(scope.element)
+                == _ITERABLE_SPECS[parent_spec.iterable].trace_key(parent_element)
+            )
+        else:
+            assert parent_element is not None
+            nested = _ITERABLE_SPECS[parent_spec.iterable].nested[spec.nested_attribute]
+            element_stmt = element_stmt.where(nested.correlate(scope.element, parent_element))
         if spec.condition is not None:
             element_stmt = element_stmt.where(eval(spec.condition, element_globals))
         if spec.kind == "any":
@@ -333,13 +522,11 @@ def _comprehension_bindings(
         return element_stmt.scalar_subquery()
 
     def build_scan(spec: ComprehensionSpec) -> typing.Any:
-        iterable, element, element_globals, predicate = element_scope(spec)
-        trace_key = iterable.trace_key(element)
+        iterable, scope, element_globals, predicate = element_scope(spec, ())
+        trace_key = iterable.trace_key(scope.element)
 
         def scan(*columns: typing.Any) -> Select[typing.Any]:
-            element_stmt = select(*columns).select_from(element)
-            for target in iterable.joins:
-                element_stmt = element_stmt.join(target)
+            element_stmt = apply_joins(select(*columns).select_from(scope.element), iterable, scope)
             if spec.condition is not None:
                 element_stmt = element_stmt.where(eval(spec.condition, element_globals))
             return element_stmt

@@ -207,6 +207,26 @@ def trace_filter_vocabulary_terms(
                 description=TRACE_FILTER_DESCRIPTIONS[f"{iterable_name}.{field_name}"],
                 iterable_name=iterable_name,
             )
+        for nested_name in sorted(grammar.nested):
+            add(
+                nested_name,
+                _ITERABLE_TYPE,
+                _ELEMENT,
+                description=TRACE_FILTER_DESCRIPTIONS[f"{iterable_name}.{nested_name}"],
+                iterable_name=iterable_name,
+            )
+        for related_name, related_bindings in sorted(grammar.related.items()):
+            for field_name, field_type in sorted(
+                _element_field_types(_IterableGrammar(related_bindings)).items()
+            ):
+                name = f"{related_name}.{field_name}"
+                add(
+                    name,
+                    field_type,
+                    _ELEMENT,
+                    description=TRACE_FILTER_DESCRIPTIONS[f"{iterable_name}.{name}"],
+                    iterable_name=iterable_name,
+                )
 
     for wire_key in sorted({".".join(path) for path in root_span_attribute_paths}):
         subscript = _subscript_literal(wire_key)
