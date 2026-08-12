@@ -203,7 +203,6 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             "evaluation_delay_seconds",
             "input_mapping",
             "enabled",
-            "work_materialized_at",
             "created_at",
             "updated_at",
         }
@@ -236,7 +235,7 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(["input_mapping", "work_materialized_at"]),
+            nullable_column_names=frozenset(["input_mapping"]),
         )
 
 
@@ -310,6 +309,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
             "ix_eval_session_work_units_criteria_id",
             "ix_eval_session_work_units_error_attempts",
             "ix_eval_session_work_units_terminal",
+            "ix_eval_session_work_units_terminal_watermark",
             "uq_eval_session_work_units_live_key",
         }
         constraint_names = {
@@ -344,6 +344,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
                     "criteria_id",
                     "config_fingerprint",
                     "evaluated_through",
+                    "transcript_covered_through",
                     "status",
                     "claimed_at",
                     "claimed_by",
@@ -357,7 +358,13 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
             nullable_column_names=frozenset(
-                {"claimed_at", "claimed_by", "error", "cooldown_until"}
+                {
+                    "transcript_covered_through",
+                    "claimed_at",
+                    "claimed_by",
+                    "error",
+                    "cooldown_until",
+                }
             ),
         )
 
