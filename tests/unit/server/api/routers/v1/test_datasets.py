@@ -4943,10 +4943,12 @@ async def test_list_dataset_splits_accepts_dataset_name(
     assert [s["name"] for s in response.json()["data"]] == ["by_name"]
 
 
-async def test_list_dataset_splits_excludes_splits_without_examples_in_dataset(
+async def test_list_dataset_splits_scopes_splits_through_example_membership(
     httpx_client: httpx.AsyncClient,
 ) -> None:
-    """A split is scoped to a dataset only through its examples."""
+    """A split with members is scoped to the datasets containing its examples. A
+    split with no examples at all belongs to no dataset yet and is listed under
+    every dataset, so the collection round-trips its own POST."""
     dataset_a, _ = await _create_dataset_with_examples(httpx_client, "ds_scope_a", 1)
     dataset_b, examples_b = await _create_dataset_with_examples(httpx_client, "ds_scope_b", 1)
     # Belongs to dataset B only.
@@ -4956,7 +4958,7 @@ async def test_list_dataset_splits_excludes_splits_without_examples_in_dataset(
             json={"name": "b_only", "example_ids": examples_b},
         )
     ).status_code == 201
-    # Has no examples at all, so it belongs to no dataset.
+    # Has no examples at all, so it is visible under both datasets.
     assert (
         await httpx_client.post(
             url=f"/v1/datasets/{dataset_a}/splits",
@@ -4964,12 +4966,73 @@ async def test_list_dataset_splits_excludes_splits_without_examples_in_dataset(
         )
     ).status_code == 201
 
-    response = await httpx_client.get(f"/v1/datasets/{dataset_a}/splits")
-    assert response.status_code == 200
-    assert response.json()["data"] == []
+    response_a = await httpx_client.get(f"/v1/datasets/{dataset_a}/splits")
+    assert response_a.status_code == 200
+    assert {s["name"]: s["example_count"] for s in response_a.json()["data"]} == {"empty_split": 0}
 
     response_b = await httpx_client.get(f"/v1/datasets/{dataset_b}/splits")
-    assert [s["name"] for s in response_b.json()["data"]] == ["b_only"]
+    assert {s["name"]: s["example_count"] for s in response_b.json()["data"]} == {
+        "b_only": 1,
+        "empty_split": 0,
+    }
+
+
+async def test_list_dataset_splits_excludes_soft_deleted_examples_from_counts(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Soft-deleting an example (DELETE revision) leaves its split membership rows in
+    place, but the reported example_count must drop to match the non-split surfaces
+    (e.g. GET /datasets/{id}/examples)."""
+    name = "ds_split_soft_delete"
+    examples = [
+        ExampleContent(input={"q": f"Q{i}"}, output={"a": f"A{i}"}, metadata={}) for i in range(3)
+    ]
+    await _append(httpx_client, name, examples)
+    async with db() as session:
+        dataset_rowid = await session.scalar(
+            select(models.Dataset.id).where(models.Dataset.name == name)
+        )
+    dataset_id = str(GlobalID("Dataset", str(dataset_rowid)))
+    examples_response = await httpx_client.get(f"/v1/datasets/{dataset_id}/examples")
+    example_ids = [e["node_id"] for e in examples_response.json()["data"]["examples"]]
+    created = await httpx_client.post(
+        url=f"/v1/datasets/{name}/splits",
+        json={"name": "train", "example_ids": example_ids},
+    )
+    assert created.status_code == 201
+    assert created.json()["data"]["example_count"] == 3
+
+    # Soft-delete the last example with a DELETE revision while leaving its split
+    # membership row in place, as GraphQL deleteDatasetExamples does.
+    async with db() as session:
+        version = models.DatasetVersion(dataset_id=dataset_rowid, metadata_={})
+        session.add(version)
+        await session.flush()
+        session.add(
+            models.DatasetExampleRevision(
+                dataset_example_id=int(GlobalID.from_id(example_ids[-1]).node_id),
+                dataset_version_id=version.id,
+                input={},
+                output={},
+                metadata_={},
+                revision_kind="DELETE",
+            )
+        )
+
+    response = await httpx_client.get(f"/v1/datasets/{name}/splits")
+    assert response.status_code == 200
+    assert [s["example_count"] for s in response.json()["data"]] == [2]
+
+    # The membership rows are untouched — only the count filters out the deletion.
+    split_rowid = int(GlobalID.from_id(created.json()["data"]["id"]).node_id)
+    async with db() as session:
+        member_count = await session.scalar(
+            select(func.count())
+            .select_from(models.DatasetSplitDatasetExample)
+            .where(models.DatasetSplitDatasetExample.dataset_split_id == split_rowid)
+        )
+        assert member_count == 3
 
 
 async def test_list_dataset_splits_paginates(
@@ -4984,7 +5047,7 @@ async def test_list_dataset_splits_paginates(
             )
         ).status_code == 201
 
-    seen: list[str] = []
+    pages: list[dict[str, Any]] = []
     cursor: Optional[str] = None
     for _ in range(3):
         url = f"/v1/datasets/{dataset_id}/splits?limit=2"
@@ -4993,11 +5056,15 @@ async def test_list_dataset_splits_paginates(
         page = await httpx_client.get(url)
         assert page.status_code == 200
         body = page.json()
-        seen.extend(s["name"] for s in body["data"])
+        assert len(body["data"]) <= 2, "page exceeded requested limit"
+        pages.append(body)
         cursor = body["next_cursor"]
         if cursor is None:
             break
     assert cursor is None
+    assert [len(p["data"]) for p in pages] == [2, 1], "expected pages of sizes 2 and 1"
+    assert pages[0]["next_cursor"] is not None
+    seen = [s["name"] for p in pages for s in p["data"]]
     assert sorted(seen) == ["split_0", "split_1", "split_2"]
     assert len(seen) == len(set(seen)), "pagination returned duplicates"
 
@@ -5024,4 +5091,16 @@ async def test_list_dataset_splits_invalid_cursor(
 ) -> None:
     dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_bad_cursor", 1)
     response = await httpx_client.get(f"/v1/datasets/{dataset_id}/splits?cursor=not-a-global-id")
+    assert response.status_code == 422
+
+
+async def test_list_dataset_splits_out_of_range_cursor(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """A cursor id beyond the DB's integer range must 422, not 500 at bind time."""
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_overflow_cursor", 1)
+    cursor = str(GlobalID("DatasetSplit", "99999999999999999999"))
+    response = await httpx_client.get(
+        f"/v1/datasets/{dataset_id}/splits", params={"cursor": cursor}
+    )
     assert response.status_code == 422
