@@ -12,10 +12,10 @@ import { defineUIOperation } from "../types";
  * Catalog entries replacing the standalone dataset split write tools
  * (`create_dataset_split`, `patch_dataset_split`, `delete_dataset_splits`,
  * `set_dataset_example_splits`). Approval operations staged in the shared
- * dataset-approval card, registered at the app root; the split read tools
- * (`list_dataset_splits`, `list_splits`) remain standalone. Input schemas are
- * reused from the existing tool module; descriptions are ported from the
- * Python `DESCRIPTION`s with tool names rewritten to operation names.
+ * dataset-approval card, registered at the app root; split reads go through
+ * the bash tool's GraphQL. Input schemas are reused from the existing tool
+ * module; descriptions are ported from the Python `DESCRIPTION`s with tool
+ * names rewritten to operation names.
  */
 
 const APPROVAL_UI_BEHAVIOR = {
@@ -43,8 +43,8 @@ export const setDatasetExampleSplitsOperation = defineUIOperation({
     "Assign rows of the dataset the user is viewing to one or more existing splits, by split " +
     "name. This SETS each row's splits to exactly the named splits — it replaces whatever " +
     "splits those rows were in. The splits must already exist on the dataset; to create a new " +
-    "split use dataset.split.create. Get example ids from the list_dataset_examples tool and " +
-    "split names from the list_dataset_splits tool.",
+    "split use dataset.split.create. Get example ids and split names from the dataset via a " +
+    "GraphQL query with the bash tool.",
   inputSchema: setDatasetExampleSplitsInputSchema,
   kind: "approval",
   requireSession: true,
@@ -58,8 +58,9 @@ export const patchDatasetSplitOperation = defineUIOperation({
     "color — identified by its current name. Only the fields you pass are changed. Pass " +
     "description: null to clear the description; name and color cannot be cleared, only " +
     "replaced with a new non-empty value. Does not change which rows are in the split (use " +
-    "dataset.split.setExampleSplits for that). Get the split's current name from the " +
-    "list_dataset_splits tool. Split names are unique; a duplicate new name fails.",
+    "dataset.split.setExampleSplits for that). Get the split's current name from the dataset's " +
+    "splits via a GraphQL query with the bash tool. Split names are unique; a duplicate new " +
+    "name fails.",
   inputSchema: patchDatasetSplitInputSchema,
   kind: "approval",
   requireSession: true,
@@ -71,7 +72,7 @@ export const deleteDatasetSplitsOperation = defineUIOperation({
   description:
     "Delete splits, identified by name. This removes each split entirely (across the " +
     "instance); the dataset's rows themselves are not deleted, only their membership in these " +
-    "splits. This cannot be undone. Get split names from the list_dataset_splits tool.",
+    "splits. This cannot be undone. Get split names via a GraphQL query with the bash tool.",
   inputSchema: deleteDatasetSplitsInputSchema,
   kind: "approval",
   requireSession: true,

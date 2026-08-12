@@ -56,6 +56,16 @@ other host binaries exist.
 - Language runtimes such as python, python3, and node are not available.
 - phoenix-gql is available for GraphQL operations against the Phoenix GraphQL API. \
 Run `phoenix-gql --help` for usage and current permissions.
+- Dataset reads go through here. `Query.datasets(filter: {col: name, value: "..."}, \
+first, after)` lists datasets (names are unique — check before a `ui.dataset.create`). \
+`node(id: <datasetId>) { ... on Dataset { examples(first, after) { edges { node { id \
+revision { input output metadata } } } } splits { id name } labels { id name } } }` \
+reads a dataset's rows, splits, and labels — row content lives under `revision`. \
+`Query.datasetSplits` / `Query.datasetLabels` list the instance-wide split/label \
+vocabularies. The dataset in view's node id is advertised in your context.
+- Keep read results compact: request only the fields you need and paginate with small \
+pages (`first: 10` is usually enough to learn a dataset's row shape) instead of \
+dumping whole connections.
 
 Args:
     summary: Short, user-facing description of what this command does. Shown as the

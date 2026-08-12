@@ -60,7 +60,7 @@ async function resolveDatasetByName(
     const candidates = datasets.map((dataset) => dataset.name).join(", ");
     return {
       ok: false,
-      error: `"${datasetName}" matches more than one dataset (${candidates}). Use list_datasets to pick the exact name.`,
+      error: `"${datasetName}" matches more than one dataset (${candidates}). Pass the exact name (read the datasets via a GraphQL query with the bash tool if unsure).`,
     };
   }
   return { ok: true, id: chosen.id, name: chosen.name };

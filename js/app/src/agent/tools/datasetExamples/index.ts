@@ -1,4 +1,3 @@
-export * from "./agentTools";
 export { commitAddDatasetExamples } from "./addDatasetExamples";
 export {
   createAddDatasetExamplesClientAction,
@@ -13,7 +12,6 @@ export {
   PATCH_DATASET_EXAMPLES_TOOL_NAME,
 } from "./constants";
 export { commitDeleteDatasetExamples } from "./deleteDatasetExamples";
-export { commitListDatasetExamples } from "./listDatasetExamples";
 export { commitPatchDatasetExamples } from "./patchDatasetExamples";
 export {
   parseAddDatasetExamplesInput,

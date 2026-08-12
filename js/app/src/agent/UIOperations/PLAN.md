@@ -213,9 +213,18 @@ free. None of these has a `ui.*` equivalent yet; each needs a new descriptor.
 ### Keep standalone (NOT UI state)
 
 `bash`, docs MCP, `web_search`/`web_fetch`, `ask_user`, `call_subagent`,
-`get_current_datetime`, `write_span_note`, `load_skill`/`read_skill_resource`,
-and the read-only `list_datasets` / `list_labels` / `list_splits` /
-`list_dataset_*` reads (or retire those in favor of `bash` GraphQL).
+`get_current_datetime`, `write_span_note`, `load_skill`/`read_skill_resource`.
+The read-only `list_datasets` / `list_labels` / `list_splits` /
+`list_dataset_*` tools took this section's parenthetical option and were
+RETIRED in favor of `bash` GraphQL: they enabled nothing `phoenix-gql` can't
+do (same schema, same authenticated user, reads ungated), subagents already
+read through bash, and the client round-trip made each read slower than the
+in-process query. Their prompt ergonomics moved into
+`BASH_TOOL_INSTRUCTIONS.xml.j2` (curated dataset-read queries, small-page
+guidance); their name-resolution helpers (`fetchSplitsByNames`,
+`fetchLabelsByNames`, `commitListDatasets`) survive as internal plumbing for
+the write operations, and the `ToolPart` read cases stay for historical
+transcripts.
 
 ### Borderline (decide during the work)
 
@@ -294,3 +303,10 @@ patch/delete`, `dataset.addSpans`. Introduced the reusable machinery the
       (`datasetExamples`, `datasetSplits`, `datasetLabels`) trimmed to their
       surviving list tools. A per-file scan found no remaining unreferenced
       files under `agent/tools/`.
+- [x] read-tool retirement (follow-up to Q1/Q2): the six `list_*` dataset
+      read tools are deleted on both sides; reads go through `bash`
+      `phoenix-gql`. See the updated "Keep standalone" section above. The
+      external capability bundle is now all-static (the dynamic
+      `include_for_run` machinery in `tools/external/__init__.py` left with
+      its last members); the agents-router tests use `get_route_info` as
+      their canonical client tool.
