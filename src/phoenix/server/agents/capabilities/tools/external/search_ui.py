@@ -23,12 +23,6 @@ PARAMETERS: dict[str, Any] = {
                 "omitted lists the full catalog grouped by namespace."
             ),
         },
-        "mountedOnly": {
-            "type": "boolean",
-            "description": (
-                "When true, only operations usable on the user's current page are returned."
-            ),
-        },
     },
     "required": [],
     "additionalProperties": False,
