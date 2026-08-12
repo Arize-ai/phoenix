@@ -1707,14 +1707,6 @@ _ALLOWED_TOKEN_ENDPOINT_AUTH_METHODS = (
 )
 """Allowed OAuth2 token endpoint authentication methods (OIDC Core §9 unless noted)."""
 
-"""No assertion path is defaulted or discovered here.
-
-Platforms that mint the assertion own where they put it and may move it between releases,
-so the path must not be hardcoded; but the variable exporting it is platform-specific and
-process-global, so reading one implicitly would bind it to every provider at once. The
-operator names the variable per provider instead, via CLIENT_ASSERTION_FILE_ENV.
-"""
-
 
 @dataclass(frozen=True, kw_only=True)
 class OAuth2ClientConfig:
@@ -1768,11 +1760,17 @@ class OAuth2ClientConfig:
 
     # Workload identity (RFC 7523 §2.2)
     client_assertion_file: Optional[str] = None
-    """Path to a file holding the JWT sent as `client_assertion`.
+    """Resolved path to the file holding the JWT sent as `client_assertion`.
 
     Required when token_endpoint_auth_method is CLIENT_ASSERTION_JWT_AUTH_METHOD, unset
-    otherwise. Re-read on every token request, since the platform rotates the token in
-    place well before its expiry.
+    otherwise, and re-read on every token request because the platform rotates the token
+    well before it expires.
+
+    Neither defaulted nor discovered. Platforms that mint the assertion own where they put
+    it and have moved it between releases, so the path cannot be hardcoded; but the variable
+    exporting it is process-global, so consulting one implicitly would bind it to every
+    provider at once. The operator supplies one or the other per provider, this field or
+    client_assertion_file_env.
     """
 
     client_assertion_file_env: Optional[str] = None

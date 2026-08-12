@@ -72,7 +72,8 @@ class AssertionFile:
     This exists to keep a privilege boundary, not to phrase messages nicely.
     CLIENT_ASSERTION_FILE_ENV lets provider config name any environment variable in the process,
     so an indirect path is a value the config selected but did not write. Repeating it anywhere
-    converts rights over the non-secret provider config into a read of any secret-bearing
+    an operator can read converts rights over the non-secret provider config into a read of any
+    secret-bearing
     variable — an escalation wherever those privileges differ, as they do for a Kubernetes
     ConfigMap versus a Secret. An indirect path is therefore named by its source and never
     echoed. A direct path was typed into the config verbatim, so repeating it discloses
@@ -102,9 +103,10 @@ class AssertionFile:
 class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
     """Client authentication with a platform-minted JWT (RFC 7523 §2.2).
 
-    Unlike `private_key_jwt`, the assertion is not signed here: the platform writes it to
-    `assertion_file` (Azure Workload Identity webhook, SPIFFE, and similar all project a
-    Kubernetes service account token this way) and Phoenix relays it verbatim.
+    Unlike `private_key_jwt`, the assertion is not signed here: the platform writes it to the
+    file (Azure Workload Identity webhook, SPIFFE, and similar all project a Kubernetes
+    service account token this way) and Phoenix relays it verbatim. Which is why the file is
+    an AssertionFile rather than a Path — see there for what may be said about it.
 
     Registered as the auth method instance rather than applied per call site, so authlib
     attaches the assertion to token endpoint requests — fetch, refresh, introspect — on its
@@ -119,14 +121,14 @@ class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
         self._assertion_file = assertion_file
 
     def sign(self, auth: Any, token_endpoint: str) -> str:
-        # Re-read per request: the token rotates, and Kubernetes rotates a projected volume by
-        # swapping the symlink the configured path resolves through.
-        # Opened once and inspected through the descriptor rather than the path: a stat
-        # followed by a separate open leaves a window in which the platform swaps the symlink
-        # for something else. O_NONBLOCK keeps a FIFO from blocking on open, and the fstat
-        # rejects anything that is not a regular file — a FIFO waits for a writer and a
-        # character device never reaches EOF, either of which would stall the event loop,
-        # since this read is synchronous inside the async auth flow.
+        # Re-read per request, because the platform rotates the token — Kubernetes by
+        # swapping the symlink the configured path resolves through, which also means the
+        # path can point somewhere new between any two calls. Hence one open and an fstat on
+        # the descriptor rather than a stat followed by a separate open: the latter leaves a
+        # window in which the target changes after being checked. O_NONBLOCK keeps a FIFO
+        # from blocking on open, and the fstat rejects anything not a regular file — a FIFO
+        # waits for a writer and a character device never reaches EOF, either of which would
+        # stall the event loop, since this read is synchronous inside the async auth flow.
         try:
             fd = os.open(self._assertion_file, os.O_RDONLY | os.O_NONBLOCK)
         except OSError as e:
