@@ -1279,7 +1279,6 @@ CREATE TABLE project_evaluator_criteria (
         CHECK (evaluation_delay_seconds >= 10),
     input_mapping JSONB,
     enabled BOOLEAN DEFAULT true NOT NULL,
-    work_materialized_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_project_evaluator_criteria PRIMARY KEY (id),
@@ -1309,6 +1308,7 @@ CREATE TABLE eval_session_work_units (
     criteria_id INTEGER NOT NULL,
     config_fingerprint VARCHAR NOT NULL,
     evaluated_through TIMESTAMP NOT NULL,
+    transcript_covered_through TIMESTAMP,
     status VARCHAR DEFAULT 'PENDING' NOT NULL
         CONSTRAINT "ck_eval_session_work_units_`valid_eval_work_status`"
         CHECK (status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')),
@@ -1346,6 +1346,8 @@ CREATE INDEX ix_eval_session_work_units_evaluator_id ON eval_session_work_units
     (evaluator_id);
 CREATE INDEX ix_eval_session_work_units_terminal ON eval_session_work_units (updated_at)
     WHERE status IN ('DONE', 'EXPIRED');
+CREATE INDEX ix_eval_session_work_units_terminal_watermark ON eval_session_work_units
+    (project_session_rowid, evaluator_id, config_fingerprint);
 CREATE UNIQUE INDEX uq_eval_session_work_units_live_key ON eval_session_work_units
     (project_session_rowid, evaluator_id, config_fingerprint)
     WHERE status IN ('PENDING', 'RUNNING') OR status = 'ERROR' AND attempts < 3;
