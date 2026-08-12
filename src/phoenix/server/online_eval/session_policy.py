@@ -13,6 +13,7 @@ MINIMUM_EVALUATION_DELAY_SECONDS = 10
 def session_criteria_is_schedulable(
     criteria: type["models.ProjectEvaluatorCriteria"],
 ) -> ColumnElement[bool]:
+    # Session filters shipped in #14101 (#14041); #14038 owns sampling integration.
     return and_(
         criteria.enabled,
         criteria.evaluation_target == "SESSION",
