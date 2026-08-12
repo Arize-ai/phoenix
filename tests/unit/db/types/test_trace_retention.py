@@ -301,16 +301,26 @@ class TestTraceRetentionRuleMaxCount:
             session.add(work_unit)
             await session.flush()
             work_unit_id = work_unit.id
-            annotation = models.ProjectSessionAnnotation(
+            online_eval_annotation = models.ProjectSessionAnnotation(
+                project_session_id=project_session.id,
+                name=token_hex(4),
+                metadata_={},
+                annotator_kind="CODE",
+                identifier=f"online:{token_hex(8)}",
+                source="API",
+            )
+            human_annotation = models.ProjectSessionAnnotation(
                 project_session_id=project_session.id,
                 name=token_hex(4),
                 metadata_={},
                 annotator_kind="HUMAN",
+                identifier=f"human:{token_hex(8)}",
                 source="APP",
             )
-            session.add(annotation)
+            session.add_all((online_eval_annotation, human_annotation))
             await session.flush()
-            annotation_id = annotation.id
+            online_eval_annotation_id = online_eval_annotation.id
+            human_annotation_id = human_annotation.id
             session.add_all(
                 [
                     models.Trace(
@@ -338,7 +348,13 @@ class TestTraceRetentionRuleMaxCount:
             assert retained_session.content_complete is False
             assert retained_work.status == "EXPIRED"
             assert retained_work.claimed_by is None
-            assert await session.get(models.ProjectSessionAnnotation, annotation_id) is None
+            assert (
+                await session.get(models.ProjectSessionAnnotation, online_eval_annotation_id)
+                is None
+            )
+            assert (
+                await session.get(models.ProjectSessionAnnotation, human_annotation_id) is not None
+            )
             assert remaining_trace_count == 1
 
 

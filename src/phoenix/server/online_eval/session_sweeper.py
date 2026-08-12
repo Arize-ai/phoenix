@@ -516,6 +516,28 @@ class SessionEvalSweeper(DaemonTask):
         )
         locked_project_session_rowids: Optional[Sequence[int]] = None
         if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
+            page_criteria_ids = tuple(
+                dict.fromkeys(await session.scalars(select(eligible_page.c.criteria_id)))
+            )
+            if not page_criteria_ids:
+                return 0, eligible_pair_count
+            page_criteria_ids_parameter = bindparam(
+                "page_criteria_ids",
+                page_criteria_ids,
+                type_=ARRAY(Integer),
+            )
+            locked_criteria_ids = tuple(
+                await session.scalars(
+                    select(models.ProjectEvaluatorCriteria.id)
+                    .where(
+                        models.ProjectEvaluatorCriteria.id == any_(page_criteria_ids_parameter),
+                    )
+                    .order_by(models.ProjectEvaluatorCriteria.id)
+                    .with_for_update()
+                )
+            )
+            if len(locked_criteria_ids) != len(page_criteria_ids):
+                return 0, eligible_pair_count
             page_ids = tuple(
                 dict.fromkeys(await session.scalars(select(eligible_page.c.project_session_rowid)))
             )

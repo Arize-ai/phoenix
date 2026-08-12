@@ -248,6 +248,79 @@ async def test_materializes_with_501_schedulable_criteria(
 
 
 @pytest.mark.postgres_only
+async def test_materialization_waits_for_publication_criteria_lock_before_session_locks(
+    postgresql_engine: AsyncEngine,
+) -> None:
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    _, second_session_id, _ = await _add_session_liveness(
+        db,
+        age_seconds=600,
+        project_id=project_id,
+    )
+    _, first_criteria_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+    )
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    materialization_started = asyncio.Event()
+    materialization_backend_pid: int | None = None
+
+    async def materialize() -> tuple[int, int]:
+        nonlocal materialization_backend_pid
+        async with db() as session:
+            materialization_backend_pid = await session.scalar(select(func.pg_backend_pid()))
+            assert materialization_backend_pid is not None
+            database_now = await sweeper._database_now(session)
+            materialization_started.set()
+            return await sweeper._sweep(session, database_now)
+
+    async with db() as publication_session:
+        publication_backend_pid = await publication_session.scalar(select(func.pg_backend_pid()))
+        assert publication_backend_pid is not None
+        assert (
+            await publication_session.scalar(
+                select(models.ProjectEvaluatorCriteria.id)
+                .where(models.ProjectEvaluatorCriteria.id == first_criteria_id)
+                .with_for_update()
+            )
+            == first_criteria_id
+        )
+        materialization = asyncio.create_task(materialize())
+        await materialization_started.wait()
+
+        async def wait_for_publication_to_block_materialization() -> Sequence[int]:
+            assert materialization_backend_pid is not None
+            while True:
+                async with db() as observer:
+                    blocking_pids = await observer.scalar(
+                        select(func.pg_blocking_pids(materialization_backend_pid))
+                    )
+                if blocking_pids:
+                    return blocking_pids
+                await asyncio.sleep(0)
+
+        blocking_pids = await asyncio.wait_for(
+            wait_for_publication_to_block_materialization(),
+            timeout=5,
+        )
+        assert publication_backend_pid in blocking_pids
+        assert (
+            await publication_session.scalar(
+                select(models.ProjectSession.id)
+                .where(models.ProjectSession.id == second_session_id)
+                .with_for_update(nowait=True)
+            )
+            == second_session_id
+        )
+
+    inserted_count, _ = await asyncio.wait_for(materialization, timeout=5)
+    assert inserted_count == 4
+
+
+@pytest.mark.postgres_only
 async def test_materialization_waits_for_retention_session_lock(
     postgresql_engine: AsyncEngine,
 ) -> None:

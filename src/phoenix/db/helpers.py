@@ -716,7 +716,8 @@ async def mark_session_content_incomplete(
     )
     await session.execute(
         sa.delete(models.ProjectSessionAnnotation).where(
-            models.ProjectSessionAnnotation.project_session_id.in_(session_rowids)
+            models.ProjectSessionAnnotation.project_session_id.in_(session_rowids),
+            models.ProjectSessionAnnotation.identifier.startswith("online:"),
         )
     )
 
