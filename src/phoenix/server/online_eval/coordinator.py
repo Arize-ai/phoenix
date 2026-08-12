@@ -1,36 +1,55 @@
-"""Consumer-side coordination seam for online-eval work distribution over the
-``eval_work_units`` table: claim/heartbeat/complete/fail transitions plus queue-lag
-observability. Producer-side operations (cursor lease, watermark advance, work-row
-materialization) are not part of this interface.
+"""Consumer-side coordination seam for online-eval work distribution: claim,
+heartbeat, completion, failure, expiration, and queue-lag observability. Producer-side
+operations (cursor lease, watermark advance, and work-row materialization) are not part
+of this interface.
 
 Work-unit lifecycle:
 
     PENDING --claim--> RUNNING --complete--> DONE
                        RUNNING --fail-----> ERROR
                        RUNNING --expire---> EXPIRED
+                       RUNNING --release--> PENDING
     RUNNING (lease lapsed) --> reclaimable
     ERROR (cooldown elapsed, attempts remain) --> retried
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Protocol
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from phoenix.db import models
+from phoenix.server.online_eval.failure_policy import FailureDisposition
+
 LEASE_TTL_SECONDS = 90
 HEARTBEAT_INTERVAL_SECONDS = 30
+LEASE_ATTEMPTS_EXHAUSTED_ERROR = "lease lapsed with attempts exhausted"
+
+PublicationWrite = Callable[[AsyncSession], Awaitable[None]]
+"""Writes one unit's results, inside the transaction that fenced its publication."""
+
+
+class PublicationClaimLostError(Exception):
+    """A work unit stopped being publishable before its results could be written."""
+
+    online_eval_disposition = FailureDisposition(
+        count_attempt=True,
+        terminal=True,
+        code="PUBLICATION_CLAIM_LOST",
+    )
 
 
 @dataclass(frozen=True)
 class ClaimedWorkUnit:
-    """A leased work unit. ``identifier`` keys the annotation write so re-runs of the
-    same (span, evaluator, config) collide on the annotation unique constraint;
-    ``lease_expires_at`` is the claim time plus ``LEASE_TTL_SECONDS``."""
+    """A leased work unit with an idempotent annotation identifier."""
 
     work_unit_id: int
-    span_rowid: int
+    evaluation_target: models.EvaluationTarget
+    target_rowid: int
     evaluator_id: int
     criteria_id: int
     config_fingerprint: str
@@ -42,18 +61,16 @@ class ClaimedWorkUnit:
 
 @dataclass(frozen=True)
 class QueueLag:
-    """Observable backlog; all fields are zero when no cursor or work rows exist.
-    ``frontier_gap`` is the spans.id distance between the producer's eligible frontier
-    and its watermark; ``oldest_pending_age_seconds`` covers PENDING and retryable ERROR
-    work and is None when that backlog is empty."""
+    """Observable backlog; all counts are zero when no work rows exist.
+    ``oldest_actionable_age_seconds`` covers PENDING and retryable ERROR work and is
+    None when that backlog is empty."""
 
     pending_count: int
     running_count: int
     retryable_error_count: int
     exhausted_error_count: int
     expired_count: int
-    frontier_gap: int
-    oldest_pending_age_seconds: Optional[float]
+    oldest_actionable_age_seconds: Optional[float]
 
 
 class EvalWorkCoordinator(Protocol):
@@ -92,6 +109,28 @@ class EvalWorkCoordinator(Protocol):
         any other lost claim."""
         ...
 
+    async def publish(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+        write: PublicationWrite,
+        coverage_watermark: Optional[datetime] = None,
+    ) -> None:
+        """Fence a claimed unit for publication and run ``write`` in that transaction.
+
+        The fence is stricter than a lifecycle transition's: the unit must still be
+        owned and RUNNING, *and* its criteria still enabled — a result must not be
+        published under a configuration that has since been turned off. Where the target
+        keeps a coverage watermark, it records how much of the target the published
+        result actually read and is written in the same transaction; a watermark that
+        outlived its annotation would claim coverage no result describes.
+
+        Raises ``PublicationClaimLostError`` when the fence fails. Does not complete the
+        unit — publication and completion are separate steps, so a lost acknowledgement
+        re-runs an idempotent write rather than a lost result."""
+        ...
+
     async def fail(
         self,
         *,
@@ -114,10 +153,18 @@ class EvalWorkCoordinator(Protocol):
         *,
         work_unit_id: int,
         claimed_by: str,
+        error: str,
     ) -> bool:
-        """Transition a claimed unit RUNNING -> EXPIRED. Terminal: for work that must
-        never run (stale config fingerprint, missing or disabled criteria), unlike the
-        retryable ERROR from ``fail``. Returns False if the claim was lost."""
+        """Transition a claimed unit RUNNING -> EXPIRED with a stable terminal reason."""
+        ...
+
+    async def release(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+    ) -> bool:
+        """Return a still-owned RUNNING unit to PENDING without incrementing attempts."""
         ...
 
     async def lag(self) -> QueueLag:

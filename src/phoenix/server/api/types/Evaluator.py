@@ -40,6 +40,8 @@ from phoenix.server.api.types.SandboxConfig import Language
 from phoenix.server.online_eval.session_policy import (
     DEFAULT_SESSION_EVALUATION_DELAY_SECONDS,
     MINIMUM_EVALUATION_DELAY_SECONDS,
+    SchedulabilityReason,
+    session_schedulability_reason,
 )
 
 if TYPE_CHECKING:
@@ -82,40 +84,32 @@ class ProjectEvaluatorSchedulabilityStatus(Enum):
     NOT_SCHEDULABLE = "NOT_SCHEDULABLE"
 
 
-@strawberry.enum
-class ProjectEvaluatorSchedulabilityReason(Enum):
-    DISABLED = "DISABLED"
-    TRACE_TARGET_UNSUPPORTED = "TRACE_TARGET_UNSUPPORTED"
-    SESSION_FILTER_UNSUPPORTED = "SESSION_FILTER_UNSUPPORTED"
-    SESSION_SAMPLING_UNSUPPORTED = "SESSION_SAMPLING_UNSUPPORTED"
+# The reason vocabulary is declared beside the conditions it names, in session_policy;
+# this only registers it with the schema under its GraphQL name.
+strawberry.enum(SchedulabilityReason, name="ProjectEvaluatorSchedulabilityReason")
 
 
 def _project_evaluator_schedulability(
     record: models.ProjectEvaluatorCriteria,
-) -> tuple[ProjectEvaluatorSchedulabilityStatus, Optional[ProjectEvaluatorSchedulabilityReason]]:
+) -> tuple[ProjectEvaluatorSchedulabilityStatus, Optional[SchedulabilityReason]]:
+    if record.evaluation_target == "SESSION":
+        # Every SESSION condition is declared once in session_policy, beside the SQL
+        # the sweeper and the executor gate on, so this field cannot advertise an
+        # evaluator as schedulable that they will never pick up.
+        if (reason := session_schedulability_reason(record)) is not None:
+            return ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE, reason
+        return ProjectEvaluatorSchedulabilityStatus.SCHEDULABLE, None
     if not record.enabled:
         return (
             ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE,
-            ProjectEvaluatorSchedulabilityReason.DISABLED,
+            SchedulabilityReason.DISABLED,
         )
     if record.evaluation_target == "SPAN":
         return ProjectEvaluatorSchedulabilityStatus.SCHEDULABLE, None
-    if record.evaluation_target == "TRACE":
-        return (
-            ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE,
-            ProjectEvaluatorSchedulabilityReason.TRACE_TARGET_UNSUPPORTED,
-        )
-    if record.filter_condition:
-        return (
-            ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE,
-            ProjectEvaluatorSchedulabilityReason.SESSION_FILTER_UNSUPPORTED,
-        )
-    if record.sampling_rate != 1.0:
-        return (
-            ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE,
-            ProjectEvaluatorSchedulabilityReason.SESSION_SAMPLING_UNSUPPORTED,
-        )
-    return ProjectEvaluatorSchedulabilityStatus.SCHEDULABLE, None
+    return (
+        ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE,
+        SchedulabilityReason.TRACE_TARGET_UNSUPPORTED,
+    )
 
 
 @strawberry.type
@@ -1216,7 +1210,7 @@ class ProjectEvaluator(Node):
     async def schedulability_reason(
         self,
         info: Info[Context, None],
-    ) -> Optional[ProjectEvaluatorSchedulabilityReason]:
+    ) -> Optional[SchedulabilityReason]:
         _, reason = _project_evaluator_schedulability(await self._get_record(info))
         return reason
 
