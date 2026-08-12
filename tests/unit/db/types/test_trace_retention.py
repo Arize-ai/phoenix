@@ -381,11 +381,14 @@ async def test_trace_delete_stands_down_sessions_added_while_delete_waits(
         later_session_id = later_session.id
 
     async with db() as blocker:
-        assert await blocker.scalar(
-            sa.select(models.Trace.id)
-            .where(models.Trace.id == first_trace_id)
-            .with_for_update()
-        ) == first_trace_id
+        assert (
+            await blocker.scalar(
+                sa.select(models.Trace.id)
+                .where(models.Trace.id == first_trace_id)
+                .with_for_update()
+            )
+            == first_trace_id
+        )
 
         async def run_delete() -> None:
             async with db() as session:
@@ -412,20 +415,21 @@ async def test_trace_delete_stands_down_sessions_added_while_delete_waits(
     await delete_task
 
     async with db() as session:
-        assert await session.scalar(
-            sa.select(sa.func.count(models.Trace.id)).where(
-                models.Trace.project_rowid == project_id
+        assert (
+            await session.scalar(
+                sa.select(sa.func.count(models.Trace.id)).where(
+                    models.Trace.project_rowid == project_id
+                )
             )
-        ) == 0
+            == 0
+        )
         content_complete = dict(
             (
                 await session.execute(
                     sa.select(
                         models.ProjectSession.id,
                         models.ProjectSession.content_complete,
-                    ).where(
-                        models.ProjectSession.id.in_((first_session_id, later_session_id))
-                    )
+                    ).where(models.ProjectSession.id.in_((first_session_id, later_session_id)))
                 )
             ).all()
         )

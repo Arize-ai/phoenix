@@ -110,9 +110,7 @@ def _criteria_relation(
         placeholders = [f":{name}" for name in row_parameters]
         if index == 0:
             created_at_type = (
-                "TIMESTAMP WITH TIME ZONE"
-                if dialect is SupportedSQLDialect.POSTGRESQL
-                else "TEXT"
+                "TIMESTAMP WITH TIME ZONE" if dialect is SupportedSQLDialect.POSTGRESQL else "TEXT"
             )
             placeholders = [
                 f"CAST({placeholders[0]} AS INTEGER)",

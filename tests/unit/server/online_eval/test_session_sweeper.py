@@ -382,9 +382,7 @@ async def test_disabled_and_unresolved_criteria_preserve_future_eligibility(
 
     async def unresolved(
         session: AsyncSession,
-        criteria_evaluators: Sequence[
-            tuple[models.ProjectEvaluatorCriteria, models.Evaluator]
-        ],
+        criteria_evaluators: Sequence[tuple[models.ProjectEvaluatorCriteria, models.Evaluator]],
     ) -> list[ResolvedCriteria | None]:
         nonlocal resolution_calls
         resolution_calls += 1
