@@ -21,7 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
-version = "3.2.0"
+version = "3.1.0"
 dependencies = [
   "httpx",
   "tqdm",
@@ -48,7 +48,10 @@ evals = [
 [project.entry-points.pytest11]
 phoenix = "phoenix.client.pytest.plugin"
 
-# Harbor is opt-in and only imported when selected with ``--plugin phoenix``.
+# The Harbor plugin is opt-in in the same spirit: `harbor` is NOT a dependency of this
+# package. Harbor reads this group lazily (it enumerates names without importing, and only
+# imports the target when a user selects `--plugin phoenix`), so declaring it costs nothing at
+# import time. phoenix.client.harbor imports harbor only under TYPE_CHECKING.
 [project.entry-points."harbor.plugins"]
 phoenix = "phoenix.client.harbor:PhoenixJobPlugin"
 
