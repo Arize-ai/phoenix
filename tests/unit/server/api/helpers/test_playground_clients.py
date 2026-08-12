@@ -40,12 +40,10 @@ from phoenix.server.api.helpers.playground_clients import (
     OPENAI_CHAT_COMPLETIONS_MODELS,
     OPENAI_REASONING_MODELS,
     AnthropicStreamingClient,
-    AzureOpenAIReasoningChatCompletionsClient,
     AzureOpenAIResponsesAPIStreamingClient,
     AzureOpenAIStreamingClient,
     GoogleStreamingClient,
     OpenAIBaseStreamingClient,
-    OpenAIReasoningChatCompletionsClient,
     OpenAIResponsesAPIStreamingClient,
     OpenAIStreamingClient,
     _get_builtin_provider_client,
@@ -683,15 +681,16 @@ class TestGetOpenAIClientClass:
         )
         assert client_class is OpenAIStreamingClient
 
-    def test_openai_chat_completions_reasoning_model_returns_reasoning_client(self) -> None:
-        """Reasoning models (o1, o3) with CHAT_COMPLETIONS should return reasoning client."""
+    def test_openai_chat_completions_reasoning_model_returns_streaming_client(self) -> None:
+        """Reasoning models need no Chat Completions specialization -- they accept
+        `system` and every other parameter the base client sends."""
         for model_name in ["o1", "o3", "o3-mini", "gpt-5.6-luna"]:
             client_class = get_openai_client_class(
                 GenerativeProviderKey.OPENAI,
                 model_name,
                 OpenAIApiType.CHAT_COMPLETIONS,
             )
-            assert client_class is OpenAIReasoningChatCompletionsClient, f"Failed for {model_name}"
+            assert client_class is OpenAIStreamingClient, f"Failed for {model_name}"
 
     def test_openai_responses_returns_responses_client(self) -> None:
         """RESPONSES API type should return OpenAIResponsesAPIStreamingClient."""
@@ -750,17 +749,15 @@ class TestGetOpenAIClientClass:
         )
         assert client_class is AzureOpenAIStreamingClient
 
-    def test_azure_chat_completions_reasoning_model_returns_reasoning_client(self) -> None:
-        """Azure reasoning models with CHAT_COMPLETIONS should return reasoning client."""
+    def test_azure_chat_completions_reasoning_model_returns_streaming_client(self) -> None:
+        """Azure reasoning models need no Chat Completions specialization either."""
         for model_name in ["o1", "gpt-5.6-luna"]:
             client_class = get_openai_client_class(
                 GenerativeProviderKey.AZURE_OPENAI,
                 model_name,
                 OpenAIApiType.CHAT_COMPLETIONS,
             )
-            assert client_class is AzureOpenAIReasoningChatCompletionsClient, (
-                f"Failed for {model_name}"
-            )
+            assert client_class is AzureOpenAIStreamingClient, f"Failed for {model_name}"
 
     def test_azure_responses_returns_azure_responses_client(self) -> None:
         """Azure with RESPONSES should return AzureOpenAIResponsesAPIStreamingClient."""
@@ -1020,22 +1017,22 @@ class TestDefaultApiTypeRouting:
         assert get_openai_client_class(provider_key, model_name, None) is expected_class
 
 
-class TestReasoningChatCompletionsMessages:
+class TestChatCompletionsMessageRoles:
     @pytest.mark.parametrize(
         "client_class",
-        [OpenAIReasoningChatCompletionsClient, AzureOpenAIReasoningChatCompletionsClient],
+        [OpenAIStreamingClient, AzureOpenAIStreamingClient],
     )
-    def test_system_messages_become_developer_messages(
+    def test_system_messages_keep_the_system_role(
         self, client_class: type[OpenAIBaseStreamingClient]
     ) -> None:
-        """Reasoning models take instructions on the `developer` role, not `system`."""
+        """`system` is sent as-is on every model, reasoning included.
+
+        Reasoning models accept `system` and treat it as a `developer` message, so
+        rewriting the role gains nothing and costs compatibility with the
+        OpenAI-compatible endpoints reachable through a custom base URL.
+        """
         message = create_playground_message(ChatCompletionMessageRole.SYSTEM, "be terse")
         param = client_class._to_openai_chat_completion_message_param(None, message)  # type: ignore[arg-type]
-        assert param == {"content": "be terse", "role": "developer"}
-
-    def test_non_reasoning_clients_keep_the_system_role(self) -> None:
-        message = create_playground_message(ChatCompletionMessageRole.SYSTEM, "be terse")
-        param = OpenAIStreamingClient._to_openai_chat_completion_message_param(None, message)  # type: ignore[arg-type]
         assert param == {"content": "be terse", "role": "system"}
 
 

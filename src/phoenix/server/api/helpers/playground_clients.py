@@ -1987,70 +1987,6 @@ class OpenAIResponsesAPIStreamingClient(OpenAIStreamingClient):
             yield chunk
 
 
-# Not in the catalog; reachable only via an explicit CHAT_COMPLETIONS api type.
-class OpenAIReasoningChatCompletionsClient(OpenAIStreamingClient):
-    @override
-    def _to_openai_chat_completion_message_param(
-        self,
-        message: PlaygroundMessage,
-    ) -> Optional["ChatCompletionMessageParam"]:
-        from openai.types.chat import (
-            ChatCompletionAssistantMessageParam,
-            ChatCompletionDeveloperMessageParam,
-            ChatCompletionMessageToolCallParam,
-            ChatCompletionToolMessageParam,
-            ChatCompletionUserMessageParam,
-        )
-        from openai.types.chat.chat_completion_message_function_tool_call_param import Function
-
-        role = message["role"]
-        content = message["content"]
-        tool_call_id = message.get("tool_call_id")
-        tool_calls = message.get("tool_calls")
-
-        if role is ChatCompletionMessageRole.USER:
-            return ChatCompletionUserMessageParam(
-                content=content,
-                role="user",
-            )
-        if role is ChatCompletionMessageRole.SYSTEM:
-            return ChatCompletionDeveloperMessageParam(
-                content=content,
-                role="developer",
-            )
-        if role is ChatCompletionMessageRole.AI:
-            if tool_calls is None:
-                return ChatCompletionAssistantMessageParam(
-                    content=content,
-                    role="assistant",
-                )
-            else:
-                return ChatCompletionAssistantMessageParam(
-                    content=content,
-                    role="assistant",
-                    tool_calls=[
-                        ChatCompletionMessageToolCallParam(
-                            type="function",
-                            id=tool_call["id"],
-                            function=Function(
-                                name=tool_call["function"]["name"],
-                                arguments=safe_json_dumps(tool_call["function"]["arguments"]),
-                            ),
-                        )
-                        for tool_call in tool_calls
-                    ],
-                )
-        if role is ChatCompletionMessageRole.TOOL:
-            if tool_call_id is None:
-                raise ValueError("tool_call_id is required for tool messages")
-            return ChatCompletionToolMessageParam(
-                content=content,
-                role="tool",
-                tool_call_id=tool_call_id,
-            )
-        assert_never(role)
-
-
 @register_llm_client(
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
     model_names=[
@@ -2105,70 +2041,6 @@ class AzureOpenAIResponsesAPIStreamingClient(AzureOpenAIStreamingClient):
     def get_rate_limit_key(self) -> Hashable:
         """Azure has per-deployment rate limits (endpoint + model_name)."""
         return (self._client_factory.rate_limit_key, self.model_name)
-
-
-# Not in the catalog; reachable only via an explicit CHAT_COMPLETIONS api type.
-class AzureOpenAIReasoningChatCompletionsClient(AzureOpenAIStreamingClient):
-    @override
-    def _to_openai_chat_completion_message_param(
-        self,
-        message: PlaygroundMessage,
-    ) -> ChatCompletionMessageParam | None:
-        from openai.types.chat import (
-            ChatCompletionAssistantMessageParam,
-            ChatCompletionDeveloperMessageParam,
-            ChatCompletionMessageToolCallParam,
-            ChatCompletionToolMessageParam,
-            ChatCompletionUserMessageParam,
-        )
-        from openai.types.chat.chat_completion_message_function_tool_call_param import Function
-
-        role = message["role"]
-        content = message["content"]
-        tool_call_id = message.get("tool_call_id")
-        tool_calls = message.get("tool_calls")
-
-        if role is ChatCompletionMessageRole.USER:
-            return ChatCompletionUserMessageParam(
-                content=content,
-                role="user",
-            )
-        if role is ChatCompletionMessageRole.SYSTEM:
-            return ChatCompletionDeveloperMessageParam(
-                content=content,
-                role="developer",
-            )
-        if role is ChatCompletionMessageRole.AI:
-            if tool_calls is None:
-                return ChatCompletionAssistantMessageParam(
-                    content=content,
-                    role="assistant",
-                )
-            else:
-                return ChatCompletionAssistantMessageParam(
-                    content=content,
-                    role="assistant",
-                    tool_calls=[
-                        ChatCompletionMessageToolCallParam(
-                            type="function",
-                            id=tool_call["id"],
-                            function=Function(
-                                name=tool_call["function"]["name"],
-                                arguments=safe_json_dumps(tool_call["function"]["arguments"]),
-                            ),
-                        )
-                        for tool_call in tool_calls
-                    ],
-                )
-        if role is ChatCompletionMessageRole.TOOL:
-            if tool_call_id is None:
-                raise ValueError("tool_call_id is required for tool messages")
-            return ChatCompletionToolMessageParam(
-                content=content,
-                role="tool",
-                tool_call_id=tool_call_id,
-            )
-        assert_never(role)
 
 
 def _anthropic_beta_headers_for_tools(
@@ -3287,8 +3159,6 @@ def get_openai_client_class(
 
     if provider_key == GenerativeProviderKey.OPENAI:
         if openai_api_type == OpenAIApiType.CHAT_COMPLETIONS:
-            if model_name in OPENAI_REASONING_MODELS:
-                return OpenAIReasoningChatCompletionsClient
             return OpenAIStreamingClient
         elif openai_api_type == OpenAIApiType.RESPONSES:
             return OpenAIResponsesAPIStreamingClient
@@ -3300,8 +3170,6 @@ def get_openai_client_class(
 
     elif provider_key == GenerativeProviderKey.AZURE_OPENAI:
         if openai_api_type == OpenAIApiType.CHAT_COMPLETIONS:
-            if model_name in OPENAI_REASONING_MODELS:
-                return AzureOpenAIReasoningChatCompletionsClient
             return AzureOpenAIStreamingClient
         elif openai_api_type == OpenAIApiType.RESPONSES:
             return AzureOpenAIResponsesAPIStreamingClient
