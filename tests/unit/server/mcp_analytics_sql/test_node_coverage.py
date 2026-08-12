@@ -68,6 +68,7 @@ REVIEWED_STRUCTURAL: frozenset[str] = frozenset(
         "Join",
         "LT",
         "Lateral",
+        "Limit",
         "Literal",
         "Lock",
         "Mul",
@@ -84,6 +85,7 @@ REVIEWED_STRUCTURAL: frozenset[str] = frozenset(
         "TableAlias",
         "Tuple",
         "Union",
+        "Values",
         "Var",
         "Where",
         "Window",
@@ -116,6 +118,9 @@ GOVERNED_BY_CHECK: dict[str, str] = {
     "Rollup": "parse._check_dialect_specific_syntax",
     "ILike": "parse._check_dialect_specific_syntax",
     "SimilarTo": "parse._check_dialect_specific_syntax",
+    # SQLite cannot execute it; PostgreSQL can. Timestamp policy also unwraps
+    # ANY(VALUES (...)) as a list of literals.
+    "Any": "parse._check_dialect_specific_syntax",
 }
 
 
