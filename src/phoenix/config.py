@@ -1775,6 +1775,13 @@ class OAuth2ClientConfig:
     place well before its expiry.
     """
 
+    client_assertion_file_env: Optional[str] = None
+    """Environment variable client_assertion_file was resolved from, when named indirectly.
+
+    Retained so messages can name the variable rather than echo a value the provider config
+    chose but did not write.
+    """
+
     def __post_init__(self) -> None:
         if (
             self.token_endpoint_auth_method == CLIENT_ASSERTION_JWT_AUTH_METHOD
@@ -1859,6 +1866,7 @@ class OAuth2ClientConfig:
         # protect the authorization code from interception.
 
         client_assertion_file: Optional[str] = None
+        assertion_file_env: Optional[str] = None
 
         if token_endpoint_auth_method == CLIENT_ASSERTION_JWT_AUTH_METHOD:
             # The assertion replaces the client secret entirely. Nothing here inspects the
@@ -2039,6 +2047,7 @@ class OAuth2ClientConfig:
             role_resync=role_resync,
             email_attribute_path=email_attribute_path,
             client_assertion_file=client_assertion_file,
+            client_assertion_file_env=assertion_file_env,
         )
 
 

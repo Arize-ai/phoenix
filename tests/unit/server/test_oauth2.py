@@ -14,6 +14,7 @@ from authlib.oauth2.auth import ClientAuth
 from phoenix.config import CLIENT_ASSERTION_JWT_AUTH_METHOD, OAuth2ClientConfig
 from phoenix.server.api.routers.oauth2 import MissingEmailScope, _parse_user_info
 from phoenix.server.oauth2 import (
+    AssertionFile,
     ClientAssertionJWT,
     OAuth2Client,
     OAuth2Clients,
@@ -1416,7 +1417,7 @@ class TestClientAssertionJWT:
         auth = ClientAuth(
             client_id=client_id,
             client_secret=None,
-            auth_method=ClientAssertionJWT(assertion_file),
+            auth_method=ClientAssertionJWT(AssertionFile(assertion_file)),
         )
         _, _, body = auth.prepare("POST", "https://idp/token", {}, "grant_type=authorization_code")
         return parse_qs(body)
@@ -1471,7 +1472,7 @@ class TestClientAssertionJWT:
         auth = ClientAuth(
             client_id="entra-client-id",
             client_secret=None,
-            auth_method=ClientAssertionJWT(assertion_file),
+            auth_method=ClientAssertionJWT(AssertionFile(assertion_file)),
         )
 
         _, _, body = auth.prepare(
@@ -1499,7 +1500,7 @@ class TestClientAssertionJWT:
         auth = ClientAuth(
             client_id="entra-client-id",
             client_secret=None,
-            auth_method=ClientAssertionJWT(assertion_file),
+            auth_method=ClientAssertionJWT(AssertionFile(assertion_file)),
         )
 
         with pytest.raises(OAuthError, match="does not match"):
@@ -1562,6 +1563,54 @@ class TestClientAssertionJWT:
             client.client_kwargs["revocation_endpoint_auth_method"]
             is client.client_kwargs["token_endpoint_auth_method"]
         )
+
+    def test_indirect_path_is_named_by_its_variable_not_echoed(self, tmp_path: Path) -> None:
+        # The value came from a variable the provider config chose, so it must not reach a
+        # message; naming the variable is both safe and more useful.
+        secret_shaped_path = tmp_path / "s3cr3t-value"
+        auth = ClientAuth(
+            client_id="entra-client-id",
+            client_secret=None,
+            auth_method=ClientAssertionJWT(
+                AssertionFile(secret_shaped_path, variable="SOME_VARIABLE")
+            ),
+        )
+
+        with pytest.raises(OAuthError) as exc_info:
+            auth.prepare("POST", "https://idp/token", {}, "grant_type=x")
+
+        assert "named by SOME_VARIABLE" in str(exc_info.value)
+        assert str(secret_shaped_path) not in str(exc_info.value)
+
+    def test_direct_path_is_shown(self, tmp_path: Path) -> None:
+        # Written into the config verbatim, so repeating it discloses nothing.
+        missing = tmp_path / "azure-identity-token"
+        auth = ClientAuth(
+            client_id="entra-client-id",
+            client_secret=None,
+            auth_method=ClientAssertionJWT(AssertionFile(missing)),
+        )
+
+        with pytest.raises(OAuthError) as exc_info:
+            auth.prepare("POST", "https://idp/token", {}, "grant_type=x")
+
+        assert str(missing) in str(exc_info.value)
+
+    def test_startup_warning_names_the_variable_for_an_indirect_path(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        secret_shaped_path = tmp_path / "s3cr3t-value"
+        config = OAuth2ClientConfig(
+            **self._CONFIG_DEFAULTS,
+            client_assertion_file=str(secret_shaped_path),
+            client_assertion_file_env="SOME_VARIABLE",
+        )
+        clients = OAuth2Clients()
+        with caplog.at_level(logging.WARNING):
+            clients.add_client(config)
+
+        assert "named by SOME_VARIABLE" in caplog.text
+        assert str(secret_shaped_path) not in caplog.text
 
     def test_add_client_registers_the_auth_method(self, tmp_path: Path) -> None:
         assertion_file = tmp_path / "azure-identity-token"

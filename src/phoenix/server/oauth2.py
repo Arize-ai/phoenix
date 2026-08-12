@@ -2,6 +2,7 @@ import logging
 import os
 import stat
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Iterator, Optional, get_args
@@ -64,6 +65,30 @@ def search_claim_path(
         return None
 
 
+@dataclass(frozen=True)
+class AssertionFile:
+    """The client assertion's location, and how it may be named in messages.
+
+    An indirect path is the contents of a variable the provider config chose, so it is named
+    by its source rather than echoed: a variable holding something other than an assertion
+    path would otherwise reach the logs, and naming the variable is the more useful thing to
+    report anyway. A direct path was written into the config verbatim and discloses nothing
+    by being repeated.
+
+    Filesystem calls take the real path via __fspath__; anything formatting this for a human
+    gets the safe form, so no message site has to remember the distinction.
+    """
+
+    path: Path
+    variable: Optional[str] = None
+
+    def __fspath__(self) -> str:
+        return str(self.path)
+
+    def __str__(self) -> str:
+        return f"named by {self.variable}" if self.variable else str(self.path)
+
+
 class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
     """Client authentication with a platform-minted JWT (RFC 7523 §2.2).
 
@@ -79,7 +104,7 @@ class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
 
     name = CLIENT_ASSERTION_JWT_AUTH_METHOD
 
-    def __init__(self, assertion_file: Path) -> None:
+    def __init__(self, assertion_file: AssertionFile) -> None:
         super().__init__()
         self._assertion_file = assertion_file
 
@@ -96,8 +121,14 @@ class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
             fd = os.open(self._assertion_file, os.O_RDONLY | os.O_NONBLOCK)
         except OSError as e:
             # OAuthError is the only failure the login route translates into a redirect;
-            # anything else surfaces as a 500.
-            raise OAuthError(description=f"cannot read client assertion file: {e}") from e
+            # anything else surfaces as a 500. strerror rather than the exception: OSError
+            # embeds the filename, which would reintroduce the value AssertionFile withholds.
+            raise OAuthError(
+                description=(
+                    f"cannot read client assertion file {self._assertion_file}: "
+                    f"{e.strerror or type(e).__name__}"
+                )
+            ) from e
         try:
             if not stat.S_ISREG(os.fstat(fd).st_mode):
                 raise OAuthError(
@@ -111,7 +142,12 @@ class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
             # pseudo-files misreport.
             raw = os.read(fd, _MAX_CLIENT_ASSERTION_BYTES + 1)
         except OSError as e:
-            raise OAuthError(description=f"cannot read client assertion file: {e}") from e
+            raise OAuthError(
+                description=(
+                    f"cannot read client assertion file {self._assertion_file}: "
+                    f"{e.strerror or type(e).__name__}"
+                )
+            ) from e
         finally:
             os.close(fd)
         if len(raw) > _MAX_CLIENT_ASSERTION_BYTES:
@@ -561,8 +597,11 @@ class OAuth2Clients:
             # authlib accepts an auth method instance here, not just one of its built-in
             # names (authlib >=0.15).
             assert config.client_assertion_file is not None  # enforced by OAuth2ClientConfig
-            assertion_file = Path(config.client_assertion_file)
-            if not assertion_file.is_file():
+            assertion_file = AssertionFile(
+                path=Path(config.client_assertion_file),
+                variable=config.client_assertion_file_env,
+            )
+            if not assertion_file.path.is_file():
                 # Warn rather than raise: the file is written by the platform, not by the
                 # operator, so it can legitimately appear after startup (an init or sidecar
                 # container that mints it). Failing here would take the whole server down —
