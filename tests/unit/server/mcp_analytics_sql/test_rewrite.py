@@ -441,6 +441,13 @@ def test_latency_ms_keeps_its_name_in_the_select_list() -> None:
     assert "AS latency_ms" in out
 
 
+def test_experiment_runs_latency_ms_is_substituted() -> None:
+    """experiment_runs stores the same two timestamps the overlay is built from."""
+    _, rendered = _rewritten("SELECT latency_ms FROM experiment_runs", dialect="sqlite")
+    assert "UNIXEPOCH" in rendered.upper()
+    assert "AS latency_ms" in rendered
+
+
 @pytest.mark.parametrize(
     "sql",
     [

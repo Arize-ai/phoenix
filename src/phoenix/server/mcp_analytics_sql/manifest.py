@@ -137,7 +137,10 @@ MANIFEST = AnalyticsSqlManifest(
                         "experiments_dataset_examples": TableCuration(
                             grain="One experiment-to-dataset-example assignment"
                         ),
-                        "experiment_runs": TableCuration(time_column="start_time"),
+                        "experiment_runs": TableCuration(
+                            time_column="start_time",
+                            virtual_columns=frozenset({"latency_ms"}),
+                        ),
                         "experiment_run_annotations": TableCuration(),
                     }
                 )

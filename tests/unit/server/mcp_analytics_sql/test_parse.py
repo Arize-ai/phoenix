@@ -191,6 +191,13 @@ class TestDdlColumnsAreQueryable:
     def test_formerly_hidden_columns_are_queryable(self, sql: str) -> None:
         admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="sqlite")
 
+    def test_experiment_runs_advertises_latency_ms(self) -> None:
+        admit_sql(
+            "SELECT latency_ms FROM experiment_runs",
+            allowlist=load_allowlist("sqlite"),
+            dialect="sqlite",
+        )
+
     def test_an_unknown_column_has_a_suggestion(self) -> None:
         with pytest.raises(AnalyticsSqlError) as caught:
             admit_sql(
