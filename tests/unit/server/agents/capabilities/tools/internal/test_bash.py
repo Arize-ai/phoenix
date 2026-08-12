@@ -5,11 +5,16 @@ from unittest.mock import Mock
 
 import pytest
 import strawberry
+from pydantic_ai.exceptions import ApprovalRequired
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.tools import RunContext
 from pydantic_ai.usage import RunUsage
 
-from phoenix.server.agents.capabilities.tools.internal.bash import BashToolResult, BashToolset
+from phoenix.server.agents.capabilities.tools.internal.bash import (
+    PENDING_MUTATIONS_METADATA_KEY,
+    BashToolResult,
+    BashToolset,
+)
 from phoenix.server.api.context import Context
 
 
@@ -324,3 +329,163 @@ async def test_web_commands_cannot_reach_loopback(run_bash: RunBash, command: st
     # Loopback/private addresses are unreachable too: the built-in never connects to
     # the host the server runs on.
     assert "network access not configured" in result["stdout"] + result["stderr"]
+
+
+class _EditPermissionDeps:
+    """Minimal stand-in for AgentDependencies: the bash tool only reads
+    edit_permission off its deps."""
+
+    def __init__(self, edit_permission: str) -> None:
+        self.edit_permission = edit_permission
+
+
+class RunBashWithContext(Protocol):
+    def __call__(self, command: str, ctx: RunContext[Any]) -> Awaitable[dict[str, Any]]: ...
+
+
+def _build_run_bash_with_context(
+    *,
+    allow_mutations: bool = True,
+    snapshots: "list[bytes] | None" = None,
+) -> RunBashWithContext:
+    toolset = BashToolset(
+        schema=strawberry.Schema(query=Query, mutation=Mutation),
+        build_graphql_context=lambda: Mock(spec=Context),
+        allow_mutations=allow_mutations,
+        on_snapshot=snapshots.append if snapshots is not None else None,
+    )
+
+    async def run(command: str, ctx: RunContext[Any]) -> dict[str, Any]:
+        tools = await toolset.get_tools(ctx)
+        result: dict[str, Any] = await toolset.call_tool(
+            "bash", {"summary": "Run shell command", "command": command}, ctx, tools["bash"]
+        )
+        return result
+
+    return run
+
+
+def _manual_mode_context(
+    *,
+    tool_call_approved: bool = False,
+    tool_call_metadata: "dict[str, Any] | None" = None,
+) -> RunContext[Any]:
+    return RunContext(
+        deps=_EditPermissionDeps("manual"),
+        model=TestModel(),
+        usage=RunUsage(),
+        tool_call_approved=tool_call_approved,
+        tool_call_metadata=tool_call_metadata,
+    )
+
+
+async def test_manual_mode_mutation_requires_approval_and_rolls_back_side_effects() -> None:
+    run_bash = _build_run_bash_with_context()
+    command = "echo staged > note.txt && phoenix-gql 'mutation { deleteEverything }'"
+
+    with pytest.raises(ApprovalRequired) as exc_info:
+        await run_bash(command, _manual_mode_context())
+
+    metadata = exc_info.value.metadata
+    assert metadata is not None
+    pending_mutations = metadata[PENDING_MUTATIONS_METADATA_KEY]
+    assert len(pending_mutations) == 1
+    assert pending_mutations[0]["query"] == "mutation { deleteEverything }"
+    assert pending_mutations[0]["variables"] is None
+    assert isinstance(pending_mutations[0]["digest"], str)
+
+    # The dry run's file write was rolled back with the rest of the shell state.
+    result = await run_bash("cat note.txt", _manual_mode_context())
+    assert result["exitCode"] != 0
+
+
+async def test_manual_mode_mutation_executes_when_approved() -> None:
+    run_bash = _build_run_bash_with_context()
+    command = "phoenix-gql 'mutation { deleteEverything }' --data-only"
+
+    with pytest.raises(ApprovalRequired) as exc_info:
+        await run_bash(command, _manual_mode_context())
+    metadata = exc_info.value.metadata
+    assert metadata is not None
+
+    result = await run_bash(
+        command,
+        _manual_mode_context(tool_call_approved=True, tool_call_metadata=dict(metadata)),
+    )
+    assert result["exitCode"] == 0
+    assert json.loads(result["stdout"]) == {"deleteEverything": "deleted"}
+
+
+async def test_manual_mode_approval_is_bound_to_the_document_digest() -> None:
+    run_bash = _build_run_bash_with_context()
+    approved_for_other_document = {
+        PENDING_MUTATIONS_METADATA_KEY: [
+            {"query": "mutation { somethingElse }", "variables": None, "digest": "deadbeef"}
+        ]
+    }
+
+    with pytest.raises(ApprovalRequired):
+        await run_bash(
+            "phoenix-gql 'mutation { deleteEverything }'",
+            _manual_mode_context(
+                tool_call_approved=True,
+                tool_call_metadata=approved_for_other_document,
+            ),
+        )
+
+
+async def test_manual_mode_approval_captures_resolved_variables() -> None:
+    run_bash = _build_run_bash_with_context()
+    command = "phoenix-gql 'mutation { deleteEverything }' --vars '{\"id\": \"abc\"}'"
+
+    with pytest.raises(ApprovalRequired) as exc_info:
+        await run_bash(command, _manual_mode_context())
+
+    metadata = exc_info.value.metadata
+    assert metadata is not None
+    assert metadata[PENDING_MUTATIONS_METADATA_KEY][0]["variables"] == {"id": "abc"}
+
+
+async def test_manual_mode_queries_run_without_approval() -> None:
+    run_bash = _build_run_bash_with_context()
+    result = await run_bash("phoenix-gql '{ hello }' --data-only", _manual_mode_context())
+    assert result["exitCode"] == 0
+    assert json.loads(result["stdout"]) == {"hello": "world"}
+
+
+async def test_bypass_mode_mutations_run_without_approval() -> None:
+    run_bash = _build_run_bash_with_context()
+    ctx: RunContext[Any] = RunContext(
+        deps=_EditPermissionDeps("bypass"), model=TestModel(), usage=RunUsage()
+    )
+    result = await run_bash("phoenix-gql 'mutation { deleteEverything }' --data-only", ctx)
+    assert result["exitCode"] == 0
+    assert json.loads(result["stdout"]) == {"deleteEverything": "deleted"}
+
+
+async def test_manual_mode_mutation_stays_blocked_when_mutations_disabled() -> None:
+    run_bash = _build_run_bash_with_context(allow_mutations=False)
+    result = await run_bash("phoenix-gql 'mutation { deleteEverything }'", _manual_mode_context())
+    assert result["exitCode"] == 1
+    assert "Mutations are not permitted." in result["stderr"]
+
+
+async def test_pending_mutation_persists_the_rolled_back_snapshot() -> None:
+    snapshots: list[bytes] = []
+    run_bash = _build_run_bash_with_context(snapshots=snapshots)
+
+    await run_bash("echo durable > kept.txt", _manual_mode_context())
+    assert len(snapshots) == 1
+
+    with pytest.raises(ApprovalRequired):
+        await run_bash(
+            "echo staged > staged.txt && phoenix-gql 'mutation { deleteEverything }'",
+            _manual_mode_context(),
+        )
+    assert len(snapshots) == 2
+
+    # The pre-command file survives the rollback; the dry run's write does not.
+    kept = await run_bash("cat kept.txt", _manual_mode_context())
+    assert kept["stdout"].strip() == "durable"
+    staged = await run_bash("cat staged.txt", _manual_mode_context())
+    assert staged["exitCode"] != 0

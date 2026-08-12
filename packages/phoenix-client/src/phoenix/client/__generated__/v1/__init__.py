@@ -891,6 +891,12 @@ class SubagentsContext(TypedDict):
     enabled: bool
 
 
+class SubmittedToolApproval(TypedDict):
+    toolCallId: str
+    approved: bool
+    reason: NotRequired[str]
+
+
 class TextContentPart(TypedDict):
     type: Literal["text"]
     text: str
@@ -1248,9 +1254,16 @@ class AgentErrorData(TypedDict):
     errorText: str
 
 
+class PendingGraphQLMutationMetadata(TypedDict):
+    query: str
+    digest: str
+    variables: NotRequired[Mapping[str, Any]]
+
+
 class PhoenixToolCallCallbackProviderMetadata(TypedDict):
     toolExecutionEnvironment: Literal["client", "server"]
     toolInputEmittedAt: NotRequired[str]
+    pendingMutations: NotRequired[Sequence[PendingGraphQLMutationMetadata]]
     clientStartedAt: NotRequired[str]
     clientEndedAt: NotRequired[str]
     outcome: NotRequired[Literal["interrupted"]]
@@ -1259,6 +1272,7 @@ class PhoenixToolCallCallbackProviderMetadata(TypedDict):
 class PhoenixToolCallProviderMetadata(TypedDict):
     toolExecutionEnvironment: Literal["client", "server"]
     toolInputEmittedAt: NotRequired[str]
+    pendingMutations: NotRequired[Sequence[PendingGraphQLMutationMetadata]]
 
 
 class SessionSummaryChunk(TypedDict):
@@ -1856,6 +1870,11 @@ class AgentErrorChunk(TypedDict):
     transient: NotRequired[bool]
 
 
+class BashMutationApprovalData(TypedDict):
+    toolCallId: str
+    pendingMutations: Sequence[PendingGraphQLMutationMetadata]
+
+
 class TranscriptPersistedChunk(TypedDict):
     type: Literal["data-transcript-persisted"]
     data: TranscriptPersistedData
@@ -2099,6 +2118,13 @@ class SubmitAgentSessionToolOutputsResponseBody(TypedDict):
     data: PhoenixUIMessage
 
 
+class BashMutationApprovalChunk(TypedDict):
+    type: Literal["data-bash-mutation-approval"]
+    data: BashMutationApprovalData
+    id: NotRequired[str]
+    transient: NotRequired[Literal[True]]
+
+
 class ChatRequestBody(TypedDict):
     headless: bool
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
@@ -2137,6 +2163,7 @@ class ChatRequestBody(TypedDict):
             ]
         ]
     ]
+    toolApprovals: NotRequired[Sequence[SubmittedToolApproval]]
     lastMessageId: NotRequired[str]
     recordLocalTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]

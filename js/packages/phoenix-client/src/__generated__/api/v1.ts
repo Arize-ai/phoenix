@@ -2336,6 +2336,11 @@ export interface components {
              */
             toolOutputs?: (components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"])[];
             /**
+             * Toolapprovals
+             * @description User responses to tool calls awaiting approval on the transcript's trailing assistant message, matched by ``toolCallId``. They continue the assistant turn: approved calls execute server-side and denied calls return a denial to the model. Cannot be combined with ``message``.
+             */
+            toolApprovals?: components["schemas"]["SubmittedToolApproval"][];
+            /**
              * Lastmessageid
              * @description The id of the last transcript message the client has rendered, used for optimistic concurrency. Omit when the session has no messages; required (and validated against the persisted transcript) once it does. On mismatch the server rejects the send with HTTP 409 and code ``agent_session_messages_stale`` — the client should refetch the session before retrying.
              */
@@ -5889,6 +5894,24 @@ export interface components {
         SubmitAgentSessionToolOutputsResponseBody: {
             data: components["schemas"]["PhoenixUIMessage"];
         };
+        /**
+         * SubmittedToolApproval
+         * @description A user's response to a tool call awaiting approval.
+         */
+        SubmittedToolApproval: {
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * Approved
+             * @description Whether the user approved the tool call. Strict for the same reason as ``ToolApprovalResponded.approved``: this field is the user-controlled gate on a deferred tool call, so a non-boolean value must fail validation rather than coerce to an approval.
+             */
+            approved: boolean;
+            /**
+             * Reason
+             * @description Optional reason for the approval or denial, shown to the model on denial.
+             */
+            reason?: string | null;
+        };
         /** TextContentPart */
         TextContentPart: {
             /**
@@ -6961,6 +6984,61 @@ export interface components {
             errorText: string;
         };
         /**
+         * BashMutationApprovalChunk
+         * @description Transient ``data-bash-mutation-approval`` stream chunk: the resolved
+         *     GraphQL mutations awaiting user approval on a deferred bash tool call,
+         *     emitted alongside the tool's ``tool-approval-request`` chunk so the
+         *     approval card can show exactly what will execute. The same payload is
+         *     stamped into the persisted part's ``callProviderMetadata`` for reloads.
+         */
+        BashMutationApprovalChunk: {
+            /**
+             * Type
+             * @default data-bash-mutation-approval
+             * @constant
+             */
+            type?: "data-bash-mutation-approval";
+            /**
+             * Id
+             * @default null
+             */
+            id?: string | null;
+            data: components["schemas"]["BashMutationApprovalData"];
+            /**
+             * Transient
+             * @default true
+             * @constant
+             */
+            transient?: true;
+        };
+        /** BashMutationApprovalData */
+        BashMutationApprovalData: {
+            /** Toolcallid */
+            toolCallId: string;
+            /** Pendingmutations */
+            pendingMutations: components["schemas"]["PendingGraphQLMutationMetadata"][];
+        };
+        JsonValue: unknown;
+        /**
+         * PendingGraphQLMutationMetadata
+         * @description A resolved GraphQL mutation awaiting user approval, captured by the
+         *     ``phoenix-gql`` bash builtin at execution time (after file/stdin
+         *     indirection) so the user reviews exactly what will execute.
+         */
+        PendingGraphQLMutationMetadata: {
+            /** Query */
+            query: string;
+            /**
+             * Variables
+             * @default null
+             */
+            variables?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            } | null;
+            /** Digest */
+            digest: string;
+        };
+        /**
          * PhoenixToolCallCallbackProviderMetadata
          * @description Shape of the ``phoenix`` namespace the browser returns in
          *     ``callProviderMetadata`` on resolved tool parts: the server-stamped fields
@@ -6977,6 +7055,11 @@ export interface components {
              * @default null
              */
             toolInputEmittedAt?: string | null;
+            /**
+             * Pendingmutations
+             * @default null
+             */
+            pendingMutations?: components["schemas"]["PendingGraphQLMutationMetadata"][] | null;
             /**
              * Clientstartedat
              * @default null
@@ -7010,6 +7093,11 @@ export interface components {
              * @default null
              */
             toolInputEmittedAt?: string | null;
+            /**
+             * Pendingmutations
+             * @default null
+             */
+            pendingMutations?: components["schemas"]["PendingGraphQLMutationMetadata"][] | null;
         };
         /**
          * SessionSummaryChunk
