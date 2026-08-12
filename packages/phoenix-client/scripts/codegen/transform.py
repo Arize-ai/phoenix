@@ -98,7 +98,8 @@ class ConvertDataClassToTypedDict(ast.NodeTransformer):
           - Convert str fields to datetime based on STR_TO_DATETIME_ALTERATIONS.
           - Rename fields ending with "_" (like schema_ or json_) by stripping the underscore.
           - Convert default values on fields (when present) to a NotRequired[...] annotation.
-          - Change `type: str = "xyz"` into `type: Literal["xyz"]`.
+          - Change `type: str = "xyz"` (or `type: Literal["xyz"] = "xyz"`) into a
+            required `type: Literal["xyz"]`.
           - If a field is Optional[...] with a default value, remove the Optional.
         """
         # Convert str fields to datetime based on STR_TO_DATETIME_ALTERATIONS
@@ -146,23 +147,35 @@ class ConvertDataClassToTypedDict(ast.NodeTransformer):
 
         # If there is a default value, perform further transformations.
         if isinstance(node.value, ast.Constant):
-            # Convert `type: str = "xyz"` into `type: Literal["xyz"]`
-            if (
-                isinstance(node.target, ast.Name)
-                and node.target.id == "type"
-                and isinstance(node.annotation, ast.Name)
-                and node.annotation.id == "str"
-            ):
-                return ast.AnnAssign(
-                    target=node.target,
-                    annotation=ast.Subscript(
-                        value=ast.Name(id="Literal", ctx=ast.Load()),
-                        slice=node.value,
-                        ctx=ast.Load(),
-                    ),
-                    value=None,  # Remove default value
-                    simple=node.simple,
-                )
+            # The "type" discriminator carries a schema default, but the server
+            # always emits it, so keep it a *required* Literal: it is the tag
+            # consumers switch on. Drop the default without wrapping the field
+            # in NotRequired.
+            if isinstance(node.target, ast.Name) and node.target.id == "type":
+                # Convert `type: str = "xyz"` into `type: Literal["xyz"]`
+                if isinstance(node.annotation, ast.Name) and node.annotation.id == "str":
+                    return ast.AnnAssign(
+                        target=node.target,
+                        annotation=ast.Subscript(
+                            value=ast.Name(id="Literal", ctx=ast.Load()),
+                            slice=node.value,
+                            ctx=ast.Load(),
+                        ),
+                        value=None,  # Remove default value
+                        simple=node.simple,
+                    )
+                # Convert `type: Literal["xyz"] = "xyz"` into `type: Literal["xyz"]`
+                if (
+                    isinstance(node.annotation, ast.Subscript)
+                    and isinstance(node.annotation.value, ast.Name)
+                    and node.annotation.value.id == "Literal"
+                ):
+                    return ast.AnnAssign(
+                        target=node.target,
+                        annotation=node.annotation,
+                        value=None,  # Remove default value
+                        simple=node.simple,
+                    )
             # Convert an Optional annotation (with a default) to the inner type.
             if (
                 isinstance(node.annotation, ast.Subscript)
@@ -187,6 +200,33 @@ class ConvertDataClassToTypedDict(ast.NodeTransformer):
                 simple=node.simple,
             )
         return node
+
+
+def is_union_alias(node: ast.stmt) -> bool:
+    """
+    Detect a top-level union alias emitted by the code generator.
+
+    The generator emits these in two shapes depending on its version and flags:
+
+        Alias = Union[A, B]                 # bare assignment
+        Alias: TypeAlias = Union[A, B]      # annotated assignment
+
+    Both are dropped from the output, because the client exposes the member
+    TypedDicts directly rather than the union aliases.
+
+    Args:
+        node: A top-level statement from the generated module.
+
+    Returns:
+        True if the statement is a union alias.
+    """
+    if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+        return False
+    return (
+        isinstance(node.value, ast.Subscript)
+        and isinstance(node.value.value, ast.Name)
+        and node.value.value.id == "Union"
+    )
 
 
 def transform_dataclass(code: str) -> ast.AST:
@@ -219,16 +259,7 @@ def transform_dataclass(code: str) -> ast.AST:
             break
 
     # Remove top-level Union type definitions
-    parsed_ast.body = [
-        node
-        for node in parsed_ast.body
-        if not (
-            isinstance(node, ast.Assign)
-            and isinstance(node.value, ast.Subscript)
-            and isinstance(node.value.value, ast.Name)
-            and node.value.value.id == "Union"
-        )
-    ]
+    parsed_ast.body = [node for node in parsed_ast.body if not is_union_alias(node)]
 
     transformer = ConvertDataClassToTypedDict()
     transformed_ast = transformer.visit(parsed_ast)
@@ -381,6 +412,39 @@ def topologically_sort_classes(
 
 
 # =============================================================================
+# Import pruning.
+# =============================================================================
+def prune_unused_imports(module: ast.Module) -> ast.Module:
+    """
+    Drop imported names that the transformed module no longer references.
+
+    Dropping the top-level union aliases can remove the last use of a name the
+    generator imported for them (e.g. `TypeAlias`). Ruff cannot clean this up
+    on its own: it declines to auto-fix unused imports in an `__init__.py`,
+    since they are frequently deliberate re-exports.
+
+    Args:
+        module: The fully transformed module.
+
+    Returns:
+        The module, with unreferenced imported names removed in place.
+    """
+    used: set[str] = {node.id for node in ast.walk(module) if isinstance(node, ast.Name)}
+
+    new_body: list[ast.stmt] = []
+    for stmt in module.body:
+        # `__future__` imports are directives, not referenced by name.
+        if isinstance(stmt, ast.ImportFrom) and stmt.module != "__future__":
+            names = [alias for alias in stmt.names if (alias.asname or alias.name) in used]
+            if not names:
+                continue
+            stmt = ast.ImportFrom(module=stmt.module, names=names, level=stmt.level)
+        new_body.append(stmt)
+    module.body = new_body
+    return module
+
+
+# =============================================================================
 # File rewriting logic.
 # =============================================================================
 def rewrite_file(
@@ -423,6 +487,7 @@ def rewrite_file(
     new_body: list[ast.stmt] = non_class_statements + sorted_classes
 
     new_module: ast.Module = ast.Module(body=new_body, type_ignores=[])
+    new_module = prune_unused_imports(new_module)
     new_module = ast.fix_missing_locations(new_module)
 
     output_code: str = ast.unparse(new_module)

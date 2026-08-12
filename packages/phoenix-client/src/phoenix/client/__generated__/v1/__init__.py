@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from datetime import datetime
-from typing import Any, Literal, Mapping, Optional, Sequence, TypedDict, Union
+from typing import Any, Literal, Optional, TypedDict, Union
 
 from typing_extensions import NotRequired
 
@@ -100,7 +101,7 @@ class ChatCompletionErrorResponse(TypedDict):
 
 class ChatCompletionMessage(TypedDict):
     content: str
-    role: NotRequired[str]
+    role: NotRequired[Literal["assistant"]]
 
 
 class ChatCompletionStreamOptions(TypedDict):
@@ -188,9 +189,9 @@ class CreatedApiKey(TypedDict):
 
 
 class CustomProviderModelSelection(TypedDict):
+    providerType: Literal["custom"]
     providerId: str
     modelName: str
-    providerType: Literal["custom"]
 
 
 class DataUIPart(TypedDict):
@@ -933,7 +934,7 @@ class ToolApprovalRespondedPart(TypedDict):
     type: str
     toolCallId: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["approval-responded"]]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
@@ -950,7 +951,7 @@ class ToolInputAvailablePart(TypedDict):
     type: str
     toolCallId: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["input-available"]]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
@@ -961,7 +962,7 @@ class ToolInputStreamingPart(TypedDict):
     type: str
     toolCallId: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["input-streaming"]]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
@@ -972,7 +973,7 @@ class ToolOutputDeniedPart(TypedDict):
     type: str
     toolCallId: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-denied"]]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
@@ -1163,7 +1164,7 @@ class PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart
     input: Any
     output: Any
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-available"]]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     resultProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
@@ -1178,7 +1179,7 @@ class PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart(Typ
     input: Any
     errorText: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-error"]]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     resultProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
@@ -1189,7 +1190,7 @@ class PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart(TypedD
     type: str
     toolCallId: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-available"]]
     input: NotRequired[Any]
     output: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -1204,7 +1205,7 @@ class PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart(TypedDict)
     toolCallId: str
     errorText: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-error"]]
     input: NotRequired[Any]
     rawInput: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -1220,7 +1221,7 @@ class PydanticAiUiVercelAiRequestTypesDynamicToolOutputAvailablePart(TypedDict):
     input: Any
     output: Any
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-available"]]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     preliminary: NotRequired[bool]
@@ -1234,7 +1235,7 @@ class PydanticAiUiVercelAiRequestTypesDynamicToolOutputErrorPart(TypedDict):
     input: Any
     errorText: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-error"]]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
@@ -1244,7 +1245,7 @@ class PydanticAiUiVercelAiRequestTypesToolOutputAvailablePart(TypedDict):
     type: str
     toolCallId: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-available"]]
     input: NotRequired[Any]
     output: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -1258,7 +1259,7 @@ class PydanticAiUiVercelAiRequestTypesToolOutputErrorPart(TypedDict):
     toolCallId: str
     errorText: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-error"]]
     input: NotRequired[Any]
     rawInput: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -1275,7 +1276,7 @@ class PhoenixToolCallCallbackProviderMetadata(TypedDict):
     toolInputEmittedAt: NotRequired[str]
     clientStartedAt: NotRequired[str]
     clientEndedAt: NotRequired[str]
-    outcome: NotRequired[str]
+    outcome: NotRequired[Literal["interrupted"]]
 
 
 class PhoenixToolCallProviderMetadata(TypedDict):
@@ -1287,7 +1288,7 @@ class SessionSummaryChunk(TypedDict):
     type: Literal["data-session-summary"]
     data: str
     id: NotRequired[str]
-    transient: NotRequired[bool]
+    transient: NotRequired[Literal[True]]
 
 
 class TranscriptPersistedData(TypedDict):
@@ -1336,6 +1337,7 @@ class AssistantMessageMetadataUsage(TypedDict):
 
 
 class BuiltInProviderModelSelection(TypedDict):
+    providerType: Literal["builtin"]
     provider: Literal[
         "OPENAI",
         "AZURE_OPENAI",
@@ -1353,7 +1355,6 @@ class BuiltInProviderModelSelection(TypedDict):
         "TOGETHER",
     ]
     modelName: str
-    providerType: Literal["builtin"]
 
 
 class CategoricalAnnotationConfig(TypedDict):
@@ -1499,7 +1500,7 @@ class DynamicToolApprovalRequestedPart(TypedDict):
     toolCallId: str
     input: Any
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["approval-requested"]]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
@@ -1511,7 +1512,7 @@ class DynamicToolApprovalRespondedPart(TypedDict):
     toolCallId: str
     input: Any
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["approval-responded"]]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
@@ -1523,7 +1524,7 @@ class DynamicToolInputAvailablePart(TypedDict):
     toolCallId: str
     input: Any
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["input-available"]]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
@@ -1534,7 +1535,7 @@ class DynamicToolInputStreamingPart(TypedDict):
     toolName: str
     toolCallId: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["input-streaming"]]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
@@ -1547,7 +1548,7 @@ class DynamicToolOutputDeniedPart(TypedDict):
     toolCallId: str
     input: Any
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["output-denied"]]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
@@ -1849,7 +1850,7 @@ class ToolApprovalRequestedPart(TypedDict):
     type: str
     toolCallId: str
     title: NotRequired[str]
-    state: NotRequired[str]
+    state: NotRequired[Literal["approval-requested"]]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
@@ -1893,7 +1894,7 @@ class TranscriptPersistedChunk(TypedDict):
     type: Literal["data-transcript-persisted"]
     data: TranscriptPersistedData
     id: NotRequired[str]
-    transient: NotRequired[bool]
+    transient: NotRequired[Literal[True]]
 
 
 class AgentSessionData(TypedDict):
@@ -1917,7 +1918,7 @@ class ChatCompletion(TypedDict):
     model: str
     choices: Sequence[ChatCompletionChoice]
     usage: ChatCompletionUsage
-    object: NotRequired[str]
+    object: NotRequired[Literal["chat.completion"]]
 
 
 class CompactAgentSessionRequestBody(TypedDict):
@@ -2002,10 +2003,10 @@ class LegacyAssistantMetadataUIMessage(TypedDict):
 
 
 class LegacyChatRegenerateMessage(TypedDict):
+    trigger: Literal["regenerate-message"]
     id: str
     messages: Sequence[LegacyAssistantMetadataUIMessage]
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-    trigger: Literal["regenerate-message"]
     messageId: NotRequired[str]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
@@ -2038,7 +2039,7 @@ class LegacyChatSubmitMessage(TypedDict):
     id: str
     messages: Sequence[LegacyAssistantMetadataUIMessage]
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-    trigger: Literal["submit-message"]
+    trigger: NotRequired[Literal["submit-message"]]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
     attachUserId: NotRequired[bool]
@@ -2158,7 +2159,7 @@ class ChatRequestBody(TypedDict):
     ]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
-    trigger: NotRequired[str]
+    trigger: NotRequired[Literal["submit-message"]]
     message: NotRequired[PhoenixUIMessage]
     toolOutputs: NotRequired[
         Sequence[
