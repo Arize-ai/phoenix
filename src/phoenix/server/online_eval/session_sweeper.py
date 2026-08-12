@@ -44,7 +44,7 @@ from phoenix.db.eval_work import live_eval_work_index_predicate
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, config_fingerprint
-from phoenix.server.online_eval.producer import resolve_criteria
+from phoenix.server.online_eval.producer import resolve_criteria_bulk
 from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
 from phoenix.server.prometheus import (
     ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG,
@@ -423,9 +423,14 @@ class SessionEvalSweeper(DaemonTask):
                 )
             )
         ).all()
+        criteria_evaluators = [(criteria, evaluator) for criteria, evaluator in rows]
         criteria_rows: list[_SessionCriteria] = []
-        for criteria, evaluator in rows:
-            resolved = await resolve_criteria(session, criteria, evaluator)
+        resolved_rows = await resolve_criteria_bulk(session, criteria_evaluators)
+        for (criteria, evaluator), resolved in zip(
+            criteria_evaluators,
+            resolved_rows,
+            strict=True,
+        ):
             if resolved is None:
                 logger.warning(
                     f"Skipping criteria {criteria.id}: "
@@ -445,10 +450,10 @@ class SessionEvalSweeper(DaemonTask):
 
     async def _sweep(self, session: AsyncSession, database_now: datetime) -> tuple[int, int]:
         """Materialize this tick's work, returning (work created, pairs found eligible)."""
-        criteria = await self._load_criteria(session)
         work_budget = await self._admission_budget(session)
         if work_budget == 0:
             return 0, 0
+        criteria = await self._load_criteria(session)
         return await self._load_eligible_pairs(
             session,
             database_now,

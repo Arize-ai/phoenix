@@ -2,7 +2,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from importlib import import_module
-from typing import cast
+from typing import Sequence, cast
 from unittest.mock import Mock
 
 import pytest
@@ -15,7 +15,7 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
 from phoenix.server.online_eval import session_sweeper
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, ResolvedCriteria
-from phoenix.server.online_eval.producer import resolve_criteria
+from phoenix.server.online_eval.producer import resolve_criteria_bulk
 from phoenix.server.online_eval.session_sweeper import (
     SESSION_SWEEP_LEASE_TTL_SECONDS,
     SessionEvalSweeper,
@@ -334,16 +334,23 @@ async def test_disabled_and_unresolved_criteria_preserve_future_eligibility(
             .values(enabled=False)
         )
 
+    resolution_calls = 0
+
     async def unresolved(
         session: AsyncSession,
-        criteria: models.ProjectEvaluatorCriteria,
-        evaluator: models.Evaluator,
-    ) -> ResolvedCriteria | None:
-        if criteria.id == unresolved_criteria_id:
-            return None
-        return await resolve_criteria(session, criteria, evaluator)
+        criteria_evaluators: Sequence[
+            tuple[models.ProjectEvaluatorCriteria, models.Evaluator]
+        ],
+    ) -> list[ResolvedCriteria | None]:
+        nonlocal resolution_calls
+        resolution_calls += 1
+        resolved = await resolve_criteria_bulk(session, criteria_evaluators)
+        return [
+            None if criteria.id == unresolved_criteria_id else result
+            for (criteria, _), result in zip(criteria_evaluators, resolved, strict=True)
+        ]
 
-    monkeypatch.setattr(session_sweeper, "resolve_criteria", unresolved)
+    monkeypatch.setattr(session_sweeper, "resolve_criteria_bulk", unresolved)
     sweeper = SessionEvalSweeper(db)
     await sweeper._tick()
     async with db() as session:
@@ -356,13 +363,30 @@ async def test_disabled_and_unresolved_criteria_preserve_future_eligibility(
             .values(enabled=True)
         )
 
-    monkeypatch.setattr(session_sweeper, "resolve_criteria", resolve_criteria)
+    assert resolution_calls == 1
+    monkeypatch.setattr(session_sweeper, "resolve_criteria_bulk", resolve_criteria_bulk)
     await sweeper._tick()
     async with db() as session:
         session_ids = set(
             await session.scalars(select(models.EvalSessionWorkUnit.project_session_rowid))
         )
     assert session_ids == {disabled_session_id, unresolved_session_id}
+
+
+async def test_closed_admission_gate_skips_criteria_resolution(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sweeper = SessionEvalSweeper(db)
+    sweeper._max_outstanding = 0
+
+    async def unexpected_resolution(*_: object) -> list[ResolvedCriteria | None]:
+        pytest.fail("criteria resolution must follow admission")
+
+    monkeypatch.setattr(session_sweeper, "resolve_criteria_bulk", unexpected_resolution)
+    async with db() as session:
+        database_now = await sweeper._database_now(session)
+        assert await sweeper._sweep(session, database_now) == (0, 0)
 
 
 async def test_successful_work_closes_evaluate_once_key(
