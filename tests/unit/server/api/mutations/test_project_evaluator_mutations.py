@@ -9,8 +9,6 @@ from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
-from ...._helpers import _add_span, _add_trace
-
 _PROJECT_EVALUATOR_FIELDS = """
 id
 name
@@ -271,7 +269,7 @@ async def test_project_code_evaluator_crud_and_connection(
                 "evaluatorInputMapping": _mapping(output="updated"),
                 "inputMapping": _mapping(context="override"),
                 "samplingRate": 0.25,
-                "evaluationTarget": "SESSION",
+                "evaluationTarget": "SPAN",
                 "evaluationDelaySeconds": 30,
                 "filterCondition": "span_kind == 'LLM'",
                 "enabled": False,
@@ -281,7 +279,7 @@ async def test_project_code_evaluator_crud_and_connection(
     assert update_result.data and not update_result.errors
     updated = update_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert updated["name"] == "updated-code"
-    assert updated["evaluationTarget"] == "SESSION"
+    assert updated["evaluationTarget"] == "SPAN"
     assert updated["evaluationDelaySeconds"] == 30
     assert updated["schedulabilityStatus"] == "NOT_SCHEDULABLE"
     assert updated["schedulabilityReason"] == "DISABLED"
@@ -320,7 +318,7 @@ async def test_project_code_evaluator_crud_and_connection(
                 "projectEvaluatorId": created["id"],
                 "name": "updated-code",
                 "samplingRate": 0.75,
-                "evaluationTarget": "TRACE",
+                "evaluationTarget": "SPAN",
                 "filterCondition": "",
             }
         },
@@ -558,19 +556,19 @@ async def test_project_llm_evaluator_create_update_delete(
     update_input.pop("projectId")
     update_input.pop("enabled")
     update_input["projectEvaluatorId"] = created["id"]
-    update_input["evaluationTarget"] = "SPAN"
+    update_input["evaluationTarget"] = "TRACE"
     update_result = await gql_client.execute(_UPDATE_LLM, {"input": update_input})
     assert update_result.data and not update_result.errors
     updated = update_result.data["updateProjectLlmEvaluator"]["evaluator"]
     assert updated["evaluator"]["name"] == "updated-llm"
-    assert updated["evaluationTarget"] == "SPAN"
+    assert updated["evaluationTarget"] == "TRACE"
     assert updated["enabled"] is False
     assert updated["evaluationDelaySeconds"] == 60
 
     clear_input = _llm_input(project, name="cleared-llm", text="Clear {{input}}")
     clear_input.pop("projectId")
     clear_input["projectEvaluatorId"] = created["id"]
-    clear_input["evaluationTarget"] = "SESSION"
+    clear_input["evaluationTarget"] = "TRACE"
     clear_input["evaluationDelaySeconds"] = None
     clear_result = await gql_client.execute(_UPDATE_LLM, {"input": clear_input})
     assert clear_result.data and not clear_result.errors
@@ -934,7 +932,7 @@ async def test_evaluation_delay_rejected_before_project_evaluator_writes(
         assert llm_criteria.evaluation_delay_seconds == 300
 
 
-async def test_evaluation_target_change_rejected_after_work_exists(
+async def test_evaluation_target_change_rejected_from_creation(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
@@ -945,21 +943,6 @@ async def test_evaluation_target_change_rejected_after_work_exists(
     assert create_result.data and not create_result.errors
     created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
     criteria_id = int(GlobalID.from_id(created["id"]).node_id)
-
-    async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        project_record = await session.get(models.Project, project.id)
-        assert criteria is not None and project_record is not None
-        trace = await _add_trace(session, project_record)
-        span = await _add_span(session, trace)
-        session.add(
-            models.EvalWorkUnit(
-                span_rowid=span.id,
-                evaluator_id=criteria.evaluator_id,
-                criteria_id=criteria.id,
-                config_fingerprint="existing-work",
-            )
-        )
 
     update_result = await gql_client.execute(
         _UPDATE_CODE,
@@ -978,8 +961,7 @@ async def test_evaluation_target_change_rejected_after_work_exists(
 
     assert update_result.errors
     assert update_result.errors[0].message == (
-        "evaluationTarget cannot be changed after evaluation work has been created "
-        "for this project evaluator"
+        "evaluationTarget is fixed at project evaluator creation"
     )
     async with db() as session:
         criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
@@ -1097,7 +1079,7 @@ async def test_update_rolls_back_code_version_and_state_on_late_name_conflict(
                 "evaluatorInputMapping": _mapping(changed="value"),
                 "inputMapping": _mapping(override="value"),
                 "samplingRate": 0.9,
-                "evaluationTarget": "TRACE",
+                "evaluationTarget": "SPAN",
                 "filterCondition": "span_kind == 'LLM'",
                 "enabled": False,
             }

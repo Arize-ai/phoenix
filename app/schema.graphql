@@ -5178,6 +5178,8 @@ input UpdateProjectCodeEvaluatorInput {
   projectEvaluatorId: ID!
   name: Identifier!
   samplingRate: Float!
+
+  """The evaluation target is fixed at project evaluator creation."""
   evaluationTarget: EvaluationTarget!
   filterCondition: String!
   evaluatorInputMapping: EvaluatorInputMappingInput
@@ -5205,6 +5207,8 @@ input UpdateProjectLLMEvaluatorInput {
   outputConfigs: [AnnotationConfigInput!]!
   inputMapping: EvaluatorInputMappingInput!
   samplingRate: Float!
+
+  """The evaluation target is fixed at project evaluator creation."""
   evaluationTarget: EvaluationTarget!
   filterCondition: String!
   enabled: Boolean

@@ -79,6 +79,7 @@ export const ProjectCodeEvaluatorDialogContent = ({
           codeEvaluatorId={inlineCode ? undefined : evaluatorId}
           inlineCode={inlineCode}
           requiredVariables={requiredVariables}
+          isTargetDisabled={mode === "update"}
         />
       }
     />

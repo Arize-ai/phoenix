@@ -5,7 +5,7 @@ from typing import Optional, cast
 import strawberry
 from fastapi import Request
 from pydantic import ValidationError
-from sqlalchemy import and_, delete, or_, select, true
+from sqlalchemy import and_, delete, select, true
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -346,30 +346,13 @@ def _materialize_project_evaluator_evaluation_delay(
     )
 
 
-async def _validate_project_evaluator_target_update(
-    session: AsyncSession,
+def _validate_project_evaluator_target_update(
     criteria: models.ProjectEvaluatorCriteria,
     evaluation_target: EvaluationTarget,
 ) -> None:
     if criteria.evaluation_target == evaluation_target.value:
         return
-    work_exists = await session.scalar(
-        select(
-            or_(
-                select(models.EvalWorkUnit.id)
-                .where(models.EvalWorkUnit.criteria_id == criteria.id)
-                .exists(),
-                select(models.EvalSessionWorkUnit.id)
-                .where(models.EvalSessionWorkUnit.criteria_id == criteria.id)
-                .exists(),
-            )
-        )
-    )
-    if work_exists:
-        raise BadRequest(
-            "evaluationTarget cannot be changed after evaluation work has been created "
-            "for this project evaluator"
-        )
+    raise BadRequest("evaluationTarget is fixed at project evaluator creation")
 
 
 async def _garbage_collect_evaluators(
@@ -541,7 +524,9 @@ class UpdateProjectLLMEvaluatorInput:
     output_configs: list[AnnotationConfigInput]
     input_mapping: EvaluatorInputMappingInput
     sampling_rate: float
-    evaluation_target: EvaluationTarget
+    evaluation_target: EvaluationTarget = strawberry.field(
+        description="The evaluation target is fixed at project evaluator creation."
+    )
     filter_condition: str
     enabled: Optional[bool] = UNSET
     description: Optional[str] = UNSET
@@ -625,7 +610,9 @@ class UpdateProjectCodeEvaluatorInput:
     project_evaluator_id: GlobalID
     name: Identifier
     sampling_rate: float
-    evaluation_target: EvaluationTarget
+    evaluation_target: EvaluationTarget = strawberry.field(
+        description="The evaluation target is fixed at project evaluator creation."
+    )
     filter_condition: str
     evaluator_input_mapping: Optional[EvaluatorInputMappingInput] = UNSET
     enabled: Optional[bool] = UNSET
@@ -882,8 +869,7 @@ class EvaluatorMutationMixin:
                 if pair is None:
                     raise NotFound(f"LLM project evaluator not found: {input.project_evaluator_id}")
                 criteria, evaluator = pair
-                await _validate_project_evaluator_target_update(
-                    session,
+                _validate_project_evaluator_target_update(
                     criteria,
                     input.evaluation_target,
                 )
@@ -1247,8 +1233,7 @@ class EvaluatorMutationMixin:
                         f"CODE project evaluator not found: {input.project_evaluator_id}"
                     )
                 criteria, evaluator = pair
-                await _validate_project_evaluator_target_update(
-                    session,
+                _validate_project_evaluator_target_update(
                     criteria,
                     input.evaluation_target,
                 )
