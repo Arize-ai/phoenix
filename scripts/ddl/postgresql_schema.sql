@@ -34,7 +34,8 @@ CREATE TABLE public.eval_work_cursors (
     CONSTRAINT pk_eval_work_cursors PRIMARY KEY (id),
     CONSTRAINT uq_eval_work_cursors_evaluation_target_consumer_group
         UNIQUE (evaluation_target, consumer_group),
-    CHECK (((evaluation_target)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_eval_work_cursors_`valid_evaluation_target`"
+        CHECK (((evaluation_target)::text = ANY ((ARRAY[
             'SPAN'::character varying,
             'TRACE'::character varying,
             'SESSION'::character varying
@@ -1201,12 +1202,11 @@ CREATE TABLE public.agent_sessions (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_sessions PRIMARY KEY (id),
     CONSTRAINT fk_agent_sessions_custom_provider_id_generative_model_c_af13
-        FOREIGN KEY
-        (custom_provider_id)
+        FOREIGN KEY (custom_provider_id)
         REFERENCES public.generative_model_custom_providers (id)
         ON DELETE SET NULL,
-    CONSTRAINT fk_agent_sessions_user_id_users FOREIGN KEY
-        (user_id)
+    CONSTRAINT fk_agent_sessions_user_id_users
+        FOREIGN KEY (user_id)
         REFERENCES public.users (id)
         ON DELETE CASCADE
 );
@@ -1234,10 +1234,9 @@ CREATE TABLE public.agent_session_messages (
     CONSTRAINT pk_agent_session_messages PRIMARY KEY (id),
     CONSTRAINT uq_agent_session_messages_message_id
         UNIQUE (message_id),
-    CHECK (((message_id)::text ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'::text)),
+    CONSTRAINT "ck_agent_session_messages_`valid_message_id`" CHECK (((message_id)::text ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'::text)),
     CONSTRAINT fk_agent_session_messages_agent_session_id_agent_sessions
-        FOREIGN KEY
-        (agent_session_id)
+        FOREIGN KEY (agent_session_id)
         REFERENCES public.agent_sessions (id)
         ON DELETE CASCADE
 );
@@ -1260,8 +1259,7 @@ CREATE TABLE public.agent_session_snapshots (
     CONSTRAINT uq_agent_session_snapshots_agent_session_id
         UNIQUE (agent_session_id),
     CONSTRAINT fk_agent_session_snapshots_agent_session_id_agent_sessions
-        FOREIGN KEY
-        (agent_session_id)
+        FOREIGN KEY (agent_session_id)
         REFERENCES public.agent_sessions (id)
         ON DELETE CASCADE
 );
@@ -1367,21 +1365,20 @@ CREATE TABLE public.project_evaluator_criteria (
     CONSTRAINT pk_project_evaluator_criteria PRIMARY KEY (id),
     CONSTRAINT uq_project_evaluator_criteria_project_id_name
         UNIQUE (project_id, name),
-    CHECK ((evaluation_delay_seconds >= 10)),
-    CHECK (((evaluation_target)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_project_evaluator_criteria_`valid_evaluation_delay_seconds`" CHECK ((evaluation_delay_seconds >= 10)),
+    CONSTRAINT "ck_project_evaluator_criteria_`valid_evaluation_target`"
+        CHECK (((evaluation_target)::text = ANY ((ARRAY[
             'SPAN'::character varying,
             'TRACE'::character varying,
             'SESSION'::character varying
         ])::text[]))),
-    CHECK ((((0.0)::double precision <= sampling_rate) AND (sampling_rate <= (1.0)::double precision))),
+    CONSTRAINT "ck_project_evaluator_criteria_`valid_sampling_rate`" CHECK ((((0.0)::double precision <= sampling_rate) AND (sampling_rate <= (1.0)::double precision))),
     CONSTRAINT fk_project_evaluator_criteria_evaluator_id_evaluators
-        FOREIGN KEY
-        (evaluator_id)
+        FOREIGN KEY (evaluator_id)
         REFERENCES public.evaluators (id)
         ON DELETE CASCADE,
     CONSTRAINT fk_project_evaluator_criteria_project_id_projects
-        FOREIGN KEY
-        (project_id)
+        FOREIGN KEY (project_id)
         REFERENCES public.projects (id)
         ON DELETE CASCADE
 );
@@ -1410,7 +1407,8 @@ CREATE TABLE public.eval_session_work_units (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_eval_session_work_units PRIMARY KEY (id),
-    CHECK (((status)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_eval_session_work_units_`valid_eval_work_status`"
+        CHECK (((status)::text = ANY ((ARRAY[
             'PENDING'::character varying,
             'RUNNING'::character varying,
             'DONE'::character varying,
@@ -1418,18 +1416,15 @@ CREATE TABLE public.eval_session_work_units (
             'EXPIRED'::character varying
         ])::text[]))),
     CONSTRAINT fk_eval_session_work_units_criteria_id_project_evaluato_744c
-        FOREIGN KEY
-        (criteria_id)
+        FOREIGN KEY (criteria_id)
         REFERENCES public.project_evaluator_criteria (id)
         ON DELETE CASCADE,
     CONSTRAINT fk_eval_session_work_units_evaluator_id_evaluators
-        FOREIGN KEY
-        (evaluator_id)
+        FOREIGN KEY (evaluator_id)
         REFERENCES public.evaluators (id)
         ON DELETE CASCADE,
     CONSTRAINT fk_eval_session_work_units_project_session_rowid_projec_ed73
-        FOREIGN KEY
-        (project_session_rowid)
+        FOREIGN KEY (project_session_rowid)
         REFERENCES public.project_sessions (id)
         ON DELETE CASCADE
 );
@@ -1467,7 +1462,8 @@ CREATE TABLE public.eval_work_units (
     CONSTRAINT pk_eval_work_units PRIMARY KEY (id),
     CONSTRAINT uq_eval_work_units_span_rowid_evaluator_id_config_fingerprint
         UNIQUE (span_rowid, evaluator_id, config_fingerprint),
-    CHECK (((status)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_eval_work_units_`valid_eval_work_status`"
+        CHECK (((status)::text = ANY ((ARRAY[
             'PENDING'::character varying,
             'RUNNING'::character varying,
             'DONE'::character varying,
@@ -1475,16 +1471,15 @@ CREATE TABLE public.eval_work_units (
             'EXPIRED'::character varying
         ])::text[]))),
     CONSTRAINT fk_eval_work_units_criteria_id_project_evaluator_criteria
-        FOREIGN KEY
-        (criteria_id)
+        FOREIGN KEY (criteria_id)
         REFERENCES public.project_evaluator_criteria (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_eval_work_units_evaluator_id_evaluators FOREIGN KEY
-        (evaluator_id)
+    CONSTRAINT fk_eval_work_units_evaluator_id_evaluators
+        FOREIGN KEY (evaluator_id)
         REFERENCES public.evaluators (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_eval_work_units_span_rowid_spans FOREIGN KEY
-        (span_rowid)
+    CONSTRAINT fk_eval_work_units_span_rowid_spans
+        FOREIGN KEY (span_rowid)
         REFERENCES public.spans (id)
         ON DELETE CASCADE
 );
