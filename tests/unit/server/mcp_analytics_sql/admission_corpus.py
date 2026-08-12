@@ -279,6 +279,12 @@ CASES: tuple[AdmissionCase, ...] = (
         dialect="sqlite",
     ),
     AdmissionCase(
+        sql="SELECT to_char(start_time, 'YYYY-MM') FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="to_char is PostgreSQL's format spelling and parses to the same TimeToStr class as SQLite strftime",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
         sql="SELECT name, COUNT(*) FROM spans GROUP BY ROLLUP(name)",
         expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
         note="SQLite parses ROLLUP but cannot execute it; refuse before opening the backend",

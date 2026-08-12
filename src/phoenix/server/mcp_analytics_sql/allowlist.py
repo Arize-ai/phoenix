@@ -122,6 +122,10 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             # was written.
             exp.TimestampTrunc,
             exp.DateTrunc,
+            # to_char(timestamp, format) parses to TimeToStr, the same class as
+            # SQLite strftime. Admitting the class lets each dialect's native
+            # spelling through; the other dialect's spelling stays Anonymous.
+            exp.TimeToStr,
             # Postgres spells JSON access four ways. `->` and `->>` take a single
             # key and are admitted through the portable JSONExtract classes;
             # `#>` and `#>>` take a whole path and parse to these separate JSONB

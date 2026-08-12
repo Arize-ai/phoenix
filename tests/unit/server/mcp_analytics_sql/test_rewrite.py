@@ -354,6 +354,15 @@ def test_star_expands_every_joined_table() -> None:
     assert "spans.span_id" in out and "traces.trace_id" in out
 
 
+def test_postgres_to_char_round_trips() -> None:
+    _, rendered = _rewritten(
+        "SELECT to_char(start_time, 'YYYY-MM') FROM spans",
+        dialect="postgresql",
+    )
+    assert "TO_CHAR" in rendered.upper()
+    assert "YYYY-MM" in rendered
+
+
 def test_star_over_an_aliased_table_uses_the_alias() -> None:
     """After `FROM spans AS s` the name `spans` no longer resolves, so expanding
     to `spans.<col>` produces a statement that cannot execute on either backend.
