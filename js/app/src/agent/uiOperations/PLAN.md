@@ -267,7 +267,13 @@ patch/delete`, `dataset.addSpans`. Introduced the reusable machinery the
       `tools/patchExperiment/clientActions.ts`), with an emit-flavored binder
       (`bindPendingPatchExperimentOperationActions`) alongside the tool binder
       and a field-level unified diff in the script-child card.
-- [ ] span annotate
+- [x] span annotate — `spans.annotate` (`operations/spans.ts` +
+      `tools/batchSpanAnnotate/clientActions.ts`); the retired instruction
+      template's naming/values/updates guidance folded into the descriptor
+      description, and the annotate-spans / span-coding skills rewritten to
+      reference the operation. The tool-name entries left
+      `PENDING_TOOL_STATE_CLEANUP`/`REWIND_CLEANUP_TOOL_NAMES`; its pending map
+      joined `EXECUTE_UI_PENDING_MAP_CLEANERS`.
 
 ### Q2 cleanup (final commits on this branch)
 

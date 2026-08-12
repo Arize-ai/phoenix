@@ -12,7 +12,6 @@
  * UI-operation catalog (`@phoenix/agent/uiOperations`) and execute through
  * the `search_ui` / `execute_ui` meta-tools registered below.
  */
-import { batchSpanAnnotateAgentTool } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { listDatasetExamplesAgentTool } from "@phoenix/agent/tools/datasetExamples";
 import {
   listDatasetLabelsAgentTool,
@@ -67,14 +66,13 @@ const datasetTools: AgentToolDefinition[] = [
  * `defineTool`):
  * - `get_route_info` resolves route info from the catalog and returns it directly;
  * - `render_generative_ui` synchronously acknowledges an out-of-band chart render;
- * - `ask_user` and `batch_span_annotate` write a pending-approval store entry
- *   and defer their output to a later accept/reject.
+ * - `ask_user` writes a pending-approval store entry and defers its output to
+ *   a later accept/reject.
  */
 const tools: AgentToolDefinition[] = [
   getRouteInfoAgentTool,
   renderGenerativeUIAgentTool,
   askUserAgentTool,
-  batchSpanAnnotateAgentTool,
 ];
 
 /** Ordered registry of all frontend-executable tools. */

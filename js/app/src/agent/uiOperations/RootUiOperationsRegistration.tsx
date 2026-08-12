@@ -4,6 +4,7 @@ import {
   createCreateAnnotationConfigClientAction,
   createUpdateAnnotationConfigClientAction,
 } from "@phoenix/agent/tools/annotationConfig";
+import { createBatchSpanAnnotateClientAction } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { createCreateDatasetClientAction } from "@phoenix/agent/tools/createDataset";
 import {
   createDeleteDatasetClientAction,
@@ -62,6 +63,7 @@ import {
   experimentOperations,
   patchExperimentOperation,
 } from "./operations/experiment";
+import { batchSpanAnnotateOperation, spanOperations } from "./operations/spans";
 
 /** Every operation family registered at the root, for unmount cleanup. */
 const rootUiOperations = [
@@ -70,6 +72,7 @@ const rootUiOperations = [
   ...datasetLabelOperations,
   ...annotationConfigOperations,
   ...experimentOperations,
+  ...spanOperations,
 ];
 
 /**
@@ -167,6 +170,11 @@ export function RootUiOperationsRegistration() {
       agentStore,
       descriptor: patchExperimentOperation,
       handler: createPatchExperimentClientAction({ agentStore }),
+    });
+    registerUiOperation({
+      agentStore,
+      descriptor: batchSpanAnnotateOperation,
+      handler: createBatchSpanAnnotateClientAction({ agentStore }),
     });
     return () => {
       for (const descriptor of rootUiOperations) {

@@ -18,6 +18,7 @@ import { playgroundRunOperations } from "./operations/playgroundRun";
 import { playgroundSavePromptOperations } from "./operations/playgroundSavePrompt";
 import { playgroundSettingsOperations } from "./operations/playgroundSettings";
 import { setTimeRangeOperation } from "./operations/setTimeRange";
+import { spanOperations } from "./operations/spans";
 import { spansFilterOperations } from "./operations/spansFilter";
 import type {
   UiOperationCallContext,
@@ -48,6 +49,7 @@ const knownUiOperations: UiOperationDescriptor[] = [
   ...datasetLabelOperations,
   ...annotationConfigOperations,
   ...experimentOperations,
+  ...spanOperations,
 ];
 
 /**

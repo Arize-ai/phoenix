@@ -10,7 +10,6 @@ from phoenix.server.agents.capabilities.base import (
 )
 from phoenix.server.agents.capabilities.tools.external import (
     ask_user,
-    batch_span_annotate,
     execute_ui,
     get_route_info,
     list_dataset_examples,
@@ -23,9 +22,6 @@ from phoenix.server.agents.capabilities.tools.external import (
     search_ui,
 )
 from phoenix.server.agents.capabilities.tools.external.ask_user import AskUserCapability
-from phoenix.server.agents.capabilities.tools.external.batch_span_annotate import (
-    BatchSpanAnnotateCapability,
-)
 from phoenix.server.agents.capabilities.tools.external.execute_ui import (
     ExecuteUiCapability,
 )
@@ -69,7 +65,6 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         list_labels.TOOL_DEFINITION,
         list_splits.TOOL_DEFINITION,
         list_dataset_labels.TOOL_DEFINITION,
-        batch_span_annotate.TOOL_DEFINITION,
         execute_ui.TOOL_DEFINITION,
         get_route_info.TOOL_DEFINITION,
         render_generative_ui.RENDER_GENERATIVE_UI_TOOL_DEFINITION,
@@ -93,7 +88,6 @@ def get_external_tool_capability_function(
     """
     static_capabilities: list[AbstractStaticCapability[AgentDependencies]] = [
         AskUserCapability(instructions=prompts.ask_user_tool),
-        BatchSpanAnnotateCapability(instructions=prompts.batch_span_annotate_tool),
         ListDatasetsCapability(instructions=prompts.list_datasets_tool),
         ListLabelsCapability(instructions=prompts.list_labels_tool),
         ListSplitsCapability(instructions=prompts.list_splits_tool),
@@ -123,7 +117,6 @@ __all__ = [
     "ListDatasetsCapability",
     "ListLabelsCapability",
     "ListSplitsCapability",
-    "BatchSpanAnnotateCapability",
     "ExecuteUiCapability",
     "GetRouteInfoCapability",
     "RenderGenerativeUICapability",
