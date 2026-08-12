@@ -119,6 +119,11 @@ def _create_session_work_units_table() -> None:
         sqlite_where=sa.text("status IN ('DONE', 'EXPIRED')"),
     )
     op.create_index(
+        "ix_eval_session_work_units_terminal_watermark",
+        "eval_session_work_units",
+        ["project_session_rowid", "evaluator_id", "config_fingerprint"],
+    )
+    op.create_index(
         "ix_eval_session_work_units_error_attempts",
         "eval_session_work_units",
         ["attempts"],
@@ -398,6 +403,10 @@ def downgrade() -> None:
     op.drop_index("ix_eval_session_work_units_criteria_id", table_name="eval_session_work_units")
     op.drop_index("ix_eval_session_work_units_evaluator_id", table_name="eval_session_work_units")
     op.drop_index("ix_eval_session_work_units_error_attempts", table_name="eval_session_work_units")
+    op.drop_index(
+        "ix_eval_session_work_units_terminal_watermark",
+        table_name="eval_session_work_units",
+    )
     op.drop_index("ix_eval_session_work_units_terminal", table_name="eval_session_work_units")
     op.drop_index("ix_eval_session_work_units_claimable", table_name="eval_session_work_units")
     op.drop_table("eval_session_work_units")

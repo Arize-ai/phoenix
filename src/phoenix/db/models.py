@@ -3815,6 +3815,12 @@ class EvalSessionWorkUnit(HasId):
             sqlite_where=text("status IN ('DONE', 'EXPIRED')"),
         ),
         Index(
+            "ix_eval_session_work_units_terminal_watermark",
+            "project_session_rowid",
+            "evaluator_id",
+            "config_fingerprint",
+        ),
+        Index(
             "ix_eval_session_work_units_error_attempts",
             "attempts",
             postgresql_where=text("status = 'ERROR'"),
