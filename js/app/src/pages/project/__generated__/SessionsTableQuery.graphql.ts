@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9a3744f6f5496d5f60f280acdcc76dcd>>
+ * @generated SignedSource<<4d128bfd72320e1170ab5906e0f54823>>
  * @lightSyntaxTransform
  */
 
@@ -575,6 +575,13 @@ return {
                                   (v12/*:: as any*/)
                                 ],
                                 "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "updatedAt",
+                                "storageKey": null
                               }
                             ],
                             "storageKey": null
@@ -715,16 +722,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "903187b100043409e5423a22b172556c",
+    "cacheID": "d334058db60390c9f63c56a5736d3169",
     "id": null,
     "metadata": {},
     "name": "SessionsTableQuery",
     "operationKind": "query",
-    "text": "query SessionsTableQuery(\n  $after: String = null\n  $first: Int = 30\n  $sessionFilterCondition: String = null\n  $sort: ProjectSessionSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2tSkrj\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionColumnSelector_annotations on Project {\n  sessionAnnotationNames\n}\n\nfragment SessionsTable_sessions_2tSkrj on Project {\n  id\n  name\n  ...ProjectAnnotationConfigFragment\n  ...SessionColumnSelector_annotations\n  sessions(first: $first, after: $after, sort: $sort, sessionFilterCondition: $sessionFilterCondition, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        userId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value: truncatedValue\n        }\n        lastOutput {\n          value: truncatedValue\n        }\n        tokenUsage {\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n        costSummary {\n          total {\n            cost\n          }\n        }\n        sessionAnnotations {\n          id\n          name\n          label\n          score\n          explanation\n          annotatorKind\n          createdAt\n          user {\n            username\n            profilePictureUrl\n            id\n          }\n        }\n        sessionAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        ...SessionAnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SessionsTableQuery(\n  $after: String = null\n  $first: Int = 30\n  $sessionFilterCondition: String = null\n  $sort: ProjectSessionSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2tSkrj\n    id\n  }\n}\n\nfragment ProjectAnnotationMetricsConfigFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionColumnSelector_annotations on Project {\n  sessionAnnotationNames\n}\n\nfragment SessionsTable_sessions_2tSkrj on Project {\n  id\n  name\n  ...ProjectAnnotationMetricsConfigFragment\n  ...SessionColumnSelector_annotations\n  sessions(first: $first, after: $after, sort: $sort, sessionFilterCondition: $sessionFilterCondition, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        userId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value: truncatedValue\n        }\n        lastOutput {\n          value: truncatedValue\n        }\n        tokenUsage {\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n        costSummary {\n          total {\n            cost\n          }\n        }\n        sessionAnnotations {\n          id\n          name\n          label\n          score\n          explanation\n          annotatorKind\n          createdAt\n          user {\n            username\n            profilePictureUrl\n            id\n          }\n        }\n        sessionAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        ...SessionAnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "febf7719122939a067e33234724d452e";
+(node as any).hash = "8bb998a55d17befc2a3f9f7ec64ade0b";
 
 export default node;

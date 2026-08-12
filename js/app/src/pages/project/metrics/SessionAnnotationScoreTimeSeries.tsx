@@ -1,6 +1,5 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 
@@ -8,6 +7,7 @@ import type { SessionAnnotationScoreTimeSeriesQuery } from "./__generated__/Sess
 import { AnnotationScoreTimeSeriesChart } from "./AnnotationScoreTimeSeriesChart";
 import type { ProjectMetricViewProps } from "./types";
 import { useMetricQueryFetchOptions } from "./types";
+import { useProjectAnnotationConfigsByName } from "./useProjectAnnotationConfigsByName";
 
 export function SessionAnnotationScoreTimeSeries({
   projectId,
@@ -26,7 +26,7 @@ export function SessionAnnotationScoreTimeSeries({
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            ...ProjectAnnotationConfigFragment
+            ...ProjectAnnotationMetricsConfigFragment
             sessionAnnotationScoreTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<52b2db1600cfd759b57015e7ab830a61>>
+ * @generated SignedSource<<6065b68e53ab3b7b825120c470961829>>
  * @lightSyntaxTransform
  */
 
@@ -286,6 +286,13 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "kind": "ScalarField",
+                            "name": "updatedAt",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "concreteType": "User",
                             "kind": "LinkedField",
                             "name": "user",
@@ -419,12 +426,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bd3730edf34d527d6b728b293428b1ee",
+    "cacheID": "e930e331e071dc0e4a2fd43b280bb134",
     "id": null,
     "metadata": {},
     "name": "TraceActionToolbarCreateAnnotationMutation",
     "operationKind": "mutation",
-    "text": "mutation TraceActionToolbarCreateAnnotationMutation(\n  $traceId: ID!\n  $label: String!\n  $score: Float!\n  $identifier: String!\n) {\n  createTraceAnnotations(input: [{traceId: $traceId, name: \"user_feedback\", annotatorKind: HUMAN, label: $label, score: $score, metadata: {}, source: APP, identifier: $identifier}]) {\n    query {\n      node(id: $traceId) {\n        __typename\n        ... on Trace {\n          ...TraceAnnotationSummaryGroup\n          ...TraceActionToolbar_trace\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment TraceActionToolbar_trace on Trace {\n  id\n  viewerUserFeedbackAnnotations: traceAnnotations(filter: {include: {names: [\"user_feedback\"]}}) {\n    id\n    label\n    identifier\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  traceAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  traceAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
+    "text": "mutation TraceActionToolbarCreateAnnotationMutation(\n  $traceId: ID!\n  $label: String!\n  $score: Float!\n  $identifier: String!\n) {\n  createTraceAnnotations(input: [{traceId: $traceId, name: \"user_feedback\", annotatorKind: HUMAN, label: $label, score: $score, metadata: {}, source: APP, identifier: $identifier}]) {\n    query {\n      node(id: $traceId) {\n        __typename\n        ... on Trace {\n          ...TraceAnnotationSummaryGroup\n          ...TraceActionToolbar_trace\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment TraceActionToolbar_trace on Trace {\n  id\n  viewerUserFeedbackAnnotations: traceAnnotations(filter: {include: {names: [\"user_feedback\"]}}) {\n    id\n    label\n    identifier\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  traceAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  traceAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
   }
 };
 })();

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<216072d6d2c31d1292e078daaed268ee>>
+ * @generated SignedSource<<7718785a2c7f7642a67ac3038f615ead>>
  * @lightSyntaxTransform
  */
 
@@ -15,9 +15,9 @@ export type SpanAnnotationsCardSummaryQuery$variables = {
 export type SpanAnnotationsCardSummaryQuery$data = {
   readonly span: {
     readonly project?: {
-      readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigFragment">;
+      readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationMetricsConfigFragment">;
     };
-    readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationSummaryGroup">;
+    readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
   };
 };
 export type SpanAnnotationsCardSummaryQuery = {
@@ -125,7 +125,7 @@ return {
                   {
                     "args": null,
                     "kind": "FragmentSpread",
-                    "name": "ProjectAnnotationConfigFragment"
+                    "name": "ProjectAnnotationMetricsConfigFragment"
                   }
                 ],
                 "storageKey": null
@@ -133,7 +133,7 @@ return {
               {
                 "args": null,
                 "kind": "FragmentSpread",
-                "name": "SpanAnnotationSummaryGroup"
+                "name": "AnnotationSummaryGroup"
               }
             ],
             "type": "Span",
@@ -323,6 +323,13 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "updatedAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "User",
                     "kind": "LinkedField",
                     "name": "user",
@@ -419,16 +426,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8cf64a9da09963611a7cb530db014477",
+    "cacheID": "6a9cc05ba03fca4666d84204c6aceaa9",
     "id": null,
     "metadata": {},
     "name": "SpanAnnotationsCardSummaryQuery",
     "operationKind": "query",
-    "text": "query SpanAnnotationsCardSummaryQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      project {\n        ...ProjectAnnotationConfigFragment\n        id\n      }\n      ...SpanAnnotationSummaryGroup\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationSummaryGroup on Span {\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
+    "text": "query SpanAnnotationsCardSummaryQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      project {\n        ...ProjectAnnotationMetricsConfigFragment\n        id\n      }\n      ...AnnotationSummaryGroup\n    }\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment ProjectAnnotationMetricsConfigFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7f32a41074daf371819379fc68a67ad3";
+(node as any).hash = "40bc733913ec6447ab6e6fb3affc8fb3";
 
 export default node;

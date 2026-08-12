@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ab7bbc1135586551e028307d3b641791>>
+ * @generated SignedSource<<9f3a834f5a484f1700d49e70c541b795>>
  * @lightSyntaxTransform
  */
 
@@ -38,7 +38,7 @@ export type SpanAnnotationsEditorCreateAnnotationMutation$data = {
   readonly createSpanAnnotations: {
     readonly query: {
       readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationSummaryGroup" | "SpanAnnotationsEditor_spanAnnotations" | "SpanAnnotationsTable_annotations">;
+        readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup" | "SpanAnnotationsEditor_spanAnnotations" | "SpanAnnotationsTable_annotations">;
       };
       readonly project: {
         readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryValueFragment">;
@@ -286,7 +286,7 @@ return {
                       {
                         "args": null,
                         "kind": "FragmentSpread",
-                        "name": "SpanAnnotationSummaryGroup"
+                        "name": "AnnotationSummaryGroup"
                       },
                       {
                         "args": [
@@ -510,6 +510,13 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "kind": "ScalarField",
+                            "name": "updatedAt",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "concreteType": "User",
                             "kind": "LinkedField",
                             "name": "user",
@@ -552,13 +559,6 @@ return {
                             "args": null,
                             "kind": "ScalarField",
                             "name": "source",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "updatedAt",
                             "storageKey": null
                           }
                         ],
@@ -654,16 +654,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f80042e06e5667c50c2498870da41f56",
+    "cacheID": "9d17a3511003713f1020520482e9bc40",
     "id": null,
     "metadata": {},
     "name": "SpanAnnotationsEditorCreateAnnotationMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanAnnotationsEditorCreateAnnotationMutation(\n  $name: String!\n  $input: CreateSpanAnnotationInput!\n  $spanId: ID!\n  $filterUserIds: [ID]\n  $timeRange: TimeRange!\n  $projectId: ID!\n) {\n  createSpanAnnotations(input: [$input]) {\n    query {\n      project: node(id: $projectId) {\n        __typename\n        ... on Project {\n          ...AnnotationSummaryValueFragment_20r1YH\n        }\n        id\n      }\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...SpanAnnotationSummaryGroup\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n          ...SpanAnnotationsTable_annotations\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment AnnotationSummaryValueFragment_20r1YH on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          annotationType\n          id\n          optimizationDirection\n          name\n          values {\n            label\n            score\n          }\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  spanAnnotationSummary(annotationName: $name, timeRange: $timeRange) {\n    name\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n\nfragment SpanAnnotationSummaryGroup on Span {\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n\nfragment SpanAnnotationsTable_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
+    "text": "mutation SpanAnnotationsEditorCreateAnnotationMutation(\n  $name: String!\n  $input: CreateSpanAnnotationInput!\n  $spanId: ID!\n  $filterUserIds: [ID]\n  $timeRange: TimeRange!\n  $projectId: ID!\n) {\n  createSpanAnnotations(input: [$input]) {\n    query {\n      project: node(id: $projectId) {\n        __typename\n        ... on Project {\n          ...AnnotationSummaryValueFragment_20r1YH\n        }\n        id\n      }\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...AnnotationSummaryGroup\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n          ...SpanAnnotationsTable_annotations\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment AnnotationSummaryValueFragment_20r1YH on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          annotationType\n          id\n          optimizationDirection\n          name\n          values {\n            label\n            score\n          }\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  spanAnnotationSummary(annotationName: $name, timeRange: $timeRange) {\n    name\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n\nfragment SpanAnnotationsTable_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d1445834f9ab8bb3db61ec57441b582f";
+(node as any).hash = "07cb13039f734deaaaea42a644330598";
 
 export default node;

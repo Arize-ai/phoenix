@@ -45,8 +45,11 @@ export function AnnotationSummaryTokens({
   annotationsByName: Record<string, readonly Annotation[] | undefined>;
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
   showFilterActions?: boolean;
-  /** Grain-specific filter actions rendered in the popover's filters column */
-  renderFilterActions?: (annotation: Annotation) => ReactNode;
+  /** Grain-specific filter actions rendered beside each annotation value. */
+  renderFilterActions?: (
+    annotation: Annotation,
+    positiveOptimization: boolean | null | undefined
+  ) => ReactNode;
 }) {
   return (
     <>
@@ -62,8 +65,6 @@ export function AnnotationSummaryTokens({
           <AnnotationSummaryPopover
             key={latestAnnotation.id}
             annotations={annotationsByName[summary.name] ?? []}
-            width="500px"
-            meanScore={meanScore}
             annotationConfig={annotationConfig}
             showFilterActions={showFilterActions}
             renderFilterActions={renderFilterActions}

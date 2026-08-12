@@ -1,15 +1,15 @@
 import { graphql, useFragment } from "react-relay";
 
-import type { ProjectAnnotationConfigFragment$key } from "@phoenix/components/annotation/__generated__/ProjectAnnotationConfigFragment.graphql";
+import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation";
 
-import type { AnnotationOptimizationConfig } from "./optimizationUtils";
+import type { ProjectAnnotationMetricsConfigFragment$key } from "./__generated__/ProjectAnnotationMetricsConfigFragment.graphql";
 
 export function useProjectAnnotationConfigsByName(
-  project: ProjectAnnotationConfigFragment$key | null | undefined
+  project: ProjectAnnotationMetricsConfigFragment$key | null | undefined
 ): ReadonlyMap<string, AnnotationOptimizationConfig> {
   const data = useFragment(
     graphql`
-      fragment ProjectAnnotationConfigFragment on Project
+      fragment ProjectAnnotationMetricsConfigFragment on Project
       @argumentDefinitions(
         annotationConfigNames: { type: "[String!]" }
         first: { type: "Int", defaultValue: 100 }

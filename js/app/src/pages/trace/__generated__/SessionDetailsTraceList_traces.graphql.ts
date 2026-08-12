@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5eedbbb55c94eb746646d6fdd04334ec>>
+ * @generated SignedSource<<8ef733ad7e9489d70e3dbcf5020e11ee>>
  * @lightSyntaxTransform
  */
 
@@ -14,7 +14,7 @@ export type SessionDetailsTraceList_traces$data = {
   readonly id: string;
   readonly numTraces: number;
   readonly project: {
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationMetricsConfigFragment">;
   };
   readonly traces: {
     readonly edges: ReadonlyArray<{
@@ -51,7 +51,7 @@ export type SessionDetailsTraceList_traces$data = {
             readonly id: string;
             readonly " $fragmentSpreads": FragmentRefs<"TraceActionToolbar_trace" | "TraceAnnotationSummaryGroup">;
           };
-          readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationSummaryGroup">;
+          readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
         } | null;
         readonly traceId: string;
       };
@@ -162,7 +162,7 @@ return {
         {
           "args": null,
           "kind": "FragmentSpread",
-          "name": "ProjectAnnotationConfigFragment"
+          "name": "ProjectAnnotationMetricsConfigFragment"
         }
       ],
       "storageKey": null
@@ -343,7 +343,7 @@ return {
                     {
                       "args": null,
                       "kind": "FragmentSpread",
-                      "name": "SpanAnnotationSummaryGroup"
+                      "name": "AnnotationSummaryGroup"
                     }
                   ],
                   "storageKey": null
@@ -414,6 +414,6 @@ return {
 };
 })();
 
-(node as any).hash = "8f284b1ae92cf554ea536ed246157971";
+(node as any).hash = "23873e2daa1342d9a85668202b016cf2";
 
 export default node;

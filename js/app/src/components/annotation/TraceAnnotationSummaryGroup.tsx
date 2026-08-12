@@ -2,7 +2,7 @@ import React from "react";
 import { graphql, useFragment } from "react-relay";
 
 import type { TraceAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/TraceAnnotationSummaryGroup.graphql";
-import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroupStacksRow";
+import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { AnnotationSummaryTokens } from "@phoenix/components/annotation/AnnotationSummaryTokens";
 import {
   Summary,
@@ -28,6 +28,7 @@ const useTraceAnnotationSummaryGroup = (
           explanation
           annotatorKind
           createdAt
+          updatedAt
           user {
             username
             profilePictureUrl

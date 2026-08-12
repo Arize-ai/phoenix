@@ -12,7 +12,8 @@ const annotations = [
     explanation: "Grounded in the supplied context.",
     annotatorKind: "HUMAN",
     createdAt: "2026-08-07T12:00:00.000Z",
-    user: { username: "alice" },
+    updatedAt: "2026-08-07T12:05:00.000Z",
+    user: { username: "alice", profilePictureUrl: null },
   },
   {
     id: "annotation-2",
@@ -22,6 +23,7 @@ const annotations = [
     explanation: "Misses a required citation.",
     annotatorKind: "LLM",
     createdAt: "2026-08-07T11:00:00.000Z",
+    updatedAt: "2026-08-07T11:05:00.000Z",
     user: null,
   },
   {
@@ -32,7 +34,8 @@ const annotations = [
     explanation: "Explains the result without assigning a value.",
     annotatorKind: "CODE",
     createdAt: "2026-08-07T10:00:00.000Z",
-    user: { username: "bob" },
+    updatedAt: "2026-08-07T10:05:00.000Z",
+    user: { username: "bob", profilePictureUrl: null },
   },
 ] as const;
 
@@ -45,6 +48,7 @@ const explanationOnlyAnnotations = [
     explanation: "This should not produce an empty token.",
     annotatorKind: "LLM",
     createdAt: "2026-08-07T09:00:00.000Z",
+    updatedAt: "2026-08-07T09:05:00.000Z",
     user: null,
   },
 ] as const;
@@ -84,7 +88,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const HoverDetailsAndClickPopover: Story = {
+export const UnifiedHoverPreview: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const body = within(canvasElement.ownerDocument.body);
@@ -118,7 +122,6 @@ export const HoverDetailsAndClickPopover: Story = {
     await expect(preview).toHaveTextContent("Favorable score: 0.9");
     await expect(preview).toHaveTextContent("Unfavorable score: 0.1");
 
-    await userEvent.click(trigger);
     const filterPassButton = await body.findByRole("button", {
       name: "Filter pass",
     });
@@ -132,6 +135,5 @@ export const HoverDetailsAndClickPopover: Story = {
     await expect(
       within(dialog).getByRole("button", { name: "Filter fail" })
     ).toBeInTheDocument();
-    await expect(within(dialog).queryAllByRole("row")).toHaveLength(3);
   },
 };

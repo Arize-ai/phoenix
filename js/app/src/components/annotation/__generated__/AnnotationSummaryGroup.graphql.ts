@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<402c0c1d4121c0a4387d1414447a2163>>
+ * @generated SignedSource<<78ae87dd3d4c1e8e95e208a07fb0dc0d>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,7 @@
 import { ReaderFragment } from 'relay-runtime';
 export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
-export type SpanAnnotationSummaryGroup$data = {
+export type AnnotationSummaryGroup$data = {
   readonly spanAnnotationSummaries: ReadonlyArray<{
     readonly count: number;
     readonly labelCount: number;
@@ -30,16 +30,17 @@ export type SpanAnnotationSummaryGroup$data = {
     readonly label: string | null;
     readonly name: string;
     readonly score: number | null;
+    readonly updatedAt: string;
     readonly user: {
       readonly profilePictureUrl: string | null;
       readonly username: string;
     } | null;
   }>;
-  readonly " $fragmentType": "SpanAnnotationSummaryGroup";
+  readonly " $fragmentType": "AnnotationSummaryGroup";
 };
-export type SpanAnnotationSummaryGroup$key = {
-  readonly " $data"?: SpanAnnotationSummaryGroup$data;
-  readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationSummaryGroup">;
+export type AnnotationSummaryGroup$key = {
+  readonly " $data"?: AnnotationSummaryGroup$data;
+  readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
 };
 
 const node: ReaderFragment = (function(){
@@ -61,7 +62,7 @@ return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "SpanAnnotationSummaryGroup",
+  "name": "AnnotationSummaryGroup",
   "selections": [
     {
       "alias": null,
@@ -106,6 +107,13 @@ return {
           "args": null,
           "kind": "ScalarField",
           "name": "createdAt",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "updatedAt",
           "storageKey": null
         },
         {
@@ -201,6 +209,6 @@ return {
 };
 })();
 
-(node as any).hash = "bc67c1d38a765c8525f44448048b57c1";
+(node as any).hash = "de66110868b687ed7f19394ed5e2445c";
 
 export default node;

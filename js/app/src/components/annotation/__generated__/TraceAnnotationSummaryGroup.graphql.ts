@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6efa5df9d2ca744dceb78a65298da5b7>>
+ * @generated SignedSource<<295cf9c0b4ef2f44fa6bb44ce57e0aa1>>
  * @lightSyntaxTransform
  */
 
@@ -30,6 +30,7 @@ export type TraceAnnotationSummaryGroup$data = {
     readonly label: string | null;
     readonly name: string;
     readonly score: number | null;
+    readonly updatedAt: string;
     readonly user: {
       readonly profilePictureUrl: string | null;
       readonly username: string;
@@ -106,6 +107,13 @@ return {
           "args": null,
           "kind": "ScalarField",
           "name": "createdAt",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "updatedAt",
           "storageKey": null
         },
         {
@@ -201,6 +209,6 @@ return {
 };
 })();
 
-(node as any).hash = "2063d3eb17ef59cc477a7d5742b87fae";
+(node as any).hash = "aa8a0f14f520d8cfde7180ebb6676be7";
 
 export default node;

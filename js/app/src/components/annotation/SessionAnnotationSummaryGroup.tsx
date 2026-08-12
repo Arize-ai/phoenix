@@ -2,7 +2,7 @@ import React from "react";
 import { graphql, useFragment } from "react-relay";
 
 import type { SessionAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/SessionAnnotationSummaryGroup.graphql";
-import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroupStacksRow";
+import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { AnnotationSummaryTokens } from "@phoenix/components/annotation/AnnotationSummaryTokens";
 import {
   Summary,
@@ -28,6 +28,7 @@ const useSessionAnnotationSummaryGroup = (
           explanation
           annotatorKind
           createdAt
+          updatedAt
           user {
             username
             profilePictureUrl
@@ -88,18 +89,22 @@ type SessionAnnotationSummaryGroupProps = {
 
 function SessionAnnotationTooltipFilterActions({
   annotation,
+  positiveOptimization,
 }: {
   annotation: {
     name: string;
     label?: string | null;
     score?: number | null;
   };
+  positiveOptimization?: boolean | null;
 }) {
   const { appendFilterCondition } = useSessionFilters();
   return (
     <AnnotationTooltipFilterActions
       annotation={annotation}
       onAppendFilterCondition={appendFilterCondition}
+      positiveOptimization={positiveOptimization}
+      targetKind="session"
     />
   );
 }
@@ -128,8 +133,11 @@ export const SessionAnnotationSummaryGroupTokens = ({
       annotationsByName={annotationsByName}
       annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
-      renderFilterActions={(annotation) => (
-        <SessionAnnotationTooltipFilterActions annotation={annotation} />
+      renderFilterActions={(annotation, positiveOptimization) => (
+        <SessionAnnotationTooltipFilterActions
+          annotation={annotation}
+          positiveOptimization={positiveOptimization}
+        />
       )}
     />
   );

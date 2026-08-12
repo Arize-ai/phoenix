@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<29b09a0455ee9859b6f01771ceeaa55d>>
+ * @generated SignedSource<<09e9013115674aaa1f0764319e2b3297>>
  * @lightSyntaxTransform
  */
 
@@ -18,7 +18,7 @@ export type SpanAnnotationDeleteButtonMutation$data = {
   readonly deleteSpanAnnotations: {
     readonly query: {
       readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationSummaryGroup" | "SpanAnnotationsEditor_spanAnnotations" | "SpanAnnotationsTable_annotations">;
+        readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup" | "SpanAnnotationsEditor_spanAnnotations" | "SpanAnnotationsTable_annotations">;
       };
     };
   };
@@ -160,7 +160,7 @@ return {
                       {
                         "args": null,
                         "kind": "FragmentSpread",
-                        "name": "SpanAnnotationSummaryGroup"
+                        "name": "AnnotationSummaryGroup"
                       },
                       {
                         "args": [
@@ -258,6 +258,13 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "kind": "ScalarField",
+                            "name": "updatedAt",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "concreteType": "User",
                             "kind": "LinkedField",
                             "name": "user",
@@ -300,13 +307,6 @@ return {
                             "args": null,
                             "kind": "ScalarField",
                             "name": "source",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "updatedAt",
                             "storageKey": null
                           }
                         ],
@@ -432,16 +432,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f6d6587f4012be9ac803f3813b22a23d",
+    "cacheID": "753206e8c90cc911aad3e228a9fa62d3",
     "id": null,
     "metadata": {},
     "name": "SpanAnnotationDeleteButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanAnnotationDeleteButtonMutation(\n  $annotationId: ID!\n  $spanId: ID!\n  $filterUserIds: [ID]\n) {\n  deleteSpanAnnotations(input: {annotationIds: [$annotationId]}) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...SpanAnnotationSummaryGroup\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n          ...SpanAnnotationsTable_annotations\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationSummaryGroup on Span {\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n\nfragment SpanAnnotationsTable_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
+    "text": "mutation SpanAnnotationDeleteButtonMutation(\n  $annotationId: ID!\n  $spanId: ID!\n  $filterUserIds: [ID]\n) {\n  deleteSpanAnnotations(input: {annotationIds: [$annotationId]}) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...AnnotationSummaryGroup\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n          ...SpanAnnotationsTable_annotations\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n\nfragment SpanAnnotationsTable_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f92c9e1c01d18af9b097b301e2625102";
+(node as any).hash = "d15333fb1ca07548a417a09bee5d901f";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<414adaf38c3152db0b009326fa867ade>>
+ * @generated SignedSource<<275063988c6f8732ed049d3885ee8048>>
  * @lightSyntaxTransform
  */
 
@@ -83,11 +83,11 @@ export type SpansTable_spans$data = {
           readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup">;
         };
         readonly userId: string | null;
-        readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationSummaryGroup">;
+        readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigFragment" | "SpanColumnSelector_annotations" | "SpanColumnSelector_traceAnnotations">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationMetricsConfigFragment" | "SpanColumnSelector_annotations" | "SpanColumnSelector_traceAnnotations">;
   readonly " $fragmentType": "SpansTable_spans";
 };
 export type SpansTable_spans$key = {
@@ -263,7 +263,7 @@ return {
     {
       "args": null,
       "kind": "FragmentSpread",
-      "name": "ProjectAnnotationConfigFragment"
+      "name": "ProjectAnnotationMetricsConfigFragment"
     },
     {
       "args": null,
@@ -566,7 +566,7 @@ return {
                 {
                   "args": null,
                   "kind": "FragmentSpread",
-                  "name": "SpanAnnotationSummaryGroup"
+                  "name": "AnnotationSummaryGroup"
                 }
               ],
               "storageKey": null
@@ -634,6 +634,6 @@ return {
 };
 })();
 
-(node as any).hash = "ff4b6917beb7bd451330320b52d1ca5c";
+(node as any).hash = "e9faa95da74f9ad8b41804a43d038d7f";
 
 export default node;

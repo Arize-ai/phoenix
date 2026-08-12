@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<030f0e344dd3f68a779bf41e32903880>>
+ * @generated SignedSource<<9844c368f1224bd261309b5838c02d4e>>
  * @lightSyntaxTransform
  */
 
@@ -32,7 +32,7 @@ export type SessionDetailsQuery$data = {
     readonly numTraces?: number;
     readonly project?: {
       readonly id: string;
-      readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigFragment">;
+      readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationMetricsConfigFragment">;
     };
     readonly sessionId?: string;
     readonly tokenUsage?: {
@@ -249,7 +249,7 @@ return {
                   {
                     "args": null,
                     "kind": "FragmentSpread",
-                    "name": "ProjectAnnotationConfigFragment"
+                    "name": "ProjectAnnotationMetricsConfigFragment"
                   }
                 ],
                 "storageKey": null
@@ -457,6 +457,13 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "updatedAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "User",
                     "kind": "LinkedField",
                     "name": "user",
@@ -553,16 +560,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5a86ff2aaa1a2eba7209c4eaa650412f",
+    "cacheID": "98cb33318c024f1d4548ac04c7fe6c2d",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsQuery(\n  $id: ID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      project {\n        id\n        ...ProjectAnnotationConfigFragment\n      }\n      numTraces\n      tokenUsage {\n        total\n      }\n      costSummary {\n        total {\n          cost\n          tokens\n        }\n        prompt {\n          cost\n          tokens\n        }\n        completion {\n          cost\n          tokens\n        }\n      }\n      sessionId\n      latencyP50: traceLatencyMsQuantile(probability: 0.5)\n      ...SessionAnnotationSummaryGroup\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
+    "text": "query SessionDetailsQuery(\n  $id: ID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      project {\n        id\n        ...ProjectAnnotationMetricsConfigFragment\n      }\n      numTraces\n      tokenUsage {\n        total\n      }\n      costSummary {\n        total {\n          cost\n          tokens\n        }\n        prompt {\n          cost\n          tokens\n        }\n        completion {\n          cost\n          tokens\n        }\n      }\n      sessionId\n      latencyP50: traceLatencyMsQuantile(probability: 0.5)\n      ...SessionAnnotationSummaryGroup\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationMetricsConfigFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "056b1bf94576826ddca14a47799bc20a";
+(node as any).hash = "a6cfbdffe17c965ea71457ba7bdbebec";
 
 export default node;

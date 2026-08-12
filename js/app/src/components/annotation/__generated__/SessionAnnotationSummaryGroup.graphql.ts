@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<01fc752cadcd9b1cfd4a241e7da6d13f>>
+ * @generated SignedSource<<b4c02931002fd3d3e60a789b37f9ea2c>>
  * @lightSyntaxTransform
  */
 
@@ -30,6 +30,7 @@ export type SessionAnnotationSummaryGroup$data = {
     readonly label: string | null;
     readonly name: string;
     readonly score: number | null;
+    readonly updatedAt: string;
     readonly user: {
       readonly profilePictureUrl: string | null;
       readonly username: string;
@@ -106,6 +107,13 @@ return {
           "args": null,
           "kind": "ScalarField",
           "name": "createdAt",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "updatedAt",
           "storageKey": null
         },
         {
@@ -201,6 +209,6 @@ return {
 };
 })();
 
-(node as any).hash = "9b913e2a7b597ef1cbb9ac3a4bffc377";
+(node as any).hash = "bd1cd3f4fe3d1d6c64c6c28cf66ab768";
 
 export default node;

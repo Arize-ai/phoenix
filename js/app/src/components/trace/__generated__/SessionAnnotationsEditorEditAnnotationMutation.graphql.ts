@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6bd389d0acbead9d1fe4a44bac1d6ec4>>
+ * @generated SignedSource<<a0335877e06ef85391fbd0c5bdd6e900>>
  * @lightSyntaxTransform
  */
 
@@ -430,12 +430,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "46afe9bffb169dff89217e05e251e8ce",
+    "cacheID": "5cbcbd2dbd138bf303e4a764cefbdfea",
     "id": null,
     "metadata": {},
     "name": "SessionAnnotationsEditorEditAnnotationMutation",
     "operationKind": "mutation",
-    "text": "mutation SessionAnnotationsEditorEditAnnotationMutation(\n  $sessionId: ID!\n  $annotationId: ID!\n  $name: String!\n  $label: String\n  $score: Float\n  $explanation: String\n) {\n  updateProjectSessionAnnotations(input: {id: $annotationId, name: $name, label: $label, score: $score, explanation: $explanation, annotatorKind: HUMAN, source: APP, metadata: {}}) {\n    query {\n      node(id: $sessionId) {\n        __typename\n        ... on ProjectSession {\n          ...SessionAnnotationsEditor_sessionAnnotations\n          ...SessionAnnotationsTable_annotations\n          ...SessionAnnotationSummaryGroup\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionAnnotationsEditor_sessionAnnotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment SessionAnnotationsTable_annotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
+    "text": "mutation SessionAnnotationsEditorEditAnnotationMutation(\n  $sessionId: ID!\n  $annotationId: ID!\n  $name: String!\n  $label: String\n  $score: Float\n  $explanation: String\n) {\n  updateProjectSessionAnnotations(input: {id: $annotationId, name: $name, label: $label, score: $score, explanation: $explanation, annotatorKind: HUMAN, source: APP, metadata: {}}) {\n    query {\n      node(id: $sessionId) {\n        __typename\n        ... on ProjectSession {\n          ...SessionAnnotationsEditor_sessionAnnotations\n          ...SessionAnnotationsTable_annotations\n          ...SessionAnnotationSummaryGroup\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionAnnotationsEditor_sessionAnnotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment SessionAnnotationsTable_annotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
   }
 };
 })();

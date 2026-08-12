@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<53ae79b3eff671c189936c8d1ec76f92>>
+ * @generated SignedSource<<f4fc844cd9046b03463a5f7d35415427>>
  * @lightSyntaxTransform
  */
 
@@ -63,7 +63,7 @@ export type SessionsTable_sessions$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigFragment" | "SessionColumnSelector_annotations">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationMetricsConfigFragment" | "SessionColumnSelector_annotations">;
   readonly " $fragmentType": "SessionsTable_sessions";
 };
 export type SessionsTable_sessions$key = {
@@ -173,7 +173,7 @@ return {
     {
       "args": null,
       "kind": "FragmentSpread",
-      "name": "ProjectAnnotationConfigFragment"
+      "name": "ProjectAnnotationMetricsConfigFragment"
     },
     {
       "args": null,
@@ -524,6 +524,6 @@ return {
 };
 })();
 
-(node as any).hash = "febf7719122939a067e33234724d452e";
+(node as any).hash = "8bb998a55d17befc2a3f9f7ec64ade0b";
 
 export default node;

@@ -28,10 +28,9 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
-import { SpanAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SpanAnnotationSummaryGroup";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
-import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -71,6 +70,7 @@ import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
+import { useProjectAnnotationConfigsByName } from "@phoenix/pages/project/metrics/useProjectAnnotationConfigsByName";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
@@ -310,7 +310,7 @@ export function SpansTable(props: SpansTableProps) {
         ) {
           name
           spanAnnotationNames
-          ...ProjectAnnotationConfigFragment
+          ...ProjectAnnotationMetricsConfigFragment
           ...SpanColumnSelector_annotations
           ...SpanColumnSelector_traceAnnotations
           spans(
@@ -386,7 +386,7 @@ export function SpansTable(props: SpansTableProps) {
                     cost
                   }
                 }
-                ...SpanAnnotationSummaryGroup
+                ...AnnotationSummaryGroup
               }
             }
           }
@@ -548,7 +548,7 @@ export function SpansTable(props: SpansTableProps) {
       cell: ({ row }) => {
         return (
           <OverflowRow isExpanded={areRowsExpanded}>
-            <SpanAnnotationSummaryGroupTokens
+            <AnnotationSummaryGroupTokens
               span={row.original}
               annotationConfigsByName={annotationConfigsByName}
               showFilterActions

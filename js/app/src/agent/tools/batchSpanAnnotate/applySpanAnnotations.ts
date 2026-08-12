@@ -115,7 +115,7 @@ function commitCreateSpanAnnotations({
               span {
                 id
                 __typename
-                ...SpanAnnotationSummaryGroup
+                ...AnnotationSummaryGroup
                 ...SpanAnnotationsEditor_spanAnnotations
                   @arguments(filterUserIds: $filterUserIds)
                 ...SpanAnnotationsTable_annotations

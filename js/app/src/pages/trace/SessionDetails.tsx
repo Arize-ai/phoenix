@@ -30,12 +30,12 @@ import {
 } from "@phoenix/components";
 import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation/optimizationUtils";
 import { SessionAnnotationSummaryGroupStacks } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
-import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionAnnotationsEditor } from "@phoenix/components/trace/SessionAnnotationsEditor";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { SESSION_VIEW_PARAM } from "@phoenix/constants/searchParams";
+import { useProjectAnnotationConfigsByName } from "@phoenix/pages/project/metrics/useProjectAnnotationConfigsByName";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { costFormatter } from "../../utils/numberFormatUtils";
@@ -215,7 +215,7 @@ export function SessionDetails(props: SessionDetailsProps) {
           ... on ProjectSession {
             project {
               id
-              ...ProjectAnnotationConfigFragment
+              ...ProjectAnnotationMetricsConfigFragment
             }
             numTraces
             tokenUsage {

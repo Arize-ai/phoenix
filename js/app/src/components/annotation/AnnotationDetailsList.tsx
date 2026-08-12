@@ -1,11 +1,12 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
 import { Flex, Text } from "@phoenix/components";
-import { AnnotationColorSwatch } from "@phoenix/components/annotation/AnnotationColorSwatch";
+import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import { AnnotationScoreText } from "./AnnotationScoreText";
 import {
   getPositiveOptimizationFromConfig,
   type AnnotationOptimizationConfig,
@@ -13,8 +14,8 @@ import {
 import type { Annotation } from "./types";
 
 const annotationDetailsHeaderCSS = css`
-  padding: var(--global-dimension-size-200) var(--global-dimension-size-200)
-    var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-200);
+  border-bottom: 1px solid var(--global-border-color-default);
 `;
 
 const annotationListCSS = css`
@@ -23,42 +24,47 @@ const annotationListCSS = css`
   max-height: 400px;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 0 var(--global-dimension-size-200) var(--global-dimension-size-200);
+  padding: 0;
 
   > li {
-    padding-block: var(--global-dimension-size-100);
-    border-bottom: 1px solid var(--global-border-color-default);
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-100);
+    padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
   }
 
-  > li:last-of-type {
-    border-bottom: 0;
-    padding-bottom: 0;
+  > li + li {
+    border-top: 1px solid var(--global-border-color-default);
   }
 `;
 
-function DetailRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Flex direction="row" justifyContent="space-between" gap="size-200">
-      <Text weight="heavy" color="inherit">
-        {label}
-      </Text>
-      {children}
-    </Flex>
-  );
-}
+const annotationValueCSS = css`
+  display: flex;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+  min-width: 0;
+`;
+
+const explanationCSS = css`
+  display: -webkit-box;
+  width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+`;
 
 export function AnnotationDetailsList({
   annotations,
   annotationConfig,
+  renderFilterActions,
 }: {
   annotations: readonly Annotation[];
   annotationConfig?: AnnotationOptimizationConfig;
+  renderFilterActions?: (
+    annotation: Annotation,
+    positiveOptimization: boolean | null | undefined
+  ) => ReactNode;
 }) {
   const annotationName = annotations[0]?.name;
   if (annotationName == null) {
@@ -67,64 +73,85 @@ export function AnnotationDetailsList({
 
   return (
     <div>
-      <Flex
-        css={annotationDetailsHeaderCSS}
-        direction="row"
-        gap="size-100"
-        alignItems="center"
-      >
-        <AnnotationColorSwatch annotationName={annotationName} />
-        <Text weight="heavy" color="inherit" size="L" elementType="h3">
-          {annotationName}
+      <header css={annotationDetailsHeaderCSS}>
+        <Text
+          weight="heavy"
+          color="inherit"
+          size="L"
+          elementType="h3"
+          title={annotationName}
+        >
+          <Truncate maxWidth="400px">{annotationName}</Truncate>
         </Text>
-      </Flex>
-      <ul css={annotationListCSS}>
-        {annotations.map((annotation, index) => (
-          <li key={annotation.id ?? `${annotation.createdAt}-${index}`}>
-            <Flex direction="column" gap="size-50">
-              <DetailRow label="label">
-                <Text color="inherit" title={annotation.label ?? undefined}>
-                  <Truncate maxWidth="240px">
-                    {annotation.label || "--"}
-                  </Truncate>
-                </Text>
-              </DetailRow>
-              <DetailRow label="score">
-                <AnnotationScoreText
-                  elementType="span"
-                  fontFamily="mono"
-                  positiveOptimization={getPositiveOptimizationFromConfig({
-                    config: annotationConfig,
-                    score: annotation.score,
-                  })}
-                >
-                  {floatFormatter(annotation.score)}
-                </AnnotationScoreText>
-              </DetailRow>
-              <DetailRow label="annotator kind">
-                <Text color="inherit">{annotation.annotatorKind || "--"}</Text>
-              </DetailRow>
-              <DetailRow label="author">
-                <Text color="inherit">
-                  {annotation.user?.username ?? "system"}
-                </Text>
-              </DetailRow>
-              <DetailRow label="created at">
-                <Text color="inherit">
-                  {annotation.createdAt
-                    ? new Date(annotation.createdAt).toLocaleString()
-                    : "--"}
-                </Text>
-              </DetailRow>
-              <Flex direction="column" gap="size-25">
-                <Text weight="heavy" color="inherit">
-                  explanation
-                </Text>
-                <Text color="inherit">{annotation.explanation || "--"}</Text>
+      </header>
+      <ul css={annotationListCSS} aria-label={`${annotationName} annotations`}>
+        {annotations.map((annotation, index) => {
+          const positiveOptimization = getPositiveOptimizationFromConfig({
+            config: annotationConfig,
+            score: annotation.score,
+          });
+          const modifiedTitle = annotation.updatedAt
+            ? `Modified: ${new Date(annotation.updatedAt).toLocaleString()}`
+            : undefined;
+          const username = annotation.user?.username ?? "system";
+          const hasValue = annotation.score != null || annotation.label != null;
+          return (
+            <li key={annotation.id ?? `${annotation.createdAt}-${index}`}>
+              <Flex
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                gap="size-100"
+              >
+                <div css={annotationValueCSS} title={modifiedTitle}>
+                  {annotation.score != null ? (
+                    <AnnotationScoreText
+                      elementType="span"
+                      fontFamily="mono"
+                      positiveOptimization={positiveOptimization}
+                    >
+                      {floatFormatter(annotation.score)}
+                    </AnnotationScoreText>
+                  ) : null}
+                  {annotation.label != null ? (
+                    <Text title={annotation.label}>
+                      <Truncate maxWidth="260px">{annotation.label}</Truncate>
+                    </Text>
+                  ) : null}
+                  {!hasValue ? <Text color="text-500">--</Text> : null}
+                </div>
+                {renderFilterActions
+                  ? renderFilterActions(annotation, positiveOptimization)
+                  : null}
               </Flex>
-            </Flex>
-          </li>
-        ))}
+              <Flex
+                direction="row"
+                alignItems="center"
+                gap="size-100"
+                minWidth={0}
+              >
+                <UserPicture
+                  name={annotation.user?.username}
+                  profilePictureUrl={annotation.user?.profilePictureUrl}
+                  size={16}
+                />
+                <Text color="text-500">
+                  <Truncate maxWidth="260px">{username}</Truncate>
+                </Text>
+                {annotation.annotatorKind ? (
+                  <Text color="text-500" size="XS">
+                    {annotation.annotatorKind}
+                  </Text>
+                ) : null}
+              </Flex>
+              {annotation.explanation ? (
+                <Text css={explanationCSS} color="text-500">
+                  {annotation.explanation}
+                </Text>
+              ) : null}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

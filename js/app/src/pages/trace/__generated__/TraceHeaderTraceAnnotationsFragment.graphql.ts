@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<689c036a72e1da23cbfd3b5214c32d3c>>
+ * @generated SignedSource<<670b2a371d9f20caa03bfce66fe95741>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type TraceHeaderTraceAnnotationsFragment$data = {
   readonly project: {
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationMetricsConfigFragment">;
   };
   readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup">;
   readonly " $fragmentType": "TraceHeaderTraceAnnotationsFragment";
@@ -38,7 +38,7 @@ const node: ReaderFragment = {
         {
           "args": null,
           "kind": "FragmentSpread",
-          "name": "ProjectAnnotationConfigFragment"
+          "name": "ProjectAnnotationMetricsConfigFragment"
         }
       ],
       "storageKey": null
@@ -53,6 +53,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "d95c0e4dc286aa9ea76fca425b5253da";
+(node as any).hash = "09312f631f8a5254e6d717e7f19c66de";
 
 export default node;

@@ -15,7 +15,6 @@ export type {
   LabelProps,
   FieldErrorProps,
   DialogTriggerProps,
-  PreviewTriggerProps,
   DateValue,
   TimeValue,
   Selection,

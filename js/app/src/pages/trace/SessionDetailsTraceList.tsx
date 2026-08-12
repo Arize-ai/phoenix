@@ -34,10 +34,9 @@ import {
 } from "@phoenix/components";
 import { MessageActions } from "@phoenix/components/ai/message/MessageActions";
 import { MessageCopyAction } from "@phoenix/components/ai/message/MessageCopyAction";
+import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation/optimizationUtils";
-import { SpanAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SpanAnnotationSummaryGroup";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
-import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
@@ -53,6 +52,7 @@ import {
 } from "@phoenix/constants/searchParams";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
+import { useProjectAnnotationConfigsByName } from "@phoenix/pages/project/metrics/useProjectAnnotationConfigsByName";
 import type {
   SessionDetailsTraceList_traces$data,
   SessionDetailsTraceList_traces$key,
@@ -295,7 +295,7 @@ function RootSpanOutputMetadata({
             annotationConfigsByName={annotationConfigsByName}
             renderEmptyState={() => null}
           />
-          <SpanAnnotationSummaryGroupTokens
+          <AnnotationSummaryGroupTokens
             span={rootSpan}
             annotationConfigsByName={annotationConfigsByName}
             renderEmptyState={() => null}
@@ -633,7 +633,7 @@ export function SessionDetailsTraceList({
       ) {
         numTraces
         project {
-          ...ProjectAnnotationConfigFragment
+          ...ProjectAnnotationMetricsConfigFragment
         }
         traces(first: $first, after: $after)
           @connection(key: "SessionDetailsTraceList_traces") {
@@ -673,7 +673,7 @@ export function SessionDetailsTraceList({
                 startTime
                 endTime
                 spanId
-                ...SpanAnnotationSummaryGroup
+                ...AnnotationSummaryGroup
               }
             }
           }
