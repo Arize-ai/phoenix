@@ -612,7 +612,7 @@ def _timestamp_comparison_pairs(
     return []
 
 
-def _is_quantifier_call(node: Optional[exp.Expression]) -> bool:
+def _is_quantifier_call(node: Optional[exp.Expr]) -> bool:
     """Whether this node is ANY / ALL / SOME written as a function call.
 
     `ANY(ARRAY[...])` parses as `exp.Any`. `ALL(ARRAY[...])` and `SOME(...)`
@@ -622,7 +622,7 @@ def _is_quantifier_call(node: Optional[exp.Expression]) -> bool:
     return isinstance(node, exp.Anonymous) and (node.name or "").casefold() in _QUANTIFIER_NAMES
 
 
-def _is_quantifier(node: Optional[exp.Expression]) -> bool:
+def _is_quantifier(node: Optional[exp.Expr]) -> bool:
     """ANY / ALL / SOME, whether parsed as a node or as a function call."""
     return isinstance(node, (exp.Any, exp.All)) or _is_quantifier_call(node)
 
