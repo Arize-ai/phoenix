@@ -7,7 +7,7 @@ from phoenix.client.__generated__ import v1
 from phoenix.evals.evaluators import Score
 
 from evals.pxi.online_evals.models import EvaluatorSpec
-from evals.pxi.online_evals.topology import PXI_TURN_ROOT_NAME, classify_tool_spans
+from evals.pxi.online_evals.topology import PXI_TURN_ROOT_SELECTOR, classify_tool_spans
 
 
 def _tool_name(span: v1.Span) -> str:
@@ -43,7 +43,7 @@ async def evaluate_tool_count_per_turn(root: v1.Span, spans: Sequence[v1.Span]) 
 
 TOOL_COUNT_PER_TURN = EvaluatorSpec(
     name="tool_count_per_turn",
-    root_span_name=PXI_TURN_ROOT_NAME,
+    selector=PXI_TURN_ROOT_SELECTOR,
     evaluate=evaluate_tool_count_per_turn,
     annotator_kind="CODE",
     sample_rate=1.0,

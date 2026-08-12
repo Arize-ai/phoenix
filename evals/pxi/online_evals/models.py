@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Literal, Optional
 
@@ -8,32 +8,73 @@ from phoenix.client.__generated__ import v1
 from phoenix.evals.evaluators import Score
 
 EvaluateArtifact = Callable[[v1.Span, Sequence[v1.Span]], Awaitable[Optional[Score]]]
-"""Evaluate one turn given its root span and every hydrated span in its trace.
+"""Evaluate a target span with all hydrated spans from its trace."""
 
-Returns a :class:`phoenix.evals.evaluators.Score`, or ``None`` when the turn
-is not applicable to this evaluator.
-"""
+
+@dataclass(frozen=True)
+class SpanSelector:
+    """Hashable ``get_spans`` filters used for evaluator target discovery."""
+
+    names: tuple[str, ...] = ()
+
+    span_kinds: tuple[str, ...] = ()
+
+    parent_id: Optional[str] = None
+
+    attributes: tuple[tuple[str, str], ...] = ()
+
+    def __init__(
+        self,
+        *,
+        names: Sequence[str] = (),
+        span_kinds: Sequence[str] = (),
+        parent_id: Optional[str] = None,
+        attributes: Mapping[str, str] | None = None,
+    ) -> None:
+        if attributes is None:
+            attributes = {}
+        if any(not isinstance(name, str) or not name for name in names):
+            raise ValueError("names must contain only non-empty span names")
+        if any(not isinstance(kind, str) or not kind for kind in span_kinds):
+            raise ValueError("span_kinds must contain only non-empty strings")
+        if any(not isinstance(key, str) or not key for key in attributes):
+            raise ValueError("attributes must contain only non-empty keys")
+        if any(not isinstance(value, str) for value in attributes.values()):
+            raise ValueError("attributes must contain only string values")
+        if not names and not attributes:
+            raise ValueError("a selector needs at least one name or attribute filter")
+        object.__setattr__(self, "names", tuple(names))
+        object.__setattr__(self, "span_kinds", tuple(span_kinds))
+        object.__setattr__(self, "parent_id", parent_id)
+        object.__setattr__(self, "attributes", tuple(sorted(attributes.items())))
+
+    def matches(self, span: v1.Span) -> bool:
+        if self.names and span["name"] not in self.names:
+            return False
+        if self.span_kinds and span.get("span_kind") not in self.span_kinds:
+            return False
+        if self.attributes:
+            span_attributes = span.get("attributes", {})
+            if any(span_attributes.get(key) != value for key, value in self.attributes):
+                return False
+        if self.parent_id is not None:
+            expected_parent_id = None if self.parent_id == "null" else self.parent_id
+            if span.get("parent_id") != expected_parent_id:
+                return False
+        return True
 
 
 @dataclass(frozen=True)
 class EvaluatorSpec:
-    """The scheduling policy that varies by evaluator.
-
-    Everything else — applicability, judge configuration, input extraction —
-    lives inside the ``evaluate`` function itself. LLM evaluators
-    (``annotator_kind="LLM"``) share one judge provider/model (see
-    :mod:`evals.pxi.online_evals.judge`); the runner validates the judge
-    credentials for them and appends ``provider:model`` to their checkpoint
-    identifier so a model change starts a new result series.
-    """
+    """An evaluator and its scheduling and checkpoint policy."""
 
     name: str
-    root_span_name: str
+    selector: SpanSelector
+
     evaluate: EvaluateArtifact
     annotator_kind: Literal["CODE", "LLM"]
     sample_rate: float = 1.0
     identifier: str = "pxi-online-evals"
-    """Versioned checkpoint identity; bump ``vN`` when scoring semantics change."""
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.sample_rate <= 1.0:
