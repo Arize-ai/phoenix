@@ -83,6 +83,7 @@ from phoenix.config import (
     get_env_online_eval_enabled,
     get_env_online_eval_max_outstanding,
     get_env_online_eval_pending_ttl_seconds,
+    get_env_online_eval_session_sweep_enabled,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
@@ -160,6 +161,7 @@ from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
+from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
@@ -659,6 +661,7 @@ def _lifespan(
     sandbox_runtime: SandboxRuntimeContext,
     online_eval_producer: Optional[OnlineEvalProducer] = None,
     online_eval_consumer: Optional[OnlineEvalConsumer] = None,
+    online_eval_session_sweeper: Optional[SessionEvalSweeper] = None,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -725,6 +728,8 @@ def _lifespan(
                 await stack.enter_async_context(online_eval_consumer)
             if online_eval_producer is not None:
                 await stack.enter_async_context(online_eval_producer)
+            if online_eval_session_sweeper is not None:
+                await stack.enter_async_context(online_eval_session_sweeper)
             if docs_mcp_server is not None:
                 # The docs MCP server connects to an external host during
                 # startup. Never let its initialization (which can hang until a
@@ -1090,6 +1095,7 @@ def create_app(
     )
     online_eval_producer: Optional[OnlineEvalProducer] = None
     online_eval_consumer: Optional[OnlineEvalConsumer] = None
+    online_eval_session_sweeper: Optional[SessionEvalSweeper] = None
     if get_env_online_eval_enabled() and not read_only:
         claim_batch_size = get_env_online_eval_claim_batch_size()
         tick_interval_seconds = get_env_online_eval_consumer_tick_interval_seconds()
@@ -1121,6 +1127,8 @@ def create_app(
             tick_interval_seconds=tick_interval_seconds,
             claim_batch_size=claim_batch_size,
         )
+        if get_env_online_eval_session_sweep_enabled():
+            online_eval_session_sweeper = SessionEvalSweeper(db)
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
         db=db,
@@ -1174,6 +1182,7 @@ def create_app(
             sandbox_runtime=sandbox_runtime,
             online_eval_producer=online_eval_producer,
             online_eval_consumer=online_eval_consumer,
+            online_eval_session_sweeper=online_eval_session_sweeper,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
@@ -1399,6 +1408,7 @@ def create_app(
     app.state.sandbox_runtime = sandbox_runtime
     app.state.online_eval_producer = online_eval_producer
     app.state.online_eval_consumer = online_eval_consumer
+    app.state.online_eval_session_sweeper = online_eval_session_sweeper
     app.state.graphql_schema = graphql_schema
     # Snapshot the provider allow-list once at app creation so the REST and
     # GraphQL surfaces answer from the same (startup-validated) value.
