@@ -48,7 +48,8 @@ export function AnnotationSummaryTokens({
   /** Grain-specific filter actions rendered beside each annotation value. */
   renderFilterActions?: (
     annotation: Annotation,
-    positiveOptimization: boolean | null | undefined
+    positiveOptimization: boolean | null | undefined,
+    onOpenChange: (isOpen: boolean) => void
   ) => ReactNode;
 }) {
   return (

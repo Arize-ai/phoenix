@@ -37,6 +37,7 @@ type AnnotationTooltipFilterActionsProps = {
     label?: string | null;
     score?: number | null;
   }) => AnnotationFilterDefinition[];
+  onOpenChange?: (isOpen: boolean) => void;
   positiveOptimization?: boolean | null;
   targetKind?: "session" | "span" | "trace";
 };
@@ -46,21 +47,8 @@ const filterActionsCSS = css`
   display: inline-flex;
   justify-content: flex-end;
   flex: none;
+  width: var(--global-button-height-s);
   height: var(--global-button-height-s);
-
-  .annotation-filter-actions__sizer {
-    visibility: hidden;
-    pointer-events: none;
-    display: flex;
-    align-items: center;
-    gap: var(--global-dimension-size-100);
-    box-sizing: border-box;
-    height: var(--global-button-height-s);
-    padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
-    border: 1px solid transparent;
-    font-size: var(--global-dimension-font-size-100);
-    white-space: nowrap;
-  }
 
   .annotation-filter-actions__trigger {
     position: absolute;
@@ -75,10 +63,12 @@ const filterActionsCSS = css`
   }
 
   &:has(.annotation-filter-actions__trigger[data-hovered]),
-  &:focus-within,
-  &:has(.annotation-filter-actions__trigger[data-pressed]) {
+  &:has(.annotation-filter-actions__trigger[data-focus-visible]),
+  &:has(.annotation-filter-actions__trigger[aria-expanded="true"]) {
     .annotation-filter-actions__trigger {
       width: auto;
+      background-color: var(--global-input-field-background-color);
+      border-color: var(--global-input-field-border-color);
     }
 
     .annotation-filter-actions__trigger-label {
@@ -92,7 +82,7 @@ const annotationFilterMenuCSS = css`
 `;
 
 const truncatedAnnotationValueCSS = css`
-  display: inline-block;
+  display: block;
   max-width: var(--global-dimension-size-3000);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -139,11 +129,7 @@ export function AnnotationTooltipFilterActions(
 
   return (
     <div className={className} css={filterActionsCSS}>
-      <span className="annotation-filter-actions__sizer" aria-hidden="true">
-        <Icon svg={<Icons.ListFilter />} />
-        <span>Filter</span>
-      </span>
-      <MenuTrigger>
+      <MenuTrigger onOpenChange={props.onOpenChange}>
         <Button
           className="annotation-filter-actions__trigger"
           size="S"
@@ -156,7 +142,6 @@ export function AnnotationTooltipFilterActions(
           </span>
         </Button>
         <MenuContainer
-          data-annotation-filter-menu
           placement="right top"
           isNonModal
           minHeight={0}

@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
+import { useRef, useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 
 import {
@@ -51,18 +52,33 @@ export function AnnotationSummaryPopover({
   showFilterActions?: boolean;
   renderFilterActions?: (
     annotation: Annotation,
-    positiveOptimization: boolean | null | undefined
+    positiveOptimization: boolean | null | undefined,
+    onOpenChange: (isOpen: boolean) => void
   ) => ReactNode;
 }) {
   const prototypicalAnnotation = annotations[0];
+  const shouldKeepPreviewOpenRef = useRef(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   if (!prototypicalAnnotation) {
     return null;
   }
 
+  const onPreviewOpenChange = (isNextOpen: boolean) => {
+    if (!isNextOpen && shouldKeepPreviewOpenRef.current) {
+      return;
+    }
+    setIsOpen(isNextOpen);
+  };
+
+  const onFilterMenuOpenChange = (isNextOpen: boolean) => {
+    shouldKeepPreviewOpenRef.current = isNextOpen;
+    setIsOpen(isNextOpen);
+  };
+
   return (
     <StopPropagation>
-      <PreviewTrigger>
+      <PreviewTrigger isOpen={isOpen} onOpenChange={onPreviewOpenChange}>
         <AriaButton
           css={annotationSummaryTriggerCSS}
           aria-label={`View ${prototypicalAnnotation.name} annotation details`}
@@ -74,9 +90,6 @@ export function AnnotationSummaryPopover({
           offset={8}
           placement="right top"
           isNonModal
-          shouldCloseOnInteractOutside={(element) =>
-            !element.closest("[data-annotation-filter-menu]")
-          }
         >
           <PopoverArrow />
           <Dialog
@@ -89,12 +102,17 @@ export function AnnotationSummaryPopover({
                 showFilterActions
                   ? (annotation, positiveOptimization) =>
                       renderFilterActions ? (
-                        renderFilterActions(annotation, positiveOptimization)
+                        renderFilterActions(
+                          annotation,
+                          positiveOptimization,
+                          onFilterMenuOpenChange
+                        )
                       ) : (
                         <SpanAnnotationTooltipFilterActions
                           annotation={annotation}
                           positiveOptimization={positiveOptimization}
                           targetKind="span"
+                          onOpenChange={onFilterMenuOpenChange}
                         />
                       )
                   : undefined
