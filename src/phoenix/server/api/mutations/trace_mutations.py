@@ -100,6 +100,11 @@ class TraceMutationMixin:
             source_project_ids = set(trace.project_rowid for trace in traces)
             if len(source_project_ids) > 1:
                 raise BadRequest("Cannot transfer traces from multiple projects")
+            if any(trace.project_session_rowid is not None for trace in traces):
+                raise BadRequest(
+                    "Cannot transfer traces attached to a session; remove the session "
+                    "association before transferring them"
+                )
 
             await session.execute(
                 update(models.Trace)
