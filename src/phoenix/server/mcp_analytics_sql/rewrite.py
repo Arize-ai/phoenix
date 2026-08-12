@@ -730,10 +730,10 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
 
     for node in list(root.find_all(exp.Column)):
         if (node.name or "").lower() == "latency_ms" and not query_local.is_local(node):
-            duration_sources, aliases = duration_scope.get(id(node), (0, frozenset()))
+            duration_sources, scope_aliases = duration_scope.get(id(node), (0, frozenset()))
             qualifier = (node.table or "").casefold()
             if qualifier:
-                if qualifier not in aliases:
+                if qualifier not in scope_aliases:
                     continue
             elif duration_sources != 1:
                 continue
@@ -886,7 +886,8 @@ def _limit_count_expression(limit: exp.Expression) -> Optional[exp.Expression]:
     ``exp.Fetch`` is not a subclass of ``exp.Limit``.
     """
     if isinstance(limit, exp.Limit):
-        return limit.expression
+        count = limit.expression
+        return count if isinstance(count, exp.Expression) else None
     if isinstance(limit, exp.Fetch):
         count = limit.args.get("count")
         return count if isinstance(count, exp.Expression) else exp.Literal.number(1)
@@ -1049,9 +1050,7 @@ def _replace_membership_members(container: exp.Expression, ids: list[int]) -> No
         container.set("expressions", [exp.Tuple(expressions=[number]) for number in numbers])
 
 
-def _quantifier_requires_every_member(
-    comparison: exp.Expression, quantifier: exp.Expression
-) -> bool:
+def _quantifier_requires_every_member(comparison: exp.Expr, quantifier: exp.Expression) -> bool:
     """Whether dropping an undecodable member would change this comparison.
 
     ``x = ALL(a, b)`` is true only if x equals both; dropping a never-matching
