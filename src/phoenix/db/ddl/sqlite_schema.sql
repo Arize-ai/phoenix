@@ -19,13 +19,38 @@ CREATE TABLE annotation_configs (
 );
 
 
--- Table: deployment_secret
+-- Table: eval_work_cursors
 -- ------------------------
-CREATE TABLE deployment_secret (
+CREATE TABLE eval_work_cursors (
     id INTEGER NOT NULL,
-    seed BLOB NOT NULL,
-    CONSTRAINT pk_deployment_secret PRIMARY KEY (id),
-    CONSTRAINT "ck_deployment_secret_`singleton`" CHECK (id = 1)
+    evaluation_target VARCHAR NOT NULL
+        CONSTRAINT "ck_eval_work_cursors_`valid_evaluation_target`"
+        CHECK (evaluation_target IN ('SPAN', 'TRACE', 'SESSION')),
+    consumer_group VARCHAR NOT NULL,
+    produced_through_id INTEGER DEFAULT '0' NOT NULL,
+    observed_high_water_id INTEGER,
+    observed_at TIMESTAMP,
+    claimed_at TIMESTAMP,
+    claimed_by VARCHAR,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_eval_work_cursors PRIMARY KEY (id),
+    CONSTRAINT uq_eval_work_cursors_evaluation_target_consumer_group
+        UNIQUE (evaluation_target, consumer_group)
+);
+
+
+-- Table: eval_work_leases
+-- -----------------------
+CREATE TABLE eval_work_leases (
+    id INTEGER NOT NULL,
+    name VARCHAR NOT NULL,
+    holder VARCHAR,
+    heartbeat_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_eval_work_leases PRIMARY KEY (id),
+    CONSTRAINT uq_eval_work_leases_name UNIQUE (name)
 );
 
 
@@ -148,6 +173,8 @@ CREATE TABLE project_sessions (
     project_id INTEGER NOT NULL,
     start_time TIMESTAMP NOT NULL,
     end_time TIMESTAMP NOT NULL,
+    last_span_ingested_at TIMESTAMP,
+    content_complete BOOLEAN DEFAULT true NOT NULL,
     CONSTRAINT pk_project_sessions PRIMARY KEY (id),
     CONSTRAINT uq_project_sessions_session_id UNIQUE (session_id),
     CONSTRAINT fk_project_sessions_project_id_projects
@@ -158,6 +185,9 @@ CREATE TABLE project_sessions (
 
 CREATE INDEX ix_project_sessions_project_id_end_time ON project_sessions
     (project_id, end_time DESC);
+CREATE INDEX ix_project_sessions_project_id_last_span_ingested_at ON project_sessions
+    (project_id, last_span_ingested_at)
+    WHERE last_span_ingested_at IS NOT NULL;
 CREATE INDEX ix_project_sessions_project_id_start_time ON project_sessions
     (project_id, start_time DESC);
 
@@ -216,15 +246,6 @@ CREATE TABLE prompts_prompt_labels (
 );
 
 CREATE INDEX ix_prompts_prompt_labels_prompt_id ON prompts_prompt_labels (prompt_id);
-
-
--- Table: system_state
--- -------------------
-CREATE TABLE system_state (
-    "key" VARCHAR NOT NULL,
-    value JSONB NOT NULL,
-    CONSTRAINT pk_system_state PRIMARY KEY ("key")
-);
 
 
 -- Table: token_prices
@@ -448,14 +469,13 @@ CREATE UNIQUE INDEX ix_users_username ON users (username);
 -- ---------------
 CREATE TABLE api_keys (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
+    user_id INTEGER,
     name VARCHAR NOT NULL,
     description VARCHAR,
-    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     expires_at TIMESTAMP,
     scopes JSONB,
     audience JSONB,
-    token_hash BLOB,
     CONSTRAINT fk_api_keys_user_id_users
         FOREIGN KEY (user_id)
         REFERENCES users (id)
@@ -671,7 +691,7 @@ CREATE TABLE document_annotations (
     CONSTRAINT uq_document_annotations_name_span_rowid_document_pos_identifier
         UNIQUE (name, span_rowid, document_position, identifier),
     CONSTRAINT "ck_document_annotations_`valid_annotator_kind`"
-        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')),
+        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN')),
     CONSTRAINT "ck_document_annotations_`valid_source`" CHECK (source IN ('API', 'APP')),
     CONSTRAINT fk_document_annotations_span_rowid_spans
         FOREIGN KEY (span_rowid)
@@ -948,7 +968,9 @@ CREATE TABLE experiment_run_annotations (
     id INTEGER NOT NULL,
     experiment_run_id INTEGER NOT NULL,
     name VARCHAR NOT NULL,
-    annotator_kind VARCHAR NOT NULL,
+    annotator_kind VARCHAR NOT NULL
+        CONSTRAINT "ck_experiment_run_annotations_`valid_annotator_kind`"
+        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN')),
     label VARCHAR,
     score FLOAT,
     explanation VARCHAR,
@@ -960,8 +982,6 @@ CREATE TABLE experiment_run_annotations (
     CONSTRAINT pk_experiment_run_annotations PRIMARY KEY (id),
     CONSTRAINT uq_experiment_run_annotations_experiment_run_id_name
         UNIQUE (experiment_run_id, name),
-    CONSTRAINT "ck_experiment_run_annotations_`valid_annotator_kind`"
-        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')),
     CONSTRAINT fk_experiment_run_annotations_experiment_run_id_experiment_runs
         FOREIGN KEY (experiment_run_id)
         REFERENCES experiment_runs (id)
@@ -1231,10 +1251,9 @@ CREATE INDEX ix_oauth2_grants_user_id ON oauth2_grants (user_id);
 -- ----------------------------
 CREATE TABLE password_reset_tokens (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    user_id INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     expires_at TIMESTAMP NOT NULL,
-    token_hash BLOB,
     CONSTRAINT fk_password_reset_tokens_user_id_users
         FOREIGN KEY (user_id)
         REFERENCES users (id)
@@ -1243,6 +1262,142 @@ CREATE TABLE password_reset_tokens (
 
 CREATE INDEX ix_password_reset_tokens_expires_at ON password_reset_tokens (expires_at);
 CREATE UNIQUE INDEX ix_password_reset_tokens_user_id ON password_reset_tokens (user_id);
+
+
+-- Table: project_evaluator_criteria
+-- ---------------------------------
+CREATE TABLE project_evaluator_criteria (
+    id INTEGER NOT NULL,
+    project_id INTEGER NOT NULL,
+    evaluator_id INTEGER NOT NULL,
+    name VARCHAR NOT NULL,
+    filter_condition VARCHAR DEFAULT '' NOT NULL,
+    sampling_rate FLOAT NOT NULL
+        CONSTRAINT "ck_project_evaluator_criteria_`valid_sampling_rate`"
+        CHECK (0.0 <= sampling_rate AND sampling_rate <= 1.0),
+    evaluation_target VARCHAR NOT NULL
+        CONSTRAINT "ck_project_evaluator_criteria_`valid_evaluation_target`"
+        CHECK (evaluation_target IN ('SPAN', 'TRACE', 'SESSION')),
+    evaluation_delay_seconds INTEGER DEFAULT '300' NOT NULL
+        CONSTRAINT "ck_project_evaluator_criteria_`valid_evaluation_delay_seconds`"
+        CHECK (evaluation_delay_seconds >= 10),
+    input_mapping JSONB,
+    enabled BOOLEAN DEFAULT true NOT NULL,
+    work_materialized_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_project_evaluator_criteria PRIMARY KEY (id),
+    CONSTRAINT uq_project_evaluator_criteria_project_id_name UNIQUE (project_id, name),
+    CONSTRAINT fk_project_evaluator_criteria_evaluator_id_evaluators
+        FOREIGN KEY (evaluator_id)
+        REFERENCES evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_project_evaluator_criteria_project_id_projects
+        FOREIGN KEY (project_id)
+        REFERENCES projects (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_project_evaluator_criteria_evaluator_id ON project_evaluator_criteria
+    (evaluator_id);
+CREATE INDEX ix_project_evaluator_criteria_project_id ON project_evaluator_criteria
+    (project_id);
+
+
+-- Table: eval_session_work_units
+-- ------------------------------
+CREATE TABLE eval_session_work_units (
+    id INTEGER NOT NULL,
+    project_session_rowid INTEGER NOT NULL,
+    evaluator_id INTEGER NOT NULL,
+    criteria_id INTEGER NOT NULL,
+    config_fingerprint VARCHAR NOT NULL,
+    evaluated_through TIMESTAMP NOT NULL,
+    status VARCHAR DEFAULT 'PENDING' NOT NULL
+        CONSTRAINT "ck_eval_session_work_units_`valid_eval_work_status`"
+        CHECK (status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')),
+    claimed_at TIMESTAMP,
+    claimed_by VARCHAR,
+    attempts INTEGER DEFAULT '0' NOT NULL,
+    error VARCHAR,
+    cooldown_until TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_eval_session_work_units PRIMARY KEY (id),
+    CONSTRAINT fk_eval_session_work_units_criteria_id_project_evaluator_criteria
+        FOREIGN KEY (criteria_id)
+        REFERENCES project_evaluator_criteria (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_session_work_units_evaluator_id_evaluators
+        FOREIGN KEY (evaluator_id)
+        REFERENCES evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_session_work_units_project_session_rowid_project_sessions
+        FOREIGN KEY (project_session_rowid)
+        REFERENCES project_sessions (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_eval_session_work_units_claimable ON eval_session_work_units
+    (status, id)
+    WHERE status NOT IN ('DONE', 'EXPIRED');
+CREATE INDEX ix_eval_session_work_units_criteria_id ON eval_session_work_units
+    (criteria_id);
+CREATE INDEX ix_eval_session_work_units_error_attempts ON eval_session_work_units
+    (attempts)
+    WHERE status = 'ERROR';
+CREATE INDEX ix_eval_session_work_units_evaluator_id ON eval_session_work_units
+    (evaluator_id);
+CREATE INDEX ix_eval_session_work_units_terminal ON eval_session_work_units (updated_at)
+    WHERE status IN ('DONE', 'EXPIRED');
+CREATE UNIQUE INDEX uq_eval_session_work_units_live_key ON eval_session_work_units
+    (project_session_rowid, evaluator_id, config_fingerprint)
+    WHERE status IN ('PENDING', 'RUNNING') OR status = 'ERROR' AND attempts < 3;
+
+
+-- Table: eval_work_units
+-- ----------------------
+CREATE TABLE eval_work_units (
+    id INTEGER NOT NULL,
+    span_rowid INTEGER NOT NULL,
+    evaluator_id INTEGER NOT NULL,
+    criteria_id INTEGER NOT NULL,
+    config_fingerprint VARCHAR NOT NULL,
+    status VARCHAR DEFAULT 'PENDING' NOT NULL
+        CONSTRAINT "ck_eval_work_units_`valid_eval_work_status`"
+        CHECK (status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')),
+    claimed_at TIMESTAMP,
+    claimed_by VARCHAR,
+    attempts INTEGER DEFAULT '0' NOT NULL,
+    error VARCHAR,
+    cooldown_until TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_eval_work_units PRIMARY KEY (id),
+    CONSTRAINT uq_eval_work_units_span_rowid_evaluator_id_config_fingerprint
+        UNIQUE (span_rowid, evaluator_id, config_fingerprint),
+    CONSTRAINT fk_eval_work_units_criteria_id_project_evaluator_criteria
+        FOREIGN KEY (criteria_id)
+        REFERENCES project_evaluator_criteria (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_work_units_evaluator_id_evaluators
+        FOREIGN KEY (evaluator_id)
+        REFERENCES evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_work_units_span_rowid_spans
+        FOREIGN KEY (span_rowid)
+        REFERENCES spans (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_eval_work_units_claimable ON eval_work_units (status, id)
+    WHERE status NOT IN ('DONE', 'EXPIRED');
+CREATE INDEX ix_eval_work_units_criteria_id ON eval_work_units (criteria_id);
+CREATE INDEX ix_eval_work_units_error_attempts ON eval_work_units (attempts)
+    WHERE status = 'ERROR';
+CREATE INDEX ix_eval_work_units_evaluator_id ON eval_work_units (evaluator_id);
+CREATE INDEX ix_eval_work_units_terminal ON eval_work_units (updated_at)
+    WHERE status IN ('DONE', 'EXPIRED');
 
 
 -- Table: project_session_annotations
@@ -1255,7 +1410,9 @@ CREATE TABLE project_session_annotations (
     score FLOAT,
     explanation VARCHAR,
     metadata JSONB NOT NULL,
-    annotator_kind VARCHAR NOT NULL,
+    annotator_kind VARCHAR NOT NULL
+        CONSTRAINT "ck_project_session_annotations_`valid_annotator_kind`"
+        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN')),
     user_id INTEGER,
     identifier VARCHAR DEFAULT '' NOT NULL,
     source VARCHAR NOT NULL
@@ -1266,8 +1423,6 @@ CREATE TABLE project_session_annotations (
     CONSTRAINT pk_project_session_annotations PRIMARY KEY (id),
     CONSTRAINT uq_project_session_annotations_name_project_session_id_identifier
         UNIQUE (name, project_session_id, identifier),
-    CONSTRAINT "ck_project_session_annotations_`valid_annotator_kind`"
-        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')),
     CONSTRAINT fk_project_session_annotations_project_session_id_project_sessions
         FOREIGN KEY (project_session_id)
         REFERENCES project_sessions (id)
@@ -1442,7 +1597,6 @@ CREATE TABLE refresh_tokens (
     scopes JSONB,
     audience JSONB,
     consumed_at TIMESTAMP,
-    token_hash BLOB,
     CONSTRAINT fk_refresh_tokens_oauth2_grant_id_oauth2_grants
         FOREIGN KEY (oauth2_grant_id)
         REFERENCES oauth2_grants (id)
@@ -1468,7 +1622,6 @@ CREATE TABLE access_tokens (
     refresh_token_id INTEGER NOT NULL,
     scopes JSONB,
     audience JSONB,
-    token_hash BLOB,
     CONSTRAINT fk_access_tokens_refresh_token_id_refresh_tokens
         FOREIGN KEY (refresh_token_id)
         REFERENCES refresh_tokens (id)
@@ -1632,7 +1785,7 @@ CREATE TABLE span_annotations (
     CONSTRAINT uq_span_annotations_name_span_rowid_identifier
         UNIQUE (name, span_rowid, identifier),
     CONSTRAINT "ck_span_annotations_`valid_annotator_kind`"
-        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')),
+        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN')),
     CONSTRAINT "ck_span_annotations_`valid_source`" CHECK (source IN ('API', 'APP')),
     CONSTRAINT fk_span_annotations_span_rowid_spans
         FOREIGN KEY (span_rowid)
@@ -1685,7 +1838,7 @@ CREATE TABLE trace_annotations (
     CONSTRAINT uq_trace_annotations_name_trace_rowid_identifier
         UNIQUE (name, trace_rowid, identifier),
     CONSTRAINT "ck_trace_annotations_`valid_annotator_kind`"
-        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')),
+        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN')),
     CONSTRAINT "ck_trace_annotations_`valid_source`" CHECK (source IN ('API', 'APP')),
     CONSTRAINT fk_trace_annotations_trace_rowid_traces
         FOREIGN KEY (trace_rowid)
