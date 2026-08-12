@@ -727,6 +727,17 @@ def test_graphql_node_id_resolves_through_a_qualifier(dialect: str) -> None:
     assert "Qualify it with a table alias" in exc.value.message
 
 
+def test_quoted_and_unquoted_aliases_keep_distinct_graphql_types() -> None:
+    """Quoted and unquoted spellings are different names on PostgreSQL."""
+    _, rendered = _rewritten(
+        'SELECT "A".graphql_node_id, a.graphql_node_id '
+        'FROM spans AS "A" JOIN traces AS a ON a.id = "A".trace_rowid',
+        dialect="postgresql",
+    )
+    assert "Span:" in rendered
+    assert "Trace:" in rendered
+
+
 def test_graphql_node_id_is_not_invented_for_a_cte_of_the_same_name() -> None:
     """A CTE named after a GraphQL table is not that table."""
     ctx, rendered = _rewritten(

@@ -25,6 +25,7 @@ from phoenix.server.mcp_analytics_sql.normalize import (
 )
 from phoenix.server.mcp_analytics_sql.parse import (
     _allowlisted_table_name,
+    _identifier_key,
     _scope_columns,
     _timestamp_literals,
     query_local_columns,
@@ -489,13 +490,6 @@ def _star_sources(node: exp.Select, scope: Optional[Any]) -> list[tuple[str, str
     for join in node.args.get("joins") or []:
         add(join.this)
     return sources
-
-
-def _identifier_key(name: str, *, quoted: bool, dialect: SupportedSQLDialectName) -> str:
-    """Compare identifiers the way this dialect does."""
-    if dialect == "sqlite" or not quoted:
-        return name.casefold()
-    return name
 
 
 def _matches_star_source(
@@ -969,8 +963,12 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
 
     def type_for(node: exp.Column) -> Optional[str]:
         by_alias, fallback, _ = resolution.get(id(node), ({}, None, 0))
-        qualifier = (node.table or "").lower()
-        return by_alias.get(qualifier) if qualifier else fallback
+        qualifier = node.table or ""
+        if not qualifier:
+            return fallback
+        identifier = node.args.get("table")
+        quoted = isinstance(identifier, exp.Identifier) and bool(identifier.args.get("quoted"))
+        return by_alias.get(_identifier_key(qualifier, quoted=quoted, dialect=ctx.dialect))
 
     def graphql_source_count(node: exp.Column) -> int:
         return resolution.get(id(node), ({}, None, 0))[2]
@@ -1048,11 +1046,11 @@ def _physical_graphql_types(
 ) -> tuple[dict[str, str], int]:
     """Alias and table name -> GraphQL type for physical tables in this scope.
 
-    Keyed by both, lower-cased, because ``FROM traces t`` lets the caller write
-    either ``t.graphql_node_id`` or ``traces.graphql_node_id``. A name that
-    resolves to two different types is dropped rather than guessed at -- a
-    self-join has one type per side and picking either would attribute a row id
-    to the wrong one.
+    Keyed by both under dialect identifier rules, because ``FROM traces t``
+    lets the caller write either ``t.graphql_node_id`` or
+    ``traces.graphql_node_id``. A name that resolves to two different types is
+    dropped rather than guessed at -- a self-join has one type per side and
+    picking either would attribute a row id to the wrong one.
 
     Only ``scope.sources`` that resolve to a Table. A CTE of the same name is a
     nested scope.
@@ -1060,14 +1058,14 @@ def _physical_graphql_types(
     found: dict[str, Optional[str]] = {}
     n_sources = 0
 
-    def record(key: str, type_name: str) -> None:
-        lowered = key.lower()
-        if lowered in found and found[lowered] != type_name:
-            found[lowered] = None
+    def record(name: str, type_name: str, *, quoted: bool) -> None:
+        key = _identifier_key(name, quoted=quoted, dialect=dialect)
+        if key in found and found[key] != type_name:
+            found[key] = None
         else:
-            found.setdefault(lowered, type_name)
+            found.setdefault(key, type_name)
 
-    for alias, source in scope.sources.items():
+    for source in scope.sources.values():
         if not isinstance(source, exp.Table):
             continue
         table_name = _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
@@ -1077,8 +1075,21 @@ def _physical_graphql_types(
         if type_name is None:
             continue
         n_sources += 1
-        record(alias, type_name)
-        record(source.name, type_name)
-        if source.alias:
-            record(source.alias, type_name)
+        alias_node = source.args.get("alias")
+        alias_identifier = alias_node.this if isinstance(alias_node, exp.TableAlias) else alias_node
+        if isinstance(alias_identifier, exp.Identifier):
+            record(
+                alias_identifier.this or "",
+                type_name,
+                quoted=bool(alias_identifier.args.get("quoted")),
+            )
+        table_identifier = source.this
+        if isinstance(table_identifier, exp.Identifier):
+            record(
+                table_identifier.this or "",
+                type_name,
+                quoted=bool(table_identifier.args.get("quoted")),
+            )
+        elif source.name:
+            record(source.name, type_name, quoted=False)
     return {key: value for key, value in found.items() if value is not None}, n_sources
