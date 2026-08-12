@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ef6d6b684fecfeda42747ded6aa6f331>>
+ * @generated SignedSource<<2bc8813c52016fb4b575b3ca6d237f05>>
  * @lightSyntaxTransform
  */
 
@@ -105,24 +105,72 @@ v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "kind",
+  "name": "updatedAt",
   "storageKey": null
 },
 v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "__typename",
+  "name": "kind",
   "storageKey": null
 },
 v12 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Prompt",
+  "kind": "LinkedField",
+  "name": "prompt",
+  "plural": false,
+  "selections": [
+    (v4/*:: as any*/),
+    (v5/*:: as any*/)
+  ],
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelName",
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelProvider",
+  "storageKey": null
+},
+v15 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "language",
+  "storageKey": null
+},
+v16 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "backendType",
+  "storageKey": null
+},
+v17 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "cursor",
   "storageKey": null
 },
-v13 = {
+v19 = {
   "alias": null,
   "args": null,
   "concreteType": "PageInfo",
@@ -147,7 +195,7 @@ v13 = {
   ],
   "storageKey": null
 },
-v14 = [
+v20 = [
   {
     "kind": "Variable",
     "name": "first",
@@ -210,6 +258,7 @@ return {
                               (v7/*:: as any*/),
                               (v8/*:: as any*/),
                               (v9/*:: as any*/),
+                              (v10/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -218,7 +267,73 @@ return {
                                 "name": "evaluator",
                                 "plural": false,
                                 "selections": [
-                                  (v10/*:: as any*/)
+                                  (v11/*:: as any*/),
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      (v12/*:: as any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "PromptVersionTag",
+                                        "kind": "LinkedField",
+                                        "name": "promptVersionTag",
+                                        "plural": false,
+                                        "selections": [
+                                          (v5/*:: as any*/)
+                                        ],
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "PromptVersion",
+                                        "kind": "LinkedField",
+                                        "name": "promptVersion",
+                                        "plural": false,
+                                        "selections": [
+                                          (v13/*:: as any*/),
+                                          (v14/*:: as any*/)
+                                        ],
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "type": "LLMEvaluator",
+                                    "abstractKey": null
+                                  },
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      (v15/*:: as any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "SandboxConfig",
+                                        "kind": "LinkedField",
+                                        "name": "sandboxConfig",
+                                        "plural": false,
+                                        "selections": [
+                                          (v4/*:: as any*/),
+                                          (v5/*:: as any*/),
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "concreteType": "SandboxProvider",
+                                            "kind": "LinkedField",
+                                            "name": "provider",
+                                            "plural": false,
+                                            "selections": [
+                                              (v16/*:: as any*/)
+                                            ],
+                                            "storageKey": null
+                                          }
+                                        ],
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "type": "CodeEvaluator",
+                                    "abstractKey": null
+                                  }
                                 ],
                                 "storageKey": null
                               }
@@ -226,15 +341,15 @@ return {
                             "args": null,
                             "argumentDefinitions": []
                           },
-                          (v11/*:: as any*/)
+                          (v17/*:: as any*/)
                         ],
                         "storageKey": null
                       },
-                      (v12/*:: as any*/)
+                      (v18/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v13/*:: as any*/)
+                  (v19/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -266,14 +381,14 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v11/*:: as any*/),
+          (v17/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               (v3/*:: as any*/),
               {
                 "alias": null,
-                "args": (v14/*:: as any*/),
+                "args": (v20/*:: as any*/),
                 "concreteType": "ProjectEvaluatorConnection",
                 "kind": "LinkedField",
                 "name": "evaluators",
@@ -301,6 +416,7 @@ return {
                           (v7/*:: as any*/),
                           (v8/*:: as any*/),
                           (v9/*:: as any*/),
+                          (v10/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -309,27 +425,96 @@ return {
                             "name": "evaluator",
                             "plural": false,
                             "selections": [
+                              (v17/*:: as any*/),
                               (v11/*:: as any*/),
-                              (v10/*:: as any*/),
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  (v12/*:: as any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "PromptVersionTag",
+                                    "kind": "LinkedField",
+                                    "name": "promptVersionTag",
+                                    "plural": false,
+                                    "selections": [
+                                      (v5/*:: as any*/),
+                                      (v4/*:: as any*/)
+                                    ],
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "PromptVersion",
+                                    "kind": "LinkedField",
+                                    "name": "promptVersion",
+                                    "plural": false,
+                                    "selections": [
+                                      (v13/*:: as any*/),
+                                      (v14/*:: as any*/),
+                                      (v4/*:: as any*/)
+                                    ],
+                                    "storageKey": null
+                                  }
+                                ],
+                                "type": "LLMEvaluator",
+                                "abstractKey": null
+                              },
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  (v15/*:: as any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "SandboxConfig",
+                                    "kind": "LinkedField",
+                                    "name": "sandboxConfig",
+                                    "plural": false,
+                                    "selections": [
+                                      (v4/*:: as any*/),
+                                      (v5/*:: as any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "SandboxProvider",
+                                        "kind": "LinkedField",
+                                        "name": "provider",
+                                        "plural": false,
+                                        "selections": [
+                                          (v16/*:: as any*/),
+                                          (v4/*:: as any*/)
+                                        ],
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "storageKey": null
+                                  }
+                                ],
+                                "type": "CodeEvaluator",
+                                "abstractKey": null
+                              },
                               (v4/*:: as any*/)
                             ],
                             "storageKey": null
                           },
-                          (v11/*:: as any*/)
+                          (v17/*:: as any*/)
                         ],
                         "storageKey": null
                       },
-                      (v12/*:: as any*/)
+                      (v18/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v13/*:: as any*/)
+                  (v19/*:: as any*/)
                 ],
                 "storageKey": null
               },
               {
                 "alias": null,
-                "args": (v14/*:: as any*/),
+                "args": (v20/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "ProjectEvaluatorsTable_evaluators",
@@ -347,7 +532,7 @@ return {
     ]
   },
   "params": {
-    "cacheID": "82ed3e8b8cbae8b6f7e7e38d9740a2c2",
+    "cacheID": "dfcfa74eff5fd31277862cb0484845b5",
     "id": null,
     "metadata": {
       "connection": [
@@ -364,7 +549,7 @@ return {
     },
     "name": "refetchProjectEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query refetchProjectEvaluatorsQuery(\n  $projectId: ID!\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      evaluators(first: $first) {\n        edges {\n          node {\n            ...ProjectEvaluatorsTable_row\n            id\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  evaluator {\n    __typename\n    kind\n    id\n  }\n}\n"
+    "text": "query refetchProjectEvaluatorsQuery(\n  $projectId: ID!\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      evaluators(first: $first) {\n        edges {\n          node {\n            ...ProjectEvaluatorsTable_row\n            id\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  updatedAt\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
