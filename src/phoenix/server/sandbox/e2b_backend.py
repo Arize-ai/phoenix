@@ -53,6 +53,7 @@ class E2BSandboxBackend(SandboxBackend):
     """Sandbox backend executing code in E2B cloud sandboxes."""
 
     provider: ClassVar[str] = "E2B"
+    supports_concurrent_session_execution: ClassVar[bool] = True
 
     def __init__(
         self,
