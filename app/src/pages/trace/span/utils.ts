@@ -17,7 +17,7 @@ import type {
   AttributeToolCall,
 } from "@phoenix/openInference/tracing/types";
 import { isAttributeMessages } from "@phoenix/openInference/tracing/types";
-import { isStringArray } from "@phoenix/typeUtils";
+import { isStringArray, isStringKeyedObject } from "@phoenix/typeUtils";
 import {
   toContentPreview,
   toRecordPreview,
@@ -331,6 +331,55 @@ export function getToolAttributes(
     parameters: asToolAttributeString(
       toolAttributes[ToolAttributePostfixes.parameters]
     ),
+  };
+}
+
+/**
+ * The identity of a tool recovered from its `llm.tools.{i}.tool.json_schema`
+ * payload, for the tool card's header and description line.
+ */
+export type ToolSchemaDisplayParts = {
+  name: string | null;
+  description: string | null;
+};
+
+/**
+ * A non-empty string field of an untrusted parsed tool definition.
+ */
+function asDisplayString(value: unknown): string | null {
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
+/**
+ * Recover the tool's name and description from a `tool.json_schema` payload.
+ *
+ * The payload is the tool definition as the instrumented client sent it, so
+ * its shape is provider-specific: OpenAI Chat Completions nests the definition
+ * under `function` and AWS Bedrock under `toolSpec`, while Anthropic, Gemini,
+ * OpenAI Responses, and pydantic-ai keep `name`/`description` at the top
+ * level. Instrumentation that records only the bare parameters schema is
+ * covered by the JSON-schema `title`/`description` fallback.
+ */
+export function getToolSchemaDisplayParts(
+  toolSchema: string
+): ToolSchemaDisplayParts {
+  const { json } = safelyParseJSON(toolSchema);
+  if (!isStringKeyedObject(json)) {
+    return { name: null, description: null };
+  }
+  const definitions = [json, json.function, json.toolSpec];
+  for (const definition of definitions) {
+    if (!isStringKeyedObject(definition)) {
+      continue;
+    }
+    const name = asDisplayString(definition.name);
+    if (name != null) {
+      return { name, description: asDisplayString(definition.description) };
+    }
+  }
+  return {
+    name: asDisplayString(json.title),
+    description: asDisplayString(json.description),
   };
 }
 
