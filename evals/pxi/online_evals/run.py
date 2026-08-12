@@ -14,13 +14,14 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from phoenix.client import Client
+from phoenix.client.__generated__ import v1
+from phoenix.evals.evaluators import Score
+
 from evals.pxi.online_evals import judge
 from evals.pxi.online_evals.evaluators import EVALUATORS
 from evals.pxi.online_evals.models import EvaluatorSpec, RunSummary, SpanSelector
 from evals.pxi.online_evals.topology import InvalidTurnTrace, span_id, trace_id
-from phoenix.client import Client
-from phoenix.client.__generated__ import v1
-from phoenix.evals.evaluators import Score
 
 logger = logging.getLogger(__name__)
 

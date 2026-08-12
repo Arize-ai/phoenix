@@ -5,9 +5,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from evals.pxi.online_evals.models import EvaluatorSpec, SpanSelector
 from phoenix.client.__generated__ import v1
 from phoenix.evals.evaluators import Score
+
+from evals.pxi.online_evals.models import EvaluatorSpec, SpanSelector
 
 ANNOTATION_NAME = "suggestion_accepted"
 

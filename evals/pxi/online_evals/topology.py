@@ -6,8 +6,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from operator import itemgetter
 
-from evals.pxi.online_evals.models import SpanSelector
 from phoenix.client.__generated__ import v1
+
+from evals.pxi.online_evals.models import SpanSelector
 
 PXI_TURN_ROOT_NAME = "pxi.turn"
 

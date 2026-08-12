@@ -3,10 +3,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from evals.pxi.online_evals.models import EvaluatorSpec
-from evals.pxi.online_evals.topology import PXI_TURN_ROOT_SELECTOR, classify_tool_spans
 from phoenix.client.__generated__ import v1
 from phoenix.evals.evaluators import Score
+
+from evals.pxi.online_evals.models import EvaluatorSpec
+from evals.pxi.online_evals.topology import PXI_TURN_ROOT_SELECTOR, classify_tool_spans
 
 
 def _tool_name(span: v1.Span) -> str:

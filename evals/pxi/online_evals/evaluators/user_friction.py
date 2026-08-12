@@ -16,14 +16,15 @@ import logging
 from collections.abc import Sequence
 from functools import lru_cache
 
+from phoenix.client.__generated__ import v1
+from phoenix.evals.evaluators import Score
+
 from evals.pxi.online_evals import judge
 from evals.pxi.online_evals.conversation import Turn, segment_turns, transcript
 from evals.pxi.online_evals.message_origin import is_human_message
 from evals.pxi.online_evals.models import EvaluatorSpec
 from evals.pxi.online_evals.rendering import render_conversation
 from evals.pxi.online_evals.topology import PXI_TURN_ROOT_SELECTOR
-from phoenix.client.__generated__ import v1
-from phoenix.evals.evaluators import Score
 
 logger = logging.getLogger(__name__)
 

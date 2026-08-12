@@ -13,11 +13,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from phoenix.client.__generated__ import v1
 
 from evals.pxi.online_evals.evaluators.suggestion_accepted import SUGGESTION_ACCEPTED
 from evals.pxi.online_evals.run import run_evaluators
 from evals.pxi.online_evals.topology import span_id
-from phoenix.client.__generated__ import v1
 
 FIXTURE = Path(__file__).parent / "fixtures" / "pxi_suggestion_traces.json"
 NOW = datetime(2026, 7, 24, 13, 0, tzinfo=timezone.utc)

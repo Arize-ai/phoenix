@@ -5,6 +5,7 @@ import json
 from typing import Any
 
 import pytest
+from phoenix.client.__generated__ import v1
 
 from evals.pxi.online_evals.evaluators.suggestion_accepted import (
     APPROVAL_DECISION_ATTRIBUTE,
@@ -13,7 +14,6 @@ from evals.pxi.online_evals.evaluators.suggestion_accepted import (
     evaluate_suggestion_accepted,
 )
 from evals.pxi.online_evals.models import SpanSelector
-from phoenix.client.__generated__ import v1
 
 
 def _tool_span(

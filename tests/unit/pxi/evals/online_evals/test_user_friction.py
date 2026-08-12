@@ -5,6 +5,7 @@ from typing import Any
 from unittest import mock
 
 import pytest
+from phoenix.client.__generated__ import v1
 
 from evals.pxi.online_evals.conversation import (
     Message,
@@ -17,7 +18,6 @@ from evals.pxi.online_evals.evaluators import user_friction
 from evals.pxi.online_evals.message_origin import is_human_message
 from evals.pxi.online_evals.models import SpanSelector
 from evals.pxi.online_evals.rendering import render_conversation, render_turn_detailed
-from phoenix.client.__generated__ import v1
 
 
 def _evaluate(root: v1.Span, spans: list[v1.Span]) -> Any:
