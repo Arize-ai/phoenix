@@ -7,7 +7,6 @@ from pydantic_ai.tools import ToolDefinition
 from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.capabilities.tools.external import (
     ask_user,
-    batch_span_annotate,
     execute_browser_action,
     get_route_info,
     list_dataset_examples,
@@ -20,9 +19,6 @@ from phoenix.server.agents.capabilities.tools.external import (
     search_browser_actions,
 )
 from phoenix.server.agents.capabilities.tools.external.ask_user import AskUserCapability
-from phoenix.server.agents.capabilities.tools.external.batch_span_annotate import (
-    BatchSpanAnnotateCapability,
-)
 from phoenix.server.agents.capabilities.tools.external.execute_browser_action import (
     ExecuteBrowserActionCapability,
 )
@@ -65,7 +61,6 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         list_labels.TOOL_DEFINITION,
         list_splits.TOOL_DEFINITION,
         list_dataset_labels.TOOL_DEFINITION,
-        batch_span_annotate.TOOL_DEFINITION,
         execute_browser_action.TOOL_DEFINITION,
         get_route_info.TOOL_DEFINITION,
         render_generative_ui.RENDER_GENERATIVE_UI_TOOL_DEFINITION,
@@ -86,7 +81,6 @@ def get_external_tool_capability_function() -> CapabilityFunc[AgentDependencies]
     """
     ungated_capabilities: list[AbstractCapability[AgentDependencies]] = [
         AskUserCapability(),
-        BatchSpanAnnotateCapability(),
         ListDatasetsCapability(),
         ListLabelsCapability(),
         ListSplitsCapability(),
@@ -116,7 +110,6 @@ __all__ = [
     "ListDatasetsCapability",
     "ListLabelsCapability",
     "ListSplitsCapability",
-    "BatchSpanAnnotateCapability",
     "ExecuteBrowserActionCapability",
     "GetRouteInfoCapability",
     "RenderGenerativeUICapability",
