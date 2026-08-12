@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from importlib import import_module
@@ -6,11 +7,12 @@ from unittest.mock import Mock
 
 import pytest
 from sqlalchemy import Table, func, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.db import models
 from phoenix.db.eval_work import live_eval_work_index_predicate
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.app import _db
 from phoenix.server.online_eval import session_sweeper
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, ResolvedCriteria
 from phoenix.server.online_eval.producer import resolve_criteria
@@ -199,6 +201,39 @@ async def test_materializes_with_501_schedulable_criteria(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
         )
     assert work_count == 501
+
+
+@pytest.mark.postgres_only
+async def test_materialization_waits_for_retention_session_lock(
+    postgresql_engine: AsyncEngine,
+) -> None:
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+
+    async def materialize() -> tuple[int, int]:
+        async with db() as session:
+            database_now = await sweeper._database_now(session)
+            return await sweeper._sweep(session, database_now)
+
+    async with db() as retention_session:
+        await retention_session.execute(
+            update(models.ProjectSession)
+            .where(models.ProjectSession.id == project_session_id)
+            .values(content_complete=False)
+        )
+        materialization = asyncio.create_task(materialize())
+        await asyncio.sleep(0.05)
+        assert not materialization.done()
+
+    inserted_count, _ = await asyncio.wait_for(materialization, timeout=5)
+    assert inserted_count == 0
+    async with db() as session:
+        work_count = await session.scalar(
+            select(func.count()).select_from(models.EvalSessionWorkUnit)
+        )
+    assert work_count == 0
 
 
 async def test_session_with_null_liveness_is_never_eligible(

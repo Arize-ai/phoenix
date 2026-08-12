@@ -17,6 +17,8 @@ from sqlalchemy import (
     Integer,
     String,
     and_,
+    any_,
+    bindparam,
     cast,
     column,
     func,
@@ -27,6 +29,7 @@ from sqlalchemy import (
     type_coerce,
     update,
 )
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -233,8 +236,10 @@ def _eligible_pairs_statement(
 def _session_work_insert_statement(
     eligible_pairs: Subquery,
     dialect: SupportedSQLDialect,
+    *,
+    project_session_rowids: Optional[Sequence[int]] = None,
 ) -> Insert:
-    """Materialize the globally ordered eligibility page in one statement."""
+    """Insert work from a globally ordered page whose PostgreSQL sessions are locked."""
     index_elements = (
         models.EvalSessionWorkUnit.project_session_rowid,
         models.EvalSessionWorkUnit.evaluator_id,
@@ -247,6 +252,10 @@ def _session_work_insert_statement(
         eligible_pairs.c.config_fingerprint,
         eligible_pairs.c.evaluated_through,
     ).where(literal(True))
+    if project_session_rowids is not None:
+        candidates = candidates.where(
+            eligible_pairs.c.project_session_rowid.in_(project_session_rowids)
+        )
     if dialect is SupportedSQLDialect.POSTGRESQL:
         return (
             insert_postgresql(models.EvalSessionWorkUnit)
@@ -476,10 +485,39 @@ class SessionEvalSweeper(DaemonTask):
             .limit(limit)
             .subquery("eligible_pair_page")
         )
+        locked_project_session_rowids: Optional[Sequence[int]] = None
+        if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
+            page_ids = tuple(
+                dict.fromkeys(await session.scalars(select(eligible_page.c.project_session_rowid)))
+            )
+            if not page_ids:
+                return 0, eligible_pair_count
+            page_ids_parameter = bindparam(
+                "page_ids",
+                page_ids,
+                type_=ARRAY(Integer),
+            )
+            locked_project_session_rowids = tuple(
+                await session.scalars(
+                    select(models.ProjectSession.id)
+                    .where(
+                        models.ProjectSession.id == any_(page_ids_parameter),
+                        models.ProjectSession.content_complete.is_(True),
+                    )
+                    .order_by(models.ProjectSession.id)
+                    .with_for_update()
+                )
+            )
+            if not locked_project_session_rowids:
+                return 0, eligible_pair_count
         inserted_count = len(
             (
                 await session.scalars(
-                    _session_work_insert_statement(eligible_page, self._db.dialect)
+                    _session_work_insert_statement(
+                        eligible_page,
+                        self._db.dialect,
+                        project_session_rowids=locked_project_session_rowids,
+                    )
                 )
             ).all()
         )
