@@ -163,8 +163,8 @@ async def test_work_leases_and_retry_age_ignore_application_clock_skew(
 ) -> None:
     class _SkewedDateTime(datetime):
         @classmethod
-        def now(cls, tz: object = None) -> datetime:
-            return datetime(2100, 1, 1, tzinfo=timezone.utc)
+        def now(cls, tz: object = None) -> "_SkewedDateTime":
+            return cls(2100, 1, 1, tzinfo=timezone.utc)
 
     monkeypatch.setattr(db_coordinator_module, "datetime", _SkewedDateTime)
     (unit_id,) = await _seed_work_units(db, 1)
