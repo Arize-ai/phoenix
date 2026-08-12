@@ -8,7 +8,7 @@ from unittest.mock import Mock
 
 import httpx
 import pytest
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import with_polymorphic
 
 from phoenix.db import models
@@ -902,6 +902,73 @@ async def test_configuration_versions_are_resolved_once_per_claim_batch(
     units = [await _get_unit(db, unit_id) for unit_id in unit_ids]
     assert all(unit.status == "DONE" for unit in units)
     assert len(client.requests) == 3
+
+
+@pytest.mark.postgres_only
+async def test_hydration_savepoint_isolates_a_unit_database_error(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        bad_span = await _add_span(session, trace)
+        good_span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_llm_criteria(db, project.id)
+    bad_unit_id, _ = await _materialize_unit(db, bad_span.id, evaluator_id, criteria_id)
+    good_unit_id, _ = await _materialize_unit(db, good_span.id, evaluator_id, criteria_id)
+    _patch_playground_client(monkeypatch, _StubLLMClient())
+    original = OnlineEvalExecutor._hydrate_target_context
+
+    async def _fail_one_target(
+        executor: OnlineEvalExecutor,
+        session: Any,
+        unit: ClaimedWorkUnit,
+        *,
+        project_id: int,
+    ) -> Any:
+        if unit.target_rowid == bad_span.id:
+            await session.execute(text("SELECT 1 / 0"))
+        return await original(executor, session, unit, project_id=project_id)
+
+    monkeypatch.setattr(OnlineEvalExecutor, "_hydrate_target_context", _fail_one_target)
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+
+    await consumer._cycle()
+
+    bad_unit = await _get_unit(db, bad_unit_id)
+    good_unit = await _get_unit(db, good_unit_id)
+    assert bad_unit.status == "ERROR"
+    assert bad_unit.attempts == 1
+    assert good_unit.status == "DONE"
+
+
+@pytest.mark.postgres_only
+async def test_shared_hydration_failure_releases_claims_without_attempts(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(2)]
+    evaluator_id, criteria_id = await _seed_llm_criteria(db, project.id)
+    unit_ids = [
+        (await _materialize_unit(db, span.id, evaluator_id, criteria_id))[0] for span in spans
+    ]
+
+    async def _fail_shared_query(session: Any, rows: Any) -> Any:
+        await session.execute(text("SELECT 1 / 0"))
+
+    monkeypatch.setattr(executor_module, "resolve_criteria_bulk", _fail_shared_query)
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+
+    await consumer._cycle()
+
+    units = [await _get_unit(db, unit_id) for unit_id in unit_ids]
+    assert all(unit.status == "PENDING" for unit in units)
+    assert all(unit.attempts == 0 for unit in units)
+    assert all(unit.claimed_by is None and unit.claimed_at is None for unit in units)
 
 
 async def test_configuration_snapshot_is_discarded_after_claim_batch(

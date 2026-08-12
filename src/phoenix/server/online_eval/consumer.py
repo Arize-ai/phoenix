@@ -35,6 +35,7 @@ from phoenix.server.online_eval.executor import (
     HydrationFailure,
     OnlineEvalExecutor,
     OnlineEvalStoragePaused,
+    SharedHydrationFailure,
 )
 from phoenix.server.online_eval.failure_policy import FailureDisposition, classify
 from phoenix.server.prometheus import (
@@ -313,6 +314,9 @@ class OnlineEvalConsumer(DaemonTask):
         try:
             if configuration is None:
                 hydrated = await self._executor.hydrate(unit)
+            elif isinstance(configuration, SharedHydrationFailure):
+                await self._release_claim(unit)
+                return
             elif isinstance(configuration, Exception):
                 raise configuration
             elif isinstance(configuration, HydratedConfigurationSnapshot):

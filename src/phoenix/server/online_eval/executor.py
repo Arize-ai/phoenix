@@ -157,7 +157,16 @@ class HydratedConfigurationSnapshot:
     annotation_metadata: dict[str, Any]
 
 
-ConfigurationSnapshotOutcome = HydratedConfigurationSnapshot | HydrationFailure | Exception
+@dataclass(frozen=True)
+class SharedHydrationFailure:
+    """A batch-level database failure that must not consume any unit's retry budget."""
+
+    error: Exception
+
+
+ConfigurationSnapshotOutcome = (
+    HydratedConfigurationSnapshot | HydrationFailure | SharedHydrationFailure | Exception
+)
 
 
 def span_eval_context(span: models.Span) -> dict[str, Any]:
@@ -301,6 +310,8 @@ class OnlineEvalExecutor:
 
     async def hydrate(self, unit: ClaimedWorkUnit) -> HydrationOutcome:
         configuration = (await self.hydrate_configuration_snapshots([unit]))[0]
+        if isinstance(configuration, SharedHydrationFailure):
+            raise configuration.error
         if isinstance(configuration, Exception):
             raise configuration
         if isinstance(configuration, HydrationFailure):
@@ -318,7 +329,7 @@ class OnlineEvalExecutor:
                 async with self._db() as session:
                     return await self._hydrate_configuration_snapshots(session, units)
         except Exception as error:
-            return [error for _ in units]
+            return [SharedHydrationFailure(error) for _ in units]
 
     async def _hydrate_configuration_snapshots(
         self,
@@ -393,10 +404,11 @@ class OnlineEvalExecutor:
         for criteria_id, (_, evaluator) in criteria_evaluators.items():
             if resolved_by_criteria_id[criteria_id] is not None:
                 continue
-            unresolved_failures[criteria_id] = await self._unresolved_configuration_failure(
-                session,
-                evaluator,
-            )
+            async with session.begin_nested():
+                unresolved_failures[criteria_id] = await self._unresolved_configuration_failure(
+                    session,
+                    evaluator,
+                )
 
         matching_criteria_ids: set[int] = set()
         outcomes: list[Optional[ConfigurationSnapshotOutcome]] = []
@@ -427,11 +439,12 @@ class OnlineEvalExecutor:
                 continue
             criteria, _ = criteria_evaluators[unit.criteria_id]
             try:
-                hydrated_context = await self._hydrate_target_context(
-                    session,
-                    unit,
-                    project_id=criteria.project_id,
-                )
+                async with session.begin_nested():
+                    hydrated_context = await self._hydrate_target_context(
+                        session,
+                        unit,
+                        project_id=criteria.project_id,
+                    )
             except Exception as error:
                 outcomes[index] = error
                 continue
@@ -469,11 +482,12 @@ class OnlineEvalExecutor:
             resolved = resolved_by_criteria_id[criteria_id]
             assert resolved is not None
             try:
-                hydrated_evaluator_snapshot = await self._hydrate_evaluator_snapshot(
-                    session,
-                    evaluator,
-                    resolved.version_ref,
-                )
+                async with session.begin_nested():
+                    hydrated_evaluator_snapshot = await self._hydrate_evaluator_snapshot(
+                        session,
+                        evaluator,
+                        resolved.version_ref,
+                    )
             except Exception as error:
                 evaluator_snapshots[evaluator.id] = error
             else:
