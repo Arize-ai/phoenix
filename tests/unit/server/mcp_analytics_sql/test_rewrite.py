@@ -354,6 +354,29 @@ def test_star_expands_every_joined_table() -> None:
     assert "spans.span_id" in out and "traces.trace_id" in out
 
 
+def test_bare_star_coalesces_using_join_keys() -> None:
+    """USING exposes each join key once; a bare star must not emit both copies."""
+    _, rendered = _rewritten(
+        "SELECT * FROM projects JOIN datasets USING (id)",
+        dialect="postgresql",
+    )
+    select_list = rendered.split(" FROM ", 1)[0]
+    assert "projects.id," in select_list
+    assert "datasets.id," not in select_list
+    assert "datasets.name" in select_list
+
+
+def test_qualified_star_keeps_using_join_keys() -> None:
+    """A qualified star names one relation's columns, including its copy of the key."""
+    _, rendered = _rewritten(
+        "SELECT projects.*, datasets.* FROM projects JOIN datasets USING (id)",
+        dialect="postgresql",
+    )
+    select_list = rendered.split(" FROM ", 1)[0]
+    assert "projects.id," in select_list
+    assert "datasets.id," in select_list
+
+
 def test_postgres_to_char_round_trips() -> None:
     _, rendered = _rewritten(
         "SELECT to_char(start_time, 'YYYY-MM') FROM spans",

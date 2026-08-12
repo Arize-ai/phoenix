@@ -492,6 +492,33 @@ def _star_sources(node: exp.Select, scope: Optional[Any]) -> list[tuple[str, str
     return sources
 
 
+def _using_join_keys(node: exp.Select, dialect: SupportedSQLDialectName) -> frozenset[str]:
+    """Join keys named by USING, compared the way this dialect compares identifiers.
+
+    A USING join exposes each key once. Expanding a bare star to every table's
+    copy of that key returns two columns of the same name, which is not the
+    shape USING produces.
+    """
+    keys: set[str] = set()
+    for join in node.args.get("joins") or []:
+        using = join.args.get("using")
+        if not using:
+            continue
+        items = using if isinstance(using, list) else [using]
+        for item in items:
+            ident = item if isinstance(item, exp.Identifier) else getattr(item, "this", None)
+            if not isinstance(ident, exp.Identifier):
+                continue
+            keys.add(
+                _identifier_key(
+                    ident.name or ident.this or "",
+                    quoted=bool(ident.args.get("quoted")),
+                    dialect=dialect,
+                )
+            )
+    return frozenset(keys)
+
+
 def _matches_star_source(
     explicit: str,
     identifier: Optional[exp.Expression],
@@ -564,6 +591,12 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                     ),
                 )
 
+            # USING coalesces each join key to one output column. A qualified
+            # star names one relation's columns, so it keeps that relation's
+            # copy of the key.
+            using_keys = _using_join_keys(node, ctx.dialect) if not explicit else frozenset()
+            emitted_using: set[str] = set()
+
             for table_name, alias, qualifier in targets:
                 spec = ctx.allowlist.table_specs.get(table_name) if table_name else None
                 if spec is None:
@@ -589,11 +622,17 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                 # them while retaining the ordered physical table shape.
                 emitted = [*spec.columns, *sorted(spec.virtual_columns)]
                 for name in emitted:
+                    quoted = name in spec.quoted_columns
+                    key = _identifier_key(name, quoted=quoted, dialect=ctx.dialect)
+                    if key in using_keys:
+                        if key in emitted_using:
+                            continue
+                        emitted_using.add(key)
                     # Qualify by the caller's alias, quoting included: after
                     # ``FROM spans AS s`` the name ``spans`` no longer resolves.
                     new_exprs.append(
                         exp.Column(
-                            this=exp.to_identifier(name, quoted=name in spec.quoted_columns),
+                            this=exp.to_identifier(name, quoted=quoted),
                             table=qualifier.copy(),
                         )
                     )
