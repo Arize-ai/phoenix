@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<41257a23e83fe69735107a60219f9167>>
+ * @generated SignedSource<<b0a88ddf710d1e2f063786deb3d4cf87>>
  * @lightSyntaxTransform
  */
 
@@ -36,6 +36,13 @@ v1 = {
   "args": null,
   "kind": "ScalarField",
   "name": "id",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
   "storageKey": null
 };
 return {
@@ -122,13 +129,7 @@ return {
                   "name": "ProjectEvaluatorsTable_row",
                   "selections": [
                     (v1/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "name",
-                      "storageKey": null
-                    },
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -160,6 +161,13 @@ return {
                     {
                       "alias": null,
                       "args": null,
+                      "kind": "ScalarField",
+                      "name": "updatedAt",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
                       "concreteType": null,
                       "kind": "LinkedField",
                       "name": "evaluator",
@@ -171,6 +179,108 @@ return {
                           "kind": "ScalarField",
                           "name": "kind",
                           "storageKey": null
+                        },
+                        {
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "Prompt",
+                              "kind": "LinkedField",
+                              "name": "prompt",
+                              "plural": false,
+                              "selections": [
+                                (v1/*:: as any*/),
+                                (v2/*:: as any*/)
+                              ],
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "PromptVersionTag",
+                              "kind": "LinkedField",
+                              "name": "promptVersionTag",
+                              "plural": false,
+                              "selections": [
+                                (v2/*:: as any*/)
+                              ],
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "PromptVersion",
+                              "kind": "LinkedField",
+                              "name": "promptVersion",
+                              "plural": false,
+                              "selections": [
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "modelName",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "modelProvider",
+                                  "storageKey": null
+                                }
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "LLMEvaluator",
+                          "abstractKey": null
+                        },
+                        {
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "language",
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "SandboxConfig",
+                              "kind": "LinkedField",
+                              "name": "sandboxConfig",
+                              "plural": false,
+                              "selections": [
+                                (v1/*:: as any*/),
+                                (v2/*:: as any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "concreteType": "SandboxProvider",
+                                  "kind": "LinkedField",
+                                  "name": "provider",
+                                  "plural": false,
+                                  "selections": [
+                                    {
+                                      "alias": null,
+                                      "args": null,
+                                      "kind": "ScalarField",
+                                      "name": "backendType",
+                                      "storageKey": null
+                                    }
+                                  ],
+                                  "storageKey": null
+                                }
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "CodeEvaluator",
+                          "abstractKey": null
                         }
                       ],
                       "storageKey": null
