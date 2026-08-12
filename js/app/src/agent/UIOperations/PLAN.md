@@ -173,7 +173,7 @@ catalog architecture gives the missing piece an obvious shape: **one more
 
 1. ~~Bespoke diff cards for script-child approvals~~ — SHIPPED: script-child
    approvals now render through the shared `ApprovalCard` (`components/agent/
-   ApprovalCard.tsx`), with unified diffs for snapshot changes and curated,
+ApprovalCard.tsx`), with unified diffs for snapshot changes and curated,
    labeled payloads (plus danger notes) otherwise. The standalone dataset /
    annotation-config cards are thin wrappers over it. This is the contract the
    tool-subsumption plan below builds on.
@@ -198,17 +198,17 @@ free. None of these has a `ui.*` equivalent yet; each needs a new descriptor.
 
 ### Subsume (frontend module → proposed op)
 
-| Standalone tool(s) | Frontend module | Proposed op |
-|---|---|---|
-| `create_dataset` | `tools/createDataset` | `dataset.create` |
-| `patch_dataset`, `delete_dataset` | `tools/datasetEdit` | `dataset.patch` / `dataset.delete` (danger) |
-| `add_dataset_examples`, `patch_dataset_examples`, `delete_dataset_examples` | `tools/datasetExamples` | `dataset.examples.add/patch/delete` (delete = danger) |
-| `create_dataset_split`, `patch_dataset_split`, `delete_dataset_splits`, `set_dataset_example_splits` | `tools/datasetSplits` | `dataset.split.create/patch/delete/setExampleSplits` (delete = danger) |
-| `create_dataset_label`, `set_dataset_labels`, `delete_dataset_labels` | `tools/datasetLabels` | `dataset.label.create/set/delete` (delete = danger) |
-| `add_spans_to_dataset` | `tools/spansToDataset` | `dataset.addSpans` |
-| `create_annotation_config`, `update_annotation_config` | `tools/annotationConfig` | `annotationConfig.create/update` (update = danger, full replace) |
-| `patch_experiment` | `tools/patchExperiment` | `experiment.patch` |
-| `batch_span_annotate` | `tools/batchSpanAnnotate` | `spans.annotate` |
+| Standalone tool(s)                                                                                   | Frontend module           | Proposed op                                                            |
+| ---------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------- |
+| `create_dataset`                                                                                     | `tools/createDataset`     | `dataset.create`                                                       |
+| `patch_dataset`, `delete_dataset`                                                                    | `tools/datasetEdit`       | `dataset.patch` / `dataset.delete` (danger)                            |
+| `add_dataset_examples`, `patch_dataset_examples`, `delete_dataset_examples`                          | `tools/datasetExamples`   | `dataset.examples.add/patch/delete` (delete = danger)                  |
+| `create_dataset_split`, `patch_dataset_split`, `delete_dataset_splits`, `set_dataset_example_splits` | `tools/datasetSplits`     | `dataset.split.create/patch/delete/setExampleSplits` (delete = danger) |
+| `create_dataset_label`, `set_dataset_labels`, `delete_dataset_labels`                                | `tools/datasetLabels`     | `dataset.label.create/set/delete` (delete = danger)                    |
+| `add_spans_to_dataset`                                                                               | `tools/spansToDataset`    | `dataset.addSpans`                                                     |
+| `create_annotation_config`, `update_annotation_config`                                               | `tools/annotationConfig`  | `annotationConfig.create/update` (update = danger, full replace)       |
+| `patch_experiment`                                                                                   | `tools/patchExperiment`   | `experiment.patch`                                                     |
+| `batch_span_annotate`                                                                                | `tools/batchSpanAnnotate` | `spans.annotate`                                                       |
 
 ### Keep standalone (NOT UI state)
 
@@ -237,6 +237,24 @@ meta-tools; lower priority.
 
 Land it one commit per operation family (dataset writes → splits → labels →
 annotation config → experiment → span annotate), so each layer is reviewable.
+
+Progress:
+
+- [x] dataset writes — `dataset.create/patch/delete`, `dataset.examples.add/
+      patch/delete`, `dataset.addSpans`. Introduced the reusable machinery the
+      remaining families ride on: `stageApprovalOperation` (generic
+      emit-resolving staging in `shared/pendingApproval`),
+      `stageDatasetWriteOperation` (dataset specialization reusing the
+      `pendingDatasetWritesByToolCallId` map + shared card),
+      `RootUiOperationsRegistration` (app-root handler registration, mounted in
+      `AuthenticatedRoot`), the dataset-writes cleaner in
+      `EXECUTE_UI_PENDING_MAP_CLEANERS`, and the `datasetWriteApprovalPreview`
+      normalizer feeding `ExecuteUiToolDetails` child cards.
+- [ ] dataset splits
+- [ ] dataset labels
+- [ ] annotation config
+- [ ] experiment patch
+- [ ] span annotate
 
 ### Q2 cleanup (final commits on this branch)
 

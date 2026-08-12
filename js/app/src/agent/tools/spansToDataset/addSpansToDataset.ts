@@ -46,7 +46,7 @@ async function resolveDatasetByName(
   if (datasets.length === 0) {
     return {
       ok: false,
-      error: `No dataset named "${datasetName}" was found. Create it first with create_dataset.`,
+      error: `No dataset named "${datasetName}" was found. Create it first with the ui.dataset.create operation.`,
     };
   }
   const exact = datasets.filter((dataset) => dataset.name === datasetName);

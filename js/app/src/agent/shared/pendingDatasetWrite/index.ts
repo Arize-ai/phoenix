@@ -1,6 +1,10 @@
-export { bindPendingDatasetWrite } from "./bindPendingDatasetWrite";
+export {
+  bindPendingDatasetWrite,
+  DATASET_WRITE_REJECTED_MESSAGE,
+} from "./bindPendingDatasetWrite";
 export { runDatasetMutation } from "./runDatasetMutation";
 export { stageDatasetWrite } from "./stageDatasetWrite";
+export { stageDatasetWriteOperation } from "./stageDatasetWriteOperation";
 export type {
   ApprovalSource,
   BindPendingDatasetWriteOptions,
