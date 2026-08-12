@@ -82,9 +82,13 @@ from phoenix.config import (
     get_env_online_eval_claim_batch_size,
     get_env_online_eval_consumer_tick_interval_seconds,
     get_env_online_eval_enabled,
+    get_env_online_eval_max_db_concurrency,
+    get_env_online_eval_max_evaluator_concurrency,
     get_env_online_eval_max_outstanding,
+    get_env_online_eval_max_sandbox_payload_bytes,
+    get_env_online_eval_max_transcript_bytes,
     get_env_online_eval_pending_ttl_seconds,
-    get_env_online_eval_session_sweep_enabled,
+    get_env_online_eval_session_enabled,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
@@ -645,6 +649,7 @@ def _lifespan(
     sandbox_runtime: SandboxRuntimeContext,
     online_eval_producer: Optional[OnlineEvalProducer] = None,
     online_eval_consumer: Optional[OnlineEvalConsumer] = None,
+    online_eval_session_consumer: Optional[OnlineEvalConsumer] = None,
     online_eval_session_sweeper: Optional[SessionEvalSweeper] = None,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
@@ -706,10 +711,12 @@ def _lifespan(
             # shutdown snapshot would leak a provider session past the daemon.
             await stack.enter_async_context(sandbox_session_manager)
             await stack.enter_async_context(experiment_runner)
-            # Enter the consumer before the producer so teardown stops admission
-            # before draining work; both stop before sandbox_session_manager.
+            # Teardown stops the sweeper and producer before both consumers,
+            # and all online-eval components before the sandbox manager.
             if online_eval_consumer is not None:
                 await stack.enter_async_context(online_eval_consumer)
+            if online_eval_session_consumer is not None:
+                await stack.enter_async_context(online_eval_session_consumer)
             if online_eval_producer is not None:
                 await stack.enter_async_context(online_eval_producer)
             if online_eval_session_sweeper is not None:
@@ -1078,6 +1085,7 @@ def create_app(
     )
     online_eval_producer: Optional[OnlineEvalProducer] = None
     online_eval_consumer: Optional[OnlineEvalConsumer] = None
+    online_eval_session_consumer: Optional[OnlineEvalConsumer] = None
     online_eval_session_sweeper: Optional[SessionEvalSweeper] = None
     if get_env_online_eval_enabled() and not read_only:
         claim_batch_size = get_env_online_eval_claim_batch_size()
@@ -1101,6 +1109,10 @@ def create_app(
                 claim_batch_size,
                 tick_interval_seconds,
             )
+        get_env_online_eval_max_transcript_bytes()
+        get_env_online_eval_max_sandbox_payload_bytes()
+        evaluator_semaphore = asyncio.Semaphore(get_env_online_eval_max_evaluator_concurrency())
+        db_semaphore = asyncio.Semaphore(get_env_online_eval_max_db_concurrency())
         online_eval_producer = OnlineEvalProducer(db)
         online_eval_consumer = OnlineEvalConsumer(
             db,
@@ -1109,8 +1121,23 @@ def create_app(
             event_queue=dml_event_handler,
             tick_interval_seconds=tick_interval_seconds,
             claim_batch_size=claim_batch_size,
+            evaluator_semaphore=evaluator_semaphore,
+            db_semaphore=db_semaphore,
         )
-        if get_env_online_eval_session_sweep_enabled():
+        if get_env_online_eval_session_enabled():
+            # Both halves of the session lifecycle sit behind the one flag: a consumer
+            # without its sweeper claims from a table only the sweeper can fill.
+            online_eval_session_consumer = OnlineEvalConsumer(
+                db,
+                decrypt=encryption_service.decrypt,
+                sandbox_session_manager=sandbox_session_manager,
+                event_queue=dml_event_handler,
+                evaluation_target="SESSION",
+                tick_interval_seconds=tick_interval_seconds,
+                claim_batch_size=claim_batch_size,
+                evaluator_semaphore=evaluator_semaphore,
+                db_semaphore=db_semaphore,
+            )
             online_eval_session_sweeper = SessionEvalSweeper(db)
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
@@ -1165,6 +1192,7 @@ def create_app(
             sandbox_runtime=sandbox_runtime,
             online_eval_producer=online_eval_producer,
             online_eval_consumer=online_eval_consumer,
+            online_eval_session_consumer=online_eval_session_consumer,
             online_eval_session_sweeper=online_eval_session_sweeper,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
@@ -1372,6 +1400,7 @@ def create_app(
     app.state.sandbox_runtime = sandbox_runtime
     app.state.online_eval_producer = online_eval_producer
     app.state.online_eval_consumer = online_eval_consumer
+    app.state.online_eval_session_consumer = online_eval_session_consumer
     app.state.online_eval_session_sweeper = online_eval_session_sweeper
     app.state.graphql_schema = graphql_schema
     app.state.build_graphql_context = _get_build_graphql_context_function(

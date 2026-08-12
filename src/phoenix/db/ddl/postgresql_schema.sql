@@ -1361,7 +1361,6 @@ CREATE TABLE public.project_evaluator_criteria (
     evaluation_delay_seconds INTEGER NOT NULL DEFAULT 300,
     input_mapping JSONB,
     enabled BOOLEAN NOT NULL DEFAULT true,
-    work_materialized_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_project_evaluator_criteria PRIMARY KEY (id),
@@ -1400,6 +1399,7 @@ CREATE TABLE public.eval_session_work_units (
     criteria_id BIGINT NOT NULL,
     config_fingerprint VARCHAR NOT NULL,
     evaluated_through TIMESTAMP WITH TIME ZONE NOT NULL,
+    transcript_covered_through TIMESTAMP WITH TIME ZONE,
     status VARCHAR NOT NULL DEFAULT 'PENDING'::character varying,
     claimed_at TIMESTAMP WITH TIME ZONE,
     claimed_by VARCHAR,
@@ -1441,6 +1441,8 @@ CREATE INDEX ix_eval_session_work_units_evaluator_id ON public.eval_session_work
     USING btree (evaluator_id);
 CREATE INDEX ix_eval_session_work_units_terminal ON public.eval_session_work_units
     USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'EXPIRED'::character varying])::text[]));
+CREATE INDEX ix_eval_session_work_units_terminal_watermark ON public.eval_session_work_units
+    USING btree (project_session_rowid, evaluator_id, config_fingerprint);
 CREATE UNIQUE INDEX uq_eval_session_work_units_live_key ON public.eval_session_work_units
     USING btree (project_session_rowid, evaluator_id, config_fingerprint) WHERE (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying])::text[])) OR (((status)::text = 'ERROR'::text) AND (attempts < 3)));
 
